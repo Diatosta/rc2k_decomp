@@ -32,7 +32,8 @@ fn clear_rows(mut edi: u32, rows: u32) -> u32 {
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
 /// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
 /// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
-pub fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
+pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
+    let text = text.into();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
         return Ok(());
@@ -62,7 +63,7 @@ pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
             cursor += n;
         })?;
         TEXT_BUFFER.text.set(cursor, 0);
-        draw_name_plate(slot, TEXT_BUFFER.text.addr())
+        draw_name_plate(slot, &TEXT_BUFFER.text)
     }
 }
 
@@ -165,14 +166,19 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
 /// A text drawn in the game: `text::draw_text_keep_regs`'s Rust version on the game's
 /// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
 /// (the original's carry).
-pub fn draw_text_in_game(font: u32, text: u32, x: u32, y: u32) -> Result<bool, Refused> {
+pub fn draw_text_in_game(
+    font: u32,
+    text: impl Into<crate::place::Place>,
+    x: u32,
+    y: u32,
+) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     let font = GamePtr::new(font);
     let mut copy: Font = font.read("a font record")?;
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
-        crate::pointers::host(text) as *const u8,
+        text.into().ptr() as *const u8,
         x as i32,
         y as i32,
         &mut GameCanvas,

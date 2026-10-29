@@ -20,7 +20,6 @@ use crate::marks::frame_state::{DRAW_FRAME, FLARE_PARTS, FLARE_SCALES};
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
-use crate::session::address_of;
 
 const PARTS: u32 = 0x11;
 
@@ -45,7 +44,7 @@ pub fn draw_lens_flare() -> Result<(), Refused> {
     FLARE_PARTS.unit[0].set_bits(x87::loaded(dx));
     FLARE_PARTS.unit[1].set_bits(x87::loaded(dy));
     FLARE_PARTS.unit[2].set_bits(0);
-    crate::scene::vector3::normalise_vector3(address_of(&FLARE_PARTS.unit));
+    crate::scene::vector3::normalise(&FLARE_PARTS.unit);
     let length = crate::math::x87_load::float_hypot(dx, dy);
     DRAW_FRAME.flare_length.set_bits(length);
     let alpha = x87::times_subr_to_int(

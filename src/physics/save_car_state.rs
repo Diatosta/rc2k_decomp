@@ -11,52 +11,27 @@
 //! (unsigned; `dword_6D2814` has 0x40 before `dword_6D2914`), before writing.
 
 use crate::errors::Refused;
-use crate::physics::restore_saved_car::SavedCar;
-use rc2k_core::physics::saved_car::{CarState, save_count};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::tables_store::PHYSICS;
+use rc2k_core::physics::saved_car::save_count;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::save_car_state's operand")
-}
-
-/// The pieces at these places, `n` faces.
-pub fn read_state(place: u32, matrix: u32, list: u32, n: usize) -> CarState {
-    CarState {
-        place: std::array::from_fn(|k| at(place + 4 * k as u32)),
-        matrix: std::array::from_fn(|k| at(matrix + 4 * k as u32)),
-        faces: (0..n as u32).map(|k| at(list + 4 * k)).collect(),
+/// The Rust version (`restore_saved_car`'s, the other way). Converted:
+/// `rc2k_core::physics::saved_car::save_count` (at most 0x40 faces: the list's room).
+pub fn save_car_state() -> Result<(), Refused> {
+    let n = save_count(CAR.probe_count.get())?;
+    PHYSICS.clear_place_count.set(0);
+    for (to, from) in PHYSICS.saved_place.iter().zip(&CAR.position) {
+        to.set(from.get());
     }
-}
-
-/// The pieces written at these places.
-pub fn write_state(s: &CarState, place: u32, matrix: u32, list: u32) {
-    put_dwords(place, &s.place);
-    put_dwords(matrix, &s.matrix);
-    put_dwords(list, &s.faces);
-}
-
-fn put_dwords(to: u32, v: &[u32]) {
-    for (k, x) in v.iter().enumerate() {
-        crate::pointers::write_or_end::<u32>(
-            to + 4 * k as u32,
-            *x,
-            "physics::save_car_state's operand",
-        );
+    for (to, from) in PHYSICS.saved_matrix.iter().zip(&CAR.crash_matrix) {
+        to.set_bits(from.bits());
     }
-}
-
-/// The Rust core on the variables at `p` (`restore_saved_car`'s, the other way).
-// Converted: `rc2k_core::physics::saved_car::save_count`.
-pub unsafe fn save_car_state_at(p: &SavedCar) -> Result<(), Refused> {
-    unsafe {
-        let n = save_count(at(p.count))?;
-        (crate::pointers::host(p.counter) as *mut u32).write_unaligned(0);
-        let state = read_state(p.place, p.matrix, p.list, n);
-        write_state(&state, p.saved_place, p.saved_matrix, p.saved_list);
-        Ok(())
+    for (to, from) in CONTACT_WORK.probe_saved_faces[..n]
+        .iter()
+        .zip(&CAR.probe_point_face[..n])
+    {
+        to.set(from.get());
     }
-}
-
-/// The Rust version.
-pub unsafe fn save_car_state() -> Result<(), Refused> {
-    unsafe { save_car_state_at(&SavedCar::game()) }
+    Ok(())
 }

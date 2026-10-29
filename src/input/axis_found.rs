@@ -14,7 +14,6 @@ use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::types::{Controller, DiDeviceObjectInstance};
-use crate::pointers::GamePtr;
 
 /// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`.
 pub fn callback(object: u32, entry: u32) -> u32 {
@@ -40,7 +39,7 @@ pub fn axis_found(object: u32, entry: u32) -> Result<u32, BadInput> {
     };
     let mut axes = [[0u8; 16]; 6];
     for (n, axis) in axes.iter_mut().enumerate() {
-        *axis = GamePtr::new(INPUT_GUIDS.axes.addr() + 16 * n as u32).read("an axis GUID")?;
+        axis.copy_from_slice(&INPUT_GUIDS.axes.read_at(16 * n, 16, "an axis GUID")?);
     }
     let bits = rc2k_core::input::joystick::axis_bits(
         at(entry, field!(Controller, axis_bits))?,

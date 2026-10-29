@@ -35,7 +35,7 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     {
-        let file = GamePtr::new(SET_UPS.file.addr());
+        let file = &SET_UPS.file;
         // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car =
             |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");
@@ -52,13 +52,8 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
                 GEAR_RATIO.change.chosen.get(),
             ],
         );
-        file.write_bytes(&bytes, "the setup file")?;
+        file.write_at(0, &bytes, "the setup file")?;
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(
-            path,
-            crate::pointers::host(file.addr()) as *const u8,
-            SETUP_FILE_LEN as u32,
-        )?
-        .ok)
+        Ok(write_file(path, file.as_ptr() as *const u8, SETUP_FILE_LEN as u32)?.ok)
     }
 }

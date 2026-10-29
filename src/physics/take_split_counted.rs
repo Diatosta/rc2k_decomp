@@ -35,7 +35,7 @@ pub fn take_split_counted() -> Result<(), Refused> {
     if !split_due(CAR.splits_recorded.get(), CAR.splits_passed.get())? {
         return Ok(());
     }
-    unsafe { keep_split_time() }?;
+    { keep_split_time() }?;
     { set_flag_51659c() }?;
     split_by_mode()?;
     put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get());

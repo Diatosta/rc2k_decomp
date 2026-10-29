@@ -32,7 +32,8 @@ pub fn read_volume_serial() {
     // Converted: `rc2k_core::system::machine::volume_registers` (only its writing of +0xF
     // matters here).
     rc2k_core::system::machine::volume_registers(&mut info);
-    crate::pointers::GamePtr::new(SCRATCH.buffer.addr())
-        .write_bytes(&info, "the scratch buffer")
+    SCRATCH
+        .buffer
+        .write_at(0, &info, "the scratch buffer")
         .unwrap_or_else(|e| crate::fatal::raise::end("system::read_volume_serial", e));
 }

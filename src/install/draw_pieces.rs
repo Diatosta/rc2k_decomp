@@ -20,8 +20,8 @@ use crate::install::installer::{
     text_action,
 };
 use crate::install::lay_out_pieces::PIECE;
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_PAGES;
+use crate::place::Place;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 

@@ -22,14 +22,14 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
         cursor.string(text);
         cursor.string_id(4);
         cursor.nul()?;
-        TEXT_BUFFER.text.addr()
+        crate::place::Place::from(&TEXT_BUFFER.text)
     } else {
-        text
+        crate::place::Place::from(text)
     };
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
-            crate::pointers::host(shown) as *const u8,
+            shown.ptr() as *const u8,
             0xA,
             y as i32,
             &mut GameCanvas,

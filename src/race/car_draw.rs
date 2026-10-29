@@ -181,15 +181,20 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         }
         car_number_textures(car)?;
         let [p0, p1, p2, p3] = part_matrices();
-        for (k, to) in [p0, p1, p2, p3, body_turn(), car_turn()]
-            .into_iter()
-            .enumerate()
+        let c = car_at(car)?;
+        let kept = &c.part_matrices;
+        for (from, to) in [
+            &kept[..16],
+            &kept[16..32],
+            &kept[32..48],
+            &kept[48..],
+            &c.body_matrix,
+            &c.turn_matrix,
+        ]
+        .into_iter()
+        .zip([p0, p1, p2, p3, body_turn(), car_turn()])
         {
-            GamePtr::new(car + 0x740 + 0x40 * k as u32).copy_to(
-                GamePtr::new(to[0].addr()),
-                0x40,
-                "a car block's kept matrix",
-            )?;
+            crate::math::cells::copy_cells(from, to, 16);
         }
         RACE_SOUND_SPOTS
             .groups_which
@@ -493,7 +498,7 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
-    use crate::framework::{game_read, game_write, rva};
+    use crate::framework::{game_read, rva};
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
 
     // The original blocks, verbatim (with the clamps between them).
@@ -571,14 +576,11 @@ mod asm_reference {
         NUMBERS
             .zero
             .set_bits(if r.below(4) == 0 { r.float() } else { 0 });
-        game_write(
-            rva(0x5C5D38),
-            if r.below(4) == 0 {
-                r.float()
-            } else {
-                0x3F80_0000
-            },
-        );
+        NUMBERS.one.set_bits(if r.below(4) == 0 {
+            r.float()
+        } else {
+            0x3F80_0000
+        });
     }
 
     #[test]

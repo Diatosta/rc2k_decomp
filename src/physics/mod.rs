@@ -219,8 +219,6 @@ pub mod track_checkpoints;
 pub mod turn_by_car_matrix;
 pub mod turn_by_heading;
 pub mod turn_by_inverse;
-pub mod turn_by_inverse_at;
-pub mod turn_by_matrix_at;
 pub mod turn_wheel_angles;
 pub mod update_camera;
 pub mod update_car_angles;

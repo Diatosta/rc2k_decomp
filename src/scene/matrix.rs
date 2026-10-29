@@ -125,7 +125,7 @@ pub fn set_light_direction() {
 }
 
 /// `scene::make_object_matrix` (0x427812).
-pub unsafe fn make_object_matrix() {
+pub fn make_object_matrix() {
     set_light_direction();
     set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
     set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());

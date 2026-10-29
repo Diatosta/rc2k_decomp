@@ -5,7 +5,6 @@
 //! `dword_64192C`, the hull's `dword_643ACC`.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_probe_store::GROUND_PROBE;
 use crate::physics::ground_store::GROUND_WORK;
@@ -620,77 +619,73 @@ fn angle_of(at: u32) -> Result<u32, BadInput> {
 /// and distance, the farthest kept (`flt_643AB8`, `dword_643ABC`), as whole numbers (x
 /// 65536) plus the car's place. Refuses what `find_ground` refuses (before anything), and
 /// no corners or more than 0x40.
-pub unsafe fn shadow_points() -> Result<(), Refused> {
+pub fn shadow_points() -> Result<(), Refused> {
     use crate::math::x87::mul_to_int;
     use crate::math::x87_load::{below_or_unordered, to_tbyte};
-    unsafe {
-        let count: u32 = FRAME_WORK.shadow_point_count.bits();
-        if count == 0 || count > 0x40 {
-            return Err(BadInput("no shadow corners or more than 0x40").into());
-        }
-        let car = crate::physics::car_store::car_addr();
-        let inputs = [
-            &GROUND_WORK.ground_x,
-            &GROUND_WORK.ground_z,
-            &COURSE.ground_face_last,
-        ];
-        let was: Vec<u32> = inputs.iter().map(|d| d.bits()).collect();
-        inputs[0].set_bits(CAR.position[0].bits());
-        inputs[1].set_bits(CAR.position[2].bits());
-        inputs[2].set_bits(CAR.probe_point_face[4].bits());
-        if let Err(e) = crate::physics::find_ground::find_ground() {
-            // Its inputs put back: a refusal has written nothing.
-            for (d, &v) in inputs.iter().zip(&was) {
-                d.set_bits(v);
-            }
-            return Err(e);
-        }
-        SHADOW_SKIDS.farthest_length.set(-1.0f32);
-        FRAME_WORK
-            .shadow_ground
-            .set_bits(GROUND_WORK.ground_height.get());
-        let sun = STAGE_PREFS.sun_height.get().max(0x10);
-        let turn = STAGE_PREFS.sun_turn.get().wrapping_neg().wrapping_sub(0x40);
-        sun_slant(sun, turn);
-        let (sx, sz) = (SHADOW_SKIDS.slant_x.bits(), SHADOW_SKIDS.slant_z.bits());
-        let lift: u32 = PHYSICS.camera_drop.bits();
-        let unit: u32 = NUMBERS.k65536.bits();
-        let matrix = car + 0x840;
-        let mut at = SHADOW_SKIDS.shadow_points.addr();
-        for k in 0..count {
-            let p = [
-                to_tbyte(get(car + 0xAF0 + 4 * k)?),
-                to_tbyte(get(car + 0xBF0 + 4 * k)?),
-                to_tbyte(get(car + 0xCF0 + 4 * k)?),
-            ];
-            let t = crate::scene::rotate_point::rotate_point(&At(matrix), p);
-            let [x, y, z] = t.map(tbyte_to_float);
-            put(at + 4, y)?;
-            let x = lifted(y, lift, sx, x);
-            put(at, x)?;
-            let z = lifted(y, lift, sz, z);
-            put(at + 8, z)?;
-            let angle = angle_of(at)?;
-            put(at + 0xC, angle)?;
-            let length = crate::math::x87_load::float_hypot(x, z);
-            put(at + 0x10, length)?;
-            if !below_or_unordered(length, SHADOW_SKIDS.farthest_length.bits()) {
-                SHADOW_SKIDS.farthest_length.set_bits(length);
-                SHADOW_SKIDS.farthest.set(at);
-            }
-            put(
-                at,
-                (mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()),
-            )?;
-            put(
-                at + 8,
-                (mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()),
-            )?;
-            put(at + 4, FRAME_WORK.shadow_ground.bits())?;
-            at += 0x20;
-        }
-        Ok(())
+    let count: u32 = FRAME_WORK.shadow_point_count.bits();
+    if count == 0 || count > 0x40 {
+        return Err(BadInput("no shadow corners or more than 0x40").into());
     }
+    let inputs = [
+        &GROUND_WORK.ground_x,
+        &GROUND_WORK.ground_z,
+        &COURSE.ground_face_last,
+    ];
+    let was: Vec<u32> = inputs.iter().map(|d| d.bits()).collect();
+    inputs[0].set_bits(CAR.position[0].bits());
+    inputs[1].set_bits(CAR.position[2].bits());
+    inputs[2].set_bits(CAR.probe_point_face[4].bits());
+    if let Err(e) = crate::physics::find_ground::find_ground() {
+        // Its inputs put back: a refusal has written nothing.
+        for (d, &v) in inputs.iter().zip(&was) {
+            d.set_bits(v);
+        }
+        return Err(e);
+    }
+    SHADOW_SKIDS.farthest_length.set(-1.0f32);
+    FRAME_WORK
+        .shadow_ground
+        .set_bits(GROUND_WORK.ground_height.get());
+    let sun = STAGE_PREFS.sun_height.get().max(0x10);
+    let turn = STAGE_PREFS.sun_turn.get().wrapping_neg().wrapping_sub(0x40);
+    sun_slant(sun, turn);
+    let (sx, sz) = (SHADOW_SKIDS.slant_x.bits(), SHADOW_SKIDS.slant_z.bits());
+    let lift: u32 = PHYSICS.camera_drop.bits();
+    let unit: u32 = NUMBERS.k65536.bits();
+    let mut at = SHADOW_SKIDS.shadow_points.addr();
+    for k in 0..count as usize {
+        let p = [
+            to_tbyte(CAR.probe_point_x[k].bits()),
+            to_tbyte(CAR.probe_point_y[k].bits()),
+            to_tbyte(CAR.probe_point_z[k].bits()),
+        ];
+        let t = crate::scene::rotate_point::rotate_point(&CAR.body_matrix, p);
+        let [x, y, z] = t.map(tbyte_to_float);
+        put(at + 4, y)?;
+        let x = lifted(y, lift, sx, x);
+        put(at, x)?;
+        let z = lifted(y, lift, sz, z);
+        put(at + 8, z)?;
+        let angle = angle_of(at)?;
+        put(at + 0xC, angle)?;
+        let length = crate::math::x87_load::float_hypot(x, z);
+        put(at + 0x10, length)?;
+        if !below_or_unordered(length, SHADOW_SKIDS.farthest_length.bits()) {
+            SHADOW_SKIDS.farthest_length.set_bits(length);
+            SHADOW_SKIDS.farthest.set(at);
+        }
+        put(
+            at,
+            (mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()),
+        )?;
+        put(
+            at + 8,
+            (mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()),
+        )?;
+        put(at + 4, FRAME_WORK.shadow_ground.bits())?;
+        at += 0x20;
+    }
+    Ok(())
 }
 
 /// `fld y; fadd lift; fmul slant; fadd base; fstp`: a corner moved along the sun's slant,

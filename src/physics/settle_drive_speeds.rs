@@ -12,87 +12,78 @@
 //! (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
 pub struct SettlePlaces {
     /// `dword_71A220`: settle the first driven speed (in neutral).
-    pub first: u32,
+    pub first: &'static dyn Cell32,
     /// `dword_71A224`: settle the second.
-    pub second: u32,
+    pub second: &'static dyn Cell32,
     /// `dword_71A614`: the big step.
-    pub fast: u32,
+    pub fast: &'static dyn Cell32,
     /// `dword_62400C`.
-    pub scratch: u32,
+    pub scratch: &'static dyn Cell32,
 }
 
 impl SettlePlaces {
     pub fn game() -> Self {
-        let _g = |a: usize| game_addr(rva(a));
         Self {
-            first: (CAR.front_wheels_off.addr()),
-            second: (CAR.rear_wheels_off.addr()),
-            fast: (CAR.brake.addr()),
-            scratch: (DRAW.scratch.addr()),
+            first: &CAR.front_wheels_off,
+            second: &CAR.rear_wheels_off,
+            fast: &CAR.brake,
+            scratch: &DRAW.scratch,
         }
     }
 }
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::settle_drive_speeds's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::settle_drive_speeds's operand")
-}
-
-/// One speed at `v` toward 0 by the step at `step`.
-fn settle(v: u32, step: u32) {
-    let x = f32::from_bits(at(v));
+/// One speed `v` toward 0 by the step `step`.
+fn settle(v: &dyn Cell32, step: &dyn Cell32) {
+    let x = f32::from_bits(v.bits());
     if x == 0.0 || x.is_nan() {
         return;
     }
     if x < 0.0 {
-        let y = x87::add(at(v), at(step));
-        put(v, y);
+        let y = x87::add(v.bits(), step.bits());
+        v.set_bits(y);
         if f32::from_bits(y) >= 0.0 {
-            put(v, 0);
+            v.set_bits(0);
         }
     } else {
-        let y = x87::sub(at(v), at(step));
-        put(v, y);
+        let y = x87::sub(v.bits(), step.bits());
+        v.set_bits(y);
         let y = f32::from_bits(y);
         if y < 0.0 || y.is_nan() {
-            put(v, 0);
+            v.set_bits(0);
         }
     }
 }
 
 /// The Rust core.
 pub fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Refused> {
-    let gear = at(g.gear);
+    let gear = g.gear.bits();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     let step = || {
-        if at(s.fast) != 0 {
+        if s.fast.bits() != 0 {
             PHYSICS.settle_fast_step.bits()
         } else {
             PHYSICS.settle_slow_step.bits()
         }
     };
-    if at(s.first) != 0 && gear == 0 {
-        put(s.scratch, step());
+    if s.first.bits() != 0 && gear == 0 {
+        s.scratch.set_bits(step());
         settle(g.drive_speed, s.scratch);
     }
-    if at(s.second) != 0 {
-        put(s.scratch, step());
+    if s.second.bits() != 0 {
+        s.scratch.set_bits(step());
         settle(g.drive_speed_2, s.scratch);
     }
     if gear != 0 {

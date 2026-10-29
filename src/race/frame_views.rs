@@ -485,9 +485,10 @@ pub fn run_view_marks() -> Result<(), Refused> {
     let layout_at = layout_index(view, RACE_VARS.split.get());
     let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
     VIEWER_PANEL.marks_layout.set(layout);
-    GamePtr::new(block + 0x8C0).copy_to(
-        GamePtr::new(MATRICES.view_place[0].addr()),
-        0x40,
+    crate::math::cells::cells_from(
+        block + 0x8C0,
+        &MATRICES.view_place,
+        16,
         "a view car block's turn matrix",
     )?;
     crate::drive::share_all_cars::share_all_cars()?;

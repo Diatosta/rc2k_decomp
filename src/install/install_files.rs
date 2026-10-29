@@ -24,11 +24,11 @@ use crate::install::installer::{
     take_key, unlock, wb,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::place::Place;
 use crate::session::FLAGS;
 
 fn game_dir() -> Place {
@@ -62,11 +62,7 @@ fn build(
 
 /// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
 /// message shown, then a wait for a key (`loc_4133AB`).
-fn message(
-    count: u32,
-    table: impl Into<crate::install::place::Place>,
-    y: u32,
-) -> Result<(), Refused> {
+fn message(count: u32, table: impl Into<crate::place::Place>, y: u32) -> Result<(), Refused> {
     let table: u32 = table.into().game();
     crate::platform::hold_quit(false);
     run_frame(None)?;

@@ -63,10 +63,13 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
                     .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
             }
         };
-        let overlay =
-            dword(MENU_LISTS.map_overlays[0].addr() + dword(record + 0x3C)?.wrapping_mul(4))?;
+        let overlay = crate::session::read_on(
+            &MENU_LISTS.map_overlays,
+            dword(record + 0x3C)? as usize,
+            "a map overlay",
+        )?;
         if load_picture_with_overlay(
-            crate::pointers::host(crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr()),
+            crate::menu::texts_store::MENU_TEXTS.ukmap_png.as_ptr(),
             crate::pointers::host(overlay),
         )? {
             return Err(NO_MAP.into());

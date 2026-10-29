@@ -26,38 +26,36 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
 
 /// The Rust version.
-pub unsafe fn lever_push() {
-    unsafe {
-        for k in 0..3 {
-            PHYSICS.lever_push_place[k].set(CAR.spin[k].bits());
-        }
-        turn_by_inverse(PHYSICS.lever_push_place[0].addr());
-        cross_product(
-            &PHYSICS.lever_push_vector,
-            &PHYSICS.lever_push_place,
-            &PHYSICS.lever_push_turned,
-        );
-        turn_by_car_matrix(PHYSICS.lever_push_turned[0].addr());
-        for factor in [&PHYSICS.lever_share_left, &PHYSICS.lever_share] {
-            let f = extended(factor.bits());
-            scale_vector(&PHYSICS.lever_push_turned, f);
-            DRAW.scratch.set(rounded(f));
-        }
-        for (from, int, place) in [
-            (
-                &PHYSICS.lever_push_turned[0],
-                &PHYSICS.lever_pushes[0],
-                &CAR.position[0],
-            ),
-            (
-                &PHYSICS.lever_push_turned[2],
-                &PHYSICS.lever_pushes[1],
-                &CAR.position[2],
-            ),
-        ] {
-            let v = mul2_to_int(from.get(), NUMBERS.k65536.bits(), PHYSICS.step_time.bits()) as u32;
-            int.set(v);
-            place.set(place.get().wrapping_add(int.get()));
-        }
+pub fn lever_push() {
+    for k in 0..3 {
+        PHYSICS.lever_push_place[k].set(CAR.spin[k].bits());
+    }
+    turn_by_inverse(&PHYSICS.lever_push_place);
+    cross_product(
+        &PHYSICS.lever_push_vector,
+        &PHYSICS.lever_push_place,
+        &PHYSICS.lever_push_turned,
+    );
+    turn_by_car_matrix(&PHYSICS.lever_push_turned);
+    for factor in [&PHYSICS.lever_share_left, &PHYSICS.lever_share] {
+        let f = extended(factor.bits());
+        scale_vector(&PHYSICS.lever_push_turned, f);
+        DRAW.scratch.set(rounded(f));
+    }
+    for (from, int, place) in [
+        (
+            &PHYSICS.lever_push_turned[0],
+            &PHYSICS.lever_pushes[0],
+            &CAR.position[0],
+        ),
+        (
+            &PHYSICS.lever_push_turned[2],
+            &PHYSICS.lever_pushes[1],
+            &CAR.position[2],
+        ),
+    ] {
+        let v = mul2_to_int(from.get(), NUMBERS.k65536.bits(), PHYSICS.step_time.bits()) as u32;
+        int.set(v);
+        place.set(place.get().wrapping_add(int.get()));
     }
 }

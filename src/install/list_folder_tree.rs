@@ -32,10 +32,7 @@ fn find_attributes() -> u32 {
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(
-    a1: impl Into<crate::install::place::Place>,
-    a2: impl Into<crate::install::place::Place>,
-) -> bool {
+fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Place>) -> bool {
     let a1: u32 = a1.into().game();
     let a2: u32 = a2.into().game();
     crate::menu::event_flow::refuse_here(
@@ -141,7 +138,7 @@ fn walk(folder: u32) -> Result<(), Refused> {
 
 /// `folder` (eax) and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(folder: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let folder: u32 = folder.into().game();
     use crate::files::state::SKIPPED_ATTRIBUTES;
     let saved_skip = SKIPPED_ATTRIBUTES.load(std::sync::atomic::Ordering::Relaxed);

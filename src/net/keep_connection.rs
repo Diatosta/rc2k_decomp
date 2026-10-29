@@ -10,12 +10,12 @@
 use crate::errors::Refused;
 use crate::net::store::NET;
 use crate::net::tables::with_connection;
-use crate::pointers::GamePtr;
 
 /// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
-    GamePtr::new(NET.saved_connection.addr()).write_bytes(&provider, "the saved connection")?;
-    GamePtr::new(NET.saved_name.addr()).write_bytes(&name, "the saved connection")?;
+    NET.saved_connection
+        .write_at(0, &provider, "the saved connection")?;
+    NET.saved_name.write_at(0, &name, "the saved connection")?;
     Ok(())
 }

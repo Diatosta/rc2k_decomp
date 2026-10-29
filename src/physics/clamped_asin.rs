@@ -10,15 +10,18 @@
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
 
 use crate::math::x87_run::clamped_asin_80;
+use crate::session::Cell32;
 
 // dword_62400C
 // flt_5C5D38, 1.0
 
-/// The Rust core: the scratch float and the limit at `scratch`, `limit`.
-pub fn clamped_asin_at(x: [u8; 10], scratch: u32, limit: u32) -> [u8; 10] {
-    clamped_asin_80(
-        x,
-        crate::pointers::host(scratch) as *mut u32,
-        crate::pointers::host(limit) as *mut u32,
-    )
+/// The Rust core: the scratch float and the limit in `scratch`, `limit` (both written, in
+/// that order, as the original does).
+pub fn clamped_asin_at(x: [u8; 10], scratch: &dyn Cell32, limit: &dyn Cell32) -> [u8; 10] {
+    let mut s = scratch.bits();
+    let mut l = limit.bits();
+    let out = clamped_asin_80(x, &mut s, &mut l);
+    scratch.set_bits(s);
+    limit.set_bits(l);
+    out
 }

@@ -9,9 +9,8 @@
 use crate::menu::state_store::MENU_STATE;
 
 pub fn clear_choice_marks() -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(MENU_STATE.carousel_pictures.held[0].addr()).fill(
-        0xFF,
-        16,
-        "the chosen pictures",
-    )
+    for held in &MENU_STATE.carousel_pictures.held {
+        held.set(u32::MAX);
+    }
+    Ok(())
 }

@@ -11,7 +11,6 @@
 use crate::errors::Refused;
 use crate::net::lobby::{Cursor, FONT};
 use crate::net::store::NET;
-use crate::pointers::GamePtr;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens::{self, Value};
@@ -20,13 +19,18 @@ use rc2k_core::net::screens::{self, Value};
 /// caret), nothing (the "nothing" string) or as it is; returns the next y (y + 0x1E, the
 /// original's ebp). The registers it leaves are read by no caller (`settings_frame`,
 /// `draw_number_value`).
-pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
+pub fn draw_setting_value(
+    text: impl Into<crate::place::Place>,
+    item: u32,
+    y: u32,
+) -> Result<u32, Refused> {
+    let text = text.into();
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
     // The core asks for the first byte only when it needs it: a refusal is kept and raised.
     let refused = std::cell::Cell::new(None);
     let value = screens::text_value(item == NET.edited.get(), || {
-        GamePtr::new(text)
-            .read::<u8>("a setting's text")
+        text.read(1, "a setting's text")
+            .map(|b| b[0])
             .unwrap_or_else(|e| {
                 refused.set(Some(e));
                 0
@@ -41,20 +45,20 @@ pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> 
             cursor.string(text);
             cursor.string_id(screens::CARET);
             cursor.nul()?;
-            TEXT_BUFFER.text.addr()
+            crate::place::Place::from(&TEXT_BUFFER.text)
         }
         Value::Nothing => {
             let mut cursor = Cursor::text();
             cursor.string_id(screens::NOTHING);
             cursor.nul()?;
-            TEXT_BUFFER.text.addr()
+            crate::place::Place::from(&TEXT_BUFFER.text)
         }
         Value::AsIs => text,
     };
     {
         crate::text::draw_text::draw_text_at(
             FONT.as_ptr(),
-            crate::pointers::host(shown) as *const u8,
+            shown.ptr() as *const u8,
             0x190,
             y as i32,
             &mut GameCanvas,

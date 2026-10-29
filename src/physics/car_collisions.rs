@@ -36,7 +36,7 @@ fn cars() -> u32 {
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
 /// of its callers.
-pub unsafe fn car_collisions() -> Result<(), Refused> {
+pub fn car_collisions() -> Result<(), Refused> {
     if !matches!(RACE_VARS.run_kind.get(), 0 | 2) {
         return Ok(());
     }
@@ -79,7 +79,7 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
                 CONTACT_WORK.corner_in[0].set_bits(CONTACT_WORK.corner_x[k].bits());
                 CONTACT_WORK.corner_in[1].set_bits(CONTACT_WORK.corner_y[k].bits());
                 CONTACT_WORK.corner_in[2].set_bits(CONTACT_WORK.corner_z[k].bits());
-                unsafe { corner_hits_car(block) }?;
+                { corner_hits_car(block) }?;
             }
         }
         Ok(())

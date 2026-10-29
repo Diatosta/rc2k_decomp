@@ -23,6 +23,7 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::place::Place;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -47,45 +48,44 @@ pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
 /// `strings::str_append`, `append_string_by_id`, `format_u32`, `append_time` and
 /// `append_nul`.
 #[derive(Clone, Copy)]
-pub struct Cursor(pub u32);
+pub struct Cursor(pub Place);
 
 impl Cursor {
     /// The start of the game's text buffer.
     pub fn text() -> Self {
-        Self(TEXT_BUFFER.text.addr())
+        Self(Place::from(&TEXT_BUFFER.text))
     }
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
-    pub fn string(&mut self, from: u32) {
-        self.0 = crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-            crate::strings::str_append::str_append(
-                crate::pointers::host(from) as *const u8,
-                crate::pointers::host(self.0),
-            ),
-            "net::lobby: a text",
-        ));
+    pub fn string(&mut self, from: impl Into<Place>) {
+        let written = from
+            .into()
+            .text("a text")
+            .and_then(|text| self.0.write(&text, "a text line").map(|()| text.len()));
+        let len = crate::menu::event_flow::refuse_here(written, "net::lobby: a text");
+        self.0 = self.0.add(len as u32);
     }
 
     /// `strings::append_string_by_id`: the string `id`.
     pub fn string_id(&mut self, id: u32) {
         let mut text = Vec::new();
         let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-            .and_then(|()| GamePtr::new(self.0).write_bytes(&text, "a text line"));
+            .and_then(|()| self.0.write(&text, "a text line"));
         crate::menu::event_flow::refuse_here(written, "net::lobby: a string");
-        self.0 = self.0.wrapping_add(text.len() as u32);
+        self.0 = self.0.add(text.len() as u32);
     }
 
     /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
     pub fn bytes(&mut self, bytes: &[u8]) -> Result<(), Refused> {
-        GamePtr::new(self.0).write_bytes(bytes, "a text line's bytes")?;
-        self.0 = self.0.wrapping_add(bytes.len() as u32);
+        self.0.write(bytes, "a text line's bytes")?;
+        self.0 = self.0.add(bytes.len() as u32);
         Ok(())
     }
 
     /// `strings::append_nul`: a NUL written, the cursor past it.
     pub fn nul(&mut self) -> Result<(), Refused> {
-        GamePtr::new(self.0).write(0u8, "a text line's end")?;
-        self.0 = self.0.wrapping_add(1);
+        self.0.write(&[0], "a text line's end")?;
+        self.0 = self.0.add(1);
         Ok(())
     }
 }

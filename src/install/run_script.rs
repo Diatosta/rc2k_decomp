@@ -20,12 +20,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_PATHS;
+use crate::place::Place;
 use rc2k_core::install::script::{self, Op};
 
 /// The script at `script` (ebx) run.
-pub fn run_script(script: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let script: u32 = script.into().game();
     use crate::install as i;
     let mut cursor = script;

@@ -39,8 +39,8 @@ pub fn text_at(at: u32) -> Result<Vec<u8>, BadInput> {
 pub fn append_name(
     table: &Owned<NameTable>,
     index: u32,
-    cursor: impl Into<crate::install::place::Place>,
-) -> Result<crate::install::place::Place, Refused> {
+    cursor: impl Into<crate::place::Place>,
+) -> Result<crate::place::Place, Refused> {
     let cursor = cursor.into();
     let name = table
         .with(|t| t.names.get(index as usize).cloned())?

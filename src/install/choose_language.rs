@@ -14,8 +14,8 @@
 //! are the original's.
 
 use crate::errors::BadInput;
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_NAMES;
+use crate::place::Place;
 use rc2k_core::install::config;
 
 // ---- game data ----

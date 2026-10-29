@@ -127,11 +127,7 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
     // original): the standalone's shell shortcuts.
     if switch(0) == 1 {
         use crate::install::shortcuts::{add_start_menu_items, c_path};
-        unsafe {
-            add_start_menu_items(&c_path(
-                crate::pointers::host(INSTALLER_PATHS.installed.addr()) as *const u8,
-            ))
-        };
+        unsafe { add_start_menu_items(&c_path(INSTALLER_PATHS.installed.as_ptr() as *const u8)) };
     }
     if switch(1) == 1 {
         crate::install::shortcuts::remove_start_menu_items();

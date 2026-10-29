@@ -11,52 +11,33 @@
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
 
-use crate::math::cells::At;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::apply_force's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::apply_force's operand")
-}
-
-/// The Rust core: the record at `rec`, the car at `car`, the work vector at `work`, the
-/// scratch at `scratch`.
-pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
-    unsafe {
-        for k in 0..3 {
-            put(work + 4 * k, at(rec + 4 * k));
-        }
-        let dt = extended(PHYSICS.step_time.bits());
-        scale_vector(&At(work), dt);
-        put(scratch, rounded(dt));
-        turn_by_car_matrix(work);
-        for k in 0..3 {
-            let o = car + 0x198 + 4 * k;
-            put(o, x87::add(at(work + 4 * k), at(o)));
-        }
-        let p = [
-            extended(Car::at(car).velocity[0].bits()),
-            extended(Car::at(car).velocity[1].bits()),
-            extended(Car::at(car).velocity[2].bits()),
-        ];
-        let out = rotate_point(&At(car + 0x9CC), p);
-        for (k, e) in out.iter().enumerate() {
-            put(car + 0x1A4 + 4 * k as u32, rounded(*e));
-        }
+/// The Rust version (the exact one, for `physics::apply_forces`):
+/// `rec` on the car block `car`.
+pub fn apply_force(rec: &ForceRecord, car: &Car) {
+    let work = &PHYSICS.push_record;
+    for (k, w) in work[..3].iter().enumerate() {
+        w.set_bits(rec.force[k].bits());
     }
-}
-
-/// The Rust version (the exact one, for `physics::apply_forces`).
-pub unsafe fn apply_force(rec: u32, car: u32) {
-    unsafe { apply_at(rec, car, PHYSICS.push_record[0].addr(), DRAW.scratch.addr()) }
+    let dt = extended(PHYSICS.step_time.bits());
+    scale_vector(work, dt);
+    DRAW.scratch.set(rounded(dt));
+    // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
+    turn_by_car_matrix(work);
+    for (v, w) in car.velocity.iter().zip(work) {
+        v.set_bits(x87::add(w.bits(), v.bits()));
+    }
+    let p = car.velocity.each_ref().map(|v| extended(v.bits()));
+    let out = rotate_point(&car.car_inverse_matrix, p);
+    for (l, e) in car.local_velocity.iter().zip(out) {
+        l.set_bits(rounded(e));
+    }
 }

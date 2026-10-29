@@ -133,7 +133,7 @@ impl Steps {
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
 pub unsafe fn loadlevel_init() -> Result<(), Refused> {
-    use crate::race::level_init::{self as level, Vars};
+    use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
     let mut s = Steps { v, word: 0 };
@@ -164,7 +164,6 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         level::allocate_course_memory(
-            &Vars::game(),
             crate::race::course_lists_store::COURSE_LISTS.course_memory_list[0].addr(), /* stru_5C6D50: the course's MemoryList */
         )?;
         s.progress(2)?;
@@ -173,7 +172,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         // load texture info and the course number.
         s.log();
         s.indent(3);
-        level::load_texture_info(&Vars::game())?;
+        level::load_texture_info()?;
         level::set_course_number(RACE_VARS.stage_number.bits())?;
         s.progress(6)?;
         s.indent(-3);
@@ -187,7 +186,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
             &mut || crate::scene::set_up_textures::set_up_textures(),
             Some(0xE),
         )?;
-        s.step(&mut || level::build_texture_infos(&Vars::game()), Some(0xF))?;
+        s.step(&mut || level::build_texture_infos(), Some(0xF))?;
         s.step(
             &mut || crate::race::course_data::locate_current_course(),
             Some(0x13),
@@ -237,7 +236,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         // refresh init and the refresh flags.
         s.log();
         s.indent(3);
-        level::reset_refresh(&Vars::game())?;
+        level::reset_refresh();
         let flags: u32 = STAGE_PREFS.refresh_flags_a.bits();
         LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
         for car in &CAR_BLOCKS.cars[..8] {
@@ -291,16 +290,14 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         crate::race::norms::store_norms(&mut crate::race::norms::game_normal)?;
         if crate::drive::finish_store::FINISH.no_place.get() == 0 {
             s.indent(-3);
-            s.step(&mut || level::init_checkpoints(&Vars::game()), None)?;
+            s.step(&mut || level::init_checkpoints(), None)?;
             s.step(
                 &mut || crate::race::init_pace_notes::init_pace_notes(),
                 None,
             )?;
             s.log();
             s.indent(3);
-            crate::race::init_overlay::init_overlay(
-                &crate::race::init_overlay::OverlayVars::game(),
-            )?;
+            crate::race::init_overlay::init_overlay()?;
         } else {
             s.word += 3;
         }

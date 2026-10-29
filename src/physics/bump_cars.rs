@@ -21,7 +21,6 @@
 //! and what `place_sound_e1_other` refuses (what was written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::numbers_store::NUMBERS;
@@ -33,7 +32,6 @@ use crate::math::x87::loaded;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::physics::flow::a;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
@@ -48,7 +46,10 @@ fn turn_speed(block: u32) {
             "a car block's speed",
         ))
     };
-    let turned = rotate_point(&At(block + 0x9CC), [rd(0x198), rd(0x19C), rd(0x1A0)]);
+    let turned = rotate_point(
+        &crate::physics::car_store::Car::at(block).car_inverse_matrix,
+        [rd(0x198), rd(0x19C), rd(0x1A0)],
+    );
     for (k, e) in turned.iter().enumerate() {
         crate::pointers::write_or_end(
             block + 0x1A4 + 4 * k as u32,
@@ -84,7 +85,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
     crate::pointers::write_or_end(edi + 0x234, 1u32, "a car block's contact flag");
     x87_1(edi as usize);
     CONTACT_WORK.bump_speed_length.set_bits(rounded({
-        vector_length(&At(a(&CONTACT_WORK.bump_relative_speed[0])))
+        vector_length(&CONTACT_WORK.bump_relative_speed)
     }));
     let esi = CONTACT_WORK.other_car_block.get();
     x87_2(esi as usize);

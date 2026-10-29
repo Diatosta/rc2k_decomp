@@ -18,34 +18,28 @@ use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
 pub struct ChangePlaces {
-    pub wanted: u32,
+    pub wanted: &'static dyn Cell32,
+    /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: u32,
-    pub changed: u32,
-    pub changed_2: u32,
+    pub changed: &'static dyn Cell32,
+    pub changed_2: &'static dyn Cell32,
 }
 
 impl ChangePlaces {
     pub fn game() -> Self {
         Self {
-            wanted: (PHYSICS.gear_asked.addr()),
-            bits: (CAR.lost_gear_bits.addr()),
-            changed: (CAR.gear_changed.addr()),
-            changed_2: (CAR.gear_changed_2.addr()),
+            wanted: &PHYSICS.gear_asked,
+            bits: CAR.lost_gear_bits.addr(),
+            changed: &CAR.gear_changed,
+            changed_2: &CAR.gear_changed_2,
         }
     }
-}
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::change_gear's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::change_gear's operand")
 }
 
 fn ratio_gear(g: u32) -> Result<(), Refused> {
@@ -59,24 +53,24 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 /// The core.
 // Converted: `rc2k_core::physics::gear_shifts::change`.
 pub fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
-    let gear = at(gp.gear);
-    let w = at(c.wanted);
+    let gear = gp.gear.bits();
+    let w = c.wanted.bits();
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
     if way == Change::Same {
         return Ok(());
     }
     let mark = || {
-        put(c.changed, 1);
-        put(c.changed_2, 1);
+        c.changed.set_bits(1);
+        c.changed_2.set_bits(1);
     };
     let neutral = || {
-        put(gp.gear, 0);
+        gp.gear.set_bits(0);
         mark();
         Ok(())
     };
     if way == Change::FromNeutral {
         ratio_gear(w)?;
-        put(gp.gear, w);
+        gp.gear.set_bits(w);
         wheels_from_revs_at(gp)?;
         mark();
         return Ok(());
@@ -91,7 +85,7 @@ pub fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> 
     ratio_gear(gear)?;
     ratio_gear(w)?;
     wheels_from_revs_at(gp)?;
-    put(gp.gear, w);
+    gp.gear.set_bits(w);
     revs_from_wheels_at(gp)?;
     mark();
     Ok(())

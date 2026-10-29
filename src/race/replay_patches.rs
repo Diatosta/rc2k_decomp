@@ -16,7 +16,7 @@ use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 
 /// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
-fn switches() -> impl Iterator<Item = &'static Dword> {
+pub fn switches() -> impl Iterator<Item = &'static Dword> {
     std::iter::once(&RACE_WORK.patch_switch).chain(RACE_WORK.patch_settings.iter())
 }
 

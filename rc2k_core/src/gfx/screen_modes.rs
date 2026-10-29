@@ -124,8 +124,70 @@ pub fn picture_surface(
     ])
 }
 
+/// `gfx::choose_screen_modes`' race modes, tried in this order when the kept ones do not
+/// both work: the secondary card's (0x2000) before the primary's, 16 bits before 32.
+pub const RACE_CHOICES: [u32; 12] = [
+    0x32_2202, 0x32_2208, 0x32_2201, 0x32_1202, 0x32_1208, 0x32_1201, 0x32_2802, 0x32_2808,
+    0x32_2801, 0x32_1802, 0x32_1808, 0x32_1801,
+];
+
+/// The menus' modes tried after the race's own card and kind at size 2.
+pub const MENU_CHOICES: [u32; 4] = [0x32_2202, 0x32_1202, 0x32_2802, 0x32_1802];
+
+/// `gfx::choose_screen_modes` (0x404481): the (menu, race) modes. The kept ones when both
+/// work (`works`: `gfx::try_screen_mode`), the menu's tried first; else, when a 3D mode
+/// of size 2 is listed and one with both 3D bits (`listed`: `sub_404AD9`, a table entry
+/// with all the bits), the first race choice that works and the first menu mode that
+/// does: the race's card and kind at size 2, then `MENU_CHOICES`. None where the
+/// original fails (its carry).
+pub fn choose(
+    menu: u32,
+    race: u32,
+    mut works: impl FnMut(u32) -> bool,
+    listed: impl Fn(u32) -> bool,
+) -> Option<(u32, u32)> {
+    if works(menu) && works(race) {
+        return Some((menu, race));
+    }
+    if !listed(0x10_0002) || !listed(0x30_0000) {
+        return None;
+    }
+    let race = RACE_CHOICES.into_iter().find(|&m| works(m))?;
+    let own = (race & 0xFF00) | 0x32_0002;
+    let menu = std::iter::once(own)
+        .chain(MENU_CHOICES)
+        .find(|&m| works(m))?;
+    Some((menu, race))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn choose_keeps_working_modes_and_falls_back_in_order() {
+        use super::choose;
+        let primary = |m: u32| m & 0x3000 == 0x1000;
+        let any = |_: u32| true;
+        // Both kept modes work: kept.
+        assert_eq!(
+            choose(0x32_1802, 0x34_1802, primary, any),
+            Some((0x32_1802, 0x34_1802))
+        );
+        // None kept (0) on a machine with the primary card only: its 16-bit 800 x 600.
+        assert_eq!(choose(0, 0, primary, any), Some((0x32_1202, 0x32_1202)));
+        // Only 32 bits: the first 32-bit primary mode, the menu at its kind.
+        let only_32 = |m: u32| primary(m) && m & 0xF00 == 0x800;
+        assert_eq!(choose(0, 0, only_32, any), Some((0x32_1802, 0x32_1802)));
+        // A kept secondary mode without that card: chosen again.
+        assert_eq!(
+            choose(0x32_2802, 0x32_2802, primary, any),
+            Some((0x32_1202, 0x32_1202))
+        );
+        // No 3D mode of size 2 listed: the original fails.
+        assert_eq!(choose(0, 0, primary, |_| false), None);
+        // Nothing works.
+        assert_eq!(choose(0, 0, |_| false, any), None);
+    }
+
     use super::*;
 
     #[test]

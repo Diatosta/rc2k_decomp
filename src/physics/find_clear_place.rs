@@ -39,7 +39,7 @@ fn try_place() -> Result<(), Refused> {
     crate::physics::crossed_edge::steps()?;
     crate::physics::wall_contacts::check()?;
     crate::physics::wall_contacts::steps()?;
-    unsafe { crate::physics::car_collisions::car_collisions() }?;
+    { crate::physics::car_collisions::car_collisions() }?;
     crate::physics::face_contacts_around::face_contacts_around()
 }
 
@@ -50,7 +50,7 @@ pub fn steps() -> Result<(), Refused> {
     let factor = extended(PHYSICS.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&CAR.velocity, factor);
     DRAW.scratch.set(rounded(factor));
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    { crate::physics::restore_saved_car::restore_saved_car() }?;
     { crate::physics::lowest_body_point::lowest_body_point() }?;
     PHYSICS
         .clear_place_face

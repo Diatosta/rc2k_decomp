@@ -150,8 +150,7 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
     set_item(
         items,
         0,
-        crate::pointers::GamePtr::new(RESULT_FIGURES.group_titles[0].addr() + 4 * a)
-            .read::<u32>("a group title")?,
+        crate::session::read_on(&RESULT_FIGURES.group_titles, a as usize, "a group title")?,
     )?;
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).

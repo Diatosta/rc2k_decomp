@@ -9,22 +9,12 @@
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
 
-use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 
-/// The Rust core on the vector at `v` and the length at `out`.
-pub fn store_length(v: u32, out: u32) {
-    crate::pointers::write_or_end::<u32>(
-        out,
-        rounded(vector_length(&At(v))),
-        "physics::store_motion_length's operand",
-    )
-}
-
 /// The Rust version (the exact one, for `physics::car_physics_step` and
-/// `physics::keep_motion_vectors`).
+/// `physics::keep_motion_vectors`): the length of the car's motion.
 pub fn store_motion_length() {
-    store_length(CAR.velocity[0].addr(), CAR.speed.addr())
+    CAR.speed.set_bits(rounded(vector_length(&CAR.velocity)));
 }

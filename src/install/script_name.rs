@@ -18,8 +18,8 @@ use rc2k_core::install::script;
 /// cursor at the stop byte (not past it) and where the NUL went.
 pub fn script_name(
     cursor: u32,
-    to: impl Into<crate::install::place::Place>,
-) -> Result<(u32, crate::install::place::Place), Refused> {
+    to: impl Into<crate::place::Place>,
+) -> Result<(u32, crate::place::Place), Refused> {
     // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
     // name with no end is refused before anything is written).
     let words = crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;

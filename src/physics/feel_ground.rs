@@ -30,7 +30,7 @@ use rc2k_core::physics::walls::WheelsOff;
 /// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
 /// esi its address) are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
-pub unsafe fn feel_ground() -> Result<(), Refused> {
+pub fn feel_ground() -> Result<(), Refused> {
     if CAR.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }

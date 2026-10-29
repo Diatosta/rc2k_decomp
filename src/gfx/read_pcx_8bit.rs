@@ -39,14 +39,14 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
             return Ok(false);
         }
-        let palette_bytes = crate::pointers::host(PCX.file_palette.addr());
+        let palette_bytes = PCX.file_palette.as_ptr();
         if !read(file, palette_bytes, FILE_PALETTE_LEN as u32).1 {
             return Ok(false);
         }
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        let header = crate::pointers::host(PCX.header.addr());
+        let header = PCX.header.as_ptr();
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }

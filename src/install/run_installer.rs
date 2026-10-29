@@ -27,6 +27,7 @@ use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::place::Place;
 use crate::session::MACHINE;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
@@ -46,9 +47,7 @@ pub fn run_installer() -> Result<(), Refused> {
         crate::pointers::game_address(crate::files::state::base_directory()),
         0,
     );
-    i::read_languages::read_languages(
-        crate::pointers::host(INSTALLER_NAMES.lang_cfg.addr()) as *const u8
-    )?;
+    i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.as_ptr() as *const u8)?;
     unsafe { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
@@ -57,28 +56,27 @@ pub fn run_installer() -> Result<(), Refused> {
         i::install_from_command::install_from_command()?;
     } else {
         if !normalise(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
-            INSTALLER_PATHS.game_dir.addr(),
+            &crate::install::installer::INSTALL_TEXTS.base_b,
+            &INSTALLER_PATHS.game_dir,
         )? {
             return Err(fatal(0x80AF_8101));
         }
         i::list_drives::list_drives();
-        let cursor = append_string_by_id(0x9F, INSTALLER_PATHS.typed.addr());
+        let cursor = append_string_by_id(0x9F, &INSTALLER_PATHS.typed);
         let cursor = append_string_by_id(0xA0, cursor);
         append_byte(cursor, 0);
         if MACHINE.keyboard_type.get() == 2 {
-            wb(
-                INSTALLER_PATHS.typed.addr(),
-                INSTALLER_RUN.first_drive.get() as u8,
-            );
+            INSTALLER_PATHS
+                .typed
+                .set(0, INSTALLER_RUN.first_drive.get() as u8);
         }
         i::read_registry::read_registry_here();
         if INSTALLER_NAMES.source.get(0) != 0 {
             let n = INSTALLER_NAMES.source_size.get();
             for k in 0..n {
                 wb(
-                    INSTALLER_PATHS.typed.addr() + k,
-                    rb(INSTALLER_NAMES.source.addr() + k),
+                    Place::from(&INSTALLER_PATHS.typed).add(k),
+                    rb(Place::from(&INSTALLER_NAMES.source).add(k)),
                 );
             }
         }
@@ -87,15 +85,16 @@ pub fn run_installer() -> Result<(), Refused> {
         // The version-match branch changes into the installed folder.
         if INSTALLER_RUN.same_version.get() == 1 {
             INSTALLER_PAGES.record_flag.set(1);
-            set_cd(INSTALLER_PATHS.installed.addr());
-            i::read_record::read_record(crate::pointers::host_at(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
-            ) as *const u8)?;
+            set_cd(&INSTALLER_PATHS.installed);
+            i::read_record::read_record(
+                Place::from(&crate::install::installer::INSTALL_TEXTS.record_path).ptr()
+                    as *const u8,
+            )?;
             crate::install::installer::wb(
                 crate::pointers::game_address(crate::files::state::base_directory()),
                 0,
             );
-            set_cd(INSTALLER_PATHS.game_dir.addr());
+            set_cd(&INSTALLER_PATHS.game_dir);
             load_language()?;
         }
         let pages = if INSTALLER_RUN.updating.get() == 1 {

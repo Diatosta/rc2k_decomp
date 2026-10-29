@@ -53,7 +53,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
             crate::pointers::host(path) as _,
-            crate::pointers::host(crate::race::replay_path::LAST_RACE.addr()) as *const u8,
+            crate::race::replay_path::LAST_RACE.as_ptr() as *const u8,
         )?;
         if !copied {
             return failed();

@@ -30,7 +30,7 @@ fn refresh() -> Result<bool, Refused> {
     let listed = NET.sessions.get();
     if listed != 0 {
         let instance = with_session(INSTALLER_PAGES.choice.get(), |s| s.instance)?;
-        GamePtr::new(NET.joined.addr()).write_bytes(&instance, "the joined session")?;
+        NET.joined.write_at(0, &instance, "the joined session")?;
     }
     let posting = NET.posting.get();
     NET.posting.set(0);

@@ -108,6 +108,40 @@ impl<T: Cells + ?Sized> Cells for Off<'_, T> {
     }
 }
 
+/// `n` dwords from the game address `from` into `to`'s first cells (a matrix kept in a car
+/// block or a record copied into a typed one: the original's `rep movsd`).
+pub fn cells_from(
+    from: u32,
+    to: &(impl Cells + ?Sized),
+    n: usize,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    if n > to.count() {
+        return Err(crate::errors::BadInput("a copy past its cells"));
+    }
+    for k in 0..n {
+        let v = crate::pointers::GamePtr::new(from.wrapping_add(4 * k as u32)).read::<u32>(what)?;
+        to.set_bits(k, v);
+    }
+    Ok(())
+}
+
+/// `from`'s first `n` cells to the game address `to` (the other way).
+pub fn cells_to(
+    from: &(impl Cells + ?Sized),
+    to: u32,
+    n: usize,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    if n > from.count() {
+        return Err(crate::errors::BadInput("a copy past its cells"));
+    }
+    for k in 0..n {
+        crate::pointers::GamePtr::new(to.wrapping_add(4 * k as u32)).write(from.bits(k), what)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

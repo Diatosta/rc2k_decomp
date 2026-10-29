@@ -15,7 +15,6 @@ use crate::errors::Refused;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
 use crate::net::lobby::{log, log_int_nl, movsb, zero};
 use crate::net::store::NET;
-use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
@@ -35,10 +34,11 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
         return Ok(false);
     }
     let s = crate::net::tables::with_session(number, |s| *s)?;
-    GamePtr::new(NET.joined.addr()).write_bytes(&s.instance, "the joined session")?;
-    GamePtr::new(NET.joined_name.addr()).write_bytes(&s.name, "the joined session")?;
+    NET.joined.write_at(0, &s.instance, "the joined session")?;
+    NET.joined_name.write_at(0, &s.name, "the joined session")?;
     NET.joined_most.set(s.max_players);
-    GamePtr::new(NET.joined_password.addr()).write_bytes(&s.user, "the joined session")?;
+    NET.joined_password
+        .write_at(0, &s.user, "the joined session")?;
     zero(NET.session_desc.addr(), 0x50)?;
     NET.session_desc.size.set(0x50);
     movsb(

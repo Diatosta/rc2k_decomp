@@ -56,13 +56,11 @@ use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion() {
-    unsafe {
-        ph::move_car::move_car();
-        ph::spin_matrix::spin_matrix();
-        ph::lever_pushes::lever_pushes();
-        crate::race::start_place::invert_car_matrix();
-        ph::update_car_angles::update_car_angles();
-    }
+    ph::move_car::move_car();
+    ph::spin_matrix::spin_matrix();
+    ph::lever_pushes::lever_pushes();
+    crate::race::start_place::invert_car_matrix();
+    ph::update_car_angles::update_car_angles();
 }
 
 /// The steps. What the callees leave in the registers is read by none of them (each reads
@@ -106,20 +104,18 @@ pub fn steps() -> Result<(), Refused> {
     for figure in CAR.contact_point.iter().chain([&CAR.contact_depth]) {
         figure.set_bits(0);
     }
-    unsafe {
-        crate::race::start_place::invert_car_matrix();
-        ph::feel_ground::feel_ground()?;
-        ph::start_skid_mark::start_skid_mark();
-        ph::probe_and_keep::probe_and_keep()?;
-        ph::ease_car_value::ease_car_value();
-        ph::count_down_timers::count_down_timers();
-        ph::wheel_surfaces::wheel_surfaces()?;
-        ph::surface_noise::surface_noise()?;
-        ph::save_car_state::save_car_state()?;
-        ph::clear_forces::clear_forces()?;
-        ph::set_wheel_weights::set_wheel_weights();
-        ph::set_downforce::set_downforce();
-    }
+    crate::race::start_place::invert_car_matrix();
+    ph::feel_ground::feel_ground()?;
+    ph::start_skid_mark::start_skid_mark();
+    ph::probe_and_keep::probe_and_keep()?;
+    ph::ease_car_value::ease_car_value();
+    ph::count_down_timers::count_down_timers();
+    ph::wheel_surfaces::wheel_surfaces()?;
+    ph::surface_noise::surface_noise()?;
+    ph::save_car_state::save_car_state()?;
+    ph::clear_forces::clear_forces()?;
+    ph::set_wheel_weights::set_wheel_weights();
+    ph::set_downforce::set_downforce();
     ph::gearbox_step::gearbox_step()?;
     { ph::drive_force::drive_force() }?;
     // 0x43B737: the side speed held within the limit.
@@ -142,10 +138,8 @@ pub fn steps() -> Result<(), Refused> {
     ph::air_drag::air_drag();
     ph::wheel_springs::wheel_springs();
     ph::crash_contact::crash_contact()?;
-    unsafe {
-        ph::apply_wheel_forces::apply_wheel_forces()?;
-        ph::apply_wheel_torques::apply_wheel_torques()?;
-    }
+    ph::apply_wheel_forces::apply_wheel_forces()?;
+    ph::apply_wheel_torques::apply_wheel_torques()?;
     motion();
     PHYSICS
         .top_speed
@@ -153,20 +147,18 @@ pub fn steps() -> Result<(), Refused> {
     // 0x43B851: the contacts' rounds.
     PHYSICS.contact_step.set(0);
     loop {
-        unsafe {
-            ph::clear_contacts::clear_contacts()?;
-            ph::feel_ground::feel_ground()?;
-        }
+        ph::clear_contacts::clear_contacts()?;
+        ph::feel_ground::feel_ground()?;
+
         ph::crossed_edge::crossed_edge()?;
         ph::wall_contacts::wall_contacts()?;
         ph::ground_contact::ground_contact()?;
-        unsafe { ph::car_collisions::car_collisions() }?;
+        { ph::car_collisions::car_collisions() }?;
         ph::face_contacts::face_contacts()?;
-        unsafe {
-            ph::keep_motion::keep_motion();
-            ph::apply_contact_forces::apply_contact_forces()?;
-            ph::apply_contact_torques::apply_contact_torques()?;
-        }
+        ph::keep_motion::keep_motion();
+        ph::apply_contact_forces::apply_contact_forces()?;
+        ph::apply_contact_torques::apply_contact_torques()?;
+
         if PHYSICS.clear_place_count.get() == 0 {
             break;
         }

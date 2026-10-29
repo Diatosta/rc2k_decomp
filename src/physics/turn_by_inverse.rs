@@ -11,10 +11,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::cells::Cells;
 use crate::physics::car_store::CAR;
-use crate::physics::turn_by_car_matrix::turn_point_by;
+use crate::physics::turn_by_car_matrix::turn_cells;
 
 /// The Rust version.
-pub unsafe fn turn_by_inverse(v: u32) {
-    unsafe { turn_point_by(CAR.car_inverse_matrix[0].addr(), v) }
+pub fn turn_by_inverse(v: &(impl Cells + ?Sized)) {
+    turn_cells(&CAR.car_inverse_matrix, v)
 }

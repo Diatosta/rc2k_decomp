@@ -44,9 +44,7 @@ pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAM
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
-        *car = GamePtr::new(PLAYER_TABLE.pointers[0].addr())
-            .offset(4 * n as u32)
-            .read::<u32>("the players' table")?;
+        *car = PLAYER_TABLE.pointers[n].get();
         if *car == 0 {
             return Err(BadInput(
                 "a player is missing: the original reads through null",

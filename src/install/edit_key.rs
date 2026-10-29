@@ -23,9 +23,9 @@
 use crate::errors::Refused;
 use crate::input::store::KEYBOARD_FILE;
 use crate::install::installer::{append_string_by_id, measure_text, rb, rd, rw, wb};
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
+use crate::place::Place;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.

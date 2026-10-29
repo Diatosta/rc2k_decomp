@@ -29,10 +29,10 @@ use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::cross_product3::cross_product3;
+use crate::scene::cross_product3::cross;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::vector3::normalise_vector3;
-use crate::session::{Float, address_of};
+use crate::scene::vector3::normalise;
+use crate::session::Float;
 
 use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -118,16 +118,16 @@ pub fn draw_plane() -> Result<(), Refused> {
     }
     let corner: u32 = QUAD_3.corner.get();
     plane_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]));
-    normalise_vector3(a0);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &SQUARE_TABLES.axes[n]);
+    normalise(a0);
     plane_up(s);
-    normalise_vector3(a1);
-    cross_product3(a1, a0, a2)?;
-    normalise_vector3(a2);
-    cross_product3(a0, a2, a1)?;
+    normalise(a1);
+    cross(a1, a0, a2);
+    normalise(a2);
+    cross(a0, a2, a1);
     crate::marks::scale_axes::scale_axes();
     plane_place(s);
-    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
+    normalise(&HEX.place);
     plane_facing();
     if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());

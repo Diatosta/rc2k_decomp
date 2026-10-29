@@ -10,13 +10,14 @@
 //!
 //! Callers: `physics::move_slot` (0x4624D6) and `sub_43DD54` (0x43DD97).
 
+use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
 use crate::race::course_lists_store::COURSE_LISTS;
 
-/// The Rust core on the game's variables; the matrix at `out`.
-pub unsafe fn axis_turn_at(out: u32) {
-    unsafe {
+/// The Rust version: the matrix into `out` (16 cells).
+pub fn axis_turn_matrix(out: &(impl Cells + ?Sized)) {
+    {
         let (s, c) = sine_cosine_of(COURSE_LISTS.spin_angle.bits());
         COURSE_LISTS.turn_cosine.set_bits(c);
         COURSE_LISTS.turn_sine.set_bits(s);
@@ -43,7 +44,7 @@ pub unsafe fn axis_turn_at(out: u32) {
             COURSE_LISTS.turn_sine_y.bits(),
             COURSE_LISTS.turn_sine_z.bits(),
         );
-        let put = |o: u32, v: u32| (crate::pointers::host(out + o) as *mut u32).write_unaligned(v);
+        let put = |o: usize, v: u32| out.set_bits(o / 4, v);
         put(0x00, abs_sqrt_times_plus(x, t, c));
         put(0x04, x87::add(p2, q3));
         put(0x08, x87::sub(p1, q2));
@@ -58,9 +59,4 @@ pub unsafe fn axis_turn_at(out: u32) {
         }
         put(0x3C, x87::loaded(1.0f32.to_bits()));
     }
-}
-
-/// The Rust version.
-pub unsafe fn axis_turn_matrix(out: u32) {
-    unsafe { axis_turn_at(out) }
 }

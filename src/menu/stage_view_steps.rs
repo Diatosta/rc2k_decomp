@@ -103,7 +103,11 @@ pub fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            get(MENU_LISTS.rally_speeches[0].addr() + 4 * section)?,
+            crate::session::read_on(
+                &MENU_LISTS.rally_speeches,
+                section as usize,
+                "a rally speech",
+            )?,
             OPTION_WORK.speech_level.get(),
         );
     }
@@ -115,12 +119,13 @@ pub fn play_rally_speech() -> Result<(), Refused> {
 pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
     let section = small_section()?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
-    let table = match stage_screens::welcome(CHAMP_VIEW.event_mode.get()) {
-        stage_screens::Welcome::Championship => MENU_LISTS.welcome_championship[0].addr(),
-        stage_screens::Welcome::Other => MENU_LISTS.welcome_other[0].addr(),
+    let table: &[crate::session::Dword] = match stage_screens::welcome(CHAMP_VIEW.event_mode.get())
+    {
+        stage_screens::Welcome::Championship => &MENU_LISTS.welcome_championship,
+        stage_screens::Welcome::Other => &MENU_LISTS.welcome_other,
     };
-    let path = get(table as u32 + 4 * section)?;
-    let title_bar = crate::pointers::host(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    let path = crate::session::read_on(table, section as usize, "a welcome picture")?;
+    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.as_ptr();
     if unsafe {
         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
             crate::pointers::host(path),

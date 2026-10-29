@@ -86,9 +86,10 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     for (i, o) in [0x134u32, 0x138, 0x13C].into_iter().enumerate() {
         OBJECT_WORK.place[i].set(f(o)?);
     }
-    GamePtr::new(car + 0xB4).copy_to(
-        GamePtr::new(MATRICES.body_turn_matrix[0].addr()),
-        0x40,
+    crate::math::cells::cells_from(
+        car + 0xB4,
+        &MATRICES.body_turn_matrix,
+        16,
         "a car's turn matrix",
     )?;
     for i in 0..4 {
@@ -199,9 +200,10 @@ pub fn ready_car_parts() -> Result<(), Refused> {
                 &FRAME_WORK.placed_matrices,
                 &MATRICES.view_place,
             );
-            GamePtr::new(MATRICES.view_place[0].addr()).copy_to(
-                GamePtr::new(car + BODY_AT),
-                0x40,
+            crate::math::cells::cells_to(
+                &MATRICES.view_place,
+                car + BODY_AT,
+                16,
                 "a car block's body matrix",
             )?;
         }

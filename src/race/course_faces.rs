@@ -1247,23 +1247,17 @@ mod asm_reference {
                 DRAW.view_scale.set_bits(r.float());
                 DRAW.view_centre[1].set_bits(r.float());
                 DRAW.view_centre[0].set_bits(r.float());
-                game_write(
-                    rva(0x5C5E40),
-                    if r.below(2) == 0 {
-                        0x3F00_0000
-                    } else {
-                        r.float()
-                    },
-                );
+                NUMBERS.half.set_bits(if r.below(2) == 0 {
+                    0x3F00_0000
+                } else {
+                    r.float()
+                });
                 // mostly a depth the projection takes
-                game_write(
-                    rva(0x5C5E18),
-                    if r.below(4) == 0 {
-                        r.float()
-                    } else {
-                        0x4580_0000
-                    },
-                );
+                NUMBERS.k4096_a.set_bits(if r.below(4) == 0 {
+                    r.float()
+                } else {
+                    0x4580_0000
+                });
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
                 v2.copy_from_slice(&v1);
@@ -1301,14 +1295,11 @@ mod asm_reference {
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                game_write(
-                    rva(0x5C5E40),
-                    if r.below(2) == 0 {
-                        0x3F00_0000
-                    } else {
-                        r.float()
-                    },
-                );
+                NUMBERS.half.set_bits(if r.below(2) == 0 {
+                    0x3F00_0000
+                } else {
+                    r.float()
+                });
                 let entry = |r: &mut Rng| {
                     let mut e = [0u32; 10];
                     for (k, q) in e.iter_mut().enumerate() {

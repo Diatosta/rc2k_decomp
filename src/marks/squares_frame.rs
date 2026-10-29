@@ -21,9 +21,8 @@ use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::pointers::GamePtr;
-use crate::scene::cross_product3::cross_product3;
-use crate::scene::vector3::normalise_vector3;
-use crate::session::address_of;
+use crate::scene::cross_product3::cross;
+use crate::scene::vector3::normalise;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
 fn frame_axes(s: u32) {
@@ -55,16 +54,16 @@ pub fn squares_frame() -> Result<(), Refused> {
         return Err(BadInput("no marks settings").into());
     }
     frame_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]));
-    normalise_vector3(a0);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &SQUARE_TABLES.axes[n]);
+    normalise(a0);
     frame_up(s);
-    normalise_vector3(a1);
-    cross_product3(a1, a0, a2)?;
-    normalise_vector3(a2);
-    cross_product3(a0, a2, a1)?;
+    normalise(a1);
+    cross(a1, a0, a2);
+    normalise(a2);
+    cross(a0, a2, a1);
     crate::marks::scale_axes::scale_axes();
     frame_place(s);
-    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
+    normalise(&HEX.place);
     frame_facing();
     if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());

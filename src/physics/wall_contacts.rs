@@ -38,8 +38,8 @@ fn word(face: u32) -> Result<u32, Refused> {
 fn after() -> Result<(), Refused> {
     CAR.contact_flag.set(1);
     CAR.wall_hit_timer.set(0x32);
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::feel_ground::feel_ground() }
+    { crate::physics::restore_saved_car::restore_saved_car() }?;
+    crate::physics::feel_ground::feel_ground()
 }
 
 /// The steps, not guarded (`check` before). The registers the original leaves are read by

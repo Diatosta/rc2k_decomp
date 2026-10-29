@@ -14,7 +14,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
 use crate::physics::contact_store::CONTACT_WORK;
@@ -23,69 +22,54 @@ use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 
-/// The share, the scratch, the weight, the records (0x80 bytes).
-pub struct Places {
-    pub share: u32,
-    pub scratch: u32,
-    pub weight: u32,
-    pub records: u32,
-}
-
-impl Places {
-    fn game() -> Self {
-        let _a = |x: usize| game_addr(rva(x));
-        Self {
-            share: (CONTACT_WORK.wheel_share.addr()),
-            scratch: (DRAW.scratch.addr()),
-            weight: (PHYSICS.weight.addr()),
-            records: (crate::pointers::game_address(PHYSICS.forces.as_ptr())),
-        }
+/// The Rust version. The registers the original leaves are read by none of its callers (esi).
+pub fn set_wheel_weights() {
+    let scratch = &DRAW.scratch;
+    let one: u32 = NUMBERS.one.bits();
+    let high: u32 = NUMBERS.five.bits();
+    let k: u32 = NUMBERS.quarter.bits();
+    scratch.set(x87::loaded(CONTACT_WORK.wheel_share.bits()));
+    if compare_full(scratch.get(), one) & 0x100 != 0 {
+        scratch.set(x87::loaded(one));
     }
-}
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::set_wheel_weights's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::set_wheel_weights's operand")
-}
-
-/// The Rust core on the variables at `p`. The registers the original leaves are read by none of its callers (esi).
-pub unsafe fn weights_at(p: &Places) {
-    unsafe {
-        let one: u32 = NUMBERS.one.bits();
-        let high: u32 = NUMBERS.five.bits();
-        let k: u32 = NUMBERS.quarter.bits();
-        put(p.scratch, x87::loaded(at(p.share)));
-        if compare_full(at(p.scratch), one) & 0x100 != 0 {
-            put(p.scratch, x87::loaded(one));
-        }
-        if compare_full(at(p.scratch), high) & 0x100 == 0 {
-            put(p.scratch, x87::loaded(high));
-        }
-        let f = weight_force(at(p.scratch), one, k, PHYSICS.gravity.bits(), at(p.weight));
-        for c in 0..4 {
-            put(p.records + 0x20 * c + 4, f);
-        }
-        for c in 0..4 {
-            turn_by_inverse(p.records + 0x20 * c);
-        }
-        let plus = x87::loaded(1.0f32.to_bits());
-        let minus = x87::negated(plus);
-        for o in [0x2C, 0x6C, 0x14, 0x34] {
-            put(p.records + o, plus);
-        }
-        for o in [0x0C, 0x4C, 0x54, 0x74] {
-            put(p.records + o, minus);
-        }
-        for c in 0..4 {
-            turn_by_inverse(p.records + 0x20 * c + 0xC);
-        }
+    if compare_full(scratch.get(), high) & 0x100 == 0 {
+        scratch.set(x87::loaded(high));
     }
-}
-
-/// The Rust version.
-pub unsafe fn set_wheel_weights() {
-    unsafe { weights_at(&Places::game()) }
+    let f = weight_force(
+        scratch.get(),
+        one,
+        k,
+        PHYSICS.gravity.bits(),
+        PHYSICS.weight.bits(),
+    );
+    let wheels = &PHYSICS.forces[..4];
+    for w in wheels {
+        w.force[1].set_bits(f);
+    }
+    for w in wheels {
+        turn_by_inverse(&w.force);
+    }
+    let plus = x87::loaded(1.0f32.to_bits());
+    let minus = x87::negated(plus);
+    // The wheels' points: x and z of +1 or -1 (0x2C, 0x6C, 0x14, 0x34 plus; 0x0C, 0x4C,
+    // 0x54, 0x74 minus).
+    for cell in [
+        &wheels[1].point[0],
+        &wheels[3].point[0],
+        &wheels[0].point[2],
+        &wheels[1].point[2],
+    ] {
+        cell.set_bits(plus);
+    }
+    for cell in [
+        &wheels[0].point[0],
+        &wheels[2].point[0],
+        &wheels[2].point[2],
+        &wheels[3].point[2],
+    ] {
+        cell.set_bits(minus);
+    }
+    for w in wheels {
+        turn_by_inverse(&w.point);
+    }
 }

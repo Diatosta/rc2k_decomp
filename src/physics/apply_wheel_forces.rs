@@ -8,10 +8,9 @@
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
 use crate::physics::tables_store::PHYSICS;
-const COUNT: u32 = 0x17;
+const COUNT: usize = 0x17;
 
 /// The Rust version.
-pub unsafe fn apply_wheel_forces() -> Result<(), Refused> {
-    let first = crate::pointers::game_address(PHYSICS.forces.as_ptr());
-    unsafe { apply_forces(first, COUNT) }
+pub fn apply_wheel_forces() -> Result<(), Refused> {
+    apply_forces(&PHYSICS.forces[..COUNT])
 }

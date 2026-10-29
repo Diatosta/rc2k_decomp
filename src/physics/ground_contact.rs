@@ -63,8 +63,8 @@ fn steps() -> Result<(), Refused> {
     }
     copy_cells(&CONTACT_WORK.ground_force, &PHYSICS.contacts[2].force);
     if sign(CONTACT_WORK.lowest_depth.get()) {
-        unsafe { restore_saved_car() }?;
-        unsafe { feel_ground() }?;
+        { restore_saved_car() }?;
+        { feel_ground() }?;
     }
     Ok(())
 }

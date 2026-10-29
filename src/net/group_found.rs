@@ -18,7 +18,7 @@ pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
     let name = crate::pointers::read_or_end::<u32>(args[2] + 8, "net::group_found's operand");
     let order = crate::strings::same_text::compare_texts(
         crate::pointers::host(name) as *const u8,
-        crate::pointers::host(NET.group_name.addr()) as *const u8,
+        NET.group_name.as_ptr() as *const u8,
     )?;
     if order != std::cmp::Ordering::Equal {
         return Ok(1);

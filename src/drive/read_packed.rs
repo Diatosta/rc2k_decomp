@@ -27,7 +27,7 @@ pub fn read_packed(
         let (n, ok) = read(file, crate::pointers::host(buffer), count);
         return Ok((n, !ok, None));
     };
-    let (n, ok) = read(file, crate::pointers::host(SCRATCH.buffer.addr()), packed);
+    let (n, ok) = read(file, SCRATCH.buffer.as_ptr(), packed);
     if !ok {
         return Ok((n, true, None));
     }

@@ -26,7 +26,7 @@ fn find_name() -> u32 {
 }
 
 /// The files of `pattern` (eax) added to the files' table.
-pub fn list_files(pattern: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+pub fn list_files(pattern: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let pattern: u32 = pattern.into().game();
     let pattern = resolve_path(pattern)?;
     if find_first(pattern) {

@@ -13,40 +13,28 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::move_slot::{SLOT_LEN, move_slot_at, slot_refusal};
+use crate::physics::move_slot::{move_slot, slot_refusal};
 use crate::race::work_store::RACE_WORK;
 
-/// The Rust core: the slots at `slots`, the count at `count`.
-pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
-    unsafe {
-        for k in 0..8 {
-            let s = slots + SLOT_LEN * k;
-            if (crate::pointers::host(s) as *const u32).read_unaligned() != 0
-                && let Some(why) = slot_refusal(s)
-            {
-                return Err(crate::errors::BadInput(why).into());
-            }
+/// The Rust version: the eight slots, those in use moved (refused before any moves when
+/// one would be), `slot_count` the number done so far.
+pub fn move_slots() -> Result<(), Refused> {
+    let slots = &RACE_WORK.race_slots;
+    for slot in slots {
+        if slot.part.get() != 0
+            && let Some(why) = slot_refusal(slot)
+        {
+            return Err(crate::errors::BadInput(why).into());
         }
-        let mut n = 0u32;
-        for k in 0..8 {
-            let s = slots + SLOT_LEN * k;
-            if (crate::pointers::host(s) as *const u32).read_unaligned() != 0 {
-                n += 1;
-                (crate::pointers::host(count) as *mut u32).write_unaligned(n);
-                move_slot_at(s)?;
-            }
+    }
+    let mut n = 0u32;
+    for slot in slots {
+        if slot.part.get() != 0 {
+            n += 1;
+            RACE_WORK.slot_count.set(n);
+            move_slot(slot)?;
         }
-        (crate::pointers::host(count) as *mut u32).write_unaligned(n);
-        Ok(())
     }
-}
-
-/// The Rust version.
-pub unsafe fn move_slots() -> Result<(), Refused> {
-    unsafe {
-        move_slots_at(
-            crate::pointers::game_address(RACE_WORK.race_slots.as_ptr()),
-            RACE_WORK.slot_count.addr(),
-        )
-    }
+    RACE_WORK.slot_count.set(n);
+    Ok(())
 }

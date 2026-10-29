@@ -10,7 +10,7 @@
 //!
 //! Callers: `physics::car_angles` (`g_crashMatrix`).
 
-use crate::math::cells::At;
+use crate::math::cells::Cells;
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -18,55 +18,29 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
+use crate::session::{Cell32, Float};
 
-/// Where the function's variables are: the game's or a test's.
-#[derive(Clone, Copy)]
-pub struct AnglePlaces {
-    /// The turned unit vector (three floats).
-    pub turned: u32,
-    /// The three angles.
-    pub angles: u32,
-    pub scratch: u32,
-    pub limit: u32,
-}
-
-impl AnglePlaces {
-    pub fn game() -> Self {
-        Self {
-            turned: COURSE_LISTS.turned_x.addr(),
-            angles: COURSE_LISTS.car_pitch.addr(),
-            scratch: DRAW.scratch.addr(),
-            limit: NUMBERS.one.addr(),
-        }
+/// `rotate_point` of the unit vector `unit` by `m`, stored as floats in the turned vector.
+fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&Float; 3], unit: [u32; 3]) {
+    let out = rotate_point(m, unit.map(extended));
+    for (cell, e) in turned.iter().zip(out) {
+        cell.set_bits(rounded(e));
     }
 }
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::matrix_angles's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::matrix_angles's operand")
-}
-
-/// `rotate_point` of the unit vector `unit` by `m`, stored as floats at `p.turned`.
-fn turn_unit(m: u32, p: &AnglePlaces, unit: [u32; 3]) {
-    let out = rotate_point(&At(m), unit.map(extended));
-    for (k, e) in out.iter().enumerate() {
-        put(p.turned + 4 * k as u32, rounded(*e));
-    }
-}
-
-/// The Rust core: the matrix at `m`, the variables at `p`.
-pub fn matrix_angles_at(m: u32, p: &AnglePlaces) {
+/// The Rust version on the matrix `m`; the angles in `COURSE_LISTS`.
+pub fn matrix_angles(m: &(impl Cells + ?Sized)) {
     const ONE: u32 = 0x3F80_0000;
-    turn_unit(m, p, [0, 0, ONE]);
-    put(p.angles + 4, patan(at(p.turned), at(p.turned + 8)));
-    turn_unit(m, p, [0, 0, ONE]);
-    let pitch = clamped_asin_at(extended(at(p.turned + 4)), p.scratch, p.limit);
-    put(p.angles, neg_rounded(pitch));
-    turn_unit(m, p, [ONE, 0, 0]);
-    let sine = over_cos_80(at(p.turned + 4), at(p.angles));
-    let roll = clamped_asin_at(sine, p.scratch, p.limit);
-    put(p.angles + 8, rounded(roll));
+    let l = &COURSE_LISTS;
+    let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
+    turn_unit(m, &turned, [0, 0, ONE]);
+    l.car_heading
+        .set_bits(patan(l.turned_x.bits(), l.turned_z.bits()));
+    turn_unit(m, &turned, [0, 0, ONE]);
+    let pitch = clamped_asin_at(extended(l.turned_y.bits()), &DRAW.scratch, &NUMBERS.one);
+    l.car_pitch.set_bits(neg_rounded(pitch));
+    turn_unit(m, &turned, [ONE, 0, 0]);
+    let sine = over_cos_80(l.turned_y.bits(), l.car_pitch.bits());
+    let roll = clamped_asin_at(sine, &DRAW.scratch, &NUMBERS.one);
+    l.car_roll.set_bits(rounded(roll));
 }

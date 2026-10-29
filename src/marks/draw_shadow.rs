@@ -30,10 +30,10 @@ use crate::math::{x87, x87_run};
 use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::cross_product3::cross_product3;
+use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::normalise_vector3;
+use crate::scene::vector3::normalise;
 use crate::session::Float;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -132,13 +132,13 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
             q.frame[n][k].set_bits(q.sides[n][k].bits());
         }
     }
-    let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr());
-    normalise_vector3(s0);
-    normalise_vector3(s1);
-    cross_product3(s0, s1, s2)?;
-    cross_product3(s2, s0, s1)?;
-    normalise_vector3(s1);
-    normalise_vector3(s2);
+    let [s0, s1, s2] = [0, 1, 2].map(|n| &q.frame[n]);
+    normalise(s0);
+    normalise(s1);
+    cross(s0, s1, s2);
+    cross(s2, s0, s1);
+    normalise(s1);
+    normalise(s2);
     let a = angle(sh)?;
     let m = q.matrix[0].addr();
     turn_matrix3(Axis::Z, m, a)?;
@@ -149,10 +149,10 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
         }
     }
     second_turned_x87(sh, m as usize, t as usize);
-    cross_product3(s2, s1, s0)?;
-    cross_product3(s2, s0, s1)?;
+    cross(s2, s1, s0);
+    cross(s2, s0, s1);
     corners_x87(sh);
-    normalise_vector3(q.way[0].addr());
+    normalise(&q.way);
     corners_in_x87(sh);
     let view = &MATRICES.listener_matrix;
     for n in 0..4 {

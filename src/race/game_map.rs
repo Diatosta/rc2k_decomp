@@ -227,7 +227,9 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     let buffer = SCRATCH.buffer.addr();
     let result = (|| -> Result<(), Refused> {
         let (_, ok) = file_read(file, buffer, 0x10, "the map's scratch buffer")?;
-        let head = GamePtr::new(buffer).read_bytes(0x10, "the map's scratch buffer")?;
+        let head = SCRATCH
+            .buffer
+            .read_at(0, 0x10, "the map's scratch buffer")?;
         if !ok || dword_in(&head, 0)? != MAGIC || dword_in(&head, 8)? != VERSION {
             return Ok(());
         }
@@ -241,7 +243,9 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
         if !ok {
             return Ok(());
         }
-        let words = GamePtr::new(buffer).read_bytes(2 * TILES as usize, "the map's tile words")?;
+        let words = SCRATCH
+            .buffer
+            .read_at(0, 2 * TILES as usize, "the map's tile words")?;
         GAME_MAP.with(|m| {
             for (n, tile) in m.tiles.iter_mut().enumerate() {
                 let word = u16::from_le_bytes([words[2 * n], words[2 * n + 1]]) as u32;
@@ -264,7 +268,9 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
             if got == 0 || got % 3 != 0 {
                 return Err(BadInput("a packed map's short read, not whole pixels").into());
             }
-            let data = GamePtr::new(buffer).read_bytes(got as usize + 1, "the map's pixels")?;
+            let data = SCRATCH
+                .buffer
+                .read_at(0, got as usize + 1, "the map's pixels")?;
             let mut chunk = Vec::new();
             for k in 0..got / 3 {
                 store_pixel(&mut chunk, bytes, &format, dword_in(&data, 3 * k as usize)?);

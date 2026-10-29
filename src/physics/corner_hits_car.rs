@@ -50,12 +50,12 @@ pub fn corner_inside() -> bool {
 
 /// The Rust version: `block` the other car's block (edi). The registers it leaves are
 /// read by none of its callers.
-pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
+pub fn corner_hits_car(block: u32) -> Result<(), Refused> {
     if !corner_inside() {
         return Ok(());
     }
     CONTACT_WORK.corner_inside.set(1);
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    { crate::physics::restore_saved_car::restore_saved_car() }?;
     { crate::physics::bump_cars::bump_cars(block) }?;
     Ok(())
 }

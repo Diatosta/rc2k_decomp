@@ -25,7 +25,7 @@ pub fn start_edit(item: u32) {
     at.write_bytes(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
     wb(record, flags);
-    crate::install::place::Place::from(&INSTALLER_PATHS.script_path)
+    crate::place::Place::from(&INSTALLER_PATHS.script_path)
         .write(&words, "the edit's backup")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
 }

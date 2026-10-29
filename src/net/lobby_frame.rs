@@ -40,7 +40,7 @@ fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) -> Result<(
         crate::strings::append_time::show_hours(),
     ))?;
     if plus {
-        crate::pointers::GamePtr::new(start).write(b'+', "a text line")?;
+        start.write(b"+", "a text line")?;
     }
     Ok(())
 }
@@ -103,7 +103,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let name = {
                 crate::text::draw_text::draw_text_at(
                     font.as_ptr(),
-                    crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
+                    TEXT_BUFFER.text.as_ptr() as *const u8,
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -131,7 +131,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.as_ptr(),
-                        crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
+                        TEXT_BUFFER.text.as_ptr() as *const u8,
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -179,7 +179,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
-            crate::pointers::host(NET.chat.addr()) as *const u8,
+            NET.chat.as_ptr() as *const u8,
             0xA,
             y as i32,
             &mut canvas,

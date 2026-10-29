@@ -152,8 +152,8 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         Inside::Touch => return touch(),
         Inside::Nothing => return Ok(()),
     }
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::feel_ground::feel_ground() }?;
+    { crate::physics::restore_saved_car::restore_saved_car() }?;
+    { crate::physics::feel_ground::feel_ground() }?;
     touch()?;
     // 0x45E62A: pushed back against the motion, level.
     copy_cells(&FRAME_SCRATCH.work_vector, &CAR.velocity);

@@ -30,7 +30,7 @@ fn below(share: u32, limit: u32) -> bool {
 }
 
 /// The Rust version.
-pub unsafe fn lever_pushes() {
+pub fn lever_pushes() {
     PHYSICS.lever_pushes[0].set(0);
     PHYSICS.lever_pushes[1].set(0);
     if FRAME_SWITCHES.levers_on.get() != 1 || CAR.all_wheels_off.get() != 0 {
@@ -64,12 +64,12 @@ pub unsafe fn lever_pushes() {
     PHYSICS
         .lever_share_left
         .set_bits(x87::loaded(PHYSICS.lever_share_start.bits()));
-    unsafe { lever_push() };
+    lever_push();
     PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[0].bits()));
     PHYSICS.lever_share_left.set_bits(one_less(
         crate::physics::tables_store::PHYSICS
             .lever_share_left
             .bits(),
     ));
-    unsafe { lever_push() };
+    lever_push();
 }

@@ -34,10 +34,6 @@ pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
     table[n].get()
 }
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a car's point list")
-}
-
 fn put(at: u32, value: u32) -> Result<(), BadInput> {
     GamePtr::new(at).write(value, "a car's point list")
 }
@@ -96,38 +92,11 @@ fn log_number(value: u32, newline: bool) {
     crate::logfile::log_int::log_int(value as i32, newline, 1);
 }
 
-/// The variables `set_up_car_points` uses, by address: the game's.
-pub struct CarPointVars {
-    pub counts: u32,
-    pub firsts: u32,
-    pub points: u32,
-    pub car_points: u32,
-    pub scratch: u32,
-}
-
-impl CarPointVars {
-    pub fn game() -> Self {
-        Self {
-            counts: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[11].addr(),
-            firsts: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[11].addr(),
-            points: COURSE_LISTS.object_points.addr(),
-            car_points: CONTACT_WORK.car_point_count.addr(),
-            scratch: DRAW.scratch.addr(),
-        }
-    }
-}
-
-/// `race::set_up_car_points` (0x426B67): slot `slot`'s points for the car's block `block` (see
-/// the header): with n points, those held to 0 .. 0x3D lifted by 0x50000 in y, sorted by y
-/// (all), by z (the first 4), by x downwards (the first 2, and the 2 after), let down
-/// again; all n (not held) as floats (each through `dword_62400C`) into the block's +0xAF0 (x), +0xBF0 (y), +0xCF0 (z);
-/// moved two on from 4, the new 4 and 5 made (0, the y of 6 at 5's y); `dword_6D31BC` n +
-/// 2; logged ("carnum", the car, "numcollpts", the count) and the count into +0x260. With
-/// no points only the log and +0x260 (the count as it was). Refuses more than 0x40 points
-/// (the original writes past the block's three lists).
-pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), Refused> {
+pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
+    use crate::scene::object_slots_store::OBJECT_SLOTS;
+    let slot = 11 + slot as usize;
     {
-        let count = get(v.counts + 4 * slot)?;
+        let count = OBJECT_SLOTS.point_counts[slot].get();
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -138,10 +107,12 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = get(v.firsts + 4 * slot)?;
-            let points = first.wrapping_mul(12).wrapping_add(get(v.points)?);
+            let first = OBJECT_SLOTS.first_point[slot].get();
+            let points = first
+                .wrapping_mul(12)
+                .wrapping_add(COURSE_LISTS.object_points.get());
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            put(v.car_points, held)?;
+            CONTACT_WORK.car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
@@ -153,13 +124,13 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                put(v.car_points, n)?;
+                CONTACT_WORK.car_point_count.set(n);
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(sort, first, first + n * 12 - 12)?;
                 }
             }
-            put(v.car_points, held)?;
+            CONTACT_WORK.car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
@@ -172,14 +143,14 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
                 for (k, list) in [XS, YS, ZS].into_iter().enumerate() {
                     // The original goes through `dword_62400C` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
-                    put(v.scratch, c)?;
+                    DRAW.scratch.set(c);
                     put(
                         block + list + 4 * n,
                         rc2k_core::race::cars::point_float(c, scale),
                     )?;
                 }
             }
-            put(v.car_points, count)?;
+            CONTACT_WORK.car_point_count.set(count);
             let lists = [XS, YS, ZS].map(|list| GamePtr::new(block + list));
             let mut points = [[0u32; 0x40]; 3];
             for (p, l) in points.iter_mut().zip(&lists) {
@@ -189,13 +160,15 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
             for (l, p) in lists.iter().zip(points) {
                 l.write(p, "a car's point list")?;
             }
-            put(v.car_points, count + 2)?;
+            CONTACT_WORK.car_point_count.set(count + 2);
         }
         log(c"carnum", false);
         log_number(car_at(block)?.car_kind.bits(), false);
         log(c"numcollpts", false);
-        log_number(get(v.car_points)?, true);
-        car_at(block)?.probe_count.set_bits(get(v.car_points)?);
+        log_number(CONTACT_WORK.car_point_count.get(), true);
+        car_at(block)?
+            .probe_count
+            .set_bits(CONTACT_WORK.car_point_count.get());
     }
     Ok(())
 }
@@ -218,9 +191,11 @@ pub fn set_object_kinds() -> Result<(), Refused> {
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
         // (the original's table is read on, a slip kept).
-        let default: u32 =
-            GamePtr::new(STAGE_PREFS.slot_kind_defaults[0].addr() + (4 * n as usize) as u32)
-                .read("the slot kind defaults")?;
+        let default = crate::session::read_on(
+            &STAGE_PREFS.slot_kind_defaults,
+            n as usize,
+            "the slot kind defaults",
+        )?;
         OBJECT_TABLES.slot_kinds[n as usize].set(default);
     }
     // `dword_5CCF7C` = `dword_621844`.
@@ -248,7 +223,7 @@ pub fn set_object_kinds() -> Result<(), Refused> {
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
         let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-        set_up_car_points(slot, block, &CarPointVars::game())?;
+        set_up_car_points(slot, block)?;
         slot += CAR_SLOT_STEP;
     }
     Ok(())

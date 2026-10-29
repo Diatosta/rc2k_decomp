@@ -53,9 +53,8 @@ pub fn first_match_read(
         )?;
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(&pattern, &name);
-        let path = crate::pointers::host(SCRATCH.buffer.addr());
-        GamePtr::new(crate::pointers::game_address(path))
-            .write_bytes(&joined, "the scratch buffer")?;
+        let path = SCRATCH.buffer.as_ptr();
+        SCRATCH.buffer.write_at(0, &joined, "the scratch buffer")?;
         Some(read_file(path, buffer, count, offset))
     } else {
         None

@@ -47,11 +47,11 @@ fn at(a: u32) -> Result<u32, BadInput> {
 /// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
 /// one past it (the start count's 0x58 + 1), the next variable, as the original.
 fn car_by_start(k: u32) -> Result<u32, BadInput> {
-    match RACE_TABLES.arcade_car_kinds.get(k as usize) {
-        Some(car) => Ok(car.get()),
-        None => GamePtr::new(RACE_TABLES.arcade_car_kinds[0].addr() + (4 * k as usize) as u32)
-            .read("the start tables"),
-    }
+    crate::session::read_on(
+        &RACE_TABLES.arcade_car_kinds,
+        k as usize,
+        "the start tables",
+    )
 }
 
 fn block(car: u32) -> u32 {

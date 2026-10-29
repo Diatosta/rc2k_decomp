@@ -17,7 +17,7 @@ use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// The folder `path` (eax) added to the folders' table.
-pub fn list_folder(path: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+pub fn list_folder(path: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let path: u32 = path.into().game();
     let path = text_at(resolve_path(path)?)?;
     let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;

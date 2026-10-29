@@ -91,13 +91,13 @@ pub fn set_listener() -> Result<(), Refused> {
     for (k, &v) in f.iter().enumerate() {
         CAMERA_WORK.listener_points[k].set(v as u32);
     }
-    // The car block 0's matrix (0x70FC2C, 16 dwords of `unknown_734`).
+    // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
-        MATRICES.turned_matrix[k].set_bits(car.unknown_734[67 + k].bits());
+        MATRICES.turned_matrix[k].set_bits(car.body_matrix[k].bits());
     }
     multiply_matrices(
         &MATRICES.turned_matrix,
-        &car.unknown_734[83..],
+        &car.turn_matrix,
         &MATRICES.lit_matrix,
     );
     multiply_matrices(

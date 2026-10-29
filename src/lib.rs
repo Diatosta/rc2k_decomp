@@ -28,6 +28,7 @@ mod moved;
 mod net;
 mod os;
 mod physics;
+mod place;
 mod platform;
 mod platform_3d;
 mod platform_input;

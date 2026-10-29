@@ -17,10 +17,9 @@ pub fn current_player() -> Option<u32> {
     if index >= 64 {
         return None;
     }
-    let player = GamePtr::new(PLAYER_TABLE.pointers[0].addr())
-        .offset(4 * index)
-        .read::<u32>("the players' table")
-        .unwrap_or_else(|e| refuse(e));
+    let player =
+        crate::session::read_on(&PLAYER_TABLE.pointers, index as usize, "the players' table")
+            .unwrap_or_else(|e| refuse(e));
     (player != 0).then_some(player)
 }
 
@@ -87,10 +86,11 @@ pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
 
 /// An item's repair time, through its pointer (None: null).
 pub fn time_of(item: usize) -> Option<i32> {
-    let at = GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr())
-        .offset(4 * item as u32)
-        .read::<u32>("the repair times' pointers")
-        .unwrap_or_else(|e| refuse(e));
+    let at: u32 = MENU_LISTS
+        .repair_time_ptrs
+        .get(item)
+        .map(|p| p.get())
+        .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
     (at != 0).then(|| {
         GamePtr::new(at)
             .read::<i32>("a repair time")
@@ -110,12 +110,7 @@ pub fn leave_edit_mode() {
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
 pub fn has_repair_time(item: u32) -> bool {
-    item < ITEM_COUNT
-        && GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr())
-            .offset(4 * item)
-            .read::<u32>("the repair times' pointers")
-            .unwrap_or_else(|e| refuse(e))
-            != 0
+    item < ITEM_COUNT && MENU_LISTS.repair_time_ptrs[item as usize].get() != 0
 }
 
 /// True if the second flag table has its end mark where it belongs.

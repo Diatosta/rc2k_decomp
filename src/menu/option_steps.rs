@@ -24,7 +24,6 @@
 use crate::audio::names_store::SAMPLE_NAMES;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::flow_store::SCREEN_FLOW;
@@ -127,11 +126,12 @@ pub fn step_colour(c: Colour, up: bool) {
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
-    let pick: u32 = {
-        crate::store::game_read(rva(0x758A12_usize
-            .wrapping_add(4 * c.table_at)
-            .wrapping_add((n as usize).wrapping_mul(4))))
-    };
+    let pick = crate::session::read_on(
+        &CAPTIONS.caption_lists,
+        c.table_at.wrapping_add(n as usize),
+        "a caption list",
+    )
+    .unwrap_or_else(|e| crate::fatal::raise::end("a caption list", e));
     c.pick.set(pick);
 }
 

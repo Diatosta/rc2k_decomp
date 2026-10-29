@@ -20,11 +20,11 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 /// `g_courseGrid`[c]. The grid is 32 x 32 cells (1024 dwords); the check below lets 1057
 /// through, and the original reads on into the variables after the grid (a slip kept).
 fn grid_cell(c: u32) -> Result<u32, BadInput> {
-    match LEVEL_GRID.course_grid.get(c as usize) {
-        Some(cell) => Ok(cell.bits()),
-        None => GamePtr::new(LEVEL_GRID.course_grid[0].addr() + (4 * c as usize) as u32)
-            .read("the variables after the course grid"),
-    }
+    crate::session::read_on(
+        &LEVEL_GRID.course_grid,
+        c as usize,
+        "the variables after the course grid",
+    )
 }
 
 fn get(a: u32) -> Result<u32, BadInput> {

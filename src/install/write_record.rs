@@ -21,7 +21,7 @@ use crate::strings::text_buffer::TEXT_BUFFER;
 /// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
 /// dropped it, and the install was judged by the change of folder before it.
 pub fn write_record() -> Result<bool, Refused> {
-    let start = crate::install::place::Place::from(&TEXT_BUFFER.text);
+    let start = crate::place::Place::from(&TEXT_BUFFER.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
     let text_at = |x: u32, what| crate::files::cstring(GamePtr::new(x), what);
@@ -30,7 +30,7 @@ pub fn write_record() -> Result<bool, Refused> {
         .then(|| text_at(locale_at, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::install::place::Place::from(&INSTALLER_PATHS.game_dir).text("the game's folder")?,
+        &crate::place::Place::from(&INSTALLER_PATHS.game_dir).text("the game's folder")?,
         locale.as_deref(),
         media_mode(),
     );

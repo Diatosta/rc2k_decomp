@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::game_addr;
-use crate::install::place::Place;
+use crate::place::Place;
 use crate::session::FLAGS;
 
 /// A Win32 call by the address of its import the arguments in, eax out.
@@ -309,7 +309,7 @@ pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
 /// when the drawing changed it.
 pub fn draw_text(
     font: u32,
-    text: impl Into<crate::install::place::Place>,
+    text: impl Into<crate::place::Place>,
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
@@ -334,7 +334,7 @@ pub fn draw_text(
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
 pub fn measure_text(
     font: u32,
-    text: impl Into<crate::install::place::Place>,
+    text: impl Into<crate::place::Place>,
     x: u32,
 ) -> Result<(u32, u32), Refused> {
     let text: u32 = text.into().game();

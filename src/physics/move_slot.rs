@@ -38,35 +38,33 @@ use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::work_store::RACE_WORK;
+use crate::race::work_store::{RACE_WORK, RaceSlot};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
+use crate::session::{Cell32, Dword, Float};
 
-pub const SLOT_LEN: u32 = 0x78;
-
-fn at(p: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(p, "physics::move_slot's operand")
-}
-
-fn put(p: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(p, v, "physics::move_slot's operand")
-}
-
-fn copy(from: u32, to: u32, n: u32) {
-    for k in 0..n {
-        put(to + 4 * k, at(from + 4 * k));
+/// `from`'s first cells into `to`'s.
+fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
+    for (t, f) in to.iter().zip(from) {
+        t.set_bits(f.bits());
     }
 }
 
 /// `find_ground`'s refusal at the place the slot at `s` will move to (worked out without
 /// writing: the point is put back).
-pub fn slot_refusal(s: u32) -> Option<&'static str> {
+pub fn slot_refusal(s: &RaceSlot) -> Option<&'static str> {
     let dt = PHYSICS.step_time.bits();
     let k65536 = NUMBERS.k65536.bits();
-    let moved = |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
-    let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
+    let moved = |c: &Dword, v: &Float| {
+        c.get()
+            .wrapping_add(mul2_to_int(v.bits(), dt, k65536) as u32)
+    };
+    let (x, z) = (
+        moved(&s.place[0], &s.motion[0]),
+        moved(&s.place[2], &s.motion[2]),
+    );
     let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
     GROUND_WORK.ground_x.set(x);
     GROUND_WORK.ground_z.set(z);
@@ -76,80 +74,82 @@ pub fn slot_refusal(s: u32) -> Option<&'static str> {
     why
 }
 
-/// The Rust core: the slot at `s` (the registers it leaves are dropped by its caller's
+/// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
-pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = slot_refusal(s) {
-            return Err(crate::errors::BadInput(why).into());
-        }
-        let dt = PHYSICS.step_time.bits();
-        let k65536 = NUMBERS.k65536.bits();
-        RACE_WORK.slot_place[0].set(at(s + 4));
-        RACE_WORK.slot_place[1].set(at(s + 8));
-        RACE_WORK.slot_place[2].set(at(s + 0xC));
-        put(
-            s + 0x74,
-            rounded(crate::physics::vector_length::vector_length(&At(s + 0x68))),
-        );
-        if at(s + 0x74) != 0 {
-            unit_vector(&At(s + 0x74), &COURSE_LISTS.spin_axis);
-            COURSE_LISTS.spin_angle.set_bits(x87::mul(at(s + 0x74), dt));
-            axis_turn_matrix(COURSE_LISTS.turn_matrix[0].addr());
-            square_matrix(&COURSE_LISTS.turn_matrix);
-            multiply_matrices(
-                &At(s + 0x10),
-                &COURSE_LISTS.turn_matrix,
-                &MATRICES.turned_matrix,
-            );
-            copy(MATRICES.turned_matrix[0].addr(), s + 0x10, 16);
-        }
-        for (v, c) in [(0x54, 8), (0x50, 4), (0x58, 0xC)] {
-            let d = mul2_to_int(at(s + v), dt, k65536) as u32;
-            DRAW.scratch.set(d);
-            put(s + c, at(s + c).wrapping_add(d));
-        }
-        put(
-            s + 0x54,
-            neg_product_plus(PHYSICS.gravity.bits(), dt, at(s + 0x54)),
-        );
-        GROUND_WORK.ground_x.set(at(s + 4));
-        GROUND_WORK.ground_z.set(at(s + 0xC));
-        COURSE.ground_face_last.set(at(s + 0x60));
-        crate::physics::ground_probe_store::GROUND_PROBE
-            .settle_mark
-            .set(0x80);
-        crate::physics::find_ground::find_ground()?;
-        let face: u32 = COURSE.ground_slot.get();
-        if face == u32::MAX {
-            copy(RACE_WORK.slot_place[0].addr(), s + 4, 3);
-            for o in [0x50, 0x54, 0x58, 0x68, 0x6C, 0x70] {
-                put(s + o, 0);
-            }
-            return Ok(());
-        }
-        put(s + 0x60, face);
-        let height: u32 = GROUND_WORK.ground_height.get();
-        if (at(s + 8).wrapping_sub(height) as i32) >= 0 {
-            return Ok(());
-        }
-        put(s + 8, height);
-        let half = NUMBERS.half.bits();
-        put(s + 0x50, x87::mul(at(s + 0x50), half));
-        put(s + 0x54, neg_mul(at(s + 0x54), half));
-        put(s + 0x58, x87::mul(at(s + 0x58), half));
-        for o in [0x68, 0x6C, 0x70] {
-            put(s + o, neg_mul(at(s + o), half));
-        }
-        if abs_compare(at(s + 0x54), NUMBERS.one.bits()) & 0x100 != 0 {
-            copy(RACE_WORK.part_matrix_flat[0].addr(), s + 0x10, 12);
-            let n = at(s) % 20;
-            if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-                copy(RACE_WORK.part_matrix_still[0].addr(), s + 0x10, 12);
-                return Ok(());
-            }
-        }
-        DRAW.scratch.set(abs_of(at(s + 0x54)));
-        Ok(())
+pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
+    if let Some(why) = slot_refusal(s) {
+        return Err(crate::errors::BadInput(why).into());
     }
+    let dt = PHYSICS.step_time.bits();
+    let k65536 = NUMBERS.k65536.bits();
+    copy(&s.place, &RACE_WORK.slot_place);
+    s.spin_length
+        .set_bits(rounded(crate::physics::vector_length::vector_length(
+            &s.spin,
+        )));
+    if s.spin_length.bits() != 0 {
+        // From the spin's length on: two dwords past the slot, as the original has it (the
+        // next slot's first, or what follows the table), so by address.
+        let past = crate::pointers::game_address(&s.spin_length as *const Float);
+        unit_vector(&At(past), &COURSE_LISTS.spin_axis);
+        COURSE_LISTS
+            .spin_angle
+            .set_bits(x87::mul(s.spin_length.bits(), dt));
+        axis_turn_matrix(&COURSE_LISTS.turn_matrix);
+        square_matrix(&COURSE_LISTS.turn_matrix);
+        multiply_matrices(
+            &s.matrix,
+            &COURSE_LISTS.turn_matrix,
+            &MATRICES.turned_matrix,
+        );
+        copy(&MATRICES.turned_matrix, &s.matrix);
+    }
+    for k in [1, 0, 2] {
+        let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
+        DRAW.scratch.set(d);
+        s.place[k].set(s.place[k].get().wrapping_add(d));
+    }
+    s.motion[1].set_bits(neg_product_plus(
+        PHYSICS.gravity.bits(),
+        dt,
+        s.motion[1].bits(),
+    ));
+    GROUND_WORK.ground_x.set(s.place[0].get());
+    GROUND_WORK.ground_z.set(s.place[2].get());
+    COURSE.ground_face_last.set(s.car_word.get());
+    crate::physics::ground_probe_store::GROUND_PROBE
+        .settle_mark
+        .set(0x80);
+    crate::physics::find_ground::find_ground()?;
+    let face: u32 = COURSE.ground_slot.get();
+    if face == u32::MAX {
+        copy(&RACE_WORK.slot_place, &s.place);
+        for cell in s.motion.iter().chain(&s.spin) {
+            cell.set_bits(0);
+        }
+        return Ok(());
+    }
+    s.car_word.set(face);
+    let height: u32 = GROUND_WORK.ground_height.get();
+    if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
+        return Ok(());
+    }
+    s.place[1].set(height);
+    let half = NUMBERS.half.bits();
+    s.motion[0].set_bits(x87::mul(s.motion[0].bits(), half));
+    s.motion[1].set_bits(neg_mul(s.motion[1].bits(), half));
+    s.motion[2].set_bits(x87::mul(s.motion[2].bits(), half));
+    for cell in &s.spin {
+        cell.set_bits(neg_mul(cell.bits(), half));
+    }
+    if abs_compare(s.motion[1].bits(), NUMBERS.one.bits()) & 0x100 != 0 {
+        copy(&RACE_WORK.part_matrix_flat[..12], &s.matrix);
+        let n = s.part.get() % 20;
+        if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
+            copy(&RACE_WORK.part_matrix_still[..12], &s.matrix);
+            return Ok(());
+        }
+    }
+    DRAW.scratch.set(abs_of(s.motion[1].bits()));
+    Ok(())
 }

@@ -82,9 +82,9 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name list").into());
     }
     {
-        let file = GamePtr::new(SAVE_GAMES.file.addr());
+        let file = &SAVE_GAMES.file;
         // First, because it is what can be refused: nothing else is written before it.
-        gather_savegame(file.offset(0x30))?;
+        gather_savegame(GamePtr::new(file.addr()).offset(0x30))?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
         use rc2k_core::saves::kept;
         let head = kept::slot_head(
@@ -94,14 +94,9 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
             &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
                 .read::<[u8; NAME_LEN]>("a savegame's name")?,
         );
-        file.write_bytes(&head, "the savegame's file")?;
+        file.write_at(0, &head, "the savegame's file")?;
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(
-            path,
-            crate::pointers::host(file.addr()) as *const u8,
-            FILE_LEN as u32,
-        )?
-        .ok)
+        Ok(write_file(path, file.as_ptr() as *const u8, FILE_LEN as u32)?.ok)
     }
 }
 

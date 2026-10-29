@@ -23,7 +23,7 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
         Setting::Name => NET.machine_name.addr(),
         Setting::HostAddress => NET.host_address.addr(),
         Setting::MostPlayers => {
-            let mut cursor = Cursor(INSTALLER_PATHS.path_a.addr());
+            let mut cursor = Cursor(crate::place::Place::from(&INSTALLER_PATHS.path_a));
             cursor.bytes(&crate::strings::format_u32::format_u32(
                 NET.most_players.get(),
                 0,

@@ -394,8 +394,17 @@ pub struct Car {
     pub notice_time: Dword,
     /// +0x730 (0x71A708): second notice time.
     pub notice_time_b: Dword,
-    /// +0x734 (0x71A70C): not named.
-    pub unknown_734: [Dword; 115],
+    /// +0x734 (0x71A70C): the view's place kept with the car (`race::frame_draw`).
+    pub kept_view_place: [Dword; 3],
+    /// +0x740 (0x71A718): the four parts' matrices, 16 floats each (`race::car_draw`).
+    pub part_matrices: [Float; 64],
+    /// +0x840 (0x71A818): the body's turn matrix (`race::car_draw`, `race::car_shadow`,
+    /// `drive::set_listener`).
+    pub body_matrix: [Float; 16],
+    /// +0x880 (0x71A858): the car's turn matrix (`race::car_draw`, `drive::set_listener`).
+    pub turn_matrix: [Float; 16],
+    /// +0x8c0 (0x71A898): not named.
+    pub unknown_8c0: [Dword; 16],
     /// +0x900 (0x71A8D8): noise sample 1 scaled.
     pub surface_noise_a: Dword,
     /// +0x904 (0x71A8DC): same sample 1 value.
@@ -568,6 +577,9 @@ mod tests {
     #[test]
     fn car_starts_as_the_games() {
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
+        assert_eq!(offset_of!(Car, part_matrices), 0x740);
+        assert_eq!(offset_of!(Car, body_matrix), 0x840);
+        assert_eq!(offset_of!(Car, unknown_8c0), 0x8C0);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
         assert_eq!(car_addr() % 4, 0);

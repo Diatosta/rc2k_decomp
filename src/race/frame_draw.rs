@@ -1052,7 +1052,7 @@ pub fn gather_visible_faces() -> Result<(), Refused> {
 /// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
 /// the car (`g_car` +0xE00) is -1, `dword_64167C` = its +2 word's bits 1 and 3 flipped
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
-pub unsafe fn face_hide_mask() -> Result<(), Refused> {
+pub fn face_hide_mask() -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground()?;
     let ground: u32 = CAR.probe_point_face[4].bits();
     if ground == u32::MAX {
@@ -1118,24 +1118,22 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
 /// `course_grid`; with `dword_621480` set, `dword_63F17C` 0x10 again, `checkpoint_colours`
 /// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
 /// (before anything) what `course_grid` would.
-pub unsafe fn prepare_course_view() -> Result<(), Refused> {
-    unsafe {
-        check_course_grid()?;
-        // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
-        // `dword_63F17C`, so the 0x10 written before it in the original comes after here.
-        face_hide_mask()?;
-        LEVEL_GRID.far_cell_limit.set(0x10u32);
-        course_grid()?;
-        if FRAME_SWITCHES.other_way.bits() == 0 {
-            return Ok(());
-        }
-        LEVEL_GRID.far_cell_limit.set(0x10u32);
-        if RACE_VARS.checkpoint_count.get() >= 2 {
-            checkpoint_colours()?;
-        }
-        mark_far_cells()?;
-        Ok(())
+pub fn prepare_course_view() -> Result<(), Refused> {
+    check_course_grid()?;
+    // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
+    // `dword_63F17C`, so the 0x10 written before it in the original comes after here.
+    face_hide_mask()?;
+    LEVEL_GRID.far_cell_limit.set(0x10u32);
+    course_grid()?;
+    if FRAME_SWITCHES.other_way.bits() == 0 {
+        return Ok(());
     }
+    LEVEL_GRID.far_cell_limit.set(0x10u32);
+    if RACE_VARS.checkpoint_count.get() >= 2 {
+        checkpoint_colours()?;
+    }
+    mark_far_cells()?;
+    Ok(())
 }
 
 /// `course_grid`'s refusal, before anything.
@@ -1822,7 +1820,7 @@ pub fn place_view() -> Result<(), BadInput> {
 /// -(`dword_609334` << 8), placed at (0, `dword_609318` << 8, 0) (into `dword_63501C` ..),
 /// the copy with the place (`g_turnedMatrix`) scaled by (`dword_6241D0` << 4) / 16
 /// (`dword_635038`, through `dword_62400C`), times `g_viewTurnMatrix`.
-pub unsafe fn sky_matrix() -> Result<(), BadInput> {
+pub fn sky_matrix() -> Result<(), BadInput> {
     use crate::scene::matrix;
     let angle = (STAGE_PREFS.sky_turn.get() << 8).wrapping_neg();
     matrix::set_turn_y(angle);
@@ -2002,7 +2000,7 @@ pub fn camera_view() -> Result<(), BadInput> {
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
-        CAR.unknown_734[k].set(p);
+        CAR.kept_view_place[k].set(p);
         VIEW_VARS.view_place[k].set(p);
     }
     VIEW_VARS.view_x.set(place[0]);
@@ -2186,9 +2184,10 @@ pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
         OBJECT_WORK.light_turns[1].set_bits(STAGE_PREFS.sun_height.bits());
         LIGHT_STATE.view_kind.set_bits(1);
         LIGHT_WORK.light_kind.set_bits(2);
-        GamePtr::new(slot + 0x10).copy_to(
-            GamePtr::new(MATRICES.object_turn_matrix[0].addr()),
-            0x40,
+        crate::math::cells::cells_from(
+            slot + 0x10,
+            &MATRICES.object_turn_matrix,
+            16,
             "a face, record or matrix",
         )?;
         let place = [
@@ -2397,19 +2396,16 @@ fn add_flare() -> Result<(), BadInput> {
     // one another 0x400 bytes apart, so by address (a slip of the original's).
     for (table, v) in [
         (
-            FLARE_TABLES.object_number[0].addr(),
+            &FLARE_TABLES.object_number,
             FRAME_SWITCHES.object_number.get(),
         ),
-        (LEVEL_GRID.flare_place_x[0].addr(), place[0]),
-        (FLARE_TABLES.place_y[0].addr(), place[1]),
-        (FLARE_TABLES.place_z[0].addr(), place[2]),
-        (FLARE_TABLES.size[0].addr(), OBJECT_WORK.size.bits()),
-        (
-            FLARE_TABLES.other_light[0].addr(),
-            OBJECT_WORK.other_light.bits(),
-        ),
+        (&LEVEL_GRID.flare_place_x, place[0]),
+        (&FLARE_TABLES.place_y, place[1]),
+        (&FLARE_TABLES.place_z, place[2]),
+        (&FLARE_TABLES.size, OBJECT_WORK.size.bits()),
+        (&FLARE_TABLES.other_light, OBJECT_WORK.other_light.bits()),
     ] {
-        put(table + 4 * n, v)?;
+        crate::session::write_on(table, n as usize, v, "a flare table")?;
     }
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
@@ -2585,7 +2581,7 @@ pub fn car_lights() -> Result<(), Refused> {
 /// The end of `place_object_matrix`'s ways: the place `dword_63501C` .. into
 /// `g_placedMatrix`, moved by the view (0x5EA1CC into `flt_5EA484`), `flt_5EA444` with it
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
-unsafe fn placed_object_tail() {
+fn placed_object_tail() {
     use crate::scene::matrix;
     let place = [
         OBJECT_WORK.place[0].get(),
@@ -2615,9 +2611,8 @@ fn scale_object_turn() -> Result<(), BadInput> {
     {
         let scale = crate::math::x87::int_over_16(OBJECT_WORK.size.get() as i32);
         DRAW.scratch.set_bits(scale);
-        let at = MATRICES.object_turn_matrix[0].addr();
-        for k in 0..16 {
-            put(at + 4 * k, crate::math::x87::mul(get(at + 4 * k)?, scale))?;
+        for cell in &MATRICES.object_turn_matrix {
+            cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
         }
     }
     Ok(())
@@ -2633,79 +2628,77 @@ fn scale_object_turn() -> Result<(), BadInput> {
 /// about x round the y of `dword_635044`, and with `dword_635060` / `dword_635064` again
 /// round `dword_63505C`; then scaled by `dword_635038` / 16. (It reads no register, and
 /// its callers read none it leaves.)
-pub unsafe fn place_object_matrix() -> Result<(), BadInput> {
+pub fn place_object_matrix() -> Result<(), BadInput> {
     use crate::scene::matrix::{
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
     };
     use crate::scene::view_matrix::{Axis, set_fine_turn};
-    unsafe {
-        let (turn_y, turn_x, turn_z) = (
-            &MATRICES.turn_y_matrix,
-            &MATRICES.turn_x_matrix,
-            &MATRICES.turn_z_matrix,
-        );
-        let (turned, lit, object) = (
-            &MATRICES.turned_matrix,
-            &MATRICES.lit_matrix,
-            &MATRICES.object_turn_matrix,
-        );
-        set_light_direction();
-        if LIGHT_STATE.light_turn_off.get() == 0 {
-            set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
-            set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
-            multiply_matrices(turn_y, turn_x, turned);
-            set_turn_z_16(OBJECT_WORK.angles[2].bits().wrapping_neg());
-            multiply_matrices(turned, turn_z, object);
-            placed_object_tail();
-            return Ok(());
+    let (turn_y, turn_x, turn_z) = (
+        &MATRICES.turn_y_matrix,
+        &MATRICES.turn_x_matrix,
+        &MATRICES.turn_z_matrix,
+    );
+    let (turned, lit, object) = (
+        &MATRICES.turned_matrix,
+        &MATRICES.lit_matrix,
+        &MATRICES.object_turn_matrix,
+    );
+    set_light_direction();
+    if LIGHT_STATE.light_turn_off.get() == 0 {
+        set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
+        set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
+        multiply_matrices(turn_y, turn_x, turned);
+        set_turn_z_16(OBJECT_WORK.angles[2].bits().wrapping_neg());
+        multiply_matrices(turned, turn_z, object);
+        placed_object_tail();
+        return Ok(());
+    }
+    if LIGHT_STATE.view_kind.get() == 4 {
+        return Ok(());
+    }
+    let kind = OBJECT_TABLES.object_kind(FRAME_SWITCHES.object_number.get());
+    let record = POLYGON_WORK.object_materials[0].words[0]
+        .addr()
+        .wrapping_add(kind.wrapping_mul(0x80));
+    let material = GamePtr::new(record + 0x20).read::<u8>("a face, record or matrix")?;
+    match material {
+        1 | 2 => {
+            crate::math::cells::copy_cells(&MATRICES.view_back_matrix, &object, 16);
         }
-        if LIGHT_STATE.view_kind.get() == 4 {
-            return Ok(());
+        5 => {
+            crate::math::cells::copy_cells(&MATRICES.identity_matrix, &object, 16);
+            set_fine_turn(Axis::Y, VIEW_VARS.view_angles[3].get());
+            multiply_matrices(object, turn_y, turned);
+            set_fine_turn(Axis::Y, VIEW_VARS.view_angles[0].get());
+            multiply_matrices(turned, turn_y, object);
         }
-        let kind = OBJECT_TABLES.object_kind(FRAME_SWITCHES.object_number.get());
-        let record = POLYGON_WORK.object_materials[0].words[0]
-            .addr()
-            .wrapping_add(kind.wrapping_mul(0x80));
-        let material = GamePtr::new(record + 0x20).read::<u8>("a face, record or matrix")?;
-        match material {
-            1 | 2 => {
-                crate::math::cells::copy_cells(&MATRICES.view_back_matrix, &object, 16);
-            }
-            5 => {
-                crate::math::cells::copy_cells(&MATRICES.identity_matrix, &object, 16);
-                set_fine_turn(Axis::Y, VIEW_VARS.view_angles[3].get());
-                multiply_matrices(object, turn_y, turned);
-                set_fine_turn(Axis::Y, VIEW_VARS.view_angles[0].get());
+        _ => {
+            set_turn_y(OBJECT_WORK.angles[0].bits().wrapping_neg());
+            crate::math::cells::copy_cells(&turn_y, &object, 16);
+            if OBJECT_WORK.angles[1].get() != 0 {
+                set_turn_y(OBJECT_WORK.angles[2].bits().wrapping_neg());
+                multiply_matrices(object, turn_y, lit);
+                set_turn_x(OBJECT_WORK.angles[1].bits().wrapping_neg());
+                multiply_matrices(lit, turn_x, turned);
+                set_turn_y(OBJECT_WORK.angles[2].get());
                 multiply_matrices(turned, turn_y, object);
             }
-            _ => {
-                set_turn_y(OBJECT_WORK.angles[0].bits().wrapping_neg());
-                crate::math::cells::copy_cells(&turn_y, &object, 16);
-                if OBJECT_WORK.angles[1].get() != 0 {
-                    set_turn_y(OBJECT_WORK.angles[2].bits().wrapping_neg());
-                    multiply_matrices(object, turn_y, lit);
-                    set_turn_x(OBJECT_WORK.angles[1].bits().wrapping_neg());
-                    multiply_matrices(lit, turn_x, turned);
-                    set_turn_y(OBJECT_WORK.angles[2].get());
-                    multiply_matrices(turned, turn_y, object);
-                }
-                if OBJECT_WORK.described_cleared[2].get() != 0
-                    || OBJECT_WORK.described_cleared[1].get() != 0
-                {
-                    set_turn_y(OBJECT_WORK.described_cleared[2].bits().wrapping_neg());
-                    multiply_matrices(object, turn_y, lit);
-                    set_turn_y(OBJECT_WORK.described_cleared[0].bits().wrapping_neg());
-                    multiply_matrices(lit, turn_y, turned);
-                    set_turn_x(OBJECT_WORK.described_cleared[1].bits().wrapping_neg());
-                    multiply_matrices(turned, turn_x, lit);
-                    set_turn_y(OBJECT_WORK.described_cleared[0].get());
-                    multiply_matrices(lit, turn_y, object);
-                }
+            if OBJECT_WORK.described_cleared[2].get() != 0
+                || OBJECT_WORK.described_cleared[1].get() != 0
+            {
+                set_turn_y(OBJECT_WORK.described_cleared[2].bits().wrapping_neg());
+                multiply_matrices(object, turn_y, lit);
+                set_turn_y(OBJECT_WORK.described_cleared[0].bits().wrapping_neg());
+                multiply_matrices(lit, turn_y, turned);
+                set_turn_x(OBJECT_WORK.described_cleared[1].bits().wrapping_neg());
+                multiply_matrices(turned, turn_x, lit);
+                set_turn_y(OBJECT_WORK.described_cleared[0].get());
+                multiply_matrices(lit, turn_y, object);
             }
         }
-        scale_object_turn()?;
-        placed_object_tail();
     }
+    scale_object_turn()?;
+    placed_object_tail();
     Ok(())
 }
 
@@ -2717,17 +2710,18 @@ pub unsafe fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
     unsafe {
         // The tables are read unchecked by `flare` (see `add_flare`).
         for (table, to) in [
-            (LEVEL_GRID.flare_place_x[0].addr(), &OBJECT_WORK.place[0]),
-            (FLARE_TABLES.place_y[0].addr(), &OBJECT_WORK.place[1]),
-            (FLARE_TABLES.place_z[0].addr(), &OBJECT_WORK.place[2]),
-            (FLARE_TABLES.size[0].addr(), &OBJECT_WORK.size),
-            (FLARE_TABLES.other_light[0].addr(), &OBJECT_WORK.other_light),
-            (
-                FLARE_TABLES.object_number[0].addr(),
-                &FRAME_SWITCHES.object_number,
-            ),
+            (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
+            (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
+            (&FLARE_TABLES.place_z, &OBJECT_WORK.place[2]),
+            (&FLARE_TABLES.size, &OBJECT_WORK.size),
+            (&FLARE_TABLES.other_light, &OBJECT_WORK.other_light),
+            (&FLARE_TABLES.object_number, &FRAME_SWITCHES.object_number),
         ] {
-            to.set_bits(get(table.wrapping_add(flare.wrapping_mul(4)))?);
+            to.set_bits(crate::session::read_on(
+                table,
+                flare as usize,
+                "a flare table",
+            )?);
         }
         LIGHT_STATE.view_kind.set(2u32);
         place_object_matrix()?;

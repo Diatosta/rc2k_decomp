@@ -81,7 +81,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
 }
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
-fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+fn text(font: u32, text: impl Into<crate::place::Place>, x: u32, y: u32) -> Result<(), Refused> {
     { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
     Ok(())
 }
@@ -90,11 +90,11 @@ fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
 fn three_times(x: u32, y: u32) -> Result<(), Refused> {
     FONTS.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
-    text(font(), TEXT_BUFFER.text.addr(), x, y)?;
+    text(font(), &TEXT_BUFFER.text, x, y)?;
     for _ in 0..2 {
         x = x.wrapping_sub(0x78);
         y = y.wrapping_add(line());
-        text(font(), TEXT_BUFFER.text.addr(), x, y)?;
+        text(font(), &TEXT_BUFFER.text, x, y)?;
     }
     Ok(())
 }

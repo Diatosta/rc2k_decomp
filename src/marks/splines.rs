@@ -423,10 +423,9 @@ pub fn bound_spline_points(s: u32) -> Result<(), Refused> {
     let n = count(s)?;
     let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n)?);
     let size = b.size;
-    let up = SPLINE_WORK.up[0].addr();
-    let size_at = SPLINE_WORK.size[0].addr();
-    put(size_at + 4, x87::from_int(size[1]))?;
-    put(size_at + 8, x87::from_int(size[2]))?;
+    let (up, size_at) = (&SPLINE_WORK.up, &SPLINE_WORK.size);
+    size_at[1].set_bits(x87::from_int(size[1]));
+    size_at[2].set_bits(x87::from_int(size[2]));
     for (c, &m) in b.middle.iter().enumerate() {
         put(s + CENTRE + 4 * c as u32, m as u32)?;
     }
@@ -556,7 +555,7 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
     if loaded == 0 {
         let file = SPLINE_HEAD.file.addr();
         crate::files::read_whole_file::read_whole_file(
-            crate::pointers::host(SPLINE_PATH.path.addr()) as *const u8,
+            SPLINE_PATH.path.as_ptr() as *const u8,
             crate::pointers::host(file),
             FILE_LEN,
         )?;

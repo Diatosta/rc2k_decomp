@@ -34,11 +34,11 @@ fn head_byte(k: usize) -> Result<u32, BadInput> {
 /// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
 /// variables after it, as the original does.
 fn wish_of(byte: usize) -> Result<u32, BadInput> {
-    match REPLAY_WORK.replay_camera_wishes.get(byte) {
-        Some(wish) => Ok(wish.get()),
-        None => GamePtr::new(REPLAY_WORK.replay_camera_wishes[0].addr() + (4 * byte) as u32)
-            .read("the replay camera wishes"),
-    }
+    crate::session::read_on(
+        &REPLAY_WORK.replay_camera_wishes,
+        byte,
+        "the replay camera wishes",
+    )
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.

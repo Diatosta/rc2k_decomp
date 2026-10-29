@@ -134,6 +134,42 @@ impl Float {
     }
 }
 
+/// Cell `n` of `cells`, or, past their end, the dword the original reads there (by address:
+/// what follows in the image's layout; refused outside the region). The one place the
+/// tables' read-on slips go through.
+pub fn read_on<C: Cell32>(
+    cells: &[C],
+    n: usize,
+    what: &str,
+) -> Result<u32, crate::errors::BadInput> {
+    match cells.get(n) {
+        Some(cell) => Ok(cell.bits()),
+        None => crate::pointers::GamePtr::new(
+            crate::pointers::game_address(cells.as_ptr()).wrapping_add((4 * n) as u32),
+        )
+        .read(what),
+    }
+}
+
+/// `read_on`'s write: cell `n` of `cells`, or, past their end, the dword there by address.
+pub fn write_on<C: Cell32>(
+    cells: &[C],
+    n: usize,
+    v: u32,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    match cells.get(n) {
+        Some(cell) => {
+            cell.set_bits(v);
+            Ok(())
+        }
+        None => crate::pointers::GamePtr::new(
+            crate::pointers::game_address(cells.as_ptr()).wrapping_add((4 * n) as u32),
+        )
+        .write(v, what),
+    }
+}
+
 /// A 32-bit cell the x87 model loads and stores by its bits: a `Dword` or a `Float` (a
 /// parameter that may be either, the damage model's).
 pub trait Cell32 {
@@ -293,6 +329,43 @@ impl<const N: usize> Bytes<N> {
     pub fn write(&self, value: &[u8; N]) {
         for (i, &b) in value.iter().enumerate() {
             self.set(i, b);
+        }
+    }
+
+    /// `len` bytes from `offset` (`what` names them in a refusal past the end).
+    pub fn read_at(
+        &self,
+        offset: usize,
+        len: usize,
+        what: &str,
+    ) -> Result<Vec<u8>, crate::errors::BadInput> {
+        self.range(offset, len, what)?;
+        Ok((offset..offset + len).map(|i| self.get(i)).collect())
+    }
+
+    /// `data` written from `offset`.
+    pub fn write_at(
+        &self,
+        offset: usize,
+        data: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.range(offset, data.len(), what)?;
+        for (i, &b) in data.iter().enumerate() {
+            self.set(offset + i, b);
+        }
+        Ok(())
+    }
+
+    fn range(&self, offset: usize, len: usize, what: &str) -> Result<(), crate::errors::BadInput> {
+        match offset.checked_add(len) {
+            Some(end) if end <= N => Ok(()),
+            _ => {
+                crate::framework::log(&format!(
+                    "session: {what}: {len} bytes at {offset:#x} of a {N:#x}-byte buffer"
+                ));
+                Err(crate::errors::BadInput("past the end of a buffer"))
+            }
         }
     }
 }

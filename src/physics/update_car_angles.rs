@@ -14,9 +14,9 @@ use rc2k_core::physics::motion::angles_wanted as wanted;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub unsafe fn update_car_angles() {
+pub fn update_car_angles() {
     let (force, hold) = (CAR.camera_mode_is_2_or_3.get(), CAR.all_wheels_off.get());
     if wanted(force, hold) {
-        unsafe { car_angles() }
+        car_angles()
     }
 }

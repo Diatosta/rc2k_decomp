@@ -111,13 +111,11 @@ fn steps() -> Result<(), Refused> {
             CAR.wheel_surface_blend[cc].set_bits(0);
             let kind_index = byte(t2 + 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
-            let kind = match RACE_VIEW.surface_kinds.get(kind_index as usize) {
-                Some(cell) => cell.get(),
-                None => GamePtr::new(
-                    RACE_VIEW.surface_kinds[0].addr() + (4 * kind_index as usize) as u32,
-                )
-                .read::<u32>("the surface kinds (a byte index past the table)")?,
-            };
+            let kind = crate::session::read_on(
+                &RACE_VIEW.surface_kinds,
+                kind_index as usize,
+                "the surface kinds (a byte index past the table)",
+            )?;
             if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21)? != 0
             {
                 let (x, y, z) = if CONTACT_WORK.probe_face_flip[cc].get() == 1 {

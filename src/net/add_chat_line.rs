@@ -16,103 +16,115 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::pointers::GamePtr;
+use crate::session::Bytes;
 use crate::strings::str_append::str_append;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 const LINE_WIDTH: u32 = 0x30C;
-const CHAT_LEN: u32 = 0x300;
+const CHAT_LEN: usize = 0x300;
 
-fn byte(at: u32) -> Result<u8, BadInput> {
-    GamePtr::new(at).read::<u8>("the chat's text")
+/// Byte `i` of `b` (refused past its end).
+fn at<const N: usize>(b: &Bytes<N>, i: usize) -> Result<u8, BadInput> {
+    if i < N {
+        Ok(b.get(i))
+    } else {
+        Err(BadInput("past the end of a chat buffer"))
+    }
 }
 
-fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "the chat's text")
+/// Byte `i` of `b` set to `v` (refused past its end).
+fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
+    if i < N {
+        b.set(i, v);
+        Ok(())
+    } else {
+        Err(BadInput("past the end of a chat buffer"))
+    }
 }
 
 /// The Rust version.
 pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
-    if byte(crate::pointers::game_address(message))? == 0 {
+    if GamePtr::new(crate::pointers::game_address(message)).read::<u8>("the chat's text")? == 0 {
         return Ok(());
     }
     // "name> text"
     let cursor = str_append(
-        crate::pointers::host(NET.player_block(player).name.addr()) as *const u8,
-        crate::pointers::host(NET.chat_text.addr()),
+        NET.player_block(player).name.as_ptr() as *const u8,
+        NET.chat_text.as_ptr(),
     )?;
     GamePtr::new(crate::pointers::game_address(cursor)).write(0x203Eu16, "the chat's text")?;
     let cursor = str_append(message, cursor.wrapping_add(2))?;
     GamePtr::new(crate::pointers::game_address(cursor)).write(0u8, "the chat's text")?;
-    let mut text = NET.chat_text.addr();
+    let (line, chat, said) = (&NET.chat_line, &NET.chat, &NET.chat_text);
+    let mut text = 0usize;
     loop {
         // The next line: one character more at a time while it fits.
-        let mut end = NET.chat_line.addr();
+        let mut end = 0usize;
         loop {
-            let c = byte(text)?;
-            set_byte(end, c)?;
+            let c = at(said, text)?;
+            put(line, end, c)?;
             if c == 0 {
                 break;
             }
             text += 1;
             end += 1;
-            set_byte(end, 0)?;
+            put(line, end, 0)?;
             let width = {
                 measure_text_at(
                     CHAT_FONT.as_ptr(),
-                    crate::pointers::host(NET.chat_line.addr()) as *const u8,
+                    line.as_ptr() as *const u8,
                     0,
                     &mut GameCanvas,
                 )
             }?
             .width;
             if width > LINE_WIDTH {
-                set_byte(end - 1, 0)?;
+                put(line, end - 1, 0)?;
                 text -= 1;
                 break;
             }
         }
-        if byte(NET.chat_line.addr())? == 0 && byte(text)? != 0 {
+        if at(line, 0)? == 0 && at(said, text)? != 0 {
             return Err(
                 BadInput("a character wider than a chat line: the original never ends").into(),
             );
         }
         // The top line dropped, the rest moved up.
-        let mut from = NET.chat.addr();
-        let mut to = from;
+        let (mut from, mut to) = (0usize, 0usize);
         loop {
-            if from >= (NET.chat.addr()) + CHAT_LEN {
+            if from >= CHAT_LEN {
                 return Err(BadInput("a chat with no line end").into());
             }
-            let c = byte(from)?;
+            let c = at(chat, from)?;
             from += 1;
             if c == 0x0A {
                 break;
             }
         }
         loop {
-            let c = byte(from)?;
+            let c = at(chat, from)?;
             from += 1;
-            set_byte(to, c)?;
+            put(chat, to, c)?;
             to += 1;
             if c == 0 {
                 break;
             }
         }
         // The new line at the bottom.
-        from = NET.chat_line.addr();
-        set_byte(to - 1, 0x0A)?;
+        put(chat, to - 1, 0x0A)?;
+        let mut from = 0usize;
         loop {
-            let c = byte(from)?;
+            let c = at(line, from)?;
             from += 1;
-            set_byte(to, c)?;
+            put(chat, to, c)?;
             to += 1;
             if c == 0 {
                 break;
             }
         }
-        if byte(text)? == 0 {
+        if at(said, text)? == 0 {
             return Ok(());
         }
     }

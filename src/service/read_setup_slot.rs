@@ -80,17 +80,10 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     }
     {
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        let file = GamePtr::new(SET_UPS.file.addr());
-        let read = read_file(
-            path,
-            crate::pointers::host(file.addr()),
-            SETUP_FILE_LEN as u32,
-            0,
-        )?;
+        let file = &SET_UPS.file;
+        let read = read_file(path, file.as_ptr(), SETUP_FILE_LEN as u32, 0)?;
         // Converted: `rc2k_core::saves::kept::setup_name`.
-        let name = rc2k_core::saves::kept::setup_name(
-            &file.read::<[u8; SETUP_FILE_LEN]>("the setup file")?,
-        );
+        let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
                 GamePtr::new(crate::pointers::game_address(slot_name(slot)))

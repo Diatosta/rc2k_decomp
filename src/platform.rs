@@ -39,8 +39,6 @@ use sdl3_sys::everything::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
-const DEFAULT_MODE: u32 = 0x32_2802;
-
 // ---- game data ----
 
 // ---- the screen ----
@@ -296,21 +294,41 @@ fn game_key(scancode: i32) -> u8 {
 
 static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481));
 
-/// `gfx::choose_screen_modes`: the menus' and the race's modes (the default where none is
-/// kept) and the graphics options' choices. It cannot fail here (the original's carry).
-pub fn choose_screen_modes() {
+/// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
+/// original's choices in order) and the graphics options' choices. Fails (the original's
+/// carry, which its caller makes fatal error 0x90201101) when no mode works.
+pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
     CHOOSE.count_call();
     {
-        for mode in [&SCREEN_MODE.menu_mode, &SCREEN_MODE.race_mode] {
-            if mode.get() == 0 {
-                mode.set(DEFAULT_MODE);
+        // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
+        // mode table lists it: the window takes any listed mode, and every listed mode
+        // passes the 3D check (`gfx::mark_3d_modes`).
+        use crate::gfx::modes::MODES;
+        use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
+        let (table, count) = (MODES.table_addr() as u32, MODES.count.get());
+        let works = |mode: u32| {
+            let entries = crate::system::find_entry::entries(table, count);
+            matches!(look_up(entries, mode), Lookup::Found(_))
+        };
+        let listed = |bits: u32| {
+            crate::system::find_entry_with_bits::find_entry_with_bits(bits, table, count).0
+        };
+        let (menu, race) = (SCREEN_MODE.menu_mode.get(), SCREEN_MODE.race_mode.get());
+        match choose(menu, race, works, listed) {
+            Some((menu, race)) => {
+                SCREEN_MODE.race_mode.set(race);
+                SCREEN_MODE.menu_mode.set(menu);
+                log(&format!(
+                    "platform: screen modes {menu:#x} for the menus, {race:#x} for a race"
+                ));
+            }
+            None => {
+                return Err(crate::errors::FatalError {
+                    code: 0x9020_1101,
+                    message: "",
+                });
             }
         }
-        log(&format!(
-            "platform: screen modes {:#x} for the menus, {:#x} for a race",
-            SCREEN_MODE.menu_mode.get(),
-            SCREEN_MODE.race_mode.get()
-        ));
     }
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
@@ -321,6 +339,7 @@ pub fn choose_screen_modes() {
             "platform: the screen mode choices are not made: {e:?}"
         ));
     }
+    Ok(())
 }
 
 // ---- gfx::set_screen_mode (0x404B63) ----

@@ -38,7 +38,6 @@ type Record = u32;
 // entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
 // next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
-const PLAYERS: &Dword = &PLAYER_TABLE.pointers[0];
 /// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 /// copied to `RACE_INFO`.
 const SUMMARY: &Dword = &CHAMP_VIEW.summary;
@@ -76,8 +75,8 @@ const WORD_8_FIRST: &Dword = &RACE_STATE.settings.car_kind_first;
 /// dword_75AE24: the second set's word that mode 2 takes from +0x10.
 const MODE_WORD: &Dword = &RACE_STATE.settings.cars[0].view;
 /// The two blocks of 0x20 bytes copied from a record's +0x24C, the first car's / the current's.
-const BLOCK_FIRST: &Dword = &RACE_STATE.results.results[1].block[0];
-const BLOCK_CURRENT: &Dword = &RACE_STATE.results.results[0].block[0];
+const BLOCK_FIRST: &[Dword; 8] = &RACE_STATE.results.results[1].block;
+const BLOCK_CURRENT: &[Dword; 8] = &RACE_STATE.results.results[0].block;
 /// The first car's five times (added, then divided by 10 into the record's +0xD8) and the
 /// word whose six times is added; the current car's.
 const TIMES_FIRST: [&Dword; 4] = [
@@ -528,7 +527,7 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
 
 /// `g_players`[n].
 pub fn player(n: u32) -> Result<u32, BadInput> {
-    GamePtr::new((PLAYERS.addr()).wrapping_add(n.wrapping_mul(4))).read("the players")
+    crate::session::read_on(&PLAYER_TABLE.pointers, n as usize, "the players")
 }
 
 /// Words of a record into game variables, in order.
@@ -557,8 +556,20 @@ fn give_words(rec: Record, list: &[(&Dword, u32)]) -> Result<(), BadInput> {
 }
 
 /// `rep movsb` of `len` bytes.
-fn copy_bytes(from: u32, to: u32, len: u32) -> Result<(), BadInput> {
-    GamePtr::new(from).copy_to(GamePtr::new(to), len as usize, "a player's record")
+/// A record's block (+0x24C, 0x20 bytes) into `block`.
+fn block_in(rec: Record, block: &[Dword; 8]) -> Result<(), BadInput> {
+    for (k, cell) in block.iter().enumerate() {
+        cell.set(field(rec, 0x24C + 4 * k as u32)?);
+    }
+    Ok(())
+}
+
+/// `block` into a record's block (+0x24C).
+fn block_out(block: &[Dword; 8], rec: Record) -> Result<(), BadInput> {
+    for (k, cell) in block.iter().enumerate() {
+        set_field(rec, 0x24C + 4 * k as u32, cell.get())?;
+    }
+    Ok(())
 }
 
 /// The total a record keeps at +0xD8: a tenth of the sum of four times, and a tenth of six
@@ -588,7 +599,8 @@ fn give_outcome(rec: Record, o: &Outcome) -> Result<(), BadInput> {
             set_field(rec, 0x27C, o.word.get())?;
             let secs = crate::math::x87::to_int(o.secs.bits()) as u32;
             set_field(rec, 0x94, secs.wrapping_mul(10))?;
-            copy_bytes(o.data.addr(), rec.wrapping_add(0x20C), 0x40)?;
+            GamePtr::new(rec.wrapping_add(0x20C))
+                .write_bytes(&o.data.read(), "a player's record")?;
         }
     }
     Ok(())
@@ -674,7 +686,7 @@ unsafe fn single_rally(
             }
             WORD_8_FIRST.set(field(first, 0x8)?);
             take_words(first, &FIRST_HEAD)?;
-            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr(), 0x20)?;
+            block_in(first, BLOCK_FIRST)?;
             take_words(first, &FIRST_TAIL)?;
             set_var(CURRENT, 0);
         } else if field(player(var(CURRENT))?, 0xD0)? != 1 {
@@ -690,7 +702,7 @@ unsafe fn single_rally(
             RESULT.set(u32::MAX);
         }
         take_words(rec, &SECOND_HEAD)?;
-        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr(), 0x20)?;
+        block_in(rec, BLOCK_CURRENT)?;
         take_words(rec, &SECOND_MID)?;
         if RACE_MODE.get() == 2 {
             MODE_WORD.set(field(rec, 0x10)?);
@@ -718,7 +730,7 @@ unsafe fn single_rally(
         if one_car {
             let first = player(1)?;
             give_words(first, &FIRST_BACK_A)?;
-            copy_bytes(BLOCK_FIRST.addr(), first.wrapping_add(0x24C), 0x20)?;
+            block_out(BLOCK_FIRST, first)?;
             set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST))?;
             give_words(first, &FIRST_BACK_B)?;
             give_outcome(first, &OUTCOME_FIRST)?;
@@ -726,7 +738,7 @@ unsafe fn single_rally(
         }
         let rec = player(var(CURRENT))?;
         set_field(rec, 0x284, BACK_284_CURRENT.get())?;
-        copy_bytes(BLOCK_CURRENT.addr(), rec.wrapping_add(0x24C), 0x20)?;
+        block_out(BLOCK_CURRENT, rec)?;
         give_words(rec, &SECOND_BACK_A)?;
         set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT))?;
         give_words(rec, &SECOND_BACK_B)?;
@@ -2014,11 +2026,11 @@ mod tests {
             }
         }
         for (a, len) in [
-            (BLOCK_FIRST.addr(), 0x20),
-            (BLOCK_CURRENT.addr(), 0x20),
+            (BLOCK_FIRST[0].addr(), 0x20),
+            (BLOCK_CURRENT[0].addr(), 0x20),
             (OUTCOME_FIRST.data.addr(), 0x40),
             (OUTCOME_CURRENT.data.addr(), 0x40),
-            (PLAYERS.addr(), 16),
+            (PLAYER_TABLE.pointers[0].addr(), 16),
         ] {
             ranges.push((a as usize, len));
         }

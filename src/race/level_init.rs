@@ -5,7 +5,6 @@
 //! files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -16,88 +15,46 @@ use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 
-/// Where the steps' variables are (the game's, or a test's).
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub course_info: u32,
-    pub course_memory: u32,
-    pub first_part: u32,
-    pub list_total: u32,
-    pub texture_kinds: u32,
-    pub texture_infos: u32,
-    pub checkpoint_kinds: u32,
-    pub checkpoint_count: u32,
-    pub checkpoint_table: u32,
-    pub checkpoint_records: u32,
-    pub checkpoints: u32,
-    pub checkpoints_found: u32,
-    pub refresh: [u32; 2],
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        let _a = |v: usize| game_addr(rva(v));
-        Self {
-            course_info: (COURSE_LISTS.course_info.addr()),
-            course_memory: (COURSE_LISTS.course_memory.addr()),
-            first_part: (COURSE_LISTS.first_part.addr()),
-            list_total: (COURSE_LISTS.course_bytes_total.addr()),
-            texture_kinds: (STAGE_PREFS.texture_kinds[0].addr()),
-            texture_infos: crate::scene::polygon::texture_infos_addr(),
-            checkpoint_kinds: (RACE_VARS.checkpoint_count.addr()),
-            checkpoint_count: (RACE_VARS.last_checkpoint.addr()),
-            checkpoint_table: crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0]
-                .addr(),
-            checkpoint_records: (COURSE.course_faces.addr()),
-            checkpoints: (SPLIT_TABLES.checkpoints[0].addr()),
-            checkpoints_found: (SPLIT_TABLES.split_colour_count.addr()),
-            refresh: [(LEVEL_GRID.grid_x.addr()), (LEVEL_GRID.grid_z.addr())],
-        }
-    }
-}
-
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places() -> [usize; 9] {
+pub fn number_places() -> [crate::place::Place; 9] {
+    use crate::place::Place;
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
     [
-        (p.edit_path.addr() + 0xD) as usize,
-        (p.cdat_src.addr() + 0xD) as usize,
-        (p.cdat_files.addr() + 0x12) as usize,
-        (p.cdat_src_2.addr() + 0xD) as usize,
-        (p.localdat_src.addr() + 0xD) as usize,
-        (p.localdat_files.addr() + 0x12) as usize,
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A) as usize,
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B) as usize,
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C) as usize,
+        Place::from(&p.edit_path).add(0xD),
+        Place::from(&p.cdat_src).add(0xD),
+        Place::from(&p.cdat_files).add(0x12),
+        Place::from(&p.cdat_src_2).add(0xD),
+        Place::from(&p.localdat_src).add(0xD),
+        Place::from(&p.localdat_files).add(0x12),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A).into(),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B).into(),
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C).into(),
     ]
 }
 const TEXTURES: u32 = 0x100;
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a course variable")
-}
-
 fn put(at: u32, value: u32) -> Result<(), BadInput> {
     GamePtr::new(at).write(value, "a course variable")
 }
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
-pub fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
-    put(v.first_part, FIRST_PART)?;
-    put(
-        v.list_total,
-        get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
-    )?;
+pub fn allocate_course_memory(list: u32) -> Result<(), Refused> {
+    COURSE_LISTS.first_part.set(FIRST_PART);
+    COURSE_LISTS.course_bytes_total.set(
+        COURSE_LISTS
+            .course_bytes_total
+            .get()
+            .wrapping_add(FIRST_PART + INFO_PART),
+    );
     // Counted whole, as the original's one block; the info part is Rust's own store
     // (`race::course_places::INFO`), named by its place.
     let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
-    put(v.course_memory, memory)?;
-    put(
-        v.course_info,
-        crate::race::course_places::take_info(INFO_PART)?,
-    )?;
+    COURSE_LISTS.course_memory.set(memory);
+    COURSE_LISTS
+        .course_info
+        .set(crate::race::course_places::take_info(INFO_PART)?);
     Ok(())
 }
 
@@ -139,8 +96,8 @@ pub fn give_back_course_memory() {
 
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from
 /// +0x17E800 to +0x17F000.
-pub fn copy_texture_info_tail(v: &Vars) -> Result<(), BadInput> {
-    let info = get(v.course_info)?;
+pub fn copy_texture_info_tail() -> Result<(), BadInput> {
+    let info = COURSE_LISTS.course_info.get();
     let what = "the course info's texture tail";
     let tail = crate::race::course_places::bytes(info.wrapping_add(0x17_E800), 0x800, what)?;
     crate::race::course_places::write_bytes(info.wrapping_add(0x17_F000), &tail, what)
@@ -150,8 +107,8 @@ pub fn copy_texture_info_tail(v: &Vars) -> Result<(), BadInput> {
 /// the course info, `files\m\markinfo` (0x8000) at +0x1C2000, `files\b\textinfo`
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
-pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
-    let info = get(v.course_info)?;
+pub fn load_texture_info() -> Result<(), Refused> {
+    let info = COURSE_LISTS.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
@@ -176,7 +133,7 @@ pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
         &[0x0A; 3],
         "the course info's line feeds",
     )?;
-    copy_texture_info_tail(v)?;
+    copy_texture_info_tail()?;
     Ok(())
 }
 
@@ -186,7 +143,7 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
     for place in number_places() {
-        GamePtr::new(place as u32).write_bytes(&[tens, units], "a path's course number")?;
+        place.write(&[tens, units], "a path's course number")?;
     }
     Ok(())
 }
@@ -207,21 +164,21 @@ pub fn load_error_list() -> Result<(), Refused> {
 /// +0x10/+0x14/+0x18 the record's +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its
 /// bytes +0x24..+0x26, +0 .. +0xC its first four. Refuses a kind whose record lies past
 /// the info.
-pub fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
+pub fn build_texture_infos() -> Result<(), Refused> {
     {
-        let info = get(v.course_info)?;
+        let info = COURSE_LISTS.course_info.get();
         if info == 0 {
             return Ok(());
         }
         for n in 0..TEXTURES {
-            if get(v.texture_kinds + 4 * n)? >= INFO_PART / 0x80 {
+            if STAGE_PREFS.texture_kinds[n as usize].get() >= INFO_PART / 0x80 {
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
-            let out = v.texture_infos + n * 0x40;
-            let kind = get(v.texture_kinds + 4 * n)?;
+            let out = crate::scene::polygon::texture_infos_addr() + n * 0x40;
+            let kind = STAGE_PREFS.texture_kinds[n as usize].get();
             let rec = info + kind * 0x80;
             let trap = Trap::new();
             let t = rc2k_core::race::stage::texture_info(
@@ -247,9 +204,9 @@ pub fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
 }
 
 /// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
-pub fn reset_refresh(v: &Vars) -> Result<(), BadInput> {
-    put(v.refresh[0], 0x8000_0000)?;
-    put(v.refresh[1], 0x8000_0000)
+pub fn reset_refresh() {
+    LEVEL_GRID.grid_x.set(0x8000_0000);
+    LEVEL_GRID.grid_z.set(0x8000_0000);
 }
 
 /// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is
@@ -258,28 +215,33 @@ pub fn reset_refresh(v: &Vars) -> Result<(), BadInput> {
 /// `dword_601830` = their count - 1. Refuses an end below 2 (the original counts round), or
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
-pub fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
+pub fn init_checkpoints() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
-        let kinds = get(v.checkpoint_kinds)?;
+        let kinds = RACE_VARS.checkpoint_count.get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
-            put(v.checkpoints_found, 0)?;
+            SPLIT_TABLES.split_colour_count.set(0);
             return Ok(());
         }
-        let end = get(v.checkpoint_count)?;
-        let records = get(v.checkpoint_records)?;
+        let end = RACE_VARS.last_checkpoint.get();
+        let records = COURSE.course_faces.get();
+        let table = crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0].addr();
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            let face = trap.read::<u32>(v.checkpoint_table + 4 * n, "the checkpoint table");
+            let face = trap.read::<u32>(table + 4 * n, "the checkpoint table");
             let record = (face << 6).wrapping_add(records);
             trap.course::<u8>(record + 0x26, "a checkpoint face") != 0
         })?;
         trap.finish()?;
-        put(v.checkpoints_found, 0)?;
+        SPLIT_TABLES.split_colour_count.set(0);
+        // By address: the list runs on past its 0x101 entries as the original's does.
+        let list = SPLIT_TABLES.checkpoints[0].addr();
         for (k, &n) in listed.iter().enumerate() {
-            put(v.checkpoints + 4 * k as u32, n)?;
+            put(list + 4 * k as u32, n)?;
         }
-        put(v.checkpoints_found, (listed.len() as u32).wrapping_sub(1))?;
+        SPLIT_TABLES
+            .split_colour_count
+            .set((listed.len() as u32).wrapping_sub(1));
     }
     Ok(())
 }

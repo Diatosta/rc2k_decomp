@@ -75,8 +75,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
         BLIT.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
-        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr())
-            .write_bytes(&text, "the text buffer")?;
+        TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;
         draw_text(
             FONT.addr(),
             &TEXT_BUFFER.text,

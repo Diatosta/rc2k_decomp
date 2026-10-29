@@ -6,32 +6,21 @@
 //! In:  esi a, edi b, ebp the result
 //! Out: every register kept
 //!
-//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin). Refuses a null pointer.
+//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin).
 //!
 //! Plain Rust since 2026-10-24 (no assembly): the arithmetic is the x87's, in `X`
 //! (`math/x87_float.rs`); the original's instructions are kept as `asm_reference` in the tests.
 
-use crate::errors::{BadInput, Refused};
-use crate::scene::x87_mem::{fld, fstp};
+use crate::math::cells::Cells;
+use crate::math::x87_float::{ld, st};
 
-/// The Rust version (see the header).
-pub fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
-    if a == 0 || b == 0 || out == 0 {
-        return Err(BadInput("a null vector").into());
-    }
-    cross(
-        crate::pointers::host(a) as *const u8,
-        crate::pointers::host(b) as *const u8,
-        crate::pointers::host(out),
-    );
-    Ok(())
-}
-
-/// The three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`).
-fn cross(a: *const u8, b: *const u8, o: *mut u8) {
-    fstp(o, 0, fld(a, 4) * fld(b, 8) - fld(a, 8) * fld(b, 4));
-    fstp(o, 4, fld(a, 8) * fld(b, 0) - fld(a, 0) * fld(b, 8));
-    fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));
+/// The Rust version: the three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`):
+/// an output over an input is read back as the original does.
+pub fn cross(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized), o: &(impl Cells + ?Sized)) {
+    let (a, b) = (|k| ld(a.bits(k)), |k| ld(b.bits(k)));
+    o.set_bits(0, st(a(1) * b(2) - a(2) * b(1)));
+    o.set_bits(1, st(a(2) * b(0) - a(0) * b(2)));
+    o.set_bits(2, st(a(0) * b(1) - a(1) * b(0)));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -95,7 +84,9 @@ mod asm_reference {
             if reference {
                 cross_ref(a, b, o)
             } else {
-                cross(a, b, o)
+                use crate::scene::x87_mem::HostCell;
+                let cells = |p: *mut u8| [0, 4, 8].map(|k| HostCell(p as usize + k));
+                cross(&cells(a), &cells(b), &cells(o))
             }
         }
     }

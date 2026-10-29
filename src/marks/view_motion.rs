@@ -16,35 +16,34 @@
 use crate::errors::Refused;
 use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
 use crate::marks::setup::CLOCK;
-use crate::math::cells::{At, load};
+use crate::math::cells::load;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::{dot_product3, normalise_vector3};
+use crate::scene::vector3::{dot_product3, normalise};
+use crate::session::Dword;
 
 /// The Rust version (see the header).
 pub fn view_motion() -> Result<(), Refused> {
-    let m = MATRICES.view_place[0].addr();
-    let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
-    let mut local = [0u32; 6];
-    for (k, v) in local.iter_mut().take(3).enumerate() {
-        *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
+    let m = &MATRICES.view_place;
+    // The original's six floats on its stack: the third row, then the step.
+    let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));
+    for k in 0..3 {
+        local[k].set(x87::loaded(m[8 + k].bits()));
     }
     let zero = [extended(0); 3];
-    let place = rotate_point(&At(m), zero);
+    let place = rotate_point(m, zero);
     for k in 0..3 {
         let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
         DRAW_WORK.step[k].set_bits(step);
-        local[3 + k] = step;
+        local[3 + k].set(step);
     }
-    let at = crate::pointers::game_address(local.as_mut_ptr());
-    normalise_vector3(at + 12);
+    normalise(&local[3..]);
     VIEW_VARS
         .facing
-        .set_bits(rounded(dot_product3(load(&At(at)), load(&At(at + 12)))));
-    let place = rotate_point(&At(m), zero);
+        .set_bits(rounded(dot_product3(load(&local[..3]), load(&local[3..]))));
+    let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
         DRAW_FRAME.last[k].set_bits(rounded(*p));
     }

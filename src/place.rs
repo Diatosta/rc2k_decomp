@@ -1,14 +1,14 @@
-//! A place in the installer's text and data (phase 13): a typed buffer and an offset into
-//! it, or, for what the script, its pages and the name tables still hand around as
-//! pointers, a game address. The installer's helpers take `impl Into<Place>`, so a typed
-//! buffer goes in as itself (`&INSTALLER_PATHS.installed`) and a pointer read from the
-//! game's data as its number.
+//! A place in the game's texts and data (phase 13): a typed buffer and an offset into it,
+//! or, for what the game's data still hands around as pointers (the installer's script
+//! and pages, the name tables), a game address. Helpers take `impl Into<Place>`, so a
+//! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
+//! a pointer read from the game's data as its number. (The installer's first, 2026-10-28.)
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 
-/// A run of bytes the installer reads and writes in place.
+/// A run of bytes read and written in place.
 pub trait Run: Sync {
     fn len(&self) -> usize;
     fn get(&self, n: usize) -> u8;
@@ -51,7 +51,7 @@ impl<const N: usize> From<&'static Bytes<N>> for Place {
     }
 }
 
-const PAST: BadInput = BadInput("past the end of an installer buffer");
+const PAST: BadInput = BadInput("past the end of a buffer");
 
 impl Place {
     /// `n` bytes on.
@@ -102,7 +102,7 @@ impl Place {
                 Self::inside(b, at, 0)?;
                 let end = (at..b.len())
                     .find(|&k| b.get(k) == 0)
-                    .ok_or(BadInput("an installer text without its end"))?;
+                    .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
             Place::At(a) => crate::files::cstring(GamePtr::new(a), what),
@@ -113,7 +113,7 @@ impl Place {
     pub fn ptr(self) -> *mut u8 {
         match self {
             Place::In(b, at) => {
-                Self::inside(b, at, 1).unwrap_or_else(|e| crate::install::installer::refuse(e));
+                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
                 // SAFETY: `at` is inside the buffer (checked above).
                 unsafe { b.as_ptr().add(at) }
             }

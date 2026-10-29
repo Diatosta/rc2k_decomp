@@ -12,31 +12,24 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::math::cells::At;
+use crate::math::cells::Cells;
 use crate::physics::car_store::CAR;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
 // g_crashMatrix
 
-/// The point at `v` turned by the matrix at `m`, as the two functions do it: `fld z; fld
-/// y; fld x`, `rotate_point`, `fstp x; fstp y; fstp z`.
-pub unsafe fn turn_point_by(m: u32, v: u32) {
-    unsafe {
-        let p = crate::pointers::host(v) as *mut u32;
-        let point = [
-            extended(p.read_unaligned()),
-            extended(p.add(1).read_unaligned()),
-            extended(p.add(2).read_unaligned()),
-        ];
-        let out = rotate_point(&At(m), point);
-        p.write_unaligned(rounded(out[0]));
-        p.add(1).write_unaligned(rounded(out[1]));
-        p.add(2).write_unaligned(rounded(out[2]));
+/// The point `v` turned by the matrix `m`, as the two functions do it: `fld z; fld y; fld
+/// x`, `rotate_point`, `fstp x; fstp y; fstp z`.
+pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
+    let point = std::array::from_fn(|k| extended(v.bits(k)));
+    let out = rotate_point(m, point);
+    for (k, e) in out.iter().enumerate() {
+        v.set_bits(k, rounded(*e));
     }
 }
 
 /// The Rust version.
-pub unsafe fn turn_by_car_matrix(v: u32) {
-    unsafe { turn_point_by(CAR.crash_matrix[0].addr(), v) }
+pub fn turn_by_car_matrix(v: &(impl Cells + ?Sized)) {
+    turn_cells(&CAR.crash_matrix, v)
 }

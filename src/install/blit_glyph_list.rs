@@ -18,7 +18,7 @@ use rc2k_core::install::layout;
 /// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs` (esi).
 pub fn blit_glyph_list(
     count: u32,
-    table: impl Into<crate::install::place::Place>,
+    table: impl Into<crate::place::Place>,
     x: u32,
     y: u32,
     glyphs: u32,

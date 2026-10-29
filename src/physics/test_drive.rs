@@ -22,7 +22,7 @@ use crate::physics::test_drive_run;
 pub const LEFT: [u32; 4] = [249, test_drive_run::STEPS, 20, 19];
 
 /// The Rust version.
-pub unsafe fn test_drive() -> Result<(), Refused> {
+pub fn test_drive() -> Result<(), Refused> {
     crate::physics::load_car_specs::load_car_specs()?;
     crate::physics::make_gear_ratios::make_gear_ratios()?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the

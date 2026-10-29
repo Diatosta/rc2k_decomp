@@ -62,8 +62,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
         "a replay's name",
     )?;
     // The last race's file opened to read from, the slot's to write to.
-    let Some(from) = handle::open_by_mode(crate::pointers::host(LAST_RACE.addr()) as *const u8, 0)?
-    else {
+    let Some(from) = handle::open_by_mode(LAST_RACE.as_ptr() as *const u8, 0)? else {
         return Ok(false);
     };
     crate::race::viewer_buffers_store::VIEWER_BUFFERS

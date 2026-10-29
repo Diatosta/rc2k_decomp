@@ -30,7 +30,7 @@ pub fn steps() -> Result<(), Refused> {
     CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
     CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
     CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    { crate::physics::restore_saved_car::restore_saved_car() }?;
     crate::physics::crossed_edge_contact::steps()?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
@@ -40,7 +40,7 @@ pub fn steps() -> Result<(), Refused> {
     }
     CAR.contact_flag.set(1);
     CAR.wall_hit_timer.set(0x32);
-    unsafe { crate::physics::feel_ground::feel_ground() }
+    crate::physics::feel_ground::feel_ground()
 }
 
 /// The probe checked (-1 is none).

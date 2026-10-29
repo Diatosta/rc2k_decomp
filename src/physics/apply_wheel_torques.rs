@@ -10,10 +10,9 @@
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
 use crate::physics::tables_store::PHYSICS;
-const COUNT: u32 = 0x17;
+const COUNT: usize = 0x17;
 
 /// The Rust version.
-pub unsafe fn apply_wheel_torques() -> Result<(), Refused> {
-    let first = crate::pointers::game_address(PHYSICS.forces.as_ptr());
-    unsafe { apply_torques(first, COUNT) }
+pub fn apply_wheel_torques() -> Result<(), Refused> {
+    apply_torques(&PHYSICS.forces[..COUNT])
 }

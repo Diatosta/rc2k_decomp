@@ -12,54 +12,44 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::session::{Cell32, Float};
 
-/// The variables' addresses: the game's, or a test's (`ratios` is gear 0's entry).
+/// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
 pub struct GearPlaces {
-    pub gear: u32,
-    pub engine_speed: u32,
-    pub drive_speed: u32,
-    pub drive_speed_2: u32,
-    pub drive_kind: u32,
-    pub ratios: u32,
-    pub speed: u32,
+    pub gear: &'static dyn Cell32,
+    pub engine_speed: &'static dyn Cell32,
+    pub drive_speed: &'static dyn Cell32,
+    pub drive_speed_2: &'static dyn Cell32,
+    pub drive_kind: &'static dyn Cell32,
+    pub ratios: &'static [Float; 9],
+    pub speed: &'static dyn Cell32,
 }
 
 impl GearPlaces {
     pub fn game() -> Self {
         Self {
-            gear: CAR.gear.addr(),
-            engine_speed: CAR.engine_speed.addr(),
-            drive_speed: CAR.drive_speed_a.addr(),
-            drive_speed_2: CAR.drive_speed_b.addr(),
-            drive_kind: CAR.drive_kind.addr(),
-            ratios: PHYSICS.gear_ratios[1].addr(),
-            speed: CAR.local_velocity[2].addr(),
+            gear: &CAR.gear,
+            engine_speed: &CAR.engine_speed,
+            drive_speed: &CAR.drive_speed_a,
+            drive_speed_2: &CAR.drive_speed_b,
+            drive_kind: &CAR.drive_kind,
+            ratios: &PHYSICS.gear_ratios,
+            speed: &CAR.local_velocity[2],
         }
     }
 }
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::gearing's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::gearing's operand")
-}
-
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
 fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
-    let gear = at(p.gear);
+    let gear = p.gear.bits();
     if gear == 0 {
         return Ok(None);
     }
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(Some((
-        gear,
-        at(p.ratios.wrapping_add(gear.wrapping_mul(4))),
-    )))
+    Ok(Some((gear, p.ratios[(gear as i32 + 1) as usize].bits())))
 }
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
@@ -68,17 +58,17 @@ pub fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    let speed = if at(p.drive_kind) == 1 {
+    let speed = if p.drive_kind.bits() == 1 {
         crate::math::x87_run::sum_times_over(
-            at(p.drive_speed),
-            at(p.drive_speed_2),
+            p.drive_speed.bits(),
+            p.drive_speed_2.bits(),
             NUMBERS.half.bits(),
             ratio,
         )
     } else {
-        x87::div(at(p.drive_speed), ratio)
+        x87::div(p.drive_speed.bits(), ratio)
     };
-    put(p.engine_speed, speed);
+    p.engine_speed.set_bits(speed);
     Ok(())
 }
 
@@ -89,10 +79,10 @@ pub fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    let speed = x87::mul(at(p.engine_speed), ratio);
-    put(p.drive_speed, speed);
-    if at(p.drive_kind) == 1 {
-        put(p.drive_speed_2, x87::loaded(speed));
+    let speed = x87::mul(p.engine_speed.bits(), ratio);
+    p.drive_speed.set_bits(speed);
+    if p.drive_kind.bits() == 1 {
+        p.drive_speed_2.set_bits(x87::loaded(speed));
     }
     Ok(())
 }
@@ -103,6 +93,6 @@ pub fn revs_from_speed_at(p: &GearPlaces) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
-    put(p.engine_speed, x87::div(at(p.speed), ratio));
+    p.engine_speed.set_bits(x87::div(p.speed.bits(), ratio));
     Ok(())
 }

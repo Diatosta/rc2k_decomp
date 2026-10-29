@@ -29,7 +29,6 @@
 use crate::arch::{__cpuid, _rdtsc};
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
-use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 use rc2k_core::system::processor::{Var, test};
 
@@ -116,56 +115,42 @@ impl Processor for Real {
     }
 }
 
-/// Where each variable is.
-fn place(v: Var) -> u32 {
+/// Each variable but the FPU's word (the scratch buffer's first bytes).
+fn cell(v: Var) -> &'static crate::session::Dword {
     let m = &MACHINE;
     match v {
-        Var::Family => m.cpu_family.addr(),
-        Var::Signature => m.cpu_signature.addr(),
-        Var::Vendor(n) => m.cpu_vendor[n].addr(),
-        Var::Clock => m.cpu_mhz.addr(),
-        Var::HasFpu => m.has_fpu.addr(),
-        Var::HasTsc => m.has_tsc.addr(),
-        Var::HasCmov => m.has_cmov.addr(),
-        Var::HasMmx => m.found_mmx.addr(),
-        Var::HasSse => m.found_sse.addr(),
-        Var::Has3dNow => m.found_3dnow.addr(),
-        Var::Resume => m.exception_resume.addr(),
-        Var::FpuWord => SCRATCH.buffer.addr(),
+        Var::Family => &m.cpu_family,
+        Var::Signature => &m.cpu_signature,
+        Var::Vendor(n) => &m.cpu_vendor[n],
+        Var::Clock => &m.cpu_mhz,
+        Var::HasFpu => &m.has_fpu,
+        Var::HasTsc => &m.has_tsc,
+        Var::HasCmov => &m.has_cmov,
+        Var::HasMmx => &m.found_mmx,
+        Var::HasSse => &m.found_sse,
+        Var::Has3dNow => &m.found_3dnow,
+        Var::Resume => &m.exception_resume,
+        Var::FpuWord => unreachable!("the FPU's word is in the scratch buffer"),
     }
 }
 
 pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
-    // The core's closures cannot refuse: the first refusal is kept and raised after.
-    let refused = std::cell::Cell::new(None);
-    let keep = |e: BadInput| {
-        if refused.get().is_none() {
-            refused.set(Some(e));
-        }
-    };
     let mut put = |v: Var, value: u32| {
-        let at = GamePtr::new(place(v));
-        let done = if v == Var::FpuWord {
-            at.write(value as u16, "a processor test's variable")
+        if v == Var::FpuWord {
+            SCRATCH.buffer.set(0, value as u8);
+            SCRATCH.buffer.set(1, (value >> 8) as u8);
         } else {
-            at.write(value, "a processor test's variable")
-        };
-        if let Err(e) = done {
-            keep(e);
+            cell(v).set(value);
         }
     };
     let get = |v: Var| {
-        GamePtr::new(place(v))
-            .read::<u32>("a processor test's variable")
-            .unwrap_or_else(|e| {
-                keep(e);
-                0
-            })
+        if v == Var::FpuWord {
+            SCRATCH.buffer.get_u32(0)
+        } else {
+            cell(v).get()
+        }
     };
     let answer = test(p, &mut put, &get);
-    if let Some(e) = refused.take() {
-        return Err(e.into());
-    }
     answer.map_err(|e| BadInput::from(e).into())
 }

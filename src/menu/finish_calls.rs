@@ -154,7 +154,7 @@ impl finish::Finish for Game {
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();
             }
-            Step::SetUpEngine => unsafe { crate::scene::set_up_engine::set_up_engine()? },
+            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             Step::FrontEndScene => unsafe {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
             },

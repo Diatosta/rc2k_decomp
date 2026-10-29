@@ -91,15 +91,13 @@ pub unsafe fn contact_force() {
         &CONTACT_WORK.contact_normal,
         &CONTACT_WORK.contact_scratch_a,
     );
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_scratch_a[0].addr()) };
-    unsafe {
-        multiply_parts(
-            CONTACT_WORK.contact_scratch_a[0].addr(),
-            PHYSICS.inertia[0].addr(),
-            CONTACT_WORK.contact_scratch_b[0].addr(),
-        )
-    };
-    unsafe { turn_by_car_matrix(CONTACT_WORK.contact_scratch_b[0].addr()) };
+    turn_by_inverse(&CONTACT_WORK.contact_scratch_a);
+    multiply_parts(
+        &CONTACT_WORK.contact_scratch_a,
+        &PHYSICS.inertia,
+        &CONTACT_WORK.contact_scratch_b,
+    );
+    turn_by_car_matrix(&CONTACT_WORK.contact_scratch_b);
     cross_product(
         &CONTACT_WORK.contact_point,
         &CONTACT_WORK.contact_scratch_b,
@@ -197,9 +195,9 @@ pub unsafe fn contact_force() {
         &CONTACT_WORK.contact_total,
     );
     let edi = PHYSICS.contact_record.get();
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_total[0].addr()) };
+    turn_by_inverse(&CONTACT_WORK.contact_total);
     x87_8(edi as usize);
-    unsafe { turn_by_inverse(CONTACT_WORK.contact_point[0].addr()) };
+    turn_by_inverse(&CONTACT_WORK.contact_point);
     for k in 0..3 {
         unsafe {
             (crate::pointers::host(edi + 0xC + 4 * k) as *mut u32)

@@ -14,10 +14,8 @@ use crate::physics::move_slots::move_slots;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx after
 /// `drive::replay_step`'s call has no read point).
-pub unsafe fn animate_stage() -> Result<(), Refused> {
-    unsafe {
-        animate_lit_faces()?;
-        move_slots()?;
-    }
+pub fn animate_stage() -> Result<(), Refused> {
+    animate_lit_faces()?;
+    move_slots()?;
     Ok(())
 }

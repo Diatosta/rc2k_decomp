@@ -31,14 +31,16 @@ const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES
 /// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
 /// class past the four reads on into the variables that follow.
 fn class_time_at(c: u32) -> Result<u32, BadInput> {
-    crate::pointers::GamePtr::new(MENU_STATE.menus.class_times[0].addr() + 4 * c)
-        .read::<u32>("a class time")
+    crate::session::read_on(&MENU_STATE.menus.class_times, c as usize, "a class time")
 }
 
 /// The drivers of class `c`, `dword_75AB00`[c], read the same way.
 fn class_count_at(c: u32) -> Result<u32, BadInput> {
-    crate::pointers::GamePtr::new(MENU_STATE.menus.class_counts[0].addr() + 4 * c)
-        .read::<u32>("a class driver count")
+    crate::session::read_on(
+        &MENU_STATE.menus.class_counts,
+        c as usize,
+        "a class driver count",
+    )
 }
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,

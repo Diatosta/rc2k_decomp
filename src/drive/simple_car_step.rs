@@ -56,7 +56,7 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     { crate::physics::wheel_surfaces::wheel_surfaces() }?;
     GROUND_WORK.ground_x.set(COURSE.place_x.get());
     GROUND_WORK.ground_z.set(COURSE.place_z.get());
-    unsafe { crate::physics::find_ground::find_ground() }?;
+    { crate::physics::find_ground::find_ground() }?;
     if COURSE.ground_slot.get() != u32::MAX {
         let y = GROUND_WORK
             .ground_height

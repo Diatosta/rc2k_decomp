@@ -29,7 +29,7 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
-unsafe fn byte(a: u32) -> u32 {
+fn byte(a: u32) -> u32 {
     crate::race::course_places::read_or_end::<u8>(a, "a course face or material byte") as u32
 }
 
@@ -52,7 +52,7 @@ pub fn car_lighting() -> Result<(), Refused> {
     LIGHT_WORK.car_light_colour.set(0);
     LIGHT_WORK.lamp_a_colour.set(0);
     COURSE.ground_face_last.set(CAR.probe_point_face[4].get());
-    unsafe { crate::physics::find_ground::find_ground() }?;
+    { crate::physics::find_ground::find_ground() }?;
     let face = COURSE.ground_slot.get();
     if face == u32::MAX {
         return Ok(());
@@ -68,67 +68,63 @@ pub fn car_lighting() -> Result<(), Refused> {
     LIGHT_WORK.ground_texture_s.set(GROUND_WORK.share_s.get());
     LIGHT_WORK.ground_texture_t.set(GROUND_WORK.share_t.get());
     let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-    unsafe {
+    for k in 0..4u32 {
+        COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
+    }
+    let material = (crate::scene::polygon::texture_infos_addr()).wrapping_add(byte(f + 0x21) << 6);
+    if byte(material + 0x2C) == 1 {
         for k in 0..4u32 {
-            COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
+            let at = &COURSE.face_light_bytes[k as usize];
+            let (v, _) = lighting::shaded(at.get(), byte(f + 0x22 + k) as u8);
+            at.set(v);
         }
-        let material =
-            (crate::scene::polygon::texture_infos_addr()).wrapping_add(byte(f + 0x21) << 6);
-        if byte(material + 0x2C) == 1 {
-            for k in 0..4u32 {
-                let at = &COURSE.face_light_bytes[k as usize];
-                let (v, _) = lighting::shaded(at.get(), byte(f + 0x22 + k) as u8);
-                at.set(v);
-            }
+    }
+    let light = corners();
+    CAR.light_level.set(light);
+    if CAR.light_hold_steps.get() != 0 {
+        let held = lighting::hold_change(
+            light,
+            COURSE.light_kept.get(),
+            RACE_VARS.scene_switch.get() != 0,
+        );
+        CAR.light_level.set(held.light);
+    }
+    let light = CAR.light_level.get();
+    if light >= lighting::TABLE {
+        return Err(BadInput("a light index past 0xFF").into());
+    }
+    let colour = crate::scene::light_tables_store::LIGHT_TABLES.light_table[light as usize].get();
+    LIGHT_WORK.car_light_colour.set(colour);
+    CAR.light_colour.set(colour);
+    if byte(f + 2) & 4 == 0 {
+        return Ok(());
+    }
+    for (first, table, to) in [
+        (
+            0x28u32,
+            &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a,
+            &LIGHT_WORK.lamp_a_colour,
+        ),
+        (
+            0x2C,
+            &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b,
+            &LIGHT_WORK.lamp_b_colour,
+        ),
+    ] {
+        for k in 0..4u32 {
+            COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
         }
-        let light = corners();
-        CAR.light_level.set(light);
-        if CAR.light_hold_steps.get() != 0 {
-            let held = lighting::hold_change(
-                light,
-                COURSE.light_kept.get(),
-                RACE_VARS.scene_switch.get() != 0,
-            );
-            CAR.light_level.set(held.light);
+        let i = corners();
+        if i >= lighting::TABLE {
+            return Err(BadInput("a colour index past 0xFF").into());
         }
-        let light = CAR.light_level.get();
-        if light >= lighting::TABLE {
-            return Err(BadInput("a light index past 0xFF").into());
-        }
-        let colour =
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[light as usize].get();
-        LIGHT_WORK.car_light_colour.set(colour);
-        CAR.light_colour.set(colour);
-        if byte(f + 2) & 4 == 0 {
-            return Ok(());
-        }
-        for (first, table, to) in [
-            (
-                0x28u32,
-                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a,
-                &LIGHT_WORK.lamp_a_colour,
-            ),
-            (
-                0x2C,
-                &crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b,
-                &LIGHT_WORK.lamp_b_colour,
-            ),
-        ] {
-            for k in 0..4u32 {
-                COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
-            }
-            let i = corners();
-            if i >= lighting::TABLE {
-                return Err(BadInput("a colour index past 0xFF").into());
-            }
-            let colour = table[i as usize].get();
-            to.set(colour);
-            CAR.light_colour.set(lighting::add_colour(
-                colour,
-                CAR.light_colour.get(),
-                MACHINE.has_mmx.get() != 0,
-            ));
-        }
+        let colour = table[i as usize].get();
+        to.set(colour);
+        CAR.light_colour.set(lighting::add_colour(
+            colour,
+            CAR.light_colour.get(),
+            MACHINE.has_mmx.get() != 0,
+        ));
     }
     Ok(())
 }

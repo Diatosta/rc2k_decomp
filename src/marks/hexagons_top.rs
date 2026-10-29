@@ -26,10 +26,10 @@ use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::pointers::GamePtr;
-use crate::scene::cross_product3::cross_product3;
+use crate::scene::cross_product3::cross;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::vector3::normalise_vector3;
+use crate::scene::vector3::normalise;
 
 const POINTS: u32 = 0x30;
 
@@ -70,15 +70,16 @@ pub fn hexagons_top() -> Result<(), Refused> {
     }
     HEX.buffer.set(HEXAGON_BATCH.records.addr());
     frame_axes(s);
-    let [a0, a1, a2] = [0, 3, 6].map(|n| HEXAGON_WORK.axes[n].addr());
-    normalise_vector3(a0);
+    let w = &HEXAGON_WORK.axes;
+    let (a0, a1, a2) = (&w[0..3], &w[3..6], &w[6..9]);
+    normalise(a0);
     frame_up(s);
-    normalise_vector3(a1);
-    cross_product3(a1, a0, a2)?;
-    normalise_vector3(a2);
-    cross_product3(a0, a2, a1)?;
+    normalise(a1);
+    cross(a1, a0, a2);
+    normalise(a2);
+    cross(a0, a2, a1);
     frame_place(s);
-    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
+    normalise(&HEX.place);
     frame_facing();
     if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());

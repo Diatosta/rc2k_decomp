@@ -8,58 +8,16 @@
 //!
 //! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
 
-use crate::physics::car_frame_motion::car_frame_motion_at;
+use crate::physics::car_frame_motion::car_frame_motion;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 
-/// Where the vectors are: the game's or a test's.
-#[derive(Clone, Copy)]
-pub struct MotionPlaces {
-    pub kept_motion: u32,
-    pub kept_spin: u32,
-    pub motion: u32,
-    pub spin: u32,
-    pub local: u32,
-    pub inverse: u32,
-}
-
-impl MotionPlaces {
-    pub fn game() -> Self {
-        Self {
-            kept_motion: (PHYSICS.kept_vectors[0].addr()),
-            kept_spin: (PHYSICS.kept_vectors[4].addr()),
-            motion: (CAR.velocity[0].addr()),
-            spin: (CAR.spin[0].addr()),
-            local: (CAR.local_velocity[0].addr()),
-            inverse: CAR.car_inverse_matrix[0].addr(),
-        }
+/// The Rust version: the kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the
+/// motion turned into the car's frame.
+pub fn put_back_motion_vectors() {
+    for k in 0..3 {
+        CAR.velocity[k].set_bits(PHYSICS.kept_vectors[k].get());
+        CAR.spin[k].set_bits(PHYSICS.kept_vectors[4 + k].get());
     }
-}
-
-/// The Rust core.
-pub unsafe fn put_back_motion_vectors_at(p: &MotionPlaces) {
-    unsafe {
-        for k in 0..3usize {
-            let m = (crate::pointers::host(p.kept_motion) as *const u32)
-                .add(k)
-                .read_unaligned();
-            (crate::pointers::host(p.motion) as *mut u32)
-                .add(k)
-                .write_unaligned(m);
-        }
-        for k in 0..3usize {
-            let s = (crate::pointers::host(p.kept_spin) as *const u32)
-                .add(k)
-                .read_unaligned();
-            (crate::pointers::host(p.spin) as *mut u32)
-                .add(k)
-                .write_unaligned(s);
-        }
-        car_frame_motion_at(p.motion, p.inverse, p.local);
-    }
-}
-
-/// The Rust version.
-pub unsafe fn put_back_motion_vectors() {
-    unsafe { put_back_motion_vectors_at(&MotionPlaces::game()) }
+    car_frame_motion(&CAR.velocity, &CAR.car_inverse_matrix, &CAR.local_velocity);
 }

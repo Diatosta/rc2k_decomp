@@ -10,8 +10,5 @@ use crate::net::store::NET;
 /// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
-    unsafe {
-        (crate::pointers::host(NET.chat.addr()) as *mut [u8; 8])
-            .write_unaligned(rc2k_core::net::chat::EMPTY)
-    };
+    unsafe { (NET.chat.as_ptr() as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY) };
 }

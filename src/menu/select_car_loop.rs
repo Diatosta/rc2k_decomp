@@ -42,7 +42,11 @@ use crate::scene::draw_store::DRAW;
 fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
     let current: u32 = EVENT_STATE.current_player.get();
-    let player = read_at((PLAYER_TABLE.pointers[0].addr()).wrapping_add(current.wrapping_mul(4)))?;
+    let player = crate::session::read_on(
+        &PLAYER_TABLE.pointers,
+        current as usize,
+        "the players' table",
+    )?;
     c.arg = read_at(player.wrapping_add(0x30))?;
     SCREEN_FLOW.shown_gearing.set(c.arg);
     SCREEN_FLOW.turning.set(0x1u32);

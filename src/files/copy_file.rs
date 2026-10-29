@@ -27,14 +27,15 @@ const CHUNK: u32 = 0x1_0000;
 
 /// The Rust version: whether it was all done.
 pub fn copy_file(from: *const u8, to: *const u8) -> Result<bool, BadInput> {
-    let scratch = GamePtr::new(SCRATCH.buffer.addr());
-    let mut buffer = scratch.read_bytes(CHUNK as usize, "the scratch buffer")?;
+    let mut buffer = SCRATCH
+        .buffer
+        .read_at(0, CHUNK as usize, "the scratch buffer")?;
     let done = rc2k_core::files::io::copy_file(
         &mut crate::files::handle::GameFiles::new(),
         GamePtr::new(crate::pointers::game_address(from)),
         GamePtr::new(crate::pointers::game_address(to)),
         &mut buffer,
     )?;
-    scratch.write_bytes(&buffer, "the scratch buffer")?;
+    SCRATCH.buffer.write_at(0, &buffer, "the scratch buffer")?;
     Ok(done)
 }

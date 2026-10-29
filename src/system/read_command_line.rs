@@ -87,29 +87,26 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
         line.as_ptr().wrapping_add(sw.program.0),
     ));
     COMMAND_LINE.program_len.set(sw.program.1 as u32);
-    for (on, place) in [
-        (sw.u, INSTALLER_RUN.updating.addr()),
-        (sw.installing, INSTALLER_RUN.installing.addr()),
-        (sw.no_audio, AUDIO.no_audio.addr()),
+    for (on, cell) in [
+        (sw.u, &INSTALLER_RUN.updating),
+        (sw.installing, &INSTALLER_RUN.installing),
+        (sw.no_audio, &AUDIO.no_audio),
     ] {
         if on {
-            GamePtr::new(place).write(1u32, "a command-line switch")?;
+            cell.set(1u32);
         }
     }
     for i in &sw.install {
         INSTALLER_RUN.from_command.set(1u32);
         INSTALLER_RUN.ignore_room.set(1u32);
-        for (place, (start, len)) in [
-            INSTALLER_PATHS.game_dir.addr(),
-            INSTALLER_PATHS.installed.addr(),
-        ]
-        .into_iter()
-        .zip(i.words)
+        for (place, (start, len)) in [&INSTALLER_PATHS.game_dir, &INSTALLER_PATHS.installed]
+            .into_iter()
+            .zip(i.words)
         {
             let word = line
                 .get(start..start + len)
                 .ok_or(BadInput("a word past the command line"))?;
-            GamePtr::new(place).write_bytes(word, "an installer path")?;
+            place.write_at(0, word, "an installer path")?;
         }
         INSTALLER_RUN.given_mode.set(i.digits[0]);
         INSTALLER_RUN.given_language.set(i.digits[1]);

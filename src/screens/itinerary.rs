@@ -35,10 +35,11 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let first = record_at(0)?;
         let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            crate::pointers::GamePtr::new(
-                MENU_LISTS.section_titles[0].addr() + 4 * EVENT_STATE.section.get(),
-            )
-            .read::<u32>("a section title")?
+            crate::session::read_on(
+                &MENU_LISTS.section_titles,
+                EVENT_STATE.section.get() as usize,
+                "a section title",
+            )?
         } else {
             crate::pointers::GamePtr::new(first + 0x38).read::<u32>("a stage record")?
         };

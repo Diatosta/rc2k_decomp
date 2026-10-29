@@ -11,26 +11,26 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
-use crate::physics::tables_store::PHYSICS;
-const COUNT: u32 = 7;
+use crate::physics::tables_store::{ForceRecord, PHYSICS};
+const COUNT: usize = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
 pub fn apply_contact_torques_with(
     switch: u32,
-    first: u32,
-    run: impl FnOnce(u32, u32) -> Result<(), Refused>,
+    records: &'static [ForceRecord],
+    run: impl FnOnce(&'static [ForceRecord]) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     if switch != 0 {
         return Ok(());
     }
-    run(first, COUNT)
+    run(records)
 }
 
 /// The Rust version.
-pub unsafe fn apply_contact_torques() -> Result<(), Refused> {
+pub fn apply_contact_torques() -> Result<(), Refused> {
     apply_contact_torques_with(
         PHYSICS.contact_step.get(),
-        crate::pointers::game_address(PHYSICS.contacts.as_ptr()),
-        |first, count| unsafe { apply_torques(first, count) },
+        &PHYSICS.contacts[..COUNT],
+        apply_torques,
     )
 }

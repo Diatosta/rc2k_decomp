@@ -17,7 +17,7 @@ use rc2k_core::install::layout;
 /// `count` records of `table` drawn at (x, y) on.
 pub fn draw_string_list(
     count: u32,
-    table: impl Into<crate::install::place::Place>,
+    table: impl Into<crate::place::Place>,
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {

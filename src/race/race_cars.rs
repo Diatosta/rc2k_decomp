@@ -431,8 +431,7 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     // The arcade tables hold six by rally (`dword_60466C` ..) or stage (`dword_604684`),
     // back to back: an index past them reads on into the next, as the original does.
     let pick = |table: &[crate::session::Dword; 6], n: u32| {
-        GamePtr::new((table[0].addr()).wrapping_add(n.wrapping_mul(4)))
-            .read::<u32>("the arcade tables")
+        crate::session::read_on(table, n as usize, "the arcade tables")
     };
     let by_rally = |table: &[crate::session::Dword; 6]| pick(table, rally);
     let cars: u32 = by_rally(&RACE_TABLES.arcade_cars_by_rally)?;

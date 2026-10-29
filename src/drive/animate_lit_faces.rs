@@ -98,120 +98,116 @@ fn refusal() -> Option<&'static str> {
 }
 
 /// The Rust core. The registers it leaves are read by no caller.
-pub unsafe fn animate_at() -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal() {
-            return Err(BadInput(why).into());
-        }
-        if CONTACT_WORK.lit_face_count.bits() == 0 {
-            return Ok(());
-        }
-
-        animate_faces()
+pub fn animate_at() -> Result<(), Refused> {
+    if let Some(why) = refusal() {
+        return Err(BadInput(why).into());
     }
+    if CONTACT_WORK.lit_face_count.bits() == 0 {
+        return Ok(());
+    }
+
+    animate_faces()
 }
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
-unsafe fn animate_faces() -> Result<(), Refused> {
-    unsafe {
-        let faces: u32 = COURSE.course_faces.bits();
-        let points: u32 = COURSE.scene_points.bits();
-        let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
-        let mut k = 0;
-        loop {
-            let f = faces.wrapping_add(list(k).get() << 6);
-            let mut bytes = load(f)?;
-            let leave = 'face: {
-                let object = byte(f + 1)?;
-                if object == COUNTDOWN_OBJECT {
-                    break 'face count_down(&mut bytes);
+fn animate_faces() -> Result<(), Refused> {
+    let faces: u32 = COURSE.course_faces.bits();
+    let points: u32 = COURSE.scene_points.bits();
+    let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
+    let mut k = 0;
+    loop {
+        let f = faces.wrapping_add(list(k).get() << 6);
+        let mut bytes = load(f)?;
+        let leave = 'face: {
+            let object = byte(f + 1)?;
+            if object == COUNTDOWN_OBJECT {
+                break 'face count_down(&mut bytes);
+            }
+            let point_number = at(f + 4)?;
+            let p = point(point_number);
+            let dx = crate::race::scene_points::word(p)?
+                .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+            DRAW.scratch.set(dx);
+            let dz = crate::race::scene_points::word(p + 8)?
+                .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+            DRAW.scratch.set(dz);
+            let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
+            CONTACT_WORK.lit_face_distance.set(d);
+            let step = pace(d);
+            CONTACT_WORK.lit_face_pace.set(step);
+            let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
+            let kind: u8 = GamePtr::new(
+                (crate::scene::polygon::materials_addr())
+                    .wrapping_add(0x1C)
+                    .wrapping_add(kind_of.wrapping_mul(0x80)),
+            )
+            .read("an object's material")?;
+            match kind {
+                1 | 9 => {
+                    blink(&mut bytes, |n| {
+                        // byte_6D1DFC: the step is below 0x18 (`BLINK_STEPS`).
+                        (CONTACT_WORK.blink_levels[n as usize / 4].get() >> (8 * (n % 4))) as u8
+                    })
+                    .is_none()
                 }
-                let point_number = at(f + 4)?;
-                let p = point(point_number);
-                let dx = crate::race::scene_points::word(p)?
-                    .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
-                DRAW.scratch.set(dx);
-                let dz = crate::race::scene_points::word(p + 8)?
-                    .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
-                DRAW.scratch.set(dz);
-                let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-                CONTACT_WORK.lit_face_distance.set(d);
-                let step = pace(d);
-                CONTACT_WORK.lit_face_pace.set(step);
-                let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
-                let kind: u8 = GamePtr::new(
-                    (crate::scene::polygon::materials_addr())
-                        .wrapping_add(0x1C)
-                        .wrapping_add(kind_of.wrapping_mul(0x80)),
-                )
-                .read("an object's material")?;
-                match kind {
-                    1 | 9 => {
-                        blink(&mut bytes, |n| {
-                            // byte_6D1DFC: the step is below 0x18 (`BLINK_STEPS`).
-                            (CONTACT_WORK.blink_levels[n as usize / 4].get() >> (8 * (n % 4))) as u8
-                        })
-                        .is_none()
-                    }
-                    2 => rise(&mut bytes, step, RISE_TOP).0,
-                    3 | 8 => align(&mut bytes, step).0,
-                    4 => {
-                        let Some((distance, angle)) = fall_turn(&bytes) else {
-                            break 'face true;
-                        };
-                        let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
-                            0,
-                            point_number as i32,
-                            distance as i32,
-                            angle,
-                        );
-                        CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30)?);
-                        CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38)?);
-                        put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
-                        put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
-                        let p = point(at(f + 4)?);
+                2 => rise(&mut bytes, step, RISE_TOP).0,
+                3 | 8 => align(&mut bytes, step).0,
+                4 => {
+                    let Some((distance, angle)) = fall_turn(&bytes) else {
+                        break 'face true;
+                    };
+                    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+                        0,
+                        point_number as i32,
+                        distance as i32,
+                        angle,
+                    );
+                    CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30)?);
+                    CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38)?);
+                    put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
+                    put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
+                    let p = point(at(f + 4)?);
+                    GROUND_WORK
+                        .ground_x
+                        .set(crate::race::scene_points::word(p)?.wrapping_add(at(f + 0x30)?));
+                    GROUND_WORK
+                        .ground_z
+                        .set(crate::race::scene_points::word(p + 8)?.wrapping_add(at(f + 0x38)?));
+                    COURSE
+                        .ground_face_last
+                        .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
+                    crate::physics::find_ground::find_ground()?;
+                    put(
+                        f + 0x34,
                         GROUND_WORK
-                            .ground_x
-                            .set(crate::race::scene_points::word(p)?.wrapping_add(at(f + 0x30)?));
-                        GROUND_WORK.ground_z.set(
-                            crate::race::scene_points::word(p + 8)?.wrapping_add(at(f + 0x38)?),
-                        );
-                        COURSE
-                            .ground_face_last
-                            .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
-                        crate::physics::find_ground::find_ground()?;
-                        put(
-                            f + 0x34,
-                            GROUND_WORK
-                                .ground_height
-                                .get()
-                                .wrapping_sub(crate::race::scene_points::word(p + 4)?),
-                        )?;
-                        if COURSE.ground_slot.get() == u32::MAX {
-                            put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
-                            put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
-                        }
-                        bytes.b11 = bytes.b11.wrapping_sub(1);
-                        false
+                            .ground_height
+                            .get()
+                            .wrapping_sub(crate::race::scene_points::word(p + 4)?),
+                    )?;
+                    if COURSE.ground_slot.get() == u32::MAX {
+                        put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
+                        put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
                     }
-                    _ => false,
+                    bytes.b11 = bytes.b11.wrapping_sub(1);
+                    false
                 }
-            };
-            store(f, &bytes)?;
-            if leave {
-                let last = CONTACT_WORK.lit_face_count.bits().wrapping_sub(1);
-                list(k).set(list(last).get());
-                CONTACT_WORK.lit_face_count.set_bits(last);
+                _ => false,
             }
-            k += 1;
-            if k >= CONTACT_WORK.lit_face_count.bits() {
-                return Ok(());
-            }
+        };
+        store(f, &bytes)?;
+        if leave {
+            let last = CONTACT_WORK.lit_face_count.bits().wrapping_sub(1);
+            list(k).set(list(last).get());
+            CONTACT_WORK.lit_face_count.set_bits(last);
+        }
+        k += 1;
+        if k >= CONTACT_WORK.lit_face_count.bits() {
+            return Ok(());
         }
     }
 }
 
 /// The Rust version.
-pub unsafe fn animate_lit_faces() -> Result<(), Refused> {
-    unsafe { animate_at() }
+pub fn animate_lit_faces() -> Result<(), Refused> {
+    animate_at()
 }

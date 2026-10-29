@@ -17,10 +17,10 @@
 use crate::errors::Refused;
 use crate::files::scratch::SCRATCH;
 use crate::install::installer::{rb, set_cd, wb};
-use crate::install::place::Place;
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::place::Place;
 use crate::pointers::GamePtr;
 use crate::system::start_texts::START_TEXTS;
 use rc2k_core::install::version::{self, Scan};

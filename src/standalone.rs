@@ -618,9 +618,10 @@ unsafe fn start() {
         crate::sound::wait_for_commands::wait_in_game();
         rust("system::sleep");
         crate::system::sleep::sleep(1000);
-        // (The original's fatal error 0x90201101, no screen mode, cannot happen here.)
         rust("gfx::choose_screen_modes");
-        crate::platform::choose_screen_modes();
+        if let Err(e) = crate::platform::choose_screen_modes() {
+            refused("gfx::choose_screen_modes", e.into(), &r);
+        }
         rust("gfx::allocate_picture_buffer");
         if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer() {
             refused("gfx::allocate_picture_buffer", e, &r);
