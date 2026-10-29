@@ -26,24 +26,22 @@ use rc2k_core::gfx::picture_size as sizes;
 // ---- Rust version ----
 
 /// Returns whether the file was read.
-pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
-    unsafe {
-        // Refused before anything is written, if there is no buffer.
-        if !has_picture() {
-            clear_picture()?;
-        }
-        // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
-        set_size(sizes::READ);
+pub fn load_picture(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
+    // Refused before anything is written, if there is no buffer.
+    if !has_picture() {
         clear_picture()?;
-        let read = read_picture_file(path);
-        let screen_width: u32 = SCREEN.width.get();
-        set_size(sizes::screen(screen_width, SCREEN.height.get()));
-        if !read? {
-            return Ok(false);
-        }
-        if sizes::rescaled(DECODER.width.get(), screen_width) {
-            rescale_picture()?;
-        }
-        Ok(true)
     }
+    // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
+    set_size(sizes::READ);
+    clear_picture()?;
+    let read = read_picture_file(path);
+    let screen_width: u32 = SCREEN.width.get();
+    set_size(sizes::screen(screen_width, SCREEN.height.get()));
+    if !read? {
+        return Ok(false);
+    }
+    if sizes::rescaled(DECODER.width.get(), screen_width) {
+        rescale_picture()?;
+    }
+    Ok(true)
 }

@@ -17,7 +17,7 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{game_api, wb, wd};
+use crate::install::installer::{wb, wd};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::drives::{self, DriveMenu};
@@ -30,8 +30,7 @@ pub fn list_drives() {
         // `menu`, `items`).
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
-            && let Some(free) =
-                crate::files::drive_free_space_kb::drive_free_space_kb(letter, &mut game_api)
+            && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(letter)
         {
             let slot = drives + 8 * letter.wrapping_sub(b'a' as u32);
             wd(slot, g_at(slot).wrapping_add(1));

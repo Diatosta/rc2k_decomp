@@ -12,5 +12,5 @@ use crate::menu::stage_choice::{draw_stage_map, switch_stage_group};
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { switch_stage_group(&mut || draw_stage_map()) }
+    switch_stage_group(&mut || draw_stage_map())
 }

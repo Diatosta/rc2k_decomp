@@ -37,60 +37,38 @@ fn get(at: u32) -> Result<u32, BadInput> {
 /// The Rust version.
 pub fn open_lobby() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DLOBBY), true, 2);
-    if co_create(
-        NET.clsid_lobby.addr(),
-        NET.iid_lobby2a.addr(),
-        NET.lobby.addr(),
-    ) != 0
-    {
+    if co_create(&NET.clsid_lobby, &NET.iid_lobby2a, &NET.lobby) != 0 {
         return Ok(false);
     }
     if NET.lobby_launched.get() != 1 {
         return Ok(true);
     }
     NET.settings_size.set(0);
-    if crate::net::dp_objects::get_connection_settings(
-        NET.lobby.get(),
-        0,
-        0,
-        NET.settings_size.addr(),
-    ) != BUFFER_TOO_SMALL
-    {
+    if crate::net::dp_objects::get_connection_settings(NET.lobby.get()) != BUFFER_TOO_SMALL {
         return Ok(false);
     }
     NET.settings.set(crate::net::lobby::take_lobby_settings(
         NET.settings_size.get(),
     )?);
-    if crate::net::dp_objects::get_connection_settings(
-        NET.lobby.get(),
-        0,
-        NET.settings.get(),
-        NET.settings_size.addr(),
-    ) != 0
-    {
+    if crate::net::dp_objects::get_connection_settings(NET.lobby.get()) != 0 {
         return Ok(false);
     }
     GamePtr::new(get(NET.settings.get() + 8)? + 4)
         .write(0x44u32, "the lobby's connection settings")?;
-    if crate::net::dp_objects::set_connection_settings(NET.lobby.get(), 0, 0, NET.settings.get())
-        != 0
-    {
+    if crate::net::dp_objects::set_connection_settings(NET.lobby.get()) != 0 {
         return Ok(false);
     }
-    if crate::net::dp_objects::connect(NET.lobby.get(), 0, NET.dplay_2.get(), 0) != 0 {
+    if crate::net::dp_objects::connect(NET.lobby.get()) != 0 {
         return Ok(false);
     }
     if NET.dplay.get() == 0 || NET.dplay_2.get() == 0 {
         return Err(BadInput("a lobby's connection with no DirectPlay object").into());
     }
-    let queried = crate::net::dp_objects::query_interface(
-        NET.dplay.get(),
-        NET.iid_dplay4a.addr(),
-        NET.dplay.addr(),
-    );
+    let queried = crate::net::dp_objects::query_interface(NET.dplay.get(), &NET.iid_dplay4a.read());
+    NET.dplay.set(*queried.as_ref().unwrap_or(&0));
     crate::net::dp_objects::release(NET.dplay_2.get());
     NET.dplay_2.set(0);
-    if queried != 0 {
+    if queried.is_err() {
         return Ok(false);
     }
     let name = get(get(NET.settings.get() + 0xC)? + 8)?;

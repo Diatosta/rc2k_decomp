@@ -14,9 +14,9 @@ use crate::errors::BadInput;
 // ---- Rust version ----
 
 /// (eax, whether it worked).
-pub fn file_size(path: *const u8) -> Result<(u32, bool), BadInput> {
+pub fn file_size(path: &[u8]) -> Result<(u32, bool), BadInput> {
     Ok(rc2k_core::files::io::file_size(
         &mut crate::files::handle::GameFiles::new(),
-        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
+        path,
     )?)
 }

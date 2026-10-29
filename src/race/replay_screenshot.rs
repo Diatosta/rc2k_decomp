@@ -18,40 +18,38 @@ use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version (see the header). (The original keeps every register.)
-pub unsafe fn replay_screenshot() -> Result<(), Refused> {
-    unsafe {
-        if VIEWER_PANEL.replay_recording.bits() != 1 {
-            return Ok(());
-        }
-        if VIEWER_PANEL.pictures_started.bits() != 1 {
-            VIEWER_PANEL.pictures_started.set_bits(1u32);
-            VIEWER_PANEL.picture_clock.set(crate::os::ticks());
-        }
-        let kept: u32 = PICTURE.name.get();
-        let name = VIEWER_PANEL.picture_name[0].addr();
-        // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
-        let digits = GamePtr::new(name + 4);
-        let (counted, _, _) =
-            rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
-        digits.write(counted, "the picture name")?;
-        PICTURE.name.set(name);
-        let saved = (|| {
-            // The surface locked (the carry says it was not), the picture written, the
-            // surface unlocked.
-            if crate::platform::lock_surface() >= 1 {
-                crate::gfx::write_screen_pcx::write_screen_pcx()?;
-                crate::platform::unlock_surface();
-            }
-            Ok::<(), Refused>(())
-        })();
-        PICTURE.name.set(kept);
-        saved?;
-        VIEWER_PANEL.picture_clock.set(
-            VIEWER_PANEL
-                .picture_clock
-                .bits()
-                .wrapping_add(VIEWER_PANEL.picture_time()),
-        );
+pub fn replay_screenshot() -> Result<(), Refused> {
+    if VIEWER_PANEL.replay_recording.bits() != 1 {
+        return Ok(());
     }
+    if VIEWER_PANEL.pictures_started.bits() != 1 {
+        VIEWER_PANEL.pictures_started.set_bits(1u32);
+        VIEWER_PANEL.picture_clock.set(crate::os::ticks());
+    }
+    let kept: u32 = PICTURE.name.get();
+    let name = VIEWER_PANEL.picture_name[0].addr();
+    // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
+    let digits = GamePtr::new(name + 4);
+    let (counted, _, _) =
+        rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
+    digits.write(counted, "the picture name")?;
+    PICTURE.name.set(name);
+    let saved = (|| {
+        // The surface locked (the carry says it was not), the picture written, the
+        // surface unlocked.
+        if crate::platform::lock_surface() >= 1 {
+            crate::gfx::write_screen_pcx::write_screen_pcx()?;
+            crate::platform::unlock_surface();
+        }
+        Ok::<(), Refused>(())
+    })();
+    PICTURE.name.set(kept);
+    saved?;
+    VIEWER_PANEL.picture_clock.set(
+        VIEWER_PANEL
+            .picture_clock
+            .bits()
+            .wrapping_add(VIEWER_PANEL.picture_time()),
+    );
     Ok(())
 }

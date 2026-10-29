@@ -11,18 +11,18 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_SET_VALUE, rd};
+use crate::install::read_registry::Registry;
 use crate::install::vars::INSTALLER_RUN;
 
 const REG_SZ: u32 = 1;
 
-/// The value `name` (eax) set to the text `data` (ebx); `RegSetValueExA`'s answer (no
-/// caller reads it).
-pub fn set_lobby_value(name: u32, data: u32, api: Api) -> Result<u32, Refused> {
-    let len = crate::strings::text_length::text_length(crate::pointers::host(data) as *const u8)?;
-    let key = rd(INSTALLER_RUN.reg_key.addr());
-    Ok(api(
-        REG_SET_VALUE,
-        &[key, name, 0, REG_SZ, data, len.wrapping_add(1)],
-    ))
+/// The Rust version: the text `data` (its NUL added) as the value `name` of the lobby's key.
+pub fn set_lobby_value(
+    name: &[u8],
+    data: &[u8],
+    registry: &mut dyn Registry,
+) -> Result<u32, Refused> {
+    let mut text = data.to_vec();
+    text.push(0);
+    Ok(registry.set_value(INSTALLER_RUN.reg_key.get(), name, REG_SZ, &text))
 }

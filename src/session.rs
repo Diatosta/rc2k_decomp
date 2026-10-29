@@ -253,10 +253,6 @@ impl Word {
     pub fn set(&self, value: u16) {
         self.0.store(value, Relaxed)
     }
-
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
-    }
 }
 
 /// One of the game's bytes: an atomic cell (phase 7, typed state).
@@ -338,6 +334,13 @@ impl<const N: usize> Bytes<N> {
     /// All of it.
     pub fn read(&self) -> [u8; N] {
         std::array::from_fn(|i| self.get(i))
+    }
+
+    /// The bytes up to the first NUL (or all of them): a text kept in the buffer.
+    pub fn text(&self) -> Vec<u8> {
+        let all = self.read();
+        let n = all.iter().position(|&c| c == 0).unwrap_or(N);
+        all[..n].to_vec()
     }
 
     pub fn write(&self, value: &[u8; N]) {

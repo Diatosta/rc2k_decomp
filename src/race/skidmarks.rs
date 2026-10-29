@@ -90,95 +90,91 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
 /// and the two before as a quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth
 /// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
-pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
-    unsafe {
-        let mut views = u32::MAX;
-        let mode: u32 = RACE_VARS.run_kind.get();
-        if mode != 0 && mode != 2 {
-            views = 1u32.wrapping_shl(RACE_VIEW.drawn_view.get() & 0x1F);
-        }
-        crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_views
-            .set(views);
-        let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
-        for (k, e) in (0..4u32).zip(entries) {
-            e.record.set(crate::scene::point_records::of_quad(k));
-            e.light.set(0);
-            e.lamp_light.set(0);
-        }
-        let (u, w) = (RACE_VARS.fade_uv[0].get(), RACE_VARS.fade_uv[1].get());
-        for e in entries {
-            e.u.set(u);
-            e.u2.set(u);
-            e.v.set(w);
-            e.v2.set(w);
-            e.point.set(u32::MAX);
-            e.amount.set(0x60);
-            e.fog.set(0);
-        }
-        DRAW.polygon_textures[0].set(0xC0u32);
-        DRAW.polygon_textures[1].set(0xC0u32);
-        let links = crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_links
-            .addr();
-        for n in 0..0x400u32 {
-            let before = GamePtr::new(links + 8 * n).read::<i16>("a skidmark link")? as i32 as u32;
-            if before == u32::MAX {
-                continue;
-            }
-            let shown = GamePtr::new(links.wrapping_add(before.wrapping_mul(8)) + 6)
-                .read::<u16>("a skidmark link")? as u32;
-            if shown & views == 0 {
-                continue;
-            }
-            use crate::scene::point_records::of_quad;
-            skid_vertex(2 * n, of_quad(3))?;
-            skid_vertex(2 * n + 1, of_quad(2))?;
-            skid_vertex(before.wrapping_mul(2), of_quad(0))?;
-            skid_vertex(before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
-            DRAW.polygon_vertex_count.set(4u32);
-            DRAW.polygon_next_record
-                .set(crate::scene::polygon::pool_start());
-            let list = &crate::scene::polygon_store::POLYGON_WORK.list;
-            for k in 0..4u32 {
-                list[k as usize].set(k);
-            }
-            list[4].set(0);
-            DRAW.polygon_next_entry.set(4u32);
-            crate::scene::fog_polygon::fog_polygon()?;
-            crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-            // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
-            // and the polygon's drawing read no register.
-            if DRAW.polygon_vertex_count.get() < 3 {
-                continue;
-            }
-            crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-            if DRAW.polygon_vertex_count.get() >= 3 {
-                DRAW.polygon_colour.set(0u32);
-                crate::scene::depth_test_off::depth_test_off();
-                RACE_VIEW.polygon_mode.set(3u32);
-                DRAW.polygon_sides[0].set(0u32);
-                DRAW.polygon_sides[1].set(1u32);
-                crate::scene::draw_polygon::draw_polygon_in_game()?;
-                RACE_VIEW.polygon_mode.set(0u32);
-                DRAW.polygon_drawn.set(1u32);
-                crate::scene::depth_test_on::depth_test_on();
-            }
-            DRAW.polygon_colour.set(0x00FF_FFFFu32);
-        }
-        Ok(())
+pub fn draw_skidmarks() -> Result<(), Refused> {
+    let mut views = u32::MAX;
+    let mode: u32 = RACE_VARS.run_kind.get();
+    if mode != 0 && mode != 2 {
+        views = 1u32.wrapping_shl(RACE_VIEW.drawn_view.get() & 0x1F);
     }
+    crate::race::shadow_skids_store::SHADOW_SKIDS
+        .skid_views
+        .set(views);
+    let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
+    for (k, e) in (0..4u32).zip(entries) {
+        e.record.set(crate::scene::point_records::of_quad(k));
+        e.light.set(0);
+        e.lamp_light.set(0);
+    }
+    let (u, w) = (RACE_VARS.fade_uv[0].get(), RACE_VARS.fade_uv[1].get());
+    for e in entries {
+        e.u.set(u);
+        e.u2.set(u);
+        e.v.set(w);
+        e.v2.set(w);
+        e.point.set(u32::MAX);
+        e.amount.set(0x60);
+        e.fog.set(0);
+    }
+    DRAW.polygon_textures[0].set(0xC0u32);
+    DRAW.polygon_textures[1].set(0xC0u32);
+    let links = crate::race::shadow_skids_store::SHADOW_SKIDS
+        .skid_links
+        .addr();
+    for n in 0..0x400u32 {
+        let before = GamePtr::new(links + 8 * n).read::<i16>("a skidmark link")? as i32 as u32;
+        if before == u32::MAX {
+            continue;
+        }
+        let shown = GamePtr::new(links.wrapping_add(before.wrapping_mul(8)) + 6)
+            .read::<u16>("a skidmark link")? as u32;
+        if shown & views == 0 {
+            continue;
+        }
+        use crate::scene::point_records::of_quad;
+        skid_vertex(2 * n, of_quad(3))?;
+        skid_vertex(2 * n + 1, of_quad(2))?;
+        skid_vertex(before.wrapping_mul(2), of_quad(0))?;
+        skid_vertex(before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
+        DRAW.polygon_vertex_count.set(4u32);
+        DRAW.polygon_next_record
+            .set(crate::scene::polygon::pool_start());
+        let list = &crate::scene::polygon_store::POLYGON_WORK.list;
+        for k in 0..4u32 {
+            list[k as usize].set(k);
+        }
+        list[4].set(0);
+        DRAW.polygon_next_entry.set(4u32);
+        crate::scene::fog_polygon::fog_polygon()?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
+        // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
+        // and the polygon's drawing read no register.
+        if DRAW.polygon_vertex_count.get() < 3 {
+            continue;
+        }
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+        if DRAW.polygon_vertex_count.get() >= 3 {
+            DRAW.polygon_colour.set(0u32);
+            crate::scene::depth_test_off::depth_test_off();
+            RACE_VIEW.polygon_mode.set(3u32);
+            DRAW.polygon_sides[0].set(0u32);
+            DRAW.polygon_sides[1].set(1u32);
+            crate::scene::draw_polygon::draw_polygon_in_game()?;
+            RACE_VIEW.polygon_mode.set(0u32);
+            DRAW.polygon_drawn.set(1u32);
+            crate::scene::depth_test_on::depth_test_on();
+        }
+        DRAW.polygon_colour.set(0x00FF_FFFFu32);
+    }
+    Ok(())
 }
 
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves.
-pub unsafe fn draw_skidmarks_if_on() -> Result<(), Refused> {
-    unsafe {
-        if FRAME_WORK.drawing.get() != 0 {
-            return Ok(());
-        }
-        draw_skidmarks()
+pub fn draw_skidmarks_if_on() -> Result<(), Refused> {
+    if FRAME_WORK.drawing.get() != 0 {
+        return Ok(());
     }
+    draw_skidmarks()
 }
 
 #[cfg(all(test, target_arch = "x86"))]

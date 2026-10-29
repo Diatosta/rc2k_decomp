@@ -35,51 +35,49 @@ fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 /// `off_7598AE[+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub unsafe fn draw_stage_map() -> Result<(), Refused> {
+pub fn draw_stage_map() -> Result<(), Refused> {
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
     use crate::gfx::picture_as_surface::picture_as_surface;
-    unsafe {
-        let mode: u32 = CHAMP_VIEW.stage_mode.get();
-        let record = match mode {
-            2 => {
-                let table: u32 = ARCADE_GAME.level.get();
-                let at = ARCADE_GAME.stage.get().wrapping_mul(RECORD_SIZE);
-                crate::records::stages_store::STAGE_TABLES
-                    .level_table(table)
-                    .wrapping_add(at)
-            }
-            3 => crate::records::find_record::find_record_in(
-                crate::records::stages_store::STAGE_TABLES.championship(),
-                EVENT_STATE.index.get() as i32,
-                EVENT_STATE.section.get(),
-            )?,
-            _ => {
-                let s = selection()?.ok_or(crate::errors::BadInput(
-                    "no stage tables for the choice: the original reads through null",
-                ))?;
-                s.table
-                    .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
-            }
-        };
-        let overlay = crate::session::read_on(
-            &MENU_LISTS.map_overlays,
-            dword(record + 0x3C)? as usize,
-            "a map overlay",
-        )?;
-        if load_picture_with_overlay(
-            crate::menu::texts_store::MENU_TEXTS.ukmap_png.as_ptr(),
-            crate::pointers::host(overlay),
-        )? {
-            return Err(NO_MAP.into());
+    let mode: u32 = CHAMP_VIEW.stage_mode.get();
+    let record = match mode {
+        2 => {
+            let table: u32 = ARCADE_GAME.level.get();
+            let at = ARCADE_GAME.stage.get().wrapping_mul(RECORD_SIZE);
+            crate::records::stages_store::STAGE_TABLES
+                .level_table(table)
+                .wrapping_add(at)
         }
-        convert_picture_now()?;
-        PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
-        picture_as_surface()?;
-        // The overlay's pointer is the blit's palette too (ebx all the way).
-        blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, overlay)?;
+        3 => crate::records::find_record::find_record_in(
+            crate::records::stages_store::STAGE_TABLES.championship(),
+            EVENT_STATE.index.get() as i32,
+            EVENT_STATE.section.get(),
+        )?,
+        _ => {
+            let s = selection()?.ok_or(crate::errors::BadInput(
+                "no stage tables for the choice: the original reads through null",
+            ))?;
+            s.table
+                .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
+        }
+    };
+    let overlay = crate::session::read_on(
+        &MENU_LISTS.map_overlays,
+        dword(record + 0x3C)? as usize,
+        "a map overlay",
+    )?;
+    if load_picture_with_overlay(
+        crate::pointers::GamePtr::new(crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr()),
+        crate::pointers::GamePtr::new(overlay),
+    )? {
+        return Err(NO_MAP.into());
     }
+    convert_picture_now()?;
+    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    picture_as_surface()?;
+    // The overlay's pointer is the blit's palette too (ebx all the way).
+    blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, overlay)?;
     Ok(())
 }
 

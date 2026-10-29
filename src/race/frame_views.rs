@@ -355,7 +355,7 @@ fn window_corners() {
 /// (`scene::draw_tinted_quad`, which reads no register): with `dword_71C3E0` 0x283080 half through; else the sun's
 /// glare, `dword_6365F4` (held to 0 .. 0xFF) through, colour `dword_60A570` red,
 /// `byte_60A574` green, `byte_60A578` blue, none when 0; `g_sunOnScreen` put back after.
-pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
+pub fn draw_screen_tint() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
@@ -363,7 +363,7 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
         RACE_VARS.quad_colour[1].set(NIGHT_ALPHA);
         window_corners();
         RACE_VARS.quad_colour[0].set(NIGHT_COLOUR);
-        return unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
+        return crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
     let sun = FRAME_WORK.sun_on_screen.get();
     let a = glare_alpha(LIGHT_STATE.fog_far.get());
@@ -378,7 +378,7 @@ pub unsafe fn draw_screen_tint() -> Result<(), Refused> {
             byte(0),
             byte(1),
         ));
-        done = unsafe { crate::scene::draw_tinted_quad::draw_tinted_quad() };
+        done = crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
     FRAME_WORK.sun_on_screen.set(sun);
     done

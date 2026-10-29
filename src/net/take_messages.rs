@@ -102,7 +102,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 }
                 let answer = messages::answer(reply, NET.sync.get());
                 NET.sync_answer.set(answer);
-                dplay_send(block.id.get(), 0, NET.sync_answer.addr(), 2);
+                dplay_send(block.id.get(), &NET.sync_answer.get().to_le_bytes());
                 (if ready {
                     &NET.all_raced
                 } else {

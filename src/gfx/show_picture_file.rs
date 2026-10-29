@@ -57,11 +57,12 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
         // `rescaled`).
         crate::gfx::picture::set_size(sizes::READ);
         // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-        let read = match crate::gfx::read_picture_file::read_picture_file(path) {
-            Ok(read) => read,
-            Err(Refused::BadInput(_)) => false,
-            Err(e) => return Err(e),
-        };
+        let read =
+            match crate::gfx::read_picture_file::read_picture_file(crate::files::game_path(path)) {
+                Ok(read) => read,
+                Err(Refused::BadInput(_)) => false,
+                Err(e) => return Err(e),
+            };
         let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
         crate::gfx::picture::set_size(sizes::screen(width, height));
         let pages = sizes::pages(SCREEN_MODE.mode_flags.get());

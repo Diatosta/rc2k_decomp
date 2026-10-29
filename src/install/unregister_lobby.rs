@@ -8,13 +8,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{Api, REG_DELETE_KEY};
+use crate::install::read_registry::Registry;
 
-const HKLM: u32 = 0x8000_0002;
-
-pub fn unregister_lobby(api: Api) {
-    api(
-        REG_DELETE_KEY,
-        &[HKLM, crate::install::store::LOBBY_KEYS.registry_key.addr()],
-    );
+pub fn unregister_lobby(registry: &mut dyn Registry) {
+    registry.delete(&crate::install::store::LOBBY_KEYS.registry_key.text());
 }

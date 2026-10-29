@@ -13,8 +13,8 @@
 //! Caller: `net::find_sessions_regs`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, movsb, zero};
-use crate::net::store::NET;
+use crate::net::lobby::log;
+use crate::net::store::{NET, put_bytes};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const ENUM_FLAGS: u32 = 0x91;
@@ -22,17 +22,17 @@ const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
 
 /// The session description made ready: zeroed, its size.
 pub fn zeroed_description() -> Result<(), Refused> {
-    zero(NET.session_desc.addr(), 0x50)?;
+    NET.session_desc.clear();
     NET.session_desc.size.set(0x50);
     Ok(())
 }
 
 /// `EnumSessions` as the code at 0x418A43 calls it.
 pub fn enum_sessions() -> u32 {
+    let application = crate::net::dp_objects::desc(&NET.session_desc, b"").application;
     crate::net::dp_objects::enum_sessions(
         NET.dplay.get(),
-        NET.session_desc.addr(),
-        0,
+        &application,
         crate::net::session_found::callback,
         0,
         ENUM_FLAGS,
@@ -62,11 +62,7 @@ pub fn find_sessions() -> Result<bool, Refused> {
     }
     NET.sessions.set(0);
     zeroed_description()?;
-    movsb(
-        crate::pointers::game_address(NET.session_desc.application.as_ptr()),
-        NET.app_guid.addr(),
-        0x10,
-    )?;
+    put_bytes(&NET.session_desc.application, &NET.app_guid.read());
     let result = posted_or_called(posted_enum_sessions);
     crate::system::restore_window::restore_window();
     Ok(result == 0 || result == CONNECTING)

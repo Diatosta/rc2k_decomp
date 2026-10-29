@@ -19,8 +19,6 @@ use crate::net::store::NET;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
-const DIRECTPLAY_CONNECTIONS: u32 = 1; // DPCONNECTION_DIRECTPLAY
-
 /// The Rust version.
 pub fn find_connections() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_FIND_CONNECTIONS), true, 2);
@@ -35,15 +33,8 @@ pub fn find_connections() -> Result<bool, Refused> {
     }
     allocate_lists::allocate_lists()?;
     NET.connections.set(0);
-    let result = {
-        crate::net::dp_objects::enum_connections(
-            NET.dplay.get(),
-            NET.app_guid.addr(),
-            crate::net::connection_found::callback,
-            0,
-            DIRECTPLAY_CONNECTIONS,
-        )
-    };
+    let result =
+        { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };
     // `cmp dword_52AC34, 1`: the carry when none was listed.
     Ok(result == 0 && NET.connections.get() >= 1)
 }

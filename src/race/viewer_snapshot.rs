@@ -26,7 +26,7 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
     PICTURE.name.set(SNAPSHOT.addr());
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
-        unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
+        { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
         crate::platform::unlock_surface();
     }
     PICTURE.name.set(kept);

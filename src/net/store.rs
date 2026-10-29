@@ -55,8 +55,27 @@ impl PlayerRecord {
         self.head.get(Self::STATE)
     }
 
-    pub fn addr(&self) -> u32 {
-        self.head.addr()
+    /// The record's 16 bytes, as DirectPlay's player data.
+    pub fn bytes(&self) -> [u8; 16] {
+        let mut b = [0u8; 16];
+        b[..8].copy_from_slice(&self.head.read());
+        b[8..12].copy_from_slice(&self.race_time.get().to_le_bytes());
+        b[12..].copy_from_slice(&self.total.get().to_le_bytes());
+        b
+    }
+
+    /// The record's first `data.len()` bytes (at most 16) set from `data`.
+    pub fn set_bytes(&self, data: &[u8]) {
+        let mut b = self.bytes();
+        let n = data.len().min(16);
+        b[..n].copy_from_slice(&data[..n]);
+        for (k, &v) in b[..8].iter().enumerate() {
+            self.head.set(k, v);
+        }
+        self.race_time
+            .set(u32::from_le_bytes([b[8], b[9], b[10], b[11]]));
+        self.total
+            .set(u32::from_le_bytes([b[12], b[13], b[14], b[15]]));
     }
 }
 
@@ -133,9 +152,14 @@ impl DpName {
             long_name: Dword::new(0),
         }
     }
+}
 
-    pub fn addr(&self) -> u32 {
-        self.size.addr()
+/// `bytes` into `cells`' dwords, little-endian (a GUID's 16 bytes into four).
+pub fn put_bytes(cells: &[Dword], bytes: &[u8]) {
+    for (cell, b) in cells.iter().zip(bytes.chunks(4)) {
+        let mut v = cell.get().to_le_bytes();
+        v[..b.len()].copy_from_slice(b);
+        cell.set(u32::from_le_bytes(v));
     }
 }
 
@@ -172,8 +196,27 @@ impl SessionDesc {
         }
     }
 
-    pub fn addr(&self) -> u32 {
-        self.size.addr()
+    /// Every field 0 (`system::zero_memory` of its 0x50 bytes).
+    pub fn clear(&self) {
+        for d in [
+            &self.size,
+            &self.flags,
+            &self.max_players,
+            &self.current_players,
+            &self.name,
+            &self.password,
+        ] {
+            d.set(0);
+        }
+        for d in self
+            .instance
+            .iter()
+            .chain(&self.application)
+            .chain(&self.reserved)
+            .chain(&self.user)
+        {
+            d.set(0);
+        }
     }
 }
 

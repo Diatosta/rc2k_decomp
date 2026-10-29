@@ -10,24 +10,21 @@
 use crate::errors::Refused;
 use crate::net::store::NET;
 
-/// The Rust version: eax.
-pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
-    if args[1] != 0 {
+/// The Rust version (see the header): the group's id, type and short name.
+pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
+    if kind != 0 {
         return Ok(1);
     }
-    let name = crate::pointers::read_or_end::<u32>(args[2] + 8, "net::group_found's operand");
-    let order = crate::strings::same_text::compare_texts(
-        crate::pointers::host(name) as *const u8,
-        NET.group_name.as_ptr() as *const u8,
-    )?;
+    let order = crate::strings::same_text::compare_bytes(short, &NET.group_name.read());
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
-    NET.send_to.set(args[0]);
+    NET.send_to.set(id);
     Ok(0)
 }
 
-/// The callback DirectPlay is given (`net::dp_objects`): the Rust version.
-pub fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::group_found", 0x419391, &[a, b, c, d, e], group_found)
+pub fn callback(id: u32, kind: u32, short: &[u8], _flags: u32, _context: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
+        group_found(id, kind, short)
+    })
 }

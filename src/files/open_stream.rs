@@ -15,18 +15,13 @@ use crate::files::stream::Stream;
 // ---- Rust version ----
 
 /// Returns whether the file was opened.
-pub unsafe fn open_stream(
-    stream: *mut Stream,
-    path: *const u8,
-    mode: u32,
-) -> Result<bool, BadInput> {
+/// The Rust version: whether the file `path` opened.
+pub fn open_stream(stream: &mut Stream, path: &[u8], mode: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::files::io::open_stream`.
-    unsafe {
-        Ok(rc2k_core::files::io::open_stream(
-            &mut crate::files::handle::GameFiles::new(),
-            crate::files::stream::core_stream(stream),
-            crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
-            mode,
-        )?)
-    }
+    Ok(rc2k_core::files::io::open_stream(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        path,
+        mode,
+    )?)
 }

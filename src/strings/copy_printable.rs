@@ -18,6 +18,21 @@ pub static KEEP_CASE: AtomicU32 = AtomicU32::new(1);
 
 // ---- Rust version ----
 
+/// What is written for the text `text` (as far as the original reads: room - 1 characters
+/// or the NUL, or the slice's end), with its NUL.
+pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
+    let looked_at: Vec<u8> = text
+        .iter()
+        .take((room as usize).saturating_sub(1))
+        .take_while(|&&c| c != 0)
+        .copied()
+        .collect();
+    let keep_case = KEEP_CASE.load(Ordering::Relaxed) == 1;
+    case_table()
+        .printable(&looked_at, room as usize, keep_case)
+        .ok_or(BadInput("no room for a name: the original runs on"))
+}
+
 /// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
 pub unsafe fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();

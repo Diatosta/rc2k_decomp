@@ -14,99 +14,66 @@
 //!      expected, or `CreateCompoundAddress` failing
 //! Caller: `net::init_connection`.
 
-use crate::errors::Refused;
-use crate::net::add_address_element::add_address_element;
+use crate::errors::{BadInput, Refused};
+use crate::net::add_address_element::{self as elements, add_address_element};
 use crate::net::lobby::log;
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
-use crate::system::same_guid::same_guid;
 use rc2k_core::net::address::{self, Provider};
 
-/// The Rust version.
+/// The Rust version (see the header).
 pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_DPCA), true, 2);
     if NET.lobby.get() == 0 {
         return Ok(false);
     }
-    // The connection's provider, lent at an address while the elements name it.
-    let provider = crate::net::tables::with_connection(connection_number, |c| c.provider)?.to_vec();
-    let lent = crate::pointers::Lent::new(&provider);
-    let guid = lent.addr();
-    NET.elements.set(0);
+    let guid = crate::net::tables::with_connection(connection_number, |c| c.provider)?;
+    elements::clear();
     NET.address.set(0);
     NET.address_size.set(0);
     NET.posting.set(0);
-    // Converted: `rc2k_core::net::address` (`provider`, the elements' sizes, `has_port`,
-    // `posts`, `address::BUFFER_TOO_SMALL`).
     let provider = address::provider(|which| -> Result<bool, Refused> {
-        Ok(same_guid(
-            guid,
-            (if which == Provider::Ipx {
-                &NET.sp_ipx
-            } else {
-                &NET.sp_tcpip
-            })
-            .addr(),
-        ))
+        let known = if which == Provider::Ipx {
+            &NET.sp_ipx
+        } else {
+            &NET.sp_tcpip
+        };
+        Ok(known.read() == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(
-            NET.aid_service_provider.addr(),
-            address::PROVIDER_SIZE,
-            NET.sp_ipx.addr(),
-        ),
+        Provider::Ipx => add_address_element(&NET.aid_service_provider, &NET.sp_ipx.read()),
         Provider::TcpIp => {
-            add_address_element(
-                NET.aid_service_provider.addr(),
-                address::PROVIDER_SIZE,
-                NET.sp_tcpip.addr(),
-            );
-            let length = {
-                crate::strings::text_length::text_length(crate::pointers::host(
-                    NET.host_address.addr(),
-                ) as *const u8)
-            }?;
-            add_address_element(
-                NET.aid_inet.addr(),
-                address::host_address_size(length),
-                NET.host_address.addr(),
-            );
+            add_address_element(&NET.aid_service_provider, &NET.sp_tcpip.read());
+            let host = NET.host_address.read();
+            let length = host
+                .iter()
+                .position(|&c| c == 0)
+                .ok_or(BadInput("a host address without its end"))? as u32;
+            let size = address::host_address_size(length) as usize;
+            add_address_element(&NET.aid_inet, &host[..size]);
             if address::has_port(NET.port.get()) {
-                add_address_element(
-                    NET.aid_inet_port.addr(),
-                    address::PORT_SIZE,
-                    NET.port.addr(),
-                );
+                let port = NET.port.get().to_le_bytes();
+                add_address_element(&NET.aid_inet_port, &port[..address::PORT_SIZE as usize]);
             }
         }
-        Provider::Other => add_address_element(
-            NET.aid_service_provider.addr(),
-            address::PROVIDER_SIZE,
-            guid,
-        ),
+        Provider::Other => {
+            let data = &guid[..address::PROVIDER_SIZE as usize];
+            add_address_element(&NET.aid_service_provider, data)
+        }
     }
     if address::posts(provider) {
         NET.posting.set(1);
     }
-    let make = |at: u32| {
-        crate::net::dp_objects::create_compound_address(
-            NET.lobby.get(),
-            NET.element_table.addr(),
-            NET.elements.get(),
-            at,
-            NET.address_size.addr(),
-        )
-    };
-    if make(0) != address::BUFFER_TOO_SMALL {
+    let parts = elements::elements();
+    let (result, size) =
+        crate::net::dp_objects::create_compound_address(&parts, NET.address_size.get());
+    NET.address_size.set(size);
+    if result != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    // The address is Rust's (phase 12), counted on the list as the game's block was.
     crate::net::tables::count(NET.address_size.get())?;
-    let made =
-        crate::net::dp_objects::compound_address(NET.element_table.addr(), NET.elements.get());
-    drop(lent);
-    crate::net::tables::NET_TABLES.with(|t| {
-        t.address = made.as_ref().map_or(Vec::new(), |a| a.clone());
-    })?;
-    Ok(made.is_ok_and(|a| a.len() as u32 <= NET.address_size.get()))
+    let made = crate::net::dp_objects::compound_address(&parts);
+    let fits = made.len() as u32 <= NET.address_size.get();
+    crate::net::tables::NET_TABLES.with(|t| t.address = made)?;
+    Ok(fits)
 }

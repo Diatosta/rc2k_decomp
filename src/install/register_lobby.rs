@@ -15,64 +15,38 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{Api, REG_CLOSE_KEY, REG_CREATE_KEY, append_byte, rd, wb};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
+use crate::install::read_registry::Registry;
+use crate::install::store::LOBBY_KEYS;
+use crate::install::vars::{INSTALLER_NAMES, INSTALLER_PATHS, INSTALLER_RUN};
 use crate::net::store::NET;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
-const HKLM: u32 = 0x8000_0002;
-
-pub fn register_lobby(api: Api) -> Result<(), Refused> {
+pub fn register_lobby(registry: &mut dyn Registry) -> Result<(), Refused> {
     use crate::install::set_lobby_value::set_lobby_value;
-    if api(
-        REG_CREATE_KEY,
-        &[
-            HKLM,
-            crate::install::store::LOBBY_KEYS.registry_key.addr(),
-            INSTALLER_RUN.reg_key.addr(),
-        ],
-    ) != 0
-    {
+    let Ok(key) = registry.create(&LOBBY_KEYS.registry_key.text()) else {
         return Ok(());
-    }
-    let text = TEXT_BUFFER.text.addr();
+    };
+    INSTALLER_RUN.reg_key.set(key);
     // Converted: `rc2k_core::install::lobby::guid_text`.
-    let guid: [u8; 16] = std::array::from_fn(|n| NET.app_guid.get(n));
-    let guid = rc2k_core::install::lobby::guid_text(&guid);
-    for (n, &b) in guid.iter().enumerate() {
-        wb(text + n as u32, b);
-    }
-    append_byte(text + guid.len() as u32, 0);
+    let guid = rc2k_core::install::lobby::guid_text(&NET.app_guid.read());
+    let mut text = guid.to_vec();
+    text.push(0);
+    TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;
+    set_lobby_value(&LOBBY_KEYS.name_guid.text(), &guid, registry)?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_guid.addr(),
-        text,
-        api,
+        &LOBBY_KEYS.name_file.text(),
+        &INSTALLER_NAMES.ral_exe.text(),
+        registry,
     )?;
+    TEXT_BUFFER.text.set(0, 0);
+    set_lobby_value(&LOBBY_KEYS.name_command_line.text(), b"", registry)?;
+    let installed = INSTALLER_PATHS.installed.text();
+    set_lobby_value(&LOBBY_KEYS.name_path.text(), &installed, registry)?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_file.addr(),
-        INSTALLER_NAMES.ral_exe.addr(),
-        api,
+        &LOBBY_KEYS.name_current_directory.text(),
+        &installed,
+        registry,
     )?;
-    wb(text, 0);
-    set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_command_line.addr(),
-        text,
-        api,
-    )?;
-    set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_path.addr(),
-        INSTALLER_PATHS.installed.addr(),
-        api,
-    )?;
-    set_lobby_value(
-        crate::install::store::LOBBY_KEYS
-            .name_current_directory
-            .addr(),
-        INSTALLER_PATHS.installed.addr(),
-        api,
-    )?;
-    api(REG_CLOSE_KEY, &[rd(INSTALLER_RUN.reg_key.addr())]);
+    registry.close(INSTALLER_RUN.reg_key.get());
     Ok(())
 }

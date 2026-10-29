@@ -20,18 +20,16 @@ use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
 
 /// `upload` gets the texture and what the reading left: the pixels, the width and the
 /// height.
-pub unsafe fn load_picture_to_texture(
+pub fn load_picture_to_texture(
     path: u32,
     second: u32,
     texture: u32,
     upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let record = Record::of(texture)?;
-    unsafe {
-        keep_second_picture(&record, second)?;
-        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
-        upload(texture, pixels, width, height)
-    }
+    keep_second_picture(&record, second)?;
+    let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
+    upload(texture, pixels, width, height)
 }
 
 /// With the Rust upload into the game's textures.

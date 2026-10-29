@@ -228,6 +228,11 @@ unsafe fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
 /// `sub_412446`: the sheet with the next number, if it is there and reads, is kept in the
 /// picture buffer's second half as the alpha of the one after it. The number moves on
 /// either way.
+/// The path's text, up to its NUL.
+fn path_text(path: *const u8) -> Result<Vec<u8>, BadInput> {
+    crate::files::cstring(crate::files::game_path(path), "a sheet's path")
+}
+
 unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
     unsafe {
         SHEET.alpha_loaded.set(0u32);
@@ -237,7 +242,7 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
         }
         let number: u32 = DECODER.number.get();
         let path = numbered_path_in_game(template, number)?;
-        if file_exists_at(crate::files::game_path(path))? && read_sheet(path)? {
+        if file_exists_at(crate::files::game_path(path))? && read_sheet(&path_text(path)?)? {
             if PICTURE.flags.get() & 0x100 == 0 {
                 return Err(fatal(
                     0x80E4_F412,
@@ -308,7 +313,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 }
                 path
             };
-            if !read_sheet(path)? {
+            if !read_sheet(&path_text(path)?)? {
                 return Err(fatal(0x80E4_F010, "Error loading PCX file"));
             }
 

@@ -94,7 +94,7 @@ impl Game {
                 }
                 Step::SwapMissingExtension(f) => {
                     crate::files::swap_missing_extension::swap_missing_extension(
-                        crate::pointers::host(film(f)),
+                        crate::pointers::GamePtr::new(film(f)),
                     )?;
                 }
                 Step::Player(f) => {

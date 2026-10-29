@@ -39,7 +39,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot {
         Ok(crate::platform::lock_surface() < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
-        unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
+        { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
         Ok(())
     }
     fn unlock(&mut self) -> Result<(), Refused> {

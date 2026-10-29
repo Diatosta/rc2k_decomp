@@ -1,7 +1,18 @@
-/// The shared scratch (`files::scratch::SCRATCH`, 0x93E8B0) holds first the file's first
-/// 0x80 bytes, then what the decoder says about the picture, a `PngInfo`.
-pub fn info() -> *mut PngInfo {
-    crate::files::scratch::SCRATCH.buffer.as_ptr().cast()
+/// The info block's place (a game address). The shared scratch (`files::scratch::SCRATCH`,
+/// 0x93E8B0) holds first the file's first 0x80 bytes, then what the decoder says about the
+/// picture, a `PngInfo`.
+pub fn info_addr() -> u32 {
+    crate::files::scratch::SCRATCH.buffer.addr()
+}
+
+/// The info's dword at `offset` (`core::mem::offset_of!(PngInfo, ..)`).
+pub fn info_dword(offset: usize) -> u32 {
+    crate::files::scratch::SCRATCH.buffer.get_u32(offset)
+}
+
+/// The info's byte at `offset`.
+pub fn info_byte(offset: usize) -> u8 {
+    crate::files::scratch::SCRATCH.buffer.get(offset)
 }
 
 /// What `decode_png` leaves behind. Only the first byte of `has_palette` is written, and the

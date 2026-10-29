@@ -15,19 +15,13 @@
 
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
-
-// ---- Rust version ----
-
 pub use rc2k_core::files::io::ByteRead;
 
-/// `eax` is that register at entry.
-pub unsafe fn read_stream_byte(stream: *mut Stream, eax: u32) -> Result<ByteRead, BadInput> {
-    // Converted: `rc2k_core::files::io::read_stream_byte`.
-    unsafe {
-        Ok(rc2k_core::files::io::read_stream_byte(
-            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
-            crate::files::stream::core_stream(stream),
-            eax,
-        )?)
-    }
+/// The Rust version.
+pub fn read_stream_byte(stream: &mut Stream, eax: u32) -> Result<ByteRead, BadInput> {
+    Ok(rc2k_core::files::io::read_stream_byte(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        eax,
+    )?)
 }

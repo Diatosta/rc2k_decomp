@@ -15,17 +15,19 @@ use crate::net::dplay_send::dplay_send;
 use crate::net::store::NET;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 use crate::pointers::GamePtr;
-use crate::strings::str_append::str_append;
 
 /// The Rust version.
 pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
     lock_received();
     add_chat_line(player, message)?;
     unlock_received();
-    let buffer = NET.send_buffer.addr();
-    GamePtr::new(buffer).write(b'"', "the send buffer")?;
-    let end =
-        crate::pointers::game_address(str_append(message, crate::pointers::host(buffer + 1))?);
-    dplay_send(NET.send_to.get(), 0, buffer, end.wrapping_sub(buffer));
+    let text = crate::files::cstring(
+        GamePtr::new(crate::pointers::game_address(message)),
+        "a chat line",
+    )?;
+    let mut line = vec![b'"'];
+    line.extend_from_slice(&text);
+    NET.send_buffer.write_at(0, &line, "the send buffer")?;
+    dplay_send(NET.send_to.get(), &line);
     Ok(())
 }

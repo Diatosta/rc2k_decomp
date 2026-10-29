@@ -55,7 +55,7 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
     quad_input(0).set_bits(0xFFFF_FFFF);
     DRAW.polygon_sides[0].set_bits(1);
     DRAW.polygon_sides[1].set_bits(0);
-    unsafe { crate::scene::draw_flat_quad::draw_flat_quad() }
+    crate::scene::draw_flat_quad::draw_flat_quad()
 }
 
 /// The shared tail (0x45B9AA, see the header).

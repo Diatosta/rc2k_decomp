@@ -116,7 +116,7 @@ pub fn play_rally_speech() -> Result<(), Refused> {
 
 /// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
 /// converted; not loaded: the fatal error 0x80712345.
-pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
+pub fn load_welcome_picture() -> Result<(), Refused> {
     let section = small_section()?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
     let table: &[crate::session::Dword] = match stage_screens::welcome(CHAMP_VIEW.event_mode.get())
@@ -125,13 +125,12 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Other => &MENU_LISTS.welcome_other,
     };
     let path = crate::session::read_on(table, section as usize, "a welcome picture")?;
-    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.as_ptr();
-    if unsafe {
-        crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-            crate::pointers::host(path),
-            title_bar,
-        )
-    }? {
+    let title_bar =
+        crate::pointers::GamePtr::new(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    if crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+        crate::pointers::GamePtr::new(path),
+        title_bar,
+    )? {
         return Err(FatalError {
             code: 0x8071_2345,
             message: "",
@@ -144,7 +143,7 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
 
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
-pub unsafe fn step_stage_page(up: bool) -> Result<(), Refused> {
+pub fn step_stage_page(up: bool) -> Result<(), Refused> {
     let (page, pages) = (EVENT_STATE.stage_page.get(), EVENT_STATE.stage_pages.get());
     // Converted: `rc2k_core::menu::steps::stage_page`.
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
@@ -152,10 +151,8 @@ pub unsafe fn step_stage_page(up: bool) -> Result<(), Refused> {
     EVENT_STATE
         .index
         .set(EVENT_STATE.first_page_stage.get().wrapping_add(page));
-    unsafe {
-        crate::menu::stage_choice::draw_stage_map()?;
-        play_stage_speech()
-    }
+    crate::menu::stage_choice::draw_stage_map()?;
+    play_stage_speech()
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).

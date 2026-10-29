@@ -14,40 +14,38 @@ use crate::errors::BadInput;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::png::{PngInfo, info};
+use crate::gfx::png::{PngInfo, info_addr, info_dword};
 
 // ---- Rust version ----
 
-pub unsafe fn lay_out_png() -> Result<(), BadInput> {
-    unsafe {
-        let info: *mut PngInfo = info();
-        // Converted: `rc2k_core::gfx::png::layout`.
-        let layout = rc2k_core::gfx::png::layout(
-            (&raw const (*info).width).read_unaligned(),
-            (&raw const (*info).height).read_unaligned(),
-            PICTURE.flags.get(),
-        );
-        for (at, value) in [
-            &DECODER.width,
-            &DECODER.height,
-            &DECODER.pixel_bits,
-            &DECODER.pixel_bytes,
-            &DECODER.row_bytes,
-            &DECODER.row_dwords,
-            &DECODER.stride,
-            &DECODER.row_gap,
-        ]
-        .into_iter()
-        .zip(layout)
-        {
-            at.set(value);
-        }
-        DECODER.pixels.set(PICTURE.buffer.get());
-        // Neither is null: both are the game's own tables.
-        palette_to_dwords(
-            crate::pointers::game_address(&raw const (*info).palette),
-            crate::pointers::game_address(DECODER.palette_ptr()),
-        )?;
-        Ok(())
+pub fn lay_out_png() -> Result<(), BadInput> {
+    use core::mem::offset_of;
+    // Converted: `rc2k_core::gfx::png::layout`.
+    let layout = rc2k_core::gfx::png::layout(
+        info_dword(offset_of!(PngInfo, width)),
+        info_dword(offset_of!(PngInfo, height)),
+        PICTURE.flags.get(),
+    );
+    for (at, value) in [
+        &DECODER.width,
+        &DECODER.height,
+        &DECODER.pixel_bits,
+        &DECODER.pixel_bytes,
+        &DECODER.row_bytes,
+        &DECODER.row_dwords,
+        &DECODER.stride,
+        &DECODER.row_gap,
+    ]
+    .into_iter()
+    .zip(layout)
+    {
+        at.set(value);
     }
+    DECODER.pixels.set(PICTURE.buffer.get());
+    // Neither is null: both are the game's own tables.
+    palette_to_dwords(
+        info_addr() + offset_of!(PngInfo, palette) as u32,
+        DECODER.palette[0].addr(),
+    )?;
+    Ok(())
 }

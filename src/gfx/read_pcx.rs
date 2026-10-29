@@ -9,29 +9,22 @@
 //! Refuses what `read_file` and the readers refuse. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::read_file::read_file;
-use crate::gfx::pcx::HEADER_LEN;
-use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{PCX, read_header};
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
-use crate::system::zero_memory::zero_memory;
 
 // ---- Rust version ----
 
 /// Returns whether the picture was decoded.
-pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
-    unsafe {
-        let header = PCX.header.as_ptr();
-        zero_memory(header, HEADER_LEN as u32)?;
-        if !read_file(crate::files::game_path(path), header, HEADER_LEN as u32, 0)?.ok {
-            return Ok(false);
-        }
-        // Converted: `rc2k_core::gfx::pcx::kind`.
-        use rc2k_core::gfx::pcx::{Kind, kind};
-        match kind(&PCX.header.read()) {
-            Some(Kind::Palette) => read_pcx_8bit(path),
-            Some(Kind::Planes) => read_pcx_24bit(path),
-            None => Ok(false),
-        }
+pub fn read_pcx(path: &[u8]) -> Result<bool, BadInput> {
+    if !read_header(path)? {
+        return Ok(false);
+    }
+    // Converted: `rc2k_core::gfx::pcx::kind`.
+    use rc2k_core::gfx::pcx::{Kind, kind};
+    match kind(&PCX.header.read()) {
+        Some(Kind::Palette) => read_pcx_8bit(path),
+        Some(Kind::Planes) => read_pcx_24bit(path),
+        None => Ok(false),
     }
 }

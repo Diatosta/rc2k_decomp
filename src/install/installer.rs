@@ -1,6 +1,6 @@
 //! The installer that `RAL.EXE` also is (`sub_412DE0` and its tree, read 2026-10-19): the
-//! variables its parts share, the calls they make, the functions its tables hold, the Win32
-//! calls (`Api`).
+//! variables its parts share, the calls they make, the functions its tables hold (its
+//! registry calls: `install::read_registry::Registry`).
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
@@ -19,9 +19,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::game_addr;
 use crate::place::Place;
 use crate::session::FLAGS;
-
-/// A Win32 call by the address of its import the arguments in, eax out.
-pub type Api<'a> = &'a mut dyn FnMut(u32, &[u32]) -> u32;
 
 // ---- the variables (IDA addresses) ----
 
@@ -481,44 +478,6 @@ pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refuse
 /// An action item's drawing (+0xC): the game's lists have no action items.
 pub fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
-}
-
-// ---- Win32 by import ----
-
-pub const REG_CREATE_KEY: u32 = 0x4D7CA4; // RegCreateKeyA (3)
-pub const REG_SET_VALUE: u32 = 0x4D7CB6; // RegSetValueExA (6)
-pub const REG_CLOSE_KEY: u32 = 0x4D7CB0; // RegCloseKey (1)
-pub const REG_DELETE_KEY: u32 = 0x4D7C98; // RegDeleteKeyA (2)
-pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
-
-/// The installer's Win32 calls in the game. The registry's are `install::portable`'s
-/// (the standalone keeps no registry); the disk-free query is the system's
-/// (`os::disk_free`: its root, or 0 for the current drive, then the four answers' places).
-/// The DDE to the Program Manager and `CreateProcess` stay the game's
-/// (`install::run_after_exit`).
-pub fn game_api(place: u32, x: &[u32]) -> u32 {
-    if let Some(answer) = crate::install::portable::api(place, x) {
-        return answer;
-    }
-    match place {
-        GET_DISK_FREE => {
-            let end = |e| -> ! { crate::fatal::raise::end("install::game_api", e) };
-            let root = (x[0] != 0).then(|| {
-                crate::files::cstring(crate::pointers::GamePtr::new(x[0]), "a drive's root")
-                    .unwrap_or_else(|e| end(e))
-            });
-            let Some(answers) = crate::os::disk_free(root.as_deref()) else {
-                return 0;
-            };
-            for (&at, answer) in x[1..5].iter().zip(answers) {
-                crate::pointers::GamePtr::new(at)
-                    .write(answer, "a disk-free answer")
-                    .unwrap_or_else(|e| end(e));
-            }
-            1
-        }
-        _ => 0,
-    }
 }
 
 #[cfg(test)]

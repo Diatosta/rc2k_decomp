@@ -11,37 +11,59 @@
 use crate::errors::BadInput;
 use crate::install::outside::Outside;
 use crate::install::vars::INSTALLER_NAMES;
-use crate::strings::same_text::compare_texts;
 use std::cmp::Ordering;
 
-/// byte_94E8B0: the scratch path (also `files::numbered_path`'s buffer).
-pub fn scratch_path() -> *mut u8 {
-    crate::files::numbered_path::buffer()
+/// The path buffer the checks build in (`files::numbered_path`'s, 0x100 bytes).
+const SCRATCH_ROOM: usize = 0x100;
+
+fn scratch() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(crate::pointers::game_address(
+        crate::files::numbered_path::buffer(),
+    ))
 }
 
-// ---- Rust version ----
-
-/// None if the question does not arise, else how the source stands to the current
-/// directory (`Equal`: started from there).
-pub unsafe fn source_against_directory(
-    outside: &mut dyn Outside,
-) -> Result<Option<Ordering>, BadInput> {
-    unsafe {
-        outside.read_registry();
-        if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
-            return Ok(None);
-        }
-        let directory = scratch_path();
-        if !outside.current_directory(directory)? {
-            return Ok(None);
-        }
-        Ok(Some(compare_texts(
-            INSTALLER_NAMES.source.as_ptr() as *const u8,
-            directory,
-        )?))
+/// `text` written into the path buffer at `at`.
+pub fn scratch_put(at: usize, text: &[u8]) -> Result<(), BadInput> {
+    if at + text.len() > SCRATCH_ROOM {
+        return Err(BadInput("a path past the path buffer"));
     }
+    scratch()
+        .offset(at as u32)
+        .write_bytes(text, "the scratch path")
 }
 
-pub unsafe fn runs_from_source(outside: &mut dyn Outside) -> Result<bool, BadInput> {
-    Ok(unsafe { source_against_directory(outside) }? == Some(Ordering::Equal))
+/// The path buffer's bytes.
+pub fn scratch_bytes() -> Result<Vec<u8>, BadInput> {
+    scratch().read_bytes(SCRATCH_ROOM, "the scratch path")
+}
+
+/// The path buffer's text (up to its NUL).
+pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
+    let all = scratch_bytes()?;
+    let n = all
+        .iter()
+        .position(|&c| c == 0)
+        .ok_or(BadInput("the scratch path without its end"))?;
+    Ok(all[..n].to_vec())
+}
+
+/// The registry's source (`byte_51BB8D`) against the current directory (written into the
+/// path buffer, as the original): None when there is no installed source or no directory.
+pub fn source_against_directory(outside: &mut dyn Outside) -> Result<Option<Ordering>, BadInput> {
+    outside.read_registry();
+    if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
+        return Ok(None);
+    }
+    let Some(directory) = outside.current_directory()? else {
+        return Ok(None);
+    };
+    scratch_put(0, &directory)?;
+    Ok(Some(crate::strings::same_text::compare_bytes(
+        &INSTALLER_NAMES.source.text(),
+        &directory,
+    )))
+}
+
+pub fn runs_from_source(outside: &mut dyn Outside) -> Result<bool, BadInput> {
+    Ok(source_against_directory(outside)? == Some(Ordering::Equal))
 }

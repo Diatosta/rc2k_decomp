@@ -20,8 +20,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, game_api, lock, normalise, pump, rb, run_frame, set_cd, show, sleep, str_append,
-    take_key, unlock, wb,
+    append_byte, lock, normalise, pump, rb, run_frame, set_cd, show, sleep, str_append, take_key,
+    unlock, wb,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
 use crate::install::vars::INSTALLER_NAMES;
@@ -98,7 +98,7 @@ fn progress_frame() -> Result<bool, Refused> {
 pub fn install_files() -> Result<(), Refused> {
     use crate::install as i;
     INSTALLER_NAMES.status.set(0x80);
-    i::write_registry::write_registry(&mut game_api)?;
+    i::write_registry::write_registry(&mut crate::install::portable::Portable)?;
     normalise(&INSTALLER_PATHS.game_dir, &INSTALLER_PATHS.game_dir)?;
     i::run_script::run_script(&INSTALLER_NAMES.script_count)?;
     INSTALLER_RUN.files_copied.set(0);
@@ -220,8 +220,8 @@ pub fn install_files() -> Result<(), Refused> {
         }
     }
     INSTALLER_NAMES.source_size.set(n);
-    i::write_registry::write_registry(&mut game_api)?;
-    i::register_lobby::register_lobby(&mut game_api)?;
+    i::write_registry::write_registry(&mut crate::install::portable::Portable)?;
+    i::register_lobby::register_lobby(&mut crate::install::portable::Portable)?;
     INSTALLER_RUN.add_items.set(1);
     INSTALLER_RUN.installing.set(1);
     if INSTALLER_RUN.offer_registration.get() == 1 {

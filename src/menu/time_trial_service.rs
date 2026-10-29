@@ -43,7 +43,7 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
     'all: {
         loop {
             set(CURRENT, g.measure_x);
-            unsafe { crate::menu::inspection_screen::inspection_screen() }?;
+            { crate::menu::inspection_screen::inspection_screen() }?;
             g.arg = passes::SCREEN_PAUSE;
             crate::system::sleep::sleep(g.arg);
             crate::menu::fade_in::fade_in()?;

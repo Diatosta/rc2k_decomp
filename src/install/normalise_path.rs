@@ -41,6 +41,15 @@ pub fn normalised(
     <Native as Folders>::normalised(&path, current)
 }
 
+/// `normalised` of a path in hand (up to its NUL or its end).
+pub fn normalised_bytes(
+    path: &[u8],
+    current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
+) -> Result<Option<Vec<u8>>, BadInput> {
+    let n = path.iter().position(|&c| c == 0).unwrap_or(path.len());
+    <Native as Folders>::normalised(&path[..n], current)
+}
+
 /// For Rust callers: writes the path at `to`. Returns whether it was written.
 pub fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
     let Some(text) = normalised(path, &mut || current_directory())? else {

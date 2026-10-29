@@ -21,6 +21,7 @@ use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
+use crate::pointers::GamePtr;
 use crate::strings::compile_lexicon::LEXICON;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
@@ -28,70 +29,65 @@ const MEMORY: u32 = 0x1D4C00 + 0xC80;
 // ---- Rust version ----
 
 /// Returns the carry: true if the picture could not be read.
-pub unsafe fn load_picture_with_overlay(
-    path: *mut u8,
-    overlay_path: *mut u8,
-) -> Result<bool, Refused> {
-    unsafe {
-        if !load_picture(path)? {
-            return Ok(true);
-        }
-        let list = LEXICON.memory.as_ptr();
-        // The overlay's buffer is Rust's (phase 12, `gfx::picture`), counted on the list as
-        // the game's block was, given back with it.
-        let free = || -> Result<(), Refused> {
-            crate::gfx::picture::give_back(Buffer::Overlay);
-            Ok(free_list(list)?)
-        };
-        let overlay = take(Buffer::Overlay, list, MEMORY)?;
-        let kept: [u32; 4] = [
-            PICTURE.width.get(),
-            PICTURE.height.get(),
-            PICTURE.row_bytes.get(),
-            PICTURE.buffer.get(),
-        ];
-        PICTURE.buffer.set(overlay);
-        let read = read_picture_file(overlay_path);
-        PICTURE.width.set(kept[0]);
-        PICTURE.height.set(kept[1]);
-        PICTURE.row_bytes.set(kept[2]);
-        PICTURE.buffer.set(kept[3]);
-        let read = match read {
-            Ok(read) => read,
-            Err(e) => {
-                free()?;
-                return Err(e);
-            }
-        };
-        if read {
-            // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
-            // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
-            let (width, height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
-            let (stride, row): (u32, u32) = (DECODER.stride.get(), PICTURE.row_bytes.get());
-            let laid = with_buffer(overlay, |from| {
-                with_buffer(kept[3], |to| {
-                    match (to.get_mut(..MEMORY as usize), from.get(..MEMORY as usize)) {
-                        (Some(to), Some(from)) => rc2k_core::gfx::loading::lay_over(
-                            to,
-                            from,
-                            width as usize,
-                            height as usize,
-                            stride as usize,
-                            row as usize,
-                        )
-                        .map_err(|e| BadInput(e.0)),
-                        _ => Err(BadInput("a picture buffer shorter than its room")),
-                    }
-                })
-            })
-            .and_then(|r| r)
-            .and_then(|r| r);
-            if let Err(e) = laid {
-                free()?;
-                return Err(e.into());
-            }
-        }
-        free()?;
-        Ok(false)
+pub fn load_picture_with_overlay(path: GamePtr, overlay_path: GamePtr) -> Result<bool, Refused> {
+    if !load_picture(path)? {
+        return Ok(true);
     }
+    let list = LEXICON.memory.as_ptr();
+    // The overlay's buffer is Rust's (phase 12, `gfx::picture`), counted on the list as
+    // the game's block was, given back with it.
+    let free = || -> Result<(), Refused> {
+        crate::gfx::picture::give_back(Buffer::Overlay);
+        Ok(free_list(list)?)
+    };
+    let overlay = take(Buffer::Overlay, list, MEMORY)?;
+    let kept: [u32; 4] = [
+        PICTURE.width.get(),
+        PICTURE.height.get(),
+        PICTURE.row_bytes.get(),
+        PICTURE.buffer.get(),
+    ];
+    PICTURE.buffer.set(overlay);
+    let read = read_picture_file(overlay_path);
+    PICTURE.width.set(kept[0]);
+    PICTURE.height.set(kept[1]);
+    PICTURE.row_bytes.set(kept[2]);
+    PICTURE.buffer.set(kept[3]);
+    let read = match read {
+        Ok(read) => read,
+        Err(e) => {
+            free()?;
+            return Err(e);
+        }
+    };
+    if read {
+        // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
+        // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
+        let (width, height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
+        let (stride, row): (u32, u32) = (DECODER.stride.get(), PICTURE.row_bytes.get());
+        let laid = with_buffer(overlay, |from| {
+            with_buffer(kept[3], |to| {
+                match (to.get_mut(..MEMORY as usize), from.get(..MEMORY as usize)) {
+                    (Some(to), Some(from)) => rc2k_core::gfx::loading::lay_over(
+                        to,
+                        from,
+                        width as usize,
+                        height as usize,
+                        stride as usize,
+                        row as usize,
+                    )
+                    .map_err(|e| BadInput(e.0)),
+                    _ => Err(BadInput("a picture buffer shorter than its room")),
+                }
+            })
+        })
+        .and_then(|r| r)
+        .and_then(|r| r);
+        if let Err(e) = laid {
+            free()?;
+            return Err(e.into());
+        }
+    }
+    free()?;
+    Ok(false)
 }

@@ -11,20 +11,11 @@
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-// ---- Rust version ----
-
-/// Returns (the bytes read, whether a read failed).
-pub unsafe fn read_stream_block(
-    stream: *mut Stream,
-    to: *mut u8,
-    count: u32,
-) -> Result<(u32, bool), BadInput> {
-    // Converted: `rc2k_core::files::io::read_stream_block`.
-    unsafe {
-        Ok(rc2k_core::files::io::read_stream_block(
-            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
-            crate::files::stream::core_stream(stream),
-            std::slice::from_raw_parts_mut(to, count as usize),
-        )?)
-    }
+/// The Rust version: `to.len()` bytes into `to`; the bytes read and the original's flag.
+pub fn read_stream_block(stream: &mut Stream, to: &mut [u8]) -> Result<(u32, bool), BadInput> {
+    Ok(rc2k_core::files::io::read_stream_block(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        to,
+    )?)
 }

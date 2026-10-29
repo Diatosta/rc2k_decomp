@@ -271,14 +271,14 @@ pub fn halvings_apart(
 
 /// With the record's +0x5C at 1: the second picture (`path`, 0 for none) read and
 /// copied `KEPT` bytes on, or, if there is none or it cannot be read, +0x5C made 0.
-pub unsafe fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refused> {
+pub fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refused> {
     if !record.keeps_alpha() {
         return Ok(());
     }
     let kept = if path == 0 {
         None
     } else {
-        match unsafe { read_texture_picture(crate::pointers::host(path)) }? {
+        match { read_texture_picture(crate::pointers::host(path)) }? {
             (_, _, _, true) => None,
             found => Some(found),
         }

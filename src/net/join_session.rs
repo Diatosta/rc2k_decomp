@@ -13,13 +13,13 @@
 
 use crate::errors::Refused;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{log, log_int_nl, movsb, zero};
-use crate::net::store::NET;
+use crate::net::lobby::{log, log_int_nl};
+use crate::net::store::{NET, put_bytes};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
 pub fn posted_open_join() -> u32 {
-    open(OPEN_JOIN)
+    open(OPEN_JOIN, b"")
 }
 
 fn join_group() -> Result<bool, Refused> {
@@ -39,13 +39,9 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
     NET.joined_most.set(s.max_players);
     NET.joined_password
         .write_at(0, &s.user, "the joined session")?;
-    zero(NET.session_desc.addr(), 0x50)?;
+    NET.session_desc.clear();
     NET.session_desc.size.set(0x50);
-    movsb(
-        crate::pointers::game_address(NET.session_desc.instance.as_ptr()),
-        NET.joined.addr(),
-        0x10,
-    )?;
+    put_bytes(&NET.session_desc.instance, &NET.joined.read());
     finish(
         posted_open_join,
         join_group,

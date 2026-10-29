@@ -29,21 +29,19 @@ const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
 fn read(path: &Bytes<21>) -> Result<bool, Refused> {
-    unsafe {
-        let sizes: [u32; 3] = [
-            PICTURE.width.get(),
-            PICTURE.height.get(),
-            PICTURE.row_bytes.get(),
-        ];
-        PICTURE.width.set(SIDE);
-        PICTURE.height.set(SIDE);
-        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-        let read = crate::gfx::read_picture_file::read_picture_file(path.as_ptr());
-        PICTURE.width.set(sizes[0]);
-        PICTURE.height.set(sizes[1]);
-        PICTURE.row_bytes.set(sizes[2]);
-        read
-    }
+    let sizes: [u32; 3] = [
+        PICTURE.width.get(),
+        PICTURE.height.get(),
+        PICTURE.row_bytes.get(),
+    ];
+    PICTURE.width.set(SIDE);
+    PICTURE.height.set(SIDE);
+    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    let read = crate::gfx::read_picture_file::read_picture_file(GamePtr::new(path.addr()));
+    PICTURE.width.set(sizes[0]);
+    PICTURE.height.set(sizes[1]);
+    PICTURE.row_bytes.set(sizes[2]);
+    read
 }
 
 /// Unlocks the surface and refuses with `why`.

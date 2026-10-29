@@ -24,156 +24,118 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
-use crate::pointers::GamePtr;
+use crate::install::runs_from_source::{scratch_put, scratch_text};
+use crate::install::vars::{INSTALLER_NAMES, INSTALLER_PATHS, INSTALLER_RUN};
 use crate::system::read_command_line::COMMAND_LINE;
+use rc2k_core::files::paths;
 
 const ROOM: u32 = 0x100;
 
-// The variables.
-
-/// The standalone's program in place of `.\ral.exe` (`install::shortcuts::PROGRAM`).
 #[cfg(windows)]
-pub static RC2K: &[u8] = b".\\rc2k.exe\0";
+pub static RC2K: &[u8] = b".\\rc2k.exe";
 #[cfg(not(windows))]
-pub static RC2K: &[u8] = b".\\rc2k\0";
+pub static RC2K: &[u8] = b".\\rc2k";
 
-/// Where the variables are.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub reported: u32,
-    pub switches: u32,
-    pub game_dir: u32,
-    pub installed: u32,
-    pub other_dir: u32,
-    pub program: u32,
-    pub source: u32,
-    pub from_cd: u32,
-    pub command: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        Self {
-            reported: crate::pointers::game_address(crate::fatal::state::REPORTED.as_ptr()), // g_fatalReported (a byte)
-            switches: INSTALLER_RUN.add_items.addr(),
-            game_dir: INSTALLER_PATHS.game_dir.addr(),
-            installed: INSTALLER_PATHS.installed.addr(),
-            other_dir: crate::install::installer::INSTALL_TEXTS.other_dir.addr(),
-            program: crate::pointers::game_address(crate::files::numbered_path::buffer()), // byte_94E8B0: a program's name (0x100 bytes taken)
-            source: INSTALLER_NAMES.source.addr(),
-            from_cd: crate::install::store::INSTALL.running_from_cd.addr(),
-            command: COMMAND_LINE.program.addr(),
-        }
-    }
-}
-
-fn rd(at: u32) -> u32 {
-    crate::install::installer::rd(at)
-}
-
-/// `files::set_current_directory` (0x403105): whether it worked.
-fn set_cd(path: u32) -> bool {
-    let path = checked_text(path, "a folder to go to");
-    let path = path.strip_suffix(&[0]).unwrap_or(&path);
+fn set_cd(path: &[u8]) -> bool {
     std::env::set_current_dir(crate::files::host_path(path)).is_ok()
 }
 
-/// The NUL-ended text at `at`, checked (`files::cstring`), with its NUL; one outside its
-/// region ends the program.
-fn checked_text(at: u32, what: &str) -> Vec<u8> {
-    let mut text = crate::files::cstring(GamePtr::new(at), what)
-        .unwrap_or_else(|e| crate::fatal::raise::end("install::run_after_exit", e));
-    text.push(0);
-    text
+fn run(command: &[u8]) {
+    crate::install::shortcuts::run_program(&crate::files::host_path(command));
 }
 
-/// `system::run_program` (0x410ADC, ebx 1: not waited for): the standalone's own start
-/// (`install/shortcuts.rs`).
-fn run(command: u32) {
-    let command = checked_text(command, "a command to run");
-    // SAFETY: a NUL-ended copy.
-    let command = unsafe { crate::install::shortcuts::c_path(command.as_ptr()) };
-    crate::install::shortcuts::run_program(&command);
-}
-
-/// The Rust version on the variables in `v`.
-pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
-    use crate::files::append_directory::append_directory;
-    use crate::files::append_file_name::append_file_name;
-    let switch = |n: u32| rd(v.switches + 4 * n);
-    if GamePtr::new(v.reported).read::<u8>("the installer's reported byte")? == 1 {
+/// The Rust version (see the header).
+pub fn run_after_exit() -> Result<(), Refused> {
+    let run_vars = &INSTALLER_RUN;
+    // `g_addStartItems` .. `g_runRegistration`.
+    let switch = |n: u32| {
+        [
+            &run_vars.add_items,
+            &run_vars.remove_items,
+            &run_vars.run_dxsetup,
+            &run_vars.installing,
+            &run_vars.offer_registration,
+            &run_vars.run_registration,
+        ][n as usize]
+            .get()
+    };
+    if crate::fatal::state::REPORTED.load(std::sync::atomic::Ordering::Relaxed) == 1 {
         return Ok(());
     }
     // The refusals, before anything.
-    let game_dir_len =
-        crate::files::cstring(GamePtr::new(v.game_dir), "the game's folder")?.len() as u32;
+    let game_dir = INSTALLER_PATHS.game_dir.text();
+    let game_dir_len = game_dir.len() as u32;
     if switch(2) != 1 && switch(5) == 1 && game_dir_len + 5 + 1 > ROOM {
         return Err(
             BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
         );
     }
+    let from_cd = crate::install::store::INSTALL.running_from_cd.get();
     if switch(2) != 1
         && switch(5) != 1
         && switch(3) == 1
-        && rd(v.from_cd) == 1
-        && rd(v.command + 4) >= ROOM
+        && from_cd == 1
+        && COMMAND_LINE.program_len.get() >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
     // install::add_start_menu_items, install::remove_start_menu_items (DDE in the
     // original): the standalone's shell shortcuts.
     if switch(0) == 1 {
-        use crate::install::shortcuts::{add_start_menu_items, c_path};
-        unsafe { add_start_menu_items(&c_path(INSTALLER_PATHS.installed.as_ptr() as *const u8)) };
+        crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
+            &INSTALLER_PATHS.installed.text(),
+        ));
     }
     if switch(1) == 1 {
         crate::install::shortcuts::remove_start_menu_items();
     }
     if switch(2) == 1 {
-        for dir in [v.game_dir, v.other_dir] {
+        let other_dir = crate::install::installer::INSTALL_TEXTS.other_dir.text();
+        for dir in [&game_dir, &other_dir] {
             if !set_cd(dir) {
                 return Ok(());
             }
         }
-        run(INSTALLER_NAMES.dxsetup.addr());
+        run(&INSTALLER_NAMES.dxsetup.text());
         return Ok(());
     }
     if switch(5) == 1 {
-        {
-            // "ereg\eregip.exe" (the script's text after its count).
-            let ereg =
-                crate::pointers::host_at((INSTALLER_RUN.ereg.addr() + 2) as usize) as *const u8;
-            let (cursor, _) =
-                append_directory(ereg, crate::pointers::host(v.game_dir + game_dir_len))?;
-            GamePtr::new(crate::pointers::game_address(cursor))
-                .write(0u8, "the installer's path")?;
-            let cursor = append_file_name(ereg, crate::pointers::host(v.program))?;
-            GamePtr::new(crate::pointers::game_address(cursor))
-                .write(0u8, "the installer's path")?;
-        }
-        if !set_cd(v.game_dir) {
+        // "ereg\eregip.exe" (the script's text after its count): its folder after the
+        // game's, its name into the program's buffer (`byte_94E8B0`).
+        let ereg = INSTALLER_RUN.ereg.read();
+        let ereg = &ereg[2..];
+        let ereg = &ereg[..ereg.iter().position(|&c| c == 0).unwrap_or(ereg.len())];
+        let folder = paths::directory(ereg).unwrap_or(&[]);
+        let at = game_dir_len as usize;
+        INSTALLER_PATHS
+            .game_dir
+            .write_at(at, &[folder, &[0]].concat(), "the installer's path")?;
+        scratch_put(0, &[paths::file_name(ereg), &[0]].concat())?;
+        if !set_cd(&INSTALLER_PATHS.game_dir.text()) {
             return Ok(());
         }
-        run(v.program);
+        run(&scratch_text()?);
         return Ok(());
     }
     if switch(3) != 1 {
         return Ok(());
     }
-    if !crate::install::installer::normalise(v.source, v.installed)? || !set_cd(v.installed) {
+    let normalised = crate::install::normalise_path::normalised_bytes(
+        &INSTALLER_NAMES.source.text(),
+        &mut || crate::install::normalise_path::current_directory(),
+    )?;
+    let Some(installed) = normalised else {
+        return Ok(());
+    };
+    INSTALLER_PATHS
+        .installed
+        .write_at(0, &installed, "the installed folder")?;
+    if !set_cd(&INSTALLER_PATHS.installed.text()) {
         return Ok(());
     }
     // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).
     crate::install::shortcuts::copy_program();
     crate::system::sleep::sleep(1000);
-    run(crate::pointers::game_address(RC2K.as_ptr()));
+    run(RC2K);
     Ok(())
-}
-
-/// After the game: the shortcuts and the programs run, as the switches say.
-pub fn run_after_exit() -> Result<(), Refused> {
-    run_after_exit_with(&Vars::game())
 }

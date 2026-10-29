@@ -454,148 +454,139 @@ fn raise_onto_face(index: u32) -> Result<(), Refused> {
 /// registers it leaves are not read (its caller calls it inside `pusha`). Refuses what the projection and the
 /// clips refuse (after the work is set; not met with a hull's few vertices) and a hull
 /// list past 0x40.
-pub unsafe fn shadow_on_face() -> Result<(), Refused> {
-    unsafe {
-        let count: u32 = FRAME_WORK.shadow_list_count.get();
-        if count > 0x40 {
-            return Err(BadInput("a shadow list past 0x40").into());
-        }
-        DRAW.polygon_drawn.set(0u32);
-        let list = &POLYGON_WORK.list;
-        copy_on(
-            &FRAME_WORK.shadow_list,
-            list,
-            count as usize,
-            "the shadow list",
-        )?;
-        DRAW.polygon_vertex_count.set_bits(count);
-        write_on(
-            list,
-            count as usize,
-            FRAME_WORK.shadow_list[0].get(),
-            "the polygon list",
-        )?;
-        DRAW.polygon_next_entry.set_bits(0x20u32);
-        let scene: u32 = COURSE.scene_point_count.get();
-        FRAME_WORK.shadow_scene.set(scene.wrapping_add(0x30));
-        DRAW.polygon_sides[0].set(0u32);
-        DRAW.polygon_sides[1].set(1u32);
-        let mut at = (scene & 0xFFF) * 0x20;
-        for _ in 0..0x40 {
-            crate::scene::point_records::put_field(
-                crate::scene::point_records::at_offset(at),
-                0,
-                u32::MAX,
-            )?;
-            at = (at + 0x20) & 0x1FFE0;
-        }
-        clip_shadow_to_face()?;
-        if DRAW.polygon_vertex_count.bits() < 3 {
-            return Ok(());
-        }
-        let n: u32 = DRAW.polygon_vertex_count.bits();
-        for k in 0..n {
-            raise_onto_face(read_on(list, k as usize, "the polygon list")?)?;
-        }
-        crate::scene::project_polygon::project_polygon()?;
-        crate::scene::fog_polygon::fog_polygon()?;
-        DRAW.polygon_next_record
-            .set(crate::scene::polygon::pool_start());
-        let outside: u32 = DRAW.polygon_outside_count.get();
-        if outside != 0 {
-            if outside == DRAW.polygon_vertex_count.bits() {
-                return Ok(());
-            }
-            crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-            if DRAW.polygon_vertex_count.bits() < 3 {
-                return Ok(());
-            }
-        }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if DRAW.polygon_vertex_count.bits() < 3 {
-            return Ok(());
-        }
-        DRAW.polygon_textures[0].set(u32::MAX);
-        DRAW.polygon_textures[1].set(FRAME_WORK.shadow_texture.get());
-        DRAW.polygon_sides[0].set(0u32);
-        DRAW.polygon_sides[1].set(1u32);
-        RACE_VIEW.polygon_mode.set(5u32);
-        crate::scene::draw_polygon::draw_polygon_in_game()?;
-        DRAW.polygon_drawn.set(1u32);
-        Ok(())
+pub fn shadow_on_face() -> Result<(), Refused> {
+    let count: u32 = FRAME_WORK.shadow_list_count.get();
+    if count > 0x40 {
+        return Err(BadInput("a shadow list past 0x40").into());
     }
+    DRAW.polygon_drawn.set(0u32);
+    let list = &POLYGON_WORK.list;
+    copy_on(
+        &FRAME_WORK.shadow_list,
+        list,
+        count as usize,
+        "the shadow list",
+    )?;
+    DRAW.polygon_vertex_count.set_bits(count);
+    write_on(
+        list,
+        count as usize,
+        FRAME_WORK.shadow_list[0].get(),
+        "the polygon list",
+    )?;
+    DRAW.polygon_next_entry.set_bits(0x20u32);
+    let scene: u32 = COURSE.scene_point_count.get();
+    FRAME_WORK.shadow_scene.set(scene.wrapping_add(0x30));
+    DRAW.polygon_sides[0].set(0u32);
+    DRAW.polygon_sides[1].set(1u32);
+    let mut at = (scene & 0xFFF) * 0x20;
+    for _ in 0..0x40 {
+        crate::scene::point_records::put_field(
+            crate::scene::point_records::at_offset(at),
+            0,
+            u32::MAX,
+        )?;
+        at = (at + 0x20) & 0x1FFE0;
+    }
+    clip_shadow_to_face()?;
+    if DRAW.polygon_vertex_count.bits() < 3 {
+        return Ok(());
+    }
+    let n: u32 = DRAW.polygon_vertex_count.bits();
+    for k in 0..n {
+        raise_onto_face(read_on(list, k as usize, "the polygon list")?)?;
+    }
+    crate::scene::project_polygon::project_polygon()?;
+    crate::scene::fog_polygon::fog_polygon()?;
+    DRAW.polygon_next_record
+        .set(crate::scene::polygon::pool_start());
+    let outside: u32 = DRAW.polygon_outside_count.get();
+    if outside != 0 {
+        if outside == DRAW.polygon_vertex_count.bits() {
+            return Ok(());
+        }
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
+        if DRAW.polygon_vertex_count.bits() < 3 {
+            return Ok(());
+        }
+    }
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+    if DRAW.polygon_vertex_count.bits() < 3 {
+        return Ok(());
+    }
+    DRAW.polygon_textures[0].set(u32::MAX);
+    DRAW.polygon_textures[1].set(FRAME_WORK.shadow_texture.get());
+    DRAW.polygon_sides[0].set(0u32);
+    DRAW.polygon_sides[1].set(1u32);
+    RACE_VIEW.polygon_mode.set(5u32);
+    crate::scene::draw_polygon::draw_polygon_in_game()?;
+    DRAW.polygon_drawn.set(1u32);
+    Ok(())
 }
 
 /// `sub_4576C9`: each face of course record esi (+8 .. +0xC) with a kind below 0x10 and
 /// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
 /// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
-unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
+fn shadow_on_record(record: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
     // `rc2k_core::race::view::record_faces`.
     use rc2k_core::race::shadow::{SHADOW_TRIANGLES, takes_shadow};
-    unsafe {
-        let Some((first, last)) =
-            rc2k_core::race::view::record_faces(get(record + 8)?, get(record + 0xC)?)
-        else {
-            return Ok(());
-        };
-        for face in first..=last {
-            COURSE.current_course_face.set(face);
-            let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
-            let f = crate::race::course_places::face(at, "a course face")?;
-            let takes = takes_shadow(f.kind(), || f.switches());
-            if takes {
-                for corners in SHADOW_TRIANGLES {
-                    for (k, &o) in corners.iter().enumerate() {
-                        FRAME_WORK.shadow_light[k].set_bits(get(at + o)?);
-                    }
-                    shadow_on_face()?;
+    let Some((first, last)) =
+        rc2k_core::race::view::record_faces(get(record + 8)?, get(record + 0xC)?)
+    else {
+        return Ok(());
+    };
+    for face in first..=last {
+        COURSE.current_course_face.set(face);
+        let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
+        let f = crate::race::course_places::face(at, "a course face")?;
+        let takes = takes_shadow(f.kind(), || f.switches());
+        if takes {
+            for corners in SHADOW_TRIANGLES {
+                for (k, &o) in corners.iter().enumerate() {
+                    FRAME_WORK.shadow_light[k].set_bits(get(at + o)?);
                 }
+                shadow_on_face()?;
             }
         }
-        Ok(())
     }
+    Ok(())
 }
 
 /// `race::shadow_faces` (0x457618): the shadow (`shadow_on_face`) on the last course
 /// record's faces, then on every record in the 3 x 3 cells round the work car
 /// (`sub_4576C9` each). The original keeps every register but ebx (the record count),
 /// which its one caller does not read.
-pub unsafe fn shadow_faces() -> Result<(), Refused> {
-    unsafe {
-        let count: u32 = COURSE.course_record_count.get();
-        let records: u32 = COURSE.course_records.get();
-        shadow_on_record((count.wrapping_sub(1) << 5).wrapping_add(records))?;
-        if count == 0 {
-            return Ok(());
-        }
-        // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
-        use rc2k_core::race::shadow::{cell_near_car, record_cell};
-        // Every record of the course is looked at each frame: the run is resolved once.
-        let all = crate::race::course_places::bytes(
-            records,
-            (count as usize) << 5,
-            "the course records",
-        )?;
-        for n in 0..count {
-            let at = (n << 5).wrapping_add(records);
-            let o = (n as usize) << 5;
-            let Some((x, z)) = record_cell(u32::from_le_bytes([
-                all[o],
-                all[o + 1],
-                all[o + 2],
-                all[o + 3],
-            ])) else {
-                continue;
-            };
-            COURSE.record_place[0].set(x);
-            COURSE.record_place[1].set(z);
-            if cell_near_car((CAR.position[0].bits(), CAR.position[2].bits()), (x, z)) {
-                shadow_on_record(at)?;
-            }
-        }
-        Ok(())
+pub fn shadow_faces() -> Result<(), Refused> {
+    let count: u32 = COURSE.course_record_count.get();
+    let records: u32 = COURSE.course_records.get();
+    shadow_on_record((count.wrapping_sub(1) << 5).wrapping_add(records))?;
+    if count == 0 {
+        return Ok(());
     }
+    // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
+    use rc2k_core::race::shadow::{cell_near_car, record_cell};
+    // Every record of the course is looked at each frame: the run is resolved once.
+    let all =
+        crate::race::course_places::bytes(records, (count as usize) << 5, "the course records")?;
+    for n in 0..count {
+        let at = (n << 5).wrapping_add(records);
+        let o = (n as usize) << 5;
+        let Some((x, z)) = record_cell(u32::from_le_bytes([
+            all[o],
+            all[o + 1],
+            all[o + 2],
+            all[o + 3],
+        ])) else {
+            continue;
+        };
+        COURSE.record_place[0].set(x);
+        COURSE.record_place[1].set(z);
+        if cell_near_car((CAR.position[0].bits(), CAR.position[2].bits()), (x, z)) {
+            shadow_on_record(at)?;
+        }
+    }
+    Ok(())
 }
 
 /// `fld tbyte; fstp dword`: 80 bits as a float.
@@ -713,29 +704,27 @@ fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
 /// registers it leaves are read by no one (its caller calls it inside `pusha`); it reads
 /// none at entry (each part sets what it uses). Refuses what its parts refuse (before
 /// anything for the points and the counts).
-pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
+pub fn cast_car_shadow() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
     // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
-    unsafe {
-        if !casts(FRAME_WORK.shadow_point_count.bits()) {
-            return Ok(());
-        }
-        shadow_points()?;
-        shadow_angles()?;
-        shadow_hull()?;
-        if !hull_drawn(SHADOW_SKIDS.hull_count.get()) {
-            return Ok(());
-        }
-        shadow_polygon()?;
-        let n: u32 = SHADOW_SKIDS.hull_count.get();
-        FRAME_WORK.shadow_list_count.set(n);
-        for k in hull_list(n) {
-            write_on(&FRAME_WORK.shadow_list, k as usize, k, "the shadow list")?;
-        }
-        FRAME_WORK.shadow_texture.set(SHADOW_TEXTURE);
-        shadow_faces()
+    if !casts(FRAME_WORK.shadow_point_count.bits()) {
+        return Ok(());
     }
+    shadow_points()?;
+    shadow_angles()?;
+    shadow_hull()?;
+    if !hull_drawn(SHADOW_SKIDS.hull_count.get()) {
+        return Ok(());
+    }
+    shadow_polygon()?;
+    let n: u32 = SHADOW_SKIDS.hull_count.get();
+    FRAME_WORK.shadow_list_count.set(n);
+    for k in hull_list(n) {
+        write_on(&FRAME_WORK.shadow_list, k as usize, k, "the shadow list")?;
+    }
+    FRAME_WORK.shadow_texture.set(SHADOW_TEXTURE);
+    shadow_faces()
 }
 
 /// `race::cast_car_shadows` (0x45754C): the depth test off, `dword_641928` 0x1999, then
@@ -743,39 +732,37 @@ pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
 /// corner count from `g_car` +0x260, `cast_car_shadow` once with `dword_6238B0` set, then
 /// once more with `dword_60933C` 0x40 (put back after), inside `pusha`; the depth test on.
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves. Refuses (before anything) no cars or more than eight, or a null block.
-pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
+pub fn cast_car_shadows() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
     // SHADOW_STRENGTH, SUN_PASS}`.
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
-    unsafe {
-        let cars: u32 = RACE_VIEW.race_cars.get();
-        let block = |n: u32| RACE_WORK.car_block(n as usize);
-        check_shadow_cars(cars, block)?;
-        crate::scene::depth_test_off::depth_test_off();
-        FRAME_WORK.shadow_strength.set(SHADOW_STRENGTH);
-        for n in 0..cars {
-            let b = block(n);
-            if !casts_shadow(get(b + 0x6FC)?) {
-                continue;
-            }
-            RACE_WORK.current_car.set(n);
-            crate::drive::load_car::load_car()?;
-            FRAME_WORK
-                .shadow_point_count
-                .set_bits(get(crate::physics::car_store::car_addr() + 0x260)?);
-            if first_pass(RACE_VARS.settings_words[2].bits()) {
-                cast_car_shadow()?;
-            }
-            let sun: u32 = STAGE_PREFS.sun_height.get();
-            STAGE_PREFS.sun_height.set(SUN_PASS);
-            cast_car_shadow()?;
-            STAGE_PREFS.sun_height.set(sun);
+    let cars: u32 = RACE_VIEW.race_cars.get();
+    let block = |n: u32| RACE_WORK.car_block(n as usize);
+    check_shadow_cars(cars, block)?;
+    crate::scene::depth_test_off::depth_test_off();
+    FRAME_WORK.shadow_strength.set(SHADOW_STRENGTH);
+    for n in 0..cars {
+        let b = block(n);
+        if !casts_shadow(get(b + 0x6FC)?) {
+            continue;
         }
-        crate::scene::depth_test_on::depth_test_on();
-        Ok(())
+        RACE_WORK.current_car.set(n);
+        crate::drive::load_car::load_car()?;
+        FRAME_WORK
+            .shadow_point_count
+            .set_bits(get(crate::physics::car_store::car_addr() + 0x260)?);
+        if first_pass(RACE_VARS.settings_words[2].bits()) {
+            cast_car_shadow()?;
+        }
+        let sun: u32 = STAGE_PREFS.sun_height.get();
+        STAGE_PREFS.sun_height.set(SUN_PASS);
+        cast_car_shadow()?;
+        STAGE_PREFS.sun_height.set(sun);
     }
+    crate::scene::depth_test_on::depth_test_on();
+    Ok(())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -16,8 +16,6 @@ use crate::net::store::NET;
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
-/// DPRECEIVE_ALL.
-const RECEIVE_ALL: u32 = 1;
 
 /// A message taken (`size` 0: none).
 #[derive(Clone, Copy, Debug)]
@@ -30,16 +28,25 @@ pub struct Received {
 /// The Rust version.
 pub fn receive_message() -> Received {
     NET.received_size.set(ROOM);
-    let result = {
-        crate::net::dp_objects::receive(
-            NET.dplay.get(),
-            NET.received_from.addr(),
-            NET.received_to.addr(),
-            RECEIVE_ALL,
-            NET.receive_data.addr(),
-            NET.received_size.addr(),
-        )
-    };
+    let mut data = [0u8; ROOM as usize];
+    let r = crate::net::dp_objects::receive(NET.dplay.get(), &mut data);
+    if let Some((from, to)) = r.from_to {
+        NET.received_from.set(from);
+        NET.received_to.set(to);
+    }
+    if let Some(size) = r.size {
+        NET.received_size.set(size);
+    }
+    if r.result == 0 {
+        NET.receive_data
+            .write_at(
+                0,
+                &data[..r.size.unwrap_or(0) as usize],
+                "the received message",
+            )
+            .unwrap_or_else(|e| crate::fatal::raise::end("net::receive_message", e));
+    }
+    let result = r.result;
     if result != 0 {
         NET.received_size.set(0);
     }

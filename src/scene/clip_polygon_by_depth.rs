@@ -24,20 +24,18 @@ const NEAREST: i32 = 0x1000;
 
 // ---- Rust version ----
 
-pub unsafe fn clip_polygon_by_depth() -> Result<(), BadInput> {
-    unsafe {
-        listed_with_records()?;
-        or_undone(|| {
-            DRAW.depth_clipped.set_bits(1u32);
-            DRAW.clip_plane.set_bits(NEAREST as u32);
-            clip_pass(Edge::Depth(NEAREST), true, 0)?;
-            let far = FRAME_SWITCHES.no_far_clip.bits() == 0 && DRAW_SWITCHES.far_on.bits() != 0;
-            if far && (DRAW.polygon_vertex_count.bits() as i32).wrapping_sub(3) >= 0 {
-                let farthest = DRAW.clip_farthest.bits() as i32;
-                DRAW.clip_plane.set_bits(farthest as u32);
-                clip_pass(Edge::Depth(farthest), false, 0)?;
-            }
-            Ok(())
-        })
-    }
+pub fn clip_polygon_by_depth() -> Result<(), BadInput> {
+    listed_with_records()?;
+    or_undone(|| {
+        DRAW.depth_clipped.set_bits(1u32);
+        DRAW.clip_plane.set_bits(NEAREST as u32);
+        clip_pass(Edge::Depth(NEAREST), true, 0)?;
+        let far = FRAME_SWITCHES.no_far_clip.bits() == 0 && DRAW_SWITCHES.far_on.bits() != 0;
+        if far && (DRAW.polygon_vertex_count.bits() as i32).wrapping_sub(3) >= 0 {
+            let farthest = DRAW.clip_farthest.bits() as i32;
+            DRAW.clip_plane.set_bits(farthest as u32);
+            clip_pass(Edge::Depth(farthest), false, 0)?;
+        }
+        Ok(())
+    })
 }

@@ -10,7 +10,7 @@
 //! GetConnectionSettings, 0x30 SetConnectionSettings, 0x38 CreateCompoundAddress).
 
 /// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`; in the standalone
-/// program DirectPlay's objects made in Rust (`net::dp_objects`).
-pub fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
-    crate::net::dp_objects::create(class, interface, out)
+/// program DirectPlay's objects made in Rust (`net::dp_objects`): the object, or the error.
+pub fn create_instance(class: &[u8; 16], interface: &[u8; 16]) -> Result<u32, u32> {
+    crate::net::dp_objects::create(class, interface)
 }

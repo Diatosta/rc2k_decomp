@@ -38,21 +38,19 @@ fn progress(done: u32) -> Option<u32> {
 /// `dword_623704` names is one of the two the loading puts there: `race::loading_bar_frame`
 /// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
-pub unsafe fn step_loading_bar(done: u32) -> Result<(), Refused> {
-    unsafe {
-        let show: u32 = RACE_VARS.bar_function.bits();
-        if show == 0 {
-            return Err(BadInput("no function to show the loading with").into());
-        }
-        if let Some(progress) = progress(done) {
-            RACE_VARS.bar_share.set_bits(progress);
-        }
-        if show == game_addr(BAR_RVA) {
-            crate::race::loading_bar_frame::loading_bar_frame()
-        } else if show == game_addr(NOTHING_RVA) {
-            Ok(())
-        } else {
-            Err(BadInput("a loading bar function that is neither of the loading's").into())
-        }
+pub fn step_loading_bar(done: u32) -> Result<(), Refused> {
+    let show: u32 = RACE_VARS.bar_function.bits();
+    if show == 0 {
+        return Err(BadInput("no function to show the loading with").into());
+    }
+    if let Some(progress) = progress(done) {
+        RACE_VARS.bar_share.set_bits(progress);
+    }
+    if show == game_addr(BAR_RVA) {
+        crate::race::loading_bar_frame::loading_bar_frame()
+    } else if show == game_addr(NOTHING_RVA) {
+        Ok(())
+    } else {
+        Err(BadInput("a loading bar function that is neither of the loading's").into())
     }
 }

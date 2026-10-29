@@ -63,6 +63,17 @@ pub fn compare_texts(a: *const u8, b: *const u8) -> Result<Ordering, BadInput> {
     Ok(case_table().compare(&read(a)?, &read(b)?))
 }
 
+/// `compare_texts` on two texts in hand (each up to its NUL or its end).
+pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
+    let text = |t: &[u8]| {
+        t.iter()
+            .position(|&c| c == 0)
+            .map_or(t, |n| &t[..n])
+            .to_vec()
+    };
+    case_table().compare(&text(a), &text(b))
+}
+
 pub fn same_text(a: *const u8, b: *const u8) -> Result<bool, BadInput> {
     Ok(compare_texts(a, b)? == Ordering::Equal)
 }

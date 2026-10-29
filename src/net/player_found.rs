@@ -9,32 +9,21 @@
 //! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::lobby::copy_printable;
 use crate::net::store::NET;
 
-/// The Rust version: eax.
-pub fn player_found(args: &[u32]) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::net::lists::player_found`.
+/// The Rust version (see the header): the player's id and short name.
+pub fn player_found(id: u32, short: &[u8]) -> Result<u32, Refused> {
     let Some(count) = rc2k_core::net::lists::player_found(NET.players.get()) else {
         return Ok(0);
     };
     NET.players.set(count + 1);
     let player = NET.player_block(count);
-    player.id.set(args[0]);
-    copy_printable(
-        crate::pointers::read_or_end::<u32>(args[2] + 8, "net::player_found's operand"),
-        player.name.addr(),
-        0x1F,
-    )?;
+    player.id.set(id);
+    let written = crate::strings::copy_printable::printable_from(short, 0x1F)?;
+    player.name.write_at(0, &written, "a player's name")?;
     Ok(1)
 }
 
-/// The callback DirectPlay is given (`net::dp_objects`): the Rust version.
-pub fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
-    crate::net::lobby::callback_entry(
-        "net::player_found",
-        0x41929E,
-        &[a, b, c, d, e],
-        player_found,
-    )
+pub fn callback(id: u32, _kind: u32, short: &[u8], _flags: u32, _context: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::player_found", 0x41929E, || player_found(id, short))
 }

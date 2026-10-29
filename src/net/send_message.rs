@@ -29,6 +29,6 @@ pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
     let message = inbox::outgoing(byte, &bytes)?;
     NET.sequence.set(byte);
     NET.send_buffer.write_at(0, &message, "the send buffer")?;
-    dplay_send(NET.send_to.get(), 0, NET.send_buffer.addr(), count + 1);
+    dplay_send(NET.send_to.get(), &message);
     Ok(())
 }

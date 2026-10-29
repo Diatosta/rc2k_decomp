@@ -18,8 +18,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, copy_picture, delete_file, game_api, lock, normalise, remove_dir, run_frame,
-    set_cd, show, sleep, str_append, unlock, wb,
+    append_byte, copy_picture, delete_file, lock, normalise, remove_dir, run_frame, set_cd, show,
+    sleep, str_append, unlock, wb,
 };
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
@@ -43,7 +43,7 @@ pub fn uninstall() -> Result<(), Refused> {
         return Ok(());
     }
     INSTALLER_NAMES.status.set(0x80);
-    i::write_registry::write_registry(&mut game_api)?;
+    i::write_registry::write_registry(&mut crate::install::portable::Portable)?;
     // the "removing" frame
     run_frame(None)?;
     if lock() {
@@ -80,8 +80,8 @@ pub fn uninstall() -> Result<(), Refused> {
     sleep(1000);
     INSTALLER_NAMES.status.set(0);
     wb(&INSTALLER_NAMES.source, 0);
-    i::write_registry::write_registry(&mut game_api)?;
-    i::unregister_lobby::unregister_lobby(&mut game_api);
+    i::write_registry::write_registry(&mut crate::install::portable::Portable)?;
+    i::unregister_lobby::unregister_lobby(&mut crate::install::portable::Portable);
     INSTALLER_RUN.remove_items.set(1);
     INSTALLER_RUN.installing.set(0);
     Ok(())

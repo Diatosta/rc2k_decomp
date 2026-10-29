@@ -28,13 +28,19 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
-fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
-    let read = crate::files::read_file::read_file(
-        crate::pointers::GamePtr::new(path as u32),
-        crate::pointers::host(buffer),
-        count,
-        0,
-    )?;
+/// `count` bytes of the file `path` into `buffer`; the fatal error `code` when it cannot be
+/// read.
+fn read<const N: usize>(
+    path: &[u8],
+    buffer: &crate::session::Bytes<N>,
+    count: usize,
+    code: u32,
+) -> Result<(), Refused> {
+    let mut bytes = vec![0u8; count];
+    let read = crate::files::read_file::read_file_into(path, &mut bytes, 0)?;
+    // What was read goes in (the rest of the buffer is left as it was).
+    let got = read.bytes_read.unwrap_or(0) as usize;
+    buffer.write_at(0, &bytes[..got.min(count)], "a file's bytes")?;
     if !read.ok {
         return Err(fatal(code));
     }
@@ -58,14 +64,14 @@ pub fn open_installer() -> Result<(), Refused> {
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(list)?;
     INSTALLER_RUN.bar_glyphs.set(glyphs);
-    let path = crate::pointers::GamePtr::new(INSTALLER_NAMES.installer_data.addr());
-    if !crate::files::read_file::read_file_into(path, &mut bytes[..0x3000], 0)?.ok {
+    let path = INSTALLER_NAMES.installer_data.text();
+    if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
         return Err(fatal(0x80AF_7444));
     }
     crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
     read(
-        INSTALLER_NAMES.install_pal.addr() as usize,
-        INSTALLER_PALETTE.palette.addr(),
+        &INSTALLER_NAMES.install_pal.text(),
+        &INSTALLER_PALETTE.palette,
         0x300,
         0x80AF_7445,
     )?;
@@ -77,7 +83,9 @@ pub fn open_installer() -> Result<(), Refused> {
         let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
         components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
         // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(INSTALLER_NAMES.backdrop.as_ptr())?;
+        crate::gfx::load_picture::load_picture(crate::pointers::GamePtr::new(
+            INSTALLER_NAMES.backdrop.addr(),
+        ))?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);

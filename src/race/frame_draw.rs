@@ -2258,77 +2258,73 @@ pub unsafe fn draw_race_slots() -> Result<(), Refused> {
 /// buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn` 1); the colour back
 /// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
 /// refuses (after the entries are set: never seen with four vertices).
-pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
-    unsafe {
-        DRAW.polygon_drawn.set(0u32);
-        let entries = &POLYGON_WORK.entries[..4];
-        for (k, e) in (0u32..).zip(entries) {
-            // the quad vertex's record (the original's address of it)
-            e.record.set(crate::scene::point_records::of_quad(k));
-            e.u.set(0u32);
-            e.v.set(0u32);
-        }
-        // Converted: `rc2k_core::race::loading::quad_corners`.
-        let corners = rc2k_core::race::loading::quad_corners(
-            RACE_VARS.quad_corners[0].bits() as i32,
-            RACE_VARS.quad_corners[1].bits() as i32,
-            RACE_VARS.quad_corners[4].bits() as i32,
-            RACE_VARS.quad_corners[5].bits() as i32,
-        );
-        for (k, (x, y)) in corners.into_iter().enumerate() {
-            let v = &RACE_VARS.quad_vertices[8 * k..8 * k + 8];
-            v[3].set_bits(x.to_bits());
-            v[7].set_bits(y.to_bits());
-            v[6].set_bits(NUMBERS.k4096_b.bits());
-        }
-        DRAW.scratch.set_bits(corners[2].1.to_bits());
-        for e in entries {
-            e.point.set(u32::MAX);
-            e.light.set(0u32);
-        }
-        DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
-        DRAW.polygon_vertex_count.set(4u32);
-        DRAW.polygon_next_record
-            .set(crate::scene::polygon::pool_start());
-        for k in 0..4u32 {
-            POLYGON_WORK.list[k as usize].set(k);
-        }
-        POLYGON_WORK.list[4].set(0u32);
-        DRAW.polygon_next_entry.set(4u32);
-        // No callee reads a register (the clip keeps them; the depth buffer's switches and
-        // the polygon's drawing take none).
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if DRAW.polygon_vertex_count.get() >= 3 {
-            crate::scene::depth_buffer_on::depth_buffer(false);
-            DRAW.polygon_textures[0].set(u32::MAX);
-            RACE_VIEW.polygon_mode.set(0u32);
-            DRAW.polygon_sides[0].set(1u32);
-            DRAW.polygon_sides[1].set(0u32);
-            crate::scene::draw_polygon::draw_polygon_in_game()?;
-            RACE_VIEW.polygon_mode.set(0u32);
-            DRAW.polygon_drawn.set(1u32);
-            crate::scene::depth_buffer_on::depth_buffer(true);
-        }
-        DRAW.polygon_colour.set(0x00FF_FFFFu32);
-        Ok(())
+pub fn draw_screen_quad() -> Result<(), Refused> {
+    DRAW.polygon_drawn.set(0u32);
+    let entries = &POLYGON_WORK.entries[..4];
+    for (k, e) in (0u32..).zip(entries) {
+        // the quad vertex's record (the original's address of it)
+        e.record.set(crate::scene::point_records::of_quad(k));
+        e.u.set(0u32);
+        e.v.set(0u32);
     }
+    // Converted: `rc2k_core::race::loading::quad_corners`.
+    let corners = rc2k_core::race::loading::quad_corners(
+        RACE_VARS.quad_corners[0].bits() as i32,
+        RACE_VARS.quad_corners[1].bits() as i32,
+        RACE_VARS.quad_corners[4].bits() as i32,
+        RACE_VARS.quad_corners[5].bits() as i32,
+    );
+    for (k, (x, y)) in corners.into_iter().enumerate() {
+        let v = &RACE_VARS.quad_vertices[8 * k..8 * k + 8];
+        v[3].set_bits(x.to_bits());
+        v[7].set_bits(y.to_bits());
+        v[6].set_bits(NUMBERS.k4096_b.bits());
+    }
+    DRAW.scratch.set_bits(corners[2].1.to_bits());
+    for e in entries {
+        e.point.set(u32::MAX);
+        e.light.set(0u32);
+    }
+    DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
+    DRAW.polygon_vertex_count.set(4u32);
+    DRAW.polygon_next_record
+        .set(crate::scene::polygon::pool_start());
+    for k in 0..4u32 {
+        POLYGON_WORK.list[k as usize].set(k);
+    }
+    POLYGON_WORK.list[4].set(0u32);
+    DRAW.polygon_next_entry.set(4u32);
+    // No callee reads a register (the clip keeps them; the depth buffer's switches and
+    // the polygon's drawing take none).
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+    if DRAW.polygon_vertex_count.get() >= 3 {
+        crate::scene::depth_buffer_on::depth_buffer(false);
+        DRAW.polygon_textures[0].set(u32::MAX);
+        RACE_VIEW.polygon_mode.set(0u32);
+        DRAW.polygon_sides[0].set(1u32);
+        DRAW.polygon_sides[1].set(0u32);
+        crate::scene::draw_polygon::draw_polygon_in_game()?;
+        RACE_VIEW.polygon_mode.set(0u32);
+        DRAW.polygon_drawn.set(1u32);
+        crate::scene::depth_buffer_on::depth_buffer(true);
+    }
+    DRAW.polygon_colour.set(0x00FF_FFFFu32);
+    Ok(())
 }
 
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `dword_62408C`, 0 ..
 /// `dword_624090`) as a screen quad in 0x204080 (`dword_623DE8`), switches -1, 1, 0, by
 /// `draw_screen_quad`.
-pub unsafe fn draw_view_tint() -> Result<(), Refused> {
-    unsafe {
-        RACE_VARS.quad_corners[0].set(0u32);
-        RACE_VARS.quad_corners[1].set(DRAW.view_size[0].get());
-        RACE_VARS.quad_corners[4].set(0u32);
-        RACE_VARS.quad_corners[5].set(DRAW.view_size[1].get());
-        RACE_VARS.quad_colour[0].set(0x20_4080u32);
-        DRAW.polygon_textures[0].set(u32::MAX);
-        DRAW.polygon_sides[0].set(1u32);
-        DRAW.polygon_sides[1].set(0u32);
-        draw_screen_quad()
-    }
+pub fn draw_view_tint() -> Result<(), Refused> {
+    RACE_VARS.quad_corners[0].set(0u32);
+    RACE_VARS.quad_corners[1].set(DRAW.view_size[0].get());
+    RACE_VARS.quad_corners[4].set(0u32);
+    RACE_VARS.quad_corners[5].set(DRAW.view_size[1].get());
+    RACE_VARS.quad_colour[0].set(0x20_4080u32);
+    DRAW.polygon_textures[0].set(u32::MAX);
+    DRAW.polygon_sides[0].set(1u32);
+    DRAW.polygon_sides[1].set(0u32);
+    draw_screen_quad()
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): car block esi's place (+0x134 .., into

@@ -299,12 +299,6 @@ mod start_menu {
     }
 }
 
-/// A C text at `at` as a path (the game's folders end in `\`).
-pub unsafe fn c_path(at: *const u8) -> PathBuf {
-    let text = unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) };
-    crate::files::host_path(text.to_bytes())
-}
-
 /// The program and its DLLs copied from the running program's folder into the current one,
 /// unless it is the same folder. False if a copy failed.
 pub fn copy_program() -> bool {

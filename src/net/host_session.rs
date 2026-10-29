@@ -7,6 +7,9 @@
 //! window restored (`system::restore_window`); then `dword_52ACFC` 1, the player made
 //! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
 //!
+//! Since 2026-10-29 the session's name goes to `net::dp_objects` as text (`open`): the
+//! description's name pointer is left 0.
+//!
 //! In:  nothing
 //! Out: true when hosted (the original: carry clear, the flags of `test eax, eax`; every
 //!      register kept), false for the carry
@@ -14,52 +17,42 @@
 
 use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
-use crate::net::lobby::{log, log_hex, movsb, zero};
-use crate::net::store::NET;
+use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::store::{NET, put_bytes};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(dword_5AB2AC, flags)`.
-pub fn open(flags: u32) -> u32 {
-    crate::net::dp_objects::open(NET.dplay.get(), NET.session_desc.addr(), flags)
+pub fn open(flags: u32, name: &[u8]) -> u32 {
+    let d = crate::net::dp_objects::desc(&NET.session_desc, name);
+    crate::net::dp_objects::open(NET.dplay.get(), &d, flags)
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
 pub fn posted_open_host() -> u32 {
-    open(OPEN_CREATE)
+    open(OPEN_CREATE, &NET.machine_name.read())
 }
 
 /// The Rust version.
 pub fn host_session() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_HOST), false, 2);
-    log(NET.machine_name.addr(), true, 2);
+    log_bytes(&NET.machine_name.read(), true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
     }
-    zero(NET.joined.addr(), 0x10)?;
-    movsb(NET.joined_name.addr(), NET.machine_name.addr(), 0x40)?;
+    NET.joined.write(&[0; 16]);
+    NET.joined_name.write(&NET.machine_name.read());
     NET.joined_most.set(NET.most_players.get());
-    movsb(
-        NET.joined_password.addr(),
-        NET.session_password.addr(),
-        0x10,
-    )?;
+    NET.joined_password.write(&NET.session_password.read());
     zeroed_description()?;
-    NET.session_desc.flags.set(0x44);
-    movsb(
-        crate::pointers::game_address(NET.session_desc.application.as_ptr()),
-        NET.app_guid.addr(),
-        0x10,
-    )?;
-    NET.session_desc.max_players.set(NET.most_players.get());
-    NET.session_desc.name.set(NET.machine_name.addr());
-    movsb(
-        crate::pointers::game_address(NET.session_desc.user.as_ptr()),
-        NET.session_password.addr(),
-        0x10,
-    )?;
+    let desc = &NET.session_desc;
+    desc.flags.set(0x44);
+    put_bytes(&desc.application, &NET.app_guid.read());
+    desc.max_players.set(NET.most_players.get());
+    // The name goes to `open` as text (the description's pointer is left 0).
+    put_bytes(&desc.user, &NET.session_password.read());
     finish(
         posted_open_host,
         crate::net::create_group::create_group,

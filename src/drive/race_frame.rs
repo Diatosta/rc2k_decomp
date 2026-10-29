@@ -43,7 +43,7 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         crate::scene::end_scene::end_scene();
         // eax 0x12 here in the original; read by nothing.
         crate::sound::race_sound_tick::race_sound_tick()?;
-        unsafe { crate::race::replay_screenshot::replay_screenshot() }?;
+        { crate::race::replay_screenshot::replay_screenshot() }?;
         let shown = unsafe { crate::race::show_frame::show_frame() }?;
         eax = shown.eax;
         if !shown.lost {

@@ -12,25 +12,21 @@
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-/// The Rust version: (eax, carry, ZF) as it leaves them. `eax` the register at entry.
-pub unsafe fn write_stream_block(
-    stream: *mut Stream,
-    bytes: *const u8,
-    count: u32,
+/// The Rust version: the bytes written, and the original's two flags.
+pub fn write_stream_block(
+    stream: &mut Stream,
+    bytes: &[u8],
     eax: u32,
 ) -> Result<(u32, bool, bool), BadInput> {
-    // Converted: `rc2k_core::files::io::write_stream_block`.
-    unsafe {
-        Ok(rc2k_core::files::io::write_stream_block(
-            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
-            crate::files::stream::core_stream(stream),
-            std::slice::from_raw_parts(bytes, count as usize),
-            eax,
-        )?)
-    }
+    Ok(rc2k_core::files::io::write_stream_block(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        bytes,
+        eax,
+    )?)
 }
 
-/// For Rust callers: whether all were written.
-pub unsafe fn write_stream_all(stream: *mut Stream, bytes: &[u8]) -> Result<bool, BadInput> {
-    Ok(!unsafe { write_stream_block(stream, bytes.as_ptr(), bytes.len() as u32, 0) }?.1)
+/// All of `bytes` written: whether it worked.
+pub fn write_stream_all(stream: &mut Stream, bytes: &[u8]) -> Result<bool, BadInput> {
+    Ok(!write_stream_block(stream, bytes, 0)?.1)
 }

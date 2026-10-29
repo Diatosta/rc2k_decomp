@@ -320,8 +320,8 @@ impl flow::Game for Game {
                     self.f.c.palette = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr();
                     self.f.c.carry =
                         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                            crate::pointers::host(self.f.c.arg),
-                            crate::pointers::host(self.f.c.palette),
+                            crate::pointers::GamePtr::new(self.f.c.arg),
+                            crate::pointers::GamePtr::new(self.f.c.palette),
                         )?;
                 }
                 C::ConvertPicture => {

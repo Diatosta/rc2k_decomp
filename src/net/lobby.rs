@@ -25,7 +25,7 @@ use crate::framework::Regs;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::place::Place;
 use crate::pointers::GamePtr;
-use crate::session::Dword;
+use crate::session::{Bytes, Dword};
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 // ---- game data (IDA addresses) ----
@@ -111,6 +111,12 @@ pub fn log(text: u32, newline: bool, level: u8) {
     crate::logfile::log_write::log_at(text, newline, level);
 }
 
+/// `log` of a text in hand (up to its NUL or its end).
+pub fn log_bytes(text: &[u8], newline: bool, level: u8) {
+    let n = text.iter().position(|&c| c == 0).unwrap_or(text.len());
+    crate::logfile::write_line::log_text(&text[..n], newline, level);
+}
+
 /// `logfile::log_hex8_l2[_nl]`.
 pub fn log_hex(value: u32, newline: bool) {
     crate::logfile::log_hex8::log_hex8(value, newline, 2);
@@ -170,9 +176,19 @@ pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `CoCreateInstance` (`net::dplay::create_instance`): its result.
-pub fn co_create(class: u32, interface: u32, out: u32) -> u32 {
-    crate::net::dplay::create_instance(class, interface, out) as u32
+/// `CoCreateInstance` (`net::dplay::create_instance`): the object into `out` (0 when none
+/// is made), its result.
+pub fn co_create(class: &Bytes<16>, interface: &Bytes<16>, out: &Dword) -> u32 {
+    match crate::net::dplay::create_instance(&class.read(), &interface.read()) {
+        Ok(made) => {
+            out.set(made);
+            0
+        }
+        Err(e) => {
+            out.set(0);
+            e
+        }
+    }
 }
 
 /// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
@@ -238,19 +254,12 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
 
 // ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----
 
-/// A callback's Rust version: its arguments in, its eax out.
-pub type Callback = fn(&[u32]) -> Result<u32, Refused>;
-
-thread_local!(static CALLBACK_ARGS: std::cell::RefCell<(usize, Vec<u32>)> =
-    const { std::cell::RefCell::new((0, Vec::new())) });
-
 /// A callback's Rust version where DirectPlay calls it (2026-10-23): a refused
 /// input ends the program with its reason (there is no game code to run in its place:
 /// before 2026-10-23 it called the game's callback at `ral`, which in the standalone would
-/// fault), a fatal error is raised.
-pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32 {
-    let result = rust(args);
-    match result {
+/// fault), a fatal error is raised. Its eax out.
+pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, Refused>) -> u32 {
+    match rust() {
         Ok(eax) => eax,
         Err(Refused::BadInput(why)) => {
             crate::standalone::finish(&format!("{name} ({ral:#x}) refused: {}", why.0), 1)

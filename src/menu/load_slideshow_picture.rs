@@ -25,6 +25,7 @@ use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
+use crate::pointers::GamePtr;
 use crate::strings::text_length::text_length;
 
 // ---- game data ----
@@ -32,9 +33,9 @@ use crate::strings::text_length::text_length;
 /// What it asks for.
 pub enum Step {
     /// `gfx::load_picture_with_overlay` with the path and the title bar: the carry.
-    Overlay(*mut u8, *mut u8),
+    Overlay(GamePtr, GamePtr),
     /// `gfx::load_picture` of the title bar.
-    Load(*mut u8),
+    Load(GamePtr),
     Convert,
 }
 
@@ -69,8 +70,8 @@ pub fn load_slideshow_picture(
         },
         |next| EVENT_STATE.picture.set(next),
     )?;
-    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.as_ptr();
-    if step(Step::Overlay(path, title_bar))? {
+    let title_bar = GamePtr::new(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    if step(Step::Overlay(crate::files::game_path(path), title_bar))? {
         step(Step::Load(title_bar))?;
     }
     step(Step::Convert)?;
@@ -78,12 +79,10 @@ pub fn load_slideshow_picture(
 }
 
 /// With the Rust versions of what it calls.
-pub unsafe fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
-    unsafe {
-        load_slideshow_picture(way, &mut |step| match step {
-            Step::Overlay(path, over) => load_picture_with_overlay(path, over),
-            Step::Load(path) => load_picture(path).map(|_| false),
-            Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
-        })
-    }
+pub fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
+    load_slideshow_picture(way, &mut |step| match step {
+        Step::Overlay(path, over) => load_picture_with_overlay(path, over),
+        Step::Load(path) => load_picture(path).map(|_| false),
+        Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
+    })
 }

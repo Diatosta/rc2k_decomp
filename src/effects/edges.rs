@@ -35,65 +35,61 @@ fn clamped(kind: u32) -> u32 {
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
 pub fn load_edges(resume: u32) -> Result<(), Refused> {
-    unsafe {
-        let done: u32 = EDGE_SETTINGS.done.get();
-        if done != 0 && done != resume {
-            return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
-        }
-        if done == 0 {
-            let boxes = KIND_BOXES.boxes.addr();
-            let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
-            for k in 0..KINDS {
-                x87::scale_record(
-                    crate::pointers::host(boxes + 0x30 * k) as *mut u32,
-                    scale[0],
-                    scale[1],
-                );
-                let f = &KIND_BOXES.kind_floats[k as usize];
-                f.set_bits(x87::sub(scale[2], f.bits()));
-            }
-            EDGE_SETTINGS.done.set(resume);
-        }
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
-        let kind = clamped(MARKS_KIND.kind.bits());
-        let path = EDGE_SETTINGS.path.addr();
-        EDGE_SETTINGS
-            .path
-            .set(DIGITS as usize, (kind / 10) as u8 + b'0');
-        EDGE_SETTINGS
-            .path
-            .set(DIGITS as usize + 1, (kind % 10) as u8 + b'0');
-        let sizes: [u32; 3] = [
-            PICTURE.width.get(),
-            PICTURE.height.get(),
-            PICTURE.row_bytes.get(),
-        ];
-        PICTURE.width.set(0x100u32);
-        PICTURE.height.set(0x80u32);
-        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-        let read = crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(path));
-        PICTURE.width.set(sizes[0]);
-        PICTURE.height.set(sizes[1]);
-        PICTURE.row_bytes.set(sizes[2]);
-        if !read? {
-            return Err(BadInput("the edge picture was not read").into());
-        }
-        let pixels =
-            crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * EDGE_LEN as usize)?;
-        for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
-            EDGE_MASK.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
-        }
-        let float = KIND_BOXES.kind_floats[kind as usize].bits();
-        SHAPE_TILT
-            .tilt
-            .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
-        crate::effects::masks::make_masks()?;
-        crate::effects::shapes::set_up_hexagons(game_addr(
-            crate::effects::shapes::HEXAGONS.resume,
-        ))?;
-        crate::effects::shapes::set_up_squares(game_addr(crate::effects::shapes::SQUARES_RESUME))?;
+    let done: u32 = EDGE_SETTINGS.done.get();
+    if done != 0 && done != resume {
+        return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
     }
+    if done == 0 {
+        let boxes = KIND_BOXES.boxes.addr();
+        let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
+        for k in 0..KINDS {
+            x87::scale_record(
+                crate::pointers::host(boxes + 0x30 * k) as *mut u32,
+                scale[0],
+                scale[1],
+            );
+            let f = &KIND_BOXES.kind_floats[k as usize];
+            f.set_bits(x87::sub(scale[2], f.bits()));
+        }
+        EDGE_SETTINGS.done.set(resume);
+    }
+    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
+    let kind = clamped(MARKS_KIND.kind.bits());
+    let path = EDGE_SETTINGS.path.addr();
+    EDGE_SETTINGS
+        .path
+        .set(DIGITS as usize, (kind / 10) as u8 + b'0');
+    EDGE_SETTINGS
+        .path
+        .set(DIGITS as usize + 1, (kind % 10) as u8 + b'0');
+    let sizes: [u32; 3] = [
+        PICTURE.width.get(),
+        PICTURE.height.get(),
+        PICTURE.row_bytes.get(),
+    ];
+    PICTURE.width.set(0x100u32);
+    PICTURE.height.set(0x80u32);
+    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    let read =
+        crate::gfx::read_picture_file::read_picture_file(crate::pointers::GamePtr::new(path));
+    PICTURE.width.set(sizes[0]);
+    PICTURE.height.set(sizes[1]);
+    PICTURE.row_bytes.set(sizes[2]);
+    if !read? {
+        return Err(BadInput("the edge picture was not read").into());
+    }
+    let pixels = crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * EDGE_LEN as usize)?;
+    for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
+        EDGE_MASK.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
+    }
+    let float = KIND_BOXES.kind_floats[kind as usize].bits();
+    SHAPE_TILT
+        .tilt
+        .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
+    crate::effects::masks::make_masks()?;
+    crate::effects::shapes::set_up_hexagons(game_addr(crate::effects::shapes::HEXAGONS.resume))?;
+    crate::effects::shapes::set_up_squares(game_addr(crate::effects::shapes::SQUARES_RESUME))?;
     Ok(())
 }
 

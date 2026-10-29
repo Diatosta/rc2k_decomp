@@ -12,6 +12,6 @@
 use crate::net::store::NET;
 
 /// The Rust version.
-pub fn dplay_send(to: u32, flags: u32, data: u32, size: u32) {
-    crate::net::dp_objects::send(NET.dplay.get(), NET.player_id.get(), to, flags, data, size);
+pub fn dplay_send(to: u32, data: &[u8]) {
+    crate::net::dp_objects::send(NET.dplay.get(), NET.player_id.get(), to, data);
 }

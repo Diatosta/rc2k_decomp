@@ -16,19 +16,21 @@ use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-pub fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
-    let at = GamePtr::new(crate::pointers::game_address(path));
-    let text = crate::files::cstring(at, "a path")?;
+/// The path at `at`, its ending swapped there when the file is missing: the text as it is
+/// afterwards.
+pub fn swap_missing_extension(at: GamePtr) -> Result<Vec<u8>, BadInput> {
+    let mut text = crate::files::cstring(at, "a path")?;
     if text.len() < 5 {
-        return Ok(());
+        return Ok(text);
     }
     // Converted: `rc2k_core::files::paths::missing_partner`.
     let Some(partner) = rc2k_core::files::paths::missing_partner(&text) else {
-        return Ok(());
+        return Ok(text);
     };
     if !file_exists(&text)? {
-        at.offset(text.len() as u32 - 4)
-            .write(*partner, "a path's ending")?;
+        let n = text.len() - 4;
+        at.offset(n as u32).write(*partner, "a path's ending")?;
+        text[n..].copy_from_slice(partner);
     }
-    Ok(())
+    Ok(text)
 }

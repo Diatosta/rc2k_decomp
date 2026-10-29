@@ -20,6 +20,11 @@ fn path(path: *const u8) -> Result<std::path::PathBuf, BadInput> {
     ansi_path(GamePtr::new(crate::pointers::game_address(path)))
 }
 
+/// `SetCurrentDirectoryA` on a path in hand: whether it worked.
+pub fn set_current_directory_to(path: &[u8]) -> bool {
+    std::env::set_current_dir(crate::files::host_path(path)).is_ok()
+}
+
 pub fn set_current_directory(at: *const u8) -> Result<u32, BadInput> {
     Ok(std::env::set_current_dir(path(at)?).is_ok() as u32)
 }

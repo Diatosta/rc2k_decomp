@@ -25,42 +25,40 @@ use crate::session::FLAGS;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// The Rust version (see the header).
-pub unsafe fn loading_bar_frame() -> Result<(), Refused> {
+pub fn loading_bar_frame() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    unsafe {
-        if RACE_WORK.in_credits.get() == 0 {
-            return Ok(());
-        }
-        LIGHT_STATE.scene_state.set_bits(FRAME_MARK);
-        if FLAGS.quitting.get() == 1 {
-            return Ok(());
-        }
-        let drawn = 'frame: {
-            let active: u32 = FLAGS.window_active.get();
-            if active == 0 || !frame_tried(active, FLAGS.lost.get()) {
-                break 'frame false;
-            }
-            // `scene::begin_scene` leaves the carry clear.
-            begin_scene::begin_scene();
-            let framed: u32 = FRAME_SWITCHES.editor_mode.bits();
-            FRAME_SWITCHES.editor_mode.set_bits(0u32);
-            choose_view_window::choose_view_window();
-            FRAME_SWITCHES.editor_mode.set_bits(framed);
-            crate::race::loading_bar_quad::loading_bar_quad()?;
-            end_scene::end_scene();
-            if lock_frame::lock_frame().0 < 1 {
-                break 'frame false;
-            }
-            unlock_frame::unlock_frame();
-            present_frame::present_frame()
-        };
-        if drawn || FLAGS.quitting.get() == 1 {
-            return Ok(());
-        }
-        // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
-        // leaves were read by no caller).
-        crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
+    if RACE_WORK.in_credits.get() == 0 {
+        return Ok(());
     }
+    LIGHT_STATE.scene_state.set_bits(FRAME_MARK);
+    if FLAGS.quitting.get() == 1 {
+        return Ok(());
+    }
+    let drawn = 'frame: {
+        let active: u32 = FLAGS.window_active.get();
+        if active == 0 || !frame_tried(active, FLAGS.lost.get()) {
+            break 'frame false;
+        }
+        // `scene::begin_scene` leaves the carry clear.
+        begin_scene::begin_scene();
+        let framed: u32 = FRAME_SWITCHES.editor_mode.bits();
+        FRAME_SWITCHES.editor_mode.set_bits(0u32);
+        choose_view_window::choose_view_window();
+        FRAME_SWITCHES.editor_mode.set_bits(framed);
+        crate::race::loading_bar_quad::loading_bar_quad()?;
+        end_scene::end_scene();
+        if lock_frame::lock_frame().0 < 1 {
+            break 'frame false;
+        }
+        unlock_frame::unlock_frame();
+        present_frame::present_frame()
+    };
+    if drawn || FLAGS.quitting.get() == 1 {
+        return Ok(());
+    }
+    // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it
+    // leaves were read by no caller).
+    crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
 }

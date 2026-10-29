@@ -24,20 +24,12 @@ pub fn list_players() -> Result<bool, Refused> {
     if NET.dplay.get() == 0 {
         return Ok(false);
     }
-    crate::net::dp_objects::set_player_data(
-        NET.dplay.get(),
-        NET.player_id.get(),
-        NET.own.addr(),
-        0x10,
-        0,
-    );
+    crate::net::dp_objects::set_player_data(NET.dplay.get(), NET.player_id.get(), &NET.own.bytes());
     if NET.racing.get() != 1 {
         NET.players.set(0);
         let result = crate::net::dp_objects::enum_players(
             NET.dplay.get(),
-            0,
             crate::net::player_found::callback,
-            0,
             0,
         );
         if result != 0 {
@@ -51,13 +43,13 @@ pub fn list_players() -> Result<bool, Refused> {
     for n in 0..players {
         NET.data_size.set(0x10);
         let player = NET.player_block(n);
-        crate::net::dp_objects::get_player_data(
-            NET.dplay.get(),
-            player.id.get(),
-            player.record.addr(),
-            NET.data_size.addr(),
-            0,
-        );
+        let mut data = [0u8; 0x10];
+        let (result, size) =
+            crate::net::dp_objects::get_player_data(NET.dplay.get(), player.id.get(), &mut data);
+        NET.data_size.set(size);
+        if result == 0 {
+            player.record.set_bytes(&data[..size as usize]);
+        }
     }
     // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
     let id = |n: u32| NET.player_block(n).id.get();

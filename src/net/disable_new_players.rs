@@ -30,7 +30,7 @@ pub fn disable_new_players() {
     NET.session_desc
         .flags
         .set(NET.session_desc.flags.get() | CLOSED);
-    let result =
-        { crate::net::dp_objects::set_session_desc(NET.dplay.get(), NET.session_desc.addr(), 0) };
+    let desc = crate::net::dp_objects::desc(&NET.session_desc, &NET.machine_name.read());
+    let result = crate::net::dp_objects::set_session_desc(NET.dplay.get(), &desc);
     log_hex(result, true);
 }

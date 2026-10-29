@@ -52,29 +52,27 @@ fn outside_mask() -> Result<u32, BadInput> {
     Ok(mask)
 }
 
-pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {
-    unsafe {
-        let mask = outside_mask()?;
-        DRAW.screen_clipped.set_bits(1u32);
-        if mask == 0 {
-            return Ok(());
-        }
-        DRAW.polygon_clip_mask.set_bits(mask);
-        or_undone(|| {
-            for (bit, edge, inside_past) in [
-                (1, Edge::X(DRAW.clip_screen[2].bits()), true),
-                (2, Edge::X(DRAW.clip_screen[3].bits()), false),
-                (4, Edge::Y(DRAW.clip_screen[0].bits()), true),
-                (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
-            ] {
-                if mask & bit != 0 {
-                    clip_pass(edge, inside_past, mask)?;
-                    if DRAW.polygon_vertex_count.bits() < 3 {
-                        break;
-                    }
+pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
+    let mask = outside_mask()?;
+    DRAW.screen_clipped.set_bits(1u32);
+    if mask == 0 {
+        return Ok(());
+    }
+    DRAW.polygon_clip_mask.set_bits(mask);
+    or_undone(|| {
+        for (bit, edge, inside_past) in [
+            (1, Edge::X(DRAW.clip_screen[2].bits()), true),
+            (2, Edge::X(DRAW.clip_screen[3].bits()), false),
+            (4, Edge::Y(DRAW.clip_screen[0].bits()), true),
+            (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
+        ] {
+            if mask & bit != 0 {
+                clip_pass(edge, inside_past, mask)?;
+                if DRAW.polygon_vertex_count.bits() < 3 {
+                    break;
                 }
             }
-            Ok(())
-        })
-    }
+        }
+        Ok(())
+    })
 }

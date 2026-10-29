@@ -316,10 +316,8 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             crate::menu::flip_yes_no::flip_yes_no();
             Ok(())
         }
-        ItemFn::PreviousStagePage => unsafe {
-            crate::menu::stage_view_steps::step_stage_page(false)
-        },
-        ItemFn::NextStagePage => unsafe { crate::menu::stage_view_steps::step_stage_page(true) },
+        ItemFn::PreviousStagePage => crate::menu::stage_view_steps::step_stage_page(false),
+        ItemFn::NextStagePage => crate::menu::stage_view_steps::step_stage_page(true),
         ItemFn::Player0CarSpecs => {
             crate::menu::player_actions::player_0_car_specs::run(&c.carried())
         }

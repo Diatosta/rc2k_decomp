@@ -43,11 +43,7 @@ pub unsafe fn call_in_game(call: Call) -> Result<(), Refused> {
     unsafe {
         match call {
             Call::Background => load_car_background(&mut |path, car| {
-                crate::menu::load_background::load_background(
-                    crate::pointers::host(path),
-                    car,
-                    &mut GameCanvas,
-                )?;
+                crate::menu::load_background::load_background(path, car, &mut GameCanvas)?;
                 Ok(false)
             }),
             Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),

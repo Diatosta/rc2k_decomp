@@ -16,49 +16,35 @@
 //! original counts through all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::close_stream::close_stream;
-use crate::files::open_stream::open_stream;
-use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
+use crate::files::stream::Stream;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::PCX;
-use crate::gfx::pcx::{HEADER_LEN, stream};
+use crate::gfx::pcx::{on_stream, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
 
 /// The part between the open and the close: whether it worked.
-unsafe fn read_rows() -> Result<bool, BadInput> {
-    unsafe {
-        let stream = stream();
-        let header = PCX.header.as_ptr();
-        if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
-            return Ok(false);
-        }
-        PICTURE.flags.set(0x800u32);
-        let layout = lay_out_pcx()?;
-        // Converted: `rc2k_core::gfx::pcx::decode_planes`.
-        with_buffer(DECODER.pixels.get(), |pixels| {
-            rc2k_core::gfx::pcx::decode_planes(
-                &layout,
-                |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-                |to, byte| put_or_end(pixels, to as usize, &[byte]),
-            )
-        })??
-        .ok_or(BadInput("a PCX picture without rows or columns"))?;
-        Ok(true)
+fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
+    if !read_stream_header(stream)? {
+        return Ok(false);
     }
+    PICTURE.flags.set(0x800u32);
+    let layout = lay_out_pcx()?;
+    // Converted: `rc2k_core::gfx::pcx::decode_planes`.
+    with_buffer(DECODER.pixels.get(), |pixels| {
+        rc2k_core::gfx::pcx::decode_planes(
+            &layout,
+            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
+            |to, byte| put_or_end(pixels, to as usize, &[byte]),
+        )
+    })??
+    .ok_or(BadInput("a PCX picture without rows or columns"))?;
+    Ok(true)
 }
 
-pub unsafe fn read_pcx_24bit(path: *const u8) -> Result<bool, BadInput> {
-    unsafe {
-        if !open_stream(stream(), path, 0)? {
-            return Ok(false);
-        }
-        let rows = read_rows();
-        let closed = close_stream(stream())?;
-        Ok(rows? && closed)
-    }
+pub fn read_pcx_24bit(path: &[u8]) -> Result<bool, BadInput> {
+    on_stream(path, read_rows)
 }

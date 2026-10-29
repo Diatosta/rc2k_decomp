@@ -7,21 +7,35 @@
 //!      `net::build_address`, does not read in Rust; the rest kept)
 //! No limit on the count. Caller: `net::build_address` (five times; three at most in one
 //! go).
+//!
+//! Since 2026-10-29 the elements are Rust's (`elements`, each its type and its data's
+//! bytes, as `net::dp_objects` takes them); the count is kept, the game's table
+//! (`unk_52AC48`, which held pointers to the data) is no longer written.
 
+use crate::net::dp_objects::Element;
 use crate::net::store::NET;
-use rc2k_core::net::address;
+use crate::session::Bytes;
+use std::sync::Mutex;
 
-/// The Rust version.
-pub fn add_address_element(data_type: u32, size: u32, data: u32) {
-    // Converted: `rc2k_core::net::address` (`element_at`, `element`).
-    let offset = address::element_at(NET.elements.get());
+/// The elements added since the last `clear`.
+static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
+
+/// The Rust version: the element of type `data_type` with `data`.
+pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
     NET.elements.set(NET.elements.get().wrapping_add(1));
-    let at = (NET.element_table.addr()).wrapping_add(offset);
-    let data_type: [u8; 16] = crate::pointers::read_or_end(data_type, "an address element's type");
-    let bytes = address::element(&data_type, size, data);
-    if let Err(e) =
-        crate::pointers::GamePtr::new(at).write_bytes(&bytes, "the address's element table")
-    {
-        crate::fatal::raise::end("net::add_address_element", e);
-    }
+    ELEMENTS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push((data_type.read(), data.to_vec()));
+}
+
+/// No elements (the count 0).
+pub fn clear() {
+    NET.elements.set(0);
+    ELEMENTS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+}
+
+/// The elements added.
+pub fn elements() -> Vec<Element> {
+    ELEMENTS.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }

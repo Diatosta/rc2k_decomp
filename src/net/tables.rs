@@ -115,21 +115,10 @@ pub fn with_session<R>(index: u32, f: impl FnOnce(&mut Session) -> R) -> Result<
         .ok_or(BadInput("a session past the table").into())
 }
 
-/// `strings::copy_printable` of the text at `text` (the game's memory; 0 none) with
-/// `room`, into `to` (what it writes: the printable characters and their NUL).
-pub fn copy_printable_into(text: u32, to: &mut [u8], room: u32) -> Result<(), Refused> {
-    // SAFETY: `printable` reads the text as the original does (room - 1 characters or its
-    // NUL); the address is the callback's or the game's.
-    let written = unsafe {
-        crate::strings::copy_printable::printable(
-            if text == 0 {
-                std::ptr::null()
-            } else {
-                crate::pointers::host(text) as *const u8
-            },
-            room,
-        )
-    }?;
+/// `strings::copy_printable` of the text `text` (none: empty) with `room` (its NUL
+/// included) into `to`.
+pub fn copy_printable_into(text: &[u8], to: &mut [u8], room: u32) -> Result<(), Refused> {
+    let written = crate::strings::copy_printable::printable_from(text, room)?;
     to.get_mut(..written.len())
         .ok_or(BadInput("a name past its record"))?
         .copy_from_slice(&written);
@@ -148,7 +137,6 @@ pub fn name_text(name: &[u8; 0x40]) -> Result<Vec<u8>, BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::Lent;
 
     #[test]
     fn a_connection_is_found_kept_and_found_again() {
@@ -164,20 +152,10 @@ mod tests {
         NET.connections.set(0);
         // DirectPlay's arguments: the provider's GUID, the data, the name record (+8 the
         // short name).
-        let guid: Vec<u8> = (1..=16).collect();
+        let guid: [u8; 16] = std::array::from_fn(|k| k as u8 + 1);
         let data = vec![7u8; 5];
-        let short = b"Test Link\0".to_vec();
-        let (guid_at, data_at, short_at) = (Lent::new(&guid), Lent::new(&data), Lent::new(&short));
-        let record = [0u32, 0, short_at.addr(), 0];
-        let record_bytes: Vec<u8> = record.iter().flat_map(|v| v.to_le_bytes()).collect();
-        let name_at = Lent::new(&record_bytes);
-        let found = crate::net::connection_found::connection_found(&[
-            guid_at.addr(),
-            data_at.addr(),
-            data.len() as u32,
-            name_at.addr(),
-        ])
-        .unwrap();
+        let found =
+            crate::net::connection_found::connection_found(&guid, &data, b"Test Link\0").unwrap();
         assert_eq!(found, 1);
         assert_eq!(NET.connections.get(), 1);
         let (name, provider, copied) =
@@ -191,7 +169,6 @@ mod tests {
             crate::net::find_saved_connection::find_saved_connection().unwrap(),
             Some(0)
         );
-        drop((guid_at, data_at, short_at, name_at));
         crate::net::free_messages::free_messages().unwrap();
         assert!(!NET_TABLES.is_taken());
         NET.memory.iter().zip(kept_list).for_each(|(d, v)| d.set(v));

@@ -52,22 +52,21 @@ fn read(path: u32) -> Result<(), Refused> {
         }
     }
     // SAFETY: the path's NUL lies in its region (checked above).
-    unsafe {
-        let sizes: [u32; 3] = [
-            PICTURE.width.get(),
-            PICTURE.height.get(),
-            PICTURE.row_bytes.get(),
-        ];
-        PICTURE.width.set(0x100u32);
-        PICTURE.height.set(0x80u32);
-        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-        let read = crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(path));
-        PICTURE.width.set(sizes[0]);
-        PICTURE.height.set(sizes[1]);
-        PICTURE.row_bytes.set(sizes[2]);
-        if !read? {
-            return Err(BadInput("a mask picture was not read").into());
-        }
+    let sizes: [u32; 3] = [
+        PICTURE.width.get(),
+        PICTURE.height.get(),
+        PICTURE.row_bytes.get(),
+    ];
+    PICTURE.width.set(0x100u32);
+    PICTURE.height.set(0x80u32);
+    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    let read =
+        crate::gfx::read_picture_file::read_picture_file(crate::pointers::GamePtr::new(path));
+    PICTURE.width.set(sizes[0]);
+    PICTURE.height.set(sizes[1]);
+    PICTURE.row_bytes.set(sizes[2]);
+    if !read? {
+        return Err(BadInput("a mask picture was not read").into());
     }
     Ok(())
 }

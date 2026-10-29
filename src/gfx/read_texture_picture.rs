@@ -23,30 +23,28 @@ use rc2k_core::gfx::picture_size as sizes;
 
 /// The registers it leaves: the pixels (a picture buffer's number, `gfx::picture`), their
 /// width and height, and whether the reading failed.
-pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool), Refused> {
-    unsafe {
-        let buffer = PICTURE.buffer.get();
-        // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
-        if !crate::gfx::picture::has_picture() {
-            return Err(BadInput("no picture buffer").into());
-        }
-        crate::gfx::picture::set_size(sizes::TEXTURE);
-        crate::gfx::picture::with_picture(|b| {
-            b.get_mut(..sizes::TEXTURE_FILLED * 4).map(|p| p.fill(0xFF))
-        })?
-        .ok_or(BadInput("a picture buffer shorter than a texture"))?;
-        let failed = if path.is_null() {
-            false
-        } else if read_picture_file(path)? {
-            return Ok((
-                DECODER.pixels.get(),
-                DECODER.width.get(),
-                DECODER.height.get(),
-                false,
-            ));
-        } else {
-            true
-        };
-        Ok((buffer, PICTURE.width.get(), PICTURE.height.get(), failed))
+pub fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool), Refused> {
+    let buffer = PICTURE.buffer.get();
+    // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
+    if !crate::gfx::picture::has_picture() {
+        return Err(BadInput("no picture buffer").into());
     }
+    crate::gfx::picture::set_size(sizes::TEXTURE);
+    crate::gfx::picture::with_picture(|b| {
+        b.get_mut(..sizes::TEXTURE_FILLED * 4).map(|p| p.fill(0xFF))
+    })?
+    .ok_or(BadInput("a picture buffer shorter than a texture"))?;
+    let failed = if path.is_null() {
+        false
+    } else if read_picture_file(crate::files::game_path(path))? {
+        return Ok((
+            DECODER.pixels.get(),
+            DECODER.width.get(),
+            DECODER.height.get(),
+            false,
+        ));
+    } else {
+        true
+    };
+    Ok((buffer, PICTURE.width.get(), PICTURE.height.get(), failed))
 }

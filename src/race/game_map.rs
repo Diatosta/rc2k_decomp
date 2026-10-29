@@ -330,11 +330,10 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
     PICTURE.row_bytes.set(KEY_ROW_BYTES);
     PICTURE.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
-        if !unsafe {
-            crate::gfx::read_sheet::read_sheet(
-                crate::pointers::host(MAP.key_path.get()) as *const u8
-            )
-        }? {
+        if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring(
+            crate::pointers::GamePtr::new(MAP.key_path.get()),
+            "the key sheet's path",
+        )?)? {
             return Ok(());
         }
         if PICTURE.flags.get() & 0x100 == 0 {
@@ -383,11 +382,9 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels((marked << 8).wrapping_mul(bytes))?;
-        if !unsafe {
-            crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(
-                MAP.picture_path.get(),
-            ))
-        }? {
+        if !crate::gfx::read_picture_file::read_picture_file(crate::pointers::GamePtr::new(
+            MAP.picture_path.get(),
+        ))? {
             return Ok(());
         }
         MAP.tile_count.set(0u32);

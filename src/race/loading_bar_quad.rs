@@ -14,20 +14,18 @@ use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 /// The Rust version (see the header).
-pub unsafe fn loading_bar_quad() -> Result<(), Refused> {
+pub fn loading_bar_quad() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
-    unsafe {
-        let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
-        let bar = loading_bar(w, h, RACE_VARS.bar_share.bits());
-        // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
-        RACE_VARS.quad_corners[0].set(bar.left);
-        RACE_VARS.quad_colour[0].set(BAR_COLOUR);
-        RACE_VARS.quad_corners[4].set(bar.top);
-        RACE_VARS.quad_corners[5].set(bar.bottom);
-        RACE_VARS.quad_corners[1].set(bar.right);
-        DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
-        // `draw_screen_quad` reads no register it is given.
-        crate::race::frame_draw::draw_screen_quad()
-    }
+    let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
+    let bar = loading_bar(w, h, RACE_VARS.bar_share.bits());
+    // The quad's colour (0x623DE8); x at +0x28 / +0x2C, y at +0x38 / +0x3C.
+    RACE_VARS.quad_corners[0].set(bar.left);
+    RACE_VARS.quad_colour[0].set(BAR_COLOUR);
+    RACE_VARS.quad_corners[4].set(bar.top);
+    RACE_VARS.quad_corners[5].set(bar.bottom);
+    RACE_VARS.quad_corners[1].set(bar.right);
+    DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
+    // `draw_screen_quad` reads no register it is given.
+    crate::race::frame_draw::draw_screen_quad()
 }

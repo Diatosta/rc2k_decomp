@@ -83,18 +83,16 @@ pub fn draw_clipped_polygon(
 }
 
 /// The function with its parts' Rust versions, drawing for real.
-pub unsafe fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
-    unsafe {
-        draw_clipped_polygon(&mut |step| {
-            match step {
-                Step::Project => project_polygon()?,
-                Step::ScaleTextureCoordinates => scale_texture_coordinates()?,
-                Step::Fog => fog_polygon()?,
-                Step::ClipByDepth => clip_polygon_by_depth()?,
-                Step::ClipToScreen => clip_polygon_to_screen()?,
-                Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,
-            }
-            Ok(())
-        })
-    }
+pub fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
+    draw_clipped_polygon(&mut |step| {
+        match step {
+            Step::Project => project_polygon()?,
+            Step::ScaleTextureCoordinates => scale_texture_coordinates()?,
+            Step::Fog => fog_polygon()?,
+            Step::ClipByDepth => clip_polygon_by_depth()?,
+            Step::ClipToScreen => clip_polygon_to_screen()?,
+            Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,
+        }
+        Ok(())
+    })
 }

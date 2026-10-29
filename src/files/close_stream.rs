@@ -14,16 +14,11 @@ use crate::errors::BadInput;
 use crate::files::handle::NO_HANDLE;
 use crate::files::stream::Stream;
 
-// ---- Rust version ----
-
-/// Returns whether the handle was closed.
-pub unsafe fn close_stream(stream: *mut Stream) -> Result<bool, BadInput> {
-    // Converted: `rc2k_core::files::io::close_stream`.
-    unsafe {
-        Ok(rc2k_core::files::io::close_stream(
-            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
-            crate::files::stream::core_stream(stream),
-            NO_HANDLE,
-        )?)
-    }
+/// The Rust version.
+pub fn close_stream(stream: &mut Stream) -> Result<bool, BadInput> {
+    Ok(rc2k_core::files::io::close_stream(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        NO_HANDLE,
+    )?)
 }

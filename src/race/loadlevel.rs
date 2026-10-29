@@ -92,13 +92,11 @@ impl Steps {
     /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
-        unsafe {
-            RACE_VARS.bar_share.set_bits(mark);
-            if RACE_VARS.bar_function.bits() != self.v.bar {
-                return Err(BadInput("the loading bar's callback is not the loading bar").into());
-            }
-            crate::race::loading_bar_frame::loading_bar_frame()
+        RACE_VARS.bar_share.set_bits(mark);
+        if RACE_VARS.bar_function.bits() != self.v.bar {
+            return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
+        crate::race::loading_bar_frame::loading_bar_frame()
     }
 
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.

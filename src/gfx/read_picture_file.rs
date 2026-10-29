@@ -14,12 +14,12 @@
 //! The registers above are the original's, for reference; a call by address goes through
 //! `routes.rs`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
-use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
@@ -37,29 +37,22 @@ pub fn png_setting_home() -> usize {
 
 // ---- Rust version ----
 
-/// The path's last four characters. Converted: `rc2k_core::gfx::loading::ending`.
-unsafe fn ending(path: *const u8) -> Result<[u8; 4], BadInput> {
-    let text = unsafe { std::ffi::CStr::from_ptr(path as *const std::ffi::c_char) }.to_bytes();
-    // As the original measures it.
-    text_length(path)?;
-    Ok(rc2k_core::gfx::loading::ending(text)?)
-}
-
-/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::reader`.
-pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
-    use rc2k_core::gfx::loading::{Reader, reader};
-    unsafe {
-        if &ending(path)? == b".pcx" {
-            return Ok(read_pcx(path)?);
-        }
-        swap_missing_extension(path)?;
-        match reader(ending(path)?, PNG_SETTING.get()) {
-            Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
-            Reader::Pcx => Ok(read_pcx(path)?),
-            Reader::Nothing => Ok(true),
-            Reader::Chatzone => Ok(read_pcx(crate::pointers::host(crate::gfx::texts::address(
-                &crate::gfx::texts::CHATZONE,
-            )) as *const u8)?),
+/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
+/// reader}`.
+pub fn read_picture_file(path: GamePtr) -> Result<bool, Refused> {
+    use rc2k_core::gfx::loading::{Reader, ending, reader};
+    let text = crate::files::cstring(path, "a picture's path")?;
+    if &ending(&text)? == b".pcx" {
+        return Ok(read_pcx(&text)?);
+    }
+    let text = swap_missing_extension(path)?;
+    match reader(ending(&text)?, PNG_SETTING.get()) {
+        Reader::PngThenPcx => Ok(read_png(&text)? || read_pcx(&text)?),
+        Reader::Pcx => Ok(read_pcx(&text)?),
+        Reader::Nothing => Ok(true),
+        Reader::Chatzone => {
+            let chatzone = &crate::gfx::texts::CHATZONE;
+            Ok(read_pcx(&chatzone[..chatzone.len() - 1])?)
         }
     }
 }

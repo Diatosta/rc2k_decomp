@@ -7,13 +7,13 @@
 //! Out: true when made and joined (the original: carry clear, the flags of `test eax,
 //!      eax`; every register kept), false for the carry
 //! Callers: `net::host_session`, `net::open_lobby`.
+//!
+//! Since 2026-10-29 the name goes to `net::dp_objects` as text: the DPNAME is not made.
 
 use crate::errors::Refused;
-use crate::net::create_player::dp_name;
 use crate::net::store::NET;
 
-/// `AddPlayerToGroup(g_netSendTo, g_netPlayerId)`: whether it worked; shared with
-/// `net::join_group`.
+/// The player put in the group (`AddPlayerToGroup`): whether it went.
 pub fn join() -> bool {
     crate::net::dp_objects::add_player_to_group(
         NET.dplay.get(),
@@ -22,18 +22,11 @@ pub fn join() -> bool {
     ) == 0
 }
 
-/// The Rust version.
+/// The Rust version (see the header).
 pub fn create_group() -> Result<bool, Refused> {
-    dp_name(NET.group_name.addr())?;
-    let result = {
-        crate::net::dp_objects::create_group(
-            NET.dplay.get(),
-            NET.send_to.addr(),
-            NET.dp_name.addr(),
-            0,
-            0,
-            0,
-        )
-    };
-    Ok(result == 0 && join())
+    let made = crate::net::dp_objects::create_group(NET.dplay.get(), &NET.group_name.read(), &[]);
+    if let Ok(id) = made {
+        NET.send_to.set(id);
+    }
+    Ok(made.is_ok() && join())
 }

@@ -14,14 +14,11 @@
 use crate::errors::BadInput;
 use crate::files::stream::Stream;
 
-/// The Rust version: whether it worked (carry clear). `eax` the register (al the byte).
-pub unsafe fn write_stream_byte(stream: *mut Stream, eax: u32) -> Result<bool, BadInput> {
-    // Converted: `rc2k_core::files::io::write_stream_byte`.
-    unsafe {
-        Ok(rc2k_core::files::io::write_stream_byte(
-            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
-            crate::files::stream::core_stream(stream),
-            eax as u8,
-        )?)
-    }
+/// The Rust version.
+pub fn write_stream_byte(stream: &mut Stream, eax: u32) -> Result<bool, BadInput> {
+    Ok(rc2k_core::files::io::write_stream_byte(
+        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        stream,
+        eax as u8,
+    )?)
 }

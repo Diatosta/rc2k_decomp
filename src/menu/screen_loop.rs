@@ -391,7 +391,7 @@ impl Callee {
                 Self::NoOp => {}
                 Self::LoadBackground => {
                     crate::menu::load_background::load_background(
-                        crate::pointers::host(c.arg),
+                        c.arg,
                         c.palette,
                         &mut GameCanvas,
                     )?;
@@ -448,7 +448,9 @@ impl Callee {
                     c.carry = false;
                 }
                 Self::LoadPicture => {
-                    c.carry = !crate::gfx::load_picture::load_picture(crate::pointers::host(c.arg))?
+                    c.carry = !crate::gfx::load_picture::load_picture(
+                        crate::pointers::GamePtr::new(c.arg),
+                    )?
                 }
                 Self::ConvertPicture => {
                     c.carry = crate::gfx::convert_picture::convert_picture_now()?

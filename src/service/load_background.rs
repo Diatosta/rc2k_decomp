@@ -20,7 +20,7 @@ use crate::pointers::GamePtr;
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
-pub unsafe fn load_background() -> Result<(), Refused> {
+pub fn load_background() -> Result<(), Refused> {
     let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
     if player == 0 {
         return Err(BadInput("no current player (or one past the four)").into());
@@ -30,10 +30,8 @@ pub unsafe fn load_background() -> Result<(), Refused> {
         GamePtr::new(player + 8).read::<u32>("a player's record")?,
     )
     .map_err(BadInput::from)?;
-    unsafe {
-        let path = MENU_LISTS.service_pictures[car as usize].get();
-        crate::gfx::load_picture::load_picture(crate::pointers::host(path))?;
-        crate::gfx::convert_picture::convert_picture_now()?;
-    }
+    let path = MENU_LISTS.service_pictures[car as usize].get();
+    crate::gfx::load_picture::load_picture(GamePtr::new(path))?;
+    crate::gfx::convert_picture::convert_picture_now()?;
     Ok(())
 }

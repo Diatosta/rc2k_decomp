@@ -14,9 +14,5 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 /// The Rust version.
 pub fn create_dplay() -> bool {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DPLAY), true, 2);
-    co_create(
-        NET.clsid_dplay.addr(),
-        NET.iid_dplay4a.addr(),
-        NET.dplay.addr(),
-    ) == 0
+    co_create(&NET.clsid_dplay, &NET.iid_dplay4a, &NET.dplay) == 0
 }
