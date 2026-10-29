@@ -18,34 +18,33 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
+pub fn play_timed_slot(slot: &crate::sound::store::SoundSlot, request: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    if slot == 0 || request == 0 {
-        return Err(BadInput("no slot or no request").into());
+    if request == 0 {
+        return Err(BadInput("no request").into());
     }
-    let slot = GamePtr::new(slot);
-    let w: [u32; 6] = slot.read("a timed sound slot")?;
     let mut s = TimedSlot {
-        sound: w[0],
-        start: w[1],
-        playing: w[2],
-        ends: w[3],
-        volume: w[4],
-        rate: w[5],
+        sound: slot.sound.get(),
+        start: slot.start.get(),
+        playing: slot.playing.get(),
+        ends: slot.ends.get(),
+        volume: slot.volume.get(),
+        rate: slot.rate.get(),
     };
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
-    slot.write(
-        [s.sound, s.start, s.playing, s.ends, s.volume, s.rate],
-        "a timed sound slot",
-    )?;
+    slot.sound.set(s.sound);
+    slot.start.set(s.start);
+    slot.playing.set(s.playing);
+    slot.ends.set(s.ends);
+    slot.volume.set(s.volume);
+    slot.rate.set(s.rate);
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {

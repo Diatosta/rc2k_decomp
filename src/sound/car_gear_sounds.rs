@@ -42,13 +42,13 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
             .write(v, "a sound request")?;
     }
     for slot in &so.slots[5..] {
-        crate::sound::play_timed_slot::play_timed_slot(slot.addr(), request)?;
+        crate::sound::play_timed_slot::play_timed_slot(slot, request)?;
     }
     let factor = GamePtr::new(request).offset(0x20);
     let kept: u32 = factor.read("a sound request")?;
     let pitch = gear_pitch(factor.read::<f32>("a sound request")?, so.gear_pitch.get());
     factor.write(pitch, "a sound request")?;
-    crate::sound::play_timed_slot::play_timed_slot(so.gear_slot.addr(), request)?;
+    crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request)?;
     factor.write(kept, "a sound request")?;
     Ok(())
 }

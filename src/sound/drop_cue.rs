@@ -20,12 +20,8 @@ use crate::pointers::GamePtr;
 
 /// Converted: `rc2k_core::sound::cars::drop_cue`. The cue at `place` dropped from the
 /// queue at `queue`.
-pub fn drop_cue(queue: u32, place: u32) -> Result<(), Refused> {
+pub fn drop_cue(q: GamePtr, place: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, drop_cue};
-    if queue == 0 {
-        return Err(BadInput("no queue").into());
-    }
-    let q = GamePtr::new(queue);
     let mut cues = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
     drop_cue(&mut cues, place).map_err(|e| BadInput(e.0))?;
     q.write(cues.to_words(), "a cue queue")?;

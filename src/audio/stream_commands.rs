@@ -21,11 +21,10 @@ fn playing(player: &Shared<AudioStream>) -> bool {
     player.get().playing == 1
 }
 
-/// The core's player: one of the game's stream players, `path` the file it starts (an
-/// address).
+/// The core's player: one of the game's stream players, `path` the file it starts.
 struct GamePlayer {
     player: &'static Shared<AudioStream>,
-    path: u32,
+    path: crate::pointers::GamePtr,
 }
 
 impl GamePlayer {
@@ -48,7 +47,7 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
         self.player.update(|s| s.volume = volume);
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        let path = crate::pointers::GamePtr::new(self.path);
+        let path = self.path;
         self.with(|s| start_stream(s, path))
     }
     fn feed(&mut self) -> Result<(), Refused> {
@@ -65,16 +64,12 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
 impl rc2k_core::audio::streams::Tunes for GamePlayer {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
-        if let Err(e) =
-            crate::pointers::GamePtr::new(self.path + 0xE).write_bytes(&d, "a tune's path")
-        {
+        if let Err(e) = self.path.offset(0xE).write_bytes(&d, "a tune's path") {
             crate::fatal::raise::end("audio::stream_commands", e);
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(crate::files::file_exists::file_exists_at(
-            crate::pointers::GamePtr::new(self.path),
-        )?)
+        Ok(crate::files::file_exists::file_exists_at(self.path)?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(
@@ -89,7 +84,7 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer {
 pub fn stream_command(path: u32, volume: i32, action: u32) -> Result<(), Refused> {
     let mut p = GamePlayer {
         player: &AUDIO.sound_stream,
-        path,
+        path: crate::pointers::GamePtr::new(path),
     };
     rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
 }
@@ -106,7 +101,7 @@ pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(
     };
     let mut p = GamePlayer {
         player: &AUDIO.music_stream,
-        path: AUDIO.music_path.addr(),
+        path: crate::pointers::GamePtr::to(&AUDIO.music_path),
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     AUDIO.next_tune.set(m.next_tune);

@@ -17,16 +17,13 @@ use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.
-pub fn bits_at(bits: u32) -> GearBits {
-    GearBits(crate::pointers::read_or_end::<u32>(
-        bits,
-        "physics::gear_bit's operand",
-    ))
+pub fn bits_at(bits: &dyn crate::session::Cell32) -> GearBits {
+    GearBits(bits.bits())
 }
 
 /// The Rust version on the dword at `bits`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::test`.
-pub fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
+pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagResult, Refused> {
     let t = { bits_at(bits) }.test(gear)?;
     Ok(FlagResult {
         eax: t.bit,
@@ -39,5 +36,5 @@ pub fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
 
 /// The Rust version.
 pub fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
-    gear_bit_at(CAR.lost_gear_bits.addr(), gear)
+    gear_bit_at(&CAR.lost_gear_bits, gear)
 }

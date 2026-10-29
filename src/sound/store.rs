@@ -638,13 +638,6 @@ pub struct SoundSlot {
     pub rate: Dword,
 }
 
-impl SoundSlot {
-    /// Its address, for `sound::play_timed_slot`.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SoundSlot)
-    }
-}
-
 /// A sound spot shared with the sound side, 0x14 bytes.
 #[repr(C)]
 pub struct SharedSpot {

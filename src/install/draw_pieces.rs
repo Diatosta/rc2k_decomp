@@ -30,7 +30,8 @@ fn font(index: u32) -> u32 {
 }
 
 fn colour(marks: u8, kind: u32) -> u32 {
-    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::colour_at(marks, kind)) as u32
+    rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts).add(pieces::colour_at(marks, kind)))
+        as u32
 }
 
 pub fn draw_pieces() -> Result<(), Refused> {

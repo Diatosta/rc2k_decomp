@@ -46,16 +46,15 @@ pub fn measure_pieces() -> Result<(), Refused> {
         }
         let (width, high) = match Way::of(marks, rb(piece + 1)) {
             Way::String { font_kind } => {
-                let font =
-                    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::measure_colour_at(font_kind))
-                        as u32;
+                let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
+                    .add(pieces::measure_colour_at(font_kind))) as u32;
                 measure_string(rw(piece + 2) as u32, font_of(font), left)?
             }
             Way::Edit => {
                 let item = rd(piece + 4);
                 let record = rd(item + 0xC);
-                let font_height =
-                    rb(INSTALLER_PAGES.kind_fonts.addr() + 7 + 8 * rb(record + 4) as u32) as u32;
+                let font_height = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
+                    .add(7 + 8 * rb(record + 4) as u32)) as u32;
                 let width = crate::install::folders::field_width(rd(item + 8), rw(record + 6));
                 (width as u32, font_height)
             }
@@ -68,8 +67,8 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 }
                 append_byte(cursor, 0);
                 let kind = rb(item + 1) as u32;
-                let font =
-                    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::measure_colour_at(kind)) as u32;
+                let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
+                    .add(pieces::measure_colour_at(kind))) as u32;
                 measure_text(font_of(font), &TEXT_BUFFER.text, left)?
             }
             Way::Action => {

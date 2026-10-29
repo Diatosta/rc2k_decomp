@@ -31,7 +31,7 @@ use rc2k_core::install::edits::{self, EDITING, EditKey};
 /// The font of an edit record's kind.
 pub fn edit_font(record: u32) -> u32 {
     let kind = rb(record + 4) as u32;
-    let font = rb(INSTALLER_PAGES.kind_fonts.addr() + 5 + 8 * kind) as u32;
+    let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts).add(5 + 8 * kind)) as u32;
     rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * font)
 }
 

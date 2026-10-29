@@ -12,7 +12,7 @@ use crate::session::Dword;
 const CLASS_NOT_REGISTERED: i32 = 0x8004_0154u32 as i32;
 
 /// `CoCreateInstance` (class, interface) -> its result: A3D's classes are never there.
-fn game_create(_class: u32, _interface: u32) -> i32 {
+fn game_create<C: ?Sized, I: ?Sized>(_class: &C, _interface: &I) -> i32 {
     CLASS_NOT_REGISTERED
 }
 
@@ -36,7 +36,7 @@ pub fn open_a3d() -> Result<bool, Refused> {
     }
     AUDIO.a3d_ready.set(0);
     AUDIO.direct_sound.set(0);
-    if game_create(AUDIO.a3d_clsid.addr(), AUDIO.a3d_iid.addr()) != 0 {
+    if game_create(&AUDIO.a3d_clsid, &AUDIO.a3d_iid) != 0 {
         return Ok(false);
     }
     Err(BadInput(THERE).into())
@@ -51,7 +51,7 @@ pub fn open_a3d2() -> Result<bool, Refused> {
     }
     AUDIO.use_a3d.set(0);
     AUDIO.a3d_object.set(0);
-    if game_create(AUDIO.a3d2_clsid.addr(), AUDIO.a3d2_iid.addr()) != 0 {
+    if game_create(&AUDIO.a3d2_clsid, &AUDIO.a3d2_iid) != 0 {
         return Ok(false);
     }
     Err(BadInput(THERE).into())

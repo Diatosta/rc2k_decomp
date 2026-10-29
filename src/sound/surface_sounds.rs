@@ -56,7 +56,7 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
     let pair = surfaces::set_pair(surface, |n| STAGE_SOUNDS.surface_sets[n as usize].get())
         .map_err(BadInput::from)?;
     let set = crate::sound::sets_store::SURFACE_SETS.sets[second + 2 * pair as usize].get();
-    crate::sound::surface_sound::surface_sound(o.addr(), set, request)
+    crate::sound::surface_sound::surface_sound(o, set, request)
 }
 
 /// The wheels' surface sounds of object `o`, through `request`.

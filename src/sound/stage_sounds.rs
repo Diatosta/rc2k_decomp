@@ -74,8 +74,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
                 .request
                 .set_u32(0xC + 4 * k, stage.timed_place[k].bits());
         }
-        let timed = crate::pointers::game_address(&stage.timed_slot as *const _);
-        crate::sound::play_timed_slot::play_timed_slot(timed, request)?;
+        crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request)?;
     }
     play(
         0x1C5,

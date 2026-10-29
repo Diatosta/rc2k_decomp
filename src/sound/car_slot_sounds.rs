@@ -36,8 +36,8 @@ pub fn car_slot_sounds(o: u32, request: u32) -> Result<(), Refused> {
     };
     place(&so.place)?;
     for at in placed_slots(so.view_flag.get() == 0) {
-        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at).addr(), request)?;
+        crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request)?;
     }
     place(&so.place_b)?;
-    crate::sound::play_timed_slot::play_timed_slot(so.slot_b.addr(), request)
+    crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request)
 }

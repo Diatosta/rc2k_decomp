@@ -26,15 +26,16 @@ use rc2k_core::sound::surfaces;
 // ---- Rust version ----
 
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
-pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || set == 0 || request == 0 {
-        return Err(BadInput("no object, set or request").into());
+pub fn surface_sound(
+    o: &crate::sound::store::SoundObject,
+    set: u32,
+    request: u32,
+) -> Result<(), Refused> {
+    if set == 0 || request == 0 {
+        return Err(BadInput("no set or request").into());
     }
-    let w = |at: u32| {
-        GamePtr::new(o)
-            .offset(at)
-            .read::<u32>("a sound object's dword")
-    };
+    let o = GamePtr::to(o);
+    let w = |at: u32| o.offset(at).read::<u32>("a sound object's dword");
     let set = GamePtr::new(set);
     // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = set.read::<u32>("a sound set")? == 1;
@@ -53,9 +54,7 @@ pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
     record(sound)?;
     if sound != w(slot)? {
         let old = w(slot)?;
-        GamePtr::new(o)
-            .offset(slot)
-            .write(sound, "a sound object's dword")?;
+        o.offset(slot).write(sound, "a sound object's dword")?;
         crate::sound::turn_parts::put(request, 0, old)?;
         crate::sound::turn_parts::stop(request)?;
     }

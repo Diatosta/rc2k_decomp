@@ -37,9 +37,7 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
     }
     let so = crate::sound::store::SoundObject::at(o)?;
     let in_use = so.in_use.get() == 1;
-    let q = GamePtr::new(crate::pointers::game_address(
-        &so.cue_queue as *const crate::sound::store::CueQueue,
-    ));
+    let q = GamePtr::to(&so.cue_queue);
     let mut queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     if !in_use {
@@ -54,7 +52,7 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
             // The first cue taken out (`drop_cue` at 0; the place given was the
             // original's ebx only).
             q.write(queue.to_words(), "a cue queue")?;
-            crate::sound::drop_cue::drop_cue(q.addr(), 0)?;
+            crate::sound::drop_cue::drop_cue(q, 0)?;
             *queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
             Ok(())
         },

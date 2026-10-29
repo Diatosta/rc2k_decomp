@@ -26,7 +26,7 @@ use rc2k_core::physics::gear_shifts::Change;
 pub struct ChangePlaces {
     pub wanted: &'static dyn Cell32,
     /// By address: `bt` on memory, its bit number past the first dword.
-    pub bits: u32,
+    pub bits: &'static dyn Cell32,
     pub changed: &'static dyn Cell32,
     pub changed_2: &'static dyn Cell32,
 }
@@ -35,7 +35,7 @@ impl ChangePlaces {
     pub fn game() -> Self {
         Self {
             wanted: &PHYSICS.gear_asked,
-            bits: CAR.lost_gear_bits.addr(),
+            bits: &CAR.lost_gear_bits,
             changed: &CAR.gear_changed,
             changed_2: &CAR.gear_changed_2,
         }
