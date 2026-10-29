@@ -109,21 +109,19 @@ fn with_file<R>(
     f(&mut file)
 }
 
-/// (the bytes read, whether the read succeeded): one `ReadFile`. A short read is not a
-/// failure.
-pub fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(buffer),
-        count as usize,
-        "a file read's buffer",
-    );
-    // SAFETY: `count` bytes inside one live region (checked above).
-    read_slice(file, unsafe {
-        std::slice::from_raw_parts_mut(buffer, count as usize)
-    })
+/// `read_slice` of `N` bytes into a typed buffer: (the bytes read, whether the read
+/// succeeded).
+pub fn read_into<const N: usize>(file: u32, into: &crate::session::Bytes<N>) -> (u32, bool) {
+    let mut bytes = vec![0u8; N];
+    let (got, ok) = read_slice(file, &mut bytes);
+    for (k, &b) in bytes[..got as usize].iter().enumerate() {
+        into.set(k, b);
+    }
+    (got, ok)
 }
 
-/// `read` into a Rust buffer.
+/// (the bytes read, whether the read succeeded): one `ReadFile` into a Rust buffer. A
+/// short read is not a failure.
 pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     match with_file(file, |f| f.read(into)) {
         Ok(n) => (n as u32, true),
@@ -168,20 +166,7 @@ pub fn write_from(
     Ok(write_slice(file, &bytes))
 }
 
-/// (the bytes written, whether all of them were): one `WriteFile`.
-pub fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(buffer),
-        count as usize,
-        "a file write's buffer",
-    );
-    // SAFETY: `count` bytes inside one live region (checked above).
-    write_slice(file, unsafe {
-        std::slice::from_raw_parts(buffer, count as usize)
-    })
-}
-
-/// `write` from a Rust buffer.
+/// (the bytes written, whether all of them were): one `WriteFile`, from a Rust buffer.
 pub fn write_slice(file: u32, from: &[u8]) -> (u32, bool) {
     let count = from.len() as u32;
     match with_file(file, |f| f.write(from)) {

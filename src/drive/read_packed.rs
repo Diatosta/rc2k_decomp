@@ -31,14 +31,7 @@ pub fn read_packed(file: u32, count: u32) -> Result<(u32, bool, Option<bool>), R
         VIEWER_BUFFERS.put_in_block(0, &bytes[..n as usize], "a replay block read")?;
         return Ok((n, !ok, None));
     };
-    let mut bytes = vec![0u8; packed as usize];
-    if bytes.len() > crate::files::scratch::Scratch::LEN {
-        return Err(BadInput("a packed replay block past the scratch").into());
-    }
-    let (n, ok) = read_slice(file, &mut bytes);
-    SCRATCH
-        .buffer
-        .write_at(0, &bytes[..n as usize], "a packed replay block")?;
+    let (n, ok) = SCRATCH.read_from(file, packed, "a packed replay block")?;
     if !ok {
         return Ok((n, true, None));
     }

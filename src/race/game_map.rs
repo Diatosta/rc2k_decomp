@@ -18,7 +18,6 @@ use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 use crate::pointers::GamePtr;
-use crate::race::trap::file_read;
 use crate::session::{Bytes, Loose};
 
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
@@ -224,9 +223,8 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     let Some(file) = open_by_mode(crate::pointers::host(path) as *const u8, 0)? else {
         return Ok(());
     };
-    let buffer = SCRATCH.buffer.addr();
     let result = (|| -> Result<(), Refused> {
-        let (_, ok) = file_read(file, buffer, 0x10, "the map's scratch buffer")?;
+        let (_, ok) = SCRATCH.read_from(file, 0x10, "the map's scratch buffer")?;
         let head = SCRATCH
             .buffer
             .read_at(0, 0x10, "the map's scratch buffer")?;
@@ -239,7 +237,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
             return Err(BadInput("a packed map of no tiles or more than 0xFFFF").into());
         }
         take_pixels((count << 8).wrapping_mul(bytes))?;
-        let (_, ok) = file_read(file, buffer, 0x8000, "the map's scratch buffer")?;
+        let (_, ok) = SCRATCH.read_from(file, 0x8000, "the map's scratch buffer")?;
         if !ok {
             return Ok(());
         }
@@ -261,7 +259,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
         while left != 0 {
             let n = left.min(0x40);
             left -= n;
-            let (got, ok) = file_read(file, buffer, n * 0x300, "the map's scratch buffer")?;
+            let (got, ok) = SCRATCH.read_from(file, n * 0x300, "the map's scratch buffer")?;
             if !ok {
                 return Ok(());
             }

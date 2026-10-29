@@ -7,7 +7,7 @@
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;
-use crate::files::handle::{read, seek};
+use crate::files::handle::{read_into, seek};
 use crate::files::open_stream::open_stream;
 use crate::files::read_file::read_file;
 use crate::files::read_stream_block::read_stream_block;
@@ -29,7 +29,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
             return Ok(false);
         }
-        if !read(file, PCX.file_palette.as_ptr(), FILE_PALETTE_LEN as u32).1 {
+        if !read_into(file, &PCX.file_palette).1 {
             return Ok(false);
         }
         if seek(file, 0, 0).is_none() {

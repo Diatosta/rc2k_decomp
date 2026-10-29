@@ -85,29 +85,6 @@ pub fn span(addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
     }
 }
 
-/// `files::handle::read` into game memory: the span checked first. (The bytes read, whether
-/// the read succeeded.)
-pub fn file_read(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
-    span(addr, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above).
-    Ok(crate::files::handle::read(
-        file,
-        crate::pointers::host(addr),
-        count,
-    ))
-}
-
-/// `files::handle::write` from game memory: the span checked first.
-pub fn file_write(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
-    span(addr, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above).
-    Ok(crate::files::handle::write(
-        file,
-        crate::pointers::host(addr) as *const u8,
-        count,
-    ))
-}
-
 /// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie
 /// in one region.
 pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {

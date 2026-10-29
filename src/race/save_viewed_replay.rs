@@ -18,13 +18,10 @@
 //! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the
 //! original's way, kept).
 
-use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{LAST_RACE, replay_path};
-use crate::race::trap::file_write;
 use crate::race::viewer::{TABLE_LEN, move_cells};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
@@ -55,12 +52,12 @@ fn save(slot: u32) -> Result<bool, Refused> {
         header.set_u32(4 * k, word);
     }
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
-    let name = crate::race::replay::REPLAYS.names.addr() + name_offset(slot);
-    GamePtr::new(name).copy_to(
-        GamePtr::new(header.addr() + 0x10),
+    let name = crate::race::replay::REPLAYS.names.read_at(
+        name_offset(slot) as usize,
         NAME_LEN,
         "a replay's name",
     )?;
+    header.write_at(0x10, &name, "a replay's name")?;
     // The last race's file opened to read from, the slot's to write to.
     let Some(from) = handle::open_by_mode(LAST_RACE.as_ptr() as *const u8, 0)? else {
         return Ok(false);
@@ -83,12 +80,9 @@ fn save(slot: u32) -> Result<bool, Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .undo_blocks
         .set(0);
-    crate::system::zero_memory::zero_memory(
-        crate::pointers::host_at(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as usize,
-        ),
-        TABLE_LEN as u32,
-    )?;
+    for place in &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[..TABLE_LEN / 4] {
+        place.set(0);
+    }
     // Both files closed on the way out (the new one only when it was made).
     let close = || {
         handle::close(
@@ -101,17 +95,6 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 .from_file
                 .get(),
         );
-    };
-    let write = |buffer: u32, len: u32| -> Result<bool, BadInput> {
-        Ok(file_write(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .to_file
-                .get(),
-            buffer,
-            len,
-            "the saved replay's bytes",
-        )?
-        .1)
     };
     REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
     if !handle::write_slice(
@@ -180,10 +163,13 @@ fn save(slot: u32) -> Result<bool, Refused> {
             .get(),
         &REPLAY_FILE.index()[..INDEX_HEAD_LEN as usize / 4],
     )
-    .1 && write(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
-        TABLE_LEN as u32,
-    )?;
+    .1 && handle::write_cells(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .to_file
+            .get(),
+        &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[..TABLE_LEN / 4],
+    )
+    .1;
     close();
     Ok(done)
 }
