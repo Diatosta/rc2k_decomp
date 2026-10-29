@@ -6,7 +6,7 @@
 //!
 //! One block with the image's layout (`crate::store`), first values the image's
 //! (`store_data.rs`, generated). Six ranges inside it had moved before into blocks of
-//! their own (the mouse, `g_raceSoundsOn`, the hexagons' batch, ...): their bytes here are
+//! their own (the mouse, `g_raceSoundsOn`, the windscreen drops' batch, ...): their bytes here are
 //! not used, and `crate::moved::MOVED` lists this block as the ranges around them.
 //! The code names the variables by IDA's address (`framework::game_addr` takes such an
 //! address here); the inline asm reads them as `[{m} + RVA]` with `m = asm_base()`.

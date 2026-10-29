@@ -56,7 +56,7 @@ impl ViewSources {
 pub struct KeptView {
     /// 0x769236: `flt_769236`, `flt_76923A`: the sine and cosine of `first_angle` (`effects::turn_kept_vectors`).
     pub first_sine_cosine: [Float; 2],
-    /// 0x76923E: `flt_76923E`: the first angle the kept vectors are turned by (z and y); also read by the spawning of hexagons and squares.
+    /// 0x76923E: `flt_76923E`: the first angle the kept vectors are turned by (z and y); also read by the spawning of windscreen drops and squares.
     pub first_angle: Float,
     /// 0x769242: `flt_769242`, `flt_769246`: the sine and cosine of `second_angle`.
     pub second_sine_cosine: [Float; 2],

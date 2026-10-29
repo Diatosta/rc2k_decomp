@@ -14,7 +14,7 @@ pub struct MarksWork {
     pub shake: Dword,
     /// +0x60 (0x71C874): not named or used (a gap of 0xc bytes).
     pub unknown_60: Bytes<12>,
-    /// +0x6c (0x71C880): `dword_71C880`: the scratch of the edge pair (`effects::spans`), the rows' lengths (`effects::turns`) and the hexagon cell's x (`effects::hexagons_frame`).
+    /// +0x6c (0x71C880): `dword_71C880`: the scratch of the edge pair (`effects::spans`), the rows' lengths (`effects::turns`) and the windscreen drop cell's x (`effects::windscreen_drops_frame`).
     pub scratch: Dword,
     /// +0x70 (0x71C884): not named or used (a gap of 0x48 bytes).
     pub unknown_70: Bytes<72>,

@@ -4,6 +4,8 @@
 //! `g_marksKind1Choice` `dword_8BC50D` (the rain's drops); `effects::run_ring`; render state
 //! 0x14 = 2; `effects::run_ribbons`.
 //!
+//! Screen: the dust and the water splashes (owner, 2026-10-29: both gone with the ring's sprites cut).
+//!
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (no caller reads a register it leaves)
 //!

@@ -1,6 +1,6 @@
 //! The marks' variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`): IDA
 //! 0x764F40 .. 0x93CCC8, the whole of it the marks' (the weather and surface effects: their
-//! settings, floats, work areas, the spline, shape, square, hexagon, ring and particle
+//! settings, floats, work areas, the spline, shape, square, windscreen drop, ring and particle
 //! tables). Nothing outside `marks` reads or writes it but the one setting `race::frame_views`
 //! asks (`effects::setup::SETTINGS`, typed).
 //!
@@ -80,18 +80,18 @@ pub const CARVED: &[(usize, usize)] = &[
     (0x809BC3, 0x811BC3), // `effects::edges::EdgeMask`
     (0x811BC3, 0x811BEB), // `effects::tilt_shape::ShapeTilt`
     (0x811BEB, 0x8122D3), // `effects::edges::KindBoxes`
-    (0x814710, 0x814770), // `effects::hexagon_state::HexagonState`
-    (0x814772, 0x81518A), // `effects::hexagon_state::HexagonWork`
-    (0x816192, 0x82E342), // `effects::hexagon_vars::HexagonVars`
+    (0x814710, 0x814770), // `effects::windscreen_drop_state::WindscreenDropState`
+    (0x814772, 0x81518A), // `effects::windscreen_drop_state::WindscreenDropWork`
+    (0x816192, 0x82E342), // `effects::windscreen_drop_vars::WindscreenDropVars`
     (0x82E342, 0x844602), // `effects::mask_vars::MaskVars`
     (0x844604, 0x884E5C), // `effects::mask_picks::MaskPicks`
     (0x884E5C, 0x89BCA4), // `effects::shape_work::ShapeWork`
     (0x89C724, 0x89C994), // `effects::shape_points::ShapeSetTuning`
     (0x89C994, 0x89CA30), // `effects::mask_constants::MaskConstants`
-    (0x89CA30, 0x89CA3C), // `effects::squares_store::SquareTiming`
-    (0x89CACA, 0x89D16A), // `effects::squares_store::SquareTables`
-    (0x89E18A, 0x8BC18A), // `effects::squares_store::SquareItems`
-    (0x8BC18A, 0x8BC266), // `effects::squares_store::SquareState`
+    (0x89CA30, 0x89CA3C), // `effects::windscreen_flakes_store::WindscreenFlakeTiming`
+    (0x89CACA, 0x89D16A), // `effects::windscreen_flakes_store::WindscreenFlakeTables`
+    (0x89E18A, 0x8BC18A), // `effects::windscreen_flakes_store::WindscreenFlakeItems`
+    (0x8BC18A, 0x8BC266), // `effects::windscreen_flakes_store::WindscreenFlakeState`
     (0x8BC39E, 0x8BC3FD), // `effects::edges::EdgeSettings`
     (0x8BC405, 0x8BDE55), // `effects::rain::RainState`
     (0x8C5F91, 0x8C5FFD), // `effects::rain::RainRules`

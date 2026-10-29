@@ -1,7 +1,7 @@
-//! The shape tables of two kinds of the marks' items, hexagons and squares (converted
-//! 2026-10-21 from `effects::set_up_hexagons` 0x4BAA55 and `effects::set_up_squares`
+//! The shape tables of two kinds of the marks' items, windscreen drops and squares (converted
+//! 2026-10-21 from `effects::set_up_windscreen_drops` 0x4BAA55 and `effects::set_up_windscreen_flakes`
 //! 0x4BF529): a quarter-circle curve of 0x100 floats, 8 circles of points (one a radius),
-//! and for the hexagons 0x40 fans of four triangles.
+//! and for the windscreen drops 0x40 fans of four triangles.
 //!
 //! As in `math::geometry`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
 //! where the original stores it. `fldpi`'s 64-bit pi is kept exactly (`pi_over`); the
@@ -14,7 +14,7 @@ use crate::scene::trig::{cosine, sine};
 pub const ITEMS: u32 = 0x800;
 pub const CURVE: usize = 0x100;
 pub const RADII: usize = 8;
-/// The hexagons' fans: 0x40, four triangles (three word indices each) a fan.
+/// The windscreen drops' fans: 0x40, four triangles (three word indices each) a fan.
 pub const FANS: u32 = 0x40;
 
 /// The x87's `fldpi` (rounded to the nearest): pi = this x 2^-62.
@@ -74,7 +74,7 @@ pub fn circle(r: f32, sides: u32, c: i32, d: f32) -> Vec<[f32; 2]> {
         .collect()
 }
 
-/// The hexagons' fans: fan n's four triangles (6 n, 6 n + 1 + k, 6 n + 2 + k).
+/// The windscreen drops' fans: fan n's four triangles (6 n, 6 n + 1 + k, 6 n + 2 + k).
 pub fn fan(n: u32) -> [[u16; 3]; 4] {
     let first = n * 6;
     std::array::from_fn(|k| {
@@ -83,7 +83,7 @@ pub fn fan(n: u32) -> [[u16; 3]; 4] {
     })
 }
 
-/// `fld v; fmul a [; fmul b]; fstp`: the hexagons' four scaled floats.
+/// `fld v; fmul a [; fmul b]; fstp`: the windscreen drops' four scaled floats.
 pub fn scaled(v: f32, by: &[f32]) -> f32 {
     by.iter().fold(v as f64, |p, &k| p * k as f64) as f32
 }

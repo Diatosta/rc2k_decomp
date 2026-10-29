@@ -86,7 +86,6 @@ pub mod converters;
 pub mod decoder;
 pub mod formats;
 pub mod front;
-pub mod hexagon_batch;
 pub mod locked;
 pub mod modes;
 pub mod pcx_planes;
@@ -99,6 +98,7 @@ pub mod strips;
 pub mod texts;
 pub mod typefaces;
 pub mod upload;
+pub mod windscreen_drop_batch;
 
 /// The test of every typed block of this module: the static's bytes are the image's (phase 7).
 #[cfg(test)]

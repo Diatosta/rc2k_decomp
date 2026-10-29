@@ -1,5 +1,5 @@
-//! The squares' and hexagons' clock and the shapes they take (converted 2026-10-21 from
-//! `effects::squares_step` 0x4C0654, `hexagons_step` 0x4BCAD0 and `pick_shapes` 0x4BE8C3):
+//! The squares' and windscreen drops' clock and the shapes they take (converted 2026-10-21 from
+//! `effects::windscreen_flakes_step` 0x4C0654, `windscreen_drops_step` 0x4BCAD0 and `pick_shapes` 0x4BE8C3):
 //! the steps since the shapes were last looked at counted on a clock of 256 (`dword_814714`
 //! the clock, `dword_84460C` the latest step), and each step's shapes picked from a table
 //! of 256 entries.
@@ -14,7 +14,7 @@ pub fn steps(latest: u32, clock: u32) -> u32 {
     latest.wrapping_sub(clock) & 0xFF
 }
 
-/// The latest step moved on one (`squares_step`'s loop), on a clock of 256.
+/// The latest step moved on one (`windscreen_flakes_step`'s loop), on a clock of 256.
 pub fn next_step(latest: u32) -> u32 {
     latest.wrapping_add(1) & 0xFF
 }

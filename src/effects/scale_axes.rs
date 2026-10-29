@@ -8,14 +8,16 @@
 
 /// The Rust version (see the header).
 pub fn scale_axes() {
-    scale_axes_x87(&SQUARE_TABLES, &SQUARE_STATE);
+    scale_axes_x87(&WINDSCREEN_FLAKE_TABLES, &WINDSCREEN_FLAKE_STATE);
 }
 
-use crate::effects::squares_store::{SQUARE_STATE, SQUARE_TABLES, SquareState, SquareTables};
+use crate::effects::windscreen_flakes_store::{
+    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES, WindscreenFlakeState, WindscreenFlakeTables,
+};
 use crate::math::x87_float as bh;
 
 /// `scale_axes`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
-fn scale_axes_x87(sq: &SquareTables, ss: &SquareState) {
+fn scale_axes_x87(sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     {
         let t0 = bh::ld(sq.axes[0][0].bits());
         let t1 = t0 * bh::ld(sq.radii[0].bits());
@@ -162,7 +164,7 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::squares_store::{SquareState, SquareTables};
+    use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
 
     #[test]
     fn scale_axes_x87_matches() {
@@ -226,8 +228,8 @@ mod asm_differential {
             &SPEC,
             |b| reference::scale_axes_x87(b[0]),
             |b| {
-                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                    with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                    with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
                         super::scale_axes_x87(sq, ss)
                     })
                 })

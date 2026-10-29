@@ -1,4 +1,4 @@
-//! `effects::draw_streak` (0x4C1DCD): a streak (a point and where it was) drawn as a quad
+//! `effects::draw_rain_streak` (0x4C1DCD): a streak (a point and where it was) drawn as a quad
 //! facing the viewer. The point (st(0) .. st(2), scaled by `flt_8BDD65` .. into
 //! `flt_8BDE49` ..) turned by the matrix at `dword_8BDD89` .. plus the whole numbers at
 //! `dword_8BDD71` .. into `flt_8BDE3D` .. (its depth also `flt_8BDD5D`); the point less
@@ -37,7 +37,7 @@ fn project() {
 }
 
 /// The Rust version (see the header).
-pub fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
+pub fn draw_rain_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     {
         if SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());

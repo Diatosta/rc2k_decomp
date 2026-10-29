@@ -9,7 +9,7 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::edges::EDGE_SETTINGS;
-use crate::effects::squares_store::SQUARE_STATE;
+use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
@@ -24,7 +24,7 @@ pub fn scale_setting() -> Result<(), Refused> {
             return Err(BadInput("no marks settings").into());
         }
         let n = GamePtr::new(settings + NUMBER_AT).read::<i32>("a mark's field")?;
-        SQUARE_STATE
+        WINDSCREEN_FLAKE_STATE
             .scaled_setting
             .set_bits(x87::int_times(n, EDGE_SETTINGS.factor.bits()));
     }

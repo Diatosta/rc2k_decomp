@@ -1,45 +1,46 @@
-//! The squares' variables, out of the marks' block (phase 7, typed state): their frame count
-//! and rates (`SquareTiming`), curve, circles and frame (`SquareTables`), the 0x800 items
-//! (`SquareItems`), and the once-only mark, constants and randoms (`SquareState`).
+//! The windscreen flakes' variables, out of the marks' block (phase 7, typed state): their frame count
+//! and rates (`WindscreenFlakeTiming`), curve, circles and frame (`WindscreenFlakeTables`), the 0x800 items
+//! (`WindscreenFlakeItems`), and the once-only mark, constants and randoms (`WindscreenFlakeState`).
 
 use crate::session::{Bytes, Dword, Float};
 
-/// The squares' frame count and rates (IDA 0x89CA30 .. 0x89CA3C, the image's layout; phase 7, typed state).
+/// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C, the image's layout; phase 7, typed state).
 #[repr(C)]
-pub struct SquareTiming {
-    /// 0x89CA30: `dword_89CA30`: the frames the squares have run (`effects::squares_spawn` adds one each call).
+pub struct WindscreenFlakeTiming {
+    /// 0x89CA30: `dword_89CA30`: the frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each call).
     pub frames: Dword,
-    /// 0x89CA34: `flt_89CA34`: the squares' rate this frame, the settings' +0x2740 times `SquareState::rate_share` (`effects::squares_frame`, `draw_plane`); 10.0 at first.
+    /// 0x89CA34: `flt_89CA34`: the windscreen flakes' rate this frame, the settings' +0x2740 times `WindscreenFlakeState::rate_share` (`effects::windscreen_flakes_frame`, `draw_plane`); 10.0 at first.
     pub rate: Float,
-    /// 0x89CA38: `flt_89CA38`: the squares spawned a frame, worked out from the rate by `effects::squares_spawn`.
+    /// 0x89CA38: `flt_89CA38`: the windscreen flakes spawned a frame, worked out from the rate by `effects::windscreen_flakes_spawn`.
     pub spawn_rate: Float,
 }
 
-pub static SQUARE_TIMING: SquareTiming = SquareTiming {
+pub static WINDSCREEN_FLAKE_TIMING: WindscreenFlakeTiming = WindscreenFlakeTiming {
     frames: Dword::new(0x0),
     rate: Float::from_bits(0x41200000),
     spawn_rate: Float::from_bits(0x0),
 };
 
-impl SquareTiming {
+impl WindscreenFlakeTiming {
     pub const START: usize = 0x89CA30;
     pub const LEN: usize = 0xC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SQUARE_TIMING as *const SquareTiming) as usize
+        crate::pointers::game_address(&WINDSCREEN_FLAKE_TIMING as *const WindscreenFlakeTiming)
+            as usize
     }
 }
 
-/// The squares' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A, the image's layout; phase 7, typed state).
+/// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A, the image's layout; phase 7, typed state).
 #[repr(C)]
-pub struct SquareTables {
-    /// 0x89CACA: `g_marksSquareCurve`: the quarter-circle curve of 0x100 floats (`effects::set_up_squares`; nothing ported reads it).
+pub struct WindscreenFlakeTables {
+    /// 0x89CACA: `g_marksWindscreenFlakeCurve`: the quarter-circle curve of 0x100 floats (`effects::set_up_windscreen_flakes`; nothing ported reads it).
     pub curve: [Float; 256],
-    /// 0x89CECA: `flt_89CECA` ..: the eight circles' radii the squares' points are made on; the first also scales the axes (`effects::scale_axes`).
+    /// 0x89CECA: `flt_89CECA` ..: the eight circles' radii the windscreen flakes' points are made on; the first also scales the axes (`effects::scale_axes`).
     pub radii: [Float; 8],
-    /// 0x89CEEA: `flt_89CEEA`: 1 over the view's farthest depth (`effects::squares_setup`, `begin`s of `draw_pong_box`, `draw_square`).
+    /// 0x89CEEA: `flt_89CEEA`: 1 over the view's farthest depth (`effects::windscreen_flakes_setup`, `begin`s of `draw_pong_box`, `draw_windscreen_flake`).
     pub inverse: Float,
-    /// 0x89CEEE: `flt_89CEEE`, `flt_89CEF2`: the first and second axes' lengths over the frame's divisors (`effects::squares_frame`, `draw_plane`).
+    /// 0x89CEEE: `flt_89CEEE`, `flt_89CEF2`: the first and second axes' lengths over the frame's divisors (`effects::windscreen_flakes_frame`, `draw_plane`).
     pub lengths: [Float; 2],
     /// 0x89CEF6: `flt_89CEF6` ..: the frame's place (the settings' +0x2720 .., as floats).
     pub place: [Float; 3],
@@ -55,17 +56,17 @@ pub struct SquareTables {
     pub scaled_axes: [[Float; 3]; 2],
     /// 0x89CF86: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_89cf86: Bytes<12>,
-    /// 0x89CF92: `flt_89CF92` .. `flt_89CFBE`: the four corners (x, y, depth) of the square being drawn.
+    /// 0x89CF92: `flt_89CF92` .. `flt_89CFBE`: the four corners (x, y, depth) of the flake being drawn.
     pub corners: [[Float; 3]; 4],
     /// 0x89CFC2: Not named: 36 bytes (a gap, or unreferenced data).
     pub _gap_89cfc2: Bytes<36>,
-    /// 0x89CFE6: `g_marksSquarePoints`: for each of the eight radii the circle of four points (x, y, and a third float the port does not use).
+    /// 0x89CFE6: `g_marksWindscreenFlakePoints`: for each of the eight radii the circle of four points (x, y, and a third float the port does not use).
     pub points: [[[Float; 3]; 4]; 8],
-    /// 0x89D166: `dword_89D166`: an offset into the items, where `effects::spawn_square` looks for a free one.
+    /// 0x89D166: `dword_89D166`: an offset into the items, where `effects::spawn_windscreen_flake` looks for a free one.
     pub cursor: Dword,
 }
 
-pub static SQUARE_TABLES: SquareTables = SquareTables {
+pub static WINDSCREEN_FLAKE_TABLES: WindscreenFlakeTables = WindscreenFlakeTables {
     curve: [const { Float::from_bits(0x0) }; 256],
     radii: [
         Float::from_bits(0x449E0000),
@@ -162,19 +163,20 @@ pub static SQUARE_TABLES: SquareTables = SquareTables {
     cursor: Dword::new(0x0),
 };
 
-impl SquareTables {
+impl WindscreenFlakeTables {
     pub const START: usize = 0x89CACA;
     pub const LEN: usize = 0x6A0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SQUARE_TABLES as *const SquareTables) as usize
+        crate::pointers::game_address(&WINDSCREEN_FLAKE_TABLES as *const WindscreenFlakeTables)
+            as usize
     }
 }
 
-/// One square item (0x3C bytes; `effects::spawn_square`, `expire_squares`, `run_squares`).
+/// One windscreen flake item (0x3C bytes; `effects::spawn_windscreen_flake`, `expire_windscreen_flakes`, `run_windscreen_flakes`).
 #[repr(C)]
-pub struct SquareItem {
-    /// +0: 1 while the square lives, 0 for a free item.
+pub struct WindscreenFlakeItem {
+    /// +0: 1 while the flake lives, 0 for a free item.
     pub live: Dword,
     /// +4: the scene clock when it was made.
     pub born: Dword,
@@ -192,11 +194,11 @@ pub struct SquareItem {
     pub spare_28: [Dword; 5],
 }
 
-impl SquareItem {
+impl WindscreenFlakeItem {
     #[cfg(test)]
     pub const LEN: usize = 0x3C;
     pub const fn new() -> Self {
-        SquareItem {
+        WindscreenFlakeItem {
             live: Dword::new(0),
             born: Dword::new(0),
             age: Dword::new(0),
@@ -209,30 +211,31 @@ impl SquareItem {
     }
 }
 
-/// The squares' 0x800 items (`g_marksSquareItems`) (IDA 0x89E18A .. 0x8BC18A, the image's layout; phase 7, typed state).
+/// The windscreen flakes' 0x800 items (`g_marksWindscreenFlakeItems`) (IDA 0x89E18A .. 0x8BC18A, the image's layout; phase 7, typed state).
 #[repr(C)]
-pub struct SquareItems {
-    /// 0x89E18A: `g_marksSquareItems`: the items, 0x3C bytes each.
-    pub items: [SquareItem; 0x800],
+pub struct WindscreenFlakeItems {
+    /// 0x89E18A: `g_marksWindscreenFlakeItems`: the items, 0x3C bytes each.
+    pub items: [WindscreenFlakeItem; 0x800],
 }
 
-pub static SQUARE_ITEMS: SquareItems = SquareItems {
-    items: [const { SquareItem::new() }; 0x800],
+pub static WINDSCREEN_FLAKE_ITEMS: WindscreenFlakeItems = WindscreenFlakeItems {
+    items: [const { WindscreenFlakeItem::new() }; 0x800],
 };
 
-impl SquareItems {
+impl WindscreenFlakeItems {
     pub const START: usize = 0x89E18A;
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SQUARE_ITEMS as *const SquareItems) as usize
+        crate::pointers::game_address(&WINDSCREEN_FLAKE_ITEMS as *const WindscreenFlakeItems)
+            as usize
     }
 }
 
-/// The squares' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266, the image's layout; phase 7, typed state).
+/// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266, the image's layout; phase 7, typed state).
 #[repr(C)]
-pub struct SquareState {
-    /// 0x8BC18A: `g_marksSquaresDone`: 0, or where `effects::set_up_squares` goes on.
+pub struct WindscreenFlakeState {
+    /// 0x8BC18A: `g_marksWindscreenFlakesDone`: 0, or where `effects::set_up_windscreen_flakes` goes on.
     pub done: Dword,
     /// 0x8BC18E: `flt_8BC18E`, `flt_8BC192`: the curve's two constants (1024.0, 0.0005).
     pub curve_ends: [Float; 2],
@@ -240,13 +243,13 @@ pub struct SquareState {
     pub steps: Dword,
     /// 0x8BC19A: `flt_8BC19A`: the circles' angle (2.0).
     pub step_angle: Float,
-    /// 0x8BC19E: `flt_8BC19E`: what the settings' rate is multiplied by (1.0; `effects::squares_frame`).
+    /// 0x8BC19E: `flt_8BC19E`: what the settings' rate is multiplied by (1.0; `effects::windscreen_flakes_frame`).
     pub rate_share: Float,
     /// 0x8BC1A2: `flt_8BC1A2`, `flt_8BC1A6`: the axes' lengths are divided by them (2048.0, 1024.0).
     pub length_divisors: [Float; 2],
-    /// 0x8BC1AA: `flt_8BC1AA`: the rate times it must come to a whole number above 0 for the squares to run (65536.0).
+    /// 0x8BC1AA: `flt_8BC1AA`: the rate times it must come to a whole number above 0 for the windscreen flakes to run (65536.0).
     pub share: Float,
-    /// 0x8BC1AE: `dword_8BC1AE` .. `dword_8BC1BA`: the texture places of a drawn square (u a, u c, v b, v d as floats' bits; `effects::draw_square`).
+    /// 0x8BC1AE: `dword_8BC1AE` .. `dword_8BC1BA`: the texture places of a drawn flake (u a, u c, v b, v d as floats' bits; `effects::draw_windscreen_flake`).
     pub places: [Dword; 4],
     /// 0x8BC1BE: `flt_8BC1BE` .. `flt_8BC1CA`: 4096.0 four times (the port does not read them).
     pub unread_floats: [Float; 4],
@@ -258,23 +261,23 @@ pub struct SquareState {
     pub halves: [Float; 6],
     /// 0x8BC20E: `dword_8BC20E`: 256.0 (the port does not read it).
     pub unread_rhw: Dword,
-    /// 0x8BC212: `dword_8BC212` .. `dword_8BC21E`: the texture places `effects::squares_setup` puts on the vertices.
+    /// 0x8BC212: `dword_8BC212` .. `dword_8BC21E`: the texture places `effects::windscreen_flakes_setup` puts on the vertices.
     pub setup_places: [Dword; 4],
-    /// 0x8BC222: `dword_8BC222` .. `dword_8BC22E`: the texture places `effects::run_squares` puts on the vertices.
+    /// 0x8BC222: `dword_8BC222` .. `dword_8BC22E`: the texture places `effects::run_windscreen_flakes` puts on the vertices.
     pub run_places: [Dword; 4],
-    /// 0x8BC232: `dword_8BC232`: the age over which a square fades (16).
+    /// 0x8BC232: `dword_8BC232`: the age over which a flake fades (16).
     pub fade: Dword,
-    /// 0x8BC236: `flt_8BC236`: 1024.0, what a square's z is taken from (`effects::run_squares`).
+    /// 0x8BC236: `flt_8BC236`: 1024.0, what a flake's z is taken from (`effects::run_windscreen_flakes`).
     pub far: Float,
-    /// 0x8BC23A: `flt_8BC23A`, `flt_8BC23E`, `flt_8BC242`: a new square's size is its kind times the first plus the second; the third is its +0x10 (`effects::spawn_square`).
+    /// 0x8BC23A: `flt_8BC23A`, `flt_8BC23E`, `flt_8BC242`: a new flake's size is its kind times the first plus the second; the third is its +0x10 (`effects::spawn_windscreen_flake`).
     pub size_k: [Float; 3],
-    /// 0x8BC246: `flt_8BC246`, `flt_8BC24A`: 0.1 and 0 (`effects::squares_spawn`).
+    /// 0x8BC246: `flt_8BC246`, `flt_8BC24A`: 0.1 and 0 (`effects::windscreen_flakes_spawn`).
     pub rate_constants: [Float; 2],
-    /// 0x8BC24E: `flt_8BC24E`: 65536.0, what the rate's fraction is multiplied by (`effects::squares_spawn`).
+    /// 0x8BC24E: `flt_8BC24E`: 65536.0, what the rate's fraction is multiplied by (`effects::windscreen_flakes_spawn`).
     pub share_k: Float,
-    /// 0x8BC252: `dword_8BC252`: the random (times 0xC5 plus 0x5D) of whether one more square is spawned.
+    /// 0x8BC252: `dword_8BC252`: the random (times 0xC5 plus 0x5D) of whether one more flake is spawned.
     pub spawn_random: Dword,
-    /// 0x8BC256: `dword_8BC256`: the random of a square's place and kind (`effects::pick_square`).
+    /// 0x8BC256: `dword_8BC256`: the random of a flake's place and kind (`effects::pick_windscreen_flake`).
     pub pick_random: Dword,
     /// 0x8BC25A: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_8bc25a: Bytes<4>,
@@ -284,7 +287,7 @@ pub struct SquareState {
     pub unread_limit: Float,
 }
 
-pub static SQUARE_STATE: SquareState = SquareState {
+pub static WINDSCREEN_FLAKE_STATE: WindscreenFlakeState = WindscreenFlakeState {
     done: Dword::new(0x0),
     curve_ends: [Float::from_bits(0x44800000), Float::from_bits(0x3A0EA4A9)],
     steps: Dword::new(0x4),
@@ -348,12 +351,13 @@ pub static SQUARE_STATE: SquareState = SquareState {
     unread_limit: Float::from_bits(0x4248001A),
 };
 
-impl SquareState {
+impl WindscreenFlakeState {
     pub const START: usize = 0x8BC18A;
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SQUARE_STATE as *const SquareState) as usize
+        crate::pointers::game_address(&WINDSCREEN_FLAKE_STATE as *const WindscreenFlakeState)
+            as usize
     }
 }
 
@@ -363,189 +367,205 @@ mod typed_tests {
     use core::mem::{offset_of, size_of};
 
     #[test]
-    fn square_timing_starts_as_the_games() {
-        assert_eq!(size_of::<SquareTiming>(), SquareTiming::LEN);
-        let image = crate::moved::image_bytes(SquareTiming::START, SquareTiming::LEN);
+    fn windscreen_flake_timing_starts_as_the_games() {
+        assert_eq!(
+            size_of::<WindscreenFlakeTiming>(),
+            WindscreenFlakeTiming::LEN
+        );
+        let image =
+            crate::moved::image_bytes(WindscreenFlakeTiming::START, WindscreenFlakeTiming::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SquareTiming::home()) as *const u8,
-                SquareTiming::LEN,
+                crate::pointers::host_at(WindscreenFlakeTiming::home()) as *const u8,
+                WindscreenFlakeTiming::LEN,
             )
         };
         assert!(
             mine == &image[..],
-            "SQUARE_TIMING starts differently from the image"
+            "WINDSCREEN_FLAKE_TIMING starts differently from the image"
         );
         assert_eq!(
-            offset_of!(SquareTiming, rate),
-            0x89CA34 - SquareTiming::START
+            offset_of!(WindscreenFlakeTiming, rate),
+            0x89CA34 - WindscreenFlakeTiming::START
         );
         assert_eq!(
-            offset_of!(SquareTiming, spawn_rate),
-            0x89CA38 - SquareTiming::START
+            offset_of!(WindscreenFlakeTiming, spawn_rate),
+            0x89CA38 - WindscreenFlakeTiming::START
         );
     }
 
     #[test]
-    fn square_tables_starts_as_the_games() {
-        assert_eq!(size_of::<SquareTables>(), SquareTables::LEN);
-        let image = crate::moved::image_bytes(SquareTables::START, SquareTables::LEN);
+    fn windscreen_flake_tables_starts_as_the_games() {
+        assert_eq!(
+            size_of::<WindscreenFlakeTables>(),
+            WindscreenFlakeTables::LEN
+        );
+        let image =
+            crate::moved::image_bytes(WindscreenFlakeTables::START, WindscreenFlakeTables::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SquareTables::home()) as *const u8,
-                SquareTables::LEN,
+                crate::pointers::host_at(WindscreenFlakeTables::home()) as *const u8,
+                WindscreenFlakeTables::LEN,
             )
         };
         assert!(
             mine == &image[..],
-            "SQUARE_TABLES starts differently from the image"
+            "WINDSCREEN_FLAKE_TABLES starts differently from the image"
         );
         assert_eq!(
-            offset_of!(SquareTables, radii),
-            0x89CECA - SquareTables::START
+            offset_of!(WindscreenFlakeTables, radii),
+            0x89CECA - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, inverse),
-            0x89CEEA - SquareTables::START
+            offset_of!(WindscreenFlakeTables, inverse),
+            0x89CEEA - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, lengths),
-            0x89CEEE - SquareTables::START
+            offset_of!(WindscreenFlakeTables, lengths),
+            0x89CEEE - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, place),
-            0x89CEF6 - SquareTables::START
+            offset_of!(WindscreenFlakeTables, place),
+            0x89CEF6 - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, axes),
-            0x89CF1A - SquareTables::START
+            offset_of!(WindscreenFlakeTables, axes),
+            0x89CF1A - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, scaled_by_radius),
-            0x89CF3E - SquareTables::START
+            offset_of!(WindscreenFlakeTables, scaled_by_radius),
+            0x89CF3E - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, half_axes),
-            0x89CF56 - SquareTables::START
+            offset_of!(WindscreenFlakeTables, half_axes),
+            0x89CF56 - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, scaled_axes),
-            0x89CF6E - SquareTables::START
+            offset_of!(WindscreenFlakeTables, scaled_axes),
+            0x89CF6E - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, corners),
-            0x89CF92 - SquareTables::START
+            offset_of!(WindscreenFlakeTables, corners),
+            0x89CF92 - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, points),
-            0x89CFE6 - SquareTables::START
+            offset_of!(WindscreenFlakeTables, points),
+            0x89CFE6 - WindscreenFlakeTables::START
         );
         assert_eq!(
-            offset_of!(SquareTables, cursor),
-            0x89D166 - SquareTables::START
+            offset_of!(WindscreenFlakeTables, cursor),
+            0x89D166 - WindscreenFlakeTables::START
         );
     }
 
     #[test]
-    fn square_items_starts_as_the_games() {
-        assert_eq!(size_of::<SquareItems>(), SquareItems::LEN);
-        let image = crate::moved::image_bytes(SquareItems::START, SquareItems::LEN);
+    fn windscreen_flake_items_starts_as_the_games() {
+        assert_eq!(size_of::<WindscreenFlakeItems>(), WindscreenFlakeItems::LEN);
+        let image =
+            crate::moved::image_bytes(WindscreenFlakeItems::START, WindscreenFlakeItems::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SquareItems::home()) as *const u8,
-                SquareItems::LEN,
+                crate::pointers::host_at(WindscreenFlakeItems::home()) as *const u8,
+                WindscreenFlakeItems::LEN,
             )
         };
         assert!(
             mine == &image[..],
-            "SQUARE_ITEMS starts differently from the image"
+            "WINDSCREEN_FLAKE_ITEMS starts differently from the image"
         );
-        assert_eq!(size_of::<SquareItem>(), SquareItem::LEN);
+        assert_eq!(size_of::<WindscreenFlakeItem>(), WindscreenFlakeItem::LEN);
     }
 
     #[test]
-    fn square_state_starts_as_the_games() {
-        assert_eq!(size_of::<SquareState>(), SquareState::LEN);
-        let image = crate::moved::image_bytes(SquareState::START, SquareState::LEN);
+    fn windscreen_flake_state_starts_as_the_games() {
+        assert_eq!(size_of::<WindscreenFlakeState>(), WindscreenFlakeState::LEN);
+        let image =
+            crate::moved::image_bytes(WindscreenFlakeState::START, WindscreenFlakeState::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SquareState::home()) as *const u8,
-                SquareState::LEN,
+                crate::pointers::host_at(WindscreenFlakeState::home()) as *const u8,
+                WindscreenFlakeState::LEN,
             )
         };
         assert!(
             mine == &image[..],
-            "SQUARE_STATE starts differently from the image"
+            "WINDSCREEN_FLAKE_STATE starts differently from the image"
         );
         assert_eq!(
-            offset_of!(SquareState, curve_ends),
-            0x8BC18E - SquareState::START
+            offset_of!(WindscreenFlakeState, curve_ends),
+            0x8BC18E - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, steps),
-            0x8BC196 - SquareState::START
+            offset_of!(WindscreenFlakeState, steps),
+            0x8BC196 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, rate_share),
-            0x8BC19E - SquareState::START
+            offset_of!(WindscreenFlakeState, rate_share),
+            0x8BC19E - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, length_divisors),
-            0x8BC1A2 - SquareState::START
+            offset_of!(WindscreenFlakeState, length_divisors),
+            0x8BC1A2 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, share),
-            0x8BC1AA - SquareState::START
+            offset_of!(WindscreenFlakeState, share),
+            0x8BC1AA - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, places),
-            0x8BC1AE - SquareState::START
+            offset_of!(WindscreenFlakeState, places),
+            0x8BC1AE - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, unread_floats),
-            0x8BC1BE - SquareState::START
+            offset_of!(WindscreenFlakeState, unread_floats),
+            0x8BC1BE - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, axis_factors),
-            0x8BC1DE - SquareState::START
+            offset_of!(WindscreenFlakeState, axis_factors),
+            0x8BC1DE - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, halves),
-            0x8BC1F6 - SquareState::START
+            offset_of!(WindscreenFlakeState, halves),
+            0x8BC1F6 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, setup_places),
-            0x8BC212 - SquareState::START
+            offset_of!(WindscreenFlakeState, setup_places),
+            0x8BC212 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, run_places),
-            0x8BC222 - SquareState::START
-        );
-        assert_eq!(offset_of!(SquareState, fade), 0x8BC232 - SquareState::START);
-        assert_eq!(offset_of!(SquareState, far), 0x8BC236 - SquareState::START);
-        assert_eq!(
-            offset_of!(SquareState, size_k),
-            0x8BC23A - SquareState::START
+            offset_of!(WindscreenFlakeState, run_places),
+            0x8BC222 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, rate_constants),
-            0x8BC246 - SquareState::START
+            offset_of!(WindscreenFlakeState, fade),
+            0x8BC232 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, share_k),
-            0x8BC24E - SquareState::START
+            offset_of!(WindscreenFlakeState, far),
+            0x8BC236 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, spawn_random),
-            0x8BC252 - SquareState::START
+            offset_of!(WindscreenFlakeState, size_k),
+            0x8BC23A - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, pick_random),
-            0x8BC256 - SquareState::START
+            offset_of!(WindscreenFlakeState, rate_constants),
+            0x8BC246 - WindscreenFlakeState::START
         );
         assert_eq!(
-            offset_of!(SquareState, scaled_setting),
-            0x8BC25E - SquareState::START
+            offset_of!(WindscreenFlakeState, share_k),
+            0x8BC24E - WindscreenFlakeState::START
+        );
+        assert_eq!(
+            offset_of!(WindscreenFlakeState, spawn_random),
+            0x8BC252 - WindscreenFlakeState::START
+        );
+        assert_eq!(
+            offset_of!(WindscreenFlakeState, pick_random),
+            0x8BC256 - WindscreenFlakeState::START
+        );
+        assert_eq!(
+            offset_of!(WindscreenFlakeState, scaled_setting),
+            0x8BC25E - WindscreenFlakeState::START
         );
     }
 }

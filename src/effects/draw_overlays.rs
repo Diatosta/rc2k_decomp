@@ -1,7 +1,7 @@
 //! `effects::draw_overlays` (0x4C74DA): the race frame's layer of marks drawn before the car's
 //! shadow (a reading): `scene::depth_buffer_on`, `scene::depth_test_on`, render states
 //! 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 1, 0x1B = 1; `effects::draw_plane`,
-//! `effects::squares_frame`, `effects::hexagons_top`; then the second shadow, the twin of
+//! `effects::windscreen_flakes_frame`, `effects::windscreen_drops_top`; then the second shadow, the twin of
 //! `effects::draw_shadow` without its depth calls (`draw_shadow`'s `SECOND`).
 //!
 //! In:  nothing
@@ -44,8 +44,8 @@ pub fn draw_overlays() -> Result<(), Refused> {
             set_render_state(value, state);
         }
         crate::effects::draw_plane::draw_plane()?;
-        crate::effects::squares_frame::squares_frame()?;
-        crate::effects::hexagons_top::hexagons_top()?;
+        crate::effects::windscreen_flakes_frame::windscreen_flakes_frame()?;
+        crate::effects::windscreen_drops_top::windscreen_drops_top()?;
         draw_shadow_with(&SECOND, false)
     }
 }

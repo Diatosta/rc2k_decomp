@@ -40,7 +40,7 @@ pub struct ShapeTilt {
     pub length: Dword,
     /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
     pub unit: [Float; 3],
-    /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then also set to 0 by `effects::hexagons_drift` and moved by the drift).
+    /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
     pub point: [Float; 3],
 }
 

@@ -1,4 +1,4 @@
-//! `effects::hexagons_drift` (0x4BCBE9): the hexagons' drift from the view's moves.
+//! `effects::windscreen_drops_drift` (0x4BCBE9): the windscreen drops' drift from the view's moves.
 //! `flt_811BDF` .. 0; unless this is the first time (`dword_8161AE`, then 1): unless the
 //! second (`dword_8161B2`, then 1), the view's move (the settings' +0x26AC .. less the kept
 //! place, times `flt_764FE0`) less the last move (plus the last times `flt_82E326` ..),
@@ -16,9 +16,9 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
-use crate::effects::hexagon_vars::HEX;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::windscreen_drop_vars::HEX;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
@@ -31,7 +31,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(s: u32) {
     view_moved_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
         &CLOCK,
     )
@@ -40,7 +40,7 @@ fn view_moved(s: u32) {
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
 fn drift_turned(m: u32, t: u32, l: u32) {
     drift_turned_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         m as usize,
         t as usize,
         l as usize,
@@ -50,7 +50,7 @@ fn drift_turned(m: u32, t: u32, l: u32) {
 /// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
 fn drift_back(m: u32, t: u32, l: u32) {
     drift_back_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         m as usize,
         t as usize,
         l as usize,
@@ -60,14 +60,14 @@ fn drift_back(m: u32, t: u32, l: u32) {
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 fn move_kept(s: u32) {
     move_kept_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
         &CLOCK,
     )
 }
 
 /// The Rust version (see the header).
-pub fn hexagons_drift() -> Result<(), Refused> {
+pub fn windscreen_drops_drift() -> Result<(), Refused> {
     let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
     if s == 0 {
         return Err(BadInput("no marks settings").into());

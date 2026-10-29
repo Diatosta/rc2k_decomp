@@ -1,22 +1,24 @@
-//! `effects::squares_frame` (0x4BF60F): the squares' frame (as `effects::draw_plane`'s, with
+//! `effects::windscreen_flakes_frame` (0x4BF60F): the windscreen flakes' frame (as `effects::draw_plane`'s, with
 //! the rate times `flt_8BC19E` and the lengths over `flt_8BC1A2` / `flt_8BC1A6`): the
 //! rate, the place and two axes from the settings, made one long and square, scaled
 //! (`effects::scale_axes`); nothing more unless the place's way faces the third axis away;
 //! then `effects::run_pong`; unless the rate times `flt_8BC1AA` comes to 0 (`fistp`, as the
-//! x87 is set) `effects::run_squares`, and with the settings' +0x2744 and `dword_7652A0`
-//! `effects::squares_step`.
+//! x87 is set) `effects::run_windscreen_flakes`, and with the settings' +0x2744 and `dword_7652A0`
+//! `effects::windscreen_flakes_step`.
+//!
+//! Screen: the snow settling on the windscreen in the in-car view (owner, 2026-10-29: gone with `draw_windscreen_flake` cut). Called the squares until then.
 //!
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables; the vector helpers, `scale_axes` and `squares_step` their Rust
-//! versions. Refuses null settings and `squares_step`'s refusals.
+//! game's variables; the vector helpers, `scale_axes` and `windscreen_flakes_step` their Rust
+//! versions. Refuses null settings and `windscreen_flakes_step`'s refusals.
 
-use crate::effects::hexagon_state::HEXAGON_STATE;
-use crate::effects::hexagon_vars::HEX;
-use crate::effects::squares_step::squares_step;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
+use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -26,18 +28,27 @@ use crate::scene::vector3::normalise;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
 fn frame_axes(s: u32) {
-    frame_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &SQUARE_STATE)
+    frame_axes_x87(
+        s as usize,
+        &WINDSCREEN_FLAKE_TIMING,
+        &WINDSCREEN_FLAKE_TABLES,
+        &WINDSCREEN_FLAKE_STATE,
+    )
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
 fn frame_up(s: u32) {
-    frame_up_x87(s as usize, &SQUARE_TABLES, &SQUARE_STATE)
+    frame_up_x87(
+        s as usize,
+        &WINDSCREEN_FLAKE_TABLES,
+        &WINDSCREEN_FLAKE_STATE,
+    )
 }
 
 /// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
 fn frame_place(s: u32) {
     frame_place_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
     )
 }
@@ -45,19 +56,19 @@ fn frame_place(s: u32) {
 /// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
 fn frame_facing() {
     frame_facing_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
-        &SQUARE_TABLES,
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
+        &WINDSCREEN_FLAKE_TABLES,
     )
 }
 
 /// The Rust version (see the header).
-pub fn squares_frame() -> Result<(), Refused> {
+pub fn windscreen_flakes_frame() -> Result<(), Refused> {
     let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
     frame_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| &SQUARE_TABLES.axes[n]);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &WINDSCREEN_FLAKE_TABLES.axes[n]);
     normalise(a0);
     frame_up(s);
     normalise(a1);
@@ -68,14 +79,18 @@ pub fn squares_frame() -> Result<(), Refused> {
     frame_place(s);
     normalise(&HEX.place);
     frame_facing();
-    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+    if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
     crate::effects::run_pong::run_pong()?;
-    if x87::mul_to_int(SQUARE_TIMING.rate.bits(), SQUARE_STATE.share.bits()) == 0 {
+    if x87::mul_to_int(
+        WINDSCREEN_FLAKE_TIMING.rate.bits(),
+        WINDSCREEN_FLAKE_STATE.share.bits(),
+    ) == 0
+    {
         return Ok(());
     }
-    crate::effects::run_squares::run_squares()?;
+    crate::effects::run_windscreen_flakes::run_windscreen_flakes()?;
     let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
     if GamePtr::new(s + 0x2744).read::<u32>("a mark's field")? == 0 {
         return Ok(());
@@ -83,17 +98,23 @@ pub fn squares_frame() -> Result<(), Refused> {
     if MARKS_KIND_FLOATS.running.bits() == 0 {
         return Ok(());
     }
-    squares_step()?;
+    windscreen_flakes_step()?;
     Ok(())
 }
 
 use crate::effects::plain::{ld, ldi, st};
-use crate::effects::squares_store::{
-    SQUARE_STATE, SQUARE_TABLES, SQUARE_TIMING, SquareState, SquareTables, SquareTiming,
+use crate::effects::windscreen_flakes_store::{
+    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES, WINDSCREEN_FLAKE_TIMING, WindscreenFlakeState,
+    WindscreenFlakeTables, WindscreenFlakeTiming,
 };
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
-fn frame_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, ss: &SquareState) {
+fn frame_axes_x87(
+    s: usize,
+    sti: &WindscreenFlakeTiming,
+    sq: &WindscreenFlakeTables,
+    ss: &WindscreenFlakeState,
+) {
     let t0 = ldi(s, 0x2740);
     let t1 = t0 * bh::ld(ss.rate_share.bits());
     sti.rate.set_bits(bh::st(t1));
@@ -126,7 +147,7 @@ fn frame_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, ss: &SquareSt
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn frame_up_x87(s: usize, sq: &SquareTables, ss: &SquareState) {
+fn frame_up_x87(s: usize, sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     let t0 = ldi(s, 0x2708);
     let t1 = t0 - ldi(s, 0x2720);
     sq.axes[1][0].set_bits(bh::st(t1));
@@ -160,7 +181,7 @@ fn frame_place_x87(hx: usize, s: usize) {
 }
 
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-fn frame_facing_x87(hx: usize, sq: &SquareTables) {
+fn frame_facing_x87(hx: usize, sq: &WindscreenFlakeTables) {
     let t0 = ld(hx, 0xB1262);
     let t1 = t0 * bh::ld(sq.axes[2][0].bits());
     let t2 = ld(hx, 0xB1266);
@@ -169,7 +190,7 @@ fn frame_facing_x87(hx: usize, sq: &SquareTables) {
     let t5 = t4 * bh::ld(sq.axes[2][2].bits());
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    HEXAGON_STATE.facing.set_bits(bh::st(t7));
+    WINDSCREEN_DROP_STATE.facing.set_bits(bh::st(t7));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -294,9 +315,11 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::hexagon_state::{HEXAGON_STATE, HexagonState};
-    use crate::effects::squares_store::{SquareState, SquareTables, SquareTiming};
     use crate::effects::typed_sync::{overlay, with_overlays};
+    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
+    use crate::effects::windscreen_flakes_store::{
+        WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
+    };
 
     #[test]
     fn frame_axes_x87_matches() {
@@ -344,12 +367,18 @@ mod asm_differential {
             &SPEC,
             |b| reference::frame_axes_x87(b[0], b[1]),
             |b| {
-                with_copy::<SquareTiming, _>(b[0], SquareTiming::START, |sti| {
-                    with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                        with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {
-                            super::frame_axes_x87(b[1], sti, sq, ss)
-                        })
-                    })
+                with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
+                    with_copy::<WindscreenFlakeTables, _>(
+                        b[0],
+                        WindscreenFlakeTables::START,
+                        |sq| {
+                            with_copy::<WindscreenFlakeState, _>(
+                                b[0],
+                                WindscreenFlakeState::START,
+                                |ss| super::frame_axes_x87(b[1], sti, sq, ss),
+                            )
+                        },
+                    )
                 })
             },
         );
@@ -395,8 +424,8 @@ mod asm_differential {
             &SPEC,
             |b| reference::frame_up_x87(b[0], b[1]),
             |b| {
-                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                    with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
+                    with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
                         super::frame_up_x87(b[1], sq, ss)
                     })
                 })
@@ -454,11 +483,13 @@ mod asm_differential {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(&HEXAGON_STATE, HexagonState::START)],
+                    &[overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START)],
                     || {
-                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                            super::frame_facing_x87(b[0], sq)
-                        })
+                        with_copy::<WindscreenFlakeTables, _>(
+                            b[0],
+                            WindscreenFlakeTables::START,
+                            |sq| super::frame_facing_x87(b[0], sq),
+                        )
                     },
                 )
             },

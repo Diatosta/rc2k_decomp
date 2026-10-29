@@ -31,7 +31,7 @@ fn clamped(kind: u32) -> u32 {
 /// picture's path; that read (`gfx::read_picture_file`, at 256 x 128, the picture's sizes
 /// kept round it); its pixels packed (the four bytes or'd, inverted) into
 /// `g_marksEdgeMask`; the shape tilt the kind's float times 0.0175; then `make_masks`,
-/// `set_up_hexagons`, `set_up_squares` (and `nullsub_17`). Refuses a mark neither 0 nor
+/// `set_up_windscreen_drops`, `set_up_windscreen_flakes` (and `nullsub_17`). Refuses a mark neither 0 nor
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
 pub fn load_edges(resume: u32) -> Result<(), Refused> {
@@ -88,8 +88,12 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         .tilt
         .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
     crate::effects::masks::make_masks()?;
-    crate::effects::shapes::set_up_hexagons(game_addr(crate::effects::shapes::HEXAGONS.resume))?;
-    crate::effects::shapes::set_up_squares(game_addr(crate::effects::shapes::SQUARES_RESUME))?;
+    crate::effects::shapes::set_up_windscreen_drops(game_addr(
+        crate::effects::shapes::WINDSCREEN_DROPS.resume,
+    ))?;
+    crate::effects::shapes::set_up_windscreen_flakes(game_addr(
+        crate::effects::shapes::WINDSCREEN_FLAKES_RESUME,
+    ))?;
     Ok(())
 }
 
@@ -109,7 +113,7 @@ pub fn load_kind_data() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_squares`, `effects::hexagons_frame`) (IDA 0x809BC3 .. 0x811BC3, the image's layout; phase 7, typed state).
+/// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3, the image's layout; phase 7, typed state).
 #[repr(C)]
 pub struct EdgeMask {
     /// 0x809BC3: `g_marksEdgeMask`: 256 x 128 cells, a byte set where an item dies.

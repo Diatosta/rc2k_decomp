@@ -655,9 +655,9 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::gfx::locked::home,
     },
     Moved {
-        ida: crate::gfx::hexagon_batch::START, // The marks' hexagon batch drawn by d3d (the index and vertex counts, the fans, the records)
-        len: crate::gfx::hexagon_batch::LEN,
-        home: crate::gfx::hexagon_batch::home,
+        ida: crate::gfx::windscreen_drop_batch::START, // The marks' windscreen drop batch drawn by d3d (the index and vertex counts, the fans, the records)
+        len: crate::gfx::windscreen_drop_batch::LEN,
+        home: crate::gfx::windscreen_drop_batch::home,
     },
     // session: the screen, the window's flags, the machine, the clocks (`session`)
     Moved {
@@ -1833,19 +1833,19 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::effects::edges::KindBoxes::home,
     },
     Moved {
-        ida: crate::effects::hexagon_state::HexagonState::START,
-        len: crate::effects::hexagon_state::HexagonState::LEN,
-        home: crate::effects::hexagon_state::HexagonState::home,
+        ida: crate::effects::windscreen_drop_state::WindscreenDropState::START,
+        len: crate::effects::windscreen_drop_state::WindscreenDropState::LEN,
+        home: crate::effects::windscreen_drop_state::WindscreenDropState::home,
     },
     Moved {
-        ida: crate::effects::hexagon_state::HexagonWork::START,
-        len: crate::effects::hexagon_state::HexagonWork::LEN,
-        home: crate::effects::hexagon_state::HexagonWork::home,
+        ida: crate::effects::windscreen_drop_state::WindscreenDropWork::START,
+        len: crate::effects::windscreen_drop_state::WindscreenDropWork::LEN,
+        home: crate::effects::windscreen_drop_state::WindscreenDropWork::home,
     },
     Moved {
-        ida: crate::effects::hexagon_vars::HexagonVars::START,
-        len: crate::effects::hexagon_vars::HexagonVars::LEN,
-        home: crate::effects::hexagon_vars::HexagonVars::home,
+        ida: crate::effects::windscreen_drop_vars::WindscreenDropVars::START,
+        len: crate::effects::windscreen_drop_vars::WindscreenDropVars::LEN,
+        home: crate::effects::windscreen_drop_vars::WindscreenDropVars::home,
     },
     Moved {
         ida: crate::effects::mask_vars::MaskVars::START,
@@ -1873,24 +1873,24 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::effects::mask_constants::MaskConstants::home,
     },
     Moved {
-        ida: crate::effects::squares_store::SquareTiming::START,
-        len: crate::effects::squares_store::SquareTiming::LEN,
-        home: crate::effects::squares_store::SquareTiming::home,
+        ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::START,
+        len: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::LEN,
+        home: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::home,
     },
     Moved {
-        ida: crate::effects::squares_store::SquareTables::START,
-        len: crate::effects::squares_store::SquareTables::LEN,
-        home: crate::effects::squares_store::SquareTables::home,
+        ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::START,
+        len: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::LEN,
+        home: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::home,
     },
     Moved {
-        ida: crate::effects::squares_store::SquareItems::START,
-        len: crate::effects::squares_store::SquareItems::LEN,
-        home: crate::effects::squares_store::SquareItems::home,
+        ida: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::START,
+        len: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::LEN,
+        home: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::home,
     },
     Moved {
-        ida: crate::effects::squares_store::SquareState::START,
-        len: crate::effects::squares_store::SquareState::LEN,
-        home: crate::effects::squares_store::SquareState::home,
+        ida: crate::effects::windscreen_flakes_store::WindscreenFlakeState::START,
+        len: crate::effects::windscreen_flakes_store::WindscreenFlakeState::LEN,
+        home: crate::effects::windscreen_flakes_store::WindscreenFlakeState::home,
     },
     Moved {
         ida: crate::effects::edges::EdgeSettings::START,

@@ -1,9 +1,9 @@
-//! `effects::run_squares` (0x4BFFEC): the squares' frame, with the x87 rounding set to chop
-//! throughout (put back at the end): `effects::squares_setup`; the vertices' texture places
-//! from `dword_8BC222` ..; with `dword_7652A0` `effects::squares_spawn`; then each live square
+//! `effects::run_windscreen_flakes` (0x4BFFEC): the windscreen flakes' frame, with the x87 rounding set to chop
+//! throughout (put back at the end): `effects::windscreen_flakes_setup`; the vertices' texture places
+//! from `dword_8BC222` ..; with `dword_7652A0` `effects::windscreen_flakes_spawn`; then each live flake
 //! item: with `dword_7652A0` its age (+8) plus `g_marksFrameTicks`, ended at 0xFA0 or more;
 //! ended when its cell's byte in `g_marksEdgeMask` is set (the cell from its place, chopped,
-//! shifted right 3); else drawn by `effects::draw_square` (st(1) its x, st(0) `flt_8BC236`
+//! shifted right 3); else drawn by `effects::draw_windscreen_flake` (st(1) its x, st(0) `flt_8BC236`
 //! less its z; colour `g_viewLight`'s low 24 bits under the alpha: not (age over
 //! `dword_8BC232`), shifted left 24). Last `scene::depth_buffer_on`.
 //!
@@ -14,9 +14,9 @@
 
 use crate::effects::edges::EDGE_MASK;
 use crate::effects::setup::CLOCK;
-use crate::effects::squares_spawn::squares_spawn;
-use crate::effects::squares_store::{SQUARE_ITEMS, SQUARE_STATE};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
+use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_ITEMS, WINDSCREEN_FLAKE_STATE};
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
@@ -37,7 +37,7 @@ fn less(k: u32, z: u32) -> [u8; 10] {
 }
 
 /// The Rust version (see the header).
-pub fn run_squares() -> Result<(), Refused> {
+pub fn run_windscreen_flakes() -> Result<(), Refused> {
     let old = x87::set_chop();
     run()?;
     x87::set_control(old);
@@ -46,16 +46,16 @@ pub fn run_squares() -> Result<(), Refused> {
 
 fn run() -> Result<(), Refused> {
     {
-        crate::effects::squares_setup::squares_setup();
-        let [a, b, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.run_places);
+        crate::effects::windscreen_flakes_setup::windscreen_flakes_setup();
+        let [a, b, c, d]: [u32; 4] = read_bits(&WINDSCREEN_FLAKE_STATE.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            squares_spawn()?;
+            windscreen_flakes_spawn()?;
         }
-        for item in &SQUARE_ITEMS.items {
+        for item in &WINDSCREEN_FLAKE_ITEMS.items {
             if item.live.get() != 1 {
                 continue;
             }
@@ -75,15 +75,20 @@ fn run() -> Result<(), Refused> {
                 item.live.set(0);
                 continue;
             }
-            let alpha =
-                x87::int_over_int_to_int(item.age.get() as i32, SQUARE_STATE.fade.get() as i32)
-                    as u32;
+            let alpha = x87::int_over_int_to_int(
+                item.age.get() as i32,
+                WINDSCREEN_FLAKE_STATE.fade.get() as i32,
+            ) as u32;
             let colour = ((!alpha) << 24) | (FRAME_WORK.view_light.bits() & 0xFF_FFFF);
             let values = [
-                less(SQUARE_STATE.far.bits(), item.place[1].bits()),
+                less(WINDSCREEN_FLAKE_STATE.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),
             ];
-            crate::effects::draw_square::draw_square(address_of(item), colour, values);
+            crate::effects::draw_windscreen_flake::draw_windscreen_flake(
+                address_of(item),
+                colour,
+                values,
+            );
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

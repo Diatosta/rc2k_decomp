@@ -1,8 +1,8 @@
-//! `effects::hexagons_spawn` (0x4BC5D9): new hexagons this frame. `dword_814724` plus 1;
+//! `effects::windscreen_drops_spawn` (0x4BC5D9): new windscreen drops this frame. `dword_814724` plus 1;
 //! with the x87 rounding set to chop throughout (put back at the end): a rate (the sine of
 //! `flt_76923E` + `g_marksShapeTilt` times `flt_814728`, plus -(`flt_814728` times
 //! `flt_811BE7`) times its cosine times `flt_82E2AA`) into `flt_81472C`; unless below
-//! `flt_82E2AE`: its whole part (held to 0x80) of `effects::pick_hexagon`s, and one more when
+//! `flt_82E2AE`: its whole part (held to 0x80) of `effects::pick_windscreen_drop`s, and one more when
 //! the marks' random's bits 8 .. 23 are at most its fraction times `flt_82E2B2`.
 //!
 //! In:  nothing
@@ -11,10 +11,10 @@
 //! Caller: `sub_4BC0B1` (0x4BC225). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 
-use crate::effects::hexagon_state::HEXAGON_STATE;
-use crate::effects::hexagon_vars::HEX;
-use crate::effects::pick_hexagon::pick_hexagon;
+use crate::effects::pick_windscreen_drop::pick_windscreen_drop;
 use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
+use crate::effects::windscreen_drop_vars::HEX;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -23,30 +23,33 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(crate::effects::hexagon_vars::HexagonVars::base(), &KEPT)
+    rate_x87(
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
+        &KEPT,
+    )
 }
 
 /// The Rust version (see the header).
-pub fn hexagons_spawn() -> Result<(), Refused> {
+pub fn windscreen_drops_spawn() -> Result<(), Refused> {
     {
-        HEXAGON_STATE
+        WINDSCREEN_DROP_STATE
             .frames
-            .set(HEXAGON_STATE.frames.get().wrapping_add(1));
+            .set(WINDSCREEN_DROP_STATE.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate();
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
-            let v: u32 = HEXAGON_STATE.spawn_rate.bits();
+            let v: u32 = WINDSCREEN_DROP_STATE.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_hexagon()?;
+                pick_windscreen_drop()?;
             }
             let share = x87::fraction_times_to_int(v, HEX.share_k.bits());
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_hexagon()?;
+                pick_windscreen_drop()?;
             }
         }
         x87::set_control(old);
@@ -63,9 +66,9 @@ fn rate_x87(hx: usize, kv: &KeptView) {
     let t0 = bh::ld(kv.first_angle.bits());
     let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
     let t2 = t1.sin();
-    let t3 = t2 * bh::ld(HEXAGON_STATE.rate.bits());
-    HEXAGON_STATE.spawn_rate.set_bits(bh::st(t3));
-    let t4 = bh::ld(HEXAGON_STATE.rate.bits());
+    let t3 = t2 * bh::ld(WINDSCREEN_DROP_STATE.rate.bits());
+    WINDSCREEN_DROP_STATE.spawn_rate.set_bits(bh::st(t3));
+    let t4 = bh::ld(WINDSCREEN_DROP_STATE.rate.bits());
     let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
     let t6 = -t5;
     let t7 = bh::ld(kv.first_angle.bits());
@@ -73,9 +76,9 @@ fn rate_x87(hx: usize, kv: &KeptView) {
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * ld(hx, 0xC936A);
-    let t12 = t11 + bh::ld(HEXAGON_STATE.spawn_rate.bits());
-    HEXAGON_STATE.spawn_rate.set_bits(bh::st(t12));
-    let t13 = bh::ld(HEXAGON_STATE.spawn_rate.bits());
+    let t12 = t11 + bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
+    WINDSCREEN_DROP_STATE.spawn_rate.set_bits(bh::st(t12));
+    let t13 = bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
     crate::effects::plain::set_status(bh::compare(t13, ld(hx, 0xC936E)));
 }
 
@@ -120,10 +123,10 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::hexagon_state::{HEXAGON_STATE, HexagonState};
     use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
+    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
 
     #[test]
     fn rate_x87_matches() {
@@ -159,7 +162,7 @@ mod asm_differential {
                         b[1],
                         &[
                             overlay(&SHAPE_TILT, ShapeTilt::START),
-                            overlay(&HEXAGON_STATE, HexagonState::START),
+                            overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
                         ],
                         || super::rate_x87(b[1], kv),
                     )

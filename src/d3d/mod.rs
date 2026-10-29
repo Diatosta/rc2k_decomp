@@ -11,7 +11,7 @@ pub mod copy_to_device_texture;
 pub mod draw_fan;
 pub mod draw_fan_unclipped;
 pub mod draw_hud_batch;
-pub mod draw_marks_hexagons;
+pub mod draw_marks_windscreen_drops;
 pub mod draw_vertex_strip;
 pub mod lock_texture;
 pub mod recorder;

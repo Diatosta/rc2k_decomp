@@ -1,4 +1,4 @@
-//! `effects::draw_plane` (0x4C8F64): a quad laid on the hexagons' frame (a reading: the
+//! `effects::draw_plane` (0x4C8F64): a quad laid on the windscreen drops' frame (a reading: the
 //! ground glare): the rate, the place and two axes from the settings (+0x2720 .., +0x272C ..,
 //! +0x2708 .., +0x2740), their lengths' shares, made one long and square
 //! (`scene::normalise_vector3`, `scene::cross_product3`), scaled (`effects::scale_axes`);
@@ -20,11 +20,11 @@
 
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::hexagon_state::HEXAGON_STATE;
-use crate::effects::hexagon_vars::HEX;
 use crate::effects::kind_store::{QUAD_3, QuadWork};
-use crate::effects::squares_store::SQUARE_TABLES;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
+use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_TABLES;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
@@ -78,18 +78,23 @@ impl PlaneTuning {
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.
 fn plane_axes(s: u32) {
-    plane_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &PLANE_TUNING)
+    plane_axes_x87(
+        s as usize,
+        &WINDSCREEN_FLAKE_TIMING,
+        &WINDSCREEN_FLAKE_TABLES,
+        &PLANE_TUNING,
+    )
 }
 
 /// The original's 0x4C900D .. 0x4C906D: the second axis (`flt_89CF26` ..), its length over `flt_934F38` into `flt_89CEF2`.
 fn plane_up(s: u32) {
-    plane_up_x87(s as usize, &SQUARE_TABLES, &PLANE_TUNING)
+    plane_up_x87(s as usize, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING)
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
 fn plane_place(s: u32) {
     plane_place_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
     )
 }
@@ -97,14 +102,14 @@ fn plane_place(s: u32) {
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
 fn plane_facing() {
     plane_facing_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
-        &SQUARE_TABLES,
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
+        &WINDSCREEN_FLAKE_TABLES,
     )
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
 fn plane_corners() {
-    plane_corners_x87(&SQUARE_TABLES, &QUAD_3)
+    plane_corners_x87(&WINDSCREEN_FLAKE_TABLES, &QUAD_3)
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
@@ -121,7 +126,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     }
     let corner: u32 = QUAD_3.corner.get();
     plane_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| &SQUARE_TABLES.axes[n]);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &WINDSCREEN_FLAKE_TABLES.axes[n]);
     normalise(a0);
     plane_up(s);
     normalise(a1);
@@ -132,7 +137,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     plane_place(s);
     normalise(&HEX.place);
     plane_facing();
-    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+    if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
     if FRAME_WORK.lead_kept[7].bits() == 0 {
@@ -201,12 +206,19 @@ pub fn draw_plane() -> Result<(), Refused> {
 
 use crate::effects::plain::{ld, ldi, st};
 use crate::effects::setup::SETTINGS;
-use crate::effects::squares_store::{SQUARE_TIMING, SquareTables, SquareTiming};
+use crate::effects::windscreen_flakes_store::{
+    WINDSCREEN_FLAKE_TIMING, WindscreenFlakeTables, WindscreenFlakeTiming,
+};
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
-fn plane_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, pt: &PlaneTuning) {
+fn plane_axes_x87(
+    s: usize,
+    sti: &WindscreenFlakeTiming,
+    sq: &WindscreenFlakeTables,
+    pt: &PlaneTuning,
+) {
     let t0 = ldi(s, 0x2740);
     let t1 = t0 * bh::ld(pt.rate_k.bits());
     sti.rate.set_bits(bh::st(t1));
@@ -239,7 +251,7 @@ fn plane_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, pt: &PlaneTun
 }
 
 /// `plane_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn plane_up_x87(s: usize, sq: &SquareTables, pt: &PlaneTuning) {
+fn plane_up_x87(s: usize, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
     let t0 = ldi(s, 0x2708);
     let t1 = t0 - ldi(s, 0x2720);
     sq.axes[1][0].set_bits(bh::st(t1));
@@ -273,7 +285,7 @@ fn plane_place_x87(hx: usize, s: usize) {
 }
 
 /// `plane_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-fn plane_facing_x87(hx: usize, sq: &SquareTables) {
+fn plane_facing_x87(hx: usize, sq: &WindscreenFlakeTables) {
     let t0 = ld(hx, 0xB1262);
     let t1 = t0 * bh::ld(sq.axes[2][0].bits());
     let t2 = ld(hx, 0xB1266);
@@ -282,11 +294,11 @@ fn plane_facing_x87(hx: usize, sq: &SquareTables) {
     let t5 = t4 * bh::ld(sq.axes[2][2].bits());
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    HEXAGON_STATE.facing.set_bits(bh::st(t7));
+    WINDSCREEN_DROP_STATE.facing.set_bits(bh::st(t7));
 }
 
 /// `plane_corners`'s x87 block as plain Rust on the x87 model (47 instructions), same order and memory places.
-fn plane_corners_x87(sq: &SquareTables, q: &QuadWork) {
+fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
     let t0 = bh::X(0.0);
     let t1 = bh::X(0.0);
     let t2 = t1 * bh::ld(sq.lengths[1].bits());
@@ -602,9 +614,9 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::hexagon_state::{HEXAGON_STATE, HexagonState};
-    use crate::effects::squares_store::{SquareTables, SquareTiming};
     use crate::effects::typed_sync::{overlay, with_overlays};
+    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
+    use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 
     #[test]
     fn plane_axes_x87_matches() {
@@ -652,12 +664,16 @@ mod asm_differential {
             &SPEC,
             |b| reference::plane_axes_x87(b[0], b[1]),
             |b| {
-                with_copy::<SquareTiming, _>(b[0], SquareTiming::START, |sti| {
-                    with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                        with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                            super::plane_axes_x87(b[1], sti, sq, pt)
-                        })
-                    })
+                with_copy::<WindscreenFlakeTiming, _>(b[0], WindscreenFlakeTiming::START, |sti| {
+                    with_copy::<WindscreenFlakeTables, _>(
+                        b[0],
+                        WindscreenFlakeTables::START,
+                        |sq| {
+                            with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
+                                super::plane_axes_x87(b[1], sti, sq, pt)
+                            })
+                        },
+                    )
                 })
             },
         );
@@ -703,7 +719,7 @@ mod asm_differential {
             &SPEC,
             |b| reference::plane_up_x87(b[0], b[1]),
             |b| {
-                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
                         super::plane_up_x87(b[1], sq, pt)
                     })
@@ -762,11 +778,13 @@ mod asm_differential {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(&HEXAGON_STATE, HexagonState::START)],
+                    &[overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START)],
                     || {
-                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                            super::plane_facing_x87(b[0], sq)
-                        })
+                        with_copy::<WindscreenFlakeTables, _>(
+                            b[0],
+                            WindscreenFlakeTables::START,
+                            |sq| super::plane_facing_x87(b[0], sq),
+                        )
                     },
                 )
             },
@@ -822,7 +840,7 @@ mod asm_differential {
             &SPEC,
             |b| reference::plane_corners_x87(b[0]),
             |b| {
-                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q))
                 })
             },

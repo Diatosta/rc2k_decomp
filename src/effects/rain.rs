@@ -9,7 +9,7 @@ use crate::session::{Bytes, Dword, Float};
 /// The rain's variables (IDA 0x8BC405 .. 0x8BDE55, the image's layout; phase 7, typed state).
 #[repr(C)]
 pub struct RainState {
-    /// 0x8BC405: `dword_8BC405`: 1 once a rain frame has been drawn, 0 with no drops (and after `effects::seed_noise`, which also clears it); `effects::draw_streak` draws nothing while it is 0.
+    /// 0x8BC405: `dword_8BC405`: 1 once a rain frame has been drawn, 0 with no drops (and after `effects::seed_noise`, which also clears it); `effects::draw_rain_streak` draws nothing while it is 0.
     pub drawn: Dword,
     /// 0x8BC409: `dword_8BC409`: the scene clock at the last drift targets (`effects::drift_offsets`).
     pub drift_since: Dword,

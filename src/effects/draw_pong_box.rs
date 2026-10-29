@@ -25,7 +25,7 @@ fn sides(v: &[[u8; 10]; 4]) {
         (crate::pointers::game_address(v.as_ptr())) as usize,
         &PONG,
         &MARKS_FLOATS,
-        &SQUARE_TABLES,
+        &WINDSCREEN_FLAKE_TABLES,
     )
 }
 
@@ -34,13 +34,13 @@ fn corners(v: &[[u8; 10]; 4]) {
     corners_x87(
         (crate::pointers::game_address(v.as_ptr())) as usize,
         &PONG,
-        &SQUARE_TABLES,
+        &WINDSCREEN_FLAKE_TABLES,
     )
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
 fn projected(p: u32) {
-    projected_x87(p as usize, &SQUARE_TABLES)
+    projected_x87(p as usize, &WINDSCREEN_FLAKE_TABLES)
 }
 
 /// The Rust version (see the header).
@@ -55,7 +55,11 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
         VERTICES.vertices[n].v.set_bits(w);
     }
     corners(&v);
-    if x87::compare_status(SQUARE_TABLES.corners[0][2].bits(), PONG_RULES.near.bits()) == 0x100 {
+    if x87::compare_status(
+        WINDSCREEN_FLAKE_TABLES.corners[0][2].bits(),
+        PONG_RULES.near.bits(),
+    ) == 0x100
+    {
         return;
     }
     projected(crate::d3d::vertices_store::piece_addr());
@@ -66,13 +70,13 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
 }
 
 use crate::effects::plain::{ld80, st};
-use crate::effects::squares_store::{SQUARE_TABLES, SquareTables};
+use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_TABLES, WindscreenFlakeTables};
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 use crate::scene::draw_store::DRAW;
 
 /// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
-fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &SquareTables) {
+fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTables) {
     let _t0 = bh::from_f80(ld80(v, 0x1E));
     let _t1 = bh::from_f80(ld80(v, 0x14));
     let t2 = bh::from_f80(ld80(v, 0xA));
@@ -116,7 +120,7 @@ fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &SquareTables) {
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (50 instructions), same order and memory places.
-fn corners_x87(v: usize, p: &PongState, sq: &SquareTables) {
+fn corners_x87(v: usize, p: &PongState, sq: &WindscreenFlakeTables) {
     let t0 = bh::from_f80(ld80(v, 0x1E));
     let t1 = bh::from_f80(ld80(v, 0x14));
     let t2 = t1 * bh::ld(sq.lengths[1].bits());
@@ -163,7 +167,7 @@ fn corners_x87(v: usize, p: &PongState, sq: &SquareTables) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
-fn projected_x87(p: usize, sq: &SquareTables) {
+fn projected_x87(p: usize, sq: &WindscreenFlakeTables) {
     let t0 = ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(sq.corners[3][2].bits());
     let t2 = ld(DRAW.view_scale.bits());
@@ -418,7 +422,7 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::squares_store::SquareTables;
+    use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 
     #[test]
     fn sides_x87_matches() {
@@ -470,9 +474,13 @@ mod asm_differential {
                     b[0],
                     crate::effects::tuning::MarksFloats::START,
                     |f| {
-                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                            super::sides_x87(b[1], crate::effects::pong::state_at(b[0]), f, sq)
-                        })
+                        with_copy::<WindscreenFlakeTables, _>(
+                            b[0],
+                            WindscreenFlakeTables::START,
+                            |sq| {
+                                super::sides_x87(b[1], crate::effects::pong::state_at(b[0]), f, sq)
+                            },
+                        )
                     },
                 )
             },
@@ -536,7 +544,7 @@ mod asm_differential {
             &SPEC,
             |b| reference::corners_x87(b[0], b[1]),
             |b| {
-                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     super::corners_x87(b[1], crate::effects::pong::state_at(b[0]), sq)
                 })
             },
@@ -597,7 +605,7 @@ mod asm_differential {
             &SPEC,
             |b| reference::projected_x87(b[0], b[1], b[2]),
             |b| {
-                with_copy::<SquareTables, _>(b[1], SquareTables::START, |sq| {
+                with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
                     super::projected_x87(b[2], sq)
                 })
             },

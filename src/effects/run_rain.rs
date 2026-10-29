@@ -11,8 +11,10 @@
 //! (y plus `dword_8BC505`); `dword_8BC505` the clock's low 20 bits times `flt_8C5FB5`
 //! when drifting. Then each drop k from the last: its noise place (`g_marksNoiseA` .. [k]
 //! plus the view and the drift, wrapped to 0x40000 and centred) as whole numbers to
-//! `effects::draw_streak`, and when the settings' +0x10 is set its turned place kept
+//! `effects::draw_rain_streak`, and when the settings' +0x10 is set its turned place kept
 //! (`dword_8BD111` .. [k], `fistp`). `dword_8BC405` 1.
+//!
+//! Screen: the falling rain, seen from inside and outside the car (owner, 2026-10-29: gone with `draw_rain_streak`'s draw cut).
 //!
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
@@ -146,7 +148,7 @@ pub fn run_rain() -> Result<(), Refused> {
                 x87_run::int_80(y as i32, false),
                 x87_run::int_80(x as i32, false),
             ];
-            crate::effects::draw_streak::draw_streak(place)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(place)?;
             let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
             if get(s + 0x10)? != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {

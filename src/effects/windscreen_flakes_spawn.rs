@@ -1,9 +1,9 @@
-//! `effects::squares_spawn` (0x4C0507): new squares this frame. `dword_89CA30` plus 1; with the
+//! `effects::windscreen_flakes_spawn` (0x4C0507): new windscreen flakes this frame. `dword_89CA30` plus 1; with the
 //! x87 rounding set to chop throughout (put back at the end): a rate (the sine of
 //! `flt_76923E` + `g_marksShapeTilt` times `flt_89CA34`, plus -(`flt_89CA34` times
 //! `flt_811BE7`) times its cosine times `flt_8BC246`) into `flt_89CA38`; unless below
-//! `flt_8BC24A`: its whole part (held to 0x80) of `effects::pick_square`s, and one more when
-//! the squares' random (`dword_8BC252`, times 0xC5 plus 0x5D) bits 8 .. 23 are at most its
+//! `flt_8BC24A`: its whole part (held to 0x80) of `effects::pick_windscreen_flake`s, and one more when
+//! the windscreen flakes' random (`dword_8BC252`, times 0xC5 plus 0x5D) bits 8 .. 23 are at most its
 //! fraction times `flt_8BC24E`. (After the compare the original frees st(0) and moves the
 //! stack's top on, with the stack already empty: kept.)
 //!
@@ -13,7 +13,7 @@
 //! Caller: `sub_4BFFEC` (0x4C0052). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 
-use crate::effects::pick_square::pick_square;
+use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
@@ -23,34 +23,34 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(&KEPT, &SQUARE_TIMING, &SQUARE_STATE)
+    rate_x87(&KEPT, &WINDSCREEN_FLAKE_TIMING, &WINDSCREEN_FLAKE_STATE)
 }
 
 /// The Rust version (see the header).
-pub fn squares_spawn() -> Result<(), Refused> {
+pub fn windscreen_flakes_spawn() -> Result<(), Refused> {
     {
-        SQUARE_TIMING
+        WINDSCREEN_FLAKE_TIMING
             .frames
-            .set(SQUARE_TIMING.frames.get().wrapping_add(1));
+            .set(WINDSCREEN_FLAKE_TIMING.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate();
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
-            let v: u32 = SQUARE_TIMING.spawn_rate.bits();
+            let v: u32 = WINDSCREEN_FLAKE_TIMING.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_square()?;
+                pick_windscreen_flake()?;
             }
-            let share = x87::fraction_times_to_int(v, SQUARE_STATE.share_k.bits());
-            let s = SQUARE_STATE
+            let share = x87::fraction_times_to_int(v, WINDSCREEN_FLAKE_STATE.share_k.bits());
+            let s = WINDSCREEN_FLAKE_STATE
                 .spawn_random
                 .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
-            SQUARE_STATE.spawn_random.set(s);
+            WINDSCREEN_FLAKE_STATE.spawn_random.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_square()?;
+                pick_windscreen_flake()?;
             }
         }
         x87::set_control(old);
@@ -58,12 +58,14 @@ pub fn squares_spawn() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::squares_store::{SQUARE_STATE, SQUARE_TIMING, SquareState, SquareTiming};
 use crate::effects::view_vectors::{KEPT, KeptView};
+use crate::effects::windscreen_flakes_store::{
+    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TIMING, WindscreenFlakeState, WindscreenFlakeTiming,
+};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn rate_x87(kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
+fn rate_x87(kv: &KeptView, sti: &WindscreenFlakeTiming, ss: &WindscreenFlakeState) {
     let t0 = bh::ld(kv.first_angle.bits());
     let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
     let t2 = t1.sin();
@@ -127,10 +129,10 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::squares_store::{SquareState, SquareTiming};
     use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
+    use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 
     #[test]
     fn rate_x87_matches() {
@@ -162,13 +164,23 @@ mod asm_differential {
             |b| reference::rate_x87(b[0], b[1]),
             |b| {
                 with_copy(b[1], KeptView::START, |kv| {
-                    with_copy::<SquareTiming, _>(b[1], SquareTiming::START, |sti| {
-                        with_copy::<SquareState, _>(b[1], SquareState::START, |ss| {
-                            with_overlays(b[1], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
-                                super::rate_x87(kv, sti, ss)
-                            })
-                        })
-                    })
+                    with_copy::<WindscreenFlakeTiming, _>(
+                        b[1],
+                        WindscreenFlakeTiming::START,
+                        |sti| {
+                            with_copy::<WindscreenFlakeState, _>(
+                                b[1],
+                                WindscreenFlakeState::START,
+                                |ss| {
+                                    with_overlays(
+                                        b[1],
+                                        &[overlay(&SHAPE_TILT, ShapeTilt::START)],
+                                        || super::rate_x87(kv, sti, ss),
+                                    )
+                                },
+                            )
+                        },
+                    )
                 })
             },
         );

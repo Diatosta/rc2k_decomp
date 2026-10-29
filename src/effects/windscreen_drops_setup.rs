@@ -1,4 +1,4 @@
-//! `effects::hexagons_setup` (0x4BBE62): the hexagons' frame set up: their two axes
+//! `effects::windscreen_drops_setup` (0x4BBE62): the windscreen drops' frame set up: their two axes
 //! (`flt_814C1A`, `flt_814C26`) times `flt_814BC2` into `unk_814C6E` / `unk_814C7A` and those
 //! times `flt_82E286` .. into `unk_814C86` / `unk_814C92`; `scene::depth_buffer_on`,
 //! `scene::set_texture` (`dword_5D5A24`), render states 0x11 = 1, 0x12 = 1, 0x15 = 4, 0x13 =
@@ -13,8 +13,8 @@
 //! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 
-use crate::effects::hexagon_state::HEXAGON_WORK;
-use crate::effects::hexagon_vars::HEX;
+use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK;
+use crate::effects::windscreen_drop_vars::HEX;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
@@ -34,11 +34,11 @@ const STATES: [(u32, u32); 8] = [
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 fn axes() {
-    axes_x87(crate::effects::hexagon_vars::HexagonVars::base())
+    axes_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base())
 }
 
 /// The Rust version (see the header).
-pub fn hexagons_setup() {
+pub fn windscreen_drops_setup() {
     use crate::scene::set_render_state::set_render_state;
     {
         axes();
@@ -65,7 +65,7 @@ pub fn hexagons_setup() {
             VERTICES.vertices[n].v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(6u32);
-        HEXAGON_WORK
+        WINDSCREEN_DROP_WORK
             .inverse
             .set_bits(x87::reciprocal(DRAW.farthest.bits()));
     }
@@ -75,42 +75,42 @@ use crate::effects::plain::ld;
 
 /// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
 fn axes_x87(hx: usize) {
-    let t0 = bh::ld(HEXAGON_WORK.axes[0].bits());
-    let t1 = t0 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[0].set_bits(bh::st(t1));
-    let t2 = bh::ld(HEXAGON_WORK.axes[1].bits());
-    let t3 = t2 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[1].set_bits(bh::st(t3));
-    let t4 = bh::ld(HEXAGON_WORK.axes[2].bits());
-    let t5 = t4 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[2].set_bits(bh::st(t5));
-    let t6 = bh::ld(HEXAGON_WORK.axes[3].bits());
-    let t7 = t6 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[3].set_bits(bh::st(t7));
-    let t8 = bh::ld(HEXAGON_WORK.axes[4].bits());
-    let t9 = t8 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[4].set_bits(bh::st(t9));
-    let t10 = bh::ld(HEXAGON_WORK.axes[5].bits());
-    let t11 = t10 * bh::ld(HEXAGON_WORK.radii[0].bits());
-    HEXAGON_WORK.setup_axes[5].set_bits(bh::st(t11));
-    let t12 = bh::ld(HEXAGON_WORK.setup_axes[0].bits());
+    let t0 = bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
+    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[0].set_bits(bh::st(t1));
+    let t2 = bh::ld(WINDSCREEN_DROP_WORK.axes[1].bits());
+    let t3 = t2 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[1].set_bits(bh::st(t3));
+    let t4 = bh::ld(WINDSCREEN_DROP_WORK.axes[2].bits());
+    let t5 = t4 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
+    let t7 = t6 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[3].set_bits(bh::st(t7));
+    let t8 = bh::ld(WINDSCREEN_DROP_WORK.axes[4].bits());
+    let t9 = t8 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[4].set_bits(bh::st(t9));
+    let t10 = bh::ld(WINDSCREEN_DROP_WORK.axes[5].bits());
+    let t11 = t10 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[5].set_bits(bh::st(t11));
+    let t12 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[0].bits());
     let t13 = t12 * ld(hx, 0xC9346);
-    HEXAGON_WORK.setup_axes[6].set_bits(bh::st(t13));
-    let t14 = bh::ld(HEXAGON_WORK.setup_axes[1].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[6].set_bits(bh::st(t13));
+    let t14 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[1].bits());
     let t15 = t14 * ld(hx, 0xC934A);
-    HEXAGON_WORK.setup_axes[7].set_bits(bh::st(t15));
-    let t16 = bh::ld(HEXAGON_WORK.setup_axes[2].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[7].set_bits(bh::st(t15));
+    let t16 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[2].bits());
     let t17 = t16 * ld(hx, 0xC934E);
-    HEXAGON_WORK.setup_axes[8].set_bits(bh::st(t17));
-    let t18 = bh::ld(HEXAGON_WORK.setup_axes[3].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[8].set_bits(bh::st(t17));
+    let t18 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[3].bits());
     let t19 = t18 * ld(hx, 0xC9352);
-    HEXAGON_WORK.setup_axes[9].set_bits(bh::st(t19));
-    let t20 = bh::ld(HEXAGON_WORK.setup_axes[4].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[9].set_bits(bh::st(t19));
+    let t20 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[4].bits());
     let t21 = t20 * ld(hx, 0xC9356);
-    HEXAGON_WORK.setup_axes[10].set_bits(bh::st(t21));
-    let t22 = bh::ld(HEXAGON_WORK.setup_axes[5].bits());
+    WINDSCREEN_DROP_WORK.setup_axes[10].set_bits(bh::st(t21));
+    let t22 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[5].bits());
     let t23 = t22 * ld(hx, 0xC935A);
-    HEXAGON_WORK.setup_axes[11].set_bits(bh::st(t23));
+    WINDSCREEN_DROP_WORK.setup_axes[11].set_bits(bh::st(t23));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -170,8 +170,8 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::hexagon_state::{HEXAGON_WORK, HexagonWork};
     use crate::effects::typed_sync::{overlay, with_overlays};
+    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_WORK, WindscreenDropWork};
 
     #[test]
     fn axes_x87_matches() {
@@ -221,9 +221,11 @@ mod asm_differential {
             &SPEC,
             |b| reference::axes_x87(b[0]),
             |b| {
-                with_overlays(b[0], &[overlay(&HEXAGON_WORK, HexagonWork::START)], || {
-                    super::axes_x87(b[0])
-                })
+                with_overlays(
+                    b[0],
+                    &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
+                    || super::axes_x87(b[0]),
+                )
             },
         );
     }

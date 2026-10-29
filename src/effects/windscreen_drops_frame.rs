@@ -1,5 +1,5 @@
-//! `effects::hexagons_frame` (0x4BC0B1, with its chunk 0x4BB94D .. 0x4BBE62): the hexagons'
-//! frame. With the drift on (`dword_7652A0`) `effects::hexagons_drift`; `effects::hexagons_setup`;
+//! `effects::windscreen_drops_frame` (0x4BC0B1, with its chunk 0x4BB94D .. 0x4BBE62): the windscreen drops'
+//! frame. With the drift on (`dword_7652A0`) `effects::windscreen_drops_drift`; `effects::windscreen_drops_setup`;
 //! then each live item (counted in `dword_814710`): with the drift on, its motion eased
 //! toward the drift at its cell and its place moved; it dies off the map (x or z past
 //! 0x7FF, as `(x | z << 1) & 0x800`) or on `g_marksEdgeMask`; else its sprite: the place
@@ -7,7 +7,7 @@
 //! projected into the buffer at `dword_816232` (0xC0 bytes each; at `unk_628A44` back to
 //! `unk_625A44`, `dword_62423C` 0x300, `dword_625A40` 0x180 and the batch drawn by
 //! `sub_41ADB9`, the platform's). Then, with fewer live than the settings' +0x273C and the
-//! drift on, `effects::hexagons_spawn`.
+//! drift on, `effects::windscreen_drops_spawn`.
 //!
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
@@ -17,14 +17,14 @@
 //! of a kind past 7.
 
 use crate::effects::edges::EDGE_MASK;
-use crate::effects::expire_hexagons::{ITEM_LEN, ITEMS};
-use crate::effects::hexagon_state::{HEXAGON_STATE, HEXAGON_WORK};
-use crate::effects::hexagon_vars::HEX;
+use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK};
+use crate::effects::windscreen_drop_vars::HEX;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
-use crate::gfx::hexagon_batch::HEXAGON_BATCH;
+use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
@@ -39,7 +39,7 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
     GamePtr::new(a).write(v, "a game field")
 }
 
-/// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksHexagonCurve`[k]) into `flt_814772`, `flt_814776`.
+/// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `flt_814772`, `flt_814776`.
 fn drift_cell(k: u32) {
     drift_cell_x87(k as usize)
 }
@@ -47,7 +47,7 @@ fn drift_cell(k: u32) {
 /// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `flt_814BC2`[k] by `flt_81622A`, its place moved by it.
 fn drift_move(k: u32, s: u32) {
     drift_move_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         k as usize,
         s as usize,
     )
@@ -55,7 +55,7 @@ fn drift_move(k: u32, s: u32) {
 
 /// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `flt_814CAA` .., the depth also in `flt_814734`.
 fn sprite_depth() {
-    sprite_depth_x87(crate::effects::hexagon_vars::HexagonVars::base())
+    sprite_depth_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base())
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
@@ -66,7 +66,7 @@ fn sprite_corners(c: u32) -> bh::X {
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
 fn sprite_project(e: u32, inverse_depth: bh::X) {
     sprite_project_x87(
-        crate::effects::hexagon_vars::HexagonVars::base(),
+        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         e as usize,
         inverse_depth,
     )
@@ -87,36 +87,36 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                 break;
             }
         }
-        bad.then_some("a live hexagon of a kind past 7")
+        bad.then_some("a live windscreen drop of a kind past 7")
     })
 }
 
-/// The batch's draw (`d3d::draw_marks_hexagons`; its result unread).
+/// The batch's draw (`d3d::draw_marks_windscreen_drops`; its result unread).
 pub fn draw_batch() -> Result<(), Refused> {
-    crate::d3d::draw_marks_hexagons::draw_marks_hexagons();
+    crate::d3d::draw_marks_windscreen_drops::draw_marks_windscreen_drops();
     Ok(())
 }
 
 /// The Rust version (see the header).
-pub fn hexagons_frame() -> Result<(), Refused> {
+pub fn windscreen_drops_frame() -> Result<(), Refused> {
     if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
     {
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::hexagons_drift::hexagons_drift()?;
+            crate::effects::windscreen_drops_drift::windscreen_drops_drift()?;
         }
-        crate::effects::hexagons_setup::hexagons_setup();
-        HEXAGON_STATE.live.set_bits(0u32);
+        crate::effects::windscreen_drops_setup::windscreen_drops_setup();
+        WINDSCREEN_DROP_STATE.live.set_bits(0u32);
         let base = HEX.items.addr();
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
             if get(e)? != 1 {
                 continue;
             }
-            HEXAGON_STATE
+            WINDSCREEN_DROP_STATE
                 .live
-                .set(HEXAGON_STATE.live.get().wrapping_add(1));
+                .set(WINDSCREEN_DROP_STATE.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
                 let x = x87::to_int(get(e + 0x14)?);
                 MARKS_WORK.scratch.set(x as u32);
@@ -125,8 +125,8 @@ pub fn hexagons_frame() -> Result<(), Refused> {
             }
             let x = x87::to_int(get(e + 0x14)?);
             let z = x87::to_int(get(e + 0x18)?);
-            HEXAGON_WORK.whole[0].set(x as u32);
-            HEXAGON_WORK.whole[1].set(z as u32);
+            WINDSCREEN_DROP_WORK.whole[0].set(x as u32);
+            WINDSCREEN_DROP_WORK.whole[1].set(z as u32);
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
                 put(e, 0)?;
                 continue;
@@ -138,24 +138,26 @@ pub fn hexagons_frame() -> Result<(), Refused> {
                 continue;
             }
             sprite_depth();
-            if (HEXAGON_WORK.cell[2].bits() as i32) < 0x4580_0000 {
+            if (WINDSCREEN_DROP_WORK.cell[2].bits() as i32) < 0x4580_0000 {
                 continue;
             }
             let inverse_depth = sprite_corners(shape.wrapping_mul(0x48));
             sprite_project(HEX.buffer.get(), inverse_depth);
             let next = HEX.buffer.get().wrapping_add(0xC0);
             HEX.buffer.set(next);
-            if next as usize == (HEXAGON_BATCH.records.addr() + BUFFER_BYTES as u32) as usize {
-                HEX.buffer.set(HEXAGON_BATCH.records.addr());
-                HEXAGON_BATCH.index_count.set(0x300);
-                HEXAGON_BATCH.vertex_count.set(0x180);
+            if next as usize
+                == (WINDSCREEN_DROP_BATCH.records.addr() + BUFFER_BYTES as u32) as usize
+            {
+                HEX.buffer.set(WINDSCREEN_DROP_BATCH.records.addr());
+                WINDSCREEN_DROP_BATCH.index_count.set(0x300);
+                WINDSCREEN_DROP_BATCH.vertex_count.set(0x180);
                 draw_batch()?;
             }
         }
         let settings: u32 = SETTINGS.pointer.get();
-        let live: u32 = HEXAGON_STATE.live.bits();
+        let live: u32 = WINDSCREEN_DROP_STATE.live.bits();
         if (live as i32) < get(settings + 0x273C)? as i32 && MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::hexagons_spawn::hexagons_spawn()?;
+            crate::effects::windscreen_drops_spawn::windscreen_drops_spawn()?;
         }
     }
     Ok(())
@@ -169,26 +171,26 @@ use crate::scene::draw_store::DRAW;
 /// `drift_cell`'s x87 block as plain Rust on the x87 model (7 instructions), same order and memory places.
 fn drift_cell_x87(k: usize) {
     {
-        let t0 = bh::ld(HEXAGON_WORK.curve[k / 4].bits());
+        let t0 = bh::ld(WINDSCREEN_DROP_WORK.curve[k / 4].bits());
         let t1 = t0 * bh::ld(SHAPE_TILT.point[2].bits());
         let t2 = -t1;
         let t3 = t2 + bh::ld(SHAPE_TILT.point[0].bits());
-        HEXAGON_WORK.drift[0].set_bits(bh::st(t3));
+        WINDSCREEN_DROP_WORK.drift[0].set_bits(bh::st(t3));
         let t4 = bh::ld(SHAPE_TILT.point[1].bits());
-        HEXAGON_WORK.drift[1].set_bits(bh::st(t4));
+        WINDSCREEN_DROP_WORK.drift[1].set_bits(bh::st(t4));
     }
 }
 
 /// `drift_move`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
 fn drift_move_x87(hx: usize, k: usize, s: usize) {
-    let t0 = bh::ld(HEXAGON_WORK.drift[0].bits());
-    let t1 = t0 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
+    let t0 = bh::ld(WINDSCREEN_DROP_WORK.drift[0].bits());
+    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
     let t2 = t1 - ld(s, 0x1C);
     let t3 = t2 * ld(hx, 0xB12EA);
     let t4 = t3 + ld(s, 0x1C);
     st(s, 0x1C, t4);
-    let t5 = bh::ld(HEXAGON_WORK.drift[1].bits());
-    let t6 = t5 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
+    let t5 = bh::ld(WINDSCREEN_DROP_WORK.drift[1].bits());
+    let t6 = t5 * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
     let t7 = t6 - ld(s, 0x20);
     let t8 = t7 * ld(hx, 0xB12EA);
     let t9 = t8 + ld(s, 0x20);
@@ -203,106 +205,106 @@ fn drift_move_x87(hx: usize, k: usize, s: usize) {
 
 /// `sprite_depth`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
 fn sprite_depth_x87(hx: usize) {
-    let t0 = bh::int(HEXAGON_WORK.whole[0].bits() as i32);
+    let t0 = bh::int(WINDSCREEN_DROP_WORK.whole[0].bits() as i32);
     let t1 = ld(hx, 0xC9366);
-    let t2 = t1 - bh::int(HEXAGON_WORK.whole[1].bits() as i32);
-    let t3 = t2 * bh::ld(HEXAGON_WORK.shares[1].bits());
-    let t4 = t0 * bh::ld(HEXAGON_WORK.shares[0].bits());
-    let t5 = t4 * bh::ld(HEXAGON_WORK.axes[0].bits());
-    let t6 = t3 * bh::ld(HEXAGON_WORK.axes[3].bits());
+    let t2 = t1 - bh::int(WINDSCREEN_DROP_WORK.whole[1].bits() as i32);
+    let t3 = t2 * bh::ld(WINDSCREEN_DROP_WORK.shares[1].bits());
+    let t4 = t0 * bh::ld(WINDSCREEN_DROP_WORK.shares[0].bits());
+    let t5 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
+    let t6 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
     let t7 = t5 + t6;
-    let t8 = t7 + bh::ld(HEXAGON_WORK.place[0].bits());
-    HEXAGON_WORK.cell[0].set_bits(bh::st(t8));
-    let t9 = t4 * bh::ld(HEXAGON_WORK.axes[1].bits());
-    let t10 = t3 * bh::ld(HEXAGON_WORK.axes[4].bits());
+    let t8 = t7 + bh::ld(WINDSCREEN_DROP_WORK.place[0].bits());
+    WINDSCREEN_DROP_WORK.cell[0].set_bits(bh::st(t8));
+    let t9 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[1].bits());
+    let t10 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[4].bits());
     let t11 = t9 + t10;
-    let t12 = t11 + bh::ld(HEXAGON_WORK.place[1].bits());
-    HEXAGON_WORK.cell[1].set_bits(bh::st(t12));
-    let t13 = t3 * bh::ld(HEXAGON_WORK.axes[5].bits());
-    let t14 = t4 * bh::ld(HEXAGON_WORK.axes[2].bits());
+    let t12 = t11 + bh::ld(WINDSCREEN_DROP_WORK.place[1].bits());
+    WINDSCREEN_DROP_WORK.cell[1].set_bits(bh::st(t12));
+    let t13 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[5].bits());
+    let t14 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[2].bits());
     let t15 = t13 + t14;
-    let t16 = t15 + bh::ld(HEXAGON_WORK.place[2].bits());
-    HEXAGON_STATE.depth.set_bits(bh::st(t16));
-    HEXAGON_WORK.cell[2].set_bits(bh::st(t16));
+    let t16 = t15 + bh::ld(WINDSCREEN_DROP_WORK.place[2].bits());
+    WINDSCREEN_DROP_STATE.depth.set_bits(bh::st(t16));
+    WINDSCREEN_DROP_WORK.cell[2].set_bits(bh::st(t16));
 }
 
 /// `sprite_corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
 fn sprite_corners_x87(c: usize) -> bh::X {
-    let t0 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t0 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
-    let t2 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t3 = t2 + bh::ld(HEXAGON_WORK.scaled[c / 4].bits());
-    HEXAGON_WORK.corners[0].set_bits(bh::st(t3));
-    let t4 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t5 = t4 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 3].bits());
-    HEXAGON_WORK.corners[3].set_bits(bh::st(t5));
-    let t6 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t7 = t6 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 6].bits());
-    HEXAGON_WORK.corners[6].set_bits(bh::st(t7));
-    let t8 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t9 = t8 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 9].bits());
-    HEXAGON_WORK.corners[9].set_bits(bh::st(t9));
-    let t10 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t11 = t10 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 12].bits());
-    HEXAGON_WORK.corners[12].set_bits(bh::st(t11));
-    let t12 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t13 = t12 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 15].bits());
-    HEXAGON_WORK.corners[15].set_bits(bh::st(t13));
-    let t14 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t15 = t14 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 1].bits());
-    HEXAGON_WORK.corners[1].set_bits(bh::st(t15));
-    let t16 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t17 = t16 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 4].bits());
-    HEXAGON_WORK.corners[4].set_bits(bh::st(t17));
-    let t18 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t19 = t18 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 7].bits());
-    HEXAGON_WORK.corners[7].set_bits(bh::st(t19));
-    let t20 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t21 = t20 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 10].bits());
-    HEXAGON_WORK.corners[10].set_bits(bh::st(t21));
-    let t22 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t23 = t22 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 13].bits());
-    HEXAGON_WORK.corners[13].set_bits(bh::st(t23));
-    let t24 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t25 = t24 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 16].bits());
-    HEXAGON_WORK.corners[16].set_bits(bh::st(t25));
-    let t26 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t27 = t26 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 2].bits());
-    HEXAGON_WORK.corners[2].set_bits(bh::st(t27));
-    let t28 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t29 = t28 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 5].bits());
-    HEXAGON_WORK.corners[5].set_bits(bh::st(t29));
-    let t30 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t31 = t30 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 8].bits());
-    HEXAGON_WORK.corners[8].set_bits(bh::st(t31));
-    let t32 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t33 = t32 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 11].bits());
-    HEXAGON_WORK.corners[11].set_bits(bh::st(t33));
-    let t34 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t35 = t34 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 14].bits());
-    HEXAGON_WORK.corners[14].set_bits(bh::st(t35));
-    let t36 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t37 = t36 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 17].bits());
-    HEXAGON_WORK.corners[17].set_bits(bh::st(t37));
+    let t2 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t3 = t2 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4].bits());
+    WINDSCREEN_DROP_WORK.corners[0].set_bits(bh::st(t3));
+    let t4 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t5 = t4 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 3].bits());
+    WINDSCREEN_DROP_WORK.corners[3].set_bits(bh::st(t5));
+    let t6 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t7 = t6 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 6].bits());
+    WINDSCREEN_DROP_WORK.corners[6].set_bits(bh::st(t7));
+    let t8 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t9 = t8 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 9].bits());
+    WINDSCREEN_DROP_WORK.corners[9].set_bits(bh::st(t9));
+    let t10 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t11 = t10 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 12].bits());
+    WINDSCREEN_DROP_WORK.corners[12].set_bits(bh::st(t11));
+    let t12 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t13 = t12 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 15].bits());
+    WINDSCREEN_DROP_WORK.corners[15].set_bits(bh::st(t13));
+    let t14 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t15 = t14 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 1].bits());
+    WINDSCREEN_DROP_WORK.corners[1].set_bits(bh::st(t15));
+    let t16 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t17 = t16 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 4].bits());
+    WINDSCREEN_DROP_WORK.corners[4].set_bits(bh::st(t17));
+    let t18 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t19 = t18 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 7].bits());
+    WINDSCREEN_DROP_WORK.corners[7].set_bits(bh::st(t19));
+    let t20 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t21 = t20 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 10].bits());
+    WINDSCREEN_DROP_WORK.corners[10].set_bits(bh::st(t21));
+    let t22 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t23 = t22 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 13].bits());
+    WINDSCREEN_DROP_WORK.corners[13].set_bits(bh::st(t23));
+    let t24 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t25 = t24 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 16].bits());
+    WINDSCREEN_DROP_WORK.corners[16].set_bits(bh::st(t25));
+    let t26 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t27 = t26 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 2].bits());
+    WINDSCREEN_DROP_WORK.corners[2].set_bits(bh::st(t27));
+    let t28 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t29 = t28 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 5].bits());
+    WINDSCREEN_DROP_WORK.corners[5].set_bits(bh::st(t29));
+    let t30 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t31 = t30 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 8].bits());
+    WINDSCREEN_DROP_WORK.corners[8].set_bits(bh::st(t31));
+    let t32 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t33 = t32 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 11].bits());
+    WINDSCREEN_DROP_WORK.corners[11].set_bits(bh::st(t33));
+    let t34 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t35 = t34 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 14].bits());
+    WINDSCREEN_DROP_WORK.corners[14].set_bits(bh::st(t35));
+    let t36 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t37 = t36 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 17].bits());
+    WINDSCREEN_DROP_WORK.corners[17].set_bits(bh::st(t37));
     t1
 }
 
 /// `sprite_project`'s x87 block as plain Rust on the x87 model (152 instructions), same order and memory places.
 fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
-    HEXAGON_WORK.cell[2].set_bits(bh::st(pre0));
-    let t0 = bh::ld(HEXAGON_WORK.cell[1].bits());
-    let t1 = t0 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    WINDSCREEN_DROP_WORK.cell[2].set_bits(bh::st(pre0));
+    let t0 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
+    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t2 = -t1;
-    let t3 = bh::ld(HEXAGON_WORK.cell[0].bits());
-    let t4 = t3 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t3 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
+    let t4 = t3 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t5 = t4 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    HEXAGON_WORK.cell[0].set_bits(bh::st(t5));
+    WINDSCREEN_DROP_WORK.cell[0].set_bits(bh::st(t5));
     let t6 = t2 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    HEXAGON_WORK.cell[1].set_bits(bh::st(t6));
-    let t7 = bh::ld(HEXAGON_WORK.corners[0].bits());
-    let t8 = t7 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t9 = bh::ld(HEXAGON_WORK.corners[1].bits());
-    let t10 = t9 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    WINDSCREEN_DROP_WORK.cell[1].set_bits(bh::st(t6));
+    let t7 = bh::ld(WINDSCREEN_DROP_WORK.corners[0].bits());
+    let t8 = t7 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t9 = bh::ld(WINDSCREEN_DROP_WORK.corners[1].bits());
+    let t10 = t9 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t11 = -t10;
     let t12 = t11 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x1C, t12);
@@ -310,10 +312,10 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t13 = t8 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x18, t13);
     st(e, 0, t13);
-    let t14 = bh::ld(HEXAGON_WORK.corners[3].bits());
-    let t15 = t14 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t16 = bh::ld(HEXAGON_WORK.corners[4].bits());
-    let t17 = t16 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t14 = bh::ld(WINDSCREEN_DROP_WORK.corners[3].bits());
+    let t15 = t14 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t16 = bh::ld(WINDSCREEN_DROP_WORK.corners[4].bits());
+    let t17 = t16 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t18 = -t17;
     let t19 = t18 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x3C, t19);
@@ -321,10 +323,10 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t20 = t15 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x38, t20);
     st(e, 0x20, t20);
-    let t21 = bh::ld(HEXAGON_WORK.corners[6].bits());
-    let t22 = t21 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t23 = bh::ld(HEXAGON_WORK.corners[7].bits());
-    let t24 = t23 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t21 = bh::ld(WINDSCREEN_DROP_WORK.corners[6].bits());
+    let t22 = t21 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t23 = bh::ld(WINDSCREEN_DROP_WORK.corners[7].bits());
+    let t24 = t23 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t25 = -t24;
     let t26 = t25 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x5C, t26);
@@ -332,10 +334,10 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t27 = t22 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x58, t27);
     st(e, 0x40, t27);
-    let t28 = bh::ld(HEXAGON_WORK.corners[9].bits());
-    let t29 = t28 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t30 = bh::ld(HEXAGON_WORK.corners[10].bits());
-    let t31 = t30 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t28 = bh::ld(WINDSCREEN_DROP_WORK.corners[9].bits());
+    let t29 = t28 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t30 = bh::ld(WINDSCREEN_DROP_WORK.corners[10].bits());
+    let t31 = t30 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t32 = -t31;
     let t33 = t32 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x7C, t33);
@@ -343,10 +345,10 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t34 = t29 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x78, t34);
     st(e, 0x60, t34);
-    let t35 = bh::ld(HEXAGON_WORK.corners[12].bits());
-    let t36 = t35 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t37 = bh::ld(HEXAGON_WORK.corners[13].bits());
-    let t38 = t37 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t35 = bh::ld(WINDSCREEN_DROP_WORK.corners[12].bits());
+    let t36 = t35 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t37 = bh::ld(WINDSCREEN_DROP_WORK.corners[13].bits());
+    let t38 = t37 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t39 = -t38;
     let t40 = t39 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x9C, t40);
@@ -354,10 +356,10 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t41 = t36 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x98, t41);
     st(e, 0x80, t41);
-    let t42 = bh::ld(HEXAGON_WORK.corners[15].bits());
-    let t43 = t42 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t44 = bh::ld(HEXAGON_WORK.corners[16].bits());
-    let t45 = t44 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t42 = bh::ld(WINDSCREEN_DROP_WORK.corners[15].bits());
+    let t43 = t42 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
+    let t44 = bh::ld(WINDSCREEN_DROP_WORK.corners[16].bits());
+    let t45 = t44 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
     let t46 = -t45;
     let t47 = t46 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0xBC, t47);
@@ -365,75 +367,75 @@ fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     let t48 = t43 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0xB8, t48);
     st(e, 0xA0, t48);
-    let t49 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t49 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t50 = t49 * ld(hx, 0xB1252);
-    let t51 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t51 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t52 = t51 * ld(hx, 0xB1256);
-    HEXAGON_WORK.screen[0].set_bits(bh::st(t50));
-    HEXAGON_WORK.screen[1].set_bits(bh::st(t52));
+    WINDSCREEN_DROP_WORK.screen[0].set_bits(bh::st(t50));
+    WINDSCREEN_DROP_WORK.screen[1].set_bits(bh::st(t52));
     let t53 = ld(e, 0x18);
-    let t54 = t53 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t54 = t53 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t55 = t54 * ld(hx, 0xB125A);
-    let t56 = t55 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t56 = t55 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0x18, t56);
     let t57 = ld(e, 0x1C);
-    let t58 = t57 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t58 = t57 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t59 = t58 * ld(hx, 0xB125E);
-    let t60 = t59 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t60 = t59 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0x1C, t60);
     let t61 = ld(e, 0x38);
-    let t62 = t61 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t62 = t61 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t63 = t62 * ld(hx, 0xB125A);
-    let t64 = t63 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t64 = t63 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0x38, t64);
     let t65 = ld(e, 0x3C);
-    let t66 = t65 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t66 = t65 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t67 = t66 * ld(hx, 0xB125E);
-    let t68 = t67 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t68 = t67 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0x3C, t68);
     let t69 = ld(e, 0x58);
-    let t70 = t69 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t70 = t69 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t71 = t70 * ld(hx, 0xB125A);
-    let t72 = t71 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t72 = t71 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0x58, t72);
     let t73 = ld(e, 0x5C);
-    let t74 = t73 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t74 = t73 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t75 = t74 * ld(hx, 0xB125E);
-    let t76 = t75 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t76 = t75 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0x5C, t76);
     let t77 = ld(e, 0x78);
-    let t78 = t77 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t78 = t77 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t79 = t78 * ld(hx, 0xB125A);
-    let t80 = t79 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t80 = t79 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0x78, t80);
     let t81 = ld(e, 0x7C);
-    let t82 = t81 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t82 = t81 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t83 = t82 * ld(hx, 0xB125E);
-    let t84 = t83 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t84 = t83 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0x7C, t84);
     let t85 = ld(e, 0x98);
-    let t86 = t85 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t86 = t85 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t87 = t86 * ld(hx, 0xB125A);
-    let t88 = t87 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t88 = t87 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0x98, t88);
     let t89 = ld(e, 0x9C);
-    let t90 = t89 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t90 = t89 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t91 = t90 * ld(hx, 0xB125E);
-    let t92 = t91 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t92 = t91 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0x9C, t92);
     let t93 = ld(e, 0xB8);
-    let t94 = t93 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t94 = t93 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
     let t95 = t94 * ld(hx, 0xB125A);
-    let t96 = t95 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    let t96 = t95 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
     st(e, 0xB8, t96);
     let t97 = ld(e, 0xBC);
-    let t98 = t97 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t98 = t97 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
     let t99 = t98 * ld(hx, 0xB125E);
-    let t100 = t99 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    let t100 = t99 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
     st(e, 0xBC, t100);
-    let t101 = bh::ld(HEXAGON_STATE.depth.bits());
+    let t101 = bh::ld(WINDSCREEN_DROP_STATE.depth.bits());
     let t102 = t101 + bh::ld(MARKS_KIND_FLOATS.kind_float.bits());
-    let t103 = t102 * bh::ld(HEXAGON_WORK.inverse.bits());
+    let t103 = t102 * bh::ld(WINDSCREEN_DROP_WORK.inverse.bits());
     st(e, 0x8, t103);
     st(e, 0x28, t103);
     st(e, 0x48, t103);
@@ -779,19 +781,21 @@ mod asm_reference {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
-    use crate::effects::hexagon_state::{HEXAGON_STATE, HEXAGON_WORK, HexagonState, HexagonWork};
     use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
     use crate::effects::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
     use crate::effects::typed_sync::{overlay, with_overlays};
+    use crate::effects::windscreen_drop_state::{
+        WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK, WindscreenDropState, WindscreenDropWork,
+    };
 
-    /// Runs `f` with the hexagons' statics holding the buffer's bytes (`typed_sync`).
-    fn hexagons<R>(mk: usize, f: impl FnOnce() -> R) -> R {
+    /// Runs `f` with the windscreen drops' statics holding the buffer's bytes (`typed_sync`).
+    fn windscreen_drops<R>(mk: usize, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[
                 overlay(&SHAPE_TILT, ShapeTilt::START),
-                overlay(&HEXAGON_STATE, HexagonState::START),
-                overlay(&HEXAGON_WORK, HexagonWork::START),
+                overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
+                overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
             ],
             f,
         )
@@ -826,7 +830,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::drift_cell_x87(b[0], b[1]),
-            |b| hexagons(b[0], || super::drift_cell_x87(b[1])),
+            |b| windscreen_drops(b[0], || super::drift_cell_x87(b[1])),
         );
     }
 
@@ -863,7 +867,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::drift_move_x87(b[0], b[1], b[2]),
-            |b| hexagons(b[0], || super::drift_move_x87(b[0], b[1], b[2])),
+            |b| windscreen_drops(b[0], || super::drift_move_x87(b[0], b[1], b[2])),
         );
     }
 
@@ -901,7 +905,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::sprite_depth_x87(b[0]),
-            |b| hexagons(b[0], || super::sprite_depth_x87(b[0])),
+            |b| windscreen_drops(b[0], || super::sprite_depth_x87(b[0])),
         );
     }
 
@@ -1021,7 +1025,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| canon(reference::sprite_corners_x87(b[0], b[1], b[2])),
-            |b| canon(hexagons(b[1], || super::sprite_corners_x87(b[2])).0),
+            |b| canon(windscreen_drops(b[1], || super::sprite_corners_x87(b[2])).0),
         );
     }
 
@@ -1128,7 +1132,7 @@ mod asm_differential {
             &SPEC,
             |b| reference::sprite_project_x87(b[0], b[1], b[2], b[3] as u32),
             |b| {
-                hexagons(b[1], || {
+                windscreen_drops(b[1], || {
                     with_overlays(
                         b[1],
                         &[overlay(&MARKS_KIND_FLOATS, MarksKindFloats::START)],
