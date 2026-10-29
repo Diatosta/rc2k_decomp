@@ -103,14 +103,18 @@ pub struct ViewVars {
     pub finish_value: Dword,
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ViewVars {}
+/// The piece: a field of `race::groups_store::VIEW_AND_RECORDS` since 2026-10-29 (it
+/// left the race block with the view records after it, phase 13).
+pub struct InGroup;
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static VIEW_VARS: ViewVars =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl core::ops::Deref for InGroup {
+    type Target = ViewVars;
+    fn deref(&self) -> &ViewVars {
+        &crate::race::groups_store::VIEW_AND_RECORDS.view_vars
+    }
+}
+
+pub static VIEW_VARS: InGroup = InGroup;
 
 /// IDA 0x60626C, the first byte of the piece.
 pub const START: usize = 0x60626C;
@@ -120,8 +124,9 @@ pub const END: usize = 0x60674C;
 const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
 
 /// Where IDA 0x60626C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&VIEW_VARS))
+    crate::pointers::game_address(core::ptr::from_ref(&*VIEW_VARS))
 }
 
 #[cfg(test)]
@@ -131,7 +136,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&VIEW_VARS, START, END);
+        crate::gfx::first_values_are_the_games(&*VIEW_VARS, START, END);
     }
 
     #[test]

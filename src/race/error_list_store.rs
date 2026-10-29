@@ -13,19 +13,14 @@ pub struct ErrorList {
     pub unknown_2000: [Dword; 7],
 }
 
-/// The piece: the race block's bytes at IDA 0x637660 seen as `ErrorList`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+unsafe impl crate::pointers::Cells for ErrorList {}
 
-impl core::ops::Deref for InBlock {
-    type Target = ErrorList;
-    fn deref(&self) -> &ErrorList {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ErrorList) }
-    }
-}
-
-pub static ERROR_LIST: InBlock = InBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static ERROR_LIST: ErrorList =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// IDA 0x637660, the first byte of the piece.
 pub const START: usize = 0x637660;
@@ -36,7 +31,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ErrorList>());
 
 /// Where IDA 0x637660 is now.
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&ERROR_LIST))
 }
 
 #[cfg(test)]
@@ -45,7 +40,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&ERROR_LIST, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),

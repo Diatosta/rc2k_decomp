@@ -48,19 +48,14 @@ pub struct LevelPaths {
     pub files_s: Bytes<0xb>,
 }
 
-/// The piece: the race block's bytes at IDA 0x60AF0C seen as `LevelPaths`.
-pub struct InBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+unsafe impl crate::pointers::Cells for LevelPaths {}
 
-impl core::ops::Deref for InBlock {
-    type Target = LevelPaths;
-    fn deref(&self) -> &LevelPaths {
-        // SAFETY: the race block lives as long as the program; every field is a cell of
-        // bytes (alignment 1), as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LevelPaths) }
-    }
-}
-
-pub static LEVEL_PATHS: InBlock = InBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static LEVEL_PATHS: LevelPaths =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// IDA 0x60AF0C, the first byte of the piece.
 pub const START: usize = 0x60AF0C;
@@ -71,7 +66,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
 
 /// Where IDA 0x60AF0C is now.
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&LEVEL_PATHS))
 }
 
 #[cfg(test)]
@@ -80,7 +75,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&LEVEL_PATHS, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(
             crate::moved::place(END - 1),
             (piece_addr() + (END - START) as u32 - 1) as usize

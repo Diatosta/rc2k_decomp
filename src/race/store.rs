@@ -37,7 +37,7 @@ pub fn buffers_asm_base() -> u32 {
 
 /// The ranges of the block that are its own (IDA start, end): all but the holes and the
 /// pieces that left it (`LEFT`).
-pub const OWN: [(usize, usize); 24] = [
+pub const OWN: [(usize, usize); 23] = [
     (0x5BEC48, 0x5BEC78),
     (0x5C2714, 0x5C291C),
     (0x5C5E50, 0x5C5F48),
@@ -46,31 +46,30 @@ pub const OWN: [(usize, usize); 24] = [
     (0x5C6948, 0x5C694C),
     (0x5C7908, 0x5C790C),
     (0x5EA8C8, 0x5EB100),
-    (0x5EB104, 0x60463C),
+    (0x5EB104, 0x60101C),
+    (0x60230C, 0x60410C),
     (0x60526C, 0x60626C),
-    (0x60674C, 0x608B08),
-    (0x60AF0C, 0x60B2CC),
+    (0x60B0BD, 0x60B2CC),
     (0x60B2D0, 0x613828),
-    (0x614D38, 0x621480),
+    (0x61FE18, 0x620458),
+    (0x620474, 0x621480),
     (0x6218B0, 0x6218F0),
     (0x6218F4, 0x621900),
-    (0x621A84, 0x6235E8),
+    (0x621A84, 0x62290C),
+    (0x622910, 0x6235E8),
     (0x628A44, 0x62DA44),
-    (0x62DB5C, 0x634FA0),
-    (0x635118, 0x636588),
-    (0x637660, 0x63967C),
-    (0x63F58C, 0x64158C),
-    (0x641AA4, 0x6D13FE),
+    (0x64098C, 0x64158C),
+    (0x64BB88, 0x6D13FE),
     (0x71CA60, 0x731B82),
 ];
 
 /// The typed pieces that left the block for statics of their own (2026-10-29, phase 13):
 /// the twelve the census saw reached by address only from their own stores, and three
 /// groups the original reaches across (`race::groups_store`); then every other piece and a
-/// fourth group (batch Z). Their old
+/// fourth group (batch Z); then the stores typed over the block's own bytes (batch AA). Their old
 /// places in the block are dead (`is_dead`).
 #[cfg(test)]
-pub const LEFT: [(usize, usize); 43] = [
+pub const LEFT: [(usize, usize); 56] = [
     crate::race::groups_store::VIEWER_AND_KINDS_RANGE,
     crate::race::groups_store::LIGHTS_AND_GEAR_RANGE,
     crate::race::groups_store::CARS_AND_REPLAY_RANGE,
@@ -167,10 +166,7 @@ pub const LEFT: [(usize, usize); 43] = [
         crate::race::tables_store::START,
         crate::race::tables_store::END,
     ),
-    (
-        crate::race::view_vars_store::START,
-        crate::race::view_vars_store::END,
-    ),
+    crate::race::groups_store::VIEW_AND_RECORDS_RANGE,
     (
         crate::physics::camera_store::START,
         crate::physics::camera_store::END,
@@ -222,6 +218,58 @@ pub const LEFT: [(usize, usize); 43] = [
         crate::physics::car_store::END,
     ),
     (crate::race::work_store::START, crate::race::work_store::END),
+    (
+        crate::physics::split_tables_store::START,
+        crate::physics::split_tables_store::END,
+    ),
+    (
+        crate::race::league_store::START,
+        crate::race::league_store::END,
+    ),
+    (
+        crate::race::lights_store::START,
+        crate::race::lights_store::END,
+    ),
+    (
+        crate::race::level_paths_store::START,
+        crate::race::level_paths_store::END,
+    ),
+    (
+        crate::physics::pace_store::START,
+        crate::physics::pace_store::END,
+    ),
+    (
+        crate::physics::ground_probe_store::START,
+        crate::physics::ground_probe_store::END,
+    ),
+    (
+        crate::race::panel_clock_store::START,
+        crate::race::panel_clock_store::END,
+    ),
+    (
+        crate::scene::object_slots_store::START,
+        crate::scene::object_slots_store::END,
+    ),
+    (
+        crate::scene::light_tables_store::START,
+        crate::scene::light_tables_store::END,
+    ),
+    (
+        crate::race::error_list_store::START,
+        crate::race::error_list_store::END,
+    ),
+    (
+        crate::race::flares_store::START,
+        crate::race::flares_store::END,
+    ),
+    (
+        crate::race::shadow_skids_store::START,
+        crate::race::shadow_skids_store::END,
+    ),
+    (
+        crate::drive::finish_store::START,
+        crate::drive::finish_store::END,
+    ),
 ];
 
 /// Whether the game address `addr` lies in the block's bytes but in none of its own ranges:
