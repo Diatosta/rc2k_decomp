@@ -12,13 +12,12 @@
 
 use crate::errors::Refused;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::{TABLE_LEN, table};
 
 /// The Rust version. What the original leaves its one caller, `viewer_action` (which
 /// keeps every register), does not read.
 pub fn undo_edit() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
-    use rc2k_core::race::viewer_flow::{copy_tables, undo_count};
+    use rc2k_core::race::viewer_flow::undo_count;
     let Some(count) = undo_count(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .undo_blocks
@@ -27,31 +26,18 @@ pub fn undo_edit() -> Result<(), Refused> {
         return Ok(());
     };
     REPLAY_FILE.index_block_count.set(count);
-    let n = TABLE_LEN / 4;
-    unsafe {
-        copy_tables(
-            (
-                table(REPLAY_FILE.block_places[0].addr() as usize, n),
-                table(
-                    (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                        .block_cameras
-                        .addr()) as usize,
-                    n,
-                ),
-            ),
-            (
-                table(
-                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr()
-                        as usize,
-                    n,
-                ),
-                table(
-                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_cameras[0].addr()
-                        as usize,
-                    n,
-                ),
-            ),
-        );
+    // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
+    let buffers = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    for (k, (to, from)) in REPLAY_FILE
+        .block_places
+        .iter()
+        .zip(&buffers.undo_places)
+        .enumerate()
+    {
+        to.set(from.get());
+        buffers
+            .block_cameras
+            .set_u32(4 * k, buffers.undo_cameras[k].get());
     }
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .undo_blocks

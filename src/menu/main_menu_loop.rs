@@ -47,29 +47,27 @@ use crate::session::CLOCKS;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        EVENT_STATE.event_done.set(0u32);
-        c.arg = crate::menu::texts_store::MENU_TEXTS
-            .main_menu_picture
-            .addr();
-        Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
-        DRAW.view_offset[0].set(7u32);
-        DRAW.view_offset[1].set(0xAu32);
-        DRAW.view_zoom.set(0x100u32);
-        prepare_scene(c); // scene::prepare_menu_scene
-        LOOP_FLAGS.ended_a.set(0u32);
-        Callee::TakeKey.run(c)?; // input::take_key
-        DRAW_WORK.escaped.set(0u32);
-        OPTION_WORK.menu_sound.set(0x6Fu32);
-        SCREEN_FLOW.turning.set(1u32);
-        MENU_STATE.carousel.menu.set(0u32);
-        carousel(c)?;
-        c.arg = SCREEN_ITEMS.current[slot::MAIN_MENU].get();
-        LOOP_FLAGS.item.set(c.arg);
-        c.arg = c.arg.wrapping_sub(1);
-        MENU_STATE.carousel.front.set(c.arg);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    EVENT_STATE.event_done.set(0u32);
+    c.arg = crate::menu::texts_store::MENU_TEXTS
+        .main_menu_picture
+        .addr();
+    Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
+    DRAW.view_offset[0].set(7u32);
+    DRAW.view_offset[1].set(0xAu32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c); // scene::prepare_menu_scene
+    LOOP_FLAGS.ended_a.set(0u32);
+    Callee::TakeKey.run(c)?; // input::take_key
+    DRAW_WORK.escaped.set(0u32);
+    OPTION_WORK.menu_sound.set(0x6Fu32);
+    SCREEN_FLOW.turning.set(1u32);
+    MENU_STATE.carousel.menu.set(0u32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::MAIN_MENU].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
     Ok(())
 }
 

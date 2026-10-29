@@ -39,15 +39,13 @@ pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Res
 }
 
 /// The game's: each call through the Rust version.
-pub unsafe fn call_in_game(call: Call) -> Result<(), Refused> {
-    unsafe {
-        match call {
-            Call::Background => load_car_background(&mut |path, car| {
-                crate::menu::load_background::load_background(path, car, &mut GameCanvas)?;
-                Ok(false)
-            }),
-            Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),
-            Call::Picture(way) => load_slideshow_picture_in_game(way),
-        }
+pub fn call_in_game(call: Call) -> Result<(), Refused> {
+    match call {
+        Call::Background => load_car_background(&mut |path, car| {
+            crate::menu::load_background::load_background(path, car, &mut GameCanvas)?;
+            Ok(false)
+        }),
+        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),
+        Call::Picture(way) => load_slideshow_picture_in_game(way),
     }
 }

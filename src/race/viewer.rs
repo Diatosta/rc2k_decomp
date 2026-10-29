@@ -79,15 +79,4 @@ pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), Ba
     Ok(())
 }
 
-/// A table of `dwords` dwords at the absolute address `at` (dword-aligned) as a slice, for
-/// the core.
-///
-/// # Safety
-/// No other reference to the table may be alive while the slice is.
-pub unsafe fn table(at: usize, dwords: usize) -> &'static mut [u32] {
-    let at = crate::pointers::host_at(at) as *mut u32;
-    debug_assert!(at.is_aligned());
-    unsafe { std::slice::from_raw_parts_mut(at, dwords) }
-}
-
 // ---- for `net::sort_players` ----

@@ -46,26 +46,22 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
-pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
-            return Err(
-                BadInput("no record table is selected: the original reads through null").into(),
-            );
-        };
-        let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
-            return Err(
-                BadInput("there is no current menu: the original writes through null").into(),
-            );
-        };
-        item_0.set(group_title);
-        RACE_STATE.settings.direction.set(sel.group);
-        item_1.set(table_title);
+pub fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
+        return Err(
+            BadInput("no record table is selected: the original reads through null").into(),
+        );
+    };
+    let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
+        return Err(BadInput("there is no current menu: the original writes through null").into());
+    };
+    item_0.set(group_title);
+    RACE_STATE.settings.direction.set(sel.group);
+    item_1.set(table_title);
 
-        build_second_heading(sel.record)?;
-        draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
-        draw_records_for_group(sel.group, sel.record, canvas)
-    }
+    build_second_heading(sel.record)?;
+    draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
+    draw_records_for_group(sel.group, sel.record, canvas)
 }
 
 //

@@ -64,54 +64,62 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 }
 
 /// Returns what the function leaves in eax, if it changes it.
-pub unsafe fn normalise_vector() -> Result<Option<u32>, BadInput> {
-    unsafe { normalise(DRAW_SWITCHES.use_sse.bits() != 0) }
+pub fn normalise_vector() -> Result<Option<u32>, BadInput> {
+    normalise(DRAW_SWITCHES.use_sse.bits() != 0)
+}
+
+/// The original's SSE instructions on `w`: the vector (four floats), its squares (four), the
+/// length's reciprocal (one).
+fn sse_normalise(w: &mut [u32; 9]) {
+    // SAFETY: the instructions read and write only `w`'s 36 bytes (unaligned moves) and
+    // the three xmm registers named; SSE is on every x86 the game builds for.
+    unsafe {
+        core::arch::asm!(
+            "movups xmm0, [{w}]",
+            "mulps xmm0, xmm0",
+            "movups [{w} + 16], xmm0",
+            "addss xmm0, dword ptr [{w} + 20]",
+            "addss xmm0, dword ptr [{w} + 24]",
+            "rsqrtss xmm0, xmm0",
+            "movaps xmm1, xmm0",
+            "rcpss xmm1, xmm1",
+            "shufps xmm0, xmm0, 0",
+            "movss dword ptr [{w} + 32], xmm1",
+            "movups xmm2, [{w}]",
+            "mulps xmm0, xmm2",
+            "movups [{w}], xmm0",
+            w = in(reg) w.as_mut_ptr(),
+            out("xmm0") _, out("xmm1") _, out("xmm2") _,
+            options(nostack),
+        );
+    }
 }
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
 /// Rust callers in modules not yet converted use.
-pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
-    unsafe {
-        let v: [u32; 4] = crate::session::read_bits(&FRAME_SCRATCH.work_vector);
-        if sse {
-            // The vector, the squares, the length.
-            let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
-            core::arch::asm!(
-                "movups xmm0, [{w}]",
-                "mulps xmm0, xmm0",
-                "movups [{w} + 16], xmm0",
-                "addss xmm0, dword ptr [{w} + 20]",
-                "addss xmm0, dword ptr [{w} + 24]",
-                "rsqrtss xmm0, xmm0",
-                "movaps xmm1, xmm0",
-                "rcpss xmm1, xmm1",
-                "shufps xmm0, xmm0, 0",
-                "movss dword ptr [{w} + 32], xmm1",
-                "movups xmm2, [{w}]",
-                "mulps xmm0, xmm2",
-                "movups [{w}], xmm0",
-                w = in(reg) w.as_mut_ptr(),
-                out("xmm0") _, out("xmm1") _, out("xmm2") _,
-                options(nostack),
-            );
-            crate::session::write_bits(&FRAME_SCRATCH.work_vector, [w[0], w[1], w[2], w[3]]);
-            return Ok(None);
-        }
-        let sum = squares_sum([v[0], v[1], v[2]]);
-        let root: u32 = COURSE_LISTS.root_table[((sum >> 15) & 0xFF) as usize].bits();
-        let exponent_root: u32 =
-            COURSE_LISTS.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
-        // The product of two floats is exact in a double, as it is in the x87.
-        let length = ld(root) * ld(exponent_root);
-        if compare(length, ld(NOTHING)) & 0x4000 != 0 {
-            return Err(BadInput("a vector of no length"));
-        }
-        let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
-        let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
-        crate::session::write_first(&FRAME_SCRATCH.work_vector, &scaled.map(unsigned_zero));
-        DRAW.scratch.set_bits(inverse);
-        Ok(Some(sum))
+pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
+    let v: [u32; 4] = crate::session::read_bits(&FRAME_SCRATCH.work_vector);
+    if sse {
+        // The vector, the squares, the length.
+        let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
+        sse_normalise(&mut w);
+        crate::session::write_bits(&FRAME_SCRATCH.work_vector, [w[0], w[1], w[2], w[3]]);
+        return Ok(None);
     }
+    let sum = squares_sum([v[0], v[1], v[2]]);
+    let root: u32 = COURSE_LISTS.root_table[((sum >> 15) & 0xFF) as usize].bits();
+    let exponent_root: u32 =
+        COURSE_LISTS.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
+    // The product of two floats is exact in a double, as it is in the x87.
+    let length = ld(root) * ld(exponent_root);
+    if compare(length, ld(NOTHING)) & 0x4000 != 0 {
+        return Err(BadInput("a vector of no length"));
+    }
+    let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
+    let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
+    crate::session::write_first(&FRAME_SCRATCH.work_vector, &scaled.map(unsigned_zero));
+    DRAW.scratch.set_bits(inverse);
+    Ok(Some(sum))
 }
 
 #[cfg(test)]

@@ -26,20 +26,18 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 /// The four totals. Reads only.
 unsafe fn totals() -> Result<[u32; 4], BadInput> {
     // Converted: `rc2k_core::scene::textures::count_needs`.
-    use crate::scene::textures::cells_mut;
-    let (totals, _) = unsafe {
-        rc2k_core::scene::textures::count_needs(
-            cells_mut(&OBJECT_TABLES.system_levels),
-            cells_mut(&OBJECT_TABLES.video_levels),
-            |level| {
+    let (totals, _) = crate::scene::textures::with_cells(
+        [&OBJECT_TABLES.system_levels, &OBJECT_TABLES.video_levels],
+        |[system, video]| {
+            rc2k_core::scene::textures::count_needs(system, video, |level| {
                 crate::scene::texture_places_store::cell_at(
                     &OBJECT_TABLES.level_sizes[0],
                     level as u32,
                 )
                 .get()
-            },
-        )
-    }?;
+            })
+        },
+    )?;
     Ok(totals.to_array())
 }
 

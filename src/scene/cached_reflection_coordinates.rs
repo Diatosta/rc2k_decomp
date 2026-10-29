@@ -27,32 +27,30 @@ const TABLE_CELLS: usize = 0x400;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
-pub unsafe fn cached_reflection_coordinates() -> Result<(), Refused> {
+pub fn cached_reflection_coordinates() -> Result<(), Refused> {
     use rc2k_core::scene::reflection::{cache_place, cached};
-    unsafe {
-        if RACE_VIEW.reflections_kept.bits() == 0 {
-            return Ok(reflection_coordinates()?);
-        }
-        let asked: [u32; 2] = [
-            GROUND_WORK.reflection_normal_number.bits(),
-            GROUND_WORK.reflection_point_number.bits(),
-        ];
-        let place = cache_place(asked[0]);
-        let slot = |table: usize| &GROUND_WORK.kept_reflections[table * TABLE_CELLS + place];
-        if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
-            [slot(2).bits(), slot(3).bits()]
-        }) {
-            crate::session::write_bits(&GROUND_WORK.reflection_coordinates, coordinates);
-            return Ok(());
-        }
-        reflection_coordinates()?;
-        let coordinates: [u32; 2] = crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
-        for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
-            .into_iter()
-            .enumerate()
-        {
-            slot(table).set_bits(value);
-        }
-        Ok(())
+    if RACE_VIEW.reflections_kept.bits() == 0 {
+        return Ok(reflection_coordinates()?);
     }
+    let asked: [u32; 2] = [
+        GROUND_WORK.reflection_normal_number.bits(),
+        GROUND_WORK.reflection_point_number.bits(),
+    ];
+    let place = cache_place(asked[0]);
+    let slot = |table: usize| &GROUND_WORK.kept_reflections[table * TABLE_CELLS + place];
+    if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
+        [slot(2).bits(), slot(3).bits()]
+    }) {
+        crate::session::write_bits(&GROUND_WORK.reflection_coordinates, coordinates);
+        return Ok(());
+    }
+    reflection_coordinates()?;
+    let coordinates: [u32; 2] = crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
+    for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
+        .into_iter()
+        .enumerate()
+    {
+        slot(table).set_bits(value);
+    }
+    Ok(())
 }

@@ -21,5 +21,5 @@ pub fn previous_slideshow_picture(
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { previous_slideshow_picture(&mut |call| call_in_game(call)) }
+    previous_slideshow_picture(&mut |call| call_in_game(call))
 }

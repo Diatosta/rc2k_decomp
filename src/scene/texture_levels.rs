@@ -79,57 +79,64 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// the video level of two), and with `dword_621514` three more. What the original
 /// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
 /// the site in `race::loadlevel_init`, every register followed, no read).
-pub unsafe fn init_texture_levels() -> Result<(), Refused> {
+pub fn init_texture_levels() -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
-    use crate::scene::textures::cells_mut;
+    use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    unsafe {
-        let cars = held_cars(RACE_VIEW.race_cars.bits());
-        RACE_VIEW.race_cars.set_bits(cars);
-        crate::scene::reset_texture_tables::reset_texture_tables();
-        crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
-        log_int(cars as i32, true, 1);
-        OBJECT_TABLES.other_levels.set(0);
-        crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
-        let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
-            .iter()
-            .map(
-                |&(_, list, from, first, count, tag, level, other_level, step)| {
-                    let k = KindSlots {
-                        first,
-                        tag,
-                        level,
-                        other_level,
-                        step,
-                    };
-                    let prefs = list.list();
-                    (
-                        k,
-                        (0..count as usize).map(|n| prefs[from + n].get()).collect(),
-                    )
-                },
-            )
-            .collect();
-        let set = set_levels(
-            &mut rc2k_core::scene::textures::LevelTables {
-                tags: cells_mut(&OBJECT_TABLES.texture_tags),
-                system: cells_mut(&OBJECT_TABLES.system_levels),
-                video: cells_mut(&OBJECT_TABLES.video_levels),
+    let cars = held_cars(RACE_VIEW.race_cars.bits());
+    RACE_VIEW.race_cars.set_bits(cars);
+    crate::scene::reset_texture_tables::reset_texture_tables();
+    crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
+    log_int(cars as i32, true, 1);
+    OBJECT_TABLES.other_levels.set(0);
+    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
+    let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
+        .iter()
+        .map(
+            |&(_, list, from, first, count, tag, level, other_level, step)| {
+                let k = KindSlots {
+                    first,
+                    tag,
+                    level,
+                    other_level,
+                    step,
+                };
+                let prefs = list.list();
+                (
+                    k,
+                    (0..count as usize).map(|n| prefs[from + n].get()).collect(),
+                )
             },
-            cars,
-            RACE_VIEW.players.bits() == 1,
-            &kinds,
-            FRAME_SWITCHES.editor_mode.bits() != 0,
-            other(),
-        )?;
-        // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
-        TEXTURE_PLACES.kind_slot_bytes.set(
-            TEXTURE_PLACES
-                .kind_slot_bytes
-                .get()
-                .wrapping_add(set.kind_slots_added),
-        );
-    }
+        )
+        .collect();
+    let set = with_cells(
+        [
+            &OBJECT_TABLES.texture_tags,
+            &OBJECT_TABLES.system_levels,
+            &OBJECT_TABLES.video_levels,
+        ],
+        |[tags, system, video]| {
+            set_levels(
+                &mut rc2k_core::scene::textures::LevelTables {
+                    tags,
+                    system,
+                    video,
+                },
+                cars,
+                RACE_VIEW.players.bits() == 1,
+                &kinds,
+                FRAME_SWITCHES.editor_mode.bits() != 0,
+                other(),
+            )
+        },
+    )?;
+    // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
+    TEXTURE_PLACES.kind_slot_bytes.set(
+        TEXTURE_PLACES
+            .kind_slot_bytes
+            .get()
+            .wrapping_add(set.kind_slots_added),
+    );
     Ok(())
 }

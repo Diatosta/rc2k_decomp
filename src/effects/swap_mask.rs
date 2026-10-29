@@ -25,49 +25,47 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 pub fn swap_mask() -> Result<(), Refused> {
     use crate::effects::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::effects::masks;
-    unsafe {
-        let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let switch = GamePtr::new(s + 0x2704).read::<u32>("a mark's field")?;
-        let Some(second) = masks::swapped(switch, MASK_BLOCKS.seen.get()) else {
-            return Ok(());
-        };
-        let kept: [u32; 2] = [MASK_BLOCKS.seen.get(), MASK_BLOCKS.chosen.get()];
-        MASK_BLOCKS.seen.set(switch);
-        let chosen = if second { Mask::Bordered } else { Mask::Plain };
-        MASK_BLOCKS.chosen.set(chosen as u32);
-        lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
-        // The width is the locked texture's (`g_surface` while it is locked), not the
-        // screen's: checked here (2026-10-18: checked before the lock, it refused every
-        // frame). A row wider than the mask's would read past its block: unlocked, put
-        // back and refused.
-        let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
-        if let Err(e) = masks::check_width(width) {
-            lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-            MASK_BLOCKS.seen.set(kept[0]);
-            MASK_BLOCKS.chosen.set(kept[1]);
-            return Err(e.into());
-        }
-        let pixels = chosen.pixels().with(|p| {
-            masks::texture_pixels(width)
-                .map(|(row, col, at)| Some((row, col, *p.get(at as usize)?)))
-                .collect::<Option<Vec<_>>>()
-        })?;
-        let Some(pixels) = pixels else {
-            lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-            MASK_BLOCKS.seen.set(kept[0]);
-            MASK_BLOCKS.chosen.set(kept[1]);
-            return Err(BadInput("a mask pixel past its block").into());
-        };
-        for (row, col, pixel) in pixels {
-            put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
-        }
-        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-        crate::scene::forget_slot_texture::forget_slot_texture(
-            KIND_TEXTURES.kind_first_slots[202].bits(),
-        )?;
+    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
     }
+    let switch = GamePtr::new(s + 0x2704).read::<u32>("a mark's field")?;
+    let Some(second) = masks::swapped(switch, MASK_BLOCKS.seen.get()) else {
+        return Ok(());
+    };
+    let kept: [u32; 2] = [MASK_BLOCKS.seen.get(), MASK_BLOCKS.chosen.get()];
+    MASK_BLOCKS.seen.set(switch);
+    let chosen = if second { Mask::Bordered } else { Mask::Plain };
+    MASK_BLOCKS.chosen.set(chosen as u32);
+    lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
+    // The width is the locked texture's (`g_surface` while it is locked), not the
+    // screen's: checked here (2026-10-18: checked before the lock, it refused every
+    // frame). A row wider than the mask's would read past its block: unlocked, put
+    // back and refused.
+    let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
+    if let Err(e) = masks::check_width(width) {
+        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+        MASK_BLOCKS.seen.set(kept[0]);
+        MASK_BLOCKS.chosen.set(kept[1]);
+        return Err(e.into());
+    }
+    let pixels = chosen.pixels().with(|p| {
+        masks::texture_pixels(width)
+            .map(|(row, col, at)| Some((row, col, *p.get(at as usize)?)))
+            .collect::<Option<Vec<_>>>()
+    })?;
+    let Some(pixels) = pixels else {
+        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+        MASK_BLOCKS.seen.set(kept[0]);
+        MASK_BLOCKS.chosen.set(kept[1]);
+        return Err(BadInput("a mask pixel past its block").into());
+    };
+    for (row, col, pixel) in pixels {
+        put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
+    }
+    lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+    crate::scene::forget_slot_texture::forget_slot_texture(
+        KIND_TEXTURES.kind_first_slots[202].bits(),
+    )?;
     Ok(())
 }

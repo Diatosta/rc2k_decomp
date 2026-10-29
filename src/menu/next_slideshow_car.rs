@@ -22,5 +22,5 @@ pub fn next_slideshow_car(
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { next_slideshow_car(&mut |call| call_in_game(call)) }
+    next_slideshow_car(&mut |call| call_in_game(call))
 }

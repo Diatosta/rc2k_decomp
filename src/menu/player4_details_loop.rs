@@ -24,17 +24,15 @@ use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, screen
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if OPTION_WORK.typing.get() == 0x1 {
-            Callee::EditPlayerName.run(c)?;
-            if OPTION_WORK.typing.get() != 0x0 {
-                return Ok(Flow::NextFrame);
-            }
-            Callee::CheckCheatName.run(c)?;
+fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+    if OPTION_WORK.typing.get() == 0x1 {
+        Callee::EditPlayerName.run(c)?;
+        if OPTION_WORK.typing.get() != 0x0 {
+            return Ok(Flow::NextFrame);
         }
-        Ok(Flow::On)
+        Callee::CheckCheatName.run(c)?;
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {

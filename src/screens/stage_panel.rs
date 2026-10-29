@@ -69,19 +69,19 @@ pub fn build_second_heading(record: u32) -> Result<(), Refused> {
 /// +0x14 weather string, +0x1C temperature, +0x20 wind in tenths of a mile per hour,
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
-pub unsafe fn draw_stage_body(
+pub fn draw_stage_body(
     record: u32,
     marker_palette: u32,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe { draw_stage_body_in(record, marker_palette, keep_entry_34, HEADING_FONT, canvas) }
+    draw_stage_body_in(record, marker_palette, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
 /// `stru_51E5C4`.
-pub unsafe fn draw_stage_body_in(
+pub fn draw_stage_body_in(
     record: u32,
     marker_palette: u32,
     keep_entry_34: bool,
@@ -90,50 +90,48 @@ pub unsafe fn draw_stage_body_in(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
-    unsafe {
-        // The two markers on the map.
-        for call in marker_calls(record, marker_palette, sprite_table())? {
-            set_marker_position(&call);
-            canvas.blit_glyph(call)?;
-        }
-        let entry = || -> Result<Entry, Refused> {
-            let entry = record_entry(record)?;
-            let fault = crate::menu::event_flow::Fault::default();
-            let f = |o: u32| fault.get(entry.wrapping_add(o));
-            let made = Entry {
-                // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
-                // has no bound: each address resolved to its home by `MOVED`.
-                duration: crate::store::game_read::<u32>(crate::framework::rva(
-                    0x75A49A_usize.wrapping_add((f(8) as usize).wrapping_mul(4)),
-                )),
-                length: f(0x0C),
-                description: f(0x10),
-                weather: f(0x14),
-                temperature: f(0x1C) as i32,
-                wind: f(0x20),
-                surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
-                entry_34: f(0x34),
-                number: f(0x38),
-                number_label_one: f(0x3C) == 1,
-            };
-            fault.check()?;
-            Ok(made)
-        };
-        let heading = if heading_font == HEADING_FONT {
-            Font::Heading
-        } else {
-            Font::RallyHeading
-        };
-        let mut screen = PanelScreen::new(canvas);
-        rc2k_core::screens::stage_panel::body(
-            &mut screen,
-            dword(record.wrapping_add(0x10))?,
-            &entry,
-            units(),
-            heading,
-            keep_entry_34,
-        )
+    // The two markers on the map.
+    for call in marker_calls(record, marker_palette, sprite_table())? {
+        set_marker_position(&call);
+        canvas.blit_glyph(call)?;
     }
+    let entry = || -> Result<Entry, Refused> {
+        let entry = record_entry(record)?;
+        let fault = crate::menu::event_flow::Fault::default();
+        let f = |o: u32| fault.get(entry.wrapping_add(o));
+        let made = Entry {
+            // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
+            // has no bound: each address resolved to its home by `MOVED`.
+            duration: crate::store::game_read::<u32>(crate::framework::rva(
+                0x75A49A_usize.wrapping_add((f(8) as usize).wrapping_mul(4)),
+            )),
+            length: f(0x0C),
+            description: f(0x10),
+            weather: f(0x14),
+            temperature: f(0x1C) as i32,
+            wind: f(0x20),
+            surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
+            entry_34: f(0x34),
+            number: f(0x38),
+            number_label_one: f(0x3C) == 1,
+        };
+        fault.check()?;
+        Ok(made)
+    };
+    let heading = if heading_font == HEADING_FONT {
+        Font::Heading
+    } else {
+        Font::RallyHeading
+    };
+    let mut screen = PanelScreen::new(canvas);
+    rc2k_core::screens::stage_panel::body(
+        &mut screen,
+        dword(record.wrapping_add(0x10))?,
+        &entry,
+        units(),
+        heading,
+        keep_entry_34,
+    )
 }
 
 /// The panel's screen for `rc2k_core::screens::stage_panel`: the best times' names copied

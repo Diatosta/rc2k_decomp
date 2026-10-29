@@ -766,7 +766,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             )
         }
         .map(|_| ()),
-        ScreenFn::DrawSelectedStageMenu => unsafe {
+        ScreenFn::DrawSelectedStageMenu => {
             crate::screens::draw_selected_stage_menu::draw_selected_stage_menu(
                 &mut crate::text::draw_text::GameCanvas,
             )
@@ -823,11 +823,9 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::DrawRallyStageInfo => {
-            unsafe {
-                crate::screens::stage_info::draw_rally_stage_info(
-                    &mut crate::text::draw_text::GameCanvas,
-                )
-            }?;
+            crate::screens::stage_info::draw_rally_stage_info(
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
             Ok(())
         }
         ScreenFn::DrawRallyStageTimes => {
@@ -837,7 +835,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             crate::screens::draw_class_times_marked::draw(&mut crate::text::draw_text::GameCanvas)
         }
         ScreenFn::NoteLockedStage => crate::screens::locked_notes::note_locked_stage(),
-        ScreenFn::DrawTimeTrialStageSelect => unsafe {
+        ScreenFn::DrawTimeTrialStageSelect => {
             crate::screens::draw_time_trial_stage_select::draw_time_trial_stage_select(
                 &mut crate::text::draw_text::GameCanvas,
             )

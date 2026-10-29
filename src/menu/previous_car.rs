@@ -20,5 +20,5 @@ pub fn previous_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { previous_car(&mut |call| call_in_game(call)) }
+    previous_car(&mut |call| call_in_game(call))
 }

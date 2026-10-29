@@ -119,52 +119,50 @@ fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refuse
 /// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
 /// block's list freed, `dword_934D6E` -1.
 pub fn load_mask_pictures() -> Result<(), Refused> {
-    unsafe {
-        let ground: i32 = GROUND_NAMES.ground.get() as i32;
-        if ground >= NAMES {
-            return Err(BadInput("a ground past the six names").into());
-        }
-        let mut name = GROUND_NAMES.names.addr();
-        for _ in 0..ground.max(0) {
-            while GamePtr::new(name).read::<u8>("the ground names")? != 0 {
-                name += 1;
-            }
+    let ground: i32 = GROUND_NAMES.ground.get() as i32;
+    if ground >= NAMES {
+        return Err(BadInput("a ground past the six names").into());
+    }
+    let mut name = GROUND_NAMES.names.addr();
+    for _ in 0..ground.max(0) {
+        while GamePtr::new(name).read::<u8>("the ground names")? != 0 {
             name += 1;
         }
-        GROUND_NAMES.ground_path.set(name);
-        // The masks and the picture copy are Rust's (phase 12), counted on their lists
-        // as the game's blocks were.
-        for (mask, list) in [
-            (Mask::Plain, MASK_BLOCKS.list_a.as_ptr()),
-            (Mask::Bordered, MASK_BLOCKS.list_b.as_ptr()),
-        ] {
-            mask.pixels().take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
-        }
-        let mut copy = crate::memory::owned::counted(PICTURE_COPY.list.as_ptr(), COPY_BYTES)?;
-        lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
-        let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
-        if width > MOST_WIDTH {
-            lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-            return Err(BadInput("a mask surface wider than 256").into());
-        }
-        let kind = (MARKS_KIND.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
-        let number: u32 = KIND_PICTURES.numbers[kind as usize].get();
-        let digits = [
-            ((number / 10) as u8).wrapping_add(b'0'),
-            (number % 10) as u8 + b'0',
-        ];
-        for d in DIGITS_AT {
-            PICTURE_COPY.paths.set(d, digits[0]);
-            PICTURE_COPY.paths.set(d + 1, digits[1]);
-        }
-        mask(MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
-        mask(BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
-        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
-        crate::scene::forget_slot_texture::forget_slot_texture(
-            KIND_TEXTURES.kind_first_slots[202].bits(),
-        )?;
-        crate::memory::free_list::free_list(PICTURE_COPY.list.as_ptr())?;
-        MASK_BLOCKS.seen.set(u32::MAX);
+        name += 1;
     }
+    GROUND_NAMES.ground_path.set(name);
+    // The masks and the picture copy are Rust's (phase 12), counted on their lists
+    // as the game's blocks were.
+    for (mask, list) in [
+        (Mask::Plain, MASK_BLOCKS.list_a.as_ptr()),
+        (Mask::Bordered, MASK_BLOCKS.list_b.as_ptr()),
+    ] {
+        mask.pixels().take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
+    }
+    let mut copy = crate::memory::owned::counted(PICTURE_COPY.list.as_ptr(), COPY_BYTES)?;
+    lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
+    let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
+    if width > MOST_WIDTH {
+        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+        return Err(BadInput("a mask surface wider than 256").into());
+    }
+    let kind = (MARKS_KIND.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
+    let number: u32 = KIND_PICTURES.numbers[kind as usize].get();
+    let digits = [
+        ((number / 10) as u8).wrapping_add(b'0'),
+        (number % 10) as u8 + b'0',
+    ];
+    for d in DIGITS_AT {
+        PICTURE_COPY.paths.set(d, digits[0]);
+        PICTURE_COPY.paths.set(d + 1, digits[1]);
+    }
+    mask(MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
+    mask(BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
+    lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+    crate::scene::forget_slot_texture::forget_slot_texture(
+        KIND_TEXTURES.kind_first_slots[202].bits(),
+    )?;
+    crate::memory::free_list::free_list(PICTURE_COPY.list.as_ptr())?;
+    MASK_BLOCKS.seen.set(u32::MAX);
     Ok(())
 }

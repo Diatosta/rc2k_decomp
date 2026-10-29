@@ -75,24 +75,22 @@ pub fn draw_stage_best_and_fastest(
 /// `dword_75ACD0`'s second dword), then `draw_stage_best_and_fastest` on its times
 /// (`g_courseBestTimes`, the stage the record's +0x3C). Every register kept. Refuses (before anything) no
 /// stage record or times table.
-pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
-    unsafe {
-        let record = stage_record();
-        let course_times = &crate::saves::best_times::COURSE_TIMES;
-        let (false, true) = (record == 0, course_times.is_taken()) else {
-            return Err(BadInput("no stage record or times table").into());
-        };
-        draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
-        // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
-        crate::screens::stage_panel::draw_stage_body_in(
-            record,
-            ARCADE_GAME.level.get(),
-            true,
-            crate::gfx::typefaces::fonts::TIME,
-            canvas,
-        )?;
-        let times = crate::screens::stage_panel::best_of(course_times, get(record + 0x3C)?)?;
-        draw_stage_best_and_fastest(&times, canvas)
-    }
+    let record = stage_record();
+    let course_times = &crate::saves::best_times::COURSE_TIMES;
+    let (false, true) = (record == 0, course_times.is_taken()) else {
+        return Err(BadInput("no stage record or times table").into());
+    };
+    draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
+    // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
+    crate::screens::stage_panel::draw_stage_body_in(
+        record,
+        ARCADE_GAME.level.get(),
+        true,
+        crate::gfx::typefaces::fonts::TIME,
+        canvas,
+    )?;
+    let times = crate::screens::stage_panel::best_of(course_times, get(record + 0x3C)?)?;
+    draw_stage_best_and_fastest(&times, canvas)
 }

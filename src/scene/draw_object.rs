@@ -72,23 +72,21 @@ fn place_object_points_any() -> Result<(), Refused> {
 }
 
 /// With the steps' Rust versions.
-pub unsafe fn draw_object_in_game() -> Result<(), Refused> {
-    unsafe {
-        draw_object(&mut |step| {
-            match step {
-                Step::Light => set_object_light_in_game()?,
-                Step::Material => set_object_material()?,
-                Step::Fade => set_object_fade()?,
-                Step::Points => place_object_points_any()?,
-                Step::List => {
-                    list_object_faces(&mut |face| list_object_face(face))?;
-                }
-                Step::Sort => sort_listed_faces()?,
-                Step::Faces => {
-                    draw_object_faces(&mut |face| draw_object_face_in_game(face))?;
-                }
+pub fn draw_object_in_game() -> Result<(), Refused> {
+    draw_object(&mut |step| {
+        match step {
+            Step::Light => set_object_light_in_game()?,
+            Step::Material => set_object_material()?,
+            Step::Fade => set_object_fade()?,
+            Step::Points => place_object_points_any()?,
+            Step::List => {
+                list_object_faces(&mut |face| list_object_face(face))?;
             }
-            Ok(())
-        })
-    }
+            Step::Sort => sort_listed_faces()?,
+            Step::Faces => {
+                draw_object_faces(&mut |face| draw_object_face_in_game(face))?;
+            }
+        }
+        Ok(())
+    })
 }

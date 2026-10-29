@@ -105,7 +105,7 @@ pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 // ---- Rust version of the three button functions ----
 
 /// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
-pub unsafe fn draw_button(
+pub fn draw_button(
     kind: &Kind,
     width: u32,
     x: i32,
@@ -114,51 +114,47 @@ pub unsafe fn draw_button(
     set: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        if set == 0 {
-            return Err(BadInput("a button without sprites").into());
-        }
-        let sprites = [
-            dword(set + kind.left_at)?,
-            dword(set + kind.right_at)?,
-            dword(set + 0x10)?,
-        ];
-        kind.width.set(width);
-        kind.x.set(x as u32);
-        kind.y.set(y as u32);
-        kind.left.set(sprites[0]);
-        kind.right.set(sprites[1]);
-        DRAW_WORK.middle.set(sprites[2]);
-        // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
-        use rc2k_core::screens::buttons::{Borrowed, Error};
-        let table = sprite_table();
-        let borrowed = Borrowed {
-            y: PLAIN.y.get() as i32,
-            x: PLAIN.x.get() as i32,
-        };
-        let core = rc2k_core::screens::buttons::Kind {
-            slips: kind.slips,
-            borrows: kind.borrows,
-        };
-        let (end, drawn) = rc2k_core::screens::buttons::draw(
-            core,
-            width,
-            x,
-            y,
-            align,
-            sprites,
-            borrowed,
-            &mut |glyph, x, y, palette| {
-                canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table))
-            },
-        );
-        kind.x.set(end as u32);
-        match drawn {
-            Ok(()) => Ok(()),
-            Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
-            Err(Error::BadAlign) => Err(kind.bad_align.into()),
-            Err(Error::Draw(e)) => Err(e),
-        }
+    if set == 0 {
+        return Err(BadInput("a button without sprites").into());
+    }
+    let sprites = [
+        dword(set + kind.left_at)?,
+        dword(set + kind.right_at)?,
+        dword(set + 0x10)?,
+    ];
+    kind.width.set(width);
+    kind.x.set(x as u32);
+    kind.y.set(y as u32);
+    kind.left.set(sprites[0]);
+    kind.right.set(sprites[1]);
+    DRAW_WORK.middle.set(sprites[2]);
+    // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+    use rc2k_core::screens::buttons::{Borrowed, Error};
+    let table = sprite_table();
+    let borrowed = Borrowed {
+        y: PLAIN.y.get() as i32,
+        x: PLAIN.x.get() as i32,
+    };
+    let core = rc2k_core::screens::buttons::Kind {
+        slips: kind.slips,
+        borrows: kind.borrows,
+    };
+    let (end, drawn) = rc2k_core::screens::buttons::draw(
+        core,
+        width,
+        x,
+        y,
+        align,
+        sprites,
+        borrowed,
+        &mut |glyph, x, y, palette| canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table)),
+    );
+    kind.x.set(end as u32);
+    match drawn {
+        Ok(()) => Ok(()),
+        Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
+        Err(Error::BadAlign) => Err(kind.bad_align.into()),
+        Err(Error::Draw(e)) => Err(e),
     }
 }
 
@@ -166,22 +162,20 @@ pub unsafe fn draw_button(
 
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.
-pub unsafe fn draw_item_button(
+pub fn draw_item_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        let highlighted = LOOP_FLAGS.item.get() == item.id.get();
-        draw_button(
-            if highlighted { &HIGHLIGHTED } else { &PLAIN },
-            item.text_x.get(),
-            item.x.get() as i32,
-            item.y.get() as i32,
-            item.text_y.get(),
-            item.sprites.get(),
-            canvas,
-        )
-    }
+    let highlighted = LOOP_FLAGS.item.get() == item.id.get();
+    draw_button(
+        if highlighted { &HIGHLIGHTED } else { &PLAIN },
+        item.text_x.get(),
+        item.x.get() as i32,
+        item.y.get() as i32,
+        item.text_y.get(),
+        item.sprites.get(),
+        canvas,
+    )
 }
 
 /// The other four: a button as wide as the item's text, measured with the item's font at

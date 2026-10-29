@@ -310,7 +310,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
         let call = BlitCall::new(glyph, x, y, palette, self.sprites);
-        unsafe { self.canvas.blit_glyph(call) }
+        self.canvas.blit_glyph(call)
     }
 
     fn bar(&mut self, bar: rc2k_core::screens::screen::Bar) -> Result<(), Refused> {
@@ -325,7 +325,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         }
         .write();
         let canvas = &mut *self.canvas;
-        unsafe { blit_bar(&mut |call| canvas.blit_glyph(call)) }
+        blit_bar(&mut |call| canvas.blit_glyph(call))
     }
 
     fn buffer_address(&mut self, buffer: Buffer) -> u32 {
@@ -795,7 +795,7 @@ impl GameWork for rc2k_core::screens::menus::Work {
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        unsafe { crate::screens::buttons::draw_item_button(self.menu_item(n)?, self.canvas) }
+        crate::screens::buttons::draw_item_button(self.menu_item(n)?, self.canvas)
     }
     fn text_button(
         &mut self,

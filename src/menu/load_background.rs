@@ -29,16 +29,12 @@ const FRAME_SPRITE: u32 = 0xA0;
 // ---- Rust version ----
 
 /// `palette` is ebx at entry.
-pub unsafe fn load_background(
-    path: u32,
-    palette: u32,
-    canvas: &mut dyn Canvas,
-) -> Result<(), Refused> {
+pub fn load_background(path: u32, palette: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Whether the file was read is not looked at.
     load_picture(crate::pointers::GamePtr::new(path))?;
     convert_picture_now()?;
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
-    unsafe { canvas.blit_glyph(BlitCall::new(FRAME_SPRITE, 0, 0, palette, sprite_table())) }?;
+    { canvas.blit_glyph(BlitCall::new(FRAME_SPRITE, 0, 0, palette, sprite_table())) }?;
     Ok(())
 }

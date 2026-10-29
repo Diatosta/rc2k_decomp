@@ -38,18 +38,16 @@ fn prepare(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if OPTION_WORK.typing.get() == 0x1 {
-            Callee::EditSetupName.run(c)?;
-            if OPTION_WORK.typing.get() != 0x0 {
-                return Ok(Flow::NextFrame);
-            }
-            DRAW_WORK.action_value.set(0x2u32);
-            return Ok(Flow::Leave);
+fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+    if OPTION_WORK.typing.get() == 0x1 {
+        Callee::EditSetupName.run(c)?;
+        if OPTION_WORK.typing.get() != 0x0 {
+            return Ok(Flow::NextFrame);
         }
-        Ok(Flow::On)
+        DRAW_WORK.action_value.set(0x2u32);
+        return Ok(Flow::Leave);
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {

@@ -54,104 +54,99 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub fn set_up_surface() -> Result<(), Refused> {
-    unsafe {
-        // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
-        // block was.
-        let mut mask = crate::memory::owned::counted(
-            MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList,
-            MASK_BYTES,
-        )?;
-        lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
-        if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
-            || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
-        {
-            return unlock_refusing("a surface under 256 x 256");
-        }
-        if !read(&PICTURE_NAMES.surfmask)? {
-            return unlock_refusing("surfmask.pcx was not read");
-        }
-        mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
-            PICTURE.buffer.get(),
-            0,
-            4 * PIXELS as usize,
-        )?);
-        if !read(&PICTURE_NAMES.surfdata)? {
-            return unlock_refusing("surfdata.pcx was not read");
-        }
-        let picture =
-            crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * PIXELS as usize)?;
-        for n in 0..PIXELS {
-            let at = 4 * n as usize;
-            let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
-            let mask = u32::from_le_bytes(mask[at..at + 4].try_into().expect("four bytes"));
-            let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
-            put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
-        }
-        lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
-        crate::scene::forget_slot_texture::forget_slot_texture(
-            KIND_TEXTURES.kind_first_slots[211].bits(),
-        )?;
-        crate::memory::free_list::free_list(
-            MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
-        )?;
+    // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
+    // block was.
+    let mut mask = crate::memory::owned::counted(
+        MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList,
+        MASK_BYTES,
+    )?;
+    lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
+    if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
+        || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
+    {
+        return unlock_refusing("a surface under 256 x 256");
+    }
+    if !read(&PICTURE_NAMES.surfmask)? {
+        return unlock_refusing("surfmask.pcx was not read");
+    }
+    mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
+        PICTURE.buffer.get(),
+        0,
+        4 * PIXELS as usize,
+    )?);
+    if !read(&PICTURE_NAMES.surfdata)? {
+        return unlock_refusing("surfdata.pcx was not read");
+    }
+    let picture = crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * PIXELS as usize)?;
+    for n in 0..PIXELS {
+        let at = 4 * n as usize;
+        let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
+        let mask = u32::from_le_bytes(mask[at..at + 4].try_into().expect("four bytes"));
+        let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
+        put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
+    }
+    lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
+    crate::scene::forget_slot_texture::forget_slot_texture(
+        KIND_TEXTURES.kind_first_slots[211].bits(),
+    )?;
+    crate::memory::free_list::free_list(
+        MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
+    )?;
 
-        crate::effects::ring_entries::take(
-            RING_WORK.list.as_ptr() as *mut crate::memory::MemoryList
-        )?;
-        RING_WORK.block.set(1);
-        RING_WORK.cursor.set(1);
-        RING_WORK.count.set(0);
+    crate::effects::ring_entries::take(RING_WORK.list.as_ptr() as *mut crate::memory::MemoryList)?;
+    RING_WORK.block.set(1);
+    RING_WORK.cursor.set(1);
+    RING_WORK.count.set(0);
 
-        let [eighth, edge, pixel, step]: [u32; 4] = [
-            MARKS_FLOATS.eighth.bits(),
-            MARKS_FLOATS.over_512.bits(),
-            MARKS_FLOATS.over_256.bits(),
-            MARKS_FLOATS.over_32.bits(),
-        ];
-        let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
-        let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
-        let cells = SURFACE.places.addr();
-        for k in (0..CELLS).rev() {
-            let at = cells + k * 0x10;
-            let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
-            put(at, u0)?;
-            put(at + 8, u1)?;
-            let (v0, v1) = x87::int_times_plus_on((k >> 3) as i32, eighth, edge, eighth, pixel);
-            put(at + 4, v0)?;
-            put(at + 0xC, v1)?;
+    let [eighth, edge, pixel, step]: [u32; 4] = [
+        MARKS_FLOATS.eighth.bits(),
+        MARKS_FLOATS.over_512.bits(),
+        MARKS_FLOATS.over_256.bits(),
+        MARKS_FLOATS.over_32.bits(),
+    ];
+    let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
+    let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
+    let cells = SURFACE.places.addr();
+    for k in (0..CELLS).rev() {
+        let at = cells + k * 0x10;
+        let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
+        put(at, u0)?;
+        put(at + 8, u1)?;
+        let (v0, v1) = x87::int_times_plus_on((k >> 3) as i32, eighth, edge, eighth, pixel);
+        put(at + 4, v0)?;
+        put(at + 0xC, v1)?;
+    }
+    // Each cell's 4 rows of 4 sub-cells: 0x100 bytes.
+    let sub = cells + 0x400;
+    for j in (0..CELLS).rev() {
+        let mut at = sub + j * 0x100;
+        let (u0, u1) = x87::int_times_plus_on((j & 7) as i32, eighth, edge, step, pixel);
+        put(at, u0)?;
+        put(at + 8, u1)?;
+        let (v0, v1) = x87::int_times_plus_on((j >> 3) as i32, eighth, edge, step, pixel);
+        put(at + 4, v0)?;
+        put(at + 0xC, v1)?;
+        let across = |at: &mut u32| -> Result<_, Refused> {
+            let p = *at;
+            put(p + 0x10, x87::add(get(p)?, step))?;
+            put(p + 0x14, x87::loaded(get(p + 4)?))?;
+            put(p + 0x18, x87::add(get(p + 8)?, step))?;
+            put(p + 0x1C, x87::loaded(get(p + 0xC)?))?;
+            *at += 0x10;
+            Ok(())
+        };
+        for _ in 0..3 {
+            across(&mut at)?;
         }
-        // Each cell's 4 rows of 4 sub-cells: 0x100 bytes.
-        let sub = cells + 0x400;
-        for j in (0..CELLS).rev() {
-            let mut at = sub + j * 0x100;
-            let (u0, u1) = x87::int_times_plus_on((j & 7) as i32, eighth, edge, step, pixel);
-            put(at, u0)?;
-            put(at + 8, u1)?;
-            let (v0, v1) = x87::int_times_plus_on((j >> 3) as i32, eighth, edge, step, pixel);
-            put(at + 4, v0)?;
-            put(at + 0xC, v1)?;
-            let across = |at: &mut u32| -> Result<_, Refused> {
-                let p = *at;
-                put(p + 0x10, x87::add(get(p)?, step))?;
-                put(p + 0x14, x87::loaded(get(p + 4)?))?;
-                put(p + 0x18, x87::add(get(p + 8)?, step))?;
-                put(p + 0x1C, x87::loaded(get(p + 0xC)?))?;
-                *at += 0x10;
-                Ok(())
-            };
+        for _ in 0..3 {
+            let p = at;
+            put(p + 0x10, x87::sub_thrice(get(p)?, step))?;
+            put(p + 0x14, x87::add(get(p + 4)?, step))?;
+            put(p + 0x18, x87::sub_thrice(get(p + 8)?, step))?;
+            put(p + 0x1C, x87::add(get(p + 0xC)?, step))?;
+            at += 0x10;
             for _ in 0..3 {
                 across(&mut at)?;
-            }
-            for _ in 0..3 {
-                let p = at;
-                put(p + 0x10, x87::sub_thrice(get(p)?, step))?;
-                put(p + 0x14, x87::add(get(p + 4)?, step))?;
-                put(p + 0x18, x87::sub_thrice(get(p + 8)?, step))?;
-                put(p + 0x1C, x87::add(get(p + 0xC)?, step))?;
-                at += 0x10;
-                for _ in 0..3 {
-                    across(&mut at)?;
-                }
             }
         }
     }

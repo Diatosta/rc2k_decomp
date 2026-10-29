@@ -44,34 +44,27 @@ const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
-pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
-            return Err(
-                BadInput("no record table is selected: the original reads through null").into(),
-            );
-        };
-        let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
-            return Err(
-                BadInput("there is no current menu: the original writes through null").into(),
-            );
-        };
-        item_0.set(group_title);
-        RACE_STATE.settings.direction.set(sel.group);
-        item_1.set(table_title);
+pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
+        return Err(
+            BadInput("no record table is selected: the original reads through null").into(),
+        );
+    };
+    let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
+        return Err(BadInput("there is no current menu: the original writes through null").into());
+    };
+    item_0.set(group_title);
+    RACE_STATE.settings.direction.set(sel.group);
+    item_1.set(table_title);
 
-        let table = if sel.group == 1 { GROUP_1_TIMES } else { TIMES };
-        if !table.is_taken() {
-            return Err(
-                BadInput("no time trial best-times table: the original reads near 0").into(),
-            );
-        }
-        build_second_heading(sel.record)?;
-        draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
-        let best =
-            crate::screens::stage_panel::best_of(table, dword(sel.record.wrapping_add(0x3C))?)?;
-        draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
+    let table = if sel.group == 1 { GROUP_1_TIMES } else { TIMES };
+    if !table.is_taken() {
+        return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }
+    build_second_heading(sel.record)?;
+    draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
+    let best = crate::screens::stage_panel::best_of(table, dword(sel.record.wrapping_add(0x3C))?)?;
+    draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
 }
 
 //

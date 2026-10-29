@@ -260,87 +260,85 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `byte_4F6B74` uploaded (`sub_44E828`, esi `dword_A12AE4`, eax the slot). Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
 /// view block or a slot past 0x3FF.
-pub unsafe fn forget_view_textures() -> Result<(), Refused> {
+pub fn forget_view_textures() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{FORGET_ORDER, forgets, mirror_on,
     // check_slots}` (each switch read where the original reads it).
     use crate::scene::forget_slot_texture::forget_slot_texture;
     use rc2k_core::race::view_steps::{
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
-    unsafe {
-        let blocks = [
-            RACE_VIEW.view_blocks[0].get(),
-            RACE_VIEW.view_blocks[1].get(),
-        ];
-        if blocks.contains(&0) {
-            return Err(BadInput("a view without its car block").into());
+    let blocks = [
+        RACE_VIEW.view_blocks[0].get(),
+        RACE_VIEW.view_blocks[1].get(),
+    ];
+    if blocks.contains(&0) {
+        return Err(BadInput("a view without its car block").into());
+    }
+    let trap = Trap::new();
+    let field = |b: u32, o: u32| trap.read::<u32>(b + o, "a view car block's word");
+    // (the switch, the slot's variable) of each.
+    let slot_of = |n: usize| &KIND_TEXTURES.kind_first_slots[n];
+    let source = |f: Forget| match f {
+        Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
+        Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
+        Forget::Extra(n) => (
+            [&RACE_OVERLAY.forget_flag_0, &RACE_OVERLAY.forget_flag_1][n].get(),
+            slot_of(220 + n),
+        ),
+    };
+    let mirror = mirror_on(
+        FRAME_WORK.mirror_wanted.get(),
+        FRAME_WORK.mirror_switch.get(),
+    );
+    let uploaded = crate::input::store::DEVICES.keys_now.get(0x18) != 0; // byte_4F6B74
+    let mut slots: Vec<u32> = FORGET_ORDER
+        .iter()
+        .map(|&(f, _)| source(f))
+        .filter(|&(switch, _)| forgets(switch))
+        .map(|(_, slot)| slot.get())
+        .collect();
+    if mirror {
+        slots.push(KIND_TEXTURES.kind_first_textures[200].get());
+    }
+    trap.finish()?;
+    check_slots(&slots)?;
+    FRAME_WORK.view_textures_forgotten.set(0);
+    for (f, bit) in FORGET_ORDER {
+        let (switch, slot) = source(f);
+        if !forgets(switch) {
+            continue;
         }
-        let trap = Trap::new();
-        let field = |b: u32, o: u32| trap.read::<u32>(b + o, "a view car block's word");
-        // (the switch, the slot's variable) of each.
-        let slot_of = |n: usize| &KIND_TEXTURES.kind_first_slots[n];
-        let source = |f: Forget| match f {
-            Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
-            Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
-            Forget::Extra(n) => (
-                [&RACE_OVERLAY.forget_flag_0, &RACE_OVERLAY.forget_flag_1][n].get(),
-                slot_of(220 + n),
-            ),
-        };
-        let mirror = mirror_on(
-            FRAME_WORK.mirror_wanted.get(),
-            FRAME_WORK.mirror_switch.get(),
-        );
-        let uploaded = crate::input::store::DEVICES.keys_now.get(0x18) != 0; // byte_4F6B74
-        let mut slots: Vec<u32> = FORGET_ORDER
-            .iter()
-            .map(|&(f, _)| source(f))
-            .filter(|&(switch, _)| forgets(switch))
-            .map(|(_, slot)| slot.get())
-            .collect();
-        if mirror {
-            slots.push(KIND_TEXTURES.kind_first_textures[200].get());
-        }
-        trap.finish()?;
-        check_slots(&slots)?;
-        FRAME_WORK.view_textures_forgotten.set(0);
-        for (f, bit) in FORGET_ORDER {
-            let (switch, slot) = source(f);
-            if !forgets(switch) {
-                continue;
-            }
-            forget_slot_texture(slot.get())?;
-            PANEL
-                .texture_changes
-                .set(PANEL.texture_changes.get().wrapping_add(FORGET_COST));
-            FRAME_WORK
-                .view_textures_forgotten
-                .set(FRAME_WORK.view_textures_forgotten.get() | bit);
-            if let Forget::Counted(v) = f {
-                let at = GamePtr::new(blocks[v] + 0x720);
-                let held: u32 = at.read("a view car block's counter")?;
-                at.write(held.wrapping_sub(1), "a view car block's counter")?;
-            }
-        }
-        if !mirror {
-            return Ok(());
-        }
-        FRAME_WORK
-            .view_textures_forgotten
-            .set(FRAME_WORK.view_textures_forgotten.get() | MIRROR_BIT);
-        if !uploaded {
-            copy_mirror_picture()?;
-            forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
-        } else {
-            // `sub_44E828`, the platform's upload (then the slot forgotten): through the
-            // game, esi the picture, eax the slot (the only registers it reads).
-            crate::standalone::not_ported(0x44E828, "race::frame_views");
-        }
+        forget_slot_texture(slot.get())?;
         PANEL
             .texture_changes
-            .set(PANEL.texture_changes.get().wrapping_add(MIRROR_COST));
-        Ok(())
+            .set(PANEL.texture_changes.get().wrapping_add(FORGET_COST));
+        FRAME_WORK
+            .view_textures_forgotten
+            .set(FRAME_WORK.view_textures_forgotten.get() | bit);
+        if let Forget::Counted(v) = f {
+            let at = GamePtr::new(blocks[v] + 0x720);
+            let held: u32 = at.read("a view car block's counter")?;
+            at.write(held.wrapping_sub(1), "a view car block's counter")?;
+        }
     }
+    if !mirror {
+        return Ok(());
+    }
+    FRAME_WORK
+        .view_textures_forgotten
+        .set(FRAME_WORK.view_textures_forgotten.get() | MIRROR_BIT);
+    if !uploaded {
+        copy_mirror_picture()?;
+        forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
+    } else {
+        // `sub_44E828`, the platform's upload (then the slot forgotten): through the
+        // game, esi the picture, eax the slot (the only registers it reads).
+        crate::standalone::not_ported(0x44E828, "race::frame_views");
+    }
+    PANEL
+        .texture_changes
+        .set(PANEL.texture_changes.get().wrapping_add(MIRROR_COST));
+    Ok(())
 }
 
 /// The quad's corners the view window's size from (0, 0).

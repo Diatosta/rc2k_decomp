@@ -63,42 +63,40 @@ fn negated_at(a: *const u8, o: *mut u8) {
     fstp(o, 0x0, t1);
 }
 
-pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
-    unsafe {
-        if !crate::scene::point_records::held() {
-            return Err(BadInput("no records for the points"));
-        }
-        let table = crate::scene::reading::PointRecords::new()?;
-        let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
-        let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
-        crate::session::write_bits(&MATRICES.reflect_vector, normal);
-        crate::session::write_first(&FRAME_SCRATCH.work_vector, &point.map(negated));
-        normalise_vector()?;
-        let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
-        crate::session::write_bits(&MATRICES.reflect_normal, to_eye);
-        reflect_vector();
-        let mirrored: [u32; 3] = crate::session::read_bits(&MATRICES.reflect_vector);
-        crate::session::write_first(
-            &FRAME_SCRATCH.work_vector,
-            &[
-                x87::loaded(mirrored[0]),
-                x87::add(mirrored[1], NUMBERS.one.bits()),
-                x87::loaded(mirrored[2]),
-            ],
-        );
-        normalise_vector()?;
-        let looks: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
-        let half: u32 = NUMBERS.half.bits();
-        let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
-        crate::session::write_bits(
-            &GROUND_WORK.reflection_coordinates,
-            [
-                coordinate(looks[0], half, scales) as u32,
-                coordinate(looks[2], half, scales) as u32,
-            ],
-        );
-        Ok(())
+pub fn reflection_coordinates() -> Result<(), BadInput> {
+    if !crate::scene::point_records::held() {
+        return Err(BadInput("no records for the points"));
     }
+    let table = crate::scene::reading::PointRecords::new()?;
+    let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
+    let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
+    crate::session::write_bits(&MATRICES.reflect_vector, normal);
+    crate::session::write_first(&FRAME_SCRATCH.work_vector, &point.map(negated));
+    normalise_vector()?;
+    let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
+    crate::session::write_bits(&MATRICES.reflect_normal, to_eye);
+    reflect_vector();
+    let mirrored: [u32; 3] = crate::session::read_bits(&MATRICES.reflect_vector);
+    crate::session::write_first(
+        &FRAME_SCRATCH.work_vector,
+        &[
+            x87::loaded(mirrored[0]),
+            x87::add(mirrored[1], NUMBERS.one.bits()),
+            x87::loaded(mirrored[2]),
+        ],
+    );
+    normalise_vector()?;
+    let looks: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
+    let half: u32 = NUMBERS.half.bits();
+    let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
+    crate::session::write_bits(
+        &GROUND_WORK.reflection_coordinates,
+        [
+            coordinate(looks[0], half, scales) as u32,
+            coordinate(looks[2], half, scales) as u32,
+        ],
+    );
+    Ok(())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

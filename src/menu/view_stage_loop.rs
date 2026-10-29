@@ -45,24 +45,20 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        Callee::CountStagePages.run(c)?;
-        Callee::StyleChosenStageItem.run(c)?;
-        if EVENT_STATE.stage_pages.get() == 0x0 {
-            Callee::StyleStageItem.run(c)?;
-        }
-        CHAMP_VIEW.stage_mode.set(0x3u32);
+fn after_lists(c: &mut Carried) -> Result<(), Refused> {
+    Callee::CountStagePages.run(c)?;
+    Callee::StyleChosenStageItem.run(c)?;
+    if EVENT_STATE.stage_pages.get() == 0x0 {
+        Callee::StyleStageItem.run(c)?;
     }
+    CHAMP_VIEW.stage_mode.set(0x3u32);
     Ok(())
 }
 
-unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        EVENT_STATE.index.set(take_kept());
-        EVENT_STATE.section.set(take_kept());
-        Callee::StopStream.run(c)?;
-    }
+fn after(c: &mut Carried) -> Result<(), Refused> {
+    EVENT_STATE.index.set(take_kept());
+    EVENT_STATE.section.set(take_kept());
+    Callee::StopStream.run(c)?;
     Ok(())
 }
 

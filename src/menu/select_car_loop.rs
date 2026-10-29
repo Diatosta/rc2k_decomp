@@ -74,11 +74,9 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        if CAPTIONS.screen_left.get() == 0x1 {
-            Callee::GoBack.run(c)?;
-        }
+fn leaving(c: &mut Carried) -> Result<(), Refused> {
+    if CAPTIONS.screen_left.get() == 0x1 {
+        Callee::GoBack.run(c)?;
     }
     Ok(())
 }

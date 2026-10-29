@@ -28,30 +28,28 @@ use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if OPTION_WORK.typing.get() == 0x1 {
-            Callee::EditReplayName.run(c)?;
-            if !c.carry {
-                if OPTION_WORK.typing.get() != 0x0 {
-                    return Ok(Flow::NextFrame);
-                }
-                if CAPTIONS.screen_left.get() == 0x1 {
-                    CAPTIONS.screen_left.set(0x0u32);
-                    c.arg = 0xFFFFFFFF;
-                    DRAW_WORK.work_0c.set(0xFFFFFFFFu32);
-                    return Ok(Flow::Leave);
-                }
-                c.arg = MENU_PAGES.replay_page.get();
-                c.arg = c.arg.wrapping_mul(0x14);
-                c.arg = c.arg.wrapping_add(LOOP_FLAGS.item.get());
-                c.arg = c.arg.wrapping_sub(1);
-                DRAW_WORK.work_0c.set(c.arg);
+fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+    if OPTION_WORK.typing.get() == 0x1 {
+        Callee::EditReplayName.run(c)?;
+        if !c.carry {
+            if OPTION_WORK.typing.get() != 0x0 {
+                return Ok(Flow::NextFrame);
+            }
+            if CAPTIONS.screen_left.get() == 0x1 {
+                CAPTIONS.screen_left.set(0x0u32);
+                c.arg = 0xFFFFFFFF;
+                DRAW_WORK.work_0c.set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
+            c.arg = MENU_PAGES.replay_page.get();
+            c.arg = c.arg.wrapping_mul(0x14);
+            c.arg = c.arg.wrapping_add(LOOP_FLAGS.item.get());
+            c.arg = c.arg.wrapping_sub(1);
+            DRAW_WORK.work_0c.set(c.arg);
+            return Ok(Flow::Leave);
         }
-        Ok(Flow::On)
     }
+    Ok(Flow::On)
 }
 
 /// What the loop returns in eax, written by hand from the end of the listing (after the

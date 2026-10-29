@@ -14,15 +14,21 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 // ---- Rust version ----
 
 /// Whether any entry changed.
-pub unsafe fn raise_texture_needs(level: u32, tag: u32) -> bool {
+pub fn raise_texture_needs(level: u32, tag: u32) -> bool {
     // Converted: `rc2k_core::scene::textures::Needs::raise`.
-    use crate::scene::textures::cells_mut;
-    unsafe {
-        rc2k_core::scene::textures::Needs {
-            tags: cells_mut(&OBJECT_TABLES.texture_tags),
-            system: cells_mut(&OBJECT_TABLES.system_levels),
-            video: cells_mut(&OBJECT_TABLES.video_levels),
-        }
-        .raise(level, tag)
-    }
+    crate::scene::textures::with_cells(
+        [
+            &OBJECT_TABLES.texture_tags,
+            &OBJECT_TABLES.system_levels,
+            &OBJECT_TABLES.video_levels,
+        ],
+        |[tags, system, video]| {
+            rc2k_core::scene::textures::Needs {
+                tags,
+                system,
+                video,
+            }
+            .raise(level, tag)
+        },
+    )
 }

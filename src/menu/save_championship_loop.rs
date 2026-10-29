@@ -32,17 +32,15 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
-    unsafe {
-        if OPTION_WORK.typing.get() == 0x1 {
-            Callee::EditSavegameName.run(c)?;
-            if OPTION_WORK.typing.get() != 0x0 {
-                return Ok(Flow::NextFrame);
-            }
-            c.arg = 0x0;
+fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+    if OPTION_WORK.typing.get() == 0x1 {
+        Callee::EditSavegameName.run(c)?;
+        if OPTION_WORK.typing.get() != 0x0 {
+            return Ok(Flow::NextFrame);
         }
-        Ok(Flow::On)
+        c.arg = 0x0;
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {

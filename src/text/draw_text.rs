@@ -33,7 +33,7 @@ pub trait Canvas {
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
     fn kerning(&mut self) -> &mut State;
-    unsafe fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
+    fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
 }
 
 /// The game's own kerning table and surface.
@@ -46,7 +46,7 @@ impl Canvas for GameCanvas {
     fn kerning(&mut self) -> &mut State {
         unsafe { &mut *state_ptr() }
     }
-    unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
+    fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
         blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette).map(|_| ())
     }
 }
@@ -86,7 +86,7 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
         let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
-        unsafe { self.0.blit_glyph(call) }.map_err(AdaptError::Refused)
+        { self.0.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }
 

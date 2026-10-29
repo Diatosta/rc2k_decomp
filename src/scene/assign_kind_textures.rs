@@ -13,20 +13,23 @@
 use crate::errors::BadInput;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
-use crate::scene::textures::cells_mut;
+use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
 
 /// What the original leaves in eax, ebx, ecx and edi no caller reads (register liveness,
 /// 2026-10-23: its five call sites).
-pub unsafe fn assign_kind_textures() -> Result<(), BadInput> {
+pub fn assign_kind_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
-    unsafe {
-        rc2k_core::scene::textures::assign_kind_textures(
-            cells_mut(&KIND_TEXTURES.kind_first_slots),
-            cells_mut(&KIND_TEXTURES.kind_first_textures),
-            cells_mut(&TEXTURE_PLACES.slot_wanted),
-        )?;
-        Ok(())
-    }
+    with_cells(
+        [
+            &KIND_TEXTURES.kind_first_slots,
+            &KIND_TEXTURES.kind_first_textures,
+            &TEXTURE_PLACES.slot_wanted,
+        ],
+        |[slots, textures, wanted]| {
+            rc2k_core::scene::textures::assign_kind_textures(slots, textures, wanted)
+        },
+    )?;
+    Ok(())
 }

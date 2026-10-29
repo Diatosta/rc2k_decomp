@@ -108,11 +108,11 @@ pub enum Step {
     /// that is the fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
     /// Something only this screen does, written out in its file.
-    Do(unsafe fn(&mut Carried) -> Result<(), Refused>),
+    Do(fn(&mut Carried) -> Result<(), Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
-    DoFlow(unsafe fn(&mut Carried) -> Result<Flow, Refused>),
+    DoFlow(fn(&mut Carried) -> Result<Flow, Refused>),
 }
 /// Where a `Step::DoFlow` sends the loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -208,7 +208,7 @@ pub struct Screen {
     pub after_restored: &'static [Step],
     /// What the loop returns (in eax), where it returns something: read from the game's
     /// variables as the loop leaves them.
-    pub result: Option<unsafe fn() -> u32>,
+    pub result: Option<fn() -> u32>,
     /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
     /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
     /// nor `dword_755561` after the lists: the main menu.
@@ -382,7 +382,7 @@ pub enum Callee {
 
 impl Callee {
     /// Runs the function, with what it reads and leaves of the carried values.
-    pub unsafe fn run(self, c: &mut Carried) -> Result<(), Refused> {
+    pub fn run(self, c: &mut Carried) -> Result<(), Refused> {
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
         use crate::text::draw_text::GameCanvas;
         unsafe {
@@ -499,8 +499,8 @@ fn clear_escape() {
 }
 
 /// A call after which a set carry flag is the fatal error `code`.
-pub unsafe fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Result<(), Refused> {
-    unsafe { function.run(c) }?;
+pub fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Result<(), Refused> {
+    { function.run(c) }?;
     if c.carry {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
@@ -512,22 +512,20 @@ pub unsafe fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Res
 
 /// Runs the steps of one place. Anything but `Flow::On` comes from a `DoFlow` step, after
 /// which the rest of the place is not run.
-unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
+fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
     for step in steps {
-        unsafe {
-            match *step {
-                Step::DoFlow(what) => match what(c)? {
-                    Flow::On => {}
-                    elsewhere => return Ok(elsewhere),
-                },
-                Step::Call(function) => function.run(c)?,
-                Step::Write(variable, value) => variable().set(value),
-                Step::WriteF32(variable, value) => variable().set(value),
-                Step::Arg(value) => c.arg = value,
-                Step::ArgAddr(what) => c.arg = what() as u32,
-                Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
-                Step::Do(what) => what(c)?,
-            }
+        match *step {
+            Step::DoFlow(what) => match what(c)? {
+                Flow::On => {}
+                elsewhere => return Ok(elsewhere),
+            },
+            Step::Call(function) => function.run(c)?,
+            Step::Write(variable, value) => variable().set(value),
+            Step::WriteF32(variable, value) => variable().set(value),
+            Step::Arg(value) => c.arg = value,
+            Step::ArgAddr(what) => c.arg = what() as u32,
+            Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
+            Step::Do(what) => what(c)?,
         }
     }
     Ok(Flow::On)
@@ -834,7 +832,7 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 /// kept).
 pub unsafe fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refused> {
     unsafe { screen_loop(screen, entry) }?;
-    Ok(screen.result.map(|result| unsafe { result() }))
+    Ok(screen.result.map(|result| result()))
 }
 
 /// `run_screen` for a flow that holds the carried values: the screen's result, where it

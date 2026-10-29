@@ -11,10 +11,10 @@ use crate::errors::Refused;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 /// The Rust version (see the header).
-pub unsafe fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
+pub fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::textures::forget_slot_texture`.
-    let loaded = unsafe { crate::scene::textures::cells_mut(&TEXTURE_PLACES.slot_loaded) };
-    Ok(rc2k_core::scene::textures::forget_slot_texture(
-        loaded, slot,
+    Ok(crate::scene::textures::with_cells(
+        [&TEXTURE_PLACES.slot_loaded],
+        |[loaded]| rc2k_core::scene::textures::forget_slot_texture(loaded, slot),
     )?)
 }

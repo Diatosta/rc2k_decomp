@@ -20,5 +20,5 @@ pub fn next_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(),
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    unsafe { next_car(&mut |call| call_in_game(call)) }
+    next_car(&mut |call| call_in_game(call))
 }
