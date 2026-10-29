@@ -19,7 +19,6 @@
 //! compared.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, rva};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
@@ -478,45 +477,6 @@ const SECOND_BACK_B: [(&Dword, u32); 6] = [
     (&RACE_STATE.settings.cars[0].view, 0xC),
 ];
 
-fn mem(a: usize) -> *mut u32 {
-    crate::pointers::host(game_addr(rva(a))) as *mut u32
-}
-
-/// A variable of the game that the run's steps read and write: a cell, or an address of the
-/// image's.
-trait Var {
-    unsafe fn load(self) -> u32;
-    unsafe fn store(self, v: u32);
-}
-
-impl Var for usize {
-    unsafe fn load(self) -> u32 {
-        unsafe { mem(self).read_unaligned() }
-    }
-
-    unsafe fn store(self, v: u32) {
-        unsafe { mem(self).write_unaligned(v) }
-    }
-}
-
-impl Var for &Dword {
-    unsafe fn load(self) -> u32 {
-        self.get()
-    }
-
-    unsafe fn store(self, v: u32) {
-        self.set(v)
-    }
-}
-
-unsafe fn var(a: impl Var) -> u32 {
-    unsafe { a.load() }
-}
-
-unsafe fn set_var(a: impl Var, v: u32) {
-    unsafe { a.store(v) }
-}
-
 fn field(rec: Record, off: u32) -> Result<u32, BadInput> {
     GamePtr::new(rec.wrapping_add(off)).read("a player's record")
 }
@@ -610,148 +570,142 @@ fn give_outcome(rec: Record, o: &Outcome) -> Result<(), BadInput> {
 /// picture is not shown again after), `kind` (ebx) the kind (3: the rally's times copied
 /// first). Refuses, before anything, a missing player record (`g_players`[1] or
 /// [`dword_75598C`]; the original reads and writes through it).
-pub unsafe fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
-    unsafe { guarded(start, kind, &mut step) }
+pub fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
+    guarded(start, kind, &mut step)
 }
 
 /// The refusal, then the race, its calls done by `step`.
-unsafe fn guarded(
+fn guarded(
     start: u32,
     kind: u32,
     step: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        if player(1)? == 0 || player(var(CURRENT))? == 0 {
-            return Err(crate::errors::BadInput("a player's record missing").into());
-        }
-        single_rally(start, kind, step)
+    if player(1)? == 0 || player(CURRENT.get())? == 0 {
+        return Err(crate::errors::BadInput("a player's record missing").into());
     }
+    single_rally(start, kind, step)
 }
 
 /// The last calls of the original (from 0x897 of the table): the kept word back, the tune.
-unsafe fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refused> {
-    unsafe {
-        set_var(KEPT, RACE_KEPT.get());
-        step(14) // sound::play_tune_3
-    }
+fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refused> {
+    KEPT.set(RACE_KEPT.get());
+    step(14) // sound::play_tune_3
 }
 
 /// The original's body; `step(place)` does the call at `place`.
-unsafe fn single_rally(
+fn single_rally(
     start: u32,
     kind: u32,
     step: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        if kind == 3 {
-            step(1)?; // race::copy_rally_times
-        }
-        RACE_INFO.set(SUMMARY.get());
-        set_var(SWITCH, start);
-        RACE_KIND.set(kind);
-        RESULT.set(0);
-        RESULT_2.set(0);
-        RACE_KEPT.set(0);
-        RACE_MODE.set(1);
-        step(2)?; // sound::stop_music
-        step(3)?; // race::set_race_screen_mode
-        step(4)?; // menu::show_loading_picture
-        set_var(&VIEWER_PANEL.after_loading_copy, var(AFTER_LOADING));
-
-        // The stage's entry in the track list.
-        let stage = STAGE.get();
-        let mut entry = crate::records::stages_store::STAGE_TABLES
-            .trak_pak()
-            .wrapping_add(0x34);
-        while field(entry, 0x34)? != stage {
-            entry = entry.wrapping_add(0x40);
-            if field(entry, 0)? == u32::MAX {
-                return Err(UNKNOWN_TRACK.into());
-            }
-        }
-        take_words(entry, &TRACK_TO_RACE)?;
-        for &(from, to) in &SETTINGS_TO_RACE {
-            to.set(var(from));
-        }
-        let first = player(1)?;
-        take_words(first, &PLAYER_1_WORDS)?;
-        take_keys(first, &RACE_STATE.settings.cars[1].keys)?;
-
-        let one_car = matches!(var(EVENT_MODE), 5 | 4 | 0xF | 0xA);
-        if one_car {
-            RACE_KEPT.set(var(KEPT));
-            RACE_MODE.set(2);
-            if field(first, 0xD0)? != 1 {
-                RESULT_2.set(u32::MAX);
-            }
-            WORD_8_FIRST.set(field(first, 0x8)?);
-            take_words(first, &FIRST_HEAD)?;
-            block_in(first, BLOCK_FIRST)?;
-            take_words(first, &FIRST_TAIL)?;
-            set_var(CURRENT, 0);
-        } else if field(player(var(CURRENT))?, 0xD0)? != 1 {
-            // The current player's record is not in use: no race.
-            RESULT.set(u32::MAX);
-            return finish(step);
-        }
-
-        // The current player's record (player 0 after an event's one-car race).
-        let rec = player(var(CURRENT))?;
-        WORD_8.set(field(rec, 0x8)?);
-        if field(rec, 0xD0)? != 1 {
-            RESULT.set(u32::MAX);
-        }
-        take_words(rec, &SECOND_HEAD)?;
-        block_in(rec, BLOCK_CURRENT)?;
-        take_words(rec, &SECOND_MID)?;
-        if RACE_MODE.get() == 2 {
-            MODE_WORD.set(field(rec, 0x10)?);
-        }
-        take_words(rec, &SECOND_TAIL)?;
-        take_keys(rec, &RACE_STATE.settings.cars[0].keys)?;
-
-        // The race.
-        NO_REPLAY.set(0);
-        if !one_car && var(PLAYER_COUNT) != 1 {
-            NO_REPLAY.set(1);
-        }
-        step(5)?; // race::set_up_race_sound_objects
-        step(6)?; // sound::set_up_race_sounds
-        step(7)?; // race::race_from_menu
-        step(2)?; // sound::stop_music
-        step(8)?; // gfx::set_menu_screen_mode
-        if var(SWITCH) != 1 {
-            step(4)?; // menu::show_loading_picture
-        }
-        step(9)?; // race::clear_race_sound_objects
-        step(10)?; // sound::apply_settings
-
-        // The outcome back into the records.
-        if one_car {
-            let first = player(1)?;
-            give_words(first, &FIRST_BACK_A)?;
-            block_out(BLOCK_FIRST, first)?;
-            set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST))?;
-            give_words(first, &FIRST_BACK_B)?;
-            give_outcome(first, &OUTCOME_FIRST)?;
-            set_var(CURRENT, 0);
-        }
-        let rec = player(var(CURRENT))?;
-        set_field(rec, 0x284, BACK_284_CURRENT.get())?;
-        block_out(BLOCK_CURRENT, rec)?;
-        give_words(rec, &SECOND_BACK_A)?;
-        set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT))?;
-        give_words(rec, &SECOND_BACK_B)?;
-        give_outcome(rec, &OUTCOME_CURRENT)?;
-
-        if var(SWITCH) != 1 {
-            step(11)?; // scene::set_up_engine
-            step(12)?; // scene::set_up_front_end_scene
-            step(11)?;
-        }
-        step(13)?; // input::take_key
-        finish(step)
+    if kind == 3 {
+        step(1)?; // race::copy_rally_times
     }
+    RACE_INFO.set(SUMMARY.get());
+    SWITCH.set(start);
+    RACE_KIND.set(kind);
+    RESULT.set(0);
+    RESULT_2.set(0);
+    RACE_KEPT.set(0);
+    RACE_MODE.set(1);
+    step(2)?; // sound::stop_music
+    step(3)?; // race::set_race_screen_mode
+    step(4)?; // menu::show_loading_picture
+    VIEWER_PANEL.after_loading_copy.set(AFTER_LOADING.get());
+
+    // The stage's entry in the track list.
+    let stage = STAGE.get();
+    let mut entry = crate::records::stages_store::STAGE_TABLES
+        .trak_pak()
+        .wrapping_add(0x34);
+    while field(entry, 0x34)? != stage {
+        entry = entry.wrapping_add(0x40);
+        if field(entry, 0)? == u32::MAX {
+            return Err(UNKNOWN_TRACK.into());
+        }
+    }
+    take_words(entry, &TRACK_TO_RACE)?;
+    for &(from, to) in &SETTINGS_TO_RACE {
+        to.set(from.get());
+    }
+    let first = player(1)?;
+    take_words(first, &PLAYER_1_WORDS)?;
+    take_keys(first, &RACE_STATE.settings.cars[1].keys)?;
+
+    let one_car = matches!(EVENT_MODE.get(), 5 | 4 | 0xF | 0xA);
+    if one_car {
+        RACE_KEPT.set(KEPT.get());
+        RACE_MODE.set(2);
+        if field(first, 0xD0)? != 1 {
+            RESULT_2.set(u32::MAX);
+        }
+        WORD_8_FIRST.set(field(first, 0x8)?);
+        take_words(first, &FIRST_HEAD)?;
+        block_in(first, BLOCK_FIRST)?;
+        take_words(first, &FIRST_TAIL)?;
+        CURRENT.set(0);
+    } else if field(player(CURRENT.get())?, 0xD0)? != 1 {
+        // The current player's record is not in use: no race.
+        RESULT.set(u32::MAX);
+        return finish(step);
+    }
+
+    // The current player's record (player 0 after an event's one-car race).
+    let rec = player(CURRENT.get())?;
+    WORD_8.set(field(rec, 0x8)?);
+    if field(rec, 0xD0)? != 1 {
+        RESULT.set(u32::MAX);
+    }
+    take_words(rec, &SECOND_HEAD)?;
+    block_in(rec, BLOCK_CURRENT)?;
+    take_words(rec, &SECOND_MID)?;
+    if RACE_MODE.get() == 2 {
+        MODE_WORD.set(field(rec, 0x10)?);
+    }
+    take_words(rec, &SECOND_TAIL)?;
+    take_keys(rec, &RACE_STATE.settings.cars[0].keys)?;
+
+    // The race.
+    NO_REPLAY.set(0);
+    if !one_car && PLAYER_COUNT.get() != 1 {
+        NO_REPLAY.set(1);
+    }
+    step(5)?; // race::set_up_race_sound_objects
+    step(6)?; // sound::set_up_race_sounds
+    step(7)?; // race::race_from_menu
+    step(2)?; // sound::stop_music
+    step(8)?; // gfx::set_menu_screen_mode
+    if SWITCH.get() != 1 {
+        step(4)?; // menu::show_loading_picture
+    }
+    step(9)?; // race::clear_race_sound_objects
+    step(10)?; // sound::apply_settings
+
+    // The outcome back into the records.
+    if one_car {
+        let first = player(1)?;
+        give_words(first, &FIRST_BACK_A)?;
+        block_out(BLOCK_FIRST, first)?;
+        set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST))?;
+        give_words(first, &FIRST_BACK_B)?;
+        give_outcome(first, &OUTCOME_FIRST)?;
+        CURRENT.set(0);
+    }
+    let rec = player(CURRENT.get())?;
+    set_field(rec, 0x284, BACK_284_CURRENT.get())?;
+    block_out(BLOCK_CURRENT, rec)?;
+    give_words(rec, &SECOND_BACK_A)?;
+    set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT))?;
+    give_words(rec, &SECOND_BACK_B)?;
+    give_outcome(rec, &OUTCOME_CURRENT)?;
+
+    if SWITCH.get() != 1 {
+        step(11)?; // scene::set_up_engine
+        step(12)?; // scene::set_up_front_end_scene
+        step(11)?;
+    }
+    step(13)?; // input::take_key
+    finish(step)
 }
 
 /// The original's call at `place` (its index in `table::CALLS` plus one). The registers the
@@ -1967,7 +1921,7 @@ mod tests {
     use super::table::{Op, R, SINGLE_RALLY};
     use super::*;
     use crate::errors::BadInput;
-    use crate::framework::Regs;
+    use crate::framework::{Regs, game_addr, rva};
 
     /// The tests share the game's memory.
     /// The size of the stand-in for the game's image: every variable of the function is below.
@@ -2150,53 +2104,53 @@ mod tests {
     }
 
     impl Calls<'_> {
-        unsafe fn call(&mut self, place: u32) -> Result<(), Refused> {
-            unsafe {
-                let c = self.case;
-                self.log.push((place, digest(self.ranges)));
-                if c.fail_at == Some(place) {
-                    return Err(BadInput("injected").into());
-                }
-                match place {
-                    1 => SUMMARY.set(self.rng.next()),
-                    3 => STAGE.set(c.stage),
-                    4 => set_var(AFTER_LOADING, self.rng.next()),
-                    7 => {
-                        // The race changes everything the results are copied from.
-                        let (kept, kept_2) = (RESULT.get(), RESULT_2.get());
-                        for a in (0x75AD00..0x75B0FC).step_by(4) {
-                            set_var(a, self.rng.next());
-                        }
-                        for (times, extra, sums, e) in [
-                            (TIMES_FIRST, EXTRA_FIRST, c.sums, c.extra),
-                            (TIMES_CURRENT, EXTRA_CURRENT, c.sums_2, c.extra_2),
-                        ] {
-                            let v: [u32; 4] = match sums {
-                                1 => [0; 4],
-                                2 => [1, u32::MAX, 0, 0],
-                                3 => [3, 0, 2, 1],
-                                _ => [(); 4].map(|_| self.rng.next()),
-                            };
-                            for (a, v) in times.iter().zip(v) {
-                                a.set(v);
-                            }
-                            extra.set(e);
-                        }
-                        RESULT.set(c.result.unwrap_or(kept));
-                        RESULT_2.set(c.result_2.unwrap_or(kept_2));
-                        OUTCOME_CURRENT.secs.set_bits(c.secs);
-                        OUTCOME_FIRST.secs.set_bits(c.secs_2);
-                    }
-                    9 => {
-                        if let Some(s) = c.switch_after {
-                            set_var(SWITCH, s);
-                        }
-                    }
-                    13 => RACE_KEPT.set(self.rng.next()),
-                    _ => {}
-                }
-                Ok(())
+        fn call(&mut self, place: u32) -> Result<(), Refused> {
+            let c = self.case;
+            self.log.push((place, digest(self.ranges)));
+            if c.fail_at == Some(place) {
+                return Err(BadInput("injected").into());
             }
+            match place {
+                1 => SUMMARY.set(self.rng.next()),
+                3 => STAGE.set(c.stage),
+                4 => AFTER_LOADING.set(self.rng.next()),
+                7 => {
+                    // The race changes everything the results are copied from.
+                    let (kept, kept_2) = (RESULT.get(), RESULT_2.get());
+                    for a in (0x75AD00..0x75B0FC).step_by(4) {
+                        GamePtr::new(game_addr(rva(a)))
+                            .write(self.rng.next(), "a test variable")
+                            .unwrap();
+                    }
+                    for (times, extra, sums, e) in [
+                        (TIMES_FIRST, EXTRA_FIRST, c.sums, c.extra),
+                        (TIMES_CURRENT, EXTRA_CURRENT, c.sums_2, c.extra_2),
+                    ] {
+                        let v: [u32; 4] = match sums {
+                            1 => [0; 4],
+                            2 => [1, u32::MAX, 0, 0],
+                            3 => [3, 0, 2, 1],
+                            _ => [(); 4].map(|_| self.rng.next()),
+                        };
+                        for (a, v) in times.iter().zip(v) {
+                            a.set(v);
+                        }
+                        extra.set(e);
+                    }
+                    RESULT.set(c.result.unwrap_or(kept));
+                    RESULT_2.set(c.result_2.unwrap_or(kept_2));
+                    OUTCOME_CURRENT.secs.set_bits(c.secs);
+                    OUTCOME_FIRST.secs.set_bits(c.secs_2);
+                }
+                9 => {
+                    if let Some(s) = c.switch_after {
+                        SWITCH.set(s);
+                    }
+                }
+                13 => RACE_KEPT.set(self.rng.next()),
+                _ => {}
+            }
+            Ok(())
         }
     }
 
@@ -2210,20 +2164,17 @@ mod tests {
                 }
             }
             for (k, r) in w.records.iter().enumerate() {
-                set_var(
-                    &PLAYER_TABLE.pointers[k],
-                    if c.missing[k] {
-                        0
-                    } else {
-                        crate::pointers::game_address(r.as_ptr())
-                    },
-                );
+                PLAYER_TABLE.pointers[k].set(if c.missing[k] {
+                    0
+                } else {
+                    crate::pointers::game_address(r.as_ptr())
+                });
                 set_field(crate::pointers::game_address(r.as_ptr()), 0xD0, c.d0[k])
                     .expect("the test's memory is registered");
             }
-            set_var(EVENT_MODE, c.mode);
-            set_var(PLAYER_COUNT, c.count);
-            set_var(CURRENT, c.current);
+            EVENT_MODE.set(c.mode);
+            PLAYER_COUNT.set(c.count);
+            CURRENT.set(c.current);
             // The track list: entries 0x40 apart from +0x34; the stage's number at +0x34 of
             // the entry; a dword -1 at the start of the entry the list ends at.
             let entry = |k: usize| {
@@ -2267,7 +2218,7 @@ mod tests {
                 log: Vec::new(),
                 rng: Rng(c.seed ^ 0x55AA),
             };
-            let result = if player(1).unwrap() == 0 || player(var(CURRENT)).unwrap() == 0 {
+            let result = if player(1).unwrap() == 0 || player(CURRENT.get()).unwrap() == 0 {
                 Err(BadInput("a player's record missing").into())
             } else {
                 super::table::run(
@@ -2292,17 +2243,15 @@ mod tests {
         }
     }
 
-    unsafe fn run_new(w: &World, c: &Case) -> Outcome3 {
-        unsafe {
-            let mut calls = Calls {
-                case: c,
-                ranges: &w.ranges,
-                log: Vec::new(),
-                rng: Rng(c.seed ^ 0x55AA),
-            };
-            let result = guarded(c.start, c.kind, &mut |place| calls.call(place));
-            after(w, result, calls.log)
-        }
+    fn run_new(w: &World, c: &Case) -> Outcome3 {
+        let mut calls = Calls {
+            case: c,
+            ranges: &w.ranges,
+            log: Vec::new(),
+            rng: Rng(c.seed ^ 0x55AA),
+        };
+        let result = guarded(c.start, c.kind, &mut |place| calls.call(place));
+        after(w, result, calls.log)
     }
 
     fn cases() -> Vec<Case> {

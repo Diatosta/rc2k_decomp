@@ -15,23 +15,20 @@
 
 use crate::d3d::cards_store::CARDS_3D;
 use crate::gfx::cards::CARDS;
-use crate::logfile::log_write::{log_newline_l1, log_write};
+use crate::logfile::log_write::log_newline_l1;
 
 /// The Rust version (see the header).
 pub fn find_3d_cards() {
-    unsafe {
-        CARDS.primary.set(0);
-        CARDS.secondary.set(0);
-        if CARDS_3D.no_search.get() == 0 {
-            log_write(
-                crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D))
-                    as *const u8,
-                true,
-                1,
-            );
-            if CARDS_3D.not_primary.get() == 0 {
-                CARDS.primary.set(1);
-            }
+    CARDS.primary.set(0);
+    CARDS.secondary.set(0);
+    if CARDS_3D.no_search.get() == 0 {
+        crate::logfile::log_write::log_at(
+            crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D),
+            true,
+            1,
+        );
+        if CARDS_3D.not_primary.get() == 0 {
+            CARDS.primary.set(1);
         }
     }
     log_newline_l1();

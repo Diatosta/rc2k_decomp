@@ -27,7 +27,7 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), false, 1) };
+    crate::logfile::log_write::log_nul(&text, false, 1);
 }
 
 fn log_number(v: u32) {

@@ -12,7 +12,6 @@
 //! four from Rust . Refuses what `net::free_messages` refuses.
 
 use crate::errors::Refused;
-use crate::logfile::log_write::log_write;
 use crate::net::store::NET;
 use crate::net::{close_session, destroy_player, free_messages, release_dplay, release_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -21,14 +20,11 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn destroy_connection() -> Result<(), Refused> {
     if NET.dplay.get() != 0 {
         NET.session.set(0);
-        unsafe {
-            log_write(
-                crate::pointers::host(VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION))
-                    as *const u8,
-                true,
-                2,
-            )
-        };
+        crate::logfile::log_write::log_at(
+            VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION),
+            true,
+            2,
+        );
         destroy_player::destroy_player();
         close_session::close_session();
         release_dplay::release_dplay();

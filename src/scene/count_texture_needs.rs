@@ -13,7 +13,6 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
@@ -70,7 +69,7 @@ pub unsafe fn count_texture_needs(
 pub unsafe fn count_texture_needs_in_game() -> Result<(), BadInput> {
     unsafe {
         count_texture_needs(&mut |piece, newline| match piece {
-            Ok(text) => log_write(text.as_ptr().cast(), newline, 1),
+            Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
             Err(number) => log_int(number as i32, newline, 1),
         })
     }

@@ -35,7 +35,7 @@ fn indent_by(by: u32) {
 
 /// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).
 fn log(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
+    crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
 /// The log indented round a part (`pushf`; +- 3; `popf`).

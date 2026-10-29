@@ -18,7 +18,6 @@
 //! Run by `threading::start_slot_thread` (its slot `stru_518714`, `routes.rs`).
 
 use crate::errors::Refused;
-use crate::logfile::log_write::log_write;
 use crate::net::store::NET;
 use crate::session::FLAGS;
 
@@ -31,38 +30,36 @@ const WAIT: u32 = 1000;
 pub fn receive_thread() -> Result<(), Refused> {
     let running =
         &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
-    unsafe {
-        if running.get() != 1 {
-            running.set(1);
-            log_write(START_TEXT.as_ptr().cast(), true, 2);
-            if NET.receive_done.get() == 0 {
-                loop {
-                    let (_, zero) =
-                        crate::threading::wait_for_object::wait_for_object(NET.event.get(), WAIT)
-                            .flags();
-                    if !zero {
-                        NET.receiving.set(1);
-                        if NET.session.get() == 1 {
-                            crate::net::take_messages::take_messages()?;
-                        }
+    if running.get() != 1 {
+        running.set(1);
+        crate::logfile::log_write::log_nul(&START_TEXT, true, 2);
+        if NET.receive_done.get() == 0 {
+            loop {
+                let (_, zero) =
+                    crate::threading::wait_for_object::wait_for_object(NET.event.get(), WAIT)
+                        .flags();
+                if !zero {
+                    NET.receiving.set(1);
+                    if NET.session.get() == 1 {
+                        crate::net::take_messages::take_messages()?;
                     }
-                    NET.receiving.set(0);
-                    if NET.posting.get() == 1
-                        && let Some(call) = crate::net::post_call::take_posted()
-                    {
-                        NET.posted_result.set(call());
-                        NET.posted_answered.set(1);
-                    }
-                    if FLAGS.quitting.get() == 1 {
-                        break;
-                    }
+                }
+                NET.receiving.set(0);
+                if NET.posting.get() == 1
+                    && let Some(call) = crate::net::post_call::take_posted()
+                {
+                    NET.posted_result.set(call());
+                    NET.posted_answered.set(1);
+                }
+                if FLAGS.quitting.get() == 1 {
+                    break;
                 }
             }
         }
-        NET.receive_done.set(1);
-        log_write(QUIT_TEXT.as_ptr().cast(), true, 2);
-        running.set(0);
-        // The routine's end ends its thread (the original's `ExitThread`).
-        Ok(())
     }
+    NET.receive_done.set(1);
+    crate::logfile::log_write::log_nul(&QUIT_TEXT, true, 2);
+    running.set(0);
+    // The routine's end ends its thread (the original's `ExitThread`).
+    Ok(())
 }

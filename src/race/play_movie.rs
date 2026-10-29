@@ -16,10 +16,10 @@ const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayre
 /// The Rust version. Reads no register; its caller (`race::play_replay_range`, which
 /// keeps every register) reads none it leaves.
 pub fn play_movie() -> Result<(), Refused> {
-    unsafe { crate::logfile::log_write::log_write(IN_TEXT.as_ptr().cast(), false, 1) };
+    crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
     crate::drive::race_parts::restart_clock();
     PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
     crate::race::play_movie_loop::play_movie_loop()?;
-    unsafe { crate::logfile::log_write::log_write(OUT_TEXT.as_ptr().cast(), true, 1) };
+    crate::logfile::log_write::log_nul(&OUT_TEXT, true, 1);
     Ok(())
 }

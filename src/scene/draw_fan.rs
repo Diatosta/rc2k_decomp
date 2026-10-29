@@ -12,7 +12,7 @@ pub fn draw_fan() {
     }
     let result = crate::d3d::draw_fan::draw_fan();
     if result != 0 {
-        unsafe { crate::logfile::log_write::log_write(DRAWTRI_RVA.as_ptr().cast(), false, 1) };
+        crate::logfile::log_write::log_nul(&DRAWTRI_RVA, false, 1);
         crate::logfile::log_hex8::log_hex8(result, false, 1);
     }
 }

@@ -40,54 +40,48 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn award_stage_points() -> Result<(), Refused> {
-    unsafe {
-        let classes: u32 = EVENT_STATE.classes.get();
-        let section: u32 = SECTION_RVA.get();
-        if classes == 0 || classes > 0x100 || section > 5 {
-            return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
-        }
-        let mut all = walked_entries_b()?;
-        let mut owners = Vec::with_capacity(all.len());
-        for e in &all {
-            owners.push(owner(e)?);
-        }
-        // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
-        use rc2k_core::menu::points::{Points, kept, total};
-        let at = 4 * section;
-        for class in 0..classes {
-            let mut points = Points::default();
-            DRAW_WORK.seconds.set(points.0);
-            for (e, o) in all.iter_mut().zip(&owners) {
-                EVENT_STATE.class.set(class);
-                if e.group != class {
-                    continue;
-                }
-                crate::logfile::log_write::log_write(
-                    STATUS_TEXT_RVA.as_ptr() as *const u8,
-                    false,
-                    1,
-                );
-                crate::logfile::log_int::log_int(e.status as i32, true, 1);
-                let given = points.take();
-                DRAW_WORK.seconds.set(points.0);
-                let (keeps, field) = match *o {
-                    Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
-                    Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
-                };
-                e.stage[section as usize] = kept(given, keeps);
-                put(field, kept(given, keeps))?;
-            }
-        }
-        for (e, o) in all.iter_mut().zip(&owners) {
-            let total = total(std::array::from_fn(|k| e.stage[k]));
-            e.stage[6] = total;
-            match *o {
-                Owner::Driver(d) => put(d + 0x90, total)?,
-                Owner::Player(p) => put(p + 0xB0, total)?,
-            }
-        }
-        with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
+pub fn award_stage_points() -> Result<(), Refused> {
+    let classes: u32 = EVENT_STATE.classes.get();
+    let section: u32 = SECTION_RVA.get();
+    if classes == 0 || classes > 0x100 || section > 5 {
+        return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
     }
+    let mut all = walked_entries_b()?;
+    let mut owners = Vec::with_capacity(all.len());
+    for e in &all {
+        owners.push(owner(e)?);
+    }
+    // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
+    use rc2k_core::menu::points::{Points, kept, total};
+    let at = 4 * section;
+    for class in 0..classes {
+        let mut points = Points::default();
+        DRAW_WORK.seconds.set(points.0);
+        for (e, o) in all.iter_mut().zip(&owners) {
+            EVENT_STATE.class.set(class);
+            if e.group != class {
+                continue;
+            }
+            crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
+            crate::logfile::log_int::log_int(e.status as i32, true, 1);
+            let given = points.take();
+            DRAW_WORK.seconds.set(points.0);
+            let (keeps, field) = match *o {
+                Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
+                Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
+            };
+            e.stage[section as usize] = kept(given, keeps);
+            put(field, kept(given, keeps))?;
+        }
+    }
+    for (e, o) in all.iter_mut().zip(&owners) {
+        let total = total(std::array::from_fn(|k| e.stage[k]));
+        e.stage[6] = total;
+        match *o {
+            Owner::Driver(d) => put(d + 0x90, total)?,
+            Owner::Player(p) => put(p + 0xB0, total)?,
+        }
+    }
+    with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
     Ok(())
 }

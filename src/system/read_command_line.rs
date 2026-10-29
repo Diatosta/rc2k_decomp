@@ -49,7 +49,7 @@ pub enum Asked {
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave() -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
-    let caption = crate::pointers::game_address(crate::fatal::state::CAPTION.ptr());
+    let caption = crate::fatal::state::CAPTION.addr();
     // byte_4F6702: its `:`
     GamePtr::new(caption + 5)
         .write(0u8, "the caption")
@@ -65,7 +65,7 @@ pub fn show_version_and_leave() -> ! {
     ));
     let mut kept = text.clone();
     kept.push(0);
-    let place = crate::pointers::game_address(crate::fatal::state::TEXT.ptr()); // Text
+    let place = crate::fatal::state::TEXT.addr(); // Text
     GamePtr::new(place)
         .write_bytes(&kept, "the version's text")
         .unwrap_or_else(|e| leave(e));

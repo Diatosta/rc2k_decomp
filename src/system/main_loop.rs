@@ -197,40 +197,36 @@ pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refuse
 /// The calls: the Rust versions, those still taking registers by their address (a
 /// local register set, their scratch: none of them reads one).
 fn in_game(call: Call) -> Result<(), Refused> {
-    unsafe {
-        match call {
-            Call::Log(0) => crate::menu::text_entry::log_l1(c"".as_ptr() as *const u8, true),
-            Call::Log(text) => {
-                crate::menu::text_entry::log_l1(crate::pointers::host(text) as *const u8, true)
-            }
-            Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
-            Call::Sub404823 => {
-                crate::platform::set_menu_mode_now();
-            }
-            Call::Sub40EFF3 => crate::sound::apply_settings::apply_settings()?,
-            Call::Sub4075F3 => crate::gfx::load_jade::load_jade_in_game()?,
-            Call::Sub4165F1 => crate::menu::build_notice::build_notice(),
-            Call::RunsFromSource => {
-                crate::install::runs_from_source::source_against_directory(
-                    &mut crate::install::outside::Game,
-                )?;
-            }
-            Call::Installer => crate::install::run_installer::run_installer()?,
-            Call::Sub40FCAA => crate::sound::stop_cd_audio::stop_cd_audio(),
-            // Its answer is not read.
-            Call::IsCdDrive(drive) => {
-                crate::files::is_cd_drive::is_cd_drive(drive);
-            }
-            // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
-            Call::Sub418DF4 => crate::net::lobby_launched_game::lobby_launched_game()?,
-            Call::RunFrontEnd => crate::menu::run_front_end::run_front_end()?,
-            Call::Sub40F826 => crate::sound::stop_music::stop_music(),
-            Call::SaveGameData => {
-                crate::saves::save_game_data::save_in_game()?;
-            }
-            Call::FreeBestTimes => crate::saves::free_best_times::free_in_game()?,
-            Call::RequestQuit => crate::threading::request_quit::request_quit_logged()?,
+    match call {
+        Call::Log(0) => crate::logfile::log_write::log_nul(c"", true, 1),
+        Call::Log(text) => crate::logfile::log_write::log_at(text, true, 1),
+        Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
+        Call::Sub404823 => {
+            crate::platform::set_menu_mode_now();
         }
+        Call::Sub40EFF3 => crate::sound::apply_settings::apply_settings()?,
+        Call::Sub4075F3 => crate::gfx::load_jade::load_jade_in_game()?,
+        Call::Sub4165F1 => crate::menu::build_notice::build_notice(),
+        Call::RunsFromSource => {
+            crate::install::runs_from_source::source_against_directory(
+                &mut crate::install::outside::Game,
+            )?;
+        }
+        Call::Installer => crate::install::run_installer::run_installer()?,
+        Call::Sub40FCAA => crate::sound::stop_cd_audio::stop_cd_audio(),
+        // Its answer is not read.
+        Call::IsCdDrive(drive) => {
+            crate::files::is_cd_drive::is_cd_drive(drive);
+        }
+        // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
+        Call::Sub418DF4 => crate::net::lobby_launched_game::lobby_launched_game()?,
+        Call::RunFrontEnd => crate::menu::run_front_end::run_front_end()?,
+        Call::Sub40F826 => crate::sound::stop_music::stop_music(),
+        Call::SaveGameData => {
+            crate::saves::save_game_data::save_in_game()?;
+        }
+        Call::FreeBestTimes => crate::saves::free_best_times::free_in_game()?,
+        Call::RequestQuit => crate::threading::request_quit::request_quit_logged()?,
     }
     Ok(())
 }

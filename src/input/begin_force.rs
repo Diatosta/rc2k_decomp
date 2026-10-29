@@ -53,7 +53,7 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
     if at(entry, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
-    unsafe { crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as *const u8, true, 2) };
+    crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
     let device = at(record, field!(InputDevice, device))?;
     // Converted: `rc2k_core::input::acquire::gain`.
     let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {

@@ -27,10 +27,8 @@
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
 use crate::framework::{RawHook, Regs, log, rva};
-use crate::menu::text_entry::log_l1;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
-use std::ffi::{CStr, c_char};
 use std::sync::atomic::Ordering;
 
 pub static HOOK: RawHook = RawHook::new("fatal::report", rva(0x40763C));
@@ -46,30 +44,31 @@ const _: () = assert!(size_of::<Regs>() == 36);
 
 pub use rc2k_core::fatal::{Context, Leave, TEXT_ONLY, register_dump, report_text};
 
-unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
-    unsafe { CStr::from_ptr(ptr as *const c_char) }.to_bytes()
-}
-
 /// The report for what the game's variables hold now.
-unsafe fn text_from_game(context: &Context) -> Vec<u8> {
-    unsafe {
-        let message: u32 = MESSAGE.load(Ordering::Relaxed);
-        let last_file = crate::files::state::last_file_path();
-        report_text(
-            CODE.load(Ordering::Relaxed),
-            (message != 0).then(|| cstr(crate::pointers::host(message) as *const u8)),
-            cstr(EXTRA.ptr().cast()),
-            last_file.as_deref(),
-            W32.load(Ordering::Relaxed),
-            context,
-        )
-    }
+fn text_from_game(context: &Context) -> Result<Vec<u8>, BadInput> {
+    let message: u32 = MESSAGE.load(Ordering::Relaxed);
+    let message = match message {
+        0 => None,
+        m => Some(crate::files::cstring(
+            crate::pointers::GamePtr::new(m),
+            "a fatal error's message",
+        )?),
+    };
+    let last_file = crate::files::state::last_file_path();
+    Ok(report_text(
+        CODE.load(Ordering::Relaxed),
+        message.as_deref(),
+        &EXTRA.text(),
+        last_file.as_deref(),
+        W32.load(Ordering::Relaxed),
+        context,
+    ))
 }
 
 /// What the reporter needs from code that is not ported, or from a test.
 pub struct Outside<'a> {
     /// Logs a NUL-terminated text at level 1 with a line break.
-    pub log: &'a mut dyn FnMut(*const u8),
+    pub log: &'a mut dyn FnMut(&[u8]),
     /// Asks the game to quit.
     pub quit: &'a mut dyn FnMut(),
     /// The current thread's slot, or 0.
@@ -79,7 +78,7 @@ pub struct Outside<'a> {
 pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
     unsafe {
         let code: u32 = CODE.load(Ordering::Relaxed);
-        let text = text_from_game(context);
+        let text = text_from_game(context)?;
         // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
         if !rc2k_core::fatal::fits(text.len()) {
             return Err(BadInput("the report does not fit its buffer"));
@@ -88,14 +87,13 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
             if code & TEXT_ONLY == 0 {
                 // The original fills in its template in place, so it keeps the values.
                 let dump = register_dump(context);
-                std::ptr::copy_nonoverlapping(dump.as_ptr(), TEMPLATE.ptr().cast(), dump.len());
+                TEMPLATE.write_at(0, &dump, "the registers' template")?;
             }
-            let buffer: *mut u8 = TEXT.ptr().cast();
-            std::ptr::copy_nonoverlapping(text.as_ptr(), buffer, text.len());
-            buffer.add(text.len()).write(0);
+            TEXT.write_at(0, &text, "the report")?;
+            TEXT.write_at(text.len(), &[0], "the report")?;
             crate::logfile::write_line::set_enabled(1); // g_logEnabled
-            (outside.log)(CAPTION.ptr().cast::<u8>().add(7));
-            (outside.log)(buffer);
+            (outside.log)(&CAPTION.read()[7..]);
+            (outside.log)(&text);
         }
         Ok(rc2k_core::fatal::leave(
             code,
@@ -131,7 +129,7 @@ pub fn report_now(r: &Regs) {
         crate::sync::thread_id()
     ));
     let mut outside = Outside {
-        log: &mut |text| unsafe { log_l1(text, true) },
+        log: &mut |text| crate::logfile::log_write::log_nul(text, true, 1),
         // If no shutdown thread can be created there is nothing more to report: a report
         // is being made already, and the way out below ends the game anyway.
         quit: &mut || {

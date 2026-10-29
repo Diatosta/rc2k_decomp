@@ -50,7 +50,7 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             g.arg = passes::FADE_PAUSE;
             crate::system::sleep::sleep(g.arg);
             MENU_STATE.driver_stats.repair_time.set(0);
-            unsafe { crate::menu::driver_stats::driver_stats() }?;
+            { crate::menu::driver_stats::driver_stats() }?;
             MENU_STATE.menus.service_flag.set(0);
             unsafe { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
             if yes() {

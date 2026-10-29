@@ -56,11 +56,6 @@ pub fn put_field(at: u32, text: &Text) -> Result<(), crate::errors::BadInput> {
     crate::pointers::GamePtr::new(at).write::<Text>(*text, "a text field")
 }
 
-/// Writes a NUL-terminated text to the game's log at level 1.
-pub unsafe fn log_l1(text: *const u8, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(text, newline, 1) };
-}
-
 const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Backed up name="
 
 /// Starts an entry on the text field `field`, as the saved game and replay screens do it:
@@ -72,10 +67,8 @@ pub fn begin_logged(at: u32, log: bool) -> Result<(), crate::errors::BadInput> {
     with_entry(|e| e.begin(&mut text));
     put_field(at, &text)?;
     if log {
-        unsafe {
-            log_l1(BACKED_UP_RVA.as_ptr() as *const u8, false);
-            log_l1(crate::pointers::host(backup()) as *const u8, true);
-        }
+        crate::logfile::log_write::log_nul(BACKED_UP_RVA, false, 1);
+        crate::logfile::log_write::log_at(backup(), true, 1);
     }
     Ok(())
 }

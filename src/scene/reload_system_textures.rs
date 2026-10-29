@@ -23,7 +23,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::texture_pixels::GRADING;
-use crate::logfile::log_write::log_write;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
@@ -62,8 +61,8 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
             return Err(BadInput("a kind's first texture past the pictures' table").into());
         }
-        log_write(TEXTS[0].as_ptr().cast(), true, 1);
-        log_write(TEXTS[1].as_ptr().cast(), true, 1);
+        crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
+        crate::logfile::log_write::log_nul(&TEXTS[1], true, 1);
         for kind in 0..KINDS {
             let texture = first(kind);
             if texture == u32::MAX {
@@ -89,8 +88,8 @@ pub unsafe fn reload_system_textures() -> Result<(), Refused> {
         GRADING.scale.set(0x100);
         GRADING.saturation.set(0x100);
         load_hud_car_icons()?;
-        log_write(TEXTS[2].as_ptr().cast(), true, 1);
-        log_write(TEXTS[3].as_ptr().cast(), true, 1);
+        crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
+        crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
         Ok(())
     }
 }

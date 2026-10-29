@@ -165,7 +165,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
-        unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), nl, 1) };
+        crate::logfile::log_write::log_nul(&text, nl, 1);
         Ok(())
     }
     fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {

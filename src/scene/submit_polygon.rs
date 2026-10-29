@@ -22,7 +22,6 @@ use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
-use crate::logfile::log_write::log_write;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
@@ -102,13 +101,13 @@ impl Outside for Game {
         0
     }
     fn bad_vertex(&mut self) {
-        unsafe { log_write(ERROR_TEXT.as_ptr().cast(), true, 1) };
+        crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
         if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }
     fn not_drawn(&mut self, result: u32) {
-        unsafe { log_write(DRAWTRI_TEXT.as_ptr().cast(), false, 1) };
+        crate::logfile::log_write::log_nul(&DRAWTRI_TEXT, false, 1);
         log_hex8(result, false, 1);
     }
 }

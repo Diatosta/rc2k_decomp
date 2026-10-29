@@ -21,14 +21,39 @@ use crate::logfile::write_line::log_text;
 
 // ---- Rust version ----
 
-/// For Rust callers holding a pointer to a NUL-terminated text (the game's): logs it at
-/// `level` (1 or 2), with a line break after it if `newline` (`write_line::log_text`).
-///
-/// # Safety
-/// `text` points to a NUL-terminated text.
-pub unsafe fn log_write(text: *const u8, newline: bool, level: u8) {
-    let text = unsafe { std::ffi::CStr::from_ptr(text.cast()) };
-    log_text(text.to_bytes(), newline, level);
+/// A text the log takes: its bytes up to the first NUL (all of them without one).
+pub trait LogText {
+    fn log_bytes(&self) -> &[u8];
+}
+
+impl LogText for [u8] {
+    fn log_bytes(&self) -> &[u8] {
+        &self[..self.iter().position(|&c| c == 0).unwrap_or(self.len())]
+    }
+}
+
+impl<const N: usize> LogText for [u8; N] {
+    fn log_bytes(&self) -> &[u8] {
+        self[..].log_bytes()
+    }
+}
+
+impl LogText for std::ffi::CStr {
+    fn log_bytes(&self) -> &[u8] {
+        self.to_bytes()
+    }
+}
+
+impl<T: LogText + ?Sized> LogText for &T {
+    fn log_bytes(&self) -> &[u8] {
+        (**self).log_bytes()
+    }
+}
+
+/// `text` logged at `level` (1 or 2), with a line break after it if `newline`
+/// (`write_line::log_text`).
+pub fn log_nul(text: &(impl LogText + ?Sized), newline: bool, level: u8) {
+    log_text(text.log_bytes(), newline, level);
 }
 
 /// The NUL-terminated text at `at` (the game's memory, checked: `files::cstring`) logged

@@ -612,9 +612,9 @@ const SUMMARY: Summary = [
 /// a rule; `dword_6365E4` and `dword_6365EC` 0. The registers it leaves are read by no
 /// caller (conversion phase 3, 2026-10-24).
 pub fn build_best_line() -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
+    use crate::logfile::log_int::log_int;
     let text =
-        |at: &std::ffi::CStr, newline: bool| unsafe { log_write(at.as_ptr().cast(), newline, 1) };
+        |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
     {
         text(RULE_RVA[0], true);
         sort_checkpoints()?;

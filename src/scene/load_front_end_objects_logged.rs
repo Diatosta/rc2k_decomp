@@ -9,7 +9,7 @@
 //! Caller: `scene::set_up_front_end_scene`.
 
 use crate::errors::Refused;
-use crate::logfile::{log_hex8::log_hex8, log_write::log_write};
+use crate::logfile::log_hex8::log_hex8;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
@@ -27,17 +27,15 @@ const TOTALS: [Total; 4] = [
 ];
 
 /// The Rust version.
-pub unsafe fn load_front_end_objects_logged() -> Result<(), Refused> {
-    unsafe {
-        crate::scene::load_front_end_objects::load_front_end_objects()?;
-        let text = |s: &std::ffi::CStr| s.as_ptr().cast::<u8>();
-        log_write(text(RULE), true, 1);
-        log_write(text(LOADED), true, 1);
-        for (label, value) in TOTALS {
-            log_write(text(label), false, 1);
-            log_hex8(value(), true, 1);
-        }
-        log_write(text(RULE_2), true, 1);
+pub fn load_front_end_objects_logged() -> Result<(), Refused> {
+    crate::scene::load_front_end_objects::load_front_end_objects()?;
+    let text = |s: &'static std::ffi::CStr| s;
+    crate::logfile::log_write::log_nul(text(RULE), true, 1);
+    crate::logfile::log_write::log_nul(text(LOADED), true, 1);
+    for (label, value) in TOTALS {
+        crate::logfile::log_write::log_nul(text(label), false, 1);
+        log_hex8(value(), true, 1);
     }
+    crate::logfile::log_write::log_nul(text(RULE_2), true, 1);
     Ok(())
 }

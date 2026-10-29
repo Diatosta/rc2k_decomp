@@ -82,10 +82,9 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
         RACE_STATE.settings.cars[0].race_number.set(door);
         CAR_BLOCKS.cars[0].start_slot_value.set(door);
-        unsafe {
-            crate::logfile::log_write::log_write(DOOR_TEXT.as_ptr().cast(), false, 1);
-            crate::logfile::log_int::log_int(door as i32, true, 1);
-        }
+        crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
+        crate::logfile::log_int::log_int(door as i32, true, 1);
+
         sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
         if FONTS.palettes.get() == 0 {

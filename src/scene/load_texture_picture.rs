@@ -27,7 +27,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::place::Place;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -55,7 +54,7 @@ use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_grave
 
 /// What the function calls.
 pub enum Call {
-    Text(*const u8),
+    Text(Vec<u8>),
     Number(u32),
     /// Answers whether the file is there.
     Exists(Place),
@@ -98,9 +97,9 @@ pub fn load_texture_picture(
             || RACE_VIEW.race_cars.bits(),
         );
         if let Some(car) = car {
-            call(Call::Text(c"carnum".as_ptr().cast()));
+            call(Call::Text(b"carnum".to_vec()));
             call(Call::Number(car));
-            call(Call::Text(c"grav".as_ptr().cast()));
+            call(Call::Text(b"grav".to_vec()));
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
             let tyres = &RACE_VARS.car_tyres;
@@ -108,7 +107,7 @@ pub fn load_texture_picture(
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
                 gravel_chosen = true;
-                call(Call::Text(folders()[GRAVEL].1.ptr() as *const u8));
+                call(Call::Text(folders()[GRAVEL].1.text("a folder's name")?));
             }
         }
         let (name, second, _) = folders()[folder(number, gravel_chosen)];
@@ -123,7 +122,7 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
     unsafe {
         load_texture_picture(number, texture, &mut |call| {
             match call {
-                Call::Text(text) => log_write(text, false, 1),
+                Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
                 Call::Exists(path) => match crate::files::file_exists::file_exists_at(
                     crate::pointers::GamePtr::new(path.game()),

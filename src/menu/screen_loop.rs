@@ -292,8 +292,8 @@ pub fn read_at(address: u32) -> Result<u32, crate::errors::BadInput> {
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
 /// called between `pusha` and `popa`: no register changes).
-pub unsafe fn log_line(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
+pub fn log_line(text: &std::ffi::CStr) {
+    crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
 /// A game function a screen step runs (by its Rust version), with what it reads and

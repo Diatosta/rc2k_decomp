@@ -19,7 +19,7 @@
 //! x87 instructions.
 
 use crate::errors::BadInput;
-use crate::logfile::{log_int::log_int, log_write::log_write};
+use crate::logfile::log_int::log_int;
 use crate::net::store::NET;
 use crate::pointers::GamePtr;
 use crate::race::view_store::RACE_VIEW;
@@ -41,7 +41,7 @@ pub fn apply_message(player: u32, message: *const u8) -> Result<(), BadInput> {
         false,
         1,
     );
-    unsafe { log_write(TEXT.as_ptr().cast(), false, 1) };
+    crate::logfile::log_write::log_nul(&TEXT, false, 1);
     log_int(player as i32, true, 1);
     if player >= 8 {
         return Ok(());

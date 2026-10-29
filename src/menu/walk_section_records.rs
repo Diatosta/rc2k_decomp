@@ -42,36 +42,34 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn walk_section_records() -> Result<(), Refused> {
+pub fn walk_section_records() -> Result<(), Refused> {
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
     let records = walk()?;
-    unsafe {
-        for (_, step) in records {
-            if !step.goes_on() {
-                if step == Step::Ended {
-                    EVENT_STATE.championship_end.set(1u32);
-                }
-                break;
+    for (_, step) in records {
+        if !step.goes_on() {
+            if step == Step::Ended {
+                EVENT_STATE.championship_end.set(1u32);
             }
-            match step {
-                Step::CpuTimes => {
-                    crate::menu::calc_cpu_times::calc_cpu_times()?;
-                }
-                Step::Condition => {
-                    rdc::reset_driver_condition()?;
-                }
-                _ => {}
-            }
-            if let Some(first) = step.first() {
-                EVENT_STATE.service_944.set(first);
-            }
-            INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
-            EVENT_STATE
-                .stages_done
-                .set(EVENT_STATE.stages_done.get().wrapping_add(1));
-            rpt::reset_player_totals()?;
+            break;
         }
-        rdc::reset_driver_condition()?;
+        match step {
+            Step::CpuTimes => {
+                crate::menu::calc_cpu_times::calc_cpu_times()?;
+            }
+            Step::Condition => {
+                rdc::reset_driver_condition()?;
+            }
+            _ => {}
+        }
+        if let Some(first) = step.first() {
+            EVENT_STATE.service_944.set(first);
+        }
+        INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
+        EVENT_STATE
+            .stages_done
+            .set(EVENT_STATE.stages_done.get().wrapping_add(1));
+        rpt::reset_player_totals()?;
     }
+    rdc::reset_driver_condition()?;
     Ok(())
 }

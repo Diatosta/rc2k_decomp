@@ -19,18 +19,10 @@ pub fn show_report_at_exit() {
     if REPORTED.load(Relaxed) == 1 {
         // Converted: `rc2k_core::fatal::caption_cut`.
         if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
-            // SAFETY: the caption's place is longer than the cut.
-            unsafe {
-                CAPTION
-                    .ptr()
-                    .cast::<u8>()
-                    .add(rc2k_core::fatal::CAPTION_CUT)
-                    .write(0)
-            };
+            CAPTION.set(rc2k_core::fatal::CAPTION_CUT, 0);
         }
         // MB_ICONEXCLAMATION | MB_TASKMODAL.
-        // SAFETY: the report's two places, written before `REPORTED`.
-        let (caption, text) = unsafe { (CAPTION.ptr().read(), TEXT.ptr().read()) };
+        let (caption, text) = (CAPTION.read(), TEXT.read());
         let until_nul = |b: &[u8]| b.split(|&c| c == 0).next().unwrap_or_default().to_vec();
         crate::os::message_box(
             crate::os::Icon::Warning,

@@ -41,30 +41,28 @@ fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
 
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
 /// calls get theirs as noted, of which only the sound reads one (eax 8).
-pub unsafe fn check_cheat_name() -> Result<(), Refused> {
+pub fn check_cheat_name() -> Result<(), Refused> {
     let player = player_at(3);
     if player == 0 {
         return Err(BadInput("no fourth player").into());
     }
     let name = GamePtr::new(player + 0x18).read::<u32>("a player\'s name pointer")?;
-    unsafe {
-        let coded = rot13_into_text(name)?;
-        let Some((_found, bit)) = find(coded)? else {
-            return Ok(());
-        };
-        // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
-        let cheats = rc2k_core::menu::cheat_names::with_cheat(CHEAT_VARS.cheats.get(), bit as u8)?;
-        CHEAT_VARS.cheats.set(cheats);
-        // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
-        // the record.
-        crate::sound::play_menu_sound::play_menu_sound_in_game(8);
-        crate::menu::apply_cheats::apply_cheats(&mut |line| {
-            crate::menu::text_entry::log_l1(line, true)
-        })?;
-        let mut hidden = Vec::new();
-        crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
-        hidden.push(0);
-        GamePtr::new(name).write_bytes(&hidden, "a player\'s name")?;
-    }
+    let coded = rot13_into_text(name)?;
+    let Some((_found, bit)) = find(coded)? else {
+        return Ok(());
+    };
+    // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
+    let cheats = rc2k_core::menu::cheat_names::with_cheat(CHEAT_VARS.cheats.get(), bit as u8)?;
+    CHEAT_VARS.cheats.set(cheats);
+    // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
+    // the record.
+    crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+    crate::menu::apply_cheats::apply_cheats(&mut |line| {
+        crate::logfile::log_write::log_nul(line, true, 1)
+    })?;
+    let mut hidden = Vec::new();
+    crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
+    hidden.push(0);
+    GamePtr::new(name).write_bytes(&hidden, "a player\'s name")?;
     Ok(())
 }

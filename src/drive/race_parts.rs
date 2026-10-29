@@ -56,5 +56,5 @@ pub fn wake_car_sounds() -> Result<(), Refused> {
 
 /// `logfile::log_newline_l1` and the `pusha`'d `log_write_l1_nl` of a text.
 pub fn log_line(text: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
+    crate::logfile::log_write::log_nul(&text, true, 1);
 }

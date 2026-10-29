@@ -74,16 +74,14 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// two players' absences) into the car header (`dword_719B14` ..), each logged as
 /// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
 /// kept (the logs inside `pusha`); it reads none.
-pub unsafe fn record_replay_header() {
+pub fn record_replay_header() {
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
         header_cell(s).set(setting_cell(s).get());
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
-        unsafe {
-            crate::logfile::log_write::log_write(REPLAY_WORDS[n].as_ptr() as *const u8, false, 1)
-        };
+        crate::logfile::log_write::log_nul(&REPLAY_WORDS[n], false, 1);
         crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }
@@ -228,7 +226,7 @@ struct Tidy;
 impl Tidy {
     /// `log_write_l1_nl` of a word.
     fn log(&self, word: &std::ffi::CStr) {
-        unsafe { crate::logfile::log_write::log_write(word.as_ptr().cast(), true, 1) }
+        crate::logfile::log_write::log_nul(&word, true, 1)
     }
 
     /// `log_write_l1_nl` of the empty text (0x4E00B7).

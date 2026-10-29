@@ -39,17 +39,16 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
 pub unsafe fn load_stage() -> Result<(), Refused> {
-    use crate::logfile::log_write::log_write;
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
     };
     let mut word = 0;
     let mut log = || {
-        unsafe { log_write(WORDS[word].as_ptr() as *const u8, true, 1) };
+        crate::logfile::log_write::log_nul(&WORDS[word], true, 1);
         word += 1;
     };
-    let newline = || unsafe { log_write(c"".as_ptr().cast(), true, 1) };
+    let newline = || crate::logfile::log_write::log_nul(&c"", true, 1);
     unsafe {
         newline();
         log();

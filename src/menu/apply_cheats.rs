@@ -54,8 +54,8 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 
 // ---- Rust version ----
 
-/// `log` gets the address of each line's text.
-pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+/// `log` gets each line's text.
+pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = CHEAT_VARS.cheats.get();
@@ -84,7 +84,7 @@ pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
             RACE_STATE.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
-            log(CHEATS[bit].0.as_ptr().cast());
+            log(CHEATS[bit].0.to_bytes());
         }
         Ok(())
     }

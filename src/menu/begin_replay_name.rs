@@ -11,7 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;
-use crate::menu::text_entry::{begin_logged, log_l1};
+use crate::menu::text_entry::begin_logged;
 
 // ---- Rust version ----
 
@@ -20,10 +20,8 @@ pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
     let name = replay_name()?;
     if log {
         // aGetrepsaveslot
-        unsafe {
-            log_l1(c"getrepsaveslotname result=".as_ptr() as *const u8, false);
-            log_l1(crate::pointers::host(name) as *const u8, true);
-        }
+        crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);
+        crate::logfile::log_write::log_at(name, true, 1);
     }
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
     begin_logged(name, log)

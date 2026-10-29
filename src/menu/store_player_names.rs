@@ -14,12 +14,15 @@ use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-/// `log` gets the address of each line's text.
-pub fn store_player_names(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+/// `log` gets each line's text.
+pub fn store_player_names(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
     for (player, car) in cars()?.into_iter().enumerate() {
         let copy = car + CAR_NAME as u32;
         GamePtr::new(copy).write_bytes(&name_bytes(player), "a player's name copy")?;
-        log(crate::pointers::host(copy) as *const u8);
+        log(&crate::files::cstring(
+            GamePtr::new(copy),
+            "a player's name copy",
+        )?);
     }
     Ok(())
 }

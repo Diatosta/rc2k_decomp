@@ -23,19 +23,15 @@ use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, sc
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"VCoursesScr: Start");
-    }
+    log_line(c"VCoursesScr: Start");
     Ok(())
 }
 
-unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"VCoursesScr: End");
-    }
+    log_line(c"VCoursesScr: End");
     Ok(())
 }
 

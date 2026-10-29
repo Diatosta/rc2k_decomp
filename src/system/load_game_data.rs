@@ -226,7 +226,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
             Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
             Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(&mut |line| {
-                crate::menu::text_entry::log_l1(line, true)
+                crate::logfile::log_write::log_nul(line, true, 1)
             })?,
             Call::UserName(to) => {
                 if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {

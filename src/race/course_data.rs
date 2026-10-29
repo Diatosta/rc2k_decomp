@@ -126,7 +126,7 @@ const NOT_READ: crate::errors::FatalError = crate::errors::FatalError {
 
 /// A log line ("loadlevel" .. "ok").
 fn load_log(n: usize) {
-    unsafe { crate::logfile::log_write::log_write(LOAD_LOG[n].as_ptr().cast(), false, 1) };
+    crate::logfile::log_write::log_nul(&LOAD_LOG[n], false, 1);
 }
 
 /// The scene points moved out of the course memory (`race::scene_points`): from where the

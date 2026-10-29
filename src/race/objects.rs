@@ -84,7 +84,7 @@ pub fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
 
 /// A text to the log.
 fn log(text: &std::ffi::CStr, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), newline, 1) };
+    crate::logfile::log_write::log_nul(&text, newline, 1);
 }
 
 /// A number to the log.

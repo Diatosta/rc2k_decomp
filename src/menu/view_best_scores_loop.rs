@@ -28,19 +28,15 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"BScoresScr: Start");
-    }
+    log_line(c"BScoresScr: Start");
     Ok(())
 }
 
-unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_c: &mut Carried) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
-    unsafe {
-        log_line(c"BScoresScr: End");
-    }
+    log_line(c"BScoresScr: End");
     Ok(())
 }
 

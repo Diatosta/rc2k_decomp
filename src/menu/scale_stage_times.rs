@@ -38,27 +38,25 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 
 /// `record` the stage's record (edi in the original; its +0x40 is logged). The original
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
-pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
-    use crate::logfile::{log_float::log_float, log_int::log_int, log_write::log_write};
+pub fn scale_stage_times(record: u32) -> Result<(), Refused> {
+    use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
-    unsafe {
-        let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
-        let (times, f) = scaled(times, section);
-        RACE_WORK.stage_time_scales[0].set_bits(f[0]);
-        RACE_WORK.stage_time_scales[1].set_bits(f[1]);
-        write_all(&MENU_STATE.menus.class_times, times);
-        let text = |n: usize| TEXTS_RVA[n].as_ptr() as *const u8;
-        log_write(text(0), false, 1);
-        log_int(section as i32, false, 1);
-        log_int(get(record + 0x40)? as i32, false, 1);
-        log_write(text(1), false, 1);
-        log_float(f32::from_bits(f[0]), 2, false, 1);
-        log_write(text(2), false, 1);
-        log_float(f32::from_bits(f[1]), 2, false, 1);
-        log_write(text(3), false, 1);
-        for (k, &t) in times.iter().enumerate() {
-            log_int(t as i32, k == 3, 1);
-        }
+    let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
+    let (times, f) = scaled(times, section);
+    RACE_WORK.stage_time_scales[0].set_bits(f[0]);
+    RACE_WORK.stage_time_scales[1].set_bits(f[1]);
+    write_all(&MENU_STATE.menus.class_times, times);
+    let text = |n: usize| &TEXTS_RVA[n];
+    crate::logfile::log_write::log_nul(text(0), false, 1);
+    log_int(section as i32, false, 1);
+    log_int(get(record + 0x40)? as i32, false, 1);
+    crate::logfile::log_write::log_nul(text(1), false, 1);
+    log_float(f32::from_bits(f[0]), 2, false, 1);
+    crate::logfile::log_write::log_nul(text(2), false, 1);
+    log_float(f32::from_bits(f[1]), 2, false, 1);
+    crate::logfile::log_write::log_nul(text(3), false, 1);
+    for (k, &t) in times.iter().enumerate() {
+        log_int(t as i32, k == 3, 1);
     }
     Ok(())
 }

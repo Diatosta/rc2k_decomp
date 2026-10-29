@@ -58,9 +58,7 @@ pub unsafe fn reset_car() -> Result<(), Refused> {
         if !free {
             PHYSICS.reset_offset.set(RESET_TRIES);
             // `log_write_l1_nl`.
-            unsafe {
-                crate::logfile::log_write::log_write(NOWHERE_TEXT.as_ptr() as *const u8, true, 1)
-            };
+            crate::logfile::log_write::log_nul(&NOWHERE_TEXT, true, 1);
             CAR.stuck_count.set(CAR.stuck_count.get().wrapping_sub(100));
             return Ok(());
         }

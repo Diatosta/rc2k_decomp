@@ -61,7 +61,7 @@ const NO_OBJECT: FatalError = FatalError {
 };
 
 fn log_text(rva: &std::ffi::CStr) {
-    unsafe { crate::logfile::log_write::log_write(rva.as_ptr().cast(), false, 2) };
+    crate::logfile::log_write::log_nul(&rva, false, 2);
 }
 
 fn log_int(v: u32, newline: bool) {

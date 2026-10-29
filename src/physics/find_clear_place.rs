@@ -76,19 +76,17 @@ pub fn steps() -> Result<(), Refused> {
     if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
         CAR.position[1].set(height);
     }
-    unsafe {
-        crate::logfile::log_write::log_write(PORKY.as_ptr().cast(), false, 1);
-        crate::logfile::log_int::log_int(n as i32, false, 1);
-        crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
-        crate::logfile::log_hex8::log_hex8(CONTACT_WORK.lowest_depth.get(), true, 1);
-    }
+    crate::logfile::log_write::log_nul(&PORKY, false, 1);
+    crate::logfile::log_int::log_int(n as i32, false, 1);
+    crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
+    crate::logfile::log_hex8::log_hex8(CONTACT_WORK.lowest_depth.get(), true, 1);
     PHYSICS.clear_place_tries.set(
         crate::physics::tables_store::PHYSICS
             .clear_place_tries
             .get()
             .wrapping_add(1),
     );
-    unsafe { crate::physics::limit_motion::limit_motion() };
+    crate::physics::limit_motion::limit_motion();
     Ok(())
 }
 

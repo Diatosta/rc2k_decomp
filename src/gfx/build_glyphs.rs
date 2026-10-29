@@ -48,7 +48,6 @@ use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
-use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
@@ -121,77 +120,73 @@ fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()
 }
 
-unsafe fn text(text: &[u8], newline: bool) {
+fn text(text: &[u8], newline: bool) {
     debug_assert!(text.ends_with(&[0]));
-    unsafe { log_write(text.as_ptr(), newline, 1) };
+    crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
 /// `sub_41299B` with eax = 1: the two lines about a sheet.
-unsafe fn log_sheet(path: *const u8, image: bool, backdrop: u32, transparent: u32) {
-    unsafe {
-        text(b"Extracting: PCX\0", false);
-        log_write(path, false, 1);
-        log_int(PCX.file_width.get() as i32, false, 1);
-        log_int(PCX.file_height.get() as i32, false, 1);
-        log_int((PCX.planes.get() as i32).wrapping_mul(8), true, 1);
-        text(b"Extracting:\0", false);
-        text(if image { b"IMAGE\0" } else { b"ALPHA\0" }, false);
-        log_int(DECODER.width.get() as i32, false, 1);
-        log_int(DECODER.height.get() as i32, false, 1);
-        log_int(DECODER.pixel_bits.get() as i32, false, 1);
-        text(b"backdrop=\0", false);
-        log_hex8(backdrop, false, 1);
-        text(b"transparent=\0", false);
-        log_hex8(transparent, true, 1);
-    }
+fn log_sheet(path: *const u8, image: bool, backdrop: u32, transparent: u32) {
+    text(b"Extracting: PCX\0", false);
+    crate::logfile::log_write::log_at(crate::pointers::game_address(path), false, 1);
+    log_int(PCX.file_width.get() as i32, false, 1);
+    log_int(PCX.file_height.get() as i32, false, 1);
+    log_int((PCX.planes.get() as i32).wrapping_mul(8), true, 1);
+    text(b"Extracting:\0", false);
+    text(if image { b"IMAGE\0" } else { b"ALPHA\0" }, false);
+    log_int(DECODER.width.get() as i32, false, 1);
+    log_int(DECODER.height.get() as i32, false, 1);
+    log_int(DECODER.pixel_bits.get() as i32, false, 1);
+    text(b"backdrop=\0", false);
+    log_hex8(backdrop, false, 1);
+    text(b"transparent=\0", false);
+    log_hex8(transparent, true, 1);
 }
 
 /// `sub_412A86`: the line about a glyph, the `number`th of its sheet.
-unsafe fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
-    unsafe {
-        let padded = |value: u32| log_int_fmt(value as i32, 0x13, false, 1);
-        text(b"\0", false);
-        padded(number);
-        text(b"(\0", false);
-        padded(glyph.width);
-        text(b"x\0", false);
-        padded(glyph.height);
-        text(b":\0", false);
-        padded(glyph.x);
-        padded(glyph.y);
-        text(b")\0", false);
-        if flags & RUN_LENGTHS != 0 {
-            let byte = |at: usize| glyph.data.get(at).copied().unwrap_or(0) as u32;
-            let head = if flags & WIDE_HEAD != 0 {
-                [4, 6, 8, 10].map(|at| byte(at) | byte(at + 1) << 8)
-            } else {
-                [0, 1, 2, 3].map(byte)
-            };
-            head.into_iter().for_each(padded);
-            let size = glyph.data.len() as u32;
-            log_int_fmt(size as i32, 0x27, false, 1);
-            let plain = glyph
-                .width
-                .wrapping_mul(glyph.height)
-                .wrapping_mul(pixel_size);
-            log_int(size.wrapping_sub(plain) as i32, false, 1);
-        }
-        text(b"\0", true);
-        if flags & RUN_LENGTHS != 0 {
-            for (bit, warning) in [
-                &b"WARNING: Skip GT 255 bytes\0"[..],
-                b"WARNING: Count GT 255 bytes\0",
-                b"WARNING: XO GT 255\0",
-                b"WARNING: YO GT 255\0",
-                b"WARNING: XS GT 255\0",
-                b"WARNING: YS GT 255\0",
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                if glyph.warnings & 1 << bit != 0 {
-                    text(warning, true);
-                }
+fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
+    let padded = |value: u32| log_int_fmt(value as i32, 0x13, false, 1);
+    text(b"\0", false);
+    padded(number);
+    text(b"(\0", false);
+    padded(glyph.width);
+    text(b"x\0", false);
+    padded(glyph.height);
+    text(b":\0", false);
+    padded(glyph.x);
+    padded(glyph.y);
+    text(b")\0", false);
+    if flags & RUN_LENGTHS != 0 {
+        let byte = |at: usize| glyph.data.get(at).copied().unwrap_or(0) as u32;
+        let head = if flags & WIDE_HEAD != 0 {
+            [4, 6, 8, 10].map(|at| byte(at) | byte(at + 1) << 8)
+        } else {
+            [0, 1, 2, 3].map(byte)
+        };
+        head.into_iter().for_each(padded);
+        let size = glyph.data.len() as u32;
+        log_int_fmt(size as i32, 0x27, false, 1);
+        let plain = glyph
+            .width
+            .wrapping_mul(glyph.height)
+            .wrapping_mul(pixel_size);
+        log_int(size.wrapping_sub(plain) as i32, false, 1);
+    }
+    text(b"\0", true);
+    if flags & RUN_LENGTHS != 0 {
+        for (bit, warning) in [
+            &b"WARNING: Skip GT 255 bytes\0"[..],
+            b"WARNING: Count GT 255 bytes\0",
+            b"WARNING: XO GT 255\0",
+            b"WARNING: YO GT 255\0",
+            b"WARNING: XS GT 255\0",
+            b"WARNING: YS GT 255\0",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if glyph.warnings & 1 << bit != 0 {
+                text(warning, true);
             }
         }
     }
@@ -199,30 +194,28 @@ unsafe fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 
 /// `sub_412C92` on the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
-unsafe fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
+fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
     let size = more.len() as u32;
-    unsafe {
-        let (table, held): (u32, u32) = (SHEET.table.get(), SHEET.table_size.get());
-        if level() as i32 >= 3 {
-            text(b"Appending:\0", false);
-            log_hex8(table, false, 1);
-            log_int(held as i32, false, 1);
-            text(b"+\0", false);
-            log_hex8(sheet, false, 1);
-            log_int(size as i32, true, 1);
-        }
-        if sheet == 0 || size == 0 {
-            return Ok(());
-        }
-        if table == 0 {
-            return Err(fatal(0x80E4_8077, ""));
-        }
-        let mut joined = glyph_store::read_bytes(table, 0, held as usize, "the glyph table")?;
-        append(&mut joined, more)?;
-        glyph_store::write_bytes(table, 0, &joined, "the glyph table")?;
-        SHEET.table_size.set(joined.len() as u32);
-        Ok(())
+    let (table, held): (u32, u32) = (SHEET.table.get(), SHEET.table_size.get());
+    if level() as i32 >= 3 {
+        text(b"Appending:\0", false);
+        log_hex8(table, false, 1);
+        log_int(held as i32, false, 1);
+        text(b"+\0", false);
+        log_hex8(sheet, false, 1);
+        log_int(size as i32, true, 1);
     }
+    if sheet == 0 || size == 0 {
+        return Ok(());
+    }
+    if table == 0 {
+        return Err(fatal(0x80E4_8077, ""));
+    }
+    let mut joined = glyph_store::read_bytes(table, 0, held as usize, "the glyph table")?;
+    append(&mut joined, more)?;
+    glyph_store::write_bytes(table, 0, &joined, "the glyph table")?;
+    SHEET.table_size.set(joined.len() as u32);
+    Ok(())
 }
 
 /// `sub_412446`: the sheet with the next number, if it is there and reads, is kept in the

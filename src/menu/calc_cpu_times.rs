@@ -109,47 +109,44 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
-    use crate::logfile::log_write::log_write;
+pub fn calc_cpu_times() -> Result<(), Refused> {
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
-    unsafe {
-        log_write(TEXTS_RVA[0].as_ptr() as *const u8, true, 1);
-        for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
-            MENU_STATE.menus.class_times[k].set(get(rec + t)?);
-        }
-        crate::menu::scale_stage_times::scale_stage_times(rec)?;
-        MENU_STATE.menus.track_length[0].set(length);
-        MENU_STATE.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
-        // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
-        use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
-        for c in 0..classes {
-            let mut gaps = 0u32;
-            for &d in &drivers {
-                if get(d + 8)? != c {
-                    continue;
-                }
-                let time = class_time_at(c)?;
-                let count = class_count_at(c)?;
-                let gap = cpu_gap(time, count);
-                DRAW_WORK.hhmm.set(gap);
-                let mut spread = Spread {
-                    first: EVENT_STATE.service_944.get(),
-                    step: EVENT_STATE.dword_755948.get(),
-                };
-                let own = spread.next(crate::math::random_below::random_below)?;
-                DRAW_WORK.figure.set(own);
-                EVENT_STATE.service_944.set(spread.first);
-                EVENT_STATE.dword_755948.set(spread.step);
-                if get(d + 0x24)? == 1 {
-                    let own = cpu_time(own, gaps, time);
-                    put(d + 0xC, own)?;
-                    put(d + 0x10, get(d + 0x10)?.wrapping_add(own))?;
-                }
-                gaps = gaps.wrapping_add(gap);
-            }
-        }
-        log_write(TEXTS_RVA[1].as_ptr() as *const u8, true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
+    for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
+        MENU_STATE.menus.class_times[k].set(get(rec + t)?);
     }
+    crate::menu::scale_stage_times::scale_stage_times(rec)?;
+    MENU_STATE.menus.track_length[0].set(length);
+    MENU_STATE.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
+    // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
+    use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
+    for c in 0..classes {
+        let mut gaps = 0u32;
+        for &d in &drivers {
+            if get(d + 8)? != c {
+                continue;
+            }
+            let time = class_time_at(c)?;
+            let count = class_count_at(c)?;
+            let gap = cpu_gap(time, count);
+            DRAW_WORK.hhmm.set(gap);
+            let mut spread = Spread {
+                first: EVENT_STATE.service_944.get(),
+                step: EVENT_STATE.dword_755948.get(),
+            };
+            let own = spread.next(crate::math::random_below::random_below)?;
+            DRAW_WORK.figure.set(own);
+            EVENT_STATE.service_944.set(spread.first);
+            EVENT_STATE.dword_755948.set(spread.step);
+            if get(d + 0x24)? == 1 {
+                let own = cpu_time(own, gaps, time);
+                put(d + 0xC, own)?;
+                put(d + 0x10, get(d + 0x10)?.wrapping_add(own))?;
+            }
+            gaps = gaps.wrapping_add(gap);
+        }
+    }
+    crate::logfile::log_write::log_nul(&TEXTS_RVA[1], true, 1);
     Ok(())
 }

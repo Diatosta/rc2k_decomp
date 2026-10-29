@@ -171,10 +171,9 @@ pub fn steps() -> Result<(), Refused> {
             .contact_step
             .set(PHYSICS.contact_step.get().wrapping_add(1));
         if PHYSICS.contact_step.get() >= PHYSICS.contact_steps.get() {
-            unsafe {
-                ph::limit_motion::limit_motion();
-                ph::find_clear_place::find_clear_place()?;
-            }
+            ph::limit_motion::limit_motion();
+            ph::find_clear_place::find_clear_place()?;
+
             PHYSICS
                 .step_count
                 .set(PHYSICS.step_count.get().wrapping_add(1));
@@ -182,10 +181,8 @@ pub fn steps() -> Result<(), Refused> {
         }
     }
     if PHYSICS.contact_step.get() != 0 {
-        unsafe {
-            ph::put_back_motion_vectors::put_back_motion_vectors();
-            ph::limit_motion::limit_motion();
-        }
+        ph::put_back_motion_vectors::put_back_motion_vectors();
+        ph::limit_motion::limit_motion();
     }
     unsafe {
         ph::feel_ground::feel_ground()?;

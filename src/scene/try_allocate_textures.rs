@@ -28,7 +28,6 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -98,26 +97,24 @@ pub fn try_allocate_textures(call: &mut dyn FnMut(Call) -> Option<u32>) -> Resul
 }
 
 /// With the game's log and the game's allocation.
-pub unsafe fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
-    unsafe {
-        try_allocate_textures(&mut |call| {
-            match call {
-                Call::Text(text, newline) => log_write(text.as_ptr().cast(), newline, 1),
-                Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Allocate(ask) => {
-                    // The allocation reads no esi (the texture) and never comes back
-                    // with its carry set: a failure raises its fatal error.
-                    let (video, system) = crate::platform_3d::allocate_textures_for(
-                        ask.video as u32,
-                        !ask.video as u32,
-                        ask.level,
-                        ask.pixel_kind,
-                        ask.mips,
-                    );
-                    return Some(if ask.video { video } else { system });
-                }
+pub fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
+    try_allocate_textures(&mut |call| {
+        match call {
+            Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
+            Call::Number(number) => log_int(number as i32, false, 1),
+            Call::Allocate(ask) => {
+                // The allocation reads no esi (the texture) and never comes back
+                // with its carry set: a failure raises its fatal error.
+                let (video, system) = crate::platform_3d::allocate_textures_for(
+                    ask.video as u32,
+                    !ask.video as u32,
+                    ask.level,
+                    ask.pixel_kind,
+                    ask.mips,
+                );
+                return Some(if ask.video { video } else { system });
             }
-            Some(0)
-        })
-    }
+        }
+        Some(0)
+    })
 }

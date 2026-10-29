@@ -18,7 +18,6 @@
 //! Callers: `sub_43B635` (twice), `sub_43BDD1`.
 
 use crate::logfile::log_float::log_float;
-use crate::logfile::log_write::log_write;
 use crate::math::x87_float::compare;
 use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
@@ -54,7 +53,7 @@ fn hold_at(v: usize, l: usize) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
-pub unsafe fn limit_motion() {
+pub fn limit_motion() {
     let mut bad = false;
     for k in 0..3usize {
         let ecx = CAR.velocity[k].bits() & 0x7F80_0000;
@@ -64,13 +63,12 @@ pub unsafe fn limit_motion() {
         }
     }
     if bad {
-        unsafe {
-            log_write(c"*** INFINITY".as_ptr() as *const u8, false, 1);
-            log_write(c"[car0.newxspd] =".as_ptr() as *const u8, false, 1);
-            for k in 0..3usize {
-                log_float(f32::from_bits(CAR.velocity[k].bits()), 5, k == 2, 1);
-            }
+        crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
+        crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
+        for k in 0..3usize {
+            log_float(f32::from_bits(CAR.velocity[k].bits()), 5, k == 2, 1);
         }
+
         for k in 0..3usize {
             CAR.velocity[k].set_bits(0);
             CAR.local_velocity[k].set_bits(0);

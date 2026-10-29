@@ -20,7 +20,6 @@ use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
@@ -116,12 +115,12 @@ const WRONG_COUNT: FatalError = FatalError {
 /// `lexicon::report` (0x4040CC) for an error: "LC:" "ERROR:" and the reason on one line.
 /// The original adds "on line" with the line's number and its text; the core does not
 /// keep the line (`notes/reference.md` section 15).
-unsafe fn report(why: &str) {
+fn report(why: &str) {
     let why = why.strip_prefix("language file: ").unwrap_or(why);
     let mut text = b"LC:ERROR:".to_vec();
     text.extend_from_slice(why.as_bytes());
     text.push(0);
-    unsafe { line(&text, true) };
+    line(&text, true);
 }
 
 /// Reads the language file and compiles it, changing nothing of the game's but what the
@@ -129,30 +128,28 @@ unsafe fn report(why: &str) {
 /// does not load or does not compile is the original's fatal error: one that fails the
 /// compiler is reported in the log first. Memory and table overflows, which the original
 /// reports as 0x80E1801x / 2x, are 0x80E18051 here.
-pub unsafe fn compiled() -> Result<Compiled, FatalError> {
-    unsafe {
-        let memory = LEXICON.kilobytes.get().wrapping_mul(0x400);
-        if memory < FILE_ROOM {
-            report("the lexicon's memory is smaller than the file may be");
-            return Err(NOT_CREATED);
-        }
-        let mut text = vec![0u8; FILE_ROOM as usize];
-        let lent = crate::pointers::Lent::new(&text);
-        let read = read_first_match(PATTERN.as_ptr(), text.as_mut_ptr(), FILE_ROOM, 0)
-            .ok()
-            .flatten()
-            .ok_or(NOT_LOADED)?;
-        drop(lent);
-        text.truncate(read as usize);
-        let compiled = compile(&text, memory).map_err(|e| {
-            report(e.0);
-            NOT_CREATED
-        })?;
-        if compiled.messages != MESSAGE_COUNT {
-            return Err(WRONG_COUNT);
-        }
-        Ok(compiled)
+pub fn compiled() -> Result<Compiled, FatalError> {
+    let memory = LEXICON.kilobytes.get().wrapping_mul(0x400);
+    if memory < FILE_ROOM {
+        report("the lexicon's memory is smaller than the file may be");
+        return Err(NOT_CREATED);
     }
+    let mut text = vec![0u8; FILE_ROOM as usize];
+    let lent = crate::pointers::Lent::new(&text);
+    let read = read_first_match(PATTERN.as_ptr(), text.as_mut_ptr(), FILE_ROOM, 0)
+        .ok()
+        .flatten()
+        .ok_or(NOT_LOADED)?;
+    drop(lent);
+    text.truncate(read as usize);
+    let compiled = compile(&text, memory).map_err(|e| {
+        report(e.0);
+        NOT_CREATED
+    })?;
+    if compiled.messages != MESSAGE_COUNT {
+        return Err(WRONG_COUNT);
+    }
+    Ok(compiled)
 }
 
 /// The counts as the work variables hold them: (offset, value).
@@ -175,9 +172,9 @@ fn counts(compiled: &Compiled) -> [(usize, u32); 14] {
     ]
 }
 
-unsafe fn line(text: &[u8], newline: bool) {
+fn line(text: &[u8], newline: bool) {
     debug_assert!(text.ends_with(&[0]));
-    unsafe { log_write(text.as_ptr(), newline, 1) };
+    crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
 pub unsafe fn compile_lexicon() -> Result<(), Refused> {

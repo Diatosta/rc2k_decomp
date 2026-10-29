@@ -27,7 +27,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 ]; // "dpg replay" ..
 
 fn log_text(text: &std::ffi::CStr, newline: bool) {
-    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), newline, 1) }
+    crate::logfile::log_write::log_nul(&text, newline, 1)
 }
 
 fn log_number(n: u32) {

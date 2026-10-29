@@ -76,9 +76,7 @@ struct Steps {
 impl Steps {
     /// `pusha`; eax the next word; the log; `popa`.
     fn log(&mut self) {
-        unsafe {
-            crate::logfile::log_write::log_write(WORDS[self.word].as_ptr() as *const u8, true, 1)
-        };
+        crate::logfile::log_write::log_nul(&WORDS[self.word], true, 1);
         self.word += 1;
     }
 

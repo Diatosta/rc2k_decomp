@@ -135,8 +135,8 @@ pub mod unlock_received;
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
 pub fn log_send(text: &std::ffi::CStr) {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe { log_write(text.as_ptr().cast(), false, 1) };
+    use crate::logfile::log_int::log_int;
+    crate::logfile::log_write::log_nul(&text, false, 1);
     log_int(NET.player.get() as i32, false, 1);
     log_int(
         crate::race::view_store::RACE_VIEW.local_car.get() as i32,

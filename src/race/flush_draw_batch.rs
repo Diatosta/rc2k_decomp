@@ -14,23 +14,21 @@ use crate::race::draw_batches_store::DRAW_BATCHES;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// The Rust version (see the header).
-pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
-    unsafe {
-        let indices: u32 = CONTACT_WORK.batch_index_count.bits();
-        if indices != 0 {
-            let result = crate::platform_3d::draw_indexed(
-                &DRAW_BATCHES.scene_vertices,
-                CONTACT_WORK.batch_vertex_count.bits(),
-                &DRAW_BATCHES.scene_indices,
-                indices,
-            );
-            if result != 0 {
-                crate::logfile::log_write::log_write(DRAWTRI_RVA.as_ptr() as *const u8, false, 1);
-                crate::logfile::log_hex8::log_hex8(result, false, 1);
-            }
+pub fn flush_draw_batch() -> Result<(), Refused> {
+    let indices: u32 = CONTACT_WORK.batch_index_count.bits();
+    if indices != 0 {
+        let result = crate::platform_3d::draw_indexed(
+            &DRAW_BATCHES.scene_vertices,
+            CONTACT_WORK.batch_vertex_count.bits(),
+            &DRAW_BATCHES.scene_indices,
+            indices,
+        );
+        if result != 0 {
+            crate::logfile::log_write::log_nul(&DRAWTRI_RVA, false, 1);
+            crate::logfile::log_hex8::log_hex8(result, false, 1);
         }
-        CONTACT_WORK.batch_index_count.set_bits(0u32);
-        CONTACT_WORK.batch_vertex_count.set_bits(0u32);
     }
+    CONTACT_WORK.batch_index_count.set_bits(0u32);
+    CONTACT_WORK.batch_vertex_count.set_bits(0u32);
     Ok(())
 }

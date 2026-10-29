@@ -34,7 +34,7 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
+    use crate::logfile::log_int::log_int;
     let groups = PACE.group_count.get();
     let found = find_group(groups, checkpoint, |n| {
         PACE.group_checkpoints[n as usize].get()
@@ -51,16 +51,15 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {
-                let word = |n: usize| WORDS[n].as_ptr() as *const u8;
-                unsafe {
-                    log_write(word(0), false, 1);
-                    log_write(word(1), false, 1);
-                    log_int(byte as i32, false, 1);
-                    log_write(word(2), false, 1);
-                    log_int(group as i32, true, 1);
-                    log_write(word(3), false, 1);
-                    log_int(at as i32, true, 1);
-                }
+                let word = |n: usize| &WORDS[n];
+                crate::logfile::log_write::log_nul(word(0), false, 1);
+                crate::logfile::log_write::log_nul(word(1), false, 1);
+                log_int(byte as i32, false, 1);
+                crate::logfile::log_write::log_nul(word(2), false, 1);
+                log_int(group as i32, true, 1);
+                crate::logfile::log_write::log_nul(word(3), false, 1);
+                log_int(at as i32, true, 1);
+
                 return Ok(());
             }
             Code::Call => {

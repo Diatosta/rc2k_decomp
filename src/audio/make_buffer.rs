@@ -121,9 +121,7 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
 
 /// The failure's text and result to the game's log; false (the carry).
 fn log_failure(text: &std::ffi::CStr, result: i32) -> bool {
-    unsafe {
-        crate::logfile::log_write::log_write(text.as_ptr().cast(), false, 1);
-        crate::logfile::log_hex8::log_hex8(result as u32, true, 1);
-    }
+    crate::logfile::log_write::log_nul(&text, false, 1);
+    crate::logfile::log_hex8::log_hex8(result as u32, true, 1);
     false
 }

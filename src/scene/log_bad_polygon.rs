@@ -115,16 +115,13 @@ pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
 
 /// One log call at level 1: a text, a number (a float with two decimals) or a line's end.
 fn log(kind: u32, value: u32) {
-    use crate::logfile::log_write::log_write;
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
-    unsafe {
-        match kind {
-            WRITE => crate::logfile::log_write::log_at(value, false, 1),
-            HEX8 => log_hex8(value, false, 1),
-            FLOAT => log_float(f32::from_bits(value), 2, false, 1),
-            INT => log_int(value as i32, false, 1),
-            INT_NL => log_int(value as i32, true, 1),
-            _ => log_write(c"".as_ptr().cast(), true, 1),
-        }
+    match kind {
+        WRITE => crate::logfile::log_write::log_at(value, false, 1),
+        HEX8 => log_hex8(value, false, 1),
+        FLOAT => log_float(f32::from_bits(value), 2, false, 1),
+        INT => log_int(value as i32, false, 1),
+        INT_NL => log_int(value as i32, true, 1),
+        _ => crate::logfile::log_write::log_nul(&c"", true, 1),
     }
 }

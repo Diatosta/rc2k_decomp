@@ -35,14 +35,10 @@ pub type Log<'a> = &'a mut dyn FnMut(Piece);
 
 /// The log pieces as the game's log functions write them.
 pub fn to_the_log(piece: Piece) {
-    unsafe {
-        match piece {
-            Piece::Text(text, newline) => {
-                crate::menu::text_entry::log_l1(crate::pointers::host(text) as *const u8, newline)
-            }
-            Piece::Number(number, newline) => {
-                crate::logfile::log_int::log_int(number as i32, newline, 1)
-            }
+    match piece {
+        Piece::Text(text, newline) => crate::logfile::log_write::log_at(text, newline, 1),
+        Piece::Number(number, newline) => {
+            crate::logfile::log_int::log_int(number as i32, newline, 1)
         }
     }
 }

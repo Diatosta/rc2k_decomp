@@ -23,7 +23,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
-use crate::logfile::log_write::log_write;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
 use crate::scene::raise_texture_needs::raise_texture_needs;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
@@ -141,7 +140,7 @@ pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
     unsafe {
         build_texture_catalogue(&mut |call| {
             match call {
-                Call::Text(text, newline) => log_write(text.as_ptr().cast(), newline, 1),
+                Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
                 Call::Number(number, newline) => log_int(number as i32, newline, 1),
                 Call::Raise { level, tag } => {
                     raise_texture_needs(level, tag);

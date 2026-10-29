@@ -37,11 +37,11 @@ pub fn run_front_end() -> Result<(), Refused> {
         crate::gfx::build_fonts::build_fonts()?;
         // The films, with eax 0 (the game's start).
         crate::menu::play_films::play_films(false)?;
-        crate::menu::text_entry::log_l1(STARTING_RVA.as_ptr() as *const u8, true);
+        crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
         run_screen(&crate::menu::main_menu_loop::SCREEN, &Carried::default())?;
-        crate::menu::text_entry::log_l1(FINISHED_RVA.as_ptr() as *const u8, true);
+        crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
         crate::menu::store_player_names::store_player_names(&mut |line| {
-            crate::menu::text_entry::log_l1(line, true)
+            crate::logfile::log_write::log_nul(line, true, 1)
         })?;
         crate::gfx::free_fonts::free_fonts(
             crate::gfx::glyph_tables::TABLES.memory.as_ptr(),

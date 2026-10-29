@@ -81,61 +81,59 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn driver_stats() -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
+pub fn driver_stats() -> Result<(), Refused> {
+    use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table()?;
-    unsafe {
-        let fault = Fault::default();
-        let table = Table::read(|o| fault.get(t + o as u32));
-        let car = Car {
-            wear: std::array::from_fn(|k| fault.get(p + 0xD4 + 4 * k as u32)),
-            fitted: fault.get(p + 0x278),
-            setup: [fault.get(p + 0x114), fault.get(p + 0x118)],
-        };
-        fault.check()?;
-        let c = Constants {
-            steps: MENU_STATE.driver_stats.steps.get(),
-            scale: MENU_STATE.driver_stats.scale.get(),
-            keep_part_1: MENU_STATE.driver_stats.switch_a.get(),
-            short_part_5: MENU_STATE.driver_stats.switch_b.get(),
-        };
-        let f = figures(&table, &car, &c);
-        write_all(&MENU_STATE.driver_stats.repair_times, f.values);
-        write_all(&MENU_STATE.driver_stats.highs, f.highs);
-        write_all(&MENU_STATE.driver_stats.limits, f.limits);
-        MENU_STATE.driver_stats.total.set(f.total);
-        let ds = &MENU_STATE.driver_stats;
-        for (cell, value) in [
-            &ds.setups[2].chosen,
-            &ds.setups[2].installed,
-            &ds.setups[3].chosen,
-            &ds.setups[3].installed,
-        ]
-        .into_iter()
-        .zip(f.kept)
-        {
-            cell.set(value);
+    let fault = Fault::default();
+    let table = Table::read(|o| fault.get(t + o as u32));
+    let car = Car {
+        wear: std::array::from_fn(|k| fault.get(p + 0xD4 + 4 * k as u32)),
+        fitted: fault.get(p + 0x278),
+        setup: [fault.get(p + 0x114), fault.get(p + 0x118)],
+    };
+    fault.check()?;
+    let c = Constants {
+        steps: MENU_STATE.driver_stats.steps.get(),
+        scale: MENU_STATE.driver_stats.scale.get(),
+        keep_part_1: MENU_STATE.driver_stats.switch_a.get(),
+        short_part_5: MENU_STATE.driver_stats.switch_b.get(),
+    };
+    let f = figures(&table, &car, &c);
+    write_all(&MENU_STATE.driver_stats.repair_times, f.values);
+    write_all(&MENU_STATE.driver_stats.highs, f.highs);
+    write_all(&MENU_STATE.driver_stats.limits, f.limits);
+    MENU_STATE.driver_stats.total.set(f.total);
+    let ds = &MENU_STATE.driver_stats;
+    for (cell, value) in [
+        &ds.setups[2].chosen,
+        &ds.setups[2].installed,
+        &ds.setups[3].chosen,
+        &ds.setups[3].installed,
+    ]
+    .into_iter()
+    .zip(f.kept)
+    {
+        cell.set(value);
+    }
+    for k in 0..PARTS as usize {
+        if let Some(w) = f.weights[k] {
+            MENU_STATE.driver_stats.weights[k].set(w);
         }
-        for k in 0..PARTS as usize {
-            if let Some(w) = f.weights[k] {
-                MENU_STATE.driver_stats.weights[k].set(w);
-            }
-            if let Some(v) = f.penalties[k] {
-                MENU_STATE.driver_stats.penalties[k].set(v);
-            }
+        if let Some(v) = f.penalties[k] {
+            MENU_STATE.driver_stats.penalties[k].set(v);
         }
-        DRAW_WORK.figure.set(f.figure);
-        if let Some(span) = f.span {
-            DRAW_WORK.hhmm.set(span);
-        }
-        for (slot, line) in f.logged.iter().enumerate() {
-            log_write(NAMES_RVA[slot].as_ptr() as *const u8, false, 1);
-            log_int(line.wear as i32, false, 1);
-            log_write(EQUALS_RVA[slot].as_ptr() as *const u8, false, 1);
-            log_int(line.limit as i32, true, 1);
-        }
+    }
+    DRAW_WORK.figure.set(f.figure);
+    if let Some(span) = f.span {
+        DRAW_WORK.hhmm.set(span);
+    }
+    for (slot, line) in f.logged.iter().enumerate() {
+        crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);
+        log_int(line.wear as i32, false, 1);
+        crate::logfile::log_write::log_nul(&EQUALS_RVA[slot], false, 1);
+        log_int(line.limit as i32, true, 1);
     }
     Ok(())
 }

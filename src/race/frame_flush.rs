@@ -72,33 +72,31 @@ pub fn textured() -> Batch {
 /// count, eax the word, ebx the vertices, ecx the indices), a failure (eax not 0) logged as
 /// "drawtri" and its code (level 1); the count and word 0. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves.
-pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
+pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
-    unsafe {
-        if !textured {
-            set_texture(KIND_TEXTURES.kind_first_slots[135].get());
-        }
-        for (value, state) in STATES {
-            set_render_state(if state == 0x14 { b.blend } else { value }, state);
-        }
-        let count = b.count.get();
-        b.kept.set(count);
-        if count != 0 {
-            if textured {
-                // Inside `pusha`: the look-up, then its texture set.
-                crate::scene::look_up_texture::look_up_texture();
-                set_texture(DRAW.polygon_texture.get());
-            }
-            let result = (b.draw)(b.word.get(), count);
-            if result != 0 {
-                crate::logfile::log_write::log_write(b.text.as_ptr().cast(), false, 1);
-                crate::logfile::log_hex8::log_hex8(result, false, 1);
-            }
-        }
-        b.count.set(0);
-        b.word.set(0);
-        Ok(())
+    if !textured {
+        set_texture(KIND_TEXTURES.kind_first_slots[135].get());
     }
+    for (value, state) in STATES {
+        set_render_state(if state == 0x14 { b.blend } else { value }, state);
+    }
+    let count = b.count.get();
+    b.kept.set(count);
+    if count != 0 {
+        if textured {
+            // Inside `pusha`: the look-up, then its texture set.
+            crate::scene::look_up_texture::look_up_texture();
+            set_texture(DRAW.polygon_texture.get());
+        }
+        let result = (b.draw)(b.word.get(), count);
+        if result != 0 {
+            crate::logfile::log_write::log_nul(&b.text, false, 1);
+            crate::logfile::log_hex8::log_hex8(result, false, 1);
+        }
+    }
+    b.count.set(0);
+    b.word.set(0);
+    Ok(())
 }
 
 /// `fild i; fadd/fsub one; fstp`.

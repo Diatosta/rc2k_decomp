@@ -15,7 +15,7 @@
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 
 use crate::errors::Refused;
-use crate::logfile::{log_int::log_int, log_write::log_write};
+use crate::logfile::log_int::log_int;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -41,11 +41,11 @@ pub fn credits_race() -> Result<(), Refused> {
     crate::race::race_cars::set_up_arcade_cars()?;
     crate::race::race_shell::set_start_states()?;
     RACE_WORK.in_credits.set(1);
-    let word = |n: usize| WORDS[n].as_ptr() as *const u8;
+    let word = |n: usize| &WORDS[n];
     unsafe {
-        log_write(word(0), false, 1);
+        crate::logfile::log_write::log_nul(word(0), false, 1);
         log_int(RACE_VARS.stage_number.get() as i32, false, 1);
-        log_write(word(1), false, 1);
+        crate::logfile::log_write::log_nul(word(1), false, 1);
         log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
         crate::race::stage_loading::load_stage()?;
         crate::race::frame_text::roll_credits(
