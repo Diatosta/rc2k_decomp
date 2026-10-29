@@ -127,8 +127,8 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         .mark_out
         .set(mark_out);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cursor
-        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
+        .block_used
+        .set(0);
     if { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }

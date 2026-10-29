@@ -3,23 +3,24 @@
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::seal_store::SEAL_WORK;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
 /// than three bytes, or one left, as one literal; then a dword 0 of which one byte
-/// counts. Returns the bytes written (ecx). Every other register kept.
-pub fn pack_runs(from: u32, count: u32, to: u32) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::race::seal::pack_runs` (the source read whole first: the
-    // callers' buffers do not overlap).
-    let source = GamePtr::new(from).read_bytes(count as usize, "the bytes to pack")?;
-    let mut packed = rc2k_core::race::seal::pack_runs(&source);
+/// counts. Returns the bytes written (ecx). Every other register kept. Here: `source`
+/// packed into the shared scratch (`g_pngInfo`, edi of its one caller); the packing (end
+/// mark included) is returned with the count.
+pub fn pack_runs(source: &[u8]) -> Result<(Vec<u8>, u32), BadInput> {
+    // Converted: `rc2k_core::race::seal::pack_runs`.
+    let mut packed = rc2k_core::race::seal::pack_runs(source);
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    GamePtr::new(to).write_bytes(&packed, "the packed bytes")?;
-    Ok(len)
+    crate::files::scratch::SCRATCH
+        .buffer
+        .write_at(0, &packed, "the packed bytes")?;
+    Ok((packed, len))
 }
 
 // The cipher's tables and variables (dword_4E052C .. as IDA shows them).

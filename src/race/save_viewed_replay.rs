@@ -44,8 +44,8 @@ fn save(slot: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
-        BLOCK_LEN, CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks,
-        name_offset, next_offset,
+        CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
+        next_offset,
     };
     if !has_blocks(REPLAY_FILE.index_block_count.get()) {
         return Ok(false);
@@ -138,7 +138,6 @@ fn save(slot: u32) -> Result<bool, Refused> {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .from_file
                 .get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
             crate::race::replay::block_place(2 * block as usize + 1)?,
         )?;
         move_cells(
@@ -157,8 +156,6 @@ fn save(slot: u32) -> Result<bool, Refused> {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .to_file
                 .get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
-            BLOCK_LEN,
         )?;
         if failed {
             close();

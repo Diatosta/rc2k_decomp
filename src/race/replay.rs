@@ -7,7 +7,6 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::scratch::SCRATCH;
 use crate::framework::rva;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::pointers::GamePtr;
@@ -15,8 +14,9 @@ use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::seal_store::SEAL_WORK;
 use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::race::viewer_state_store::REPLAY_VIEW;
-use crate::session::Bytes;
+use crate::session::{Bytes, Dword};
 use crate::store::{game_addr, game_write};
 
 /// `dword_4F66F9`: the race record's seal key (the replay header's checksum,
@@ -180,36 +180,38 @@ const HEADER_MOVES: [(usize, usize, usize); 31] = [
 ];
 
 /// `files::write`: the bytes written and the carry (a failed write).
-fn write(handle: u32, from: u32, count: u32) -> Result<(u32, bool), BadInput> {
-    let (n, ok) = crate::race::trap::file_write(handle, from, count, "the replay's bytes")?;
-    Ok((n, !ok))
+fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
+    let (n, ok) = crate::files::handle::write_slice(handle, bytes);
+    (n, !ok)
 }
 
 /// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file
 /// `handle`; unless `dword_5BEC80` is 1 they are packed (`race::pack_runs` into
 /// `g_pngInfo`, rounded up to a dword) and the packing written when smaller (eax then the
 /// bytes written negated). Gives eax and the carry (a failed write); the original keeps
-/// the rest (`pusha` / `popa`), and its zero flag is read by no caller.
-pub fn write_replay_chunk(handle: u32, from: u32, count: u32) -> Result<(u32, bool), Refused> {
-    {
-        if REPLAY_FILE.chunks_plain.get() == 1 {
-            return Ok(write(handle, from, count)?);
-        }
-        let packed_at = SCRATCH.buffer.addr();
-        let packed = crate::race::save_seal::pack_runs(from, count, packed_at)?;
-        // Converted: `rc2k_core::race::replay::packed_size`.
-        Ok(match rc2k_core::race::replay::packed_size(packed, count) {
+/// the rest (`pusha` / `popa`), and its zero flag is read by no caller. Both callers write
+/// the whole replay block (`dword_9613A4`, 0x2810 bytes): here it is that block.
+pub fn write_replay_chunk(handle: u32) -> Result<(u32, bool), Refused> {
+    let block = VIEWER_BUFFERS.block_bytes();
+    if REPLAY_FILE.chunks_plain.get() == 1 {
+        return Ok(write(handle, &block));
+    }
+    let (packing, packed) = crate::race::save_seal::pack_runs(&block)?;
+    // Converted: `rc2k_core::race::replay::packed_size`.
+    Ok(
+        match rc2k_core::race::replay::packed_size(packed, BLOCK_LEN) {
             Some(size) => {
-                let (n, failed) = write(handle, packed_at, size)?;
+                // The size rounded up to a dword: within the end mark's three zeros.
+                let (n, failed) = write(handle, &packing[..size as usize]);
                 if failed {
                     (n, true)
                 } else {
                     (n.wrapping_neg(), false)
                 }
             }
-            None => write(handle, from, count)?,
-        })
-    }
+            None => write(handle, &block),
+        },
+    )
 }
 
 /// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
@@ -231,11 +233,7 @@ pub unsafe fn write_replay_block() -> Result<(), Refused> {
             return Err(BadInput("the replay's index is full already").into());
         }
         REPLAY_FILE.block_places[2 * n as usize].set(REPLAY_VIEW.file_offset.get());
-        let (written, failed) = write_replay_chunk(
-            REPLAY_FILE.replay_handle.get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
-            BLOCK_LEN,
-        )?;
+        let (written, failed) = write_replay_chunk(REPLAY_FILE.replay_handle.get())?;
         let failed = failed || {
             REPLAY_FILE.block_places[2 * n as usize + 1].set(written);
             // Converted: `rc2k_core::race::replay::block_written`.
@@ -257,20 +255,19 @@ pub unsafe fn write_replay_block() -> Result<(), Refused> {
 /// frame when 0x10: the frame counts on) put at the cursor (`rep movsd`, `bytes` / 4
 /// dwords); at 100 frames the block written (`race::write_replay_block`) and the cursor
 /// and count back. Every register kept. Refuses frames past the block's room (before
-/// anything).
-pub unsafe fn add_replay_frame(from: u32, bytes: u32) -> Result<(), Refused> {
+/// anything). Its one caller adds the padding frame (`REPLAY_VIEW.pad_frame`): here the
+/// frame's cells, `bytes` their size.
+pub unsafe fn add_replay_frame(frame: &[Dword]) -> Result<(), Refused> {
     unsafe {
         if REPLAY_FILE.replay_open.get() != 1 {
             return Ok(());
         }
         // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
         use rc2k_core::race::replay::{FRAME_BYTES, fits, frame_added};
-        let cursor = crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cursor
-            .get();
-        let block = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr();
+        let bytes = 4 * frame.len() as u32;
+        let used = VIEWER_BUFFERS.block_used.get();
         let dwords = bytes >> 2;
-        if cursor < block || !fits(cursor - block, dwords, BLOCK_LEN) {
+        if !fits(used, dwords, BLOCK_LEN) {
             return Err(BadInput("a frame past the replay block's room").into());
         }
         let (in_block, full) = frame_added(bytes, REPLAY_VIEW.frames_in_block.get());
@@ -280,15 +277,14 @@ pub unsafe fn add_replay_frame(from: u32, bytes: u32) -> Result<(), Refused> {
                 .set(REPLAY_FILE.index_frame_count.get().wrapping_add(1));
             REPLAY_VIEW.frames_in_block.set(in_block);
         }
-        GamePtr::new(from).copy_to(GamePtr::new(cursor), 4 * dwords as usize, "a replay frame")?;
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cursor
-            .set(cursor + 4 * dwords);
+        let first = used as usize / 4;
+        for (k, cell) in frame.iter().enumerate() {
+            VIEWER_BUFFERS.block[first + k].set(cell.get());
+        }
+        VIEWER_BUFFERS.block_used.set(used + bytes);
         if full {
             write_replay_block()?;
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .block_cursor
-                .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
+            VIEWER_BUFFERS.block_used.set(0);
             REPLAY_VIEW.frames_in_block.set(0);
         }
     }
@@ -306,7 +302,7 @@ pub unsafe fn close_replay() -> Result<(), Refused> {
             return Ok(());
         }
         while REPLAY_VIEW.frames_in_block.get() != 0 {
-            add_replay_frame(REPLAY_VIEW.pad_frame[0].addr(), 0x10)?;
+            add_replay_frame(&REPLAY_VIEW.pad_frame)?;
         }
         // Converted: `rc2k_core::race::replay::closing_frames`.
         let (frames, _, _) = rc2k_core::race::replay::closing_frames(
@@ -385,9 +381,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
             cell.set(0);
         }
         REPLAY_FILE.index_magic.set(INDEX_MAGIC);
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cursor
-            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
+        VIEWER_BUFFERS.block_used.set(0);
         REPLAY_VIEW.frames_in_block.set(0);
         REPLAY_VIEW.file_offset.set(0);
         let opened = crate::files::handle::open_by_mode(
