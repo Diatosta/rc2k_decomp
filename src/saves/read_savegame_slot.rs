@@ -33,7 +33,7 @@ pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
     let block = &bytes[..0x30];
     match kept::slot_name(block, kept::SAVEGAME, kept::SAVEGAME_VERSION) {
         Some(name) if read.ok => {
-            slot_name(slot).write_bytes(&name[..NAME_LEN], "a savegame slot's name")?;
+            slot_name(slot).write(&name[..NAME_LEN], "a savegame slot's name")?;
             Ok(true)
         }
         _ => Ok(false),

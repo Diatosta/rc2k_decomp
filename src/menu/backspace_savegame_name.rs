@@ -22,8 +22,7 @@ pub fn backspace_savegame_name() -> Result<(), BadInput> {
     let mut e = text_entry();
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(&e);
-        crate::pointers::GamePtr::new(name.wrapping_add(at as u32))
-            .write::<u8>(0, "a saved game's name")?;
+        name.add(at as u32).write(&[0], "a saved game's name")?;
     }
     Ok(())
 }

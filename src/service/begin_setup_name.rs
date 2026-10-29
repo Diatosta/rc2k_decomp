@@ -25,8 +25,8 @@ pub fn begin_setup_name() -> Result<(), BadInput> {
         return Err(BadInput("slot past the name table"));
     }
     {
-        backup_text(slot_name(slot).addr())?;
-        clear_text(slot_name(slot).addr())?;
+        backup_text(slot_name(slot))?;
+        clear_text(slot_name(slot))?;
         OPTION_WORK.typing.set(1u32);
     }
     set_length(0);

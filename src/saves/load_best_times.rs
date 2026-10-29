@@ -60,7 +60,7 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
     let Some(file) = open_by_mode(&PATH.read()[..PATH_LEN], 0)? else {
         return Ok(false);
     };
-    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
+    let scratch = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }

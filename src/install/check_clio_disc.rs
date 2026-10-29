@@ -52,7 +52,7 @@ pub fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     // `base_b` (`unk_5295B4`) is an empty text whose size is not known (section 13: the
     // installer writes it elsewhere): read as a text at its place.
     let base_b = crate::files::cstring(
-        crate::pointers::GamePtr::new(crate::install::installer::INSTALL_TEXTS.base_b.addr()),
+        crate::pointers::GamePtr::to(&crate::install::installer::INSTALL_TEXTS.base_b),
         "the installer's base",
     )?;
     let Some(a) = outside.normalise_path(&base_b)? else {

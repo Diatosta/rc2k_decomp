@@ -209,9 +209,9 @@ fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::ses
 pub fn buffer_at(buffer: Buffer) -> GamePtr {
     use crate::screens::text_buffers_store::TEXT_BUFFERS;
     match buffer {
-        Buffer::Line => GamePtr::new(TEXT_BUFFERS.line.addr()),
+        Buffer::Line => GamePtr::to(&TEXT_BUFFERS.line),
         Buffer::Text => crate::strings::text_from_ids::text_at(),
-        Buffer::Cells => GamePtr::new(TEXT_BUFFERS.cells.addr()),
+        Buffer::Cells => GamePtr::to(&TEXT_BUFFERS.cells),
     }
 }
 
@@ -845,7 +845,7 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
             Font::A => crate::gfx::typefaces::fonts::CAPTION_A.game_ptr(),
             Font::B => crate::gfx::typefaces::fonts::CAPTION_B.game_ptr(),
             // g_blendedFont.
-            Font::Blended => GamePtr::new(crate::text::blend_font::BLENDED_FONT.addr()),
+            Font::Blended => GamePtr::to(&crate::text::blend_font::BLENDED_FONT),
         }
     }
 }

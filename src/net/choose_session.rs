@@ -43,7 +43,7 @@ fn refresh() -> Result<bool, Refused> {
     if listed != 0 && NET.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            let joined = GamePtr::new(NET.joined.addr()).read::<[u8; 16]>("the joined session")?;
+            let joined = GamePtr::to(&NET.joined).read::<[u8; 16]>("the joined session")?;
             // `system::same_guid`: the four dwords alike.
             if with_session(n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).

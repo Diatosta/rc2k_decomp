@@ -71,7 +71,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         let mut copy: crate::text::font::Font = font.read("a font record")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
+            crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
             x,
             y,
             &mut GameCanvas,

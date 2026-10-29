@@ -47,7 +47,7 @@ fn globals() -> Result<Globals, BadInput> {
 /// The buffer the resolved path is written to: the current thread's slot's, else the global one.
 fn out_buffer() -> Result<GamePtr, BadInput> {
     Ok(match crate::threading::find_thread_slot::current_slot()? {
-        None => GamePtr::new(crate::files::state::PATHS.addr()).offset(0x100),
+        None => GamePtr::to(&crate::files::state::PATHS).offset(0x100),
         Some(slot) => GamePtr::new(slot.path.addr()),
     })
 }

@@ -43,7 +43,7 @@ pub fn in_game() -> Result<bool, Refused> {
     else {
         return Ok(false);
     };
-    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
+    let scratch = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
         let bytes = crate::saves::best_times::typed(table).bytes()?;

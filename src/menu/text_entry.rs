@@ -17,8 +17,8 @@ pub fn set_length(length: i32) {
 }
 
 /// Where the backup copy of the text is.
-pub fn backup() -> u32 {
-    NAME_BUFFERS.text_backup.addr()
+pub fn backup() -> crate::place::Place {
+    crate::place::Place::from(&NAME_BUFFERS.text_backup)
 }
 
 /// The entry's state, as the game holds it.
@@ -48,12 +48,16 @@ pub fn with_entry<R>(f: impl FnOnce(&mut Entry) -> R) -> R {
 }
 
 /// A text field's text.
-pub fn field(at: u32) -> Result<Text, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<Text>("a text field")
+pub fn field(at: impl Into<crate::place::Place>) -> Result<Text, crate::errors::BadInput> {
+    let bytes = at.into().read(TEXT_LEN, "a text field")?;
+    Ok(std::array::from_fn(|i| bytes[i]))
 }
 
-pub fn put_field(at: u32, text: &Text) -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).write::<Text>(*text, "a text field")
+pub fn put_field(
+    at: impl Into<crate::place::Place>,
+    text: &Text,
+) -> Result<(), crate::errors::BadInput> {
+    at.into().write(text, "a text field")
 }
 
 const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Backed up name="
@@ -61,8 +65,12 @@ const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Ba
 /// Starts an entry on the text field `field`, as the saved game and replay screens do it:
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
 /// set, the field is cleared, the length is 0 and an entry is going on.
-pub fn begin_logged(at: u32, log: bool) -> Result<(), crate::errors::BadInput> {
+pub fn begin_logged(
+    at: impl Into<crate::place::Place>,
+    log: bool,
+) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin`.
+    let at = at.into();
     let mut text = field(at)?;
     with_entry(|e| e.begin(&mut text));
     put_field(at, &text)?;

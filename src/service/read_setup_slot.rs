@@ -63,8 +63,8 @@ pub fn template_home() -> usize {
 }
 
 // "CRSU"
-pub fn slot_name(slot: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::new(SET_UPS.names.addr()).offset(slot * NAME_LEN as u32)
+pub fn slot_name(slot: u32) -> crate::place::Place {
+    crate::place::Place::In(&SET_UPS.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
@@ -85,7 +85,7 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
-                slot_name(slot).write_bytes(&name[..NAME_LEN], "a setup's name")?;
+                slot_name(slot).write(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }
             _ => Ok(false),

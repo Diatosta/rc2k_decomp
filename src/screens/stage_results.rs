@@ -205,7 +205,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             "the seal text",
         )
         .and_then(|len| {
-            GamePtr::new(crate::strings::format_seal_code::SEAL_TEXT.addr())
+            GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT)
                 .read_bytes(len as usize, "the seal text")
         }))
     };

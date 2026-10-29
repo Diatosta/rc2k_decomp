@@ -359,7 +359,7 @@ pub fn open_replay() -> Result<(), Refused> {
         to.set(from.get());
     }
     seal_replay_header()?;
-    GamePtr::new(REPLAY_WORK.header_stage.addr()).copy_to(
+    GamePtr::to(&REPLAY_WORK.header_stage).copy_to(
         GamePtr::new(REPLAYS.header.addr() + 0x30),
         0x400,
         "the replay header's stage",

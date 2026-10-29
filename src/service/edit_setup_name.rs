@@ -47,23 +47,22 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-fn put_cursor(name: GamePtr) -> Result<(), BadInput> {
+fn put_cursor(name: crate::place::Place) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);
     let len = LOOP_FLAGS.text_length.get() as i32;
-    name.offset(len as u32)
-        .write_bytes(&tail, "the setup name")?;
+    name.add(len as u32).write(&tail, "the setup name")?;
     Ok(())
 }
 
 /// `c` at the name's character `at`.
-fn put_char(name: GamePtr, at: i32, c: u8) -> Result<(), BadInput> {
-    name.offset(at as u32).write(c, "the setup name")
+fn put_char(name: crate::place::Place, at: i32, c: u8) -> Result<(), BadInput> {
+    name.add(at as u32).write(&[c], "the setup name")
 }
 
 /// The name cut at its length.
-fn end_name(name: GamePtr) -> Result<(), BadInput> {
+fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
     put_char(name, LOOP_FLAGS.text_length.get() as i32, 0)
 }
 
@@ -84,14 +83,14 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     match entry::key(key) {
         Key::None => {}
         Key::Escape => {
-            restore_text(name.addr())?;
+            restore_text(name)?;
             OPTION_WORK.typing.set(0u32);
             return Ok(());
         }
         Key::Enter => {
             if (LOOP_FLAGS.text_length.get() as i32) == 0 {
-                restore_text(name.addr())?;
-                add_text_length(name.addr())?;
+                restore_text(name)?;
+                add_text_length(name)?;
             }
             OPTION_WORK.typing.set(0u32);
             end_name(name)?;
@@ -100,7 +99,7 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             OPTION_WORK.typing.set(0u32);
             return Ok(());
         }
-        Key::Clear => clear_text(name.addr())?,
+        Key::Clear => clear_text(name)?,
         Key::Backspace => backspace_setup_name()?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
@@ -109,7 +108,12 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 put_char(name, len, c)?;
                 set_length(len.wrapping_add(1));
                 // x is whatever ecx held: the length before this character.
-                let measured = measure_text_at(MEASURING_FONT.game_ptr(), name, len, canvas)?;
+                let measured = measure_text_at(
+                    MEASURING_FONT.game_ptr(),
+                    GamePtr::new(name.game()),
+                    len,
+                    canvas,
+                )?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_setup_name()?;
                 }

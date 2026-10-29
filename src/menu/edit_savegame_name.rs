@@ -27,7 +27,6 @@ use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
-use crate::pointers::GamePtr;
 use crate::saves::write_savegame_slot::write_savegame_slot;
 use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
@@ -41,8 +40,8 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-fn end_name(name: u32) -> Result<(), BadInput> {
-    GamePtr::new(name.wrapping_add(length() as u32)).write::<u8>(0, "a saved game's name")
+fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
+    name.add(length() as u32).write(&[0], "a saved game's name")
 }
 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
@@ -108,12 +107,11 @@ pub fn edit_savegame_name(
             let c = key_to_char(key as u32)? as u8;
             let len = length();
             if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                GamePtr::new(name.wrapping_add(len as u32))
-                    .write::<u8>(c, "a saved game's name")?;
+                name.add(len as u32).write(&[c], "a saved game's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
                     MEASURING_FONT.game_ptr(),
-                    crate::pointers::GamePtr::new(name),
+                    crate::pointers::GamePtr::new(name.game()),
                     len,
                     canvas,
                 )?;
@@ -128,7 +126,8 @@ pub fn edit_savegame_name(
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
-    GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a saved game's name")?;
+    name.add(length() as u32)
+        .write(&tail, "a saved game's name")?;
     Ok(())
 }
 

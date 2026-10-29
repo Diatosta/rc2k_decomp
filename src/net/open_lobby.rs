@@ -72,7 +72,7 @@ pub fn open_lobby() -> Result<bool, Refused> {
         return Ok(false);
     }
     let name = get(get(NET.settings.get() + 0xC)? + 8)?;
-    copy_printable(name, NET.player_name.addr(), 0x1F)?;
+    copy_printable(name, &NET.player_name, 0x1F)?;
     fill_own_player::fill_own_player(name)?;
     if !create_player::create_player()? {
         return Ok(false);

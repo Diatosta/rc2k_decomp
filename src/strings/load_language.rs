@@ -204,7 +204,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     // `sub_403462`
     if MACHINE.keyboard_type.get() == 2 {
-        GamePtr::new(KEYBOARD_TABLES.nec_head.addr()).copy_to(
+        GamePtr::to(&KEYBOARD_TABLES.nec_head).copy_to(
             GamePtr::new(crate::pointers::game_address(keyboard)),
             0x30,
             "the NEC keyboard head",

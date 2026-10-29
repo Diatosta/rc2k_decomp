@@ -36,7 +36,7 @@ pub fn set_cdat_number(number: u32) {
 pub fn copy_course_header() -> Result<(), BadInput> {
     let from: u32 = COURSE_LISTS.course_memory.bits();
     GamePtr::new(from).copy_to(
-        GamePtr::new(COURSE.course_header.addr()),
+        GamePtr::to(&COURSE.course_header),
         HEADER_LEN,
         "the course memory's header",
     )

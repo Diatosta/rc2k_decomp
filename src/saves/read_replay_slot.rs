@@ -20,8 +20,8 @@ use crate::race::replay::REPLAYS;
 const HEAD_LEN: usize = 0x430;
 const SLOTS: u32 = 100;
 
-fn slot_name(slot: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::new(REPLAYS.names.addr()).offset(slot * NAME_LEN as u32)
+fn slot_name(slot: u32) -> crate::place::Place {
+    crate::place::Place::In(&REPLAYS.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
@@ -41,7 +41,7 @@ pub fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
     let block = &bytes[..0x30];
     match kept::slot_name(block, kept::REPLAY, kept::REPLAY_VERSION) {
         Some(name) if read.ok => {
-            slot_name(slot).write_bytes(&name[..NAME_LEN], "a replay slot's name")?;
+            slot_name(slot).write(&name[..NAME_LEN], "a replay slot's name")?;
             Ok(true)
         }
         _ => Ok(false),

@@ -8,7 +8,7 @@ use crate::menu::text_entry::{Text, put_field, with_entry};
 
 // ---- Rust version ----
 
-pub fn clear_text(at: u32) -> Result<(), crate::errors::BadInput> {
+pub fn clear_text(at: impl Into<crate::place::Place>) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::clear` (the field is not read).
     let mut text = Text::default();
     with_entry(|e| e.clear(&mut text));

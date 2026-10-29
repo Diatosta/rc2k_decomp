@@ -84,7 +84,7 @@ pub fn set_player_car_kinds() {
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
 fn text_data() -> Result<crate::pointers::GameBytes, BadInput> {
-    GamePtr::new(RACE_TABLES.car_data_text[0].addr()).bytes("the cars' data text")
+    GamePtr::to(&RACE_TABLES.car_data_text[0]).bytes("the cars' data text")
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,

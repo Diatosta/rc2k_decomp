@@ -36,7 +36,6 @@ use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
-use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
@@ -48,8 +47,8 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-fn end_name(name: u32) -> Result<(), BadInput> {
-    GamePtr::new(name.wrapping_add(length() as u32)).write::<u8>(0, "a replay's name")
+fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
+    name.add(length() as u32).write(&[0], "a replay's name")
 }
 
 /// Returns the carry flag.
@@ -91,11 +90,11 @@ pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
             if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a replay's name")?;
+                name.add(len as u32).write(&[c], "a replay's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
                     MEASURING_FONT.game_ptr(),
-                    crate::pointers::GamePtr::new(name),
+                    crate::pointers::GamePtr::new(name.game()),
                     len,
                     canvas,
                 )?;
@@ -111,6 +110,6 @@ pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         push_string(&mut tail, CURSOR_STRING)?;
     }
     tail.push(0);
-    GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a replay's name")?;
+    name.add(length() as u32).write(&tail, "a replay's name")?;
     Ok(cursor_on == 0)
 }

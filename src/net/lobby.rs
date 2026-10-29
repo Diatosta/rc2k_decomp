@@ -24,7 +24,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::place::Place;
-use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 use crate::strings::text_buffer::TEXT_BUFFER;
 
@@ -38,9 +37,14 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 
 // ---- small pieces ----
 
-/// `rep movsb` of `n` bytes, forwards (addresses).
-pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
-    GamePtr::new(from).copy_to(GamePtr::new(to), n as usize, "a network record's bytes")?;
+/// `rep movsb` of `n` bytes, forwards (the places do not overlap).
+pub fn movsb(
+    to: impl Into<crate::place::Place>,
+    from: impl Into<crate::place::Place>,
+    n: u32,
+) -> Result<(), Refused> {
+    let bytes = from.into().read(n as usize, "a network record's bytes")?;
+    to.into().write(&bytes, "a network record's bytes")?;
     Ok(())
 }
 
@@ -158,19 +162,22 @@ pub fn give_back_lobby_settings() {
     *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
-/// `strings::copy_printable` (addresses).
-pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
-    crate::strings::copy_printable::copy_printable(
-        crate::pointers::host(text) as *const u8,
-        crate::pointers::host(to),
-        room,
-    )?;
+/// `strings::copy_printable`: the name at `text` (a pointer from the game's data) into `to`.
+pub fn copy_printable(
+    text: u32,
+    to: impl Into<crate::place::Place>,
+    room: u32,
+) -> Result<(), Refused> {
+    let bytes =
+        crate::strings::copy_printable::printable(crate::pointers::host(text) as *const u8, room)?;
+    to.into().write(&bytes, "a printable name")?;
     Ok(())
 }
 
-/// `system::zero_memory` (an address).
-pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
-    GamePtr::new(at).fill(0, length as usize, "memory to zero")?;
+/// `system::zero_memory`.
+pub fn zero(at: impl Into<crate::place::Place>, length: u32) -> Result<(), Refused> {
+    at.into()
+        .write(&vec![0; length as usize], "memory to zero")?;
     Ok(())
 }
 

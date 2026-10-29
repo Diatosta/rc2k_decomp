@@ -28,7 +28,7 @@ pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let bytes = fps_text(rate);
     t.write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
-        crate::pointers::GamePtr::new(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
+        crate::pointers::GamePtr::to(&crate::gfx::fonts_store::FONTS.menu_fonts[3]),
         t,
         0x190,
         4,

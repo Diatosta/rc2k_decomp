@@ -61,7 +61,7 @@ const MORE: [(&Dword, &Dword); 5] = [
 
 /// The Rust version.
 pub fn fill_own_player(name: u32) -> Result<(), Refused> {
-    copy_printable(name, NET.player_name.addr(), 0x1F)?;
+    copy_printable(name, &NET.player_name, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
     let player = PLAYER_TABLE.players[0].get();
     let own = record::own_record(

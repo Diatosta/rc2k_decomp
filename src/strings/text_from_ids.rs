@@ -20,7 +20,7 @@ pub const TEXT_LEN: usize = 0x400;
 
 /// The game's text buffer as a game pointer.
 pub fn text_at() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::new(crate::strings::text_buffer::TEXT_BUFFER.text.addr())
+    crate::pointers::GamePtr::to(&crate::strings::text_buffer::TEXT_BUFFER.text)
 }
 
 pub fn text() -> *mut u8 {

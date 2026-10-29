@@ -9,16 +9,20 @@
 use crate::errors::BadInput;
 use crate::menu::text_entry::with_entry;
 use rc2k_core::menu::text_entry::text_length;
-use rc2k_core::strings::bytes::Bytes;
 
 // ---- Rust version ----
 
-pub fn add_text_length(text: u32) -> Result<(), BadInput> {
+pub fn add_text_length(text: impl Into<crate::place::Place>) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
-    let bytes = crate::pointers::GamePtr::new(text).bytes("a name")?;
+    let text = text.into();
     let fault = crate::menu::event_flow::Fault::default();
-    let len =
-        text_length(|i| fault.ok(bytes.byte(i).ok_or(BadInput("a name runs past its block"))));
+    let len = text_length(|i| {
+        fault.ok(text
+            .add(i as u32)
+            .read(1, "a name")
+            .map(|b| b[0])
+            .map_err(|_| BadInput("a name runs past its block")))
+    });
     fault.check()?;
     let len = len?;
     with_entry(|e| e.add_length(len));

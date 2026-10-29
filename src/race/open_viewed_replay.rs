@@ -132,7 +132,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     GamePtr::new(crate::race::replay::REPLAYS.header.addr() + 0x30) // unk_528534
         .copy_to(
-            GamePtr::new(REPLAY_WORK.header_stage.addr()),
+            GamePtr::to(&REPLAY_WORK.header_stage),
             CAR_HEADER_LEN,
             "the replay header's stage",
         )?;

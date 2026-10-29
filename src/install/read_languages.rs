@@ -36,7 +36,7 @@ pub fn read_languages(path: *const u8) -> Result<(), BadInput> {
                 .bytes("the languages' text")?,
             &case_table(),
         )?;
-        let all = crate::pointers::GamePtr::new(INSTALLER_NAMES.languages.addr());
+        let all = crate::pointers::GamePtr::to(&INSTALLER_NAMES.languages);
         let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;

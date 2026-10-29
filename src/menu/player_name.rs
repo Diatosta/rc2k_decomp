@@ -13,10 +13,11 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
+use crate::place::Place;
 use crate::pointers::GamePtr;
 
-pub fn kept() -> u32 {
-    NAME_BUFFERS.kept_name.addr()
+pub fn kept() -> Place {
+    Place::from(&NAME_BUFFERS.kept_name)
 }
 
 /// The current player's name.
@@ -30,17 +31,18 @@ pub fn name() -> Result<u32, Refused> {
     Ok(name)
 }
 
-pub fn bring_back_name(name: u32) -> Result<(), BadInput> {
-    let kept = GamePtr::new(kept()).read_bytes(TEXT_LEN, "the kept name")?;
-    GamePtr::new(name).write_bytes(&kept, "a player\'s name")
+pub fn bring_back_name(name: impl Into<Place>) -> Result<(), BadInput> {
+    let kept = kept().read(TEXT_LEN, "the kept name")?;
+    name.into().write(&kept, "a player's name")
 }
 
-pub fn backspace_name(name: u32) -> Result<(), BadInput> {
+pub fn backspace_name(name: impl Into<Place>) -> Result<(), BadInput> {
     let length = length();
     if length != 0 {
         set_length(length.wrapping_sub(1));
-        GamePtr::new(name.wrapping_add(length.wrapping_sub(1) as u32))
-            .write::<u8>(0, "a player\'s name")?;
+        name.into()
+            .add(length.wrapping_sub(1) as u32)
+            .write(&[0], "a player's name")?;
     }
     Ok(())
 }

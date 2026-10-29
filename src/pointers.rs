@@ -398,6 +398,11 @@ impl GamePtr {
         Self(addr)
     }
 
+    /// The game address of a field of Rust's game state (a store's cell, buffer or place).
+    pub fn to<T: ?Sized>(field: &T) -> Self {
+        Self::new(game_address(field as *const T as *const u8))
+    }
+
     pub const fn addr(self) -> u32 {
         self.0
     }

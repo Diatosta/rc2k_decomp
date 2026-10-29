@@ -35,11 +35,7 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
         let words = GamePtr::new(text).bytes("an edited text")?;
         match EditKey::of(key) {
             EditKey::Escape => {
-                movsb(
-                    text,
-                    INSTALLER_PATHS.script_path.addr(),
-                    editing::TEXT_LEN as u32,
-                )?;
+                movsb(text, &INSTALLER_PATHS.script_path, editing::TEXT_LEN as u32)?;
                 NET.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => NET.edited.set(editing::NOT_EDITING),

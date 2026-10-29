@@ -45,7 +45,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
-    let blended = GamePtr::new(BLENDED_FONT.addr());
+    let blended = GamePtr::to(&BLENDED_FONT);
     // The original reads the palettes after the copy, so if the second font is the
     // blended font itself, its palette is by then the first one's.
     let from_palette = from.read::<Font>("a font")?.palette;
@@ -61,7 +61,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     if mode == 0 {
         return Ok(());
     }
-    let palette = GamePtr::new(BLENDED_PALETTE.addr());
+    let palette = GamePtr::to(&BLENDED_PALETTE);
     blend_palette(
         from_palette,
         to_palette,

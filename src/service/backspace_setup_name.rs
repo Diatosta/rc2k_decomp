@@ -17,7 +17,7 @@ use crate::service::read_setup_slot::{NAME_LEN, SLOT_COUNT, slot_name};
 // ---- Rust version ----
 
 /// The name of the highlighted slot, and the text entry's length if it is usable.
-pub fn entry() -> Result<(crate::pointers::GamePtr, usize), BadInput> {
+pub fn entry() -> Result<(crate::place::Place, usize), BadInput> {
     let slot = highlighted_slot();
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
@@ -34,9 +34,9 @@ pub fn backspace_setup_name() -> Result<(), BadInput> {
     let (name, len) = entry()?;
     if len != 0 {
         let at = name;
-        let mut bytes = at.read_bytes(NAME_LEN, "a setup name")?;
+        let mut bytes = at.read(NAME_LEN, "a setup name")?;
         let len = rc2k_core::service::setups::backspace(&mut bytes, len);
-        at.write_bytes(&bytes, "a setup name")?;
+        at.write(&bytes, "a setup name")?;
         set_length(len as i32);
     }
     Ok(())

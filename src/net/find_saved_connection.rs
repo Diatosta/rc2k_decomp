@@ -15,7 +15,7 @@ use rc2k_core::net::lists;
 /// The Rust version.
 pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::net::lists::find_listed`.
-    let saved = crate::pointers::GamePtr::new(NET.saved_connection.addr())
+    let saved = crate::pointers::GamePtr::to(&NET.saved_connection)
         .read::<[u8; 16]>("the saved connection")?;
     lists::find_listed(NET.connections.get(), |n| -> Result<bool, Refused> {
         // `system::same_guid`: the four dwords alike.

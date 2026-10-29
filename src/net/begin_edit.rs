@@ -22,5 +22,5 @@ pub fn begin_edit(
     NET.edit_text.set(text);
     NET.edit_width.set(width);
     NET.edit_font.set(font);
-    movsb(INSTALLER_PATHS.script_path.addr(), text, 0x40)
+    movsb(&INSTALLER_PATHS.script_path, text, 0x40)
 }

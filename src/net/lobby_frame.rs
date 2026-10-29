@@ -103,7 +103,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let name = {
                 crate::text::draw_text::draw_text_at(
                     font.game_ptr(),
-                    crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
+                    crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -131,7 +131,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.game_ptr(),
-                        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
+                        crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -179,7 +179,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.game_ptr(),
-            crate::pointers::GamePtr::new(NET.chat.addr()),
+            crate::pointers::GamePtr::to(&NET.chat),
             0xA,
             y as i32,
             &mut canvas,

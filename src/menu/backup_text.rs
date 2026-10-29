@@ -8,7 +8,7 @@ use crate::menu::text_entry::{field, with_entry};
 
 // ---- Rust version ----
 
-pub fn backup_text(at: u32) -> Result<(), crate::errors::BadInput> {
+pub fn backup_text(at: impl Into<crate::place::Place>) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::back_up`.
     let text = field(at)?;
     with_entry(|e| e.back_up(&text));

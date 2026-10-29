@@ -81,6 +81,12 @@ impl Place {
         }
     }
 
+    /// `N` bytes from here, as an array.
+    pub fn read_array<const N: usize>(self, what: &str) -> Result<[u8; N], BadInput> {
+        let bytes = self.read(N, what)?;
+        Ok(std::array::from_fn(|i| bytes[i]))
+    }
+
     /// `data` written from here.
     pub fn write(self, data: &[u8], what: &str) -> Result<(), BadInput> {
         match self {
