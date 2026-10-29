@@ -24,35 +24,35 @@ use crate::errors::{BadInput, Refused};
 use crate::input::devices::{Deferred, at};
 use crate::input::effects::HAS_EFFECTS;
 use crate::input::store::DEVICES;
-use crate::pointers::GamePtr;
 use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 use crate::sound::store::RACE_SOUNDS;
 
-/// Where the variables are (the game's or a test's).
+/// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
 pub struct Vars {
-    pub cars: u32,
-    pub devices: u32,
-    pub views: u32,
-    pub objects: u32,
-    pub two_devices: u32,
+    pub cars: &'static [Dword; 2],
+    pub one_player: &'static Dword,
+    pub count: &'static Dword,
+    pub devices: &'static [Dword; 2],
+    pub views: &'static [Dword; 2],
+    pub objects: &'static [Dword; 8],
+    pub two_devices: &'static Dword,
 }
 
 impl Vars {
     pub fn game() -> Self {
         Self {
-            // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
-            cars: crate::pointers::game_address(RACE_SOUNDS.player_cars.as_ptr()),
-            devices: DEVICES.input_devices[0].addr(),
-            views: (RACE_VIEW.view_blocks[0].addr()),
-            objects: crate::pointers::game_address(RACE_SOUNDS.table.as_ptr()),
-            two_devices: DEVICES.two_devices_one_player.addr(),
+            // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
+            cars: &RACE_SOUNDS.player_cars,
+            one_player: &RACE_SOUNDS.one_player,
+            count: &RACE_SOUNDS.count,
+            devices: &DEVICES.input_devices,
+            views: &RACE_VIEW.view_blocks,
+            objects: &RACE_SOUNDS.table,
+            two_devices: &DEVICES.two_devices_one_player,
         }
     }
-}
-
-fn rd(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a variable of the force feedback's update")
 }
 
 /// The Rust version on the variables in `v`.
@@ -60,22 +60,26 @@ fn rd(at: u32) -> Result<u32, BadInput> {
 /// nothing a call changes decides it).
 pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
-    if rd(v.cars + 0xC)? == 0 {
+    if v.count.get() == 0 {
         return Ok(());
     }
     let p = Players {
-        cars: [rd(v.cars)?, rd(v.cars + 4)?],
-        one_player: rd(v.cars + 8)? == 1,
-        devices: [rd(v.devices)?, rd(v.devices + 4)?],
-        views: [rd(v.views)?, rd(v.views + 4)?],
-        one_players_devices: rd(v.two_devices)? != 0,
+        cars: v.cars.each_ref().map(|c| c.get()),
+        one_player: v.one_player.get() == 1,
+        devices: v.devices.each_ref().map(|c| c.get()),
+        views: v.views.each_ref().map(|c| c.get()),
+        one_players_devices: v.two_devices.get() != 0,
     };
     let late = Deferred::default();
     let loaded = loads(&p, |device| late.get(at(device, HAS_EFFECTS)) == 1)?;
     late.finish()?;
     for load in loaded {
         if load.update {
-            let object = rd(v.objects + 4 * load.car)?;
+            let object = v
+                .objects
+                .get(load.car as usize)
+                .ok_or(BadInput("a car past the sound objects' table"))?
+                .get();
             crate::input::update_car_effects::update_car_effects(load.view, object, load.device)?;
         }
     }
