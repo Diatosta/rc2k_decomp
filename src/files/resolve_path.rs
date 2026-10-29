@@ -81,15 +81,20 @@ pub fn resolve_path(
     Ok(Some(out))
 }
 
-/// The path as the game would open it, for Rust callers: the pointer given if the path is used
-/// as it is, else the resolved path written to this thread's buffer.
-pub fn resolve_path_in_game(path: *const u8) -> Result<*const u8, BadInput> {
-    Ok(crate::pointers::host(
-        resolve_path_at(GamePtr::new(crate::pointers::game_address(path)))?.addr(),
-    ) as *const u8)
+/// The path as the game would open it, for Rust callers (`path` without its NUL): the path
+/// itself if it is used as it is, else the resolved path, written to this thread's buffer
+/// as the original writes it. Without a NUL.
+pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
+    let g = globals()?;
+    let Some(resolved) = resolve_path(path, g.mode, &g.a, &g.b, &g.pct)? else {
+        return Ok(path.to_vec());
+    };
+    out_buffer()?.write_bytes(&resolved, "the resolved path's buffer")?;
+    Ok(resolved[..resolved.len() - 1].to_vec())
 }
 
-/// `resolve_path_in_game` on a checked address.
+/// `resolve` for a path in the game's memory, for callers that hand the result on as an
+/// address: `path` itself, or this thread's buffer holding the resolved path.
 pub fn resolve_path_at(path: GamePtr) -> Result<GamePtr, BadInput> {
     let g = globals()?;
     let text = crate::files::cstring(path, "a path")?;

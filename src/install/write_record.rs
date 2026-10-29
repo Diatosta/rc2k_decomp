@@ -37,9 +37,11 @@ pub fn write_record() -> Result<bool, Refused> {
     start.write(&text, "the install record's text")?;
     // files::write_file
     let written = crate::files::write_file::write_file(
-        crate::install::installer::INSTALL_TEXTS
-            .record_path
-            .as_ptr() as *const u8,
+        crate::files::game_path(
+            crate::install::installer::INSTALL_TEXTS
+                .record_path
+                .as_ptr(),
+        ),
         start.ptr(),
         text.len() as u32,
     )?;

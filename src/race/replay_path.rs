@@ -75,12 +75,19 @@ mod block_tests {
 }
 // `numbered_path`'s buffer
 
-/// What the original leaves in its registers: eax the path (0 for none), ebx the number
-/// the path was made with (for a file of the game's own), and whether it is the last
-/// race's file (the zero flag).
-#[derive(Clone, Copy, Debug)]
+/// The last race's file's name (without its NUL).
+pub fn last_race() -> Vec<u8> {
+    let bytes = LAST_RACE.read();
+    bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
+}
+
+/// What the original leaves in its registers: eax the path, ebx the number the path was
+/// made with (for a file of the game's own), and whether it is the last race's file (the
+/// zero flag). Here the path's bytes (without the NUL); the original's eax is the last
+/// race's name or `numbered_path`'s buffer, which this still fills.
+#[derive(Clone, Debug)]
 pub struct ReplayPath {
-    pub path: u32,
+    pub path: Vec<u8>,
     pub number: u32,
     pub last_race: bool,
 }
@@ -93,24 +100,22 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
     let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
             return Ok(ReplayPath {
-                path: LAST_RACE.addr(),
+                path: last_race(),
                 number,
                 last_race: true,
             });
         }
-        ReplayFile::Saved(_) => TEMPLATES.saved.addr(),
+        ReplayFile::Saved(_) => TEMPLATES.saved.read().to_vec(),
         ReplayFile::Own(n) => {
             number = n;
-            TEMPLATES.own.addr()
+            TEMPLATES.own.read().to_vec()
         }
     };
-    let path = crate::files::numbered_path::numbered_path_in_game(
-        crate::pointers::host_at(template as usize) as *const u8,
-        number,
-    )?;
+    let path =
+        crate::files::numbered_path::numbered_path_bytes(&template[..template.len() - 1], number)?;
     Ok(ReplayPath {
-        path: crate::pointers::game_address(path),
+        path,
         number,
-        last_race: crate::pointers::game_address(path) == 0,
+        last_race: false,
     })
 }

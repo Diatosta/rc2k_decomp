@@ -41,7 +41,7 @@ fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
     let head = crate::gfx::png::info().cast::<u8>();
     let place = GamePtr::new(crate::pointers::game_address(head));
     place.write(0u32, "the PNG head")?;
-    let read = read_file(path, head, HEAD_LEN, 0)?;
+    let read = read_file(crate::files::game_path(path), head, HEAD_LEN, 0)?;
     if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
         return Ok(false);
     }

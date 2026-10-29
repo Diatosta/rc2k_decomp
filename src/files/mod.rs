@@ -62,6 +62,11 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
 
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with
 /// no NUL before its allocation's end is refused.
+/// A host pointer to a path in the game's memory, as the file calls take it.
+pub fn game_path(path: *const u8) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(crate::pointers::game_address(path))
+}
+
 pub fn cstring(
     at: crate::pointers::GamePtr,
     what: &str,
@@ -189,9 +194,23 @@ pub mod state {
     use crate::moved::Place;
     use std::sync::atomic::AtomicU32;
 
-    /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or 0
-    /// (the fatal-error report names it).
-    pub static LAST_FILE_PATH: AtomicU32 = AtomicU32::new(0);
+    /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or
+    /// none (the fatal-error report names it). The original holds the path's address (and
+    /// the report reads what is there then); its text since 2026-10-29 (phase 13).
+    static LAST_FILE_PATH: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
+
+    /// `g_lastFilePath` set to `path` (without its NUL), or to none.
+    pub fn set_last_file_path(path: Option<&[u8]>) {
+        *LAST_FILE_PATH.lock().unwrap_or_else(|e| e.into_inner()) = path.map(<[u8]>::to_vec);
+    }
+
+    /// `g_lastFilePath`'s path.
+    pub fn last_file_path() -> Option<Vec<u8>> {
+        LAST_FILE_PATH
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
     /// hFindFile (0x4E05A4): 1 while a search is open (`files::search`), `u32::MAX` for
     /// none.
     pub static FIND_HANDLE: AtomicU32 = AtomicU32::new(u32::MAX);
@@ -240,7 +259,7 @@ mod tests {
         // `files::search`'s test writes the search record.
         let _lock = crate::store::test_lock();
         let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
-        assert_eq!(word(0x4F52B0), LAST_FILE_PATH.load(Relaxed));
+        assert_eq!(word(0x4F52B0), 0, "no last path");
         assert_eq!(word(0x4E05A4), FIND_HANDLE.load(Relaxed));
         assert_eq!(word(0x4E06E6), SKIPPED_ATTRIBUTES.load(Relaxed));
         assert_eq!(word(0x60B2CC), BYTES_READ.load(Relaxed));

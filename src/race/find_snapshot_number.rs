@@ -13,7 +13,7 @@
 //! Caller: `race::replay_viewer`.
 
 use crate::errors::BadInput;
-use crate::files::state::{LAST_FILE_PATH, SKIPPED_ATTRIBUTES};
+use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use std::sync::atomic::Ordering::Relaxed;
@@ -45,11 +45,12 @@ pub fn find_next_wanted() -> bool {
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
 /// becomes `g_lastFilePath`) not of the skipped attributes; false (carry) when none.
 pub fn find_first(pattern: u32) -> bool {
-    LAST_FILE_PATH.store(pattern, Relaxed);
     let Ok(text) = crate::files::cstring(GamePtr::new(pattern), "a search pattern") else {
+        set_last_file_path(None);
         crate::files::search::close();
         return false;
     };
+    set_last_file_path(Some(&text));
     crate::files::search::first(&text, SKIPPED_ATTRIBUTES.load(Relaxed))
 }
 

@@ -21,7 +21,7 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::replay_path::{LAST_RACE, replay_path};
+use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
@@ -59,14 +59,14 @@ fn save(slot: u32) -> Result<bool, Refused> {
     )?;
     header.write_at(0x10, &name, "a replay's name")?;
     // The last race's file opened to read from, the slot's to write to.
-    let Some(from) = handle::open_by_mode(LAST_RACE.as_ptr() as *const u8, 0)? else {
+    let Some(from) = handle::open_by_mode(&last_race(), 0)? else {
         return Ok(false);
     };
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .from_file
         .set(from);
     let path = replay_path(slot)?.path;
-    let Some(to) = handle::open_by_mode(crate::pointers::host(path) as *const u8, 1)? else {
+    let Some(to) = handle::open_by_mode(&path, 1)? else {
         handle::close(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .from_file

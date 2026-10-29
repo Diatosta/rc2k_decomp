@@ -208,16 +208,19 @@ pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
 /// `files::copy_file` (0x402C28): whether it worked.
 pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
-        from.into().ptr(),
-        to.into().ptr(),
+        &from.into().text("a file to copy")?,
+        &to.into().text("a copy's path")?,
     )?)
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens.
 pub fn resolve_path(path: impl Into<Place>) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address(
-        crate::files::resolve_path::resolve_path_in_game(path.into().ptr())?,
-    ))
+    Ok(
+        crate::files::resolve_path::resolve_path_at(crate::pointers::GamePtr::new(
+            path.into().game(),
+        ))?
+        .addr(),
+    )
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.

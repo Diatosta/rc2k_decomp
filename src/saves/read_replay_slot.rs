@@ -10,8 +10,8 @@
 //! One caller, `sub_411239`, for all 100 slots at start-up. Refuses a slot past 99.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::read_file::read_file;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
 use crate::race::replay::REPLAYS;
 
@@ -35,9 +35,11 @@ pub unsafe fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name list").into());
     }
     unsafe {
-        let path = numbered_path_in_game(crate::race::replay_path::TEMPLATES.saved.as_ptr(), slot)?;
-        let head: *mut u8 = REPLAYS.header.as_ptr();
-        let read = read_file(path, head, HEAD_LEN as u32, 0)?;
+        let template = crate::race::replay_path::TEMPLATES.saved.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+        let mut bytes = REPLAYS.header.read();
+        let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
+        REPLAYS.header.write(&bytes);
         // Converted: `rc2k_core::saves::kept::slot_name`.
         use rc2k_core::saves::kept;
         let block = std::slice::from_raw_parts(REPLAYS.header.as_ptr(), 0x30);

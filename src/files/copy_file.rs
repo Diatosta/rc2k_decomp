@@ -21,19 +21,19 @@
 
 use crate::errors::BadInput;
 use crate::files::scratch::SCRATCH;
-use crate::pointers::GamePtr;
 
 const CHUNK: u32 = 0x1_0000;
 
 /// The Rust version: whether it was all done.
-pub fn copy_file(from: *const u8, to: *const u8) -> Result<bool, BadInput> {
+/// The paths without their NULs.
+pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
     let mut buffer = SCRATCH
         .buffer
         .read_at(0, CHUNK as usize, "the scratch buffer")?;
     let done = rc2k_core::files::io::copy_file(
         &mut crate::files::handle::GameFiles::new(),
-        GamePtr::new(crate::pointers::game_address(from)),
-        GamePtr::new(crate::pointers::game_address(to)),
+        from,
+        to,
         &mut buffer,
     )?;
     SCRATCH.buffer.write_at(0, &buffer, "the scratch buffer")?;

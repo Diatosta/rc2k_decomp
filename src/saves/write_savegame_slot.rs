@@ -9,8 +9,8 @@
 //! `menu::edit_savegame_name`. Refuses a slot past 99 and what `gather_savegame` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::write_file::write_file;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::write_file::write_file_from;
 use crate::menu::name_lists::NAME_LEN;
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::gather_savegame;
@@ -95,8 +95,9 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
                 .read::<[u8; NAME_LEN]>("a savegame's name")?,
         );
         file.write_at(0, &head, "the savegame's file")?;
-        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(path, file.as_ptr() as *const u8, FILE_LEN as u32)?.ok)
+        let template = TEMPLATE.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+        Ok(write_file_from(&path[..], &file.read()[..FILE_LEN])?.ok)
     }
 }
 

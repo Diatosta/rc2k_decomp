@@ -17,7 +17,7 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::files::file_exists::file_exists;
+use crate::files::file_exists::file_exists_at;
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
@@ -56,7 +56,7 @@ pub fn load_slideshow_picture(
         |number| -> Result<bool, Refused> {
             path = numbered_path_in_game(crate::pointers::host(template) as *const u8, number)?
                 as *mut u8;
-            if file_exists(path)? {
+            if file_exists_at(crate::files::game_path(path))? {
                 return Ok(true);
             }
             let length = text_length(path)? as usize;
@@ -65,7 +65,7 @@ pub fn load_slideshow_picture(
                 length as u32,
                 "a picture path",
             )?)?;
-            Ok(file_exists(path)?)
+            Ok(file_exists_at(crate::files::game_path(path))?)
         },
         |next| EVENT_STATE.picture.set(next),
     )?;

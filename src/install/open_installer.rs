@@ -30,7 +30,7 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 /// error `code`.
 fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
     let read = crate::files::read_file::read_file(
-        crate::pointers::host_at(path) as *const u8,
+        crate::pointers::GamePtr::new(path as u32),
         crate::pointers::host(buffer),
         count,
         0,

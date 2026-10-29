@@ -17,9 +17,9 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file};
-use crate::files::resolve_path::resolve_path_in_game;
+use crate::files::resolve_path::resolve;
 use crate::files::scratch::SCRATCH;
-use crate::files::state::{LAST_FILE_PATH, SKIPPED_ATTRIBUTES};
+use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -38,24 +38,25 @@ pub fn first_match_read(
     if pattern.is_null() {
         return Err(BadInput("no path to match"));
     }
-    let resolved = resolve_path_in_game(pattern)?;
-    LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
-    let resolved_text = crate::files::cstring(
-        GamePtr::new(crate::pointers::game_address(resolved)),
-        "a resolved path",
+    let pattern = crate::files::cstring(
+        GamePtr::new(crate::pointers::game_address(pattern)),
+        "a search pattern",
     )?;
-    let found = crate::files::search::first(&resolved_text, SKIPPED_ATTRIBUTES.load(Relaxed));
+    let resolved = resolve(&pattern)?;
+    set_last_file_path(Some(&resolved));
+    let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.load(Relaxed));
     let read = if found {
         // Converted: `rc2k_core::files::io::match_path`.
-        let pattern = crate::files::cstring(
-            GamePtr::new(crate::pointers::game_address(pattern)),
-            "a search pattern",
-        )?;
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(&pattern, &name);
         let path = SCRATCH.buffer.as_ptr();
         SCRATCH.buffer.write_at(0, &joined, "the scratch buffer")?;
-        Some(read_file(path, buffer, count, offset))
+        Some(read_file(
+            crate::files::game_path(path),
+            buffer,
+            count,
+            offset,
+        ))
     } else {
         None
     };

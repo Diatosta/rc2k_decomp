@@ -107,8 +107,8 @@ impl Game {
                 Step::Nothing => {}
                 Step::ReleaseTextures => crate::race::race_end::release_textures(),
                 Step::FileExists(f) => {
-                    let there = crate::files::file_exists::file_exists(
-                        crate::pointers::host(film(f)) as *const u8,
+                    let there = crate::files::file_exists::file_exists_at(
+                        crate::pointers::GamePtr::new(film(f)),
                     )?;
                     flags.carry = !there;
                     flags.zero = there;

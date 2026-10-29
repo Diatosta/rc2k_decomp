@@ -37,5 +37,10 @@ pub fn save_options(path: *const u8) -> Result<bool, Refused> {
     let pieces: Vec<&[u8]> = owned.iter().map(|piece| piece.as_slice()).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
-    Ok(write_file(path, file.as_ptr() as *const u8, file_len() as u32)?.ok)
+    Ok(write_file(
+        crate::files::game_path(path),
+        file.as_ptr() as *const u8,
+        file_len() as u32,
+    )?
+    .ok)
 }

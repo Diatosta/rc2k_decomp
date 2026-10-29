@@ -26,6 +26,8 @@ pub const PATH_START: usize = 0x5295E4;
 
 /// `aVarHstDat`: the best times file's name.
 pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\hst.dat\0");
+/// The path's length without its NUL.
+pub const PATH_LEN: usize = 11;
 
 /// Where the name is (`moved::MOVED`'s home for IDA 0x5295E4).
 pub fn path_home() -> usize {
@@ -55,7 +57,7 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         BEST_TIMES.list(),
         crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
     )?;
-    let Some(file) = open_by_mode(PATH.as_ptr() as *const u8, 0)? else {
+    let Some(file) = open_by_mode(&PATH.read()[..PATH_LEN], 0)? else {
         return Ok(false);
     };
     let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());

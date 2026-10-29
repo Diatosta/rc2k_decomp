@@ -2,7 +2,6 @@
 
 use crate::errors::BadInput;
 use crate::files::drive_type::drive_type;
-use crate::files::file_exists::file_exists;
 use crate::install::normalise_path::{current_directory, normalise_path};
 use crate::install::read_record::read_record;
 use crate::logfile::log_write::log_write;
@@ -45,7 +44,9 @@ pub struct Game;
 
 impl Outside for Game {
     unsafe fn file_exists(&mut self, path: *const u8) -> Result<bool, BadInput> {
-        file_exists(path)
+        crate::files::file_exists::file_exists_at(crate::pointers::GamePtr::new(
+            crate::pointers::game_address(path),
+        ))
     }
     unsafe fn drive_type(&mut self, letter: u8) -> u32 {
         drive_type(letter)

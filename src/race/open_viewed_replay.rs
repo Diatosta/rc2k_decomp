@@ -51,16 +51,14 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
-        let copied = crate::files::copy_file::copy_file(
-            crate::pointers::host(path) as _,
-            crate::race::replay_path::LAST_RACE.as_ptr() as *const u8,
-        )?;
+        let copied =
+            crate::files::copy_file::copy_file(&path, &crate::race::replay_path::last_race())?;
         if !copied {
             return failed();
         }
-        path = crate::race::replay_path::LAST_RACE.addr();
+        path = crate::race::replay_path::last_race();
     }
-    let Some(file) = handle::open_by_mode(crate::pointers::host(path) as _, 0)? else {
+    let Some(file) = handle::open_by_mode(&path, 0)? else {
         return failed();
     };
     REPLAY_FILE.replay_handle.set(file);

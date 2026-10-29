@@ -22,7 +22,7 @@ pub unsafe fn write_stream_block(
     // Converted: `rc2k_core::files::io::write_stream_block`.
     unsafe {
         Ok(rc2k_core::files::io::write_stream_block(
-            &mut crate::files::handle::GameFiles::new(),
+            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
             crate::files::stream::core_stream(stream),
             std::slice::from_raw_parts(bytes, count as usize),
             eax,

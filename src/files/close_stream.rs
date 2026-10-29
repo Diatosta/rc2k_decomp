@@ -21,7 +21,7 @@ pub unsafe fn close_stream(stream: *mut Stream) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::files::io::close_stream`.
     unsafe {
         Ok(rc2k_core::files::io::close_stream(
-            &mut crate::files::handle::GameFiles::new(),
+            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
             crate::files::stream::core_stream(stream),
             NO_HANDLE,
         )?)

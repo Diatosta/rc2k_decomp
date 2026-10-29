@@ -297,13 +297,6 @@ pub(crate) const MOVED: &[Moved] = &[
         },
     },
     Moved {
-        ida: 0x4F52B0, // g_lastFilePath
-        len: 4,
-        home: || {
-            (crate::pointers::game_address(crate::files::state::LAST_FILE_PATH.as_ptr())) as usize
-        },
-    },
-    Moved {
         ida: 0x5BE9BD, // g_packedPath
         len: crate::files::state::PACKED_PATH_LEN,
         home: || crate::files::state::PACKED_PATH.addr() as usize,

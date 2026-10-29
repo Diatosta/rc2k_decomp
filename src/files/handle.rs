@@ -8,8 +8,8 @@
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 
 use crate::errors::BadInput;
-use crate::files::resolve_path::resolve_path_at;
-use crate::files::state::LAST_FILE_PATH;
+use crate::files::resolve_path::resolve;
+use crate::files::state::set_last_file_path;
 use crate::pointers::GamePtr;
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -55,18 +55,13 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// key in `FILES`, kept by the game until `close`. The sharing (others kept out while it is
 /// open) is Windows' own and kept there. One difference: std makes "create or replace" an
 /// open-or-create and a truncation, so a hidden or system file is replaced where
-/// `CREATE_ALWAYS` with normal attributes would fail.
-pub fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
-    open_by_mode_at(GamePtr::new(crate::pointers::game_address(path)), mode)
-}
-
-/// `open_by_mode` on a checked address.
-pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput> {
+/// `CREATE_ALWAYS` with normal attributes would fail. `path` without its NUL.
+pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
     if mode >= MODE_COUNT {
         return Err(BadInput("a file mode past the table"));
     }
-    let resolved = resolve_path_at(path)?;
-    LAST_FILE_PATH.store(resolved.addr(), std::sync::atomic::Ordering::Relaxed);
+    let resolved = resolve(path)?;
+    set_last_file_path(Some(&resolved));
     let [access, disposition, share, _] = MODES[mode as usize];
     let mut options = std::fs::OpenOptions::new();
     options
@@ -86,7 +81,7 @@ pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
-    let Ok(file) = options.open(crate::files::ansi_path(resolved)?) else {
+    let Ok(file) = options.open(crate::files::host_path(&resolved)) else {
         return Ok(None);
     };
     let handle = NEXT_HANDLE.fetch_add(4, std::sync::atomic::Ordering::Relaxed);
@@ -237,37 +232,63 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
     }
 }
 
-/// Whether the handle was closed. `g_lastFilePath` is 0 afterwards.
+/// `open_by_mode` for a path in the game's memory (a C string at `path`).
+pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput> {
+    open_by_mode(&crate::files::cstring(path, "a path")?, mode)
+}
+
+/// Whether the handle was closed. `g_lastFilePath` is none afterwards.
 pub fn close(file: u32) -> bool {
-    LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
+    set_last_file_path(None);
     files().get_or_insert_default().remove(&file).is_some()
+}
+
+/// A path as the game's file primitives take it: a C string in the game's memory, or the
+/// bytes themselves (without a NUL).
+pub trait GamePath: Copy {
+    fn text(self) -> Result<Vec<u8>, BadInput>;
+}
+
+impl GamePath for GamePtr {
+    fn text(self) -> Result<Vec<u8>, BadInput> {
+        crate::files::cstring(self, "a path")
+    }
+}
+
+impl GamePath for &[u8] {
+    fn text(self) -> Result<Vec<u8>, BadInput> {
+        Ok(self.to_vec())
+    }
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's
 /// resolving refuses, `g_lastFilePath` set as the original sets it), handles `FILES`'.
-pub struct GameFiles(());
+pub struct GameFiles<P>(std::marker::PhantomData<P>);
 
-impl GameFiles {
+impl<P: GamePath> GameFiles<P> {
     pub fn new() -> Self {
-        GameFiles(())
+        GameFiles(std::marker::PhantomData)
     }
 }
 
-impl rc2k_core::files::io::Files for GameFiles {
-    type Path = GamePtr;
+impl<P: GamePath> rc2k_core::files::io::Files for GameFiles<P> {
+    type Path = P;
     type Handle = u32;
 
-    fn check(&mut self, path: GamePtr) -> Result<(), rc2k_core::Invalid> {
-        resolve_path_at(path)
+    fn check(&mut self, path: P) -> Result<(), rc2k_core::Invalid> {
+        path.text()
+            .and_then(|text| resolve(&text))
             .map(|_| ())
             .map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn open(
         &mut self,
-        path: GamePtr,
+        path: P,
         mode: rc2k_core::files::io::Mode,
     ) -> Result<Option<u32>, rc2k_core::Invalid> {
-        open_by_mode_at(path, mode as u32).map_err(|e| rc2k_core::Invalid(e.0))
+        path.text()
+            .and_then(|text| open_by_mode(&text, mode as u32))
+            .map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn read(&mut self, file: u32, into: &mut [u8]) -> (u32, bool) {
         read_slice(file, into)

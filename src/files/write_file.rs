@@ -17,18 +17,27 @@ use crate::errors::BadInput;
 
 // ---- Rust version ----
 
-use crate::files::handle::GameFiles;
+use crate::files::handle::{GameFiles, GamePath};
 use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::WriteResult;
 
 /// Refuses what `resolve_path` refuses.
-pub fn write_file(path: *const u8, buffer: *const u8, count: u32) -> Result<WriteResult, BadInput> {
-    // Converted: `rc2k_core::files::io::write_file`.
+pub fn write_file(
+    path: impl GamePath,
+    buffer: *const u8,
+    count: u32,
+) -> Result<WriteResult, BadInput> {
     let data = GamePtr::new(crate::pointers::game_address(buffer))
         .read_bytes(count as usize, "a file's contents")?;
+    write_file_from(path, &data)
+}
+
+/// `write_file` from Rust's memory.
+pub fn write_file_from(path: impl GamePath, data: &[u8]) -> Result<WriteResult, BadInput> {
+    // Converted: `rc2k_core::files::io::write_file`.
     Ok(rc2k_core::files::io::write_file(
         &mut GameFiles::new(),
-        GamePtr::new(crate::pointers::game_address(path)),
-        &data,
+        path,
+        data,
     )?)
 }

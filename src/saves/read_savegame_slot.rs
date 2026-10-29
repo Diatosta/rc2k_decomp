@@ -11,8 +11,8 @@
 //! Called for all 100 slots at start-up (`sub_411239`). Refuses a slot past 99.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::read_file::read_file;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
 use crate::saves::write_savegame_slot::{FILE_LEN, SAVE_GAMES, SLOTS, TEMPLATE, slot_name};
 
@@ -24,9 +24,11 @@ pub unsafe fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name list").into());
     }
     unsafe {
-        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        let file: *mut u8 = SAVE_GAMES.file.as_ptr();
-        let read = read_file(path, file, FILE_LEN as u32, 0)?;
+        let template = TEMPLATE.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+        let mut bytes = SAVE_GAMES.file.read();
+        let read = read_file_into(&path[..], &mut bytes[..FILE_LEN], 0)?;
+        SAVE_GAMES.file.write(&bytes);
         // Converted: `rc2k_core::saves::kept::slot_name`.
         use rc2k_core::saves::kept;
         let block = std::slice::from_raw_parts(SAVE_GAMES.file.as_ptr(), 0x30);

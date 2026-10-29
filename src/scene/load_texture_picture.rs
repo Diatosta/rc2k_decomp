@@ -25,7 +25,6 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::file_exists::file_exists;
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
@@ -126,7 +125,9 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
             match call {
                 Call::Text(text) => log_write(text, false, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Exists(path) => match file_exists(path.ptr() as *const u8) {
+                Call::Exists(path) => match crate::files::file_exists::file_exists_at(
+                    crate::pointers::GamePtr::new(path.game()),
+                ) {
                     Ok(exists) => return exists,
                     Err(e) => {
                         refused.get_or_insert(e.into());

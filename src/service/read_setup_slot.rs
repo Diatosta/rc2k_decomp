@@ -13,8 +13,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::read_file::read_file;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::read_file::read_file_into;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 
@@ -79,9 +79,12 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name table").into());
     }
     {
-        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
+        let template = TEMPLATE.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
         let file = &SET_UPS.file;
-        let read = read_file(path, file.as_ptr(), SETUP_FILE_LEN as u32, 0)?;
+        let mut bytes = file.read();
+        let read = read_file_into(&path[..], &mut bytes[..SETUP_FILE_LEN], 0)?;
+        file.write(&bytes);
         // Converted: `rc2k_core::saves::kept::setup_name`.
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {

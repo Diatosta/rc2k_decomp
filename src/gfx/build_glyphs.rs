@@ -30,7 +30,7 @@
 //! by dwords drags along.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::file_exists::file_exists;
+use crate::files::file_exists::file_exists_at;
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
@@ -237,7 +237,7 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
         }
         let number: u32 = DECODER.number.get();
         let path = numbered_path_in_game(template, number)?;
-        if file_exists(path)? && read_sheet(path)? {
+        if file_exists_at(crate::files::game_path(path))? && read_sheet(path)? {
             if PICTURE.flags.get() & 0x100 == 0 {
                 return Err(fatal(
                     0x80E4_F412,
@@ -303,7 +303,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 template
             } else {
                 let path = numbered_path_in_game(template, DECODER.number.get())?;
-                if !file_exists(path)? {
+                if !file_exists_at(crate::files::game_path(path))? {
                     return Ok(());
                 }
                 path

@@ -21,9 +21,9 @@ use crate::pointers::GamePtr;
 pub type Exists<'a> = &'a mut dyn FnMut(u32) -> Result<bool, Refused>;
 
 pub fn game_exists(path: u32) -> Result<bool, Refused> {
-    Ok(crate::files::file_exists::file_exists(
-        crate::pointers::host(path) as *const u8,
-    )?)
+    Ok(crate::files::file_exists::file_exists_at(GamePtr::new(
+        path,
+    ))?)
 }
 
 /// `files::read_level_file` (see the header): the file at `path` (or its packed copy) into

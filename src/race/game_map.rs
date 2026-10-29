@@ -212,7 +212,7 @@ pub fn free_game_map() -> Result<(), Refused> {
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
 pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
-    use crate::files::handle::{close, open_by_mode};
+    use crate::files::handle::{close, open_by_mode_at};
     let (bytes, format) = take_format()?;
     MAP.black
         .set(crate::gfx::components_to_pixel::components_to_pixel(
@@ -220,7 +220,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
         ));
     take_tiles()?;
     MAP.tile_count.set(0u32);
-    let Some(file) = open_by_mode(crate::pointers::host(path) as *const u8, 0)? else {
+    let Some(file) = open_by_mode_at(GamePtr::new(path), 0)? else {
         return Ok(());
     };
     let result = (|| -> Result<(), Refused> {
@@ -290,7 +290,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
 pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
     unsafe {
         if MAP.use_packed.get() == 1
-            && !crate::files::file_exists::file_exists(crate::pointers::host(picture) as *const u8)?
+            && !crate::files::file_exists::file_exists_at(GamePtr::new(picture))?
         {
             let path = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
             let cursor = crate::strings::str_append::str_append(

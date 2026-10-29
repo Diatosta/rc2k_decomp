@@ -84,10 +84,7 @@ fn line_buf() -> *mut u8 {
 fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     use std::io::{Seek, SeekFrom, Write};
     // open_by_mode stores resolve_path's result
-    crate::files::state::LAST_FILE_PATH.store(
-        crate::pointers::game_address(path.as_ptr()),
-        Ordering::Relaxed,
-    );
+    crate::files::state::set_last_file_path(Some(&path[..path.len() - 1]));
     // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
     // `write` only lets std accept it, the access is the table's).
     const _: () = assert!(MODE_DISPOSITION == 4);
@@ -107,7 +104,7 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
         Err(_) => None,
     };
     drop(file);
-    crate::files::state::LAST_FILE_PATH.store(0, Ordering::Relaxed);
+    crate::files::state::set_last_file_path(None);
     result
 }
 

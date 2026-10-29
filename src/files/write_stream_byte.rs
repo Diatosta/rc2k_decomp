@@ -19,7 +19,7 @@ pub unsafe fn write_stream_byte(stream: *mut Stream, eax: u32) -> Result<bool, B
     // Converted: `rc2k_core::files::io::write_stream_byte`.
     unsafe {
         Ok(rc2k_core::files::io::write_stream_byte(
-            &mut crate::files::handle::GameFiles::new(),
+            &mut crate::files::handle::GameFiles::<crate::pointers::GamePtr>::new(),
             crate::files::stream::core_stream(stream),
             eax as u8,
         )?)

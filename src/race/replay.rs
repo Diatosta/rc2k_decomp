@@ -384,10 +384,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         VIEWER_BUFFERS.block_used.set(0);
         REPLAY_VIEW.frames_in_block.set(0);
         REPLAY_VIEW.file_offset.set(0);
-        let opened = crate::files::handle::open_by_mode(
-            crate::race::replay_path::LAST_RACE.as_ptr() as *const u8,
-            1,
-        )?;
+        let opened = crate::files::handle::open_by_mode(&crate::race::replay_path::last_race(), 1)?;
         let failed = match opened {
             None => true,
             Some(handle) => {

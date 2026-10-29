@@ -54,13 +54,12 @@ unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
 unsafe fn text_from_game(context: &Context) -> Vec<u8> {
     unsafe {
         let message: u32 = MESSAGE.load(Ordering::Relaxed);
-        let last_file: u32 =
-            crate::files::state::LAST_FILE_PATH.load(std::sync::atomic::Ordering::Relaxed);
+        let last_file = crate::files::state::last_file_path();
         report_text(
             CODE.load(Ordering::Relaxed),
             (message != 0).then(|| cstr(crate::pointers::host(message) as *const u8)),
             cstr(EXTRA.ptr().cast()),
-            (last_file != 0).then(|| cstr(crate::pointers::host(last_file) as *const u8)),
+            last_file.as_deref(),
             W32.load(Ordering::Relaxed),
             context,
         )

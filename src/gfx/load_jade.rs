@@ -27,7 +27,12 @@ const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 pub fn load_jade(path: *const u8) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::screenshot::jade_read`.
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
-    let read = read_file(path, JADE_FONT.glyphs.as_ptr(), ROOM, 0)?;
+    let read = read_file(
+        crate::files::game_path(path),
+        JADE_FONT.glyphs.as_ptr(),
+        ROOM,
+        0,
+    )?;
     jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
     JADE_FONT
         .colour

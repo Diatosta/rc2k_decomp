@@ -15,13 +15,13 @@
 use crate::errors::BadInput;
 // ---- Rust version ----
 
-use crate::files::handle::GameFiles;
+use crate::files::handle::{GameFiles, GamePath};
 use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
 pub fn read_file(
-    path: *const u8,
+    path: impl GamePath,
     buffer: *mut u8,
     count: u32,
     offset: u32,
@@ -29,19 +29,18 @@ pub fn read_file(
     // Converted: `rc2k_core::files::io::read_file`.
     let to = GamePtr::new(crate::pointers::game_address(buffer));
     let mut into = to.read_bytes(count as usize, "a file's buffer")?;
-    let result = rc2k_core::files::io::read_file(
-        &mut GameFiles::new(),
-        GamePtr::new(crate::pointers::game_address(path)),
-        &mut into,
-        offset,
-    )?;
+    let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
     to.write_bytes(&into, "a file's buffer")?;
     Ok(result)
 }
 
 /// `read_file` into Rust's memory: `into` holds what the file's bytes do not reach over,
 /// as the game's buffer did. Refuses what `resolve_path` refuses.
-pub fn read_file_into(path: GamePtr, into: &mut [u8], offset: u32) -> Result<ReadResult, BadInput> {
+pub fn read_file_into(
+    path: impl GamePath,
+    into: &mut [u8],
+    offset: u32,
+) -> Result<ReadResult, BadInput> {
     Ok(rc2k_core::files::io::read_file(
         &mut GameFiles::new(),
         path,

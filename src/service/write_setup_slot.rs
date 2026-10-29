@@ -12,8 +12,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::numbered_path_in_game;
-use crate::files::write_file::write_file;
+use crate::files::numbered_path::numbered_path_bytes;
+use crate::files::write_file::write_file_from;
 use crate::pointers::GamePtr;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
@@ -53,7 +53,8 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
             ],
         );
         file.write_at(0, &bytes, "the setup file")?;
-        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(path, file.as_ptr() as *const u8, SETUP_FILE_LEN as u32)?.ok)
+        let template = TEMPLATE.read();
+        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+        Ok(write_file_from(&path[..], &file.read()[..SETUP_FILE_LEN])?.ok)
     }
 }

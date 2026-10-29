@@ -707,7 +707,7 @@ pub fn play_film(path: u32) -> bool {
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
     let found = crate::files::resolve_path::resolve_path_at(crate::pointers::GamePtr::new(path))
         .and_then(|at| {
-            let there = crate::files::file_exists::file_exists(crate::pointers::host(at.addr()))?;
+            let there = crate::files::file_exists::file_exists_at(at)?;
             Ok((crate::files::cstring(at, "a film's path")?, there))
         });
     let name = match found {

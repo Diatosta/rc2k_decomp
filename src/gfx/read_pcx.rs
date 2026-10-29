@@ -23,7 +23,7 @@ pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
         let header = PCX.header.as_ptr();
         zero_memory(header, HEADER_LEN as u32)?;
-        if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
+        if !read_file(crate::files::game_path(path), header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);
         }
         // Converted: `rc2k_core::gfx::pcx::kind`.

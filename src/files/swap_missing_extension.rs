@@ -26,7 +26,7 @@ pub fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
     let Some(partner) = rc2k_core::files::paths::missing_partner(&text) else {
         return Ok(());
     };
-    if !file_exists(path)? {
+    if !file_exists(&text)? {
         at.offset(text.len() as u32 - 4)
             .write(*partner, "a path's ending")?;
     }
