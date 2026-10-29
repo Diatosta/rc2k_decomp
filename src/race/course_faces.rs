@@ -21,7 +21,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_tables_store::LIGHT_TABLES;
 use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::polygon_store::POLYGON_WORK;
+use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::byte_of;
 use crate::session::{Dword, Float};
 
@@ -46,10 +46,6 @@ fn byte_at(a: u32) -> Result<u8, BadInput> {
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
     GamePtr::new(a).write(v, "a polygon entry or vertex word")
-}
-
-fn put_byte(a: u32, v: u8) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a polygon entry byte")
 }
 
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
@@ -194,16 +190,14 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
 
 /// `race::draw_marked_face` (0x44CD90): `scene::scale_texture_coordinates`,
 /// `scene::fog_polygon`, the drawing (`scene::draw_marked_polygon`), `g_polygonDrawn` 1.
-pub unsafe fn draw_marked_face() -> Result<(), Refused> {
-    unsafe {
-        crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
-        crate::scene::fog_polygon::fog_polygon()?;
-        crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
-            crate::scene::draw_polygon::draw_polygon_in_game()
-        })?;
-        DRAW.polygon_drawn.set(1u32);
-        Ok(())
-    }
+pub fn draw_marked_face() -> Result<(), Refused> {
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
+    crate::scene::fog_polygon::fog_polygon()?;
+    crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
+        crate::scene::draw_polygon::draw_polygon_in_game()
+    })?;
+    DRAW.polygon_drawn.set(1u32);
+    Ok(())
 }
 
 /// `race::face_switches` (0x45322C): `dword_6240E0` / `dword_6240E4` 1 when the face's
@@ -453,10 +447,9 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
     }
 }
 
-const ENTRY_SIZE: u32 = 0x44;
-
-fn entry(slot: u32) -> u32 {
-    (POLYGON_WORK.entries[0].point.addr()).wrapping_add(ENTRY_SIZE * slot)
+/// The work table's entry `slot`.
+fn entry(slot: u32) -> &'static PolygonEntry {
+    &POLYGON_WORK.entries[slot as usize]
 }
 
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
@@ -466,22 +459,21 @@ fn fill_entry(slot: u32, corner: u32) -> Result<(), BadInput> {
     {
         let e = entry(slot);
         let c = corner as usize;
-        let w = |o: u32, v: u32| put(e + o, v);
-        w(0, RACE_VIEW.corners[c].get())?;
-        w(8, RACE_VIEW.corner_uv[2 * c].get())?;
-        w(0xC, RACE_VIEW.corner_uv[2 * c + 1].get())?;
-        w(0x18, RACE_VIEW.corner_colours[c].get())?;
-        w(0x1C, RACE_VIEW.corner_lights[c].get())?;
-        w(0x10, RACE_VIEW.corner_uv_b[2 * c].get())?;
-        w(0x14, RACE_VIEW.corner_uv_b[2 * c + 1].get())?;
-        put_byte(e + 0x21, RACE_VIEW.corner_alphas[c].get() as u8)?;
+        e.point.set(RACE_VIEW.corners[c].get());
+        e.u.set(RACE_VIEW.corner_uv[2 * c].get());
+        e.v.set(RACE_VIEW.corner_uv[2 * c + 1].get());
+        e.light.set(RACE_VIEW.corner_colours[c].get());
+        e.lamp_light.set(RACE_VIEW.corner_lights[c].get());
+        e.u2.set(RACE_VIEW.corner_uv_b[2 * c].get());
+        e.v2.set(RACE_VIEW.corner_uv_b[2 * c + 1].get());
+        e.amount.set(RACE_VIEW.corner_alphas[c].get() as u8);
     }
     Ok(())
 }
 
 /// The light's third byte (bits 16 .. 23) of entry `slot`: the lamps' part.
 fn lamp_byte(slot: u32) -> Result<u8, BadInput> {
-    byte_at(entry(slot) + 0x1E)
+    Ok(entry(slot).byte(0x1E))
 }
 
 /// `g_polygonList` 0 .. count - 1 and a closing 0, `g_polygonVertexCount` count,
@@ -504,47 +496,45 @@ fn plain_list(count: u32, next: u32) {
 /// rounded into `dword_62400C`, compared by the sign of the difference); nothing when
 /// all are outside; else the quad drawn (`race::draw_marked_face`). Gives the carry
 /// (true: draw it as triangles).
-pub unsafe fn draw_whole_quad() -> Result<bool, Refused> {
+pub fn draw_whole_quad() -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
     use rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside, screen_inside};
-    unsafe {
-        for (slot, corner) in QUAD_ENTRIES {
-            fill_entry(slot, corner)?;
-        }
-        for s in 0..4 {
-            if lamp_byte(s)? != 0 {
-                return Ok(true);
-            }
-        }
-        plain_list(4, 4);
-        crate::scene::project_polygon::project_polygon()?;
-        if let Some(triangles) = quad_by_outside(DRAW.polygon_outside_count.bits()) {
-            return Ok(triangles);
-        }
-        let [left, right, top, bottom] = screen_inside(
-            DRAW.clip_edges[2].bits(),
-            DRAW.clip_edges[3].bits(),
-            DRAW.clip_edges[0].bits(),
-            DRAW.clip_edges[1].bits(),
-        );
-        let inside = |v: u32, low: u32, high: u32| {
-            let n = crate::math::x87::to_int(v) as u32;
-            DRAW.scratch.set(n);
-            rc2k_core::race::face_drawing::inside(n, low, high)
-        };
-        for slot in 0..4 {
-            let v = get(entry(slot) + 4)?;
-            if !inside(crate::scene::point_records::vertex(v, 0xC), left, right)
-                || !inside(crate::scene::point_records::vertex(v, 0x1C), top, bottom)
-            {
-                return Ok(true);
-            }
-        }
-        DRAW.polygon_vertex_count.set(4u32);
-        draw_marked_face()?;
-        Ok(false)
+    for (slot, corner) in QUAD_ENTRIES {
+        fill_entry(slot, corner)?;
     }
+    for s in 0..4 {
+        if lamp_byte(s)? != 0 {
+            return Ok(true);
+        }
+    }
+    plain_list(4, 4);
+    crate::scene::project_polygon::project_polygon()?;
+    if let Some(triangles) = quad_by_outside(DRAW.polygon_outside_count.bits()) {
+        return Ok(triangles);
+    }
+    let [left, right, top, bottom] = screen_inside(
+        DRAW.clip_edges[2].bits(),
+        DRAW.clip_edges[3].bits(),
+        DRAW.clip_edges[0].bits(),
+        DRAW.clip_edges[1].bits(),
+    );
+    let inside = |v: u32, low: u32, high: u32| {
+        let n = crate::math::x87::to_int(v) as u32;
+        DRAW.scratch.set(n);
+        rc2k_core::race::face_drawing::inside(n, low, high)
+    };
+    for slot in 0..4 {
+        let v = entry(slot).record.get();
+        if !inside(crate::scene::point_records::vertex(v, 0xC), left, right)
+            || !inside(crate::scene::point_records::vertex(v, 0x1C), top, bottom)
+        {
+            return Ok(true);
+        }
+    }
+    DRAW.polygon_vertex_count.set(4u32);
+    draw_marked_face()?;
+    Ok(false)
 }
 
 /// `race::draw_face_triangles` (0x452CF3): the face's two triangles each drawn
@@ -680,20 +670,17 @@ fn halfway_vertex(a: u32, b: u32, v: u32) -> Result<(), BadInput> {
 /// `sub_4537E9`'s new entry between entries `first` and `second` into `to`: the texture
 /// floats (+8 .. +0x14) (second + first) x `flt_5C5E40`, the bytes +0x20, +0x21, +0x18 ..
 /// +0x1A the halves of their sums (+0x1B left).
-fn halfway_entry(first: u32, second: u32, to: u32) -> Result<(), BadInput> {
+fn halfway_entry(first: &PolygonEntry, second: &PolygonEntry, to: &PolygonEntry) {
     use crate::math::x87_float::{ld, st};
-    {
-        let half = ld(NUMBERS.half.bits());
-        for o in [8, 0xC, 0x10, 0x14] {
-            let sum = ld(get(second + o)?) + ld(get(first + o)?);
-            put(to + o, st(sum * half))?;
-        }
-        for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
-            let sum = byte_at(second + o)? as u32 + byte_at(first + o)? as u32;
-            put_byte(to + o, (sum >> 1) as u8)?;
-        }
+    let half = ld(NUMBERS.half.bits());
+    for o in [8, 0xC, 0x10, 0x14] {
+        let sum = ld(second.word(o)) + ld(first.word(o));
+        to.set_word(o, st(sum * half));
     }
-    Ok(())
+    for o in [0x20, 0x21, 0x18, 0x19, 0x1A] {
+        let sum = second.byte(o) as u32 + first.byte(o) as u32;
+        to.set_byte(o, (sum >> 1) as u8);
+    }
 }
 
 /// `race::draw_lit_triangle` (0x4537E9): the triangle in entries 0 .. 2. Without lamp
@@ -732,16 +719,23 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
         crate::scene::fog_polygon::fog_polygon()?;
         for k in 0..3 {
-            put(
-                entry(3 + k) + 4,
-                RACE_VARS.quad_vertices[8 * k as usize].addr(),
-            )?;
+            entry(3 + k)
+                .record
+                .set(RACE_VARS.quad_vertices[8 * k as usize].addr());
         }
         for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
             let v = RACE_VARS.quad_vertices[8 * k].addr();
             let points: u32 = COURSE.scene_points.get();
-            let pa = get(entry(first))?.wrapping_mul(12).wrapping_add(points);
-            let pb = get(entry(second))?.wrapping_mul(12).wrapping_add(points);
+            let pa = entry(first)
+                .point
+                .get()
+                .wrapping_mul(12)
+                .wrapping_add(points);
+            let pb = entry(second)
+                .point
+                .get()
+                .wrapping_mul(12)
+                .wrapping_add(points);
             for (n, lit) in LIGHT_STATE.lit_place.iter().enumerate() {
                 let o = 4 * n as u32;
                 let (a, b) = (
@@ -753,22 +747,22 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
                 put(v + o, m)?;
                 lit.set(m);
             }
-            halfway_vertex(get(entry(first) + 4)?, get(entry(second) + 4)?, v)?;
+            halfway_vertex(entry(first).record.get(), entry(second).record.get(), v)?;
             let to = entry(3 + k as u32);
-            halfway_entry(entry(first), entry(second), to)?;
+            halfway_entry(entry(first), entry(second), to);
             crate::race::frame_draw::light_colour_at()?;
             let light: u32 = LIGHT_WORK.light_colour.get();
             DRAW.scratch.set(light);
-            put(to + 0x1C, light)?;
+            to.lamp_light.set(light);
         }
         let mode5 = RACE_VIEW.polygon_mode.get() == 5;
         for slot in 0..6 {
             let e = entry(slot);
             if mode5 {
-                let fog = byte_at(e + 0x21)? as i32 - 2 * lamp_byte(slot)? as i32;
-                put_byte(e + 0x21, fog.max(0) as u8)?;
+                let fog = e.amount.get() as i32 - 2 * lamp_byte(slot)? as i32;
+                e.amount.set(fog.max(0) as u8);
             }
-            put(e + 0x18, add_colours(get(e + 0x18)?, get(e + 0x1C)?))?;
+            e.light.set(add_colours(e.light.get(), e.lamp_light.get()));
         }
         for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
             for (k, n) in list.iter().enumerate() {
@@ -1301,44 +1295,40 @@ mod asm_reference {
                     r.float()
                 });
                 let entry = |r: &mut Rng| {
-                    let mut e = [0u32; 10];
-                    for (k, q) in e.iter_mut().enumerate() {
-                        *q = if (2..6).contains(&k) {
-                            r.float()
-                        } else {
-                            r.u32()
-                        };
+                    let e = PolygonEntry::zeroed();
+                    for k in 0..10 {
+                        e.set_word(
+                            4 * k,
+                            if (2..6).contains(&k) {
+                                r.float()
+                            } else {
+                                r.u32()
+                            },
+                        );
                     }
                     e
                 };
                 let (f, s) = (entry(&mut r), entry(&mut r));
-                let mut t1 = [0xAAAA_AAAAu32; 10];
-                let mut t2 = t1;
-                let (_r1, _r2, _r3, _r4) = (
-                    crate::race::trap::test_region(&f),
-                    crate::race::trap::test_region(&s),
-                    crate::race::trap::test_region(&t1),
-                    crate::race::trap::test_region(&t2),
+                let (t1, t2) = (PolygonEntry::zeroed(), PolygonEntry::zeroed());
+                for k in 0..10 {
+                    t1.set_word(4 * k, 0xAAAA_AAAA);
+                    t2.set_word(4 * k, 0xAAAA_AAAA);
+                }
+                let at = |e: &PolygonEntry| crate::pointers::game_address(e as *const PolygonEntry);
+                let (_r1, _r2, _r3) = (
+                    crate::race::trap::test_region(std::slice::from_ref(&f)),
+                    crate::race::trap::test_region(std::slice::from_ref(&s)),
+                    crate::race::trap::test_region(std::slice::from_ref(&t1)),
                 );
-                unsafe {
-                    halfway_entry_asm(
-                        crate::pointers::game_address(f.as_ptr()),
-                        crate::pointers::game_address(s.as_ptr()),
-                        crate::pointers::game_address(t1.as_mut_ptr()),
-                    )
-                };
-                halfway_entry(
-                    crate::pointers::game_address(f.as_ptr()),
-                    crate::pointers::game_address(s.as_ptr()),
-                    crate::pointers::game_address(t2.as_mut_ptr()),
-                )
-                .expect("the test's memory is registered");
+                unsafe { halfway_entry_asm(at(&f), at(&s), at(&t1)) };
+                halfway_entry(&f, &s, &t2);
                 // the bytes compare as they are, the floats as floats
                 for k in 0..10 {
+                    let (a, b) = (t1.word(4 * k), t2.word(4 * k));
                     if (2..6).contains(&k) {
-                        assert!(same(t1[k], t2[k]), "word {k}: {:#x} {:#x}", t1[k], t2[k]);
+                        assert!(same(a, b), "word {k}: {a:#x} {b:#x}");
                     } else {
-                        assert_eq!(t1[k], t2[k], "word {k}");
+                        assert_eq!(a, b, "word {k}");
                     }
                 }
             }

@@ -20,43 +20,41 @@ use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::polygon::{dword, listed};
+use crate::scene::polygon::listed;
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x1000;
 
 // ---- Rust version ----
 
-pub unsafe fn fog_polygon() -> Result<(), Refused> {
-    unsafe {
-        let entries = listed()?;
-        if entries.is_empty() {
-            return Err(BadInput("a polygon of no vertices").into());
-        }
-        if entries.iter().any(|&entry| dword(entry + 4) == 0) {
-            return Err(BadInput("an entry without its record").into());
-        }
-        let length: u32 = LIGHT_STATE.fog_table_length.bits();
-        if length > TABLE_LEN {
-            return Err(BadInput("a fog table longer than its room").into());
-        }
-        let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
-        for &entry in &entries {
-            let record = dword(entry + 4);
-            let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
-            DRAW.scratch.set_bits(depth as u32);
-            // A place past the length is the last one; with no length (the menus)
-            // that is the byte before the table, as in the original.
-            let place = depth.max(0) as u32 >> 13;
-            let place = if (place.wrapping_sub(length) as i32) < 0 {
-                place
-            } else {
-                length.wrapping_sub(1)
-            };
-            let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr()).wrapping_add(place))
-                .read::<u8>("the fog table")? as u32;
-            crate::pointers::host_at(entry + 0x20).write((fixed.unwrap_or(fog) ^ 0xFF) as u8);
-        }
-        Ok(())
+pub fn fog_polygon() -> Result<(), Refused> {
+    let entries = listed()?;
+    if entries.is_empty() {
+        return Err(BadInput("a polygon of no vertices").into());
     }
+    if entries.iter().any(|entry| entry.record.get() == 0) {
+        return Err(BadInput("an entry without its record").into());
+    }
+    let length: u32 = LIGHT_STATE.fog_table_length.bits();
+    if length > TABLE_LEN {
+        return Err(BadInput("a fog table longer than its room").into());
+    }
+    let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
+    for entry in &entries {
+        let record = entry.record.get();
+        let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
+        DRAW.scratch.set_bits(depth as u32);
+        // A place past the length is the last one; with no length (the menus)
+        // that is the byte before the table, as in the original.
+        let place = depth.max(0) as u32 >> 13;
+        let place = if (place.wrapping_sub(length) as i32) < 0 {
+            place
+        } else {
+            length.wrapping_sub(1)
+        };
+        let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr()).wrapping_add(place))
+            .read::<u8>("the fog table")? as u32;
+        entry.fog.set((fixed.unwrap_or(fog) ^ 0xFF) as u8);
+    }
+    Ok(())
 }

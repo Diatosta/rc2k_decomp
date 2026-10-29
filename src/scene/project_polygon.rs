@@ -19,7 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{dword, listed, put};
+use crate::scene::polygon::listed;
 use crate::scene::project_point::{NEAR, project_point, record_offset};
 
 // ---- game data ----
@@ -34,18 +34,18 @@ pub fn project_polygon() -> Result<(), Refused> {
     // Nothing may be written before a refusal: every point is looked at first.
     // The scene's points are only needed for a scene's point: the menus have none,
     // and their objects' points (negative) only need the records.
-    let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
+    let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
     if !crate::scene::point_records::held() || (scene_point && COURSE.scene_points.bits() == 0) {
         return Err(BadInput("no points or no records for them").into());
     }
-    for &entry in &entries {
-        record_offset(dword(entry))?;
+    for entry in &entries {
+        record_offset(entry.point.get())?;
     }
     let far = f32::from_bits(DRAW.farthest.bits());
     let mut outside = 0u32;
-    for &entry in &entries {
-        let point = project_point(dword(entry))?;
-        put(entry + 4, point.record);
+    for entry in &entries {
+        let point = project_point(entry.point.get())?;
+        entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".
         let near = depth.partial_cmp(&NEAR).is_none_or(|order| order.is_lt());

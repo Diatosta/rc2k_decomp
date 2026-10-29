@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{ENTRY_LEN, dword};
 
 // ---- game data ----
 
@@ -46,8 +45,7 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
         bottom: DRAW.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
-        let record =
-            dword((crate::scene::polygon::entries_addr() + (n * ENTRY_LEN) as u32 + 4) as usize);
+        let record = crate::scene::polygon::entry(n)?.record.get();
         if record == 0 {
             return Err(BadInput("an entry without its record"));
         }
@@ -85,23 +83,19 @@ pub fn draw_object_polygon(
     GROUND_WORK
         .split_polygon_count
         .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
-    let entries = crate::scene::polygon::entries_addr();
-    let kept = crate::scene::polygon::entries_addr() + (64 * ENTRY_LEN) as u32;
-    crate::pointers::GamePtr::new(entries).copy_to(
-        crate::pointers::GamePtr::new(kept),
-        count as usize * ENTRY_LEN,
-        "the polygon's entries",
-    )?;
+    // the first `count` entries kept from entry 64 (`fits`: at most 64)
+    let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
+        .entries
+        .split_at(64);
+    for (to, from) in kept.iter().zip(&entries[..count as usize]) {
+        to.copy_from(from);
+    }
     DRAW.polygon_vertex_count.set_bits(3u32);
     step(Step::Draw)?;
     DRAW.polygon_vertex_count.set_bits(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
-            crate::pointers::GamePtr::new(kept + (from * ENTRY_LEN) as u32).copy_to(
-                crate::pointers::GamePtr::new(entries + (to * ENTRY_LEN) as u32),
-                ENTRY_LEN,
-                "the polygon's entries",
-            )?;
+            entries[to].copy_from(&kept[from]);
         }
         DRAW.polygon_vertex_count.set_bits(3u32);
         step(Step::Draw)?;

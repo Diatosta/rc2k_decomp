@@ -5,13 +5,16 @@
 use crate::errors::BadInput;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
 use crate::scene::draw_store::DRAW;
+use crate::scene::polygon_store::PolygonEntry;
 use crate::session::Dword;
 
-/// The work table's first entry's address.
-pub fn entries_addr() -> u32 {
-    crate::scene::polygon_store::POLYGON_WORK.entries[0]
-        .point
-        .addr()
+/// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan).
+/// A number past the table is refused.
+pub fn entry(n: usize) -> Result<&'static PolygonEntry, BadInput> {
+    crate::scene::polygon_store::POLYGON_WORK
+        .entries
+        .get(n)
+        .ok_or(BadInput("a polygon entry past the work table"))
 }
 
 /// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
@@ -48,9 +51,9 @@ pub fn put(at: usize, value: u32) {
     crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::polygon's operand")
 }
 
-/// The polygon's entries in the list's order, as addresses. Refuses what the originals
-/// go wrong on: more vertices than the vertex buffer holds, a list entry past the table.
-pub fn listed() -> Result<Vec<usize>, BadInput> {
+/// The polygon's entries in the list's order. Refuses what the originals go wrong on:
+/// more vertices than the vertex buffer holds, a list entry past the table.
+pub fn listed() -> Result<Vec<&'static PolygonEntry>, BadInput> {
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));
@@ -61,10 +64,7 @@ pub fn listed() -> Result<Vec<usize>, BadInput> {
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            Ok(
-                (crate::scene::polygon::entries_addr() + (number as usize * ENTRY_LEN) as u32)
-                    as usize,
-            )
+            entry(number as usize)
         })
         .collect()
 }

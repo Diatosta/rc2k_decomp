@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{dword, listed, put};
+use crate::scene::polygon::listed;
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -29,18 +29,18 @@ pub fn scale_texture_coordinates() -> Result<(), Refused> {
     }
     let entries = listed()?;
     let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), DRAW.polygon_sides[1].bits()];
-    for &entry in &entries {
+    for entry in &entries {
         for (pair, switch) in switches.into_iter().enumerate() {
             if switch == 0 {
                 continue;
             }
-            for at in [entry + 8 + pair * 8, entry + 0xC + pair * 8] {
-                let value = dword(at);
+            for at in [8 + pair * 8, 0xC + pair * 8] {
+                let value = entry.word(at);
                 if let Some(float) = coordinates::float_of(value) {
                     MACHINE.work.set(value);
                     MACHINE.work_float.set(float);
                 }
-                put(at, coordinates::scaled(value));
+                entry.set_word(at, coordinates::scaled(value));
             }
         }
     }

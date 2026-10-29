@@ -67,7 +67,7 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
             rec.point.set(0xFFFF_FFFF);
             rec.amount.set(see);
             rec.light.set(0xFF_FFFF);
-            rec.unknown_1c.set(0);
+            rec.lamp_light.set(0);
             rec.fog.set(0xFF);
         }
         DRAW.polygon_vertex_count.set_bits(4);

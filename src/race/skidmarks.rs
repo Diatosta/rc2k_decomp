@@ -108,26 +108,22 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
         crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_views
             .set(views);
-        let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
-            .point
-            .addr();
+        let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
         let vertices = RACE_VARS.quad_vertices[0].addr();
-        for k in 0..4u32 {
-            let e = entries + 0x44 * k;
-            put(e + 4, vertices + 0x20 * k)?;
-            put(e + 0x18, 0)?;
-            put(e + 0x1C, 0)?;
+        for (k, e) in (0..4u32).zip(entries) {
+            e.record.set(vertices + 0x20 * k);
+            e.light.set(0);
+            e.lamp_light.set(0);
         }
         let (u, w) = (RACE_VARS.fade_uv[0].get(), RACE_VARS.fade_uv[1].get());
-        for k in 0..4u32 {
-            let e = entries + 0x44 * k;
-            put(e + 8, u)?;
-            put(e + 0x10, u)?;
-            put(e + 0xC, w)?;
-            put(e + 0x14, w)?;
-            put(e, u32::MAX)?;
-            GamePtr::new(e + 0x21).write(0x60u8, "a skidmark entry")?;
-            GamePtr::new(e + 0x20).write(0u8, "a skidmark entry")?;
+        for e in entries {
+            e.u.set(u);
+            e.u2.set(u);
+            e.v.set(w);
+            e.v2.set(w);
+            e.point.set(u32::MAX);
+            e.amount.set(0x60);
+            e.fog.set(0);
         }
         DRAW.polygon_textures[0].set(0xC0u32);
         DRAW.polygon_textures[1].set(0xC0u32);
@@ -151,11 +147,11 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             DRAW.polygon_vertex_count.set(4u32);
             DRAW.polygon_next_record
                 .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
-            let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr();
+            let list = &crate::scene::polygon_store::POLYGON_WORK.list;
             for k in 0..4u32 {
-                put(list + 4 * k, k)?;
+                list[k as usize].set(k);
             }
-            put(list + 16, 0)?;
+            list[4].set(0);
             DRAW.polygon_next_entry.set(4u32);
             crate::scene::fog_polygon::fog_polygon()?;
             crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;

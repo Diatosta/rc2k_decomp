@@ -17,7 +17,6 @@
 use crate::errors::BadInput;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::dword;
 use crate::session::Float;
 
 // ---- game data ----
@@ -35,8 +34,8 @@ fn outside_mask() -> Result<u32, BadInput> {
         edge(&DRAW.clip_screen[1]),
     );
     let mut mask = 0;
-    for &entry in &entries {
-        let record = dword(entry + 4);
+    for entry in &entries {
+        let record = entry.record.get();
         let x = f32::from_bits(crate::scene::point_records::vertex(record, 0xC)) as f64;
         let y = f32::from_bits(crate::scene::point_records::vertex(record, 0x1C)) as f64;
         if !below(x, right) {

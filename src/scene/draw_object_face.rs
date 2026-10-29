@@ -48,7 +48,6 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::polygon::{ENTRY_LEN, dword, put};
 use crate::scene::project_polygon::project_polygon;
 use crate::scene::vertex_light::vertex_light;
 
@@ -83,9 +82,8 @@ pub unsafe fn draw_object_face(
         }
         let words = crate::scene::object_faces::bytes(face as u32, 0x10 + count as usize * 0x10)?;
         let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
-        let entries = crate::scene::polygon::entries_addr();
-        let vertices =
-            (0..count as usize).map(|n| (entries + (n * ENTRY_LEN) as u32, 0x10 + n * 0x10));
+        let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
+        let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
         let view_kind: u32 = LIGHT_STATE.view_kind.bits();
         let shine: u32 = COURSE.shine.bits();
 
@@ -102,11 +100,11 @@ pub unsafe fn draw_object_face(
 
         if FRAME_SWITCHES.other_way.bits() != 0 && FRAME_SWITCHES.other_way_kind.bits() == 2 {
             for (entry, vertex) in vertices {
-                put(entry as usize, fw(vertex).wrapping_neg());
-                put((entry + 0x10) as usize, fw(vertex + 4));
-                put((entry + 0x14) as usize, fw(vertex + 8));
-                crate::pointers::host_at((entry + 0x21) as usize).write(0xFF);
-                put((entry + 0x18) as usize, OBJECT_WORK.other_light.bits());
+                entry.point.set(fw(vertex).wrapping_neg());
+                entry.u2.set(fw(vertex + 4));
+                entry.v2.set(fw(vertex + 8));
+                entry.amount.set(0xFF);
+                entry.light.set(OBJECT_WORK.other_light.bits());
             }
             DRAW.polygon_textures[1].set_bits(DRAW.polygon_textures[0].bits());
             DRAW.polygon_sides[0].set_bits(0u32);
@@ -128,16 +126,16 @@ pub unsafe fn draw_object_face(
         let table = crate::scene::reading::PointRecords::new()?;
         for (entry, vertex) in vertices.clone() {
             let point = fw(vertex);
-            put(entry as usize, point.wrapping_neg());
+            entry.point.set(point.wrapping_neg());
             crate::session::write_bits(&LIGHT_WORK.point_place, table.place(point)?);
-            put((entry + 8) as usize, fw(vertex + 4));
-            put((entry + 0xC) as usize, fw(vertex + 8));
+            entry.u.set(fw(vertex + 4));
+            entry.v.set(fw(vertex + 8));
             let light = if lit {
                 vertex_light(fw(vertex + 0xC))?
             } else {
                 0x00FF_FFFF
             };
-            put((entry + 0x18) as usize, light);
+            entry.light.set(light);
         }
         if reflects {
             FRAME_SWITCHES.face_any_shine.set_bits(0u32);
@@ -151,16 +149,15 @@ pub unsafe fn draw_object_face(
                 cached_reflection_coordinates()?;
                 let coordinates: [u32; 2] =
                     crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
-                put((entry + 0x10) as usize, coordinates[0]);
-                put((entry + 0x14) as usize, coordinates[1]);
-                let first_fog = (crate::pointers::host_at((entries + 0x20) as usize) as *const u8)
-                    .read() as u32;
+                entry.u2.set(coordinates[0]);
+                entry.v2.set(coordinates[1]);
+                let first_fog = entries[0].fog.get() as u32;
                 let amount =
                     (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
                 if amount != 0 {
                     FRAME_SWITCHES.face_any_shine.set_bits(1u32);
                 }
-                crate::pointers::host_at((entry + 0x21) as usize).write(amount as u8);
+                entry.amount.set(amount as u8);
             }
             DRAW.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
         }
@@ -174,11 +171,10 @@ pub unsafe fn draw_object_face(
         DRAW.polygon_sides[1].set_bits(FRAME_SWITCHES.face_reflects.bits());
         let see_through: u32 = GROUND_WORK.object_see_through.bits();
         if see_through != 0x100 {
-            for n in 0..0x10 {
-                let entry = entries + (n * ENTRY_LEN) as u32;
-                crate::pointers::host_at((entry + 0x21) as usize).write(see_through as u8);
-                put((entry + 0x10) as usize, dword((entry + 8) as usize));
-                put((entry + 0x14) as usize, dword((entry + 0xC) as usize));
+            for entry in &entries[..0x10] {
+                entry.amount.set(see_through as u8);
+                entry.u2.set(entry.u.get());
+                entry.v2.set(entry.v.get());
             }
             DRAW.polygon_sides[0].set_bits(0u32);
             DRAW.polygon_sides[1].set_bits(1u32);
