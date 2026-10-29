@@ -865,32 +865,35 @@ mod asm_reference {
             let p = scene_point(n);
             GROUND_WORK.ground_x.set(get(p));
             GROUND_WORK.ground_z.set(get(p + 8));
-            let status: u16;
-            core::arch::asm!(
-                "fild dword ptr [{rc} + 0x239824]",
-                "fild dword ptr [{rc} + 0x241948]",
-                ".byte 0xDE, 0xE9",
-                "fild dword ptr [{rc} + 0x241954]",
-                "fild dword ptr [{rc} + 0x24194C]",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xDE, 0xC9",
-                "fild dword ptr [{rc} + 0x23982C]",
-                "fild dword ptr [{rc} + 0x24194C]",
-                ".byte 0xDE, 0xE9",
-                "fild dword ptr [{rc} + 0x241950]",
-                "fild dword ptr [{rc} + 0x241948]",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xDE, 0xC9",
-                ".byte 0xDE, 0xE9",
-                ".byte 0xD9, 0xEE",
-                ".byte 0xDE, 0xD9",
-                "fnstsw ax",
-                rc = in(reg) crate::race::store::asm_base(),
-                out("ax") status,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
+            let status = crate::race::store::in_old_places(|| {
+                let status: u16;
+                core::arch::asm!(
+                    "fild dword ptr [{rc} + 0x239824]",
+                    "fild dword ptr [{rc} + 0x241948]",
+                    ".byte 0xDE, 0xE9",
+                    "fild dword ptr [{rc} + 0x241954]",
+                    "fild dword ptr [{rc} + 0x24194C]",
+                    ".byte 0xDE, 0xE9",
+                    ".byte 0xDE, 0xC9",
+                    "fild dword ptr [{rc} + 0x23982C]",
+                    "fild dword ptr [{rc} + 0x24194C]",
+                    ".byte 0xDE, 0xE9",
+                    "fild dword ptr [{rc} + 0x241950]",
+                    "fild dword ptr [{rc} + 0x241948]",
+                    ".byte 0xDE, 0xE9",
+                    ".byte 0xDE, 0xC9",
+                    ".byte 0xDE, 0xE9",
+                    ".byte 0xD9, 0xEE",
+                    ".byte 0xDE, 0xD9",
+                    "fnstsw ax",
+                    rc = in(reg) crate::race::store::asm_base(),
+                    out("ax") status,
+                    out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                    out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                    options(nostack),
+                );
+                status
+            });
             status & 0x0100 != 0
         }
     }
@@ -1214,7 +1217,9 @@ mod asm_reference {
                 for a in &places[7..] {
                     game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
-                unsafe { crossing_block_asm(args.0, args.1, args.2, args.3) };
+                crate::race::store::in_old_places(|| unsafe {
+                    crossing_block_asm(args.0, args.1, args.2, args.3)
+                });
                 let want = read();
                 for a in &places[7..] {
                     game_write(rva(*a), 0xAAAA_AAAAu32);

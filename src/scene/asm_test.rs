@@ -350,7 +350,7 @@ impl Mem {
 }
 
 fn block_at(off: usize) -> u32 {
-    crate::race::store::asm_base().wrapping_add(off as u32)
+    crate::framework::game_addr(off)
 }
 
 pub struct Block {
@@ -507,7 +507,7 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                         .map(|&(n, off, k)| buffers[n].get(off, width_out(k)))
                         .collect()
                 };
-                (block.reference)(&args);
+                crate::race::store::in_old_places(|| (block.reference)(&args));
                 let from_reference = read_out(&buffers);
                 for (n, off, bytes) in &touched {
                     buffers[*n].put(*off, bytes);

@@ -203,13 +203,13 @@ const SIZE: fn(Kind) -> usize = |k| match k {
 
 /// The race block's bytes at RVA `off`.
 fn block_get(off: usize, len: usize) -> Vec<u8> {
-    crate::pointers::GamePtr::new(crate::race::store::asm_base().wrapping_add(off as u32))
+    crate::pointers::GamePtr::new(crate::framework::game_addr(off))
         .read_bytes(len, "a race block place")
         .unwrap()
 }
 
 fn block_put(off: usize, bytes: &[u8]) {
-    crate::pointers::GamePtr::new(crate::race::store::asm_base().wrapping_add(off as u32))
+    crate::pointers::GamePtr::new(crate::framework::game_addr(off))
         .write_bytes(bytes, "a race block place")
         .unwrap();
 }
@@ -325,7 +325,7 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                 }
             };
             lay();
-            let got_ref = reference(&ref_vals);
+            let got_ref = crate::race::store::in_old_places(|| reference(&ref_vals));
             let ref_out = block_outputs(spec);
             lay();
             let got_plain = plain(&pl_vals);

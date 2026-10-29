@@ -1099,7 +1099,7 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::race::store::buffers::LEN,
         home: crate::race::store::buffers::base,
     },
-    // race: the race core (`race::store`), the seven ranges around the holes
+    // race: the race core (`race::store`), the ranges around the holes and the left pieces
     Moved {
         ida: crate::race::store::OWN[0].0,
         len: crate::race::store::OWN[0].1 - crate::race::store::OWN[0].0,
@@ -1134,6 +1134,122 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::store::OWN[6].0,
         len: crate::race::store::OWN[6].1 - crate::race::store::OWN[6].0,
         home: || crate::race::store::home(crate::race::store::OWN[6].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[7].0,
+        len: crate::race::store::OWN[7].1 - crate::race::store::OWN[7].0,
+        home: || crate::race::store::home(crate::race::store::OWN[7].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[8].0,
+        len: crate::race::store::OWN[8].1 - crate::race::store::OWN[8].0,
+        home: || crate::race::store::home(crate::race::store::OWN[8].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[9].0,
+        len: crate::race::store::OWN[9].1 - crate::race::store::OWN[9].0,
+        home: || crate::race::store::home(crate::race::store::OWN[9].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[10].0,
+        len: crate::race::store::OWN[10].1 - crate::race::store::OWN[10].0,
+        home: || crate::race::store::home(crate::race::store::OWN[10].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[11].0,
+        len: crate::race::store::OWN[11].1 - crate::race::store::OWN[11].0,
+        home: || crate::race::store::home(crate::race::store::OWN[11].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[12].0,
+        len: crate::race::store::OWN[12].1 - crate::race::store::OWN[12].0,
+        home: || crate::race::store::home(crate::race::store::OWN[12].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[13].0,
+        len: crate::race::store::OWN[13].1 - crate::race::store::OWN[13].0,
+        home: || crate::race::store::home(crate::race::store::OWN[13].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[14].0,
+        len: crate::race::store::OWN[14].1 - crate::race::store::OWN[14].0,
+        home: || crate::race::store::home(crate::race::store::OWN[14].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[15].0,
+        len: crate::race::store::OWN[15].1 - crate::race::store::OWN[15].0,
+        home: || crate::race::store::home(crate::race::store::OWN[15].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[16].0,
+        len: crate::race::store::OWN[16].1 - crate::race::store::OWN[16].0,
+        home: || crate::race::store::home(crate::race::store::OWN[16].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[17].0,
+        len: crate::race::store::OWN[17].1 - crate::race::store::OWN[17].0,
+        home: || crate::race::store::home(crate::race::store::OWN[17].0),
+    },
+    // race: the pieces that left the race core for statics of their own (`race::store::LEFT`)
+    Moved {
+        ida: crate::race::text_state_store::START,
+        len: crate::race::text_state_store::END - crate::race::text_state_store::START,
+        home: || crate::race::text_state_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::race::clock_ticks_store::START,
+        len: crate::race::clock_ticks_store::END - crate::race::clock_ticks_store::START,
+        home: || crate::race::clock_ticks_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::race::kind_records_store::START,
+        len: crate::race::kind_records_store::END - crate::race::kind_records_store::START,
+        home: || crate::race::kind_records_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::scene::kind_texture_store::START,
+        len: crate::scene::kind_texture_store::END - crate::scene::kind_texture_store::START,
+        home: || crate::scene::kind_texture_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::race::frame_counter_store::START,
+        len: crate::race::frame_counter_store::END - crate::race::frame_counter_store::START,
+        home: || crate::race::frame_counter_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::race::switches_store::START,
+        len: crate::race::switches_store::END - crate::race::switches_store::START,
+        home: || crate::race::switches_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::scene::draw_switches_store::START,
+        len: crate::scene::draw_switches_store::END - crate::scene::draw_switches_store::START,
+        home: || crate::scene::draw_switches_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::scene::light_work_store::START,
+        len: crate::scene::light_work_store::END - crate::scene::light_work_store::START,
+        home: || crate::scene::light_work_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::scene::object_store::START,
+        len: crate::scene::object_store::END - crate::scene::object_store::START,
+        home: || crate::scene::object_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::physics::ground_store::START,
+        len: crate::physics::ground_store::END - crate::physics::ground_store::START,
+        home: || crate::physics::ground_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::race::draw_batches_store::START,
+        len: crate::race::draw_batches_store::END - crate::race::draw_batches_store::START,
+        home: || crate::race::draw_batches_store::piece_addr() as usize,
+    },
+    Moved {
+        ida: crate::effects::work_store::START,
+        len: crate::effects::work_store::END - crate::effects::work_store::START,
+        home: || crate::effects::work_store::piece_addr() as usize,
     },
     // the menus' lists, the menus' working variables, the race's settings and results and
     // the damage model (`menu::lists_store`, `menu::state_store`, `race::state_store`,

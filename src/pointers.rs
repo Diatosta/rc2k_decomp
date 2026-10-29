@@ -102,14 +102,14 @@ fn inside(addr: u32, len: usize) -> bool {
             cache.next = (next + 1) % 4;
             return fits(region);
         }
-        own_section(addr).is_some_and(fits)
+        !crate::race::store::is_dead(addr) && own_section(addr).is_some_and(fits)
     })
 }
 
 /// The region `addr` lies in: its first byte and the byte past its end.
 pub fn region_of(addr: u32) -> Option<(u32, u32)> {
     exact_region(addr)
-        .or_else(|| own_section(addr))
+        .or_else(|| own_section(addr).filter(|_| !crate::race::store::is_dead(addr)))
         .or_else(|| {
             let (low, high) = to_game(stack());
             (low..high).contains(&addr).then_some((low, high))
@@ -536,6 +536,22 @@ unsafe impl Cells for crate::session::Word {}
 unsafe impl Cells for crate::session::Byte {}
 unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {}
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {}
+
+/// A record of cells with these bytes as its first values (a static's, at compile time:
+/// a race-block piece that left the block takes the image's bytes).
+pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
+    assert!(core::mem::size_of::<T>() == N, "the record's size");
+    union Bits<T, const N: usize> {
+        bytes: core::mem::ManuallyDrop<[u8; N]>,
+        record: core::mem::ManuallyDrop<T>,
+    }
+    let bits = Bits::<T, N> {
+        bytes: core::mem::ManuallyDrop::new(bytes),
+    };
+    // SAFETY: `T` is made of cells over plain integers (`Cells`), so any bytes are a valid
+    // value, and the sizes are equal (checked above).
+    core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
+}
 
 /// The bytes of a region from a game pointer on (`GamePtr::bytes`).
 #[derive(Clone, Copy, Debug)]
