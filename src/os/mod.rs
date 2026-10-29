@@ -20,13 +20,11 @@ use std::time::Instant;
 fn clock_start() -> &'static (Instant, u32) {
     static START: OnceLock<(Instant, u32)> = OnceLock::new();
     START.get_or_init(|| {
-        // `GetTickCount` counted from the machine's start, so it was never 0 when the game
-        // ran: the count begins at the wall clock's milliseconds (any value does; the game
-        // takes differences), kept clear of 0.
-        let wall = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_millis() as u32);
-        (Instant::now(), wall | 0x0001_0000)
+        // `GetTickCount` counted from the machine's start: never 0 when the game ran, and
+        // small. The game compares some times by the sign of their difference from 0 (the
+        // menu sounds' gap, `sound::play_menu_sound`), so a count with its top bit set kept
+        // them silent: the count begins as a machine a minute up would show.
+        (Instant::now(), 0x0001_0000)
     })
 }
 
