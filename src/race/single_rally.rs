@@ -1990,10 +1990,11 @@ mod tests {
     /// The game's memory for the tests: the image's stand-in (random bytes, `BASE` at its
     /// start, for the variables that have not moved to statics) and the players' records.
     struct World {
+        /// The records as regions while the world lives. (Declared first: fields drop in
+        /// order, and the regions must go before the records do.)
+        _regions: Vec<crate::pointers::TestRegion>,
         image: usize,
         records: Vec<Vec<u8>>,
-        /// The records as regions while the world lives.
-        _regions: Vec<crate::pointers::TestRegion>,
         /// Every range the table (and its calls' stand-ins) reads or writes: (address, length).
         ranges: Vec<(usize, usize)>,
     }
@@ -2047,9 +2048,9 @@ mod tests {
         ranges.sort_unstable();
         ranges.dedup();
         World {
+            _regions,
             image: base as usize,
             records,
-            _regions,
             ranges,
         }
     }

@@ -20,7 +20,7 @@ use crate::scene::draw_store::DRAW;
 /// Whether the block at `block`'s strip is shown (see the header).
 fn flashing(block: u32) -> Result<bool, BadInput> {
     use rc2k_core::hud::strips::strip;
-    let bad = crate::marks::Sticky::default();
+    let bad = crate::effects::Sticky::default();
     let shown =
         strip(|o| bad.take(GamePtr::new(block + o).read::<u32>("a hud record's field"))).shown();
     bad.done()?;

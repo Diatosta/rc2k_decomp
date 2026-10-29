@@ -8,7 +8,7 @@
 //! (`race::reset_car_race_state`), the car parts (`race::clear_race_slots`), the timers
 //! (`race::reset_car_starts`, `race::seed_car_randoms`); fifty settling steps (in `pusha`
 //! / `popa`: `drive::race_cars_step`; `drive::share_all_cars` with `dword_5C2F94` 1;
-//! `marks::frame_marks`, `marks::run_frame`); the slots again; the damage messages
+//! `effects::frame_marks`, `effects::run_frame`); the slots again; the damage messages
 //! (`race::grade_all_cars`); "RACEINIT : end". Its second chunk (0x40763C ..) is the
 //! fatal-error reporter's, shared, not entered from here.
 //!
@@ -98,8 +98,8 @@ pub unsafe fn race_init() -> Result<(), Refused> {
         VIEWER_PANEL.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
         VIEWER_PANEL.other_marks_shown.set(0);
-        crate::marks::frame_marks::frame_marks()?;
-        crate::marks::run_frame::run_frame()?;
+        crate::effects::frame_marks::frame_marks()?;
+        crate::effects::run_frame::run_frame()?;
     }
     crate::race::race_init::clear_race_slots();
     indent_by(race_steps::LOG_INDENT.wrapping_neg());

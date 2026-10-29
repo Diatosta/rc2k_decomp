@@ -9,11 +9,11 @@
 //! original's order and read from memory as it then is (in place, later ones see earlier
 //! results). +0xC, +0x1C, +0x2C, +0x3C are not written. One caller, `sub_4C9AF6`. Refuses a
 //! null matrix or result. The Rust version is `adjugate_matrix_plain`; the x87's stays for
-//! `marks::cars_particles`.
+//! `effects::cars_particles`.
 
 use crate::math::x87;
 
-/// The Rust version (see the header), the x87's: for `marks::cars_particles`
+/// The Rust version (see the header), the x87's: for `effects::cars_particles`
 /// (unconverted).
 pub fn adjugate_matrix(matrix: u32, out: u32) {
     use rc2k_core::scene::matrices::COFACTORS;

@@ -121,9 +121,9 @@ pub fn draw_flat_triangle() {
     crate::scene::draw_fan::draw_fan();
 }
 
-/// The marks' shadow refusals (`marks::draw_shadow`'s first and second shadows), checked
+/// The marks' shadow refusals (`effects::draw_shadow`'s first and second shadows), checked
 /// before anything.
-fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow<'_>) -> Result<(), Refused> {
+fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Refused> {
     let corner = sh.corner();
     if corner == u32::MAX {
         return Ok(());
@@ -131,7 +131,7 @@ fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow<'_>) -> Result<(), Refu
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+    if crate::effects::setup::SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -140,14 +140,14 @@ fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow<'_>) -> Result<(), Refu
     }
 }
 
-/// `race::draw_marks_overlays` (0x45632B): `marks::draw_overlays`, then
-/// `marks::draw_shadow`. Refuses (before anything) the second shadow's refusals.
+/// `race::draw_marks_overlays` (0x45632B): `effects::draw_overlays`, then
+/// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
 pub fn draw_marks_overlays() -> Result<(), Refused> {
-    shadow_refuses(&crate::marks::draw_shadow::FIRST)?;
+    shadow_refuses(&crate::effects::draw_shadow::FIRST)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
-        crate::marks::draw_overlays::draw_overlays()?;
-        crate::marks::draw_shadow::draw_shadow()?;
+        crate::effects::draw_overlays::draw_overlays()?;
+        crate::effects::draw_shadow::draw_shadow()?;
     }
     Ok(())
 }
@@ -454,8 +454,8 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// dword_6238A4]` into `dword_5C2F8C`), the view car's turn (+0x8C0) into `flt_5EA3CC`,
 /// `drive::share_all_cars`, every car record's first word 1 in modes 0 and 2 (else 0) and
 /// the view's 1, the screen's centre for the layout (width / `flt_5C5D6C` x
-/// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `marks::frame_marks` (part 1)
-/// and, unless `dword_6416B8`, `marks::run_frame` (part 2), the centre put back. Refuses
+/// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `effects::frame_marks` (part 1)
+/// and, unless `dword_6416B8`, `effects::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
 pub fn run_view_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
@@ -471,7 +471,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
     check_view_marks(
         block,
         |b| RACE_WORK.car_record(b as usize),
-        || crate::marks::setup::SETTINGS.pointer.get(),
+        || crate::effects::setup::SETTINGS.pointer.get(),
     )?;
     let (other, own) = marks_shown(
         view,
@@ -503,9 +503,9 @@ pub fn run_view_marks() -> Result<(), Refused> {
         FRAME_WORK.view_scale_y[n].bits(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-    let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
+    let done = crate::effects::frame_marks::frame_marks().and_then(|_| {
         if FRAME_WORK.drawing.get() == 0 {
-            crate::marks::run_frame::run_frame()
+            crate::effects::run_frame::run_frame()
         } else {
             Ok(())
         }

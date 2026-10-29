@@ -11,7 +11,7 @@ pub struct KindTextureTables {
     pub textures_asked: Dword,
     /// +0x4 (0x5D0AE4): `dword_5D0AE4`: the second running total kept beside it (`scene::try_allocate_textures`; a reading).
     pub textures_asked_other: Dword,
-    /// +0x8 (0x5D0AE8): `g_kindFirstTextures`: each kind slot's first texture; reached in place and by index (`scene::textures`, `scene::texture_levels`, `race::mud`, `race::frame_views`, `marks::`). Reset to 0xFF by `scene::reset_texture_tables`.
+    /// +0x8 (0x5D0AE8): `g_kindFirstTextures`: each kind slot's first texture; reached in place and by index (`scene::textures`, `scene::texture_levels`, `race::mud`, `race::frame_views`, `effects::`). Reset to 0xFF by `scene::reset_texture_tables`.
     pub kind_first_textures: [Dword; 1024],
     /// +0x1008 (0x5D1AE8): `g_kindFirstSlots`: each kind slot's first texture slot (`scene::look_up_texture`, `scene::draw_polygon`, `hud::set_batch_texture`, `race::frame_flush`). Reset to 0xFF by `scene::reset_texture_tables`.
     pub kind_first_slots: [Dword; 1024],

@@ -272,7 +272,7 @@ pub unsafe fn tidy_stage() -> Result<(), Refused> {
         s.indent(3);
         let enabled = crate::logfile::write_line::state::ENABLED
             .swap(0, std::sync::atomic::Ordering::Relaxed);
-        crate::marks::tidy_marks::tidy_marks()?;
+        crate::effects::tidy_marks::tidy_marks()?;
         crate::logfile::write_line::state::ENABLED
             .store(enabled, std::sync::atomic::Ordering::Relaxed);
         s.indent(-3);

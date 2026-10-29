@@ -49,7 +49,7 @@ pub struct ViewVars {
     pub unknown_78: [Dword; 14],
     /// +0xb0 (0x60631C): `flt_60631C`: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: Float,
-    /// +0xb4 (0x606320): `off_606320`: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`, `marks::stage_record`, `race::car_draw`).
+    /// +0xb4 (0x606320): `off_606320`: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`, `effects::stage_record`, `race::car_draw`).
     pub view_records: [Dword; 52],
     /// +0x184 (0x6063F0): `dword_6063F0`: the view kind (`drive::set_camera_view`) (a reading).
     pub view_kind: Dword,

@@ -9,7 +9,7 @@ use crate::session::Dword;
 pub struct TexturePlaces {
     /// +0x0 (0x5D2AE8): `dword_5D2AE8`: the texture of each slot (`scene::try_allocate_textures`).
     pub texture_of: [Dword; 1024],
-    /// +0x1000 (0x5D3AE8): `dword_5D3AE8`: each place's slot (`scene::look_up_texture`, `scene::map_texture_places`, `scene::draw_polygon`, `race::frame_draw`). [1999] is `dword_5D5A24`, the hexagons' texture (`marks::hexagons_setup`).
+    /// +0x1000 (0x5D3AE8): `dword_5D3AE8`: each place's slot (`scene::look_up_texture`, `scene::map_texture_places`, `scene::draw_polygon`, `race::frame_draw`). [1999] is `dword_5D5A24`, the hexagons' texture (`effects::hexagons_setup`).
     pub place_slot: [Dword; 4000],
     /// +0x4e80 (0x5D7968): `g_kindPictures`: the picture number of each kind (IDA types it int[4]; the code reaches [0x87], [0x258] ..) (`race::set_all_plates`, `scene::reload_system_textures`, `scene::set_up_front_end_scene`).
     pub kind_pictures: [Dword; 1024],

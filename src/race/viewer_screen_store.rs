@@ -74,7 +74,7 @@ pub struct ViewerPanelBlock {
     pub picture_name: [Dword; 3],
     /// +0x3cc (0x5C2CE8): not named.
     pub unknown_3cc: [Dword; 167],
-    /// +0x668 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `marks::init_mark_step` (a reading).
+    /// +0x668 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (a reading).
     pub settings_text: Dword,
     /// +0x66c (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing`, cleared twice by `drive::finish_race` (a reading).
     pub race_done: Dword,
@@ -96,7 +96,7 @@ pub struct ViewerPanelBlock {
     pub listener_near: Dword,
     /// +0x6bc (0x5C2FD8): not named.
     pub unknown_6bc: [Dword; 2],
-    /// +0x6c4 (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`marks::init_mark_step`).
+    /// +0x6c4 (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`effects::init_mark_step`).
     pub cars_copy: Dword,
 }
 

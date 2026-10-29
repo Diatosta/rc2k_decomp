@@ -16,7 +16,7 @@ use rc2k_core::hud::quads;
 /// `hud::add_scaled_sprite`): the rectangle.
 pub fn put_places(s: u32) -> Result<[u32; 4], Refused> {
     Ok({
-        let rect: [u32; 4] = crate::marks::try_from_fn(|n| {
+        let rect: [u32; 4] = crate::effects::try_from_fn(|n| {
             Ok(GamePtr::new(s + 4 * n as u32).read::<u32>("a hud record's field")?)
         })?;
         for (n, v) in quads::sprite_places(rect) {

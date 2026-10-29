@@ -228,7 +228,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.indent(3);
         let enabled = crate::logfile::write_line::state::ENABLED
             .swap(0, std::sync::atomic::Ordering::Relaxed);
-        crate::marks::init_mark_step::init_mark_step()?;
+        crate::effects::init_mark_step::init_mark_step()?;
         crate::logfile::write_line::state::ENABLED
             .store(enabled, std::sync::atomic::Ordering::Relaxed);
         s.progress(0x5E)?;

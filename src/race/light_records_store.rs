@@ -15,7 +15,7 @@ pub struct LightRecord {
     /// from +0x40 (`drive::set_listener`).
     pub axles: [Dword; 11],
     /// +0x58: `groups`: the group numbers of the model's parts (`scene::load_object`,
-    /// `scene::list_object_face`, `marks::init_mark_step`, `race::car_draw`).
+    /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
     pub groups: [Dword; 19],
     /// +0xA4: `lights`: 0x90 bytes of the lights' data (`race::copy_lights_data`,
     /// `race::frame_draw`).

@@ -596,6 +596,8 @@ mod tests {
 
     #[test]
     fn car_starts_as_the_games() {
+        // other tests write the work car while they run
+        let _lock = crate::store::test_lock();
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
         assert_eq!(offset_of!(Car, part_matrices), 0x740);
         assert_eq!(offset_of!(Car, body_matrix), 0x840);

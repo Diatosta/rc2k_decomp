@@ -51,7 +51,7 @@ pub struct FrameWork {
     /// +0x70 (0x6415FC): `g_mirrorPlaces` (and IDA's `dword_641600`): 12 entries of two dwords,
     /// by `race::mirror_entry`.
     pub mirror_places: [Dword; 24],
-    /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `marks::stage_record`'s number, [7] `marks::draw_plane`'s switch and `marks::pong`'s shown.
+    /// +0xd0 (0x64165C): the lead car's camera kept (`drive::lead_car_values`); [0] also `effects::stage_record`'s number, [7] `effects::draw_plane`'s switch and `effects::pong`'s shown.
     pub lead_kept: [Dword; 8],
     /// +0xf0 (0x64167C): `g_faceHideMask`.
     pub face_hide_mask: Dword,

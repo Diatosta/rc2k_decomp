@@ -177,7 +177,7 @@ WRITES = {'fstp': '{}.set_bits(crate::math::x87_float::st({}))',
           'fistp': '{}.set_bits(crate::math::x87_float::to_int({}) as u32)',
           'mov': '{}.set_bits({})',
           'st16': '{}.set_bits({})'}
-# the marks module's names (`marks::plain`)
+# the marks module's names (`effects::plain`)
 ALIAS = {'ld': 'fld', 'ldi': 'fild', 'st': 'fstp', 'sti': 'fistp'}
 write = '--write' in sys.argv
 done = left = 0

@@ -22,7 +22,7 @@ pub struct DrawSwitches {
     pub use_3dnow: Dword,
     /// +0x160 (0x621A60): not named.
     pub unknown_160: [Dword; 8],
-    /// +0x180 (0x621A80): `dword_621A80` (`marks::draw_frame`).
+    /// +0x180 (0x621A80): `dword_621A80` (`effects::draw_frame`).
     pub marks_source: Dword,
 }
 

@@ -8,7 +8,7 @@ use crate::session::{Bytes, Float, Word};
 
 #[repr(C)]
 pub struct EngineTables {
-    /// +0x0 (0xA23AE4): `g_sines`: 0x1400 floats, the sine of n times pi over 0x800; `g_cosines` (0xA24AE4) is this table from entry 0x400 (`math::turn_scratch_xz`, `scene::matrix`, `marks::`, `hud::draw_disc`).
+    /// +0x0 (0xA23AE4): `g_sines`: 0x1400 floats, the sine of n times pi over 0x800; `g_cosines` (0xA24AE4) is this table from entry 0x400 (`math::turn_scratch_xz`, `scene::matrix`, `effects::`, `hud::draw_disc`).
     pub sines: [Float; 0x1400],
     /// +0x5000 (0xA28AE4): `g_arctangents`: 0x1000 words, the angle of a tangent (`scene::fill_engine_tables`).
     pub arctangents: [Word; 0x1000],

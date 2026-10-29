@@ -42,7 +42,7 @@ pub struct CourseLists {
     pub course_list_2_a: Dword,
     /// +0x650 (0x5C6F9C): `dword_5C6F9C`, as its neighbour (cleared by `race::stage_free`).
     pub course_list_2_b: Dword,
-    /// +0x654 (0x5C6FA0): `g_courseInfo`: pointer to the last 0x400000 bytes of the course memory (`race::level_init`, `marks::profiles`, `marks::draw_frame`).
+    /// +0x654 (0x5C6FA0): `g_courseInfo`: pointer to the last 0x400000 bytes of the course memory (`race::level_init`, `effects::profiles`, `effects::draw_frame`).
     pub course_info: Dword,
     /// +0x658 (0x5C6FA4): `g_objectPoints`: pointer to the object points (`scene::objects`, `scene::place_object_points`, `physics::object_hits_car`).
     pub object_points: Dword,

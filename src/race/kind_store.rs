@@ -8,13 +8,13 @@ pub struct KindTables {
     pub listener_float_a: Float,
     /// +0x4 (0x5C5628): `flt_5C5628`: a float copied from `dword_7102F4` (`drive::set_listener`; a reading).
     pub listener_float_b: Float,
-    /// +0x8 (0x5C562C): `dword_5C562C`: the work car's file number (`marks::init_mark_step`).
+    /// +0x8 (0x5C562C): `dword_5C562C`: the work car's file number (`effects::init_mark_step`).
     pub mark_car_file_number: Dword,
     /// +0xc (0x5C5630): `flt_5C5630` ..: the viewed car's three whole numbers +0x134 .. +0x13C as floats (`drive::set_listener`).
     pub listener_car_place: [Float; 3],
-    /// +0x18 (0x5C563C): `dword_5C563C`: 1 in the mark set-up (`marks::init_mark_step`).
+    /// +0x18 (0x5C563C): `dword_5C563C`: 1 in the mark set-up (`effects::init_mark_step`).
     pub mark_set_flag: Dword,
-    /// +0x1c (0x5C5640): `dword_5C5640`: 0x50 in the mark set-up (`marks::init_mark_step`).
+    /// +0x1c (0x5C5640): `dword_5C5640`: 0x50 in the mark set-up (`effects::init_mark_step`).
     pub mark_set_count: Dword,
     /// +0x20 (0x5C5644): not named.
     pub unknown_20: [Dword; 7],

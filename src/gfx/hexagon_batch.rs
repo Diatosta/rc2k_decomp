@@ -1,7 +1,7 @@
 //! The marks' hexagon batch drawn by d3d (the index and vertex counts, the fans, the
 //! records), out of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA
-//! 0x62423C .. 0x628A44. `marks::shapes` makes the fans (indices) and the records' fixed
-//! parts once; `marks::hexagons_top` / `hexagons_frame` fill the records and ask
+//! 0x62423C .. 0x628A44. `effects::shapes` makes the fans (indices) and the records' fixed
+//! parts once; `effects::hexagons_top` / `hexagons_frame` fill the records and ask
 //! `d3d::draw_marks_hexagons` to draw.
 
 use crate::session::{Bytes, Dword};

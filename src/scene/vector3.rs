@@ -4,7 +4,7 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
-use crate::marks::work_store::MARKS_WORK;
+use crate::effects::work_store::MARKS_WORK;
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::scene::x87_mem::{fld, fnstsw, fstp80};

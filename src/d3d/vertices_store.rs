@@ -29,7 +29,7 @@ pub struct Vertex {
 /// The vertices of the polygon being drawn.
 #[repr(C)]
 pub struct PolygonVertices {
-    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `marks::`, `hud::`, `drive::tyre_parts`).
+    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).
     pub vertices: [Vertex; 64],
 }
 

@@ -1484,13 +1484,13 @@ fn trigonometry() {
         let step = g.fa();
         let count = g.count(40);
         let mut r = vec![0xAAAA_AAAAu32; 41];
-        let _lent_r = lend(&r);
         let mut p = r.clone();
-        let _lent_p = lend(&p);
+        let lent = (lend(&r), lend(&p));
         unsafe {
             sine_table(step, r.as_mut_ptr(), count);
             plain::sine_table(step, p.as_mut_ptr(), count);
         }
+        drop(lent);
         compare(
             "sine_table",
             Tol::trig(f64::from(count) * fl(step)),
@@ -1502,13 +1502,13 @@ fn trigonometry() {
         let (c, d) = (g.nz() % 1000, g.fa());
         let count = 1 + g.count(11);
         let mut r = vec![0xAAAA_AAAAu32; 40];
-        let _lent_r = lend(&r);
         let mut p = r.clone();
-        let _lent_p = lend(&p);
+        let lent = (lend(&r), lend(&p));
         unsafe {
             circle_points(&radius, r.as_mut_ptr(), count, &c, &d);
             plain::circle_points(&radius, p.as_mut_ptr(), count, &c, &d);
         }
+        drop(lent);
         compare(
             "circle_points",
             Tol::trig(40.0 * fl(d)).times(fl(radius)),
@@ -1530,21 +1530,24 @@ fn pointer_functions() {
         let b: Vec<u32> = (0..12).map(|_| g.f()).collect();
         let _lent_b = lend(&b);
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
-        let _lent = (lend(&r), lend(&p));
+        let lent = (lend(&r), lend(&p));
         row_times_column(a.as_ptr(), b.as_ptr(), r.as_mut_ptr());
         plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr());
+        drop(lent);
         compare("row_times_column", EXACT, r, p, format!("{a:x?} {b:x?}"));
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
-        let _lent = (lend(&r), lend(&p));
+        let lent = (lend(&r), lend(&p));
         row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
         plain::row_times_column_3(a.as_ptr(), m.as_ptr(), p.as_mut_ptr());
+        drop(lent);
         compare("row_times_column_3", EXACT, r, p, format!("{a:x?} {m:x?}"));
 
         let (x, start) = (g.f(), g.f());
         let (mut r, mut p) = (vec![start], vec![start]);
-        let _lent = (lend(&r), lend(&p));
+        let lent = (lend(&r), lend(&p));
         add_into(&x, r.as_mut_ptr());
         plain::add_into(&x, p.as_mut_ptr());
+        drop(lent);
         compare("add_into", EXACT, r, p, format!("{x:x} {start:x}"));
 
         let (r1, p1) = ({ length(a.as_ptr()) }, { plain::length(a.as_ptr()) });
@@ -1596,11 +1599,12 @@ fn pointer_functions() {
         let values: Vec<i32> = (0..16).map(|_| g.i()).collect();
         let (last, first, by) = (g.i(), g.i(), g.nz());
         let (mut r, mut p) = (values.clone(), values.clone());
-        let _lent = (lend(&r), lend(&p));
+        let lent = (lend(&r), lend(&p));
         unsafe {
             ramp_down(r.as_mut_ptr(), count, last, first, by);
             plain::ramp_down(p.as_mut_ptr(), count, last, first, by);
         }
+        drop(lent);
         compare(
             "ramp_down",
             EXACT,
@@ -1618,9 +1622,10 @@ fn pointer_functions_to_int() {
         let mat: Vec<u32> = (0..9).map(|_| g.f()).collect();
         let _lent_mat = lend(&mat);
         let (mut r, mut p) = (vec![0x5555_5555i32; 3], vec![0x5555_5555i32; 3]);
-        let _lent = (lend(&r), lend(&p));
+        let lent = (lend(&r), lend(&p));
         turn_int_point(pt.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
         plain::turn_int_point(pt.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
+        drop(lent);
         compare("turn_int_point", EXACT, r, p, format!("{pt:x?} {mat:x?}"));
         // out over p
         let (mut r, mut p) = (pt, pt);

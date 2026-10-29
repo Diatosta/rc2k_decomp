@@ -23,7 +23,7 @@ pub struct SceneMatrices {
     pub placed_matrix: [Float; 16],
     /// +0x1c4 (0x5EA08C): `flt_5EA08C`: the car body's turn matrix copied from the car (`race::car_parts`, `race::car_draw`).
     pub body_turn_matrix: [Float; 16],
-    /// +0x204 (0x5EA0CC): unnamed buffer used in place (`drive::set_listener`, `marks::draw_shadow`) (a reading).
+    /// +0x204 (0x5EA0CC): unnamed buffer used in place (`drive::set_listener`, `effects::draw_shadow`) (a reading).
     pub listener_matrix: [Float; 16],
     /// +0x244 (0x5EA10C): `g_turnedMatrix`: the turned matrix (`race::frame_draw`, `physics::move_slot`, `scene::matrix`).
     pub turned_matrix: [Float; 16],
@@ -39,13 +39,13 @@ pub struct SceneMatrices {
     pub view_turn_matrix: [Float; 16],
     /// +0x3c4 (0x5EA28C): not named.
     pub unknown_3c4: [Dword; 16],
-    /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `marks::draw_particle`, `race::skidmarks`).
+    /// +0x404 (0x5EA2CC): `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
     pub view_matrix: [Float; 16],
     /// +0x444 (0x5EA30C): `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [Float; 16],
     /// +0x484 (0x5EA34C): `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`).
     pub object_matrix_slots: [Dword; 32],
-    /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`marks::view_motion`, `race::frame_views`).
+    /// +0x504 (0x5EA3CC): `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
     pub view_place: [Float; 16],
     /// +0x544 (0x5EA40C): `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
     pub object_matrix_ptr: Dword,

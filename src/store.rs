@@ -1,5 +1,5 @@
 //! Phase 5: a region of RAL.EXE's variables kept in one block of Rust-owned memory with the
-//! image's layout (`marks::store` was the first; this is the same pattern for the audio,
+//! image's layout (`effects::store` was the first; this is the same pattern for the audio,
 //! sound and input modules).
 //!
 //! A block (`block!`) is a byte array whose first values are the image's bytes (generated
