@@ -67,11 +67,8 @@ pub fn template_home() -> usize {
 }
 
 // "R5SG"
-pub fn slot_name(slot: u32) -> *mut u8 {
-    SAVE_GAMES
-        .names
-        .as_ptr()
-        .wrapping_add(slot as usize * NAME_LEN)
+pub fn slot_name(slot: u32) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(SAVE_GAMES.names.addr()).offset(slot * NAME_LEN as u32)
 }
 
 // ---- Rust version ----
@@ -91,8 +88,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
             kept::SAVEGAME,
             kept::SAVEGAME_VERSION,
             packed_local_time(),
-            &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
-                .read::<[u8; NAME_LEN]>("a savegame's name")?,
+            &slot_name(slot).read::<[u8; NAME_LEN]>("a savegame's name")?,
         );
         file.write_at(0, &head, "the savegame's file")?;
         let template = TEMPLATE.read();

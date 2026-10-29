@@ -17,9 +17,7 @@ use crate::scene::light_store::LIGHT_STATE;
 
 /// The scene's mode 0, then the carousel; `lone_row`: ecx at the original's entry (see
 /// `draw_carousel`).
-pub unsafe fn draw_main_menu_carousel(lone_row: u32) -> Result<(), Refused> {
-    unsafe {
-        LIGHT_STATE.draw_mode.set_bits(0u32);
-        draw_carousel_in_game(lone_row)
-    }
+pub fn draw_main_menu_carousel(lone_row: u32) -> Result<(), Refused> {
+    LIGHT_STATE.draw_mode.set_bits(0u32);
+    draw_carousel_in_game(lone_row)
 }

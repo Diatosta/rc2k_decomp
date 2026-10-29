@@ -55,13 +55,11 @@ pub fn progress_frame() -> Result<bool, Refused> {
             continue;
         }
         // gfx::fill_rect: colour 0
-        unsafe {
-            crate::gfx::rect::fill_rect(
-                INSTALLER_PAGES.bar.addr(),
-                0,
-                crate::text::blend_font::BLENDED_PALETTE.addr(),
-            )
-        }?;
+        crate::gfx::rect::fill_rect(
+            INSTALLER_PAGES.bar.addr(),
+            0,
+            crate::text::blend_font::BLENDED_PALETTE.addr(),
+        )?;
         let x = INSTALLER_PAGES.bar.get_u32(0);
         let kept_clip: u32 = BLIT.clip.right.get();
         BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
@@ -99,15 +97,13 @@ pub fn copying_frame() -> Result<bool, Refused> {
         copy_picture()?;
         crate::install::draw_string_list::draw_string_list(2, &INSTALLER_PAGES.texts, 0, 0)?;
         // gfx::frame_rect: colour 0x2A
-        unsafe {
-            crate::gfx::rect::frame_rect(
-                INSTALLER_PAGES.frame.addr(),
-                0,
-                0,
-                0x2A,
-                crate::text::blend_font::BLENDED_PALETTE.addr(),
-            )
-        };
+        crate::gfx::rect::frame_rect(
+            INSTALLER_PAGES.frame.addr(),
+            0,
+            0,
+            0x2A,
+            crate::text::blend_font::BLENDED_PALETTE.addr(),
+        );
         unlock();
         carry = !show();
     }

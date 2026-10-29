@@ -712,33 +712,31 @@ fn single_rally(
 /// original's calls leave (eax from `show_loading_picture`, eax .. edx from `set_up_engine`,
 /// al from `take_key`) are never read.
 fn step(place: u32) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::race::rally::copy_rally_times()?,
-            2 => crate::sound::stop_music::stop_music(),
-            3 => crate::race::race_shell::set_race_screen_mode(),
-            4 => {
-                crate::menu::show_loading_picture::show_loading_picture()?;
-            }
-            5 => crate::race::sound_tables::set_up_race_sound_objects(
-                &crate::race::sound_tables::ObjectVars::game(),
-            )?,
-            6 => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
-            7 => crate::race::race_end::race_from_menu()?,
-            8 => {
-                crate::platform::set_menu_mode_now();
-            }
-            9 => crate::race::sound_tables::clear_race_sound_objects()?,
-            10 => crate::sound::apply_settings::apply_settings()?,
-            11 => crate::scene::set_up_engine::set_up_engine()?,
-            12 => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
-            13 => {
-                crate::input::take_key::take_key();
-            }
-            _ => crate::sound::play_tune_3::play_tune_3(),
+    match place {
+        1 => crate::race::rally::copy_rally_times()?,
+        2 => crate::sound::stop_music::stop_music(),
+        3 => crate::race::race_shell::set_race_screen_mode(),
+        4 => {
+            crate::menu::show_loading_picture::show_loading_picture()?;
         }
-        Ok(())
+        5 => crate::race::sound_tables::set_up_race_sound_objects(
+            &crate::race::sound_tables::ObjectVars::game(),
+        )?,
+        6 => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+        7 => crate::race::race_end::race_from_menu()?,
+        8 => {
+            crate::platform::set_menu_mode_now();
+        }
+        9 => crate::race::sound_tables::clear_race_sound_objects()?,
+        10 => crate::sound::apply_settings::apply_settings()?,
+        11 => crate::scene::set_up_engine::set_up_engine()?,
+        12 => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+        13 => {
+            crate::input::take_key::take_key();
+        }
+        _ => crate::sound::play_tune_3::play_tune_3(),
     }
+    Ok(())
 }
 
 /// The original's instructions as a table and the small interpreter that does them (made from

@@ -75,34 +75,32 @@ pub struct Outside<'a> {
     pub thread_slot: &'a dyn Fn() -> u32,
 }
 
-pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
-    unsafe {
-        let code: u32 = CODE.load(Ordering::Relaxed);
-        let text = text_from_game(context)?;
-        // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
-        if !rc2k_core::fatal::fits(text.len()) {
-            return Err(BadInput("the report does not fit its buffer"));
-        }
-        if REPORTED.swap(1, Ordering::SeqCst) != 1 {
-            if code & TEXT_ONLY == 0 {
-                // The original fills in its template in place, so it keeps the values.
-                let dump = register_dump(context);
-                TEMPLATE.write_at(0, &dump, "the registers' template")?;
-            }
-            TEXT.write_at(0, &text, "the report")?;
-            TEXT.write_at(text.len(), &[0], "the report")?;
-            crate::logfile::write_line::set_enabled(1); // g_logEnabled
-            (outside.log)(&CAPTION.read()[7..]);
-            (outside.log)(&text);
-        }
-        Ok(rc2k_core::fatal::leave(
-            code,
-            outside.quit,
-            outside.thread_slot,
-            // The slot holds its routine as an IDA address.
-            &|slot| (crate::pointers::host(slot) as *const u32).read_unaligned(),
-        ))
+pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
+    let code: u32 = CODE.load(Ordering::Relaxed);
+    let text = text_from_game(context)?;
+    // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
+    if !rc2k_core::fatal::fits(text.len()) {
+        return Err(BadInput("the report does not fit its buffer"));
     }
+    if REPORTED.swap(1, Ordering::SeqCst) != 1 {
+        if code & TEXT_ONLY == 0 {
+            // The original fills in its template in place, so it keeps the values.
+            let dump = register_dump(context);
+            TEMPLATE.write_at(0, &dump, "the registers' template")?;
+        }
+        TEXT.write_at(0, &text, "the report")?;
+        TEXT.write_at(text.len(), &[0], "the report")?;
+        crate::logfile::write_line::set_enabled(1); // g_logEnabled
+        (outside.log)(&CAPTION.read()[7..]);
+        (outside.log)(&text);
+    }
+    Ok(rc2k_core::fatal::leave(
+        code,
+        outside.quit,
+        outside.thread_slot,
+        // The slot holds its routine as an IDA address.
+        &|slot| crate::pointers::read_or_end::<u32>(slot, "a thread slot"),
+    ))
 }
 
 /// The reporter called directly by `fatal::raise` with the registers of the place that
@@ -135,10 +133,10 @@ pub fn report_now(r: &Regs) {
         quit: &mut || {
             let _ = request_quit();
         },
-        thread_slot: &|| unsafe { crate::pointers::game_address(find_thread_slot()) },
+        thread_slot: &find_thread_slot,
     };
     let code = CODE.load(Ordering::Relaxed);
-    match unsafe { report(&context, &mut outside) } {
+    match report(&context, &mut outside) {
         Ok(Leave::Return) => {}
         Ok(Leave::Exit) => crate::standalone::finish(
             &format!("fatal error {code:#x}: the game's way out (`start`, 0x4010EE)"),

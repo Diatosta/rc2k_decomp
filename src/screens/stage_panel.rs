@@ -43,7 +43,7 @@ pub fn label(
     x: i32,
     y: i32,
 ) -> Result<(), Refused> {
-    { draw_string_by_id_at(id, font.as_ptr(), x, y, canvas) }.map(|_| ())
+    { draw_string_by_id_at(id, font.game_ptr(), x, y, canvas) }.map(|_| ())
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the

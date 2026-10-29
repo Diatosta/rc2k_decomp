@@ -37,7 +37,7 @@ fn log(text: &std::ffi::CStr) {
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub unsafe fn input_thread() -> Result<(), Refused> {
+pub fn input_thread() -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
     let slot = (crate::threading::thread_slot::slot(crate::threading::thread_slot::INPUT)) as u32;
     let flag = GamePtr::new(slot + 0xC);
@@ -77,7 +77,7 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
                 }
             }
             DEVICES.last_tick.set(last);
-            unsafe { crate::input::input_tick::input_tick_in_game() }?;
+            crate::input::input_tick::input_tick_in_game()?;
             if FLAGS.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -103,5 +103,5 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
 /// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
 /// ends the thread (the original's `ExitThread`).
 pub fn thread_routine() -> Result<(), Refused> {
-    unsafe { input_thread() }
+    input_thread()
 }

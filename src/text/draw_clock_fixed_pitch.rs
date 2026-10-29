@@ -23,22 +23,20 @@ pub const CELL_OFFSET: usize = crate::text::draw_time_fixed_pitch::CELL_OFFSET;
 
 /// Returns the flags the original leaves: (carry, zero) of its last `add` (draw_text's
 /// own carry is lost there).
-pub unsafe fn draw_clock_fixed_pitch(
+pub fn draw_clock_fixed_pitch(
     font: &mut Font,
-    text: *mut u8,
+    text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
     let at = columns(x, &CLOCK_STEPS);
-    unsafe {
-        let cell = text.add(CELL_OFFSET);
-        // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
-        for (i, &x) in at.iter().enumerate() {
-            *cell = *text.add(i);
-            *cell.add(1) = 0;
-            draw_text_keep_regs(font, cell, x, y, canvas)?;
-        }
+    let base = text.addr();
+    let cell = text.offset(CELL_OFFSET as u32);
+    // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
+    for (i, &x) in at.iter().enumerate() {
+        crate::text::draw_time_fixed_pitch::put_cell(base, i)?;
+        draw_text_keep_regs(font, cell, x, y, canvas)?;
     }
     // The flags of the original's last `add`, after the fifth character.
     let (sum, carry) = (at[4] as u32).overflowing_add(CLOCK_STEPS[4] as u32);
@@ -46,22 +44,18 @@ pub unsafe fn draw_clock_fixed_pitch(
 }
 
 /// The same with a font object in game memory, for Rust callers.
-pub unsafe fn draw_clock_fixed_pitch_at(
-    font: *mut Font,
-    text: *mut u8,
+pub fn draw_clock_fixed_pitch_at(
+    font: crate::pointers::GamePtr,
+    text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
-    unsafe {
-        let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-            .read::<Font>("a font")?;
-        let mut copy = before;
-        let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;
-        if copy != before && canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-                .write(copy, "a font")?;
-        }
-        Ok(too_wide)
+    let before = font.read::<Font>("a font")?;
+    let mut copy = before;
+    let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;
+    if copy != before && canvas.keeps_font_changes() {
+        font.write(copy, "a font")?;
     }
+    Ok(too_wide)
 }

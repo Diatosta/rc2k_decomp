@@ -7325,9 +7325,9 @@ const NAMES_IDA: usize = 0x741E88;
 pub fn name_string(entry: u32) -> u32 {
     match DRIVERS.names.get(entry as usize) {
         Some(n) => n.string.get(),
-        None => unsafe {
+        None => {
             crate::store::ida_read(NAMES_IDA.wrapping_add(0x14usize.wrapping_mul(entry as usize)))
-        },
+        }
     }
 }
 

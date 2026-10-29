@@ -80,39 +80,18 @@ macro_rules! typed_places {
 typed_places!(crate::session::Dword, crate::session::Float);
 
 /// Reads the variable named by `at` (an IDA address of the image).
-pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
-    let p = crate::pointers::host_at(at.here()) as *const T;
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
+pub fn at_read<T: Copy>(at: impl At) -> T {
+    crate::pointers::read_or_end(at.here() as u32, "a game variable")
 }
 
 /// Writes the variable named by `at` (an IDA address of the image).
-pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
-    let p = crate::pointers::host_at(at.here()) as *mut T;
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value)
-        } else {
-            p.write_unaligned(value)
-        }
-    }
+pub fn at_write<T: Copy>(at: impl At, value: T) {
+    crate::pointers::write_or_end(at.here() as u32, value, "a game variable")
 }
 
 /// Reads the variable named by `at` (an IDA address, or a typed cell).
-pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
-    let p = crate::pointers::host_at(at.here()) as *const T;
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
+pub fn ida_read<T: Copy>(at: impl Ida) -> T {
+    crate::pointers::read_or_end(at.here() as u32, "a game variable")
 }
 
 /// The address of `place`.

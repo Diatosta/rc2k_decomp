@@ -2016,109 +2016,107 @@ pub fn camera_view() -> Result<(), BadInput> {
 /// `dword_6415DC` its size (256 less half its distance from the centre, at least 0).
 /// None of it reads a register at entry (the drawing gets its esi here), and its one
 /// caller, `race::draw_view_scene`, reads none it leaves.
-pub unsafe fn draw_sky() -> Result<(), Refused> {
+pub fn draw_sky() -> Result<(), Refused> {
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
-    unsafe {
-        fetch_view_value()?;
-        COURSE.polygon_flags.set(0u32);
-        let mode: u32 = LIGHT_STATE.draw_mode.get();
-        if mode == 1 || mode == 2 {
-            return Ok(());
-        }
-        sky_matrix()?;
-        crate::math::cells::copy_cells(
-            &MATRICES.made_object_matrix,
-            &MATRICES.object_matrix_slots,
-            16,
-        );
-        FRAME_SWITCHES.object_number.set_bits(1);
-        LIGHT_STATE.view_kind.set_bits(4);
-        OBJECT_WORK.light_lowest.set_bits(0xFF);
-        OBJECT_WORK.light_highest.set_bits(0xFF);
-        OBJECT_WORK.light_level.set_bits(0xFF);
-        OBJECT_WORK.light_turns[0].set_bits(0);
-        OBJECT_WORK.light_turns[1].set_bits(0);
-        FRAME_SWITCHES.no_far_clip.set_bits(1);
-        crate::scene::glow_render_states::glow_render_states();
-        LIGHT_WORK.light_kind.set(0u32);
-        // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
-        crate::scene::draw_scene_object::draw_scene_object_in_game(
-            MATRICES.made_object_matrix[0].addr() + 0x40,
-        )?;
-        crate::race::flush_draw_batch::flush_draw_batch()?;
-        crate::scene::depth_buffer_on::depth_buffer(true);
-        LIGHT_STATE.view_kind.set_bits(0);
-        FRAME_SWITCHES.no_far_clip.set_bits(0);
-        FRAME_WORK.sun_on_screen.set_bits(0);
-        FRAME_WORK.sun_size.set_bits(0);
-        if STAGE_PREFS
-            .fog_near
-            .get()
-            .wrapping_add(STAGE_PREFS.fog_far.bits())
-            == 0
-        {
-            return Ok(());
-        }
-        let _k = |a: usize| game_read::<u32>(rva(a));
-        let angle = STAGE_PREFS
-            .sun_turn
-            .get()
-            .wrapping_add(STAGE_PREFS.sky_turn.get())
-            & 0xFF;
-        DRAW.scratch.set_bits(angle);
-        let dir = sun_direction(
-            angle as i32,
-            NUMBERS.sixty_four.bits(),
-            FRAME_WORK.sun_depth.bits(),
-            STAGE_PREFS.sun_height.get() as i32,
-            NUMBERS.k98304.bits(),
-        );
-        for (n, &d) in dir.iter().enumerate() {
-            FRAME_WORK.sun_floats[n].set_bits(d);
-        }
-        let turned = crate::scene::rotate_point::rotate_point(
-            &MATRICES.made_object_matrix,
-            [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
-        );
-        let place = turned.map(tbyte_to_int);
-        for (n, &p) in place.iter().enumerate() {
-            FRAME_WORK.sun_points[n].set_bits(p);
-        }
-        let z = crate::math::x87::from_int(place[2] as i32);
-        if crate::math::x87_load::below_or_unordered(z, NUMBERS.k4096_a.bits()) {
-            return Ok(());
-        }
-        let flat = STAGE_PREFS.flat_depth.get() != 0;
-        let v = [
-            place[0],
-            place[1],
-            place[2],
-            COURSE.flat_depth.get(),
-            DRAW.view_scale.bits(),
-            DRAW.view_centre[1].bits(),
-            DRAW.view_centre[0].bits(),
-        ];
-        let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &DRAW.scratch);
-        FRAME_WORK.sun_place[0].set(fx);
-        FRAME_WORK.sun_hit[0].set(ix);
-        FRAME_WORK.sun_place[1].set(fy);
-        FRAME_WORK.sun_hit[1].set(iy);
-        let on = ix < SCREEN.width.get() && iy < SCREEN.height.get();
-        FRAME_WORK.sun_on_screen.set(u32::from(on));
-        let size = sun_size(
-            fx,
-            DRAW.view_centre[0].bits(),
-            fy,
-            DRAW.view_centre[1].bits(),
-            NUMBERS.half.bits(),
-            NUMBERS.k256.bits(),
-        );
-        DRAW.scratch.set_bits(size);
-        FRAME_WORK
-            .sun_size
-            .set(if (size as i32) < 0 { 0 } else { size });
-        Ok(())
+    fetch_view_value()?;
+    COURSE.polygon_flags.set(0u32);
+    let mode: u32 = LIGHT_STATE.draw_mode.get();
+    if mode == 1 || mode == 2 {
+        return Ok(());
     }
+    sky_matrix()?;
+    crate::math::cells::copy_cells(
+        &MATRICES.made_object_matrix,
+        &MATRICES.object_matrix_slots,
+        16,
+    );
+    FRAME_SWITCHES.object_number.set_bits(1);
+    LIGHT_STATE.view_kind.set_bits(4);
+    OBJECT_WORK.light_lowest.set_bits(0xFF);
+    OBJECT_WORK.light_highest.set_bits(0xFF);
+    OBJECT_WORK.light_level.set_bits(0xFF);
+    OBJECT_WORK.light_turns[0].set_bits(0);
+    OBJECT_WORK.light_turns[1].set_bits(0);
+    FRAME_SWITCHES.no_far_clip.set_bits(1);
+    crate::scene::glow_render_states::glow_render_states();
+    LIGHT_WORK.light_kind.set(0u32);
+    // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
+    crate::scene::draw_scene_object::draw_scene_object_in_game(
+        MATRICES.made_object_matrix[0].addr() + 0x40,
+    )?;
+    crate::race::flush_draw_batch::flush_draw_batch()?;
+    crate::scene::depth_buffer_on::depth_buffer(true);
+    LIGHT_STATE.view_kind.set_bits(0);
+    FRAME_SWITCHES.no_far_clip.set_bits(0);
+    FRAME_WORK.sun_on_screen.set_bits(0);
+    FRAME_WORK.sun_size.set_bits(0);
+    if STAGE_PREFS
+        .fog_near
+        .get()
+        .wrapping_add(STAGE_PREFS.fog_far.bits())
+        == 0
+    {
+        return Ok(());
+    }
+    let _k = |a: usize| game_read::<u32>(rva(a));
+    let angle = STAGE_PREFS
+        .sun_turn
+        .get()
+        .wrapping_add(STAGE_PREFS.sky_turn.get())
+        & 0xFF;
+    DRAW.scratch.set_bits(angle);
+    let dir = sun_direction(
+        angle as i32,
+        NUMBERS.sixty_four.bits(),
+        FRAME_WORK.sun_depth.bits(),
+        STAGE_PREFS.sun_height.get() as i32,
+        NUMBERS.k98304.bits(),
+    );
+    for (n, &d) in dir.iter().enumerate() {
+        FRAME_WORK.sun_floats[n].set_bits(d);
+    }
+    let turned = crate::scene::rotate_point::rotate_point(
+        &MATRICES.made_object_matrix,
+        [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
+    );
+    let place = turned.map(tbyte_to_int);
+    for (n, &p) in place.iter().enumerate() {
+        FRAME_WORK.sun_points[n].set_bits(p);
+    }
+    let z = crate::math::x87::from_int(place[2] as i32);
+    if crate::math::x87_load::below_or_unordered(z, NUMBERS.k4096_a.bits()) {
+        return Ok(());
+    }
+    let flat = STAGE_PREFS.flat_depth.get() != 0;
+    let v = [
+        place[0],
+        place[1],
+        place[2],
+        COURSE.flat_depth.get(),
+        DRAW.view_scale.bits(),
+        DRAW.view_centre[1].bits(),
+        DRAW.view_centre[0].bits(),
+    ];
+    let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &DRAW.scratch);
+    FRAME_WORK.sun_place[0].set(fx);
+    FRAME_WORK.sun_hit[0].set(ix);
+    FRAME_WORK.sun_place[1].set(fy);
+    FRAME_WORK.sun_hit[1].set(iy);
+    let on = ix < SCREEN.width.get() && iy < SCREEN.height.get();
+    FRAME_WORK.sun_on_screen.set(u32::from(on));
+    let size = sun_size(
+        fx,
+        DRAW.view_centre[0].bits(),
+        fy,
+        DRAW.view_centre[1].bits(),
+        NUMBERS.half.bits(),
+        NUMBERS.k256.bits(),
+    );
+    DRAW.scratch.set_bits(size);
+    FRAME_WORK
+        .sun_size
+        .set(if (size as i32) < 0 { 0 } else { size });
+    Ok(())
 }
 
 // g_keptReflectionNormals: 0x400 dwords
@@ -2149,72 +2147,68 @@ pub fn end_kept_reflections() {
 /// into `flt_5EA484`), times the view's turn into `g_madeObjectMatrix`; the reflections
 /// kept around the drawing (`scene::draw_scene_object`, esi `g_turnedMatrix`). Refuses
 /// (before anything) as `check_slot_object`.
-pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
+pub fn draw_slot_object(slot: u32) -> Result<(), Refused> {
     use crate::scene::matrix;
-    unsafe {
-        check_slot_object(slot)?;
-        let object = get(slot)?;
-        FRAME_SWITCHES.object_number.set(object);
-        let mode: u32 = RACE_VARS.run_kind.bits();
-        if RACE_VIEW.players.bits() != 1 && mode != 0 && mode != 2 {
-            let n = object.wrapping_sub(0x50);
-            if FRAME_WORK.listed_car_sounds[((n / 0x14) & 7) as usize].get()
-                != RACE_VIEW.drawn_view.bits()
-            {
-                return Ok(());
-            }
+    check_slot_object(slot)?;
+    let object = get(slot)?;
+    FRAME_SWITCHES.object_number.set(object);
+    let mode: u32 = RACE_VARS.run_kind.bits();
+    if RACE_VIEW.players.bits() != 1 && mode != 0 && mode != 2 {
+        let n = object.wrapping_sub(0x50);
+        if FRAME_WORK.listed_car_sounds[((n / 0x14) & 7) as usize].get()
+            != RACE_VIEW.drawn_view.bits()
+        {
+            return Ok(());
         }
-        OBJECT_WORK.other_light.set_bits(0);
-        OBJECT_WORK.light_lowest.set_bits(0);
-        OBJECT_WORK.light_highest.set_bits(0xFF);
-        OBJECT_WORK
-            .light_level
-            .set_bits(STAGE_PREFS.light_level.bits());
-        OBJECT_WORK
-            .light_strength
-            .set_bits(STAGE_PREFS.light_strength.bits());
-        OBJECT_WORK.light_turns[0].set_bits(STAGE_PREFS.sun_turn.get().wrapping_neg());
-        OBJECT_WORK.light_turns[1].set_bits(STAGE_PREFS.sun_height.bits());
-        LIGHT_STATE.view_kind.set_bits(1);
-        LIGHT_WORK.light_kind.set_bits(2);
-        crate::math::cells::cells_from(
-            slot + 0x10,
-            &MATRICES.object_turn_matrix,
-            16,
-            "a face, record or matrix",
-        )?;
-        let place = [
-            get(slot + 4)?,
-            get(slot + 8)?.wrapping_add(get(slot + 0x5C)?),
-            get(slot + 0xC)?,
-        ];
-        for (k, &p) in place.iter().enumerate() {
-            OBJECT_WORK.place[k].set_bits(p);
-        }
-        matrix::set_place(place);
-        matrix::copy_matrix_with_place(
-            &MATRICES.placed_matrix,
-            &MATRICES.view_place_matrix,
-            &MATRICES.matrix_scratch,
-        );
-        matrix::copy_matrix_with_place(
-            &MATRICES.object_turn_matrix,
-            &MATRICES.matrix_scratch,
-            &MATRICES.turned_matrix,
-        );
-        matrix::multiply_matrices(
-            &MATRICES.turned_matrix,
-            &MATRICES.view_turn_matrix,
-            &MATRICES.made_object_matrix,
-        );
-        start_kept_reflections()?;
-        // esi `g_turnedMatrix`, as the matrices' calls leave it.
-        crate::scene::draw_scene_object::draw_scene_object_in_game(
-            MATRICES.turned_matrix[0].addr(),
-        )?;
-        end_kept_reflections();
-        Ok(())
     }
+    OBJECT_WORK.other_light.set_bits(0);
+    OBJECT_WORK.light_lowest.set_bits(0);
+    OBJECT_WORK.light_highest.set_bits(0xFF);
+    OBJECT_WORK
+        .light_level
+        .set_bits(STAGE_PREFS.light_level.bits());
+    OBJECT_WORK
+        .light_strength
+        .set_bits(STAGE_PREFS.light_strength.bits());
+    OBJECT_WORK.light_turns[0].set_bits(STAGE_PREFS.sun_turn.get().wrapping_neg());
+    OBJECT_WORK.light_turns[1].set_bits(STAGE_PREFS.sun_height.bits());
+    LIGHT_STATE.view_kind.set_bits(1);
+    LIGHT_WORK.light_kind.set_bits(2);
+    crate::math::cells::cells_from(
+        slot + 0x10,
+        &MATRICES.object_turn_matrix,
+        16,
+        "a face, record or matrix",
+    )?;
+    let place = [
+        get(slot + 4)?,
+        get(slot + 8)?.wrapping_add(get(slot + 0x5C)?),
+        get(slot + 0xC)?,
+    ];
+    for (k, &p) in place.iter().enumerate() {
+        OBJECT_WORK.place[k].set_bits(p);
+    }
+    matrix::set_place(place);
+    matrix::copy_matrix_with_place(
+        &MATRICES.placed_matrix,
+        &MATRICES.view_place_matrix,
+        &MATRICES.matrix_scratch,
+    );
+    matrix::copy_matrix_with_place(
+        &MATRICES.object_turn_matrix,
+        &MATRICES.matrix_scratch,
+        &MATRICES.turned_matrix,
+    );
+    matrix::multiply_matrices(
+        &MATRICES.turned_matrix,
+        &MATRICES.view_turn_matrix,
+        &MATRICES.made_object_matrix,
+    );
+    start_kept_reflections()?;
+    // esi `g_turnedMatrix`, as the matrices' calls leave it.
+    crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())?;
+    end_kept_reflections();
+    Ok(())
 }
 
 /// What `scene::draw_scene_object` would refuse for slot `at`'s object, before anything:
@@ -2232,22 +2226,20 @@ pub fn check_slot_object(at: u32) -> Result<(), Refused> {
 /// `race::draw_race_slots` (0x4621E5): `draw_slot_object` for each of the eight race slots
 /// (0x78 bytes at `g_raceSlots`) whose +0 is not 0 (inside `pusha`). Refuses (before anything) as
 /// `check_slot_object` for any.
-pub unsafe fn draw_race_slots() -> Result<(), Refused> {
-    unsafe {
-        let slots = crate::pointers::game_address(RACE_WORK.race_slots.as_ptr());
-        for n in 0..8 {
-            if get(slots + 0x78 * n)? != 0 {
-                check_slot_object(slots + 0x78 * n)?;
-            }
+pub fn draw_race_slots() -> Result<(), Refused> {
+    let slots = crate::pointers::game_address(RACE_WORK.race_slots.as_ptr());
+    for n in 0..8 {
+        if get(slots + 0x78 * n)? != 0 {
+            check_slot_object(slots + 0x78 * n)?;
         }
-        for n in 0..8 {
-            let at = slots + 0x78 * n;
-            if get(at)? != 0 {
-                draw_slot_object(at)?;
-            }
-        }
-        Ok(())
     }
+    for n in 0..8 {
+        let at = slots + 0x78 * n;
+        if get(at)? != 0 {
+            draw_slot_object(at)?;
+        }
+    }
+    Ok(())
 }
 
 /// `race::draw_screen_quad` (0x44B364): a flat rectangle on the screen from x
@@ -2696,58 +2688,54 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
 /// `dword_63501C` .., `dword_635038`, `dword_635054`, `g_objectNumber`; `dword_6365C8` 2,
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
 /// `esi` the esi at entry: the list entry's address). Every register kept.
-pub unsafe fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
-    unsafe {
-        // The tables are read unchecked by `flare` (see `add_flare`).
-        for (table, to) in [
-            (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
-            (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
-            (&FLARE_TABLES.place_z, &OBJECT_WORK.place[2]),
-            (&FLARE_TABLES.size, &OBJECT_WORK.size),
-            (&FLARE_TABLES.other_light, &OBJECT_WORK.other_light),
-            (&FLARE_TABLES.object_number, &FRAME_SWITCHES.object_number),
-        ] {
-            to.set_bits(crate::session::read_on(
-                table,
-                flare as usize,
-                "a flare table",
-            )?);
-        }
-        LIGHT_STATE.view_kind.set(2u32);
-        place_object_matrix()?;
-        LIGHT_WORK.light_kind.set(0u32);
-        // The `popa` and `pusha` between: the drawing gets the esi it had at entry.
-        crate::scene::draw_scene_object::draw_scene_object_in_game(esi)
+pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
+    // The tables are read unchecked by `flare` (see `add_flare`).
+    for (table, to) in [
+        (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
+        (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
+        (&FLARE_TABLES.place_z, &OBJECT_WORK.place[2]),
+        (&FLARE_TABLES.size, &OBJECT_WORK.size),
+        (&FLARE_TABLES.other_light, &OBJECT_WORK.other_light),
+        (&FLARE_TABLES.object_number, &FRAME_SWITCHES.object_number),
+    ] {
+        to.set_bits(crate::session::read_on(
+            table,
+            flare as usize,
+            "a flare table",
+        )?);
     }
+    LIGHT_STATE.view_kind.set(2u32);
+    place_object_matrix()?;
+    LIGHT_WORK.light_kind.set(0u32);
+    // The `popa` and `pusha` between: the drawing gets the esi it had at entry.
+    crate::scene::draw_scene_object::draw_scene_object_in_game(esi)
 }
 
 /// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (ebx; `g_lamps`): its point (`g_scenePoints`)
 /// into `dword_63501C` .., its +4 x 8 the size, +8 the colour, object `dword_621508`;
 /// `dword_6365C8` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing. Every
 /// register kept.
-pub unsafe fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
-    unsafe {
-        let edi = self::lamp(lamp)?;
-        let p = edi[0]
-            .get()
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.bits());
-        let [x, y, z] = crate::race::scene_points::point(p)?;
-        OBJECT_WORK.place[0].set(x);
-        OBJECT_WORK.place[1].set(y);
-        OBJECT_WORK.place[2].set(z);
-        OBJECT_WORK.size.set(edi[1].get() << 3);
-        OBJECT_WORK.other_light.set(edi[2].get());
-        FRAME_SWITCHES
-            .object_number
-            .set(FRAME_SWITCHES.marker_object.get());
-        LIGHT_STATE.view_kind.set(2u32);
-        place_object_matrix()?;
-        LIGHT_WORK.light_kind.set(0u32);
-        // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`dword_6365C8` is 2 here,
-        // so it always ends by placing the object).
-        crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())
-    }
+pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
+    let edi = self::lamp(lamp)?;
+    let p = edi[0]
+        .get()
+        .wrapping_mul(12)
+        .wrapping_add(COURSE.scene_points.bits());
+    let [x, y, z] = crate::race::scene_points::point(p)?;
+    OBJECT_WORK.place[0].set(x);
+    OBJECT_WORK.place[1].set(y);
+    OBJECT_WORK.place[2].set(z);
+    OBJECT_WORK.size.set(edi[1].get() << 3);
+    OBJECT_WORK.other_light.set(edi[2].get());
+    FRAME_SWITCHES
+        .object_number
+        .set(FRAME_SWITCHES.marker_object.get());
+    LIGHT_STATE.view_kind.set(2u32);
+    place_object_matrix()?;
+    LIGHT_WORK.light_kind.set(0u32);
+    // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`dword_6365C8` is 2 here,
+    // so it always ends by placing the object).
+    crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())
 }
 
 /// `race::draw_list_entry` (0x454FF0): the entry at `at` (esi; its number in ecx is read by
@@ -2758,65 +2746,60 @@ pub unsafe fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
 /// 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a lamp, each by its low 24 bits; then `dword_6365C8` 0. Every register kept. Refuses (before
 /// anything) a word of 0x4000000 or more (the original would take it for a face far past
 /// the table).
-pub unsafe fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
-    unsafe {
-        let word = ebx & 0x7FFF_FFFF;
-        if word >= 0x400_0000 {
-            return Err(BadInput("a list entry of 0x4000000 or more").into());
-        }
-        COURSE.polygon_flags.set(ebx);
-        // What the drawings read of the registers the original gives them: the face
-        // drawing esi (the face), the car drawing ebx (the word's low 24 bits).
-        let low = word & 0xFF_FFFF;
-        match word >> 24 {
-            0 => {
-                COURSE.current_course_face.set_bits(word);
-                let face = (word << 6).wrapping_add(COURSE.course_faces.bits());
-                let kind =
-                    crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
-                if kind == 0xFF || kind < 0x10 {
-                    LEVEL_GRID.smooth.set_bits(1);
-                    LEVEL_GRID.plain_first.set_bits(1);
-                    LEVEL_GRID.plain_second.set_bits(1);
-                    if kind == 0xFF {
-                        crate::scene::draw_described_object::draw_described_object(face)?;
-                    } else {
-                        crate::race::course_faces::draw_tinted_face(face)?;
-                    }
-                    LEVEL_GRID.smooth.set_bits(0);
-                    LEVEL_GRID.plain_first.set_bits(0);
-                    LEVEL_GRID.plain_second.set_bits(0);
-                }
-            }
-            1 => draw_flare(low, at)?,
-            2 => crate::race::car_draw::draw_car_entry(low)?,
-            _ => draw_lamp_flare(low)?,
-        }
-        LIGHT_STATE.view_kind.set(0u32);
-        Ok(())
+pub fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
+    let word = ebx & 0x7FFF_FFFF;
+    if word >= 0x400_0000 {
+        return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
+    COURSE.polygon_flags.set(ebx);
+    // What the drawings read of the registers the original gives them: the face
+    // drawing esi (the face), the car drawing ebx (the word's low 24 bits).
+    let low = word & 0xFF_FFFF;
+    match word >> 24 {
+        0 => {
+            COURSE.current_course_face.set_bits(word);
+            let face = (word << 6).wrapping_add(COURSE.course_faces.bits());
+            let kind = crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
+            if kind == 0xFF || kind < 0x10 {
+                LEVEL_GRID.smooth.set_bits(1);
+                LEVEL_GRID.plain_first.set_bits(1);
+                LEVEL_GRID.plain_second.set_bits(1);
+                if kind == 0xFF {
+                    crate::scene::draw_described_object::draw_described_object(face)?;
+                } else {
+                    crate::race::course_faces::draw_tinted_face(face)?;
+                }
+                LEVEL_GRID.smooth.set_bits(0);
+                LEVEL_GRID.plain_first.set_bits(0);
+                LEVEL_GRID.plain_second.set_bits(0);
+            }
+        }
+        1 => draw_flare(low, at)?,
+        2 => crate::race::car_draw::draw_car_entry(low)?,
+        _ => draw_lamp_flare(low)?,
+    }
+    LIGHT_STATE.view_kind.set(0u32);
+    Ok(())
 }
 
 /// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
 /// entry of the list (`count` its count, `entries` its 8-byte entries) by
 /// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
 /// `entries` the list's address.
-pub unsafe fn draw_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
-    unsafe {
-        let n: u32 = count.get();
-        let list = entries;
-        let trap = Trap::new();
-        let too_big = (0..n).any(|k| {
-            trap.read::<u32>(list + 8 * k + 4, "a draw list entry") & 0x7FFF_FFFF >= 0x400_0000
-        });
-        trap.finish()?;
-        if too_big {
-            return Err(BadInput("a list entry of 0x4000000 or more").into());
-        }
-        for k in 0..n {
-            let at = list + 8 * k;
-            draw_list_entry(at, get(at + 4)?)?;
-        }
-        Ok(())
+pub fn draw_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
+    let n: u32 = count.get();
+    let list = entries;
+    let trap = Trap::new();
+    let too_big = (0..n).any(|k| {
+        trap.read::<u32>(list + 8 * k + 4, "a draw list entry") & 0x7FFF_FFFF >= 0x400_0000
+    });
+    trap.finish()?;
+    if too_big {
+        return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
+    for k in 0..n {
+        let at = list + 8 * k;
+        draw_list_entry(at, get(at + 4)?)?;
+    }
+    Ok(())
 }

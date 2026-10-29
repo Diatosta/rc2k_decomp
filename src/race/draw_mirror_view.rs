@@ -19,30 +19,28 @@ use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (see the header).
-pub unsafe fn draw_mirror_view() -> Result<(), Refused> {
-    unsafe {
-        if crate::drive::finish_store::FINISH.no_place.get() != 0
-            || RACE_WORK.in_credits.get() != 0
-            || FRAME_SWITCHES.other_way.get() == 0
-        {
-            return Ok(());
-        }
-        LEVEL_GRID
-            .view_value_kept
-            .set_bits(RACE_VIEW.view_depth[1].bits());
-        let saved = (VIEW_VARS.view_scale.bits(), STAGE_PREFS.grid_reach.bits());
-        VIEW_VARS.view_scale.set_bits(NUMBERS.k256.bits());
-        STAGE_PREFS.grid_reach.set_bits(2u32);
-        let drawn = (|| {
-            crate::race::frame_views::mirror_view_window()?;
-            RACE_VIEW.view_depth[1].set_bits(LEVEL_GRID.view_value_kept.bits());
-            crate::race::frame_flush::draw_view_backdrop();
-            crate::race::draw_view_scene::draw_view_scene()
-        })();
-        STAGE_PREFS.grid_reach.set_bits(saved.1);
-        VIEW_VARS.view_scale.set_bits(saved.0);
-        drawn?;
-        crate::race::frame_views::full_view_window(false);
+pub fn draw_mirror_view() -> Result<(), Refused> {
+    if crate::drive::finish_store::FINISH.no_place.get() != 0
+        || RACE_WORK.in_credits.get() != 0
+        || FRAME_SWITCHES.other_way.get() == 0
+    {
+        return Ok(());
     }
+    LEVEL_GRID
+        .view_value_kept
+        .set_bits(RACE_VIEW.view_depth[1].bits());
+    let saved = (VIEW_VARS.view_scale.bits(), STAGE_PREFS.grid_reach.bits());
+    VIEW_VARS.view_scale.set_bits(NUMBERS.k256.bits());
+    STAGE_PREFS.grid_reach.set_bits(2u32);
+    let drawn = (|| {
+        crate::race::frame_views::mirror_view_window()?;
+        RACE_VIEW.view_depth[1].set_bits(LEVEL_GRID.view_value_kept.bits());
+        crate::race::frame_flush::draw_view_backdrop();
+        crate::race::draw_view_scene::draw_view_scene()
+    })();
+    STAGE_PREFS.grid_reach.set_bits(saved.1);
+    VIEW_VARS.view_scale.set_bits(saved.0);
+    drawn?;
+    crate::race::frame_views::full_view_window(false);
     Ok(())
 }

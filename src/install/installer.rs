@@ -295,7 +295,7 @@ pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
-        crate::pointers::host(font) as *mut crate::text::font::Font,
+        crate::pointers::GamePtr::new(font),
         x as i32,
         y as i32,
         &mut GameCanvas,
@@ -318,7 +318,7 @@ pub fn draw_text(
     let mut copy = at.read::<Font>("a font object")?;
     crate::text::draw_text::draw_text(
         &mut copy,
-        crate::pointers::host(text) as *const u8,
+        crate::pointers::GamePtr::new(text),
         x as i32,
         y as i32,
         &mut GameCanvas,
@@ -339,8 +339,8 @@ pub fn measure_text(
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_text::measure_text_at(
-            crate::pointers::host(font) as *mut crate::text::font::Font,
-            crate::pointers::host(text) as *const u8,
+            crate::pointers::GamePtr::new(font),
+            crate::pointers::GamePtr::new(text),
             x as i32,
             &mut GameCanvas,
         )
@@ -354,7 +354,7 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
     let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
-            crate::pointers::host(font) as *mut crate::text::font::Font,
+            crate::pointers::GamePtr::new(font),
             x as i32,
             &mut GameCanvas,
         )
@@ -364,24 +364,23 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
 
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
 /// format `format` into `to`.
-pub unsafe fn components_to_pixels(from: u32, to: u32, format: u32) {
-    let format = unsafe {
-        &*(crate::pointers::host(format) as *const crate::gfx::pixel_format::PixelFormat)
-    };
+pub fn components_to_pixels(from: u32, to: u32, format: u32) {
+    let format = crate::pointers::read_or_end::<crate::gfx::pixel_format::PixelFormat>(
+        format,
+        "a pixel format",
+    );
     for n in 0..0x100u32 {
         let components = rd(from + 4 * n);
-        let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components);
+        let pixel = crate::gfx::components_to_pixel::components_to_pixel(&format, components);
         wd(to + 4 * n, pixel);
     }
 }
 
 /// `strings::load_language` (0x40331F).
 pub fn load_language() -> Result<(), Refused> {
-    unsafe {
-        crate::strings::load_language::load_language(&mut || {
-            crate::strings::compile_lexicon::compile_lexicon()
-        })
-    }
+    crate::strings::load_language::load_language(&mut || {
+        crate::strings::compile_lexicon::compile_lexicon()
+    })
 }
 
 /// `menu::list_take_key` (0x41469A): the key (0: none).

@@ -189,8 +189,8 @@ pub fn draw_text_button(
 ) -> Result<(), Refused> {
     let font = item.measuring_font.get();
     // The font object must lie in the game's memory before it is used.
-    crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
-    let font = crate::pointers::host(font) as *mut Font;
+    let font = crate::pointers::GamePtr::new(font);
+    font.read::<Font>("an item's measuring font")?;
     let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
     draw_button(
         kind,

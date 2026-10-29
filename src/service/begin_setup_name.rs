@@ -25,8 +25,8 @@ pub fn begin_setup_name() -> Result<(), BadInput> {
         return Err(BadInput("slot past the name table"));
     }
     {
-        backup_text(crate::pointers::game_address(slot_name(slot)))?;
-        clear_text(crate::pointers::game_address(slot_name(slot)))?;
+        backup_text(slot_name(slot).addr())?;
+        clear_text(slot_name(slot).addr())?;
         OPTION_WORK.typing.set(1u32);
     }
     set_length(0);

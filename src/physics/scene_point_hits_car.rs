@@ -15,7 +15,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 
 /// The Rust version: (inside, ebx, esi).
-pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u32, u32), Refused> {
+pub fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u32, u32), Refused> {
     let number = crate::race::course_places::record(record, "a scene point record")?.number();
     let point = number
         .wrapping_mul(12)
@@ -25,5 +25,5 @@ pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u3
         .set(PHYSICS.scene_point_hits.get().wrapping_add(1));
     fill_cells(&CONTACT_WORK.object_offset, 0);
     let place = crate::race::scene_points::point(point)?;
-    Ok((unsafe { point_hits_car(place, object) }?, number, point))
+    Ok(({ point_hits_car(place, object) }?, number, point))
 }

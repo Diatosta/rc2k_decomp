@@ -301,7 +301,7 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             Ok(())
         }
         ItemFn::LoadSetupSlot => {
-            unsafe { crate::service::load_setup_slot::load_setup_slot() }?;
+            { crate::service::load_setup_slot::load_setup_slot() }?;
             Ok(())
         }
         ItemFn::NextSetupPage => {
@@ -348,10 +348,8 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::ToggleA3d => crate::menu::option_items::toggle_a3d::run(),
         ItemFn::ToggleDolby => crate::menu::option_items::toggle_dolby::run(),
         ItemFn::ToggleChannels => crate::menu::option_items::toggle_channels::run(),
-        ItemFn::ViewStageDetails => unsafe {
-            crate::menu::item_actions::view_stage_details(&c.carried())
-        },
-        ItemFn::ApplyScreenMode => unsafe { crate::menu::apply_screen_mode::apply_screen_mode() },
+        ItemFn::ViewStageDetails => crate::menu::item_actions::view_stage_details(&c.carried()),
+        ItemFn::ApplyScreenMode => crate::menu::apply_screen_mode::apply_screen_mode(),
         ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_player_3c_hook::run(),
         ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(&c.carried()),
         ItemFn::ReplayItemB => crate::menu::replay_item_b::replay_item_b(&c.carried()),
@@ -482,10 +480,10 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::NextStageRows => crate::menu::stage_rows::step_rows(false, true),
         ItemFn::PreviousStageRowsOf90 => crate::menu::stage_rows::step_rows(true, false),
         ItemFn::NextStageRowsOf90 => crate::menu::stage_rows::step_rows(true, true),
-        ItemFn::RallyResults => unsafe { crate::menu::rally_results::rally_results(&c.carried()) },
-        ItemFn::ChampionshipStandings => unsafe {
+        ItemFn::RallyResults => crate::menu::rally_results::rally_results(&c.carried()),
+        ItemFn::ChampionshipStandings => {
             crate::menu::championship_standings::championship_standings(&c.carried())
-        },
+        }
         ItemFn::NewSimulationIfUnlocked => crate::menu::item_actions::new_simulation_if_unlocked(),
         ItemFn::NewSimulationLoop => crate::menu::new_simulation_loop::run(),
         ItemFn::StartA8One => crate::menu::start_a8_one::start_a8_one(&c.carried()),
@@ -635,11 +633,9 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::DrawSavegamePreview => {
-            unsafe {
-                crate::screens::draw_savegame_preview::draw_savegame_preview(
-                    &mut crate::text::draw_text::GameCanvas,
-                )
-            }?;
+            crate::screens::draw_savegame_preview::draw_savegame_preview(
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
             Ok(())
         }
         ScreenFn::DrawSaveSetupList => {

@@ -67,8 +67,8 @@ pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a player's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
-                    MEASURING_FONT.as_ptr(),
-                    crate::pointers::host(name) as *const u8,
+                    MEASURING_FONT.game_ptr(),
+                    crate::pointers::GamePtr::new(name),
                     len,
                     canvas,
                 )?;

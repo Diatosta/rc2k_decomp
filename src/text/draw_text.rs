@@ -57,7 +57,7 @@ pub struct Outcome {
     /// A line was wider than the box and the font has `FLAG_FAIL_IF_WIDER`: the carry flag.
     pub too_wide: bool,
     /// After the NUL, or the start of the line that was too wide: ebx.
-    pub text: *const u8,
+    pub text: GamePtr,
     /// The x that was passed in: ecx.
     pub x: i32,
     /// The y of the last line, font offset included: edx.
@@ -95,12 +95,12 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
 /// (`pointers`): a read past it is refused.
 pub fn run_core<T>(
     font: &Font,
-    text: *const u8,
+    text: GamePtr,
     canvas: &mut dyn Canvas,
     f: impl FnOnce(&GameBytes, &Glyphs, &mut Adapt) -> Result<T, AdaptError>,
 ) -> Result<T, Refused> {
     let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
-    let words = GamePtr::new(crate::pointers::game_address(text)).bytes("a text")?;
+    let words = text.bytes("a text")?;
     match f(&words, &glyphs, &mut Adapt(canvas)) {
         Ok(value) => Ok(value),
         Err(AdaptError::Refused(e)) => Err(e),
@@ -110,11 +110,11 @@ pub fn run_core<T>(
     }
 }
 
-/// The core's outcome with the text as a pointer.
-pub fn outcome(text: *const u8, out: rc2k_core::text::Outcome) -> Outcome {
+/// The core's outcome with the text as a game pointer.
+pub fn outcome(text: GamePtr, out: rc2k_core::text::Outcome) -> Outcome {
     Outcome {
         too_wide: out.too_wide,
-        text: text.wrapping_add(out.next),
+        text: text.offset(out.next as u32),
         x: out.x,
         y: out.y,
     }
@@ -124,7 +124,7 @@ pub fn outcome(text: *const u8, out: rc2k_core::text::Outcome) -> Outcome {
 /// earlier glyphs are drawn. Converted: `rc2k_core::text::draw`.
 pub fn draw_text(
     font: &mut Font,
-    text: *const u8,
+    text: GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
@@ -142,13 +142,13 @@ pub fn draw_text(
 /// NUL in it, or by its end, which the core refuses as a text that does not end). Gives
 /// the core's outcome: `next` is where the text after it starts, in `text`.
 pub fn draw_bytes_at(
-    font: *mut Font,
+    font: GamePtr,
     text: &[u8],
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<rc2k_core::text::Outcome, Refused> {
-    let at = GamePtr::new(crate::pointers::game_address(font));
+    let at = font;
     let before = at.read::<Font>("a font")?;
     let mut copy = before;
     let glyphs = glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
@@ -170,18 +170,17 @@ pub fn draw_bytes_at(
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only
 /// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
 pub fn draw_text_at(
-    font: *mut Font,
-    text: *const u8,
+    font: GamePtr,
+    text: GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-        .read::<Font>("a font")?;
+    let before = font.read::<Font>("a font")?;
     let mut copy = before;
     let out = draw_text(&mut copy, text, x, y, canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
+        font.write(copy, "a font")?;
     }
     Ok(out)
 }

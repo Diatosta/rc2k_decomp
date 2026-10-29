@@ -43,8 +43,8 @@ use crate::gfx::glyph_tables::TABLES;
 use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::install::vars::INSTALLER_RUN;
 use crate::menu::players_store::PLAYER_TABLE;
-use crate::moved::Place;
 use crate::pointers::GamePtr;
+use crate::session::Bytes;
 use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::keyboard_tables::KEYBOARD_TABLES;
@@ -63,7 +63,7 @@ const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim\0";
 /// units. Out of the image since 2026-10-24 (phase 5; it was `g_localeFile`, 0x4E0798),
 /// with the image's first bytes (`tests::first_values_are_the_games`).
 pub const LOCALE_LEN: usize = 0x30;
-pub static LOCALE: Place<[u8; LOCALE_LEN]> = Place::new([
+pub static LOCALE: Bytes<LOCALE_LEN> = Bytes::new([
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x2F, 0x2E, 0x2C, 0x00,
     0x64, 0x65, 0x66, 0x61, 0x75, 0x6C, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -72,13 +72,12 @@ pub static LOCALE: Place<[u8; LOCALE_LEN]> = Place::new([
 /// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
 /// language shows (2: the builds' notice; 7: Japan).
 pub fn notice_kind() -> u8 {
-    // SAFETY: written only by `load_language`, as the image's bytes were.
-    unsafe { (*LOCALE.ptr())[8] }
+    LOCALE.get(8)
 }
 
 /// `g_plainLetters` (0x4F0CC8 in the image until 2026-10-24): `g_lowerCase` with the
 /// accented letters made plain; made here, read by nothing now. The image's first values.
-pub static PLAIN_LETTERS: Place<[u8; 256]> = Place::new([
+pub static PLAIN_LETTERS: Bytes<256> = Bytes::new([
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
     0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
@@ -130,111 +129,107 @@ fn make_case_tables() -> Result<(), BadInput> {
     let lower = CaseTable::for_language(&built(2, true)?)?;
     set_case_table(&lower.lower);
     let plain = lower.plain_letters(&built(3, true)?);
-    // SAFETY: `PLAIN_LETTERS` is the game\'s table, written by this one function.
-    unsafe { PLAIN_LETTERS.ptr().write(plain.lower) };
+    PLAIN_LETTERS.write(&plain.lower);
     Ok(())
 }
 
 /// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
-unsafe fn correct_lexicon() -> Result<(), BadInput> {
-    let table = unsafe { std::slice::from_raw_parts_mut(lexicon(), LEXICON_ROOM) };
-    Ok(rc2k_core::strings::lexicon::correct(table)?)
+fn correct_lexicon() -> Result<(), BadInput> {
+    let room = GamePtr::new(crate::pointers::game_address(lexicon()));
+    let mut table = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
+    rc2k_core::strings::lexicon::correct(&mut table)?;
+    room.write_bytes(&table, "the lexicon's room")
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
-pub unsafe fn load_language(
-    compile: &mut dyn FnMut() -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    unsafe {
-        compile()?;
-        use_lexicon();
-        KEYBOARD_FILE
-            .layout
-            .set(KEYBOARD.built_in_layout.dead_keys.addr());
-        KEYBOARD_FILE.built_in.set(1);
-        KEYBOARD_FILE.mode.set(1);
+pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    compile()?;
+    use_lexicon();
+    KEYBOARD_FILE
+        .layout
+        .set(KEYBOARD.built_in_layout.dead_keys.addr());
+    KEYBOARD_FILE.built_in.set(1);
+    KEYBOARD_FILE.mode.set(1);
 
-        let locale = LOCALE.ptr().cast::<u8>();
-        if read_first_match(LOCALE_FILES.as_ptr(), locale, LOCALE_LEN as u32, 0)?.is_none() {
-            return Err(fatal(0x80E3_8381, ""));
-        }
-        // Converted: `rc2k_core::strings::language::Locale`.
-        let Ok(file) = Locale::parse(&LOCALE.ptr().read()) else {
-            return Err(fatal(0x80E3_8382, ""));
-        };
-        let units = file.units as u32;
-        crate::strings::units::set_units(units);
-        // Each car's copy of the units, at its +0x178.
-        for player in &PLAYER_TABLE.players {
-            player.update(|p| p.metric_units = units);
-        }
-
-        let keyboard = KEYBOARD_FILE.magic.as_ptr();
-        if read_first_match(KEYBOARD_FILES.as_ptr(), keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
-            if &KEYBOARD_FILE.magic.read() != b"KEYB" {
-                return Err(fatal(0x80E3_83A2, ""));
-            }
-            let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr();
-            for layout in &KEYBOARD_FILE.layouts {
-                for table in [
-                    &layout.dead_keys,
-                    &layout.plain,
-                    &layout.shifted,
-                    &layout.alt_gr,
-                    &layout.key_names,
-                ] {
-                    let offset = table.get();
-                    if offset != 0 {
-                        table.set(offset.wrapping_add(layouts));
-                    }
-                }
-            }
-            let chosen = KEYBOARD_FILE.chosen.get() as u32 * 0x14;
-            let layout = layouts.wrapping_add(chosen);
-            KEYBOARD_FILE.layout.set(layout);
-            if KEYBOARD_FILE.kind.get() == 0x0C {
-                let fourth = GamePtr::new(layout + 0x10).read::<u32>("a keyboard layout")?;
-                if fourth == 0 {
-                    return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
-                }
-                for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
-                    GamePtr::new(fourth.wrapping_add(at))
-                        .write::<u16>(value, "a keyboard table")?;
-                }
-            }
-        }
-
-        make_case_tables()?;
-
-        // `sub_403462`
-        if MACHINE.keyboard_type.get() == 2 {
-            GamePtr::new(KEYBOARD_TABLES.nec_head.addr()).copy_to(
-                GamePtr::new(crate::pointers::game_address(keyboard)),
-                0x30,
-                "the NEC keyboard head",
-            )?;
-            KEYBOARD_FILE.layout.set(KEYBOARD_TABLES.nec_layout.addr());
-            INSTALLER_RUN.first_drive.set(0x61u32);
-        }
-
-        // `sub_403495`
-        let kind = file.notice_kind;
-        if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
-            return Err(fatal(
-                0x9000_6044,
-                "You cannot run this version of RC in Japan\t",
-            ));
-        }
-        if kind == 7 {
-            TABLES.units.set(0x2EEu32);
-        }
-
-        correct_lexicon()?;
-
-        INSTALLER_RUN.offer_registration.set(0u32);
-        // The standalone offers no registration (owner, 2026-10-19).
-        Ok(())
+    let locale = LOCALE.as_ptr();
+    if read_first_match(LOCALE_FILES.as_ptr(), locale, LOCALE_LEN as u32, 0)?.is_none() {
+        return Err(fatal(0x80E3_8381, ""));
     }
+    // Converted: `rc2k_core::strings::language::Locale`.
+    let Ok(file) = Locale::parse(&LOCALE.read()) else {
+        return Err(fatal(0x80E3_8382, ""));
+    };
+    let units = file.units as u32;
+    crate::strings::units::set_units(units);
+    // Each car's copy of the units, at its +0x178.
+    for player in &PLAYER_TABLE.players {
+        player.update(|p| p.metric_units = units);
+    }
+
+    let keyboard = KEYBOARD_FILE.magic.as_ptr();
+    if read_first_match(KEYBOARD_FILES.as_ptr(), keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
+        if &KEYBOARD_FILE.magic.read() != b"KEYB" {
+            return Err(fatal(0x80E3_83A2, ""));
+        }
+        let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr();
+        for layout in &KEYBOARD_FILE.layouts {
+            for table in [
+                &layout.dead_keys,
+                &layout.plain,
+                &layout.shifted,
+                &layout.alt_gr,
+                &layout.key_names,
+            ] {
+                let offset = table.get();
+                if offset != 0 {
+                    table.set(offset.wrapping_add(layouts));
+                }
+            }
+        }
+        let chosen = KEYBOARD_FILE.chosen.get() as u32 * 0x14;
+        let layout = layouts.wrapping_add(chosen);
+        KEYBOARD_FILE.layout.set(layout);
+        if KEYBOARD_FILE.kind.get() == 0x0C {
+            let fourth = GamePtr::new(layout + 0x10).read::<u32>("a keyboard layout")?;
+            if fourth == 0 {
+                return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
+            }
+            for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
+                GamePtr::new(fourth.wrapping_add(at)).write::<u16>(value, "a keyboard table")?;
+            }
+        }
+    }
+
+    make_case_tables()?;
+
+    // `sub_403462`
+    if MACHINE.keyboard_type.get() == 2 {
+        GamePtr::new(KEYBOARD_TABLES.nec_head.addr()).copy_to(
+            GamePtr::new(crate::pointers::game_address(keyboard)),
+            0x30,
+            "the NEC keyboard head",
+        )?;
+        KEYBOARD_FILE.layout.set(KEYBOARD_TABLES.nec_layout.addr());
+        INSTALLER_RUN.first_drive.set(0x61u32);
+    }
+
+    // `sub_403495`
+    let kind = file.notice_kind;
+    if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
+        return Err(fatal(
+            0x9000_6044,
+            "You cannot run this version of RC in Japan\t",
+        ));
+    }
+    if kind == 7 {
+        TABLES.units.set(0x2EEu32);
+    }
+
+    correct_lexicon()?;
+
+    INSTALLER_RUN.offer_registration.set(0u32);
+    // The standalone offers no registration (owner, 2026-10-19).
+    Ok(())
 }
 
 #[cfg(test)]
@@ -251,11 +246,10 @@ mod tests {
             image_bytes(0x4E0784, super::KEYBOARD_FILES.len()),
             super::KEYBOARD_FILES
         );
-        assert_eq!(image_bytes(0x4E0798, super::LOCALE_LEN), unsafe {
-            super::LOCALE.ptr().read()
-        });
-        assert_eq!(image_bytes(0x4F0CC8, 256), unsafe {
-            super::PLAIN_LETTERS.ptr().read()
-        });
+        assert_eq!(
+            image_bytes(0x4E0798, super::LOCALE_LEN),
+            super::LOCALE.read()
+        );
+        assert_eq!(image_bytes(0x4F0CC8, 256), super::PLAIN_LETTERS.read());
     }
 }

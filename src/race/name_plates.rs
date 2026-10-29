@@ -174,7 +174,7 @@ pub fn draw_text_in_game(
     let mut copy: Font = font.read("a font record")?;
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
-        text.into().ptr() as *const u8,
+        GamePtr::new(text.into().game()),
         x as i32,
         y as i32,
         &mut GameCanvas,

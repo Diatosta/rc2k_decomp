@@ -102,7 +102,7 @@ pub fn frame_callback(
         CHEAT_VARS.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             notice::STRING,
-            NOTICE_FONT.as_ptr(),
+            NOTICE_FONT.game_ptr(),
             notice::AT.0 as i32,
             notice::AT.1 as i32,
             &mut GameCanvas,

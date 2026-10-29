@@ -75,9 +75,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
     }
-    unsafe {
-        crate::gfx::rect::fill_rect(VIEWER_PANEL.texture_rect[0].addr(), 0, TYRE.palette.addr())
-    }
+    crate::gfx::rect::fill_rect(VIEWER_PANEL.texture_rect[0].addr(), 0, TYRE.palette.addr())
 }
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
@@ -125,7 +123,7 @@ pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
                 }
                 crate::text::draw_string_by_id::draw_string_by_id_at(
                     id,
-                    crate::pointers::host(font) as *mut crate::text::font::Font,
+                    crate::pointers::GamePtr::new(font),
                     x as i32,
                     y as i32,
                     &mut crate::text::draw_text::GameCanvas,

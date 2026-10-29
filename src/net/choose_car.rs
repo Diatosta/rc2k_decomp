@@ -32,7 +32,7 @@ pub fn choose_car() -> Result<(), Refused> {
         cars,
         ..Carried::default()
     };
-    unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
+    { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
         crate::menu::take_shown_car::take_shown_car(cars)?;
         NET.own.head.set(

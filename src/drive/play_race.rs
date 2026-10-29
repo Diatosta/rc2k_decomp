@@ -14,12 +14,12 @@ use crate::errors::Refused;
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `race::run_race`'s and `sub_443F96`'s calls, ecx edi edx esi after
 /// `race::credits_race`'s: no read point; only DF after `net::lets_race`'s).
-pub unsafe fn play_race() -> Result<(), Refused> {
+pub fn play_race() -> Result<(), Refused> {
     log_line(c"");
     log_line(c"--------------------------");
     log_line(c"CALLING DOPLAYGAME - START");
     crate::logfile::write_line::set_enabled(0); // g_logEnabled
-    unsafe { crate::drive::race_loop::race_loop() }?;
+    { crate::drive::race_loop::race_loop() }?;
     crate::logfile::write_line::set_enabled(1);
     log_line(c"CALLING DOPLAYGAME - FINIS");
     log_line(c"--------------------------");

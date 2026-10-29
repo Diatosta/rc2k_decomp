@@ -27,30 +27,29 @@ pub fn place(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
 
 /// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
 /// the pixel (the original's eax).
-pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
-    unsafe {
-        // `g_surface`'s format pointer.
-        let format: u32 = DRAW_SURFACE.format.get();
-        if components != 0 && format == 0 {
-            return Err(BadInput("no surface format").into());
-        }
-        if crate::gfx::surface::address()? == 0 {
-            return Err(BadInput("no surface").into());
-        }
-        let pixel = if components == 0 {
-            0
-        } else {
-            components_to_pixel(
-                &(crate::pointers::host(format) as *const PixelFormat).read_unaligned(),
-                components,
-            )
-        };
-        let (at, wide) = place(x, y)?;
-        if wide == 2 {
-            (crate::pointers::host(at) as *mut u16).write_unaligned(pixel as u16);
-        } else {
-            (crate::pointers::host(at) as *mut u32).write_unaligned(pixel);
-        }
-        Ok(pixel)
+pub fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
+    use crate::pointers::GamePtr;
+    // `g_surface`'s format pointer.
+    let format: u32 = DRAW_SURFACE.format.get();
+    if components != 0 && format == 0 {
+        return Err(BadInput("no surface format").into());
     }
+    if crate::gfx::surface::address()? == 0 {
+        return Err(BadInput("no surface").into());
+    }
+    let pixel = if components == 0 {
+        0
+    } else {
+        components_to_pixel(
+            &GamePtr::new(format).read::<PixelFormat>("the surface's format")?,
+            components,
+        )
+    };
+    let (at, wide) = place(x, y)?;
+    if wide == 2 {
+        GamePtr::new(at).write(pixel as u16, "a surface's pixel")?;
+    } else {
+        GamePtr::new(at).write(pixel, "a surface's pixel")?;
+    }
+    Ok(pixel)
 }

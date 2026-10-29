@@ -127,7 +127,7 @@ fn place(v: Var) -> Place {
 impl Game {
     /// A search's or walk's record (the original's edi) and the carried values it leaves.
     fn screen(&mut self, screen: &crate::menu::screen_loop::Screen) -> Result<(), Refused> {
-        unsafe { run_screen_carried(screen, &mut self.f.c) }
+        run_screen_carried(screen, &mut self.f.c)
     }
 
     /// The flags `input::take_key` and its like leave.
@@ -173,202 +173,200 @@ impl flow::Game for Game {
         self.fault.check()?;
         use crate::menu as m;
         use flow::Call as C;
-        unsafe {
-            match c {
-                C::BeginEvent => m::begin_event::begin_event()?,
-                C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers()?,
-                C::ClearResultSlots => m::clear_result_slots::clear_result_slots()?,
-                C::ResetDrivers => m::reset_drivers::reset_drivers()?,
-                C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
-                C::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
-                C::TakePlayer1Units => m::take_player1_units::take_player1_units()?,
-                C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-                C::ClearEventState => m::clear_event_state::clear_event_state()?,
-                C::ReadyPlayers => m::ready_players::ready_players()?,
-                C::ResetSingleEvent => m::reset_single_event::reset_single_event()?,
-                C::ChampionshipWelcome => m::championship_welcome::championship_welcome(&self.f)?,
-                C::A8Welcome => m::a8_welcome::a8_welcome(&self.f)?,
-                C::FindRecord { section, index } => {
-                    use crate::records::find_record::{find_record_in, has_section};
-                    self.f.record = crate::records::stages_store::STAGE_TABLES.championship();
-                    self.f.c.palette = section;
-                    self.f.c.arg = index;
-                    // The original has no end-of-table check: a section past the table's
-                    // is refused.
-                    if !has_section(self.f.record, section, 600)? {
-                        return Err(BadInput("a record section past the table").into());
+        match c {
+            C::BeginEvent => m::begin_event::begin_event()?,
+            C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers()?,
+            C::ClearResultSlots => m::clear_result_slots::clear_result_slots()?,
+            C::ResetDrivers => m::reset_drivers::reset_drivers()?,
+            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+            C::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
+            C::TakePlayer1Units => m::take_player1_units::take_player1_units()?,
+            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+            C::ClearEventState => m::clear_event_state::clear_event_state()?,
+            C::ReadyPlayers => m::ready_players::ready_players()?,
+            C::ResetSingleEvent => m::reset_single_event::reset_single_event()?,
+            C::ChampionshipWelcome => m::championship_welcome::championship_welcome(&self.f)?,
+            C::A8Welcome => m::a8_welcome::a8_welcome(&self.f)?,
+            C::FindRecord { section, index } => {
+                use crate::records::find_record::{find_record_in, has_section};
+                self.f.record = crate::records::stages_store::STAGE_TABLES.championship();
+                self.f.c.palette = section;
+                self.f.c.arg = index;
+                // The original has no end-of-table check: a section past the table's
+                // is refused.
+                if !has_section(self.f.record, section, 600)? {
+                    return Err(BadInput("a record section past the table").into());
+                }
+                self.f.record = find_record_in(self.f.record, index as i32, section)?;
+            }
+            C::NextRecordKind => self.f.c.arg = m::next_record_kind::next_record_kind()?,
+            C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
+            C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
+            C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
+            C::ServicePass => m::service_pass::service_pass(&self.f.c)?,
+            C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all()?,
+            C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure()?,
+            C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
+            C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points()?,
+            C::ClassChampionshipPass => {
+                m::class_championship_pass::class_championship_pass(&self.f.c)?
+            }
+            C::AwardOverallPoints => {
+                let awarded = m::award_overall_points::award_overall_points()?;
+                awarded.carry_on(&mut self.f.c);
+            }
+            C::ClearStandingsB => m::clear_standings_b::clear_standings_b()?,
+            C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
+            C::NumberAllB => {
+                let numbered = m::number_all_b::number_all_b()?;
+                numbered.carry_on(&mut self.f.c);
+            }
+            C::ShowChampionshipStandings => {
+                m::show_championship_standings::show_championship_standings(&self.f.c)?
+            }
+            C::SectionFinish => m::section_finish::section_finish()?,
+            C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
+            C::WalkSectionRecords => m::walk_section_records::walk_section_records()?,
+            C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all()?,
+            C::ClassRallyResultsPass => {
+                m::class_rally_results_pass::class_rally_results_pass(&self.f.c)?
+            }
+            C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
+            C::NumberAllA => {
+                let numbered = m::number_all_a::number_all_a()?;
+                numbered.carry_on(&mut self.f.c);
+            }
+            C::ShowOverallRallyResults => {
+                m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?
+            }
+            C::RunEventRaces => m::run_event_races::run_event_races(&mut self.f)?,
+            C::AddPlayerTimes => m::add_player_times::add_player_times()?,
+            C::ClassStageResultsPass => {
+                m::class_stage_results_pass::class_stage_results_pass(&self.f.c)?
+            }
+            C::ShowOverallStageResults => {
+                m::show_overall_stage_results::show_overall_stage_results(&self.f.c)?
+            }
+            C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
+            C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
+            C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
+            C::InspectionPass => m::inspection_pass::inspection_pass(&self.f.c)?,
+            C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
+            C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
+            C::ChampionshipFinish => m::championship_finish::championship_finish()?,
+            C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
+            C::BestClassScores => m::best_class_scores::best_class_scores(&self.f.c)?,
+            C::BestOverallScores => m::best_overall_scores::best_overall_scores(&self.f.c)?,
+            C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
+            // `from_entry`: the entry's registers are the ones it leaves, and it
+            // reads none.
+            C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options()?,
+            C::HideInGameOptions { players } => {
+                self.f.c.arg = players;
+                m::in_game_options_items::hide_in_game_options(players)?
+            }
+            C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
+            C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,
+            C::RepairCar { car } => {
+                if let Some(car) = car {
+                    self.f.c.measure_x = car;
+                }
+                crate::service::repair_parts::repair_car()?
+            }
+            C::CheatCarList => {
+                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), &mut self.f.c)
+            }
+            C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
+            C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
+            C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
+            C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
+            C::TimeTrialService => m::time_trial_service::time_trial_service(&self.f)?,
+            C::Race { next, kind } => {
+                self.f.c.arg = u32::from(next);
+                self.f.c.palette = kind;
+                crate::race::single_rally_race::single_rally_race(self.f.c.arg, kind)?
+            }
+            C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
+            C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
+            C::Results48584B => self.screen(&m::results_48584b_loop::SCREEN)?,
+            C::Results482E9B => self.screen(&m::results_482e9b_loop::SCREEN)?,
+            C::Screen483163 => self.screen(&m::screen_483163_loop::SCREEN)?,
+            C::KeepStageBest => m::keep_stage_best::keep_stage_best()?,
+            C::TimeTrialQualifies { players } => {
+                if let Some(players) = players {
+                    self.f.c.measure_x = players;
+                }
+                m::time_trial_qualifies::time_trial_qualifies()?
+            }
+            C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
+            C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best()?,
+            C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
+            C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
+            C::StartStream { channel } => {
+                self.f.c.arg = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr(); // ";3files\%speech\rally\rally0.wav"
+                self.f.c.measure_x = channel;
+                crate::sound::start_stream::start_stream(self.f.c.arg, channel);
+            }
+            C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
+            C::StopStream => crate::sound::stop_stream::stop_stream(),
+            C::LoadPicture(p) => {
+                self.f.c.arg = match p {
+                    Picture::Championship => {
+                        crate::menu::texts_store::MENU_TEXTS.mob_welc_png.addr()
                     }
-                    self.f.record = find_record_in(self.f.record, index as i32, section)?;
-                }
-                C::NextRecordKind => self.f.c.arg = m::next_record_kind::next_record_kind()?,
-                C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
-                C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
-                C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
-                C::ServicePass => m::service_pass::service_pass(&self.f.c)?,
-                C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all()?,
-                C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure()?,
-                C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
-                C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points()?,
-                C::ClassChampionshipPass => {
-                    m::class_championship_pass::class_championship_pass(&self.f.c)?
-                }
-                C::AwardOverallPoints => {
-                    let awarded = m::award_overall_points::award_overall_points()?;
-                    awarded.carry_on(&mut self.f.c);
-                }
-                C::ClearStandingsB => m::clear_standings_b::clear_standings_b()?,
-                C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
-                C::NumberAllB => {
-                    let numbered = m::number_all_b::number_all_b()?;
-                    numbered.carry_on(&mut self.f.c);
-                }
-                C::ShowChampionshipStandings => {
-                    m::show_championship_standings::show_championship_standings(&self.f.c)?
-                }
-                C::SectionFinish => m::section_finish::section_finish()?,
-                C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
-                C::WalkSectionRecords => m::walk_section_records::walk_section_records()?,
-                C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all()?,
-                C::ClassRallyResultsPass => {
-                    m::class_rally_results_pass::class_rally_results_pass(&self.f.c)?
-                }
-                C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
-                C::NumberAllA => {
-                    let numbered = m::number_all_a::number_all_a()?;
-                    numbered.carry_on(&mut self.f.c);
-                }
-                C::ShowOverallRallyResults => {
-                    m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?
-                }
-                C::RunEventRaces => m::run_event_races::run_event_races(&mut self.f)?,
-                C::AddPlayerTimes => m::add_player_times::add_player_times()?,
-                C::ClassStageResultsPass => {
-                    m::class_stage_results_pass::class_stage_results_pass(&self.f.c)?
-                }
-                C::ShowOverallStageResults => {
-                    m::show_overall_stage_results::show_overall_stage_results(&self.f.c)?
-                }
-                C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
-                C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
-                C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
-                C::InspectionPass => m::inspection_pass::inspection_pass(&self.f.c)?,
-                C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
-                C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
-                C::ChampionshipFinish => m::championship_finish::championship_finish()?,
-                C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
-                C::BestClassScores => m::best_class_scores::best_class_scores(&self.f.c)?,
-                C::BestOverallScores => m::best_overall_scores::best_overall_scores(&self.f.c)?,
-                C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
-                // `from_entry`: the entry's registers are the ones it leaves, and it
-                // reads none.
-                C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options()?,
-                C::HideInGameOptions { players } => {
-                    self.f.c.arg = players;
-                    m::in_game_options_items::hide_in_game_options(players)?
-                }
-                C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
-                C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,
-                C::RepairCar { car } => {
-                    if let Some(car) = car {
-                        self.f.c.measure_x = car;
+                    Picture::A8 => crate::menu::texts_store::MENU_TEXTS.a8_welc_png.addr(),
+                };
+                self.f.c.palette = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr();
+                self.f.c.carry = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+                    crate::pointers::GamePtr::new(self.f.c.arg),
+                    crate::pointers::GamePtr::new(self.f.c.palette),
+                )?;
+            }
+            C::ConvertPicture => {
+                self.f.c.carry = crate::gfx::convert_picture::convert_picture_now()?
+            }
+            C::TakeKey => {
+                let key = crate::input::take_key::take_key();
+                self.f.c.arg = (self.f.c.arg & !0xFF) | u32::from(key);
+                self.key_flags(key);
+            }
+            C::RunFrame => {
+                // `screens::run_frame` with `menu::picture_frame`: the carry says
+                // the frame was not made; the zero flag is then eax == 0 (it is not).
+                self.f.c.arg = addr(PICTURE_FRAME);
+                match crate::platform::run_frame_now(m::picture_frame::picture_frame) {
+                    None => {
+                        self.f.c.carry = false;
+                        self.f.zero = true;
                     }
-                    crate::service::repair_parts::repair_car()?
-                }
-                C::CheatCarList => {
-                    m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), &mut self.f.c)
-                }
-                C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
-                C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
-                C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
-                C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
-                C::TimeTrialService => m::time_trial_service::time_trial_service(&self.f)?,
-                C::Race { next, kind } => {
-                    self.f.c.arg = u32::from(next);
-                    self.f.c.palette = kind;
-                    crate::race::single_rally_race::single_rally_race(self.f.c.arg, kind)?
-                }
-                C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
-                C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
-                C::Results48584B => self.screen(&m::results_48584b_loop::SCREEN)?,
-                C::Results482E9B => self.screen(&m::results_482e9b_loop::SCREEN)?,
-                C::Screen483163 => self.screen(&m::screen_483163_loop::SCREEN)?,
-                C::KeepStageBest => m::keep_stage_best::keep_stage_best()?,
-                C::TimeTrialQualifies { players } => {
-                    if let Some(players) = players {
-                        self.f.c.measure_x = players;
-                    }
-                    m::time_trial_qualifies::time_trial_qualifies()?
-                }
-                C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
-                C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best()?,
-                C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
-                C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
-                C::StartStream { channel } => {
-                    self.f.c.arg = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr(); // ";3files\%speech\rally\rally0.wav"
-                    self.f.c.measure_x = channel;
-                    crate::sound::start_stream::start_stream(self.f.c.arg, channel);
-                }
-                C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
-                C::StopStream => crate::sound::stop_stream::stop_stream(),
-                C::LoadPicture(p) => {
-                    self.f.c.arg = match p {
-                        Picture::Championship => {
-                            crate::menu::texts_store::MENU_TEXTS.mob_welc_png.addr()
-                        }
-                        Picture::A8 => crate::menu::texts_store::MENU_TEXTS.a8_welc_png.addr(),
-                    };
-                    self.f.c.palette = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr();
-                    self.f.c.carry =
-                        crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                            crate::pointers::GamePtr::new(self.f.c.arg),
-                            crate::pointers::GamePtr::new(self.f.c.palette),
-                        )?;
-                }
-                C::ConvertPicture => {
-                    self.f.c.carry = crate::gfx::convert_picture::convert_picture_now()?
-                }
-                C::TakeKey => {
-                    let key = crate::input::take_key::take_key();
-                    self.f.c.arg = (self.f.c.arg & !0xFF) | u32::from(key);
-                    self.key_flags(key);
-                }
-                C::RunFrame => {
-                    // `screens::run_frame` with `menu::picture_frame`: the carry says
-                    // the frame was not made; the zero flag is then eax == 0 (it is not).
-                    self.f.c.arg = addr(PICTURE_FRAME);
-                    match crate::platform::run_frame_now(m::picture_frame::picture_frame) {
-                        None => {
-                            self.f.c.carry = false;
-                            self.f.zero = true;
-                        }
-                        Some(made) => {
-                            let made = made?;
-                            self.f.c.carry = !made;
-                            if made {
-                                self.f.zero = false;
-                            }
+                    Some(made) => {
+                        let made = made?;
+                        self.f.c.carry = !made;
+                        if made {
+                            self.f.zero = false;
                         }
                     }
-                }
-                C::WaitOrKey { ms } => {
-                    self.f.c.arg = ms;
-                    let key = crate::system::wait_or_key::wait_or_key(ms);
-                    self.f.c.arg = u32::from(key);
-                    self.key_flags(key);
-                    self.f.c.carry = false;
-                }
-                C::StreamPlaying => {
-                    let (zero, carry) = crate::sound::stream_playing::stream_playing();
-                    self.f.zero = zero;
-                    self.f.c.carry = carry;
-                }
-                C::ConfirmLeaving => {
-                    let answer = crate::menu::screen_loop::confirm_leaving(&self.f.c)?;
-                    self.f.c.carry = answer < 1;
-                    self.f.zero = answer == 1;
                 }
             }
+            C::WaitOrKey { ms } => {
+                self.f.c.arg = ms;
+                let key = crate::system::wait_or_key::wait_or_key(ms);
+                self.f.c.arg = u32::from(key);
+                self.key_flags(key);
+                self.f.c.carry = false;
+            }
+            C::StreamPlaying => {
+                let (zero, carry) = crate::sound::stream_playing::stream_playing();
+                self.f.zero = zero;
+                self.f.c.carry = carry;
+            }
+            C::ConfirmLeaving => {
+                let answer = crate::menu::screen_loop::confirm_leaving(&self.f.c)?;
+                self.f.c.carry = answer < 1;
+                self.f.zero = answer == 1;
+            }
         }
+
         Ok(self.reply())
     }
 

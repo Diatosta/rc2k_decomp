@@ -32,7 +32,7 @@ const STATES: [(u32, u32); 6] = [
 ];
 
 fn rdtsc() -> u32 {
-    unsafe { crate::arch::_rdtsc() as u32 }
+    crate::arch::rdtsc() as u32
 }
 
 fn share(at: usize, start: u32) {

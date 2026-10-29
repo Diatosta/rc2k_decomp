@@ -46,31 +46,30 @@ impl starters::Event for Game {
     fn call(&mut self, c: starters::Call) -> Result<(), Refused> {
         use crate::menu as m;
         use starters::Call as C;
-        unsafe {
-            match c {
-                C::RepairCar { current } => {
-                    if current {
-                        self.f.record = player(get(CURRENT));
-                    }
-                    crate::service::repair_parts::repair_car()?
+        match c {
+            C::RepairCar { current } => {
+                if current {
+                    self.f.record = player(get(CURRENT));
                 }
-                C::BeginEvent => m::begin_event::begin_event()?,
-                C::ResetDrivers => m::reset_drivers::reset_drivers()?,
-                C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
-                C::SelectCar(list) => {
-                    self.f.c.cars = match list {
-                        starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
-                        starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
-                    };
-                    run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
-                }
-                C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
-                C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-                C::RunA8Championship => m::run_a8_championship::run_a8_championship(&self.f.c)?,
-                C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
-                C::RunChampionship => m::run_championship::run_championship(&self.f.c)?,
+                crate::service::repair_parts::repair_car()?
             }
+            C::BeginEvent => m::begin_event::begin_event()?,
+            C::ResetDrivers => m::reset_drivers::reset_drivers()?,
+            C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+            C::SelectCar(list) => {
+                self.f.c.cars = match list {
+                    starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
+                    starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
+                };
+                run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
+            }
+            C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
+            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+            C::RunA8Championship => m::run_a8_championship::run_a8_championship(&self.f.c)?,
+            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+            C::RunChampionship => m::run_championship::run_championship(&self.f.c)?,
         }
+
         Ok(())
     }
 }

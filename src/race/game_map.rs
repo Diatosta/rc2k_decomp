@@ -287,23 +287,20 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
 /// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
 /// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
 /// limits and buffer put back.
-pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
-    unsafe {
-        if MAP.use_packed.get() == 1
-            && !crate::files::file_exists::file_exists_at(GamePtr::new(picture))?
-        {
-            let path = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
-            let cursor = crate::strings::str_append::str_append(
-                crate::pointers::host(picture) as *const u8,
-                path.add(3),
-            )?;
-            GamePtr::new(crate::pointers::game_address(cursor) - 4)
-                .write(0x0071_732Eu32, "the packed map's path")?;
-            GamePtr::new(crate::pointers::game_address(path))
-                .write_bytes(b"files\\", "the packed map's path")?;
-            load_packed_game_map(crate::pointers::game_address(path))?;
-            return Ok(());
-        }
+pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
+    if MAP.use_packed.get() == 1
+        && !crate::files::file_exists::file_exists_at(GamePtr::new(picture))?
+    {
+        // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
+        // "files\" at the start (`str_append` and the two writes of the original).
+        let path = crate::files::state::PACKED_PATH.addr();
+        let len = crate::strings::text_length::nul_at(picture, "a text to append")?;
+        GamePtr::new(picture).copy_to(GamePtr::new(path + 3), len as usize, "a text to append")?;
+        GamePtr::new((path + 3 + len).wrapping_sub(4))
+            .write(0x0071_732Eu32, "the packed map's path")?;
+        GamePtr::new(path).write_bytes(b"files\\", "the packed map's path")?;
+        load_packed_game_map(path)?;
+        return Ok(());
     }
     MAP.tile_count.set(0u32);
     MAP.picture_path.set(picture);

@@ -20,13 +20,13 @@ use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 
 /// A tick of the devices (see the header).
-pub unsafe fn input_tick() -> Result<(), Refused> {
+pub fn input_tick() -> Result<(), Refused> {
     let command = DEVICES
         .input_command
         .atomic()
         .swap(0, std::sync::atomic::Ordering::SeqCst);
     if command != 0 {
-        return unsafe { crate::input::device_command::device_command(command) };
+        return crate::input::device_command::device_command(command);
     }
     let records = record_addrs();
     for record in records {
@@ -57,6 +57,6 @@ pub unsafe fn input_tick() -> Result<(), Refused> {
 }
 
 /// For the standalone's input thread.
-pub unsafe fn input_tick_in_game() -> Result<(), Refused> {
-    unsafe { input_tick() }
+pub fn input_tick_in_game() -> Result<(), Refused> {
+    input_tick()
 }

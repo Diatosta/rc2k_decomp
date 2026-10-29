@@ -12,7 +12,7 @@ use crate::text::font::Font;
 /// Returns whether a line was too wide: the carry flag.
 pub fn draw_text_keep_regs(
     font: &mut Font,
-    text: *const u8,
+    text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,

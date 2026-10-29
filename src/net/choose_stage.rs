@@ -17,7 +17,7 @@ use crate::race::state_store::RACE_STATE;
 /// registers (see `net::choose_car`): all 0 here.
 pub fn choose_stage() -> Result<(), Refused> {
     ESCAPED.set(0);
-    unsafe { run_screen(&crate::menu::select_stage_loop::SCREEN, &Carried::default()) }?;
+    { run_screen(&crate::menu::select_stage_loop::SCREEN, &Carried::default()) }?;
     if ESCAPED.get() != 1 {
         NET.own
             .head

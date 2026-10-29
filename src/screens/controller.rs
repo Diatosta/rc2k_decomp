@@ -59,7 +59,7 @@ pub fn learn_axis() -> Result<(), Refused> {
         let item = LOOP_FLAGS.menu.get()?.item(LOOP_FLAGS.item.get())?;
         crate::text::draw_string_by_id::draw_string_by_id_at(
             0x3BE,
-            crate::gfx::typefaces::fonts::LIST.as_ptr(),
+            crate::gfx::typefaces::fonts::LIST.game_ptr(),
             0x1B8,
             item.text_y.get() as i32,
             &mut crate::text::draw_text::GameCanvas,

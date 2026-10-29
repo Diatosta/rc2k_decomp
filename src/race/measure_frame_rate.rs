@@ -31,24 +31,22 @@ fn frame_rate_plain() {
 /// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
 /// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
 /// half, the cycles) are read by no caller.
-pub unsafe fn measure_frame_rate() -> Option<u32> {
+pub fn measure_frame_rate() -> Option<u32> {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
-    unsafe {
-        let (count, due) = count_frame(PHYSICS.frame_rate_count.bits());
-        PHYSICS.frame_rate_count.set(count);
-        if !due {
-            return None;
-        }
-        let now = crate::arch::_rdtsc() as u32;
-        FRAME_SWITCHES.frame_now.set_bits(now);
-        let last: u32 = FRAME_SWITCHES.frame_last.bits();
-        if let Some(cycles) = cycles_since(now, last) {
-            DRAW.scratch.set_bits(cycles);
-            frame_rate_plain();
-        }
-        let now: u32 = FRAME_SWITCHES.frame_now.bits();
-        FRAME_SWITCHES.frame_last.set_bits(now);
-        Some(now)
+    let (count, due) = count_frame(PHYSICS.frame_rate_count.bits());
+    PHYSICS.frame_rate_count.set(count);
+    if !due {
+        return None;
     }
+    let now = crate::arch::rdtsc() as u32;
+    FRAME_SWITCHES.frame_now.set_bits(now);
+    let last: u32 = FRAME_SWITCHES.frame_last.bits();
+    if let Some(cycles) = cycles_since(now, last) {
+        DRAW.scratch.set_bits(cycles);
+        frame_rate_plain();
+    }
+    let now: u32 = FRAME_SWITCHES.frame_now.bits();
+    FRAME_SWITCHES.frame_last.set_bits(now);
+    Some(now)
 }

@@ -36,7 +36,7 @@ static TIMES: [(&Float, &Float); 2] = [
 ];
 
 fn rdtsc() -> u32 {
-    unsafe { crate::arch::_rdtsc() as u32 }
+    crate::arch::rdtsc() as u32
 }
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,

@@ -73,8 +73,8 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             put(line, end, 0)?;
             let width = {
                 measure_text_at(
-                    CHAT_FONT.as_ptr(),
-                    line.as_ptr() as *const u8,
+                    CHAT_FONT.game_ptr(),
+                    crate::pointers::GamePtr::new(line.addr()),
                     0,
                     &mut GameCanvas,
                 )

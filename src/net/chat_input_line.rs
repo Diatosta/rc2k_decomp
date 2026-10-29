@@ -28,8 +28,8 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
     };
     {
         crate::text::draw_text::draw_text_at(
-            CHAT_FONT.as_ptr(),
-            shown.ptr() as *const u8,
+            CHAT_FONT.game_ptr(),
+            crate::pointers::GamePtr::new(shown.game()),
             0xA,
             y as i32,
             &mut GameCanvas,

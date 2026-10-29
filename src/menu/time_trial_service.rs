@@ -30,7 +30,7 @@ const DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
 
 /// The Rust version. `f` the registers the caller carries; the original keeps every
 /// register of it (`pusha` .. `popa`).
-pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
+pub fn time_trial_service(f: &Flow) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
@@ -52,7 +52,7 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             MENU_STATE.driver_stats.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats() }?;
             MENU_STATE.menus.service_flag.set(0);
-            unsafe { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
+            { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
             if yes() {
                 break 'all;
             }
@@ -65,7 +65,7 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             let record = player(current);
             if passes::is_out(dword(record + 0xD0)?) {
                 crate::menu::inspection_faults::inspection_faults()?;
-                unsafe { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
+                { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
                 if yes() {
                     break 'all;
                 }

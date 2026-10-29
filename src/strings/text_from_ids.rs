@@ -18,6 +18,11 @@ use crate::strings::append_string_by_id::append_string_by_id;
 /// The shared text buffer's length (`strings::text_buffer`).
 pub const TEXT_LEN: usize = 0x400;
 
+/// The game's text buffer as a game pointer.
+pub fn text_at() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(crate::strings::text_buffer::TEXT_BUFFER.text.addr())
+}
+
 pub fn text() -> *mut u8 {
     crate::strings::text_buffer::TEXT_BUFFER.text.as_ptr()
 }

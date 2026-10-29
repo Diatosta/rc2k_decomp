@@ -159,11 +159,10 @@ fn steps() -> Result<(), Refused> {
         }
         revs()?;
         x87_15();
-        unsafe {
-            crate::physics::cap_reverse_inputs::cap_reverse_inputs();
-            crate::physics::add_drive_forces::add_drive_forces();
-            crate::physics::ease_low_speed_forces::ease_low_speed_forces();
-        }
+        crate::physics::cap_reverse_inputs::cap_reverse_inputs();
+        crate::physics::add_drive_forces::add_drive_forces();
+        crate::physics::ease_low_speed_forces::ease_low_speed_forces();
+
         x87_16();
         if CAR.parts_state.get() != 0 {
             PHYSICS.drive_forces[0].set_bits(x87::mul(

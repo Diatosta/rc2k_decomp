@@ -1149,9 +1149,7 @@ pub static STAGE_TABLES: StageTables = StageTables {
 fn listed(cells: &[Loose], ida: usize, n: u32) -> u32 {
     match cells.get(n as usize) {
         Some(c) => c.get(),
-        None => unsafe {
-            crate::store::ida_read(ida.wrapping_add(4usize.wrapping_mul(n as usize)))
-        },
+        None => crate::store::ida_read(ida.wrapping_add(4usize.wrapping_mul(n as usize))),
     }
 }
 
@@ -1205,6 +1203,8 @@ mod tests {
 
     #[test]
     fn stage_tables_start_as_the_games() {
+        // Other tests write the tables (and put them back) under the lock.
+        let _g = crate::store::test_lock();
         assert_eq!(size_of::<StageTables>(), END - START + 2);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START + 2, "{ida:#X}");
         at(offset_of!(StageTables, result_tables), 0x7354FE);

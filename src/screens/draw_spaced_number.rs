@@ -15,28 +15,26 @@ use crate::errors::Refused;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::pointers::GamePtr;
 use crate::text::draw_text::{Canvas, draw_text_at};
-use crate::text::font::Font;
 
 const CELLS_LEN: usize = 0x100;
 
 /// The Rust version: `text` .. `end`, the column of the last character at `x` + 0x32.
 pub fn draw_spaced_number(
-    font: *mut Font,
-    text: *const u8,
-    end: *const u8,
+    font: GamePtr,
+    text: GamePtr,
+    end: GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::spaced_places`.
-    let n = crate::pointers::game_address(end).wrapping_sub(crate::pointers::game_address(text));
+    let n = end.addr().wrapping_sub(text.addr());
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
     DRAW_WORK.work_b8.set(n);
     let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
         .cells
         .addr();
-    let digits =
-        GamePtr::new(crate::pointers::game_address(text)).read_bytes(n as usize, "the digits")?;
+    let digits = text.read_bytes(n as usize, "the digits")?;
     let mut spaced = Vec::with_capacity(2 * digits.len());
     for &digit in &digits {
         spaced.extend([digit, 0]);
@@ -45,7 +43,7 @@ pub fn draw_spaced_number(
     for (i, x) in places {
         draw_text_at(
             font,
-            crate::pointers::host_at(cells as usize + 2 * i) as *const u8,
+            crate::pointers::GamePtr::new((cells as usize + 2 * i) as u32),
             x,
             y,
             canvas,

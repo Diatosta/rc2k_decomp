@@ -20,7 +20,7 @@ use crate::race::game_map::{GAME_MAP, MAP, Tile};
 use rc2k_core::race::map::TILE;
 
 /// The Rust version (see the header).
-pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
+pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_offset,
     // tile_index, pixel_width}`.
@@ -76,33 +76,34 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
             let source = source.unwrap_or_default();
             let mut at = 0usize;
             for _ in 0..TILE {
+                // The row's pixels, `wide` bytes each, written at once (the locked texture
+                // is the platform's memory).
+                let mut row = Vec::with_capacity(TILE as usize * wide as usize);
                 for _ in 0..TILE {
-                    // The locked texture is the platform's memory (left for its own change).
-                    unsafe {
-                        if wide == 2 {
-                            let v = if tile != 0 {
-                                u16::from_le_bytes([source[at], source[at + 1]])
-                            } else {
-                                black as u16
-                            };
-                            (crate::pointers::host(to) as *mut u16).write_unaligned(v);
+                    if wide == 2 {
+                        let v = if tile != 0 {
+                            u16::from_le_bytes([source[at], source[at + 1]])
                         } else {
-                            let v = if tile != 0 {
-                                u32::from_le_bytes([
-                                    source[at],
-                                    source[at + 1],
-                                    source[at + 2],
-                                    source[at + 3],
-                                ])
-                            } else {
-                                black
-                            };
-                            (crate::pointers::host(to) as *mut u32).write_unaligned(v);
-                        }
+                            black as u16
+                        };
+                        row.extend_from_slice(&v.to_le_bytes());
+                    } else {
+                        let v = if tile != 0 {
+                            u32::from_le_bytes([
+                                source[at],
+                                source[at + 1],
+                                source[at + 2],
+                                source[at + 3],
+                            ])
+                        } else {
+                            black
+                        };
+                        row.extend_from_slice(&v.to_le_bytes());
                     }
-                    to = to.wrapping_add(wide);
                     at += wide as usize;
                 }
+                crate::pointers::GamePtr::new(to).write_bytes(&row, "a map texture's row")?;
+                to = to.wrapping_add(TILE * wide);
                 to = to.wrapping_add(gap);
             }
         }

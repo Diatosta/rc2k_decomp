@@ -25,47 +25,45 @@ fn depth_list() -> u32 {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_view_scene() -> Result<(), Refused> {
+pub fn draw_view_scene() -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
-    unsafe {
-        if CAR.view_covered.get() != 0 {
-            return draw_view_tint();
-        }
-        // dword_635014, dword_635018.
-        for cell in &OBJECT_WORK.view_cleared {
-            cell.set(0);
-        }
-        race_sound_tick()?; // 0x14
-        car_light_modes()?;
-        clear_point_records()?;
-        set_up_fog()?;
-        camera_view()?;
-        draw_sky()?;
-        crate::race::flush_draw_batch::flush_draw_batch()?;
-        view_light()?;
-        race_sound_tick()?; // 0x15
-        reset_lamps()?;
-        RACE_VIEW.view_lamps.set_bits(0u32);
-        prepare_course_view()?;
-        gather_visible_faces()?;
-        eax_environment()?;
-        gather_lamps()?;
-        lamps_wanted()?;
-        race_sound_tick()?; // 0x16
-        sort_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
-        draw_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
-        draw_race_slots()?;
-        race_sound_tick()?; // 0x17
-        crate::race::car_shadow::cast_car_shadows()?;
-        crate::race::skidmarks::draw_skidmarks_if_on()?;
-        car_lights()?;
-        race_sound_tick()?; // 0x18
-        sort_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
-        race_sound_tick()?; // 0x19
-        draw_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
-        race_sound_tick()?; // 0x1A
-        crate::race::flush_draw_batch::flush_draw_batch()?;
-        store_view_value()
+    if CAR.view_covered.get() != 0 {
+        return draw_view_tint();
     }
+    // dword_635014, dword_635018.
+    for cell in &OBJECT_WORK.view_cleared {
+        cell.set(0);
+    }
+    race_sound_tick()?; // 0x14
+    car_light_modes()?;
+    clear_point_records()?;
+    set_up_fog()?;
+    camera_view()?;
+    draw_sky()?;
+    crate::race::flush_draw_batch::flush_draw_batch()?;
+    view_light()?;
+    race_sound_tick()?; // 0x15
+    reset_lamps()?;
+    RACE_VIEW.view_lamps.set_bits(0u32);
+    prepare_course_view()?;
+    gather_visible_faces()?;
+    eax_environment()?;
+    gather_lamps()?;
+    lamps_wanted()?;
+    race_sound_tick()?; // 0x16
+    sort_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
+    draw_entries(&RACE_VIEW.sort_entry_count, sort_list())?;
+    draw_race_slots()?;
+    race_sound_tick()?; // 0x17
+    crate::race::car_shadow::cast_car_shadows()?;
+    crate::race::skidmarks::draw_skidmarks_if_on()?;
+    car_lights()?;
+    race_sound_tick()?; // 0x18
+    sort_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
+    race_sound_tick()?; // 0x19
+    draw_entries(&RACE_VIEW.depth_entry_count, depth_list())?;
+    race_sound_tick()?; // 0x1A
+    crate::race::flush_draw_batch::flush_draw_batch()?;
+    store_view_value()
 }

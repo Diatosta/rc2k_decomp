@@ -15,7 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::player_names::{PLAYERS, name};
 use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
-use crate::text::font::Font;
 use crate::text::measure_string_by_id::MEASURING_FONT;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::menu::text_entry;
@@ -35,13 +34,18 @@ pub fn fit_name(text: u32, x: u32) -> Result<u32, Refused> {
         return Err(BadInput("a name without its end").into());
     };
     // Converted: `rc2k_core::menu::text_entry::fit_name`.
-    let font: *mut Font = MEASURING_FONT.as_ptr();
+    let font = MEASURING_FONT.game_ptr();
     text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
         GamePtr::new(text + len as u32).write::<u8>(0, "a name")?;
-        Ok(
-            { measure_text_at(font, crate::pointers::host(text), x as i32, &mut GameCanvas) }?
-                .width,
-        )
+        Ok({
+            measure_text_at(
+                font,
+                crate::pointers::GamePtr::new(text),
+                x as i32,
+                &mut GameCanvas,
+            )
+        }?
+        .width)
     })
 }
 

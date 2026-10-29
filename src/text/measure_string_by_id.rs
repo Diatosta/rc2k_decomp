@@ -9,7 +9,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::strings::text_from_ids::text;
+use crate::pointers::GamePtr;
+use crate::strings::text_from_ids::text_at;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
@@ -23,12 +24,11 @@ pub fn measure_string_by_id(
     id: u32,
     font: &mut Font,
     x: i32,
-    buffer: *mut u8,
+    buffer: GamePtr,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
     let bytes = string_text(id)?;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
-        .write_bytes(&bytes, "the text buffer")?;
+    buffer.write_bytes(&bytes, "the text buffer")?;
     measure_text(font, buffer, x, canvas)
 }
 
@@ -36,18 +36,17 @@ pub fn measure_string_by_id(
 /// The font object is only written if the canvas keeps font changes.
 pub fn measure_string_by_id_at(
     id: u32,
-    font: *mut Font,
+    font: GamePtr,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    if font.is_null() {
+    if font.addr() == 0 {
         return Err(BadInput("no font").into());
     }
-    let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-        .read::<Font>("a font")?;
-    let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
+    let mut copy = font.read::<Font>("a font")?;
+    let measured = measure_string_by_id(id, &mut copy, x, text_at(), canvas)?;
     if canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
+        font.write(copy, "a font")?;
     }
     Ok(measured)
 }

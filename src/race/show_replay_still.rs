@@ -40,55 +40,53 @@ pub fn show_replay_still() -> Result<(), Refused> {
     if !(1..=8).contains(&RACE_VIEW.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
-    unsafe {
-        crate::physics::split_tables_store::SPLIT_TABLES
-            .still
-            .set(1);
-        FRAME_WORK.still_2.set(1);
+    crate::physics::split_tables_store::SPLIT_TABLES
+        .still
+        .set(1);
+    FRAME_WORK.still_2.set(1);
+    load_frame()?;
+    load_replay_cars::load_replay_cars()?;
+    replay_cameras::replay_cameras()?;
+    for step in 0..g(&REPLAY_VIEW.replay_frame) {
+        REPLAY_FRAMES.step_frame.set(step);
+        REPLAY_FRAMES.step_block.set(REPLAY_VIEW.replay_block.get());
+        crate::race::step_replay_cars::step_replay_cars()?;
+    }
+    if REPLAY_VIEW.replay_frame.get() == 0 {
+        REPLAY_FRAMES.step_first.set(1);
+        crate::race::step_replay_cars::step_replay_cars()?;
+        REPLAY_FRAMES.step_first.set(0);
         load_frame()?;
         load_replay_cars::load_replay_cars()?;
-        replay_cameras::replay_cameras()?;
-        for step in 0..g(&REPLAY_VIEW.replay_frame) {
-            REPLAY_FRAMES.step_frame.set(step);
-            REPLAY_FRAMES.step_block.set(REPLAY_VIEW.replay_block.get());
-            crate::race::step_replay_cars::step_replay_cars()?;
-        }
-        if REPLAY_VIEW.replay_frame.get() == 0 {
-            REPLAY_FRAMES.step_first.set(1);
-            crate::race::step_replay_cars::step_replay_cars()?;
-            REPLAY_FRAMES.step_first.set(0);
-            load_frame()?;
-            load_replay_cars::load_replay_cars()?;
-        }
-        RACE_WORK.current_car.set(0);
-        loop {
-            load_car::load_car()?;
-            if !matches!(CAR.driver_kind.get(), 0 | 2) {
-                REPLAY_FRAMES.step_first.set(1);
-                crate::physics::camera_frame::camera_frame()?;
-                REPLAY_FRAMES.step_first.set(0);
-            }
-            store_car::store_car()?;
-            RACE_WORK
-                .current_car
-                .set(RACE_WORK.current_car.get().wrapping_add(1));
-            if RACE_WORK.current_car.get() == RACE_VIEW.race_cars.get() {
-                break;
-            }
-        }
-        RACE_VIEW.view_on[0].set(0);
-        RACE_VIEW.view_on[1].set(0);
-        FRAME_WORK.drawing.set(1);
-        let kept = RACE_VARS.scene_switch.get();
-        RACE_VARS.scene_switch.set(1);
-        // The scene (it reads no register).
-        crate::race::draw_race_scene::draw_race_scene()?;
-        RACE_VARS.scene_switch.set(kept);
-        FRAME_WORK.drawing.set(0);
-        FRAME_WORK.still_2.set(0);
-        crate::physics::split_tables_store::SPLIT_TABLES
-            .still
-            .set(0);
     }
+    RACE_WORK.current_car.set(0);
+    loop {
+        load_car::load_car()?;
+        if !matches!(CAR.driver_kind.get(), 0 | 2) {
+            REPLAY_FRAMES.step_first.set(1);
+            crate::physics::camera_frame::camera_frame()?;
+            REPLAY_FRAMES.step_first.set(0);
+        }
+        store_car::store_car()?;
+        RACE_WORK
+            .current_car
+            .set(RACE_WORK.current_car.get().wrapping_add(1));
+        if RACE_WORK.current_car.get() == RACE_VIEW.race_cars.get() {
+            break;
+        }
+    }
+    RACE_VIEW.view_on[0].set(0);
+    RACE_VIEW.view_on[1].set(0);
+    FRAME_WORK.drawing.set(1);
+    let kept = RACE_VARS.scene_switch.get();
+    RACE_VARS.scene_switch.set(1);
+    // The scene (it reads no register).
+    crate::race::draw_race_scene::draw_race_scene()?;
+    RACE_VARS.scene_switch.set(kept);
+    FRAME_WORK.drawing.set(0);
+    FRAME_WORK.still_2.set(0);
+    crate::physics::split_tables_store::SPLIT_TABLES
+        .still
+        .set(0);
     Ok(())
 }

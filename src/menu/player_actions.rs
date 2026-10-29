@@ -138,10 +138,10 @@ pub fn leave_with_carry() {
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one. `c` the carried values the item gets.
-pub unsafe fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
+pub fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
     let kept = EVENT_STATE.current_player.get();
     EVENT_STATE.current_player.set(n);
-    let done = unsafe { crate::menu::show_car_specs::show_car_specs(c) };
+    let done = { crate::menu::show_car_specs::show_car_specs(c) };
     EVENT_STATE.current_player.set(kept);
     done
 }
@@ -229,7 +229,7 @@ macro_rules! car_specs {
             use super::*;
             /// The Rust version where the typed tables run it (`menu::table_calls`).
             pub fn run(c: &Carried) -> Result<(), crate::errors::Refused> {
-                unsafe { player_car_specs($n, c) }
+                { player_car_specs($n, c) }
             }
         }
     };

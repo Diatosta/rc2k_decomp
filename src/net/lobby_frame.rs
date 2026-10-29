@@ -66,13 +66,13 @@ pub fn lobby_frame() -> Result<(), Refused> {
         let out = {
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 id,
-                HEADING_FONT.as_ptr(),
+                HEADING_FONT.game_ptr(),
                 x,
                 y as i32,
                 &mut canvas,
             )
         }?;
-        palette = crate::pointers::game_address(out.text);
+        palette = out.text.addr();
     }
     y += 0x1D;
     if NET.players.get() != 0 {
@@ -102,8 +102,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
             };
             let name = {
                 crate::text::draw_text::draw_text_at(
-                    font.as_ptr(),
-                    TEXT_BUFFER.text.as_ptr() as *const u8,
+                    font.game_ptr(),
+                    crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -114,7 +114,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 screens::car_sprite(block.record.head.get(1)),
                 x,
                 y + 1,
-                crate::pointers::game_address(name.text),
+                name.text.addr(),
             )?;
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
@@ -130,8 +130,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 cursor.nul()?;
                 let out = {
                     crate::text::draw_text::draw_text_at(
-                        NAME_FONT.as_ptr(),
-                        TEXT_BUFFER.text.as_ptr() as *const u8,
+                        NAME_FONT.game_ptr(),
+                        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -143,7 +143,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 cursor.nul()?;
                 {
                     crate::text::draw_time_text::draw_time_text(
-                        FONT.as_ptr(),
+                        FONT.game_ptr(),
                         TEXT_BUFFER.text.addr(),
                         x,
                         y,
@@ -162,7 +162,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             cursor.nul()?;
             {
                 crate::text::draw_time_text::draw_time_text(
-                    FONT.as_ptr(),
+                    FONT.game_ptr(),
                     TEXT_BUFFER.text.addr(),
                     x,
                     total_y,
@@ -178,8 +178,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
     crate::net::lock_received::lock_received();
     {
         crate::text::draw_text::draw_text_at(
-            CHAT_FONT.as_ptr(),
-            NET.chat.as_ptr() as *const u8,
+            CHAT_FONT.game_ptr(),
+            crate::pointers::GamePtr::new(NET.chat.addr()),
             0xA,
             y as i32,
             &mut canvas,
@@ -202,7 +202,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         }
     }
     for line_y in [0x156, 0x217] {
-        unsafe { crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, FONTS.palettes.get()) };
+        crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, FONTS.palettes.get());
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();

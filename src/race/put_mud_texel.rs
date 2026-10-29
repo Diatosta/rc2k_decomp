@@ -14,16 +14,13 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::race::mud_texel::texel_place;
 
 /// The Rust version (see the header): eax as it leaves it.
-pub unsafe fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
+pub fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
     let Some((x, y)) = texel_place(x, y) else {
         return Ok(components);
     };
-    unsafe {
-        // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).
-        if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get())
-        {
-            return Ok(components);
-        }
-        put_surface_pixel(components, x, y)
+    // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).
+    if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get()) {
+        return Ok(components);
     }
+    put_surface_pixel(components, x, y)
 }

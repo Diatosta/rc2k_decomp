@@ -66,14 +66,12 @@ fn motion() {
 /// The steps. What the callees leave in the registers is read by none of them (each reads
 /// what it needs from memory), nor by the callers.
 pub fn steps() -> Result<(), Refused> {
-    unsafe {
-        ph::stir_car_word::stir_car_word();
-        ph::load_car_specs::load_car_specs()?;
-        ph::make_gear_ratios::make_gear_ratios()?;
-        ph::store_motion_length::store_motion_length();
-        ph::set_handling::set_handling()?;
-        ph::race_timers::race_timers()?;
-    }
+    ph::stir_car_word::stir_car_word();
+    ph::load_car_specs::load_car_specs()?;
+    ph::make_gear_ratios::make_gear_ratios()?;
+    ph::store_motion_length::store_motion_length();
+    ph::set_handling::set_handling()?;
+    ph::race_timers::race_timers()?;
     for cell in [
         &RACE_SOUND_SPOTS.sound_scratch_a,
         &RACE_SOUND_SPOTS.sound_scratch_b,

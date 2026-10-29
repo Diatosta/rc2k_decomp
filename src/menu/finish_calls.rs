@@ -144,12 +144,12 @@ impl finish::Finish for Game {
             Step::LoadingPicture => {
                 crate::menu::show_loading_picture::show_loading_picture()?;
             }
-            Step::Render3dTidy => unsafe { crate::race::stage_free::render3d_tidy()? },
-            Step::ObjectsTidy => unsafe { crate::race::stage_free::objects_tidy()? },
+            Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
-            Step::FinishRace => unsafe { crate::drive::finish_race_0::finish_race_0()? },
+            Step::FinishRace => crate::drive::finish_race_0::finish_race_0()?,
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();

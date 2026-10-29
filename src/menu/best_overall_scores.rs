@@ -16,28 +16,26 @@ use crate::menu::standings::*;
 // g_yesNoAnswer
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        let players = counted_players()?;
-        let mut g = *c;
-        EVENT_STATE.any_time_qualified.set(0u32);
-        for (n, &p) in players.iter().enumerate() {
-            EVENT_STATE.current_player.set(n as u32);
-            g.arg = get(p + 0xCC)?;
-            g.palette = 4 * 0x258 + 0x21C;
-            // The tenth entry's offset (the original leaves its address in esi, which the
-            // screen's lists set before anything reads it).
-            // Converted: `rc2k_core::menu::bests::makes_score`.
-            let score = tenth_best_score(4)?;
-            if rc2k_core::menu::bests::makes_score(g.arg, score) {
-                enter_best(Some(4), 0xCC)?;
-                EVENT_STATE.any_time_qualified.set(1u32);
-            }
+pub fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
+    let players = counted_players()?;
+    let mut g = *c;
+    EVENT_STATE.any_time_qualified.set(0u32);
+    for (n, &p) in players.iter().enumerate() {
+        EVENT_STATE.current_player.set(n as u32);
+        g.arg = get(p + 0xCC)?;
+        g.palette = 4 * 0x258 + 0x21C;
+        // The tenth entry's offset (the original leaves its address in esi, which the
+        // screen's lists set before anything reads it).
+        // Converted: `rc2k_core::menu::bests::makes_score`.
+        let score = tenth_best_score(4)?;
+        if rc2k_core::menu::bests::makes_score(g.arg, score) {
+            enter_best(Some(4), 0xCC)?;
+            EVENT_STATE.any_time_qualified.set(1u32);
         }
-        g.measure_x = players.len() as u32;
-        if EVENT_STATE.any_time_qualified.get() == 1 {
-            run_screen(&crate::menu::best_overall_scores_loop::SCREEN, &g)?;
-        }
+    }
+    g.measure_x = players.len() as u32;
+    if EVENT_STATE.any_time_qualified.get() == 1 {
+        run_screen(&crate::menu::best_overall_scores_loop::SCREEN, &g)?;
     }
     Ok(())
 }

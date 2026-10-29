@@ -20,36 +20,30 @@ use crate::race::replay::REPLAYS;
 const HEAD_LEN: usize = 0x430;
 const SLOTS: u32 = 100;
 
-fn slot_name(slot: u32) -> *mut u8 {
-    REPLAYS
-        .names
-        .as_ptr()
-        .wrapping_add(slot as usize * NAME_LEN)
+fn slot_name(slot: u32) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(REPLAYS.names.addr()).offset(slot * NAME_LEN as u32)
 }
 
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub unsafe fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
+pub fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    unsafe {
-        let template = crate::race::replay_path::TEMPLATES.saved.read();
-        let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-        let mut bytes = REPLAYS.header.read();
-        let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
-        REPLAYS.header.write(&bytes);
-        // Converted: `rc2k_core::saves::kept::slot_name`.
-        use rc2k_core::saves::kept;
-        let block = std::slice::from_raw_parts(REPLAYS.header.as_ptr(), 0x30);
-        match kept::slot_name(block, kept::REPLAY, kept::REPLAY_VERSION) {
-            Some(name) if read.ok => {
-                crate::pointers::GamePtr::new(crate::pointers::game_address(slot_name(slot)))
-                    .write_bytes(&name[..NAME_LEN], "a replay slot's name")?;
-                Ok(true)
-            }
-            _ => Ok(false),
+    let template = crate::race::replay_path::TEMPLATES.saved.read();
+    let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
+    let mut bytes = REPLAYS.header.read();
+    let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
+    REPLAYS.header.write(&bytes);
+    // Converted: `rc2k_core::saves::kept::slot_name`.
+    use rc2k_core::saves::kept;
+    let block = &bytes[..0x30];
+    match kept::slot_name(block, kept::REPLAY, kept::REPLAY_VERSION) {
+        Some(name) if read.ok => {
+            slot_name(slot).write_bytes(&name[..NAME_LEN], "a replay slot's name")?;
+            Ok(true)
         }
+        _ => Ok(false),
     }
 }

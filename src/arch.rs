@@ -6,6 +6,12 @@ pub use core::arch::x86::{__cpuid, _mm_cvtss_f32, _mm_mul_ss, _mm_rcp_ss, _mm_se
 #[cfg(target_arch = "x86_64")]
 pub use core::arch::x86_64::{__cpuid, _mm_cvtss_f32, _mm_mul_ss, _mm_rcp_ss, _mm_set_ss, _rdtsc};
 
+/// The processor's time-stamp counter.
+pub fn rdtsc() -> u64 {
+    // SAFETY: `rdtsc` only reads the counter; every x86 the game builds for has it.
+    unsafe { _rdtsc() }
+}
+
 #[cfg(windows)]
 use windows_sys::Win32::System::Diagnostics::Debug::CONTEXT;
 

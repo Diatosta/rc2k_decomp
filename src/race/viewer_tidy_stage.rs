@@ -44,28 +44,24 @@ pub fn viewer_tidy_stage() -> Result<(), Refused> {
 fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
-    unsafe {
-        match step {
-            TidyStep::TidyEverything => race_end::tidy_everything()?,
-            TidyStep::MenuScreenMode => {
-                crate::platform::set_menu_mode_now();
-            }
-            TidyStep::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture()?;
-            }
-            TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
-            TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
-            TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
-                crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
-                &FONTS.palettes,
-            )?,
-            TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
-            TidyStep::SetUpFrontEnd => {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-            }
-            TidyStep::TakeKey => {
-                crate::input::take_key::take_key();
-            }
+    match step {
+        TidyStep::TidyEverything => race_end::tidy_everything()?,
+        TidyStep::MenuScreenMode => {
+            crate::platform::set_menu_mode_now();
+        }
+        TidyStep::LoadingPicture => {
+            crate::menu::show_loading_picture::show_loading_picture()?;
+        }
+        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
+        TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
+        TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
+            crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
+            &FONTS.palettes,
+        )?,
+        TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+        TidyStep::SetUpFrontEnd => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+        TidyStep::TakeKey => {
+            crate::input::take_key::take_key();
         }
     }
     Ok(())

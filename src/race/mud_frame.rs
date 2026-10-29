@@ -11,23 +11,21 @@ use crate::errors::Refused;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version (see the header).
-pub unsafe fn mud_frame() -> Result<(), Refused> {
+pub fn mud_frame() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    unsafe {
-        let (frames, due) = count_frame(RACE_VARS.mud_frames.bits());
-        RACE_VARS.mud_frames.set_bits(frames);
-        if !due {
-            return Ok(());
-        }
-        RACE_VARS
-            .mud_texture
-            .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
-        mud_texture_turn()?;
-        RACE_VARS
-            .mud_texture
-            .set_bits(next_texture(RACE_VARS.mud_texture.bits()));
-        Ok(())
+    let (frames, due) = count_frame(RACE_VARS.mud_frames.bits());
+    RACE_VARS.mud_frames.set_bits(frames);
+    if !due {
+        return Ok(());
     }
+    RACE_VARS
+        .mud_texture
+        .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
+    mud_texture_turn()?;
+    RACE_VARS
+        .mud_texture
+        .set_bits(next_texture(RACE_VARS.mud_texture.bits()));
+    Ok(())
 }

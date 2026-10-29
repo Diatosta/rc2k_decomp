@@ -67,7 +67,7 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
-    let out = unsafe {
+    let out = {
         turn_float_point_xz(
             NUMBERS.zero.bits(),
             NUMBERS.zero.bits(),
@@ -121,7 +121,7 @@ pub fn steps() -> Result<(), Refused> {
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
-    unsafe { contact_force() };
+    contact_force();
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

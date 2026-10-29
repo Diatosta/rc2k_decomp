@@ -57,16 +57,14 @@ pub fn open_service_box(page: u32) {
 
 /// `menu::view_stage_details`: the stage information screen. `c` the carried values the
 /// item gets.
-pub unsafe fn view_stage_details(c: &Carried) -> Result<(), Refused> {
+pub fn view_stage_details(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(EVENT_STATE.event_type.get());
-    unsafe {
-        if time_trial {
-            run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, c)?;
-        } else {
-            run_screen(&crate::menu::view_stage_loop::SCREEN, c)?;
-        }
+    if time_trial {
+        run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, c)?;
+    } else {
+        run_screen(&crate::menu::view_stage_loop::SCREEN, c)?;
     }
     Ok(())
 }

@@ -84,7 +84,7 @@ fn set_up() -> Result<(), BadInput> {
 /// is reached only with two checkpoints or more; conversion phase 3, 2026-10-24). The
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
-pub unsafe fn finish_race() -> Result<(), Refused> {
+pub fn finish_race() -> Result<(), Refused> {
     // The stage index is not checked against the seven (a read past them is the original's).
     RACE_VARS.stage_number.set(
         GamePtr::new(
@@ -109,14 +109,12 @@ pub unsafe fn finish_race() -> Result<(), Refused> {
     log_text(c"[car1.ctd_carnum]");
     log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
     set_up()?;
-    unsafe {
-        crate::race::stage_loading::load_stage()?;
-        var(finish_routine::BEFORE_RUN).set(0);
-        crate::drive::finish_run::finish_run()?;
-        // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
-        // no read point (liveness at 0x459313): a scratch.
-        crate::race::race_end::tidy_everything()?;
-    }
+    crate::race::stage_loading::load_stage()?;
+    var(finish_routine::BEFORE_RUN).set(0);
+    crate::drive::finish_run::finish_run()?;
+    // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
+    // no read point (liveness at 0x459313): a scratch.
+    crate::race::race_end::tidy_everything()?;
     for x in finish_routine::AFTER {
         var(x).set(0);
     }

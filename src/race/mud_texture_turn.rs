@@ -15,18 +15,16 @@ use crate::race::tint_to_mud_colour::mud_colour;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version (see the header).
-pub unsafe fn mud_texture_turn() -> Result<(), Refused> {
+pub fn mud_texture_turn() -> Result<(), Refused> {
     texture_and_mud()?;
     let [red, green, blue] = mud_colour();
-    unsafe {
-        // Converted: `rc2k_core::race::mud::packed_colour`.
-        RACE_VARS
-            .mud_packed
-            .set(rc2k_core::race::mud::packed_colour([red, green, blue]));
-        for turn in [&RACE_VARS.mud_turn_a, &RACE_VARS.mud_turn_b] {
-            turn[1].set(turn[0].get());
-            turn[0].set(0);
-        }
-        crate::race::update_mud_texture::update_mud_texture()
+    // Converted: `rc2k_core::race::mud::packed_colour`.
+    RACE_VARS
+        .mud_packed
+        .set(rc2k_core::race::mud::packed_colour([red, green, blue]));
+    for turn in [&RACE_VARS.mud_turn_a, &RACE_VARS.mud_turn_b] {
+        turn[1].set(turn[0].get());
+        turn[0].set(0);
     }
+    crate::race::update_mud_texture::update_mud_texture()
 }

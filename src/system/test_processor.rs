@@ -26,7 +26,7 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::arch::{__cpuid, _rdtsc};
+use crate::arch::__cpuid;
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::session::MACHINE;
@@ -111,7 +111,7 @@ impl Processor for Real {
         crate::os::ticks()
     }
     fn cycles(&self) -> u64 {
-        unsafe { _rdtsc() }
+        crate::arch::rdtsc()
     }
 }
 

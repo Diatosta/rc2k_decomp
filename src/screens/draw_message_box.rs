@@ -29,45 +29,43 @@ pub fn box_home() -> usize {
 }
 
 /// The Rust version (`x` the caller's ecx).
-pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use crate::gfx::rect::{fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
     use crate::text::measure_string_by_id::measure_string_by_id_at;
-    unsafe {
-        let bits = crate::gfx::surface::surface().bits_per_pixel;
-        if bits != 16 && bits != 32 {
-            return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
-        }
-        // Converted: `rc2k_core::screens::message_box::layout`.
-        let m = measure_string_by_id_at(
-            STRING,
-            crate::gfx::typefaces::fonts::MEASURE.as_ptr(),
-            x,
-            canvas,
-        )?;
-        let (sw, sh) = (DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
-        let font = crate::gfx::typefaces::fonts::BOX_TEXT.as_ptr();
-        let b = layout(
-            m.width,
-            m.outcome.y,
-            sw,
-            sh,
-            crate::gfx::typefaces::fonts::BOX_TEXT
-                .object()
-                .line_height
-                .get(),
-        );
-        BOX[2].set(b.rect[2]);
-        BOX[3].set(b.rect[3]);
-        BOX[0].set(b.rect[0]);
-        BOX[1].set(b.rect[1]);
-        let rect = BOX[0].addr();
-        let palettes = FONTS.palettes.get();
-        fill_rect(rect, FILL, palettes)?;
-        frame_rect(rect, 0, 0, FRAME, palettes);
-        draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
-        Ok(())
+    let bits = crate::gfx::surface::surface().bits_per_pixel;
+    if bits != 16 && bits != 32 {
+        return Err(BadInput("a message box on a surface of neither 16 nor 32 bits").into());
     }
+    // Converted: `rc2k_core::screens::message_box::layout`.
+    let m = measure_string_by_id_at(
+        STRING,
+        crate::gfx::typefaces::fonts::MEASURE.game_ptr(),
+        x,
+        canvas,
+    )?;
+    let (sw, sh) = (DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
+    let font = crate::gfx::typefaces::fonts::BOX_TEXT.game_ptr();
+    let b = layout(
+        m.width,
+        m.outcome.y,
+        sw,
+        sh,
+        crate::gfx::typefaces::fonts::BOX_TEXT
+            .object()
+            .line_height
+            .get(),
+    );
+    BOX[2].set(b.rect[2]);
+    BOX[3].set(b.rect[3]);
+    BOX[0].set(b.rect[0]);
+    BOX[1].set(b.rect[1]);
+    let rect = BOX[0].addr();
+    let palettes = FONTS.palettes.get();
+    fill_rect(rect, FILL, palettes)?;
+    frame_rect(rect, 0, 0, FRAME, palettes);
+    draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::race::switches_store::FRAME_SWITCHES;
 
 /// The Rust version.
-pub unsafe fn finish_race_0() -> Result<(), Refused> {
+pub fn finish_race_0() -> Result<(), Refused> {
     FRAME_SWITCHES.mask_kind.set(0);
-    unsafe { crate::drive::finish_race::finish_race() }
+    crate::drive::finish_race::finish_race()
 }

@@ -75,19 +75,17 @@ pub fn open_installer() -> Result<(), Refused> {
         0x300,
         0x80AF_7445,
     )?;
-    unsafe {
-        crate::gfx::palette_to_dwords::palette_to_dwords(
-            INSTALLER_PALETTE.palette.addr(),
-            crate::text::blend_font::BLENDED_PALETTE.addr(),
-        )?;
-        let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
-        components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
-        // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(crate::pointers::GamePtr::new(
-            INSTALLER_NAMES.backdrop.addr(),
-        ))?;
-        crate::gfx::convert_picture::convert_picture_now()?;
-    }
+    crate::gfx::palette_to_dwords::palette_to_dwords(
+        INSTALLER_PALETTE.palette.addr(),
+        crate::text::blend_font::BLENDED_PALETTE.addr(),
+    )?;
+    let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
+    components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
+    // gfx::load_picture: its carry is not read.
+    crate::gfx::load_picture::load_picture(crate::pointers::GamePtr::new(
+        INSTALLER_NAMES.backdrop.addr(),
+    ))?;
+    crate::gfx::convert_picture::convert_picture_now()?;
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
     draw_string(0x94, FONT_94.addr(), 0x316, 0x2F)?;

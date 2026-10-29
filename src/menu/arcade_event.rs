@@ -96,47 +96,44 @@ impl arcade::Arcade for Game {
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         let c = &mut self.f.c;
-        unsafe {
-            match s {
-                Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
-                Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-                Step::SecretCarList => {
-                    c.cars = MENU_LISTS.cars_second[0].addr();
-                    m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
-                }
-                Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,
-                Step::TakeShownCar => m::take_shown_car::take_shown_car(c.cars)?,
-                Step::NextStageLoop => run_screen_carried(&m::arcade_next_stage_loop::SCREEN, c)?,
-                Step::TakeStageBest => a::take_arcade_stage_best()?,
-                Step::RepairCar => {
-                    c.arg = 0;
-                    crate::service::repair_parts::repair_car()?
-                }
-                Step::Race => {
-                    c.palette = 2;
-                    crate::race::single_rally_race::single_rally_race(c.arg, 2)?
-                }
-                Step::ScoreStage => a::score_arcade_stage()?,
-                Step::ResultsLoop => run_screen_carried(&m::arcade_results_loop::SCREEN, c)?,
-                Step::KeepStageBest => a::keep_arcade_stage_best(self.f.record)?,
-                Step::CheckStageTime => a::check_arcade_stage_time()?,
-                Step::ClearTimeMarks => a::clear_arcade_time_marks()?,
-                Step::EnterStageTime => a::enter_arcade_stage_time()?,
-                Step::BestTimesLoop => run_screen_carried(&m::arcade_best_times_loop::SCREEN, c)?,
-                Step::CheckLevelScore => a::check_arcade_level_score()?,
-                Step::ClearScoreMarks => a::clear_arcade_score_marks()?,
-                Step::EnterLevelScore => a::enter_arcade_level_score()?,
-                Step::BestScoresLoop => run_screen_carried(&m::best_scores_48a69e_loop::SCREEN, c)?,
-                Step::LevelEnd => m::arcade_level_end::arcade_level_end(c)?,
-                Step::NextLevelReview => {
-                    run_screen_carried(&m::review_options_4882e2_loop::SCREEN, c)?
-                }
-                Step::RetryReview => run_screen_carried(&m::review_options_48861d_loop::SCREEN, c)?,
-                Step::StageReview => run_screen_carried(&m::arcade_review_options_loop::SCREEN, c)?,
-                // With the registers the event was entered with: it reads none.
-                Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+        match s {
+            Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
+            Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+            Step::SecretCarList => {
+                c.cars = MENU_LISTS.cars_second[0].addr();
+                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
             }
+            Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,
+            Step::TakeShownCar => m::take_shown_car::take_shown_car(c.cars)?,
+            Step::NextStageLoop => run_screen_carried(&m::arcade_next_stage_loop::SCREEN, c)?,
+            Step::TakeStageBest => a::take_arcade_stage_best()?,
+            Step::RepairCar => {
+                c.arg = 0;
+                crate::service::repair_parts::repair_car()?
+            }
+            Step::Race => {
+                c.palette = 2;
+                crate::race::single_rally_race::single_rally_race(c.arg, 2)?
+            }
+            Step::ScoreStage => a::score_arcade_stage()?,
+            Step::ResultsLoop => run_screen_carried(&m::arcade_results_loop::SCREEN, c)?,
+            Step::KeepStageBest => a::keep_arcade_stage_best(self.f.record)?,
+            Step::CheckStageTime => a::check_arcade_stage_time()?,
+            Step::ClearTimeMarks => a::clear_arcade_time_marks()?,
+            Step::EnterStageTime => a::enter_arcade_stage_time()?,
+            Step::BestTimesLoop => run_screen_carried(&m::arcade_best_times_loop::SCREEN, c)?,
+            Step::CheckLevelScore => a::check_arcade_level_score()?,
+            Step::ClearScoreMarks => a::clear_arcade_score_marks()?,
+            Step::EnterLevelScore => a::enter_arcade_level_score()?,
+            Step::BestScoresLoop => run_screen_carried(&m::best_scores_48a69e_loop::SCREEN, c)?,
+            Step::LevelEnd => m::arcade_level_end::arcade_level_end(c)?,
+            Step::NextLevelReview => run_screen_carried(&m::review_options_4882e2_loop::SCREEN, c)?,
+            Step::RetryReview => run_screen_carried(&m::review_options_48861d_loop::SCREEN, c)?,
+            Step::StageReview => run_screen_carried(&m::arcade_review_options_loop::SCREEN, c)?,
+            // With the registers the event was entered with: it reads none.
+            Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
         }
+
         Ok(())
     }
 

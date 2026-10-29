@@ -112,8 +112,8 @@ pub fn edit_savegame_name(
                     .write::<u8>(c, "a saved game's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
-                    MEASURING_FONT.as_ptr(),
-                    crate::pointers::host(name) as *const u8,
+                    MEASURING_FONT.game_ptr(),
+                    crate::pointers::GamePtr::new(name),
                     len,
                     canvas,
                 )?;

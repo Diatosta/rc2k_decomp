@@ -116,7 +116,7 @@ pub fn steps() -> Result<(), Refused> {
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     p(&PHYSICS.contact_record, PHYSICS.contacts[1].force[0].addr());
-    unsafe { contact_force() };
+    contact_force();
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

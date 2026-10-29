@@ -13,11 +13,11 @@ use crate::pointers::GamePtr;
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub unsafe fn flush_replay() -> Result<(), Refused> {
+pub fn flush_replay() -> Result<(), Refused> {
     GamePtr::new(crate::race::blocks_store::block_addr(8)).copy_to(
         GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr()),
         DWORDS * 4,
         "a car's block",
     )?;
-    unsafe { crate::drive::write_replay_frames::write_replay_frames() }
+    crate::drive::write_replay_frames::write_replay_frames()
 }

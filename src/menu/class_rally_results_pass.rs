@@ -28,34 +28,32 @@ fn first_class() -> u32 {
 }
 
 /// The Rust version (see the header). `c` the carried values (registers the pages' screens are run with).
-pub unsafe fn class_rally_results_pass(c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        crate::menu::sort_standings_by_total::sort_standings_by_total()?;
-        let first = first_class();
-        // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
-        let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
-        let all: Vec<(u32, u32)> = walked_entries_a()?
-            .iter()
-            .map(|e| (e.head.group, e.head.player))
-            .collect();
-        for class in classes {
-            LOOP_FLAGS.ended_b.set(0u32);
-            let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
-            if !has_player {
-                continue;
-            }
-            LOOP_FLAGS.ended_b.set(1u32);
-            let numbered = crate::menu::number_standings_a::number_standings_a(class)?;
-            let mut g = Carried {
-                palette: class,
-                ..*c
-            };
-            numbered.carry_on(&mut g);
-            EVENT_STATE.count_a.set(numbered.last_number);
-            crate::menu::show_class_rally_results::show_class_rally_results(class, &g)?;
-            if MENU_PAGES.yes_no_answer.get() == 1 {
-                break;
-            }
+pub fn class_rally_results_pass(c: &Carried) -> Result<(), Refused> {
+    crate::menu::sort_standings_by_total::sort_standings_by_total()?;
+    let first = first_class();
+    // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
+    let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
+    let all: Vec<(u32, u32)> = walked_entries_a()?
+        .iter()
+        .map(|e| (e.head.group, e.head.player))
+        .collect();
+    for class in classes {
+        LOOP_FLAGS.ended_b.set(0u32);
+        let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
+        if !has_player {
+            continue;
+        }
+        LOOP_FLAGS.ended_b.set(1u32);
+        let numbered = crate::menu::number_standings_a::number_standings_a(class)?;
+        let mut g = Carried {
+            palette: class,
+            ..*c
+        };
+        numbered.carry_on(&mut g);
+        EVENT_STATE.count_a.set(numbered.last_number);
+        crate::menu::show_class_rally_results::show_class_rally_results(class, &g)?;
+        if MENU_PAGES.yes_no_answer.get() == 1 {
+            break;
         }
     }
     Ok(())

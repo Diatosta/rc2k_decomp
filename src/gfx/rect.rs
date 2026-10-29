@@ -36,7 +36,7 @@ fn core_surface() -> rc2k_core::gfx::raster::Surface {
 }
 
 /// The plan's work variables, then its pixels in colour `colour`.
-unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u32) {
+fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u32) {
     let w = plan.work;
     for (at, value) in [
         (&BLIT.left_skip, w.left_skip),
@@ -84,24 +84,24 @@ fn rect_at(rect: u32) -> [i32; 4] {
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
-pub unsafe fn fill_rect(rect: u32, colour: u32, palette: u32) -> Result<(), Refused> {
+pub fn fill_rect(rect: u32, colour: u32, palette: u32) -> Result<(), Refused> {
     let plan = rc2k_core::gfx::raster::fill(rect_at(rect), &core_clip(), &core_surface())?;
-    unsafe { carry_out(&plan, colour, palette) };
+    carry_out(&plan, colour, palette);
     Ok(())
 }
 
 /// `gfx::draw_hline` (0x406710): `length` pixels from (x, y) rightwards, clipped (the left
 /// clip as the original: what is cut is -x, right only for a left edge of 0).
-pub unsafe fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
+pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
     let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(), &core_surface());
-    unsafe { carry_out(&plan, colour, palette) };
+    carry_out(&plan, colour, palette);
 }
 
 /// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
-pub unsafe fn frame_rect(rect: u32, dx: i32, dy: i32, colour: u32, palette: u32) {
+pub fn frame_rect(rect: u32, dx: i32, dy: i32, colour: u32, palette: u32) {
     for plan in rc2k_core::gfx::raster::frame(rect_at(rect), dx, dy, &core_clip(), &core_surface())
     {
-        unsafe { carry_out(&plan, colour, palette) };
+        carry_out(&plan, colour, palette);
     }
 }

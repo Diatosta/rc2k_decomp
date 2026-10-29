@@ -53,7 +53,7 @@ fn steps() -> Result<(), Refused> {
     PHYSICS
         .contact_record
         .set(PHYSICS.contacts[2].force[0].addr());
-    unsafe { contact_force() };
+    contact_force();
     { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),

@@ -46,7 +46,7 @@ use crate::screens::{
 };
 use crate::service::state::current_player;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use rc2k_core::screens::service::{
@@ -92,10 +92,9 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     if title.len() > TEXT_LEN {
         return Err(BadInput("the title is longer than the text buffer").into());
     }
-    crate::pointers::GamePtr::new(crate::pointers::game_address(text()))
-        .write_bytes(&title, "the title")?;
+    text_at().write_bytes(&title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
-    draw_text_at(font_of(AreaFont::Title).as_ptr(), text(), x, y, canvas)?;
+    draw_text_at(font_of(AreaFont::Title).game_ptr(), text_at(), x, y, canvas)?;
 
     draw_service_time(canvas)?;
 
@@ -110,15 +109,15 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
-                ebx = crate::pointers::game_address(
-                    draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
-                );
+                ebx = draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?
+                    .text
+                    .addr();
             }
             AreaStep::LabelIf(car_offset, id, font, x, y) => {
                 if field(car_offset)? != 0 {
-                    ebx = crate::pointers::game_address(
-                        draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
-                    );
+                    ebx = draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?
+                        .text
+                        .addr();
                 }
             }
             AreaStep::DamageBar(x, y, car_offset) => {
@@ -145,11 +144,11 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         .wrapping_add(SETTING_FIRST_STRING);
     DRAW_WORK.figure.set(setting);
     let (x, y) = TYRE_AT;
-    draw_string_by_id_at(setting, font_of(AreaFont::Small).as_ptr(), x, y, canvas)?;
+    draw_string_by_id_at(setting, font_of(AreaFont::Small).game_ptr(), x, y, canvas)?;
 
     // The markers get the car in edi and, as their palette, the ebx the repair times leave.
     let times = draw_repair_times(canvas)?;
-    let palette = crate::pointers::game_address(times.text);
+    let palette = times.text.addr();
     for marker in [
         draw_brake_balance_marker::MARKER,
         draw_steering_sensitivity_marker::MARKER,

@@ -85,50 +85,47 @@ fn play(path: u32) -> bool {
 impl Game {
     fn run(&mut self, s: Step) -> Result<Flags, Refused> {
         let mut flags = Flags::default();
-        unsafe {
-            match s {
-                Step::StopMusic => crate::sound::stop_music::stop_music(),
-                Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
-                Step::TakeKey => {
-                    flags.zero = crate::input::take_key::take_key() == 0;
-                }
-                Step::SwapMissingExtension(f) => {
-                    crate::files::swap_missing_extension::swap_missing_extension(
-                        crate::pointers::GamePtr::new(film(f)),
-                    )?;
-                }
-                Step::Player(f) => {
-                    flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
-                }
-                Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
-                Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
-                Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
-                // `nullsub_6`.
-                Step::Nothing => {}
-                Step::ReleaseTextures => crate::race::race_end::release_textures(),
-                Step::FileExists(f) => {
-                    let there = crate::files::file_exists::file_exists_at(
-                        crate::pointers::GamePtr::new(film(f)),
-                    )?;
-                    flags.carry = !there;
-                    flags.zero = there;
-                }
-                // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
-                // first, as the original's other caller of the demonstration (`sub_443104`)
-                // does; the original's films kept the quit answer of the last race left by
-                // the quit question, and its demonstration ended at its first frame.
-                Step::Demonstration => {
-                    crate::race::race_shell::clear_player_absences();
-                    crate::race::credits_race::credits_race()?
-                }
-                Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
-                Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
-                Step::FrontEndScene => {
-                    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-                }
-                Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
+        match s {
+            Step::StopMusic => crate::sound::stop_music::stop_music(),
+            Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
+            Step::TakeKey => {
+                flags.zero = crate::input::take_key::take_key() == 0;
             }
+            Step::SwapMissingExtension(f) => {
+                crate::files::swap_missing_extension::swap_missing_extension(
+                    crate::pointers::GamePtr::new(film(f)),
+                )?;
+            }
+            Step::Player(f) => {
+                flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
+            }
+            Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
+            Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
+            // `nullsub_6`.
+            Step::Nothing => {}
+            Step::ReleaseTextures => crate::race::race_end::release_textures(),
+            Step::FileExists(f) => {
+                let there = crate::files::file_exists::file_exists_at(
+                    crate::pointers::GamePtr::new(film(f)),
+                )?;
+                flags.carry = !there;
+                flags.zero = there;
+            }
+            // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
+            // first, as the original's other caller of the demonstration (`sub_443104`)
+            // does; the original's films kept the quit answer of the last race left by
+            // the quit question, and its demonstration ended at its first frame.
+            Step::Demonstration => {
+                crate::race::race_shell::clear_player_absences();
+                crate::race::credits_race::credits_race()?
+            }
+            Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
+            Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+            Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
+            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
         }
+
         Ok(flags)
     }
 }

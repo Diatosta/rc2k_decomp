@@ -19,33 +19,29 @@ use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header). `c` the carried values (the registers the pages'
 /// screens are run with).
-pub unsafe fn championship_standings(c: &Carried) -> Result<(), Refused> {
+pub fn championship_standings(c: &Carried) -> Result<(), Refused> {
     let mut g = *c;
-    unsafe {
-        use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
-        // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
-        use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
-        crate::menu::standings_b_from_all::standings_b_from_all()?;
-        let a8 = class_pages_only(CHAMP_VIEW.event_mode.get());
-        for sort in standings_sorts(a8) {
-            match sort {
-                Sort::ByFigure => fig::sort_standings_b_by_figure()?,
-                Sort::ByScore => {
-                    crate::menu::sort_standings_b_by_score::sort_standings_b_by_score()?
-                }
-                Sort::ByPoints => pts::sort_standings_b_by_points()?,
-            }
+    use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
+    // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
+    use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
+    crate::menu::standings_b_from_all::standings_b_from_all()?;
+    let a8 = class_pages_only(CHAMP_VIEW.event_mode.get());
+    for sort in standings_sorts(a8) {
+        match sort {
+            Sort::ByFigure => fig::sort_standings_b_by_figure()?,
+            Sort::ByScore => crate::menu::sort_standings_b_by_score::sort_standings_b_by_score()?,
+            Sort::ByPoints => pts::sort_standings_b_by_points()?,
         }
-        if !a8 {
-            crate::menu::number_all_b::number_all_b()?.carry_on(&mut g);
-        }
-        MENU_STATE.menus.standings_shown.set(1u32);
-        if a8 {
-            crate::menu::class_championship_pass::class_championship_pass(&g)?;
-        } else {
-            crate::menu::show_championship_standings::show_championship_standings(&g)?;
-        }
-        MENU_STATE.menus.standings_shown.set(0u32);
     }
+    if !a8 {
+        crate::menu::number_all_b::number_all_b()?.carry_on(&mut g);
+    }
+    MENU_STATE.menus.standings_shown.set(1u32);
+    if a8 {
+        crate::menu::class_championship_pass::class_championship_pass(&g)?;
+    } else {
+        crate::menu::show_championship_standings::show_championship_standings(&g)?;
+    }
+    MENU_STATE.menus.standings_shown.set(0u32);
     Ok(())
 }

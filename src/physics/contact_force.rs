@@ -63,7 +63,7 @@ fn fill3(to: &[Float], v: u32) {
 }
 
 /// The Rust version.
-pub unsafe fn contact_force() {
+pub fn contact_force() {
     cross_product(
         &CONTACT_WORK.contact_turn_speed,
         &CONTACT_WORK.contact_point,
@@ -199,10 +199,11 @@ pub unsafe fn contact_force() {
     x87_8(edi as usize);
     turn_by_inverse(&CONTACT_WORK.contact_point);
     for k in 0..3 {
-        unsafe {
-            (crate::pointers::host(edi + 0xC + 4 * k) as *mut u32)
-                .write_unaligned(CONTACT_WORK.contact_point[k as usize].bits())
-        };
+        crate::pointers::write_or_end(
+            edi + 0xC + 4 * k,
+            CONTACT_WORK.contact_point[k as usize].bits(),
+            "a contact record",
+        );
     }
 }
 

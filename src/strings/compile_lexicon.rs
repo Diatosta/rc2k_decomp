@@ -23,7 +23,7 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::moved::Place;
+use crate::session::Bytes;
 use crate::session::{Dword, Shared};
 use crate::strings::string_table::{lexicon, use_lexicon};
 use rc2k_core::strings::lexicon::{Compiled, compile};
@@ -34,7 +34,7 @@ use rc2k_core::strings::lexicon::{Compiled, compile};
 /// `dword_94EAB4` ..). Written here, read by nothing now (the original's compiler read
 /// them).
 pub const WORK_LEN: usize = 0xC44;
-pub static WORK: Place<[u32; WORK_LEN / 4]> = Place::new([0; WORK_LEN / 4]);
+pub static WORK: Bytes<WORK_LEN> = Bytes::new([0; WORK_LEN]);
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
 /// before them the flags word (0x11000000) at 0, after them the unused count at 0x30.
 const PADDED: usize = 0x04;
@@ -88,8 +88,7 @@ pub fn memory_home() -> usize {
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
-pub static EMPTY_MESSAGE: Place<[u32; EMPTY_MESSAGE_LEN / 4]> =
-    Place::new([0; EMPTY_MESSAGE_LEN / 4]);
+pub static EMPTY_MESSAGE: Bytes<EMPTY_MESSAGE_LEN> = Bytes::new([0; EMPTY_MESSAGE_LEN]);
 /// `aFilesLocaleTxt` (0x4E0770).
 const PATTERN: &[u8] = b"files\\%locale\\*.txt\0";
 const FILE_ROOM: u32 = 0x40000;
@@ -177,23 +176,26 @@ fn line(text: &[u8], newline: bool) {
     crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-pub unsafe fn compile_lexicon() -> Result<(), Refused> {
-    unsafe {
+pub fn compile_lexicon() -> Result<(), Refused> {
+    {
         line(b"Compiling lexicon...\0", true);
         let compiled = compiled()?;
-        let work = &mut *WORK.ptr();
-        work.fill(0);
+        WORK.write(&[0; WORK_LEN]);
         // The original's memory, for the game's memory figures: counted and given back
         // (nothing is put in it: the lexicon is built in Rust's memory).
         let list = LEXICON.memory.as_ptr();
         crate::memory::owned::count_on(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
 
         for (offset, value) in counts(&compiled) {
-            work[offset / 4] = value;
+            WORK.set_u32(offset, value);
         }
-        let empty = &mut *EMPTY_MESSAGE.ptr();
-        empty[1] = empty[1].wrapping_add(compiled.empty_messages);
-        empty[3] = compiled.index_size;
+        EMPTY_MESSAGE.set_u32(
+            4,
+            EMPTY_MESSAGE
+                .get_u32(4)
+                .wrapping_add(compiled.empty_messages),
+        );
+        EMPTY_MESSAGE.set_u32(12, compiled.index_size);
         crate::pointers::GamePtr::new(crate::pointers::game_address(lexicon()))
             .write_bytes(&compiled.table, "the lexicon's memory")?;
         use_lexicon();

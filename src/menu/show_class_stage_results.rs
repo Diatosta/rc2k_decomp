@@ -20,25 +20,23 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 
 /// The Rust version (see the header). `c` the carried values (the registers the page's
 /// screen is run with).
-pub unsafe fn show_class_stage_results(class: u32, c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        let mut c = Carried {
-            palette: class,
-            ..*c
-        };
-        c.arg = DRAW_WORK.seconds.get(); // seconds
-        EVENT_STATE.class.set(class);
-        let found = crate::menu::first_player_a::first_player_a(class)?;
-        found.carry_on(&mut c);
-        // Converted: `rc2k_core::menu::results_pages::held_figure`.
-        let count = held_figure(Page::ClassStage, found.figure);
-        CHAMP_VIEW.count.set(count);
-        crate::menu::first_page_stage::carry_on(
-            crate::menu::first_page_stage::first_page_stage(),
-            &mut c,
-        );
-        crate::menu::stage_range_caption::stage_range_caption()?;
-        run_screen(&crate::menu::class_stage_results_loop::SCREEN, &c)?;
-    }
+pub fn show_class_stage_results(class: u32, c: &Carried) -> Result<(), Refused> {
+    let mut c = Carried {
+        palette: class,
+        ..*c
+    };
+    c.arg = DRAW_WORK.seconds.get(); // seconds
+    EVENT_STATE.class.set(class);
+    let found = crate::menu::first_player_a::first_player_a(class)?;
+    found.carry_on(&mut c);
+    // Converted: `rc2k_core::menu::results_pages::held_figure`.
+    let count = held_figure(Page::ClassStage, found.figure);
+    CHAMP_VIEW.count.set(count);
+    crate::menu::first_page_stage::carry_on(
+        crate::menu::first_page_stage::first_page_stage(),
+        &mut c,
+    );
+    crate::menu::stage_range_caption::stage_range_caption()?;
+    run_screen(&crate::menu::class_stage_results_loop::SCREEN, &c)?;
     Ok(())
 }

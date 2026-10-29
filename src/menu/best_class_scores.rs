@@ -14,43 +14,41 @@ use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
-    unsafe {
-        let players = counted_players()?;
-        let classes: u32 = EVENT_STATE.classes.get();
-        let (true, true) = (
-            classes != 0 && classes <= 5,
-            crate::saves::best_times::SCORES.is_taken(),
-        ) else {
-            return Err(BadInput("no classes, more than five, or no best-score table").into());
-        };
-        let mut g = *c;
-        for class in 0..classes {
-            g.clock = class;
-            EVENT_STATE.any_time_qualified.set(0u32);
-            for (n, &p) in players.iter().enumerate() {
-                EVENT_STATE.current_player.set(n as u32);
-                g.arg = get(p + 0xB0)?;
-                g.palette = get(p + 0x90)?;
-                if g.palette == class {
-                    g.palette = class * 0x258 + 0x21C;
-                    // The group's tenth entry's offset (the original leaves its address in
-                    // esi, which the screen's lists set before anything reads it).
-                    // Converted: `rc2k_core::menu::bests::makes_score`.
-                    let score = tenth_best_score(class)?;
-                    if rc2k_core::menu::bests::makes_score(g.arg, score) {
-                        enter_best(None, 0xB0)?;
-                        EVENT_STATE.any_time_qualified.set(1u32);
-                    }
+pub fn best_class_scores(c: &Carried) -> Result<(), Refused> {
+    let players = counted_players()?;
+    let classes: u32 = EVENT_STATE.classes.get();
+    let (true, true) = (
+        classes != 0 && classes <= 5,
+        crate::saves::best_times::SCORES.is_taken(),
+    ) else {
+        return Err(BadInput("no classes, more than five, or no best-score table").into());
+    };
+    let mut g = *c;
+    for class in 0..classes {
+        g.clock = class;
+        EVENT_STATE.any_time_qualified.set(0u32);
+        for (n, &p) in players.iter().enumerate() {
+            EVENT_STATE.current_player.set(n as u32);
+            g.arg = get(p + 0xB0)?;
+            g.palette = get(p + 0x90)?;
+            if g.palette == class {
+                g.palette = class * 0x258 + 0x21C;
+                // The group's tenth entry's offset (the original leaves its address in
+                // esi, which the screen's lists set before anything reads it).
+                // Converted: `rc2k_core::menu::bests::makes_score`.
+                let score = tenth_best_score(class)?;
+                if rc2k_core::menu::bests::makes_score(g.arg, score) {
+                    enter_best(None, 0xB0)?;
+                    EVENT_STATE.any_time_qualified.set(1u32);
                 }
             }
-            g.measure_x = players.len() as u32;
-            if EVENT_STATE.any_time_qualified.get() == 1 {
-                EVENT_STATE.class.set(class);
-                run_screen(&crate::menu::best_class_scores_loop::SCREEN, &g)?;
-                if MENU_PAGES.yes_no_answer.get() == 1 {
-                    break;
-                }
+        }
+        g.measure_x = players.len() as u32;
+        if EVENT_STATE.any_time_qualified.get() == 1 {
+            EVENT_STATE.class.set(class);
+            run_screen(&crate::menu::best_class_scores_loop::SCREEN, &g)?;
+            if MENU_PAGES.yes_no_answer.get() == 1 {
+                break;
             }
         }
     }

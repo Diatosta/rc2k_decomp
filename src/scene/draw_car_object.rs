@@ -87,16 +87,14 @@ pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(
 /// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    unsafe {
-        if EVENT_STATE.car_page.get() != 0 {
-            return Ok(());
-        }
-        clear_depth_buffer();
-        assign_kind_textures()?;
-        pick_pictures()?;
-        map_texture_places();
-        load_slot_textures_in_game()?;
-        LIGHT_STATE.draw_mode.set_bits(0u32);
-        draw_shown_car(&mut || draw_menu_object_in_game())
+    if EVENT_STATE.car_page.get() != 0 {
+        return Ok(());
     }
+    clear_depth_buffer();
+    assign_kind_textures()?;
+    pick_pictures()?;
+    map_texture_places();
+    load_slot_textures_in_game()?;
+    LIGHT_STATE.draw_mode.set_bits(0u32);
+    draw_shown_car(&mut || draw_menu_object_in_game())
 }

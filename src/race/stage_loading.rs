@@ -38,7 +38,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. The registers
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
-pub unsafe fn load_stage() -> Result<(), Refused> {
+pub fn load_stage() -> Result<(), Refused> {
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
@@ -49,66 +49,64 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         word += 1;
     };
     let newline = || crate::logfile::log_write::log_nul(&c"", true, 1);
-    unsafe {
-        newline();
-        log();
-        log();
-        log();
-        indent(3);
-        if RACE_WORK.in_credits.get() == 0
-        /* dword_71C3E0 */
-        {
-            // As `menu::show_loading_picture`.
-            crate::gfx::show_picture_file::show_picture_file(crate::pointers::host_at(
-                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
-            ))?;
-        }
-        REPLAY_FRAMES.last_kept.set(u32::MAX);
-        crate::race::sounds::wake_car_sounds()?;
-        indent(-3);
-        log();
-        indent(3);
-        crate::race::loadlevel::loadlevel_init()?;
-        indent(-3);
-        log();
-        indent(3);
-        if crate::drive::finish_store::FINISH.no_place.get() != 0 {
-            crate::race::music::game_music();
-        } else {
-            crate::race::music::game_music_8();
-        }
-        indent(-3);
-        log();
-        indent(3);
-        crate::race::create_controls::create_controls();
-        indent(-3);
-        log();
-        indent(3);
-        crate::drive::race_init::race_init()?;
-        crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-        let clock: u32 = PHYSICS.scene_clock.bits();
-        CLOCK_TICKS.clock_b.set(clock);
-        CLOCK_TICKS.sound_ticks.set(0);
-        PHYSICS.race_clock_now.set(clock);
-        PHYSICS.race_clock_base.set(clock);
-        RACE_OVERLAY.start_lights_lit.set(0);
-        PANEL.lights[0].lit.set(u32::MAX);
-        PANEL.lights[1].lit.set(u32::MAX);
-        for car in &CAR_BLOCKS.cars[..8] {
-            car.light_hold_steps.set(3);
-        }
-        for car in &CAR_BLOCKS.cars[..8] {
-            car.value_jump_steps.set(8);
-        }
-        FRAME_SWITCHES.other_way.set(1);
-        FRAME_SWITCHES.view_marks_on.set(1);
-        GROUND_WORK.stage_loading.set(0);
-        RACE_VIEW.view_on[0].set(1);
-        RACE_VIEW.view_on[1].set(1);
-        indent(-3);
-        log();
-        log();
-        newline();
+    newline();
+    log();
+    log();
+    log();
+    indent(3);
+    if RACE_WORK.in_credits.get() == 0
+    /* dword_71C3E0 */
+    {
+        // As `menu::show_loading_picture`.
+        crate::gfx::show_picture_file::show_picture_file(crate::pointers::host_at(
+            crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
+        ))?;
     }
+    REPLAY_FRAMES.last_kept.set(u32::MAX);
+    crate::race::sounds::wake_car_sounds()?;
+    indent(-3);
+    log();
+    indent(3);
+    crate::race::loadlevel::loadlevel_init()?;
+    indent(-3);
+    log();
+    indent(3);
+    if crate::drive::finish_store::FINISH.no_place.get() != 0 {
+        crate::race::music::game_music();
+    } else {
+        crate::race::music::game_music_8();
+    }
+    indent(-3);
+    log();
+    indent(3);
+    crate::race::create_controls::create_controls();
+    indent(-3);
+    log();
+    indent(3);
+    crate::drive::race_init::race_init()?;
+    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    CLOCK_TICKS.clock_b.set(clock);
+    CLOCK_TICKS.sound_ticks.set(0);
+    PHYSICS.race_clock_now.set(clock);
+    PHYSICS.race_clock_base.set(clock);
+    RACE_OVERLAY.start_lights_lit.set(0);
+    PANEL.lights[0].lit.set(u32::MAX);
+    PANEL.lights[1].lit.set(u32::MAX);
+    for car in &CAR_BLOCKS.cars[..8] {
+        car.light_hold_steps.set(3);
+    }
+    for car in &CAR_BLOCKS.cars[..8] {
+        car.value_jump_steps.set(8);
+    }
+    FRAME_SWITCHES.other_way.set(1);
+    FRAME_SWITCHES.view_marks_on.set(1);
+    GROUND_WORK.stage_loading.set(0);
+    RACE_VIEW.view_on[0].set(1);
+    RACE_VIEW.view_on[1].set(1);
+    indent(-3);
+    log();
+    log();
+    newline();
     Ok(())
 }

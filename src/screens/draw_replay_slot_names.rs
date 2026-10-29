@@ -23,11 +23,9 @@ use crate::text::draw_text::Canvas;
 
 // stru_51E8C4
 /// The name of replay slot `slot`.
-fn slot_name(slot: u32) -> *const u8 {
-    crate::race::replay::REPLAYS
-        .names
-        .as_ptr()
-        .wrapping_add(slot as usize * NAME_LEN)
+fn slot_name(slot: u32) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(crate::race::replay::REPLAYS.names.addr())
+        .offset(slot * NAME_LEN as u32)
 }
 
 // ---- Rust version ----
@@ -39,7 +37,7 @@ pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::REPLAYS,
         page,
-        |slot| crate::pointers::game_address(slot_name(slot)),
+        |slot| slot_name(slot).addr(),
     )
     .map(|_| ())
 }

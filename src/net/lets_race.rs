@@ -24,7 +24,7 @@ pub fn lets_race() -> Result<(u32, u32), Refused> {
         car.stop_state.set(0);
     }
     crate::net::set_hud_options::set_hud_options()?;
-    unsafe { crate::drive::play_race::play_race() }?;
+    { crate::drive::play_race::play_race() }?;
     crate::net::keep_hud_options::keep_hud_options()?;
     let block = RACE_WORK.car_block(RACE_VIEW.local_car.get() as usize);
     let get = |offset: u32| {

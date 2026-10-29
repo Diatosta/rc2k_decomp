@@ -54,7 +54,7 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// The Rust version (see the header): the texel of place number `number` (its low 16
 /// bits) muddied.
-pub unsafe fn muddy_texel(number: u32) -> Result<(), Refused> {
+pub fn muddy_texel(number: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
@@ -63,12 +63,12 @@ pub unsafe fn muddy_texel(number: u32) -> Result<(), Refused> {
     let strength = strength_at(n, x, y)?;
     let kept: u32 = DRAW.scratch.bits();
     DRAW.scratch.set_bits(strength);
-    let texel = unsafe { mud_texel(strength_row(y), x, y) }?;
+    let texel = { mud_texel(strength_row(y), x, y) }?;
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(texel, tint_amount(strength));
-    if let Err(e) = unsafe { put_mud_texel(tinted | MUD_TOP, x, y) } {
+    if let Err(e) = { put_mud_texel(tinted | MUD_TOP, x, y) } {
         DRAW.scratch.set_bits(kept);
         return Err(e);
     }

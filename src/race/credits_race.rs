@@ -42,22 +42,18 @@ pub fn credits_race() -> Result<(), Refused> {
     crate::race::race_shell::set_start_states()?;
     RACE_WORK.in_credits.set(1);
     let word = |n: usize| &WORDS[n];
-    unsafe {
-        crate::logfile::log_write::log_nul(word(0), false, 1);
-        log_int(RACE_VARS.stage_number.get() as i32, false, 1);
-        crate::logfile::log_write::log_nul(word(1), false, 1);
-        log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
-        crate::race::stage_loading::load_stage()?;
-        crate::race::frame_text::roll_credits(
-            0,
-            &mut crate::text::draw_text::GameCanvas,
-            &mut crate::race::frame_text::credits_tune,
-        )?;
-    }
+    crate::logfile::log_write::log_nul(word(0), false, 1);
+    log_int(RACE_VARS.stage_number.get() as i32, false, 1);
+    crate::logfile::log_write::log_nul(word(1), false, 1);
+    log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
+    crate::race::stage_loading::load_stage()?;
+    crate::race::frame_text::roll_credits(
+        0,
+        &mut crate::text::draw_text::GameCanvas,
+        &mut crate::race::frame_text::credits_tune,
+    )?;
     RACE_VIEW.after_credits.set(0);
-    unsafe {
-        crate::drive::play_race::play_race()?;
-        RACE_WORK.in_credits.set(0);
-        crate::race::race_end::tidy_everything()
-    }
+    crate::drive::play_race::play_race()?;
+    RACE_WORK.in_credits.set(0);
+    crate::race::race_end::tidy_everything()
 }

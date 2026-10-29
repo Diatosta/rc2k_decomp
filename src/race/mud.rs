@@ -26,49 +26,41 @@ pub fn car_file_number(car: u32) -> u32 {
 /// `gfx::read_pixel` (0x406584): the pixel at (ecx, edx) of `g_surface`, taken apart by
 /// `gfx::pixel_to_components`. A 16-bit pixel is read with `mov ax`: the upper half of eax
 /// is the row's address's, and that is what the conversion gets.
-pub unsafe fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let (_, pixel) = raw_pixel(x, y);
-        let format = GamePtr::new(DRAW_SURFACE.format.get())
-            .read::<crate::gfx::pixel_format::PixelFormat>("the surface's pixel format")?;
-        Ok(crate::gfx::pixel_to_components::pixel_to_components(
-            &format, pixel,
-        ))
-    }
+pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
+    let (_, pixel) = raw_pixel(x, y)?;
+    let format = GamePtr::new(DRAW_SURFACE.format.get())
+        .read::<crate::gfx::pixel_format::PixelFormat>("the surface's pixel format")?;
+    Ok(crate::gfx::pixel_to_components::pixel_to_components(
+        &format, pixel,
+    ))
 }
 
 /// The row's address and the value `read_pixel` hands to the conversion (one place for
 /// both: a second copy of this compiled without the row's upper half, 2026-10-16).
-pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
-    unsafe {
-        let row = DRAW_SURFACE
-            .pixels
-            .get()
-            .wrapping_add(y.wrapping_mul(DRAW_SURFACE.pitch.get()));
-        let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
-            // As the original: eax the row's address, then `mov ax` of the pixel: the
-            // upper half of the result is the row's address's.
-            let word = (crate::pointers::host(row.wrapping_add(x.wrapping_mul(2))) as *const u16)
-                .read_unaligned();
-            (row & 0xFFFF_0000) | u32::from(word)
-        } else {
-            (crate::pointers::host(row.wrapping_add(x.wrapping_mul(4))) as *const u32)
-                .read_unaligned()
-        };
-        (row, pixel)
-    }
+pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
+    let row = DRAW_SURFACE
+        .pixels
+        .get()
+        .wrapping_add(y.wrapping_mul(DRAW_SURFACE.pitch.get()));
+    let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
+        // As the original: eax the row's address, then `mov ax` of the pixel: the
+        // upper half of the result is the row's address's.
+        let word =
+            GamePtr::new(row.wrapping_add(x.wrapping_mul(2))).read::<u16>("the surface's pixel")?;
+        (row & 0xFFFF_0000) | u32::from(word)
+    } else {
+        GamePtr::new(row.wrapping_add(x.wrapping_mul(4))).read::<u32>("the surface's pixel")?
+    };
+    Ok((row, pixel))
 }
 
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
-pub unsafe fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
-    unsafe {
-        // Converted: `rc2k_core::race::mud::inside`.
-        if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get())
-        {
-            return Ok(0);
-        }
-        read_pixel(x, y)
+pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
+    // Converted: `rc2k_core::race::mud::inside`.
+    if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get()) {
+        return Ok(0);
     }
+    read_pixel(x, y)
 }
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
@@ -105,17 +97,15 @@ pub fn clear_mud_state() {
 /// `race::sample_mud_colours` (0x44A0D6): the surface locked (`d3d::lock_texture`), 256
 /// colours, n's at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by
 /// `mud_pixel`, unlocked (`d3d::unlock_texture`).
-pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
-    unsafe {
-        // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
-        crate::d3d::lock_texture::lock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
-        // Converted: `rc2k_core::race::mud::sample_place`.
-        for n in 0..rc2k_core::race::mud::SAMPLES {
-            let (x, y) = rc2k_core::race::mud::sample_place(n);
-            RACE_VARS.mud_colours[n as usize].set(mud_pixel(x, y)?);
-        }
-        crate::d3d::unlock_texture::unlock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
+pub fn sample_mud_colours() -> Result<(), Refused> {
+    // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
+    crate::d3d::lock_texture::lock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
+    // Converted: `rc2k_core::race::mud::sample_place`.
+    for n in 0..rc2k_core::race::mud::SAMPLES {
+        let (x, y) = rc2k_core::race::mud::sample_place(n);
+        RACE_VARS.mud_colours[n as usize].set(mud_pixel(x, y)?);
     }
+    crate::d3d::unlock_texture::unlock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
     Ok(())
 }
 
@@ -125,20 +115,18 @@ pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Own
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the
 /// game's `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
-pub unsafe fn init_mud() -> Result<(), Refused> {
-    unsafe {
-        COURSE_LISTS
-            .course_bytes_total
-            .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
-        MUD.take(
-            COURSE_LISTS.mud_list[0].as_ptr() as *mut crate::memory::MemoryList,
-            MUD_LEN,
-            vec![0; MUD_LEN as usize],
-        )?;
-        load_mud()?;
-        clear_mud_state();
-        sample_mud_colours()
-    }
+pub fn init_mud() -> Result<(), Refused> {
+    COURSE_LISTS
+        .course_bytes_total
+        .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
+    MUD.take(
+        COURSE_LISTS.mud_list[0].as_ptr() as *mut crate::memory::MemoryList,
+        MUD_LEN,
+        vec![0; MUD_LEN as usize],
+    )?;
+    load_mud()?;
+    clear_mud_state();
+    sample_mud_colours()
 }
 
 #[cfg(all(test, target_arch = "x86"))]

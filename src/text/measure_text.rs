@@ -12,6 +12,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::text::draw_text::{Canvas, Outcome, outcome, run_core};
 use crate::text::font::Font;
 
@@ -30,7 +31,7 @@ pub struct Measured {
 /// `rc2k_core::text::measure`.
 pub fn measure_text(
     font: &mut Font,
-    text: *const u8,
+    text: GamePtr,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
@@ -50,13 +51,13 @@ pub fn measure_text(
 /// `measure_text_at` on a text of Rust's own (an owned block's): its widest line's width
 /// and its line count.
 pub fn measure_bytes_at(
-    font: *mut Font,
+    font: GamePtr,
     text: &[u8],
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::{Adapt, AdaptError};
-    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(font));
+    let at = font;
     let mut copy = at.read::<Font>("a font")?;
     let glyphs = crate::gfx::glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
     let m = match rc2k_core::text::measure(&mut copy, text, &glyphs, x, &mut Adapt(canvas)) {
@@ -77,16 +78,15 @@ pub fn measure_bytes_at(
 /// For Rust callers, with a font object in game memory: the object is only written if the
 /// canvas keeps font changes.
 pub fn measure_text_at(
-    font: *mut Font,
-    text: *const u8,
+    font: GamePtr,
+    text: GamePtr,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-        .read::<Font>("a font")?;
+    let mut copy = font.read::<Font>("a font")?;
     let measured = measure_text(&mut copy, text, x, canvas)?;
     if canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
+        font.write(copy, "a font")?;
     }
     Ok(measured)
 }

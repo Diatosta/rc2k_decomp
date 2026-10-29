@@ -40,7 +40,7 @@ use crate::service::state::{ITEM_COUNT, current_player, marks_ended, menu_item, 
 
 /// The slot the highlighted menu item stands for.
 /// A change page's editor (`confirm` its argument).
-type Editor = unsafe fn(bool) -> Result<(), Refused>;
+type Editor = fn(bool) -> Result<(), Refused>;
 
 pub fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
@@ -49,7 +49,7 @@ pub fn highlighted_slot() -> u32 {
 
 // ---- Rust version ----
 
-pub unsafe fn load_setup_slot() -> Result<(), Refused> {
+pub fn load_setup_slot() -> Result<(), Refused> {
     let slot = highlighted_slot();
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original writes through null").into());
@@ -61,48 +61,46 @@ pub unsafe fn load_setup_slot() -> Result<(), Refused> {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
-    unsafe {
-        if !read_setup_slot(slot)? {
-            return Ok(());
-        }
-        clear_repair_flags()?;
-
-        // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
-        use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
-        let v = SetupValues::from_file(&SET_UPS.file.read());
-        let in_car = |offset: u32| GamePtr::new(player.wrapping_add(offset));
-        TYRE.change.chosen.set(v.tyre);
-        in_car(BRAKE_BALANCE.car_offset).write(v.brake_balance, "the car's brake balance")?;
-        RIDE_HEIGHT.change.chosen.set(v.ride_height);
-        SUSPENSION_STIFFNESS
-            .change
-            .chosen
-            .set(v.suspension_stiffness);
-        in_car(STEERING_SENSITIVITY.car_offset)
-            .write(v.steering_sensitivity, "the car's steering sensitivity")?;
-        GEAR_RATIO.change.chosen.set(v.gear_ratio);
-
-        // The original clears both tables again here, this time checking each entry for the
-        // end mark before writing it. With the end marks in place that is the same thing.
-        clear_repair_flags()?;
-        clear_repair_marks()?;
-
-        let highlighted = menu_item();
-        for page in CONFIRM_ORDER {
-            let (change, edit): (ChangePage, Editor) = match page {
-                EditPage::GearRatio => (GEAR_RATIO, edit_gear_ratio),
-                EditPage::Tyre => (TYRE, edit_tyre),
-                EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
-                _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
-            };
-            if change.change.chosen.get() != change.change.installed.get() {
-                LOOP_FLAGS.item.set(change.item);
-                edit(true)?;
-            }
-        }
-        LOOP_FLAGS.item.set(highlighted);
-        go_back::go_back();
+    if !read_setup_slot(slot)? {
+        return Ok(());
     }
+    clear_repair_flags()?;
+
+    // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
+    use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
+    let v = SetupValues::from_file(&SET_UPS.file.read());
+    let in_car = |offset: u32| GamePtr::new(player.wrapping_add(offset));
+    TYRE.change.chosen.set(v.tyre);
+    in_car(BRAKE_BALANCE.car_offset).write(v.brake_balance, "the car's brake balance")?;
+    RIDE_HEIGHT.change.chosen.set(v.ride_height);
+    SUSPENSION_STIFFNESS
+        .change
+        .chosen
+        .set(v.suspension_stiffness);
+    in_car(STEERING_SENSITIVITY.car_offset)
+        .write(v.steering_sensitivity, "the car's steering sensitivity")?;
+    GEAR_RATIO.change.chosen.set(v.gear_ratio);
+
+    // The original clears both tables again here, this time checking each entry for the
+    // end mark before writing it. With the end marks in place that is the same thing.
+    clear_repair_flags()?;
+    clear_repair_marks()?;
+
+    let highlighted = menu_item();
+    for page in CONFIRM_ORDER {
+        let (change, edit): (ChangePage, Editor) = match page {
+            EditPage::GearRatio => (GEAR_RATIO, edit_gear_ratio),
+            EditPage::Tyre => (TYRE, edit_tyre),
+            EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
+            _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
+        };
+        if change.change.chosen.get() != change.change.installed.get() {
+            LOOP_FLAGS.item.set(change.item);
+            edit(true)?;
+        }
+    }
+    LOOP_FLAGS.item.set(highlighted);
+    go_back::go_back();
     Ok(())
 }
 

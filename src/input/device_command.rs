@@ -29,10 +29,10 @@ fn device(n: usize) -> u32 {
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
-pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
+pub fn device_command(command: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
-    unsafe {
+    {
         let steps = command_steps(
             command as u8,
             (command >> 8) as u8,

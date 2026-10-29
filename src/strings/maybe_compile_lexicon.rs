@@ -18,15 +18,13 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// `crate::moved::place`).
 pub static RECOMPILE_LEVEL: AtomicU32 = AtomicU32::new(0);
 
-pub unsafe fn maybe_compile_lexicon() -> Result<(), Refused> {
-    unsafe {
-        let level = RECOMPILE_LEVEL.load(Ordering::Relaxed);
-        // byte_4F6B2A: `input`'s key states (key 0x4E).
-        let key = DEVICES.keys_down.get(0x4E);
-        // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
-        if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
-            compile_lexicon()?;
-        }
+pub fn maybe_compile_lexicon() -> Result<(), Refused> {
+    let level = RECOMPILE_LEVEL.load(Ordering::Relaxed);
+    // byte_4F6B2A: `input`'s key states (key 0x4E).
+    let key = DEVICES.keys_down.get(0x4E);
+    // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
+    if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
+        compile_lexicon()?;
     }
     Ok(())
 }

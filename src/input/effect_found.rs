@@ -31,8 +31,8 @@ pub fn callback(info: u32, record: u32) -> u32 {
 
 /// A dword of the listed effect at `at`: DirectInput's emulation holds it in a local of its
 /// own, which is no allocation of the game's (a slice when the callback takes one).
-unsafe fn listed_dword(at: u32) -> u32 {
-    unsafe { (crate::pointers::host(at) as *const u32).read_unaligned() }
+fn listed_dword(at: u32) -> u32 {
+    crate::pointers::read_or_end(at, "a listed effect")
 }
 
 /// The Rust version: eax.

@@ -22,7 +22,7 @@ use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_pass(c: &Carried) -> Result<(), Refused> {
+pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
@@ -32,38 +32,36 @@ pub unsafe fn inspection_pass(c: &Carried) -> Result<(), Refused> {
         }
     }
     let mut g = *c;
-    unsafe {
-        EVENT_STATE.event_goes_on.set(1u32);
-        for (n, &p) in players.iter().enumerate() {
-            g.measure_x = n as u32;
-            EVENT_STATE.current_player.set(g.measure_x);
-            if !passes::takes_part(get(p + 0xD0)?) {
-                continue;
-            }
-            crate::menu::driver_stats::driver_stats()?;
-            crate::menu::inspection_verdict::inspection_verdict()?;
-            crate::menu::inspection_faults::inspection_faults()?;
-            if !passes::is_out(get(p + 0xD0)?) {
-                continue;
-            }
-            EVENT_STATE
-                .event_out
-                .set(EVENT_STATE.event_out.get().wrapping_add(1));
-            crate::menu::inspection_screen::inspection_screen()?;
-            g.arg = passes::SCREEN_PAUSE;
-            crate::system::sleep::sleep(g.arg);
-            crate::menu::fade_in::fade_in()?;
-            run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
-            if MENU_PAGES.yes_no_answer.get() == 1 {
-                return Ok(());
-            }
-            crate::menu::fades::fade(true)?;
-            g.arg = passes::INSPECTION_PAUSE;
-            crate::system::sleep::sleep(g.arg);
+    EVENT_STATE.event_goes_on.set(1u32);
+    for (n, &p) in players.iter().enumerate() {
+        g.measure_x = n as u32;
+        EVENT_STATE.current_player.set(g.measure_x);
+        if !passes::takes_part(get(p + 0xD0)?) {
+            continue;
         }
-        if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
-            EVENT_STATE.event_goes_on.set(0u32);
+        crate::menu::driver_stats::driver_stats()?;
+        crate::menu::inspection_verdict::inspection_verdict()?;
+        crate::menu::inspection_faults::inspection_faults()?;
+        if !passes::is_out(get(p + 0xD0)?) {
+            continue;
         }
+        EVENT_STATE
+            .event_out
+            .set(EVENT_STATE.event_out.get().wrapping_add(1));
+        crate::menu::inspection_screen::inspection_screen()?;
+        g.arg = passes::SCREEN_PAUSE;
+        crate::system::sleep::sleep(g.arg);
+        crate::menu::fade_in::fade_in()?;
+        run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
+        if MENU_PAGES.yes_no_answer.get() == 1 {
+            return Ok(());
+        }
+        crate::menu::fades::fade(true)?;
+        g.arg = passes::INSPECTION_PAUSE;
+        crate::system::sleep::sleep(g.arg);
+    }
+    if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
+        EVENT_STATE.event_goes_on.set(0u32);
     }
     Ok(())
 }

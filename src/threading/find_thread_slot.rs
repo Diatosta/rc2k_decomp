@@ -8,7 +8,7 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use crate::threading::thread_slot::{SLOTS, ThreadSlot};
+use crate::threading::thread_slot::ThreadSlot;
 
 const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
 const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
@@ -38,14 +38,12 @@ pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadI
         .transpose()
 }
 
-/// Null if the current thread has no slot.
-pub unsafe fn find_thread_slot() -> *const ThreadSlot {
-    // Converted: `rc2k_core::threading::slot_of`.
-    let slots = SLOTS.ptr().cast::<ThreadSlot>().cast_const();
-    let tid = crate::sync::thread_id();
-    let id_of = |n: usize| unsafe { (*slots.add(n)).thread_id.get() };
-    match rc2k_core::threading::slot_of(id_of, tid) {
-        Some(n) => unsafe { slots.add(n) },
-        None => std::ptr::null(),
+/// The current thread's slot's game address, 0 if it has none. For the fatal reporter: a
+/// slot that cannot be read (the slots are a fixed region, so never) is 0 too, as a report
+/// is being made already.
+pub fn find_thread_slot() -> u32 {
+    match current_slot() {
+        Ok(Some(slot)) => crate::pointers::game_address(std::ptr::from_ref(slot)),
+        Ok(None) | Err(_) => 0,
     }
 }

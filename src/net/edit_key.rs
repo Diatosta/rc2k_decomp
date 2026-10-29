@@ -58,8 +58,8 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     GamePtr::new(text + at).write(typed as u16, "an edited text")?;
                     let width = {
                         measure_text_at(
-                            crate::pointers::host(NET.edit_font.get()) as *mut _,
-                            crate::pointers::host(text) as *const u8,
+                            crate::pointers::GamePtr::new(NET.edit_font.get()),
+                            crate::pointers::GamePtr::new(text),
                             at as i32,
                             &mut GameCanvas,
                         )

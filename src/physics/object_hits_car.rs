@@ -34,7 +34,7 @@ use rc2k_core::physics::contacts;
 /// address) are read by none of its callers.
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
-pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
+pub fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
     let number = CONTACT_WORK.face_object.get();
     contacts::check_object(number)?;
     { object_turn_matrix() }?;
@@ -86,7 +86,7 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
                     return false;
                 }
             };
-            match unsafe { point_hits_car(place, object) } {
+            match point_hits_car(place, object) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

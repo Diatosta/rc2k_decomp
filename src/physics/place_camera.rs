@@ -31,13 +31,13 @@ use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
 type Turns = (
-    unsafe fn(i32, i32, i32, u32) -> [u32; 3],
-    unsafe fn(i32, i32, i32, u32) -> [u32; 3],
-    unsafe fn(i32, i32, i32, u32) -> [u32; 4],
+    fn(i32, i32, i32, u32) -> [u32; 3],
+    fn(i32, i32, i32, u32) -> [u32; 3],
+    fn(i32, i32, i32, u32) -> [u32; 4],
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
-unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
+fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
         LIGHTS_DATA.place_second[0].addr()
     } else {
@@ -80,13 +80,13 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         ),
     ] {
         let i = |v: u32| v as i32;
-        let [x, z, _] = unsafe { turns.0(i(ebx), i(ecx), i(eax), ebx_turn.get()) };
+        let [x, z, _] = { turns.0(i(ebx), i(ecx), i(eax), ebx_turn.get()) };
         ebx = x;
         eax = z;
-        let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), ecx_turn.get()) };
+        let [x, z, _] = { turns.1(i(ecx), i(eax), i(ebx), ecx_turn.get()) };
         ecx = x;
         ebx = z;
-        let [x, _, z, _] = unsafe { turns.2(i(eax), i(ebx), i(ecx), eax_turn.get()) };
+        let [x, _, z, _] = { turns.2(i(eax), i(ebx), i(ecx), eax_turn.get()) };
         eax = x;
         ecx = z;
     }
@@ -114,7 +114,7 @@ unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`). The registers it
 /// leaves are read by none of its callers.
-pub unsafe fn place_camera() {
+pub fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let mut parts = [[0u8; 10]; 3];
@@ -133,16 +133,14 @@ pub unsafe fn place_camera() {
         let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };
-    unsafe {
-        place_with(
-            (
-                turn_point_xz_ebx::turn_point_xz_ebx,
-                turn_point_xz_ecx::turn_point_xz_ecx,
-                turn_point_xz::turn_point_xz,
-            ),
-            &second,
-        )
-    }
+    place_with(
+        (
+            turn_point_xz_ebx::turn_point_xz_ebx,
+            turn_point_xz_ecx::turn_point_xz_ecx,
+            turn_point_xz::turn_point_xz,
+        ),
+        &second,
+    )
 }
 
 // ---- the arithmetic that was x87 assembly ----

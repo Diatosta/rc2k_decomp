@@ -29,7 +29,7 @@ pub struct Shown {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn show_frame() -> Result<Shown, Refused> {
+pub fn show_frame() -> Result<Shown, Refused> {
     let (locked, kept) = crate::scene::lock_frame::lock_frame();
     if locked < 1 {
         return Ok(Shown {
@@ -58,6 +58,6 @@ pub unsafe fn show_frame() -> Result<Shown, Refused> {
     let time = clock.wrapping_sub(RACE_VIEW.clock_base.bits());
     RACE_VIEW.frame_time.set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
-    let eax = unsafe { crate::race::measure_frame_rate::measure_frame_rate() }.unwrap_or(time);
+    let eax = { crate::race::measure_frame_rate::measure_frame_rate() }.unwrap_or(time);
     Ok(Shown { lost: false, eax })
 }

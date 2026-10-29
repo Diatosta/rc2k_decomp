@@ -14,23 +14,23 @@
 use crate::math::turn_scratch_xz::{Scratch, turn_scratch_xz, turn_scratch_xz_plain};
 
 /// The Rust version: x', y, z' and the entry left in edx.
-pub unsafe fn turn_float_point_xz(x: u32, y: u32, z: u32, angle: u32) -> [u32; 4] {
-    unsafe { turn_float_with(x, y, z, angle, turn_scratch_xz) }
+pub fn turn_float_point_xz(x: u32, y: u32, z: u32, angle: u32) -> [u32; 4] {
+    turn_float_with(x, y, z, angle, turn_scratch_xz)
 }
 
 /// The converted version (`turn_scratch_xz_plain`).
-pub unsafe fn turn_float_point_xz_plain(x: u32, y: u32, z: u32, angle: u32) -> [u32; 4] {
-    unsafe { turn_float_with(x, y, z, angle, turn_scratch_xz_plain) }
+pub fn turn_float_point_xz_plain(x: u32, y: u32, z: u32, angle: u32) -> [u32; 4] {
+    turn_float_with(x, y, z, angle, turn_scratch_xz_plain)
 }
 
-unsafe fn turn_float_with(
+fn turn_float_with(
     x: u32,
     y: u32,
     z: u32,
     angle: u32,
-    turn: unsafe fn(&mut Scratch, u32) -> u32,
+    turn: fn(&mut Scratch, u32) -> u32,
 ) -> [u32; 4] {
     let mut point = Scratch { x, y, z };
-    let entry = unsafe { turn(&mut point, angle) };
+    let entry = { turn(&mut point, angle) };
     [point.x, point.y, point.z, entry]
 }

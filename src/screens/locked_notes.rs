@@ -13,12 +13,10 @@ use crate::race::state_store::RACE_STATE;
 /// is read by no list entry after it.
 fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
     if note.eax.is_some() && note.show {
-        unsafe {
-            crate::screens::draw_message_box::draw_message_box(
-                0,
-                &mut crate::text::draw_text::GameCanvas,
-            )?
-        };
+        crate::screens::draw_message_box::draw_message_box(
+            0,
+            &mut crate::text::draw_text::GameCanvas,
+        )?;
     }
     Ok(())
 }

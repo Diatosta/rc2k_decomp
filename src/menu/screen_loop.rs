@@ -385,89 +385,79 @@ impl Callee {
     pub fn run(self, c: &mut Carried) -> Result<(), Refused> {
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
         use crate::text::draw_text::GameCanvas;
-        unsafe {
-            match self {
-                Self::TakeKey => c.arg = c.arg & !0xFF | take_key() as u32,
-                Self::NoOp => {}
-                Self::LoadBackground => {
-                    crate::menu::load_background::load_background(
-                        c.arg,
-                        c.palette,
-                        &mut GameCanvas,
-                    )?;
-                    c.carry = false;
-                }
-                Self::PrepareScene => prepare_scene(c),
-                Self::ApplyController => ci::apply_controller()?,
-                Self::ReleaseController => ci::release_controller(),
-                Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map()?,
-                Self::StopStream => crate::sound::stop_stream::stop_stream(),
-                Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
-                Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
-                Self::StopMusic => crate::sound::stop_music::stop_music(),
-                Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game()?,
-                Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
-                    &mut crate::sound::start_stream::start_stream,
-                )?,
-                Self::AxisMoved => {
-                    let moved = crate::input::axes::axis_moved(c.arg)?;
-                    (c.arg, c.carry) = (moved.eax, moved.carry);
-                }
-                Self::RankStageTimes => rs::rank_stage_times()?,
-                Self::RankTotals => rs::rank_totals()?,
-                Self::ScoreFourPlayers => rs::score_four_players()?,
-                Self::ScoreTwoPlayers => rs::score_two_players()?,
-                Self::StyleStageItem => v::style_stage_item(false)?,
-                Self::StyleChosenStageItem => v::style_stage_item(true)?,
-                Self::CountStagePages => v::count_stage_pages()?,
-                Self::PlayStageSpeech => v::play_stage_speech()?,
-                Self::PlayRallySpeech => v::play_rally_speech()?,
-                Self::LoadWelcomePicture => v::load_welcome_picture()?,
-                Self::LoadServiceBackground => crate::service::load_background::load_background()?,
-                Self::GoBack => crate::menu::go_back::go_back(),
-                Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(),
-                Self::EditPlayerName => {
-                    crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
-                }
-                Self::EditSetupName => {
-                    crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
-                }
-                Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
-                    &mut GameCanvas,
-                    &mut crate::menu::edit_savegame_name::save_game,
-                )?,
-                Self::EditReplayName => {
-                    c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
-                }
-                Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name()?,
-                Self::LoadSlideshowPicture => {
-                    crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
-                }
-                Self::LoadCarBackground => {
-                    crate::menu::load_car_background::load_car_background_in_game()?;
-                    c.carry = false;
-                }
-                Self::LoadPicture => {
-                    c.carry = !crate::gfx::load_picture::load_picture(
-                        crate::pointers::GamePtr::new(c.arg),
-                    )?
-                }
-                Self::ConvertPicture => {
-                    c.carry = crate::gfx::convert_picture::convert_picture_now()?
-                }
-                Self::SetUpFrontEnd => {
-                    crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?
-                }
-                Self::SetUpEngine => {
-                    crate::scene::set_up_engine::set_up_engine()?;
-                    // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
-                    [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
-                }
-                Self::SetUpFrontEndScene => {
-                    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-                }
+        match self {
+            Self::TakeKey => c.arg = c.arg & !0xFF | take_key() as u32,
+            Self::NoOp => {}
+            Self::LoadBackground => {
+                crate::menu::load_background::load_background(c.arg, c.palette, &mut GameCanvas)?;
+                c.carry = false;
+            }
+            Self::PrepareScene => prepare_scene(c),
+            Self::ApplyController => ci::apply_controller()?,
+            Self::ReleaseController => ci::release_controller(),
+            Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map()?,
+            Self::StopStream => crate::sound::stop_stream::stop_stream(),
+            Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
+            Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
+            Self::StopMusic => crate::sound::stop_music::stop_music(),
+            Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game()?,
+            Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
+                &mut crate::sound::start_stream::start_stream,
+            )?,
+            Self::AxisMoved => {
+                let moved = crate::input::axes::axis_moved(c.arg)?;
+                (c.arg, c.carry) = (moved.eax, moved.carry);
+            }
+            Self::RankStageTimes => rs::rank_stage_times()?,
+            Self::RankTotals => rs::rank_totals()?,
+            Self::ScoreFourPlayers => rs::score_four_players()?,
+            Self::ScoreTwoPlayers => rs::score_two_players()?,
+            Self::StyleStageItem => v::style_stage_item(false)?,
+            Self::StyleChosenStageItem => v::style_stage_item(true)?,
+            Self::CountStagePages => v::count_stage_pages()?,
+            Self::PlayStageSpeech => v::play_stage_speech()?,
+            Self::PlayRallySpeech => v::play_rally_speech()?,
+            Self::LoadWelcomePicture => v::load_welcome_picture()?,
+            Self::LoadServiceBackground => crate::service::load_background::load_background()?,
+            Self::GoBack => crate::menu::go_back::go_back(),
+            Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(),
+            Self::EditPlayerName => {
+                crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
+            }
+            Self::EditSetupName => {
+                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
+            }
+            Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
+                &mut GameCanvas,
+                &mut crate::menu::edit_savegame_name::save_game,
+            )?,
+            Self::EditReplayName => {
+                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
+            }
+            Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name()?,
+            Self::LoadSlideshowPicture => {
+                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
+            }
+            Self::LoadCarBackground => {
+                crate::menu::load_car_background::load_car_background_in_game()?;
+                c.carry = false;
+            }
+            Self::LoadPicture => {
+                c.carry =
+                    !crate::gfx::load_picture::load_picture(crate::pointers::GamePtr::new(c.arg))?
+            }
+            Self::ConvertPicture => c.carry = crate::gfx::convert_picture::convert_picture_now()?,
+            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?,
+            Self::SetUpEngine => {
+                crate::scene::set_up_engine::set_up_engine()?;
+                // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
+                [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
+            }
+            Self::SetUpFrontEndScene => {
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
             }
         }
+
         Ok(())
     }
 }
@@ -560,235 +550,233 @@ fn run_frame(callback: usize, menu: MenuId, c: &Carried) -> Result<(), Refused> 
 
 /// `entry` are the carried values at entry.
 /// Returns why the screen was left, for the log.
-pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
+pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
     let menu = (screen.menu)();
     let callback = screen.frame_callback;
     let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
     let keys_menu = screen.keys_menu.map_or(menu, |other| other());
     let mut c = *entry;
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
-    unsafe {
-        run(screen.before, &mut c)?;
+    run(screen.before, &mut c)?;
 
-        let action_menu = screen.action_menu.map_or(menu, |other| other());
-        let next_frame = if screen.next_frame_repeats_first {
-            Next::FrameTop
-        } else {
-            Next::Frame
-        };
-        let mut next = Next::SetUp;
-        loop {
-            next = match next {
-                Next::SetUp => {
-                    run(screen.set_up_first, &mut c)?;
-                    if !screen.late_highlight {
-                        CAPTIONS.screen_left.set(0);
-                        c.palette = (screen.saved_item)().get();
-                        LOOP_FLAGS.item.set(c.palette);
-                        clear_escape();
-                    }
-                    run(screen.prepare, &mut c)?;
-
-                    LOOP_FLAGS.menu.set(menu);
-                    for list in screen.lists {
-                        let table = (list.table)();
-                        if list.run {
-                            run_list(table)?;
-                        }
-                        (list.pointer)().set(table);
-                    }
-                    run(screen.after_lists, &mut c)?;
-                    if !screen.late_highlight {
-                        OPTION_WORK.menu_sound.set(NO_SOUND);
-                        LOOP_FLAGS.back.set(0u32);
-                    }
-                    run(screen.background, &mut c)?;
-                    crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
-                    update_blink();
-                    c.arg = CLOCKS.frame.get();
-                    CLOCKS.setup_time.set(c.arg);
-                    PHYSICS.scene_clock.set(0u32);
-                    run(screen.before_first_frame, &mut c)?;
-                    c.arg = game_addr(callback);
-                    set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
-                    run_frame(callback, menu, &c)?;
-                    if screen.late_highlight {
-                        CAPTIONS.screen_left.set(0);
-                        c.palette = (screen.saved_item)().get();
-                        LOOP_FLAGS.item.set(c.palette);
-                        clear_escape();
-                    }
-                    Next::FrameTop
-                }
-                Next::FrameTop => match run(screen.after_first_frame, &mut c)? {
-                    Flow::On | Flow::NextFrame => Next::Frame,
-                    Flow::SetUp => Next::SetUp,
-                    Flow::Leave => {
-                        why = "a step of the screen's own".into();
-                        Next::Leave
-                    }
-                },
-                Next::Frame => {
-                    update_blink();
-                    frames += 1;
-                    let flow = run(screen.after_blink, &mut c)?;
-                    if flow == Flow::SetUp {
-                        Next::SetUp
-                    } else if flow == Flow::Leave {
-                        why = "a step of the screen's own".into();
-                        Next::Leave
-                    } else if screen.escape_leaves && DRAW_WORK.escaped.get() == 1 {
-                        why = "the Escape flag was set".into();
-                        Next::Leave
-                    } else if !screen.no_quit_check && quitting() {
-                        why = "the game is quitting".into();
-                        Next::Leave
-                    } else {
-                        if screen.no_quit_check {
-                            OPTION_WORK.menu_sound.set(NO_SOUND);
-                        }
-                        run(screen.before_frame, &mut c)?;
-                        c.arg = game_addr(later_callback);
-                        set_lists(screen, screen.lists);
-                        run_frame(later_callback, menu, &c)?;
-                        c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
-                        PHYSICS.scene_clock.set(c.arg);
-                        match run(screen.each_frame, &mut c)? {
-                            Flow::On => Next::ActionCheck,
-                            Flow::NextFrame => Next::Frame,
-                            Flow::SetUp => Next::SetUp,
-                            Flow::Leave => {
-                                why = "a step of the screen's own".into();
-                                Next::Leave
-                            }
-                        }
-                    }
-                }
-                Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => {
-                    crate::menu::texts_store::MENU_TEXTS
-                        .keys_menu
-                        .set(keys_menu.code());
-                    let keys = handle_keys(c.arg)?;
-                    c.arg = keys.result;
-                    if let Some(clock) = keys.clock {
-                        c.clock = clock;
-                    }
-                    match keys.result {
-                        1 => next_frame,
-                        3 => Next::ActionCheck,
-                        other => {
-                            why = format!("handle_keys returned {other}");
-                            Next::Leave
-                        }
-                    }
-                }
-                Next::ActionCheck => {
-                    let elapsed = c.arg;
-                    actions += 1;
-                    c.measure_x = LOOP_FLAGS.item.get();
-                    let item = c.measure_x;
-                    let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-                    kept().set(c.measure_x);
-                    clear_escape();
-                    run_item_action(action_menu, &c)?;
+    let action_menu = screen.action_menu.map_or(menu, |other| other());
+    let next_frame = if screen.next_frame_repeats_first {
+        Next::FrameTop
+    } else {
+        Next::Frame
+    };
+    let mut next = Next::SetUp;
+    loop {
+        next = match next {
+            Next::SetUp => {
+                run(screen.set_up_first, &mut c)?;
+                if !screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
-                    c.palette = kept().get();
+                    c.palette = (screen.saved_item)().get();
                     LOOP_FLAGS.item.set(c.palette);
                     clear_escape();
-                    c.arg = elapsed;
-                    if screen.restart_action_check {
-                        if LOOP_FLAGS.ended_a.get() == 1 {
-                            why = format!("after the action of item {item}: dword_755569 was 1");
+                }
+                run(screen.prepare, &mut c)?;
+
+                LOOP_FLAGS.menu.set(menu);
+                for list in screen.lists {
+                    let table = (list.table)();
+                    if list.run {
+                        run_list(table)?;
+                    }
+                    (list.pointer)().set(table);
+                }
+                run(screen.after_lists, &mut c)?;
+                if !screen.late_highlight {
+                    OPTION_WORK.menu_sound.set(NO_SOUND);
+                    LOOP_FLAGS.back.set(0u32);
+                }
+                run(screen.background, &mut c)?;
+                crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
+                update_blink();
+                c.arg = CLOCKS.frame.get();
+                CLOCKS.setup_time.set(c.arg);
+                PHYSICS.scene_clock.set(0u32);
+                run(screen.before_first_frame, &mut c)?;
+                c.arg = game_addr(callback);
+                set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
+                run_frame(callback, menu, &c)?;
+                if screen.late_highlight {
+                    CAPTIONS.screen_left.set(0);
+                    c.palette = (screen.saved_item)().get();
+                    LOOP_FLAGS.item.set(c.palette);
+                    clear_escape();
+                }
+                Next::FrameTop
+            }
+            Next::FrameTop => match run(screen.after_first_frame, &mut c)? {
+                Flow::On | Flow::NextFrame => Next::Frame,
+                Flow::SetUp => Next::SetUp,
+                Flow::Leave => {
+                    why = "a step of the screen's own".into();
+                    Next::Leave
+                }
+            },
+            Next::Frame => {
+                update_blink();
+                frames += 1;
+                let flow = run(screen.after_blink, &mut c)?;
+                if flow == Flow::SetUp {
+                    Next::SetUp
+                } else if flow == Flow::Leave {
+                    why = "a step of the screen's own".into();
+                    Next::Leave
+                } else if screen.escape_leaves && DRAW_WORK.escaped.get() == 1 {
+                    why = "the Escape flag was set".into();
+                    Next::Leave
+                } else if !screen.no_quit_check && quitting() {
+                    why = "the game is quitting".into();
+                    Next::Leave
+                } else {
+                    if screen.no_quit_check {
+                        OPTION_WORK.menu_sound.set(NO_SOUND);
+                    }
+                    run(screen.before_frame, &mut c)?;
+                    c.arg = game_addr(later_callback);
+                    set_lists(screen, screen.lists);
+                    run_frame(later_callback, menu, &c)?;
+                    c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
+                    PHYSICS.scene_clock.set(c.arg);
+                    match run(screen.each_frame, &mut c)? {
+                        Flow::On => Next::ActionCheck,
+                        Flow::NextFrame => Next::Frame,
+                        Flow::SetUp => Next::SetUp,
+                        Flow::Leave => {
+                            why = "a step of the screen's own".into();
                             Next::Leave
-                        } else if EVENT_STATE.event_done.get() == 1 {
-                            MENU_PAGES.yes_no_answer.set(0u32);
-                            Callee::TakeKey.run(&mut c)?;
-                            Next::SetUp
-                        } else if LOOP_FLAGS.back.get() == 1 {
-                            why = format!("after the action of item {item}: dword_755561 is 1");
-                            Next::Leave
-                        } else {
-                            OPTION_WORK.menu_sound.set(NO_SOUND);
-                            Next::SetUp
                         }
-                    } else if LOOP_FLAGS.ended_a.get() == 1
-                        || (!screen.short_action_check && EVENT_STATE.event_done.get() == 1)
-                    {
-                        why = format!(
-                            "after the action of item {item}: dword_755569={} dword_755980={}",
-                            LOOP_FLAGS.ended_a.get(),
-                            EVENT_STATE.event_done.get()
-                        );
+                    }
+                }
+            }
+            Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => {
+                crate::menu::texts_store::MENU_TEXTS
+                    .keys_menu
+                    .set(keys_menu.code());
+                let keys = handle_keys(c.arg)?;
+                c.arg = keys.result;
+                if let Some(clock) = keys.clock {
+                    c.clock = clock;
+                }
+                match keys.result {
+                    1 => next_frame,
+                    3 => Next::ActionCheck,
+                    other => {
+                        why = format!("handle_keys returned {other}");
                         Next::Leave
-                    } else if LOOP_FLAGS.back.get() == 1 {
-                        LOOP_FLAGS.back.set(0u32);
-                        why = format!("after the action of item {item}: dword_755561 was 1");
+                    }
+                }
+            }
+            Next::ActionCheck => {
+                let elapsed = c.arg;
+                actions += 1;
+                c.measure_x = LOOP_FLAGS.item.get();
+                let item = c.measure_x;
+                let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
+                kept().set(c.measure_x);
+                clear_escape();
+                run_item_action(action_menu, &c)?;
+                CAPTIONS.screen_left.set(0);
+                c.palette = kept().get();
+                LOOP_FLAGS.item.set(c.palette);
+                clear_escape();
+                c.arg = elapsed;
+                if screen.restart_action_check {
+                    if LOOP_FLAGS.ended_a.get() == 1 {
+                        why = format!("after the action of item {item}: dword_755569 was 1");
                         Next::Leave
-                    } else if screen.short_action_check {
+                    } else if EVENT_STATE.event_done.get() == 1 {
+                        MENU_PAGES.yes_no_answer.set(0u32);
+                        Callee::TakeKey.run(&mut c)?;
                         Next::SetUp
+                    } else if LOOP_FLAGS.back.get() == 1 {
+                        why = format!("after the action of item {item}: dword_755561 is 1");
+                        Next::Leave
                     } else {
                         OPTION_WORK.menu_sound.set(NO_SOUND);
-                        if DRAW_WORK.action_value.get() == 2 {
-                            next_frame
-                        } else if LOOP_FLAGS.went_back.get() == 1 {
-                            LOOP_FLAGS.back.set(0u32);
-                            why = format!("after the action of item {item}: dword_75555D is 1");
-                            Next::Leave
-                        } else {
-                            Next::SetUp
-                        }
+                        Next::SetUp
+                    }
+                } else if LOOP_FLAGS.ended_a.get() == 1
+                    || (!screen.short_action_check && EVENT_STATE.event_done.get() == 1)
+                {
+                    why = format!(
+                        "after the action of item {item}: dword_755569={} dword_755980={}",
+                        LOOP_FLAGS.ended_a.get(),
+                        EVENT_STATE.event_done.get()
+                    );
+                    Next::Leave
+                } else if LOOP_FLAGS.back.get() == 1 {
+                    LOOP_FLAGS.back.set(0u32);
+                    why = format!("after the action of item {item}: dword_755561 was 1");
+                    Next::Leave
+                } else if screen.short_action_check {
+                    Next::SetUp
+                } else {
+                    OPTION_WORK.menu_sound.set(NO_SOUND);
+                    if DRAW_WORK.action_value.get() == 2 {
+                        next_frame
+                    } else if LOOP_FLAGS.went_back.get() == 1 {
+                        LOOP_FLAGS.back.set(0u32);
+                        why = format!("after the action of item {item}: dword_75555D is 1");
+                        Next::Leave
+                    } else {
+                        Next::SetUp
                     }
                 }
-                Next::Leave => {
-                    let done = || format!("{why}; {frames} frames, {actions} actions");
-                    if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
-                        return Ok(done());
-                    }
-                    if let Some(on_refusal) = screen.confirm {
-                        let asked = screen.always_asks
-                            || (CAPTIONS.screen_left.get() == 1
-                                && !screen.ask_unless.is_some_and(|flag| flag() == 1))
-                            || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
-                        if asked {
-                            run(screen.before_asking, &mut c)?;
-                            // The flags of `cmp g_yesNoAnswer, 1`.
-                            c.carry = confirm_leaving(&c)? < 1;
-                            if MENU_PAGES.yes_no_answer.get() != 1 {
-                                run(on_refusal, &mut c)?;
-                                next = Next::SetUp;
-                                continue;
-                            }
-                            run(screen.confirmed, &mut c)?;
-                            if screen.always_asks {
-                                return Ok(done());
-                            }
-                        } else if screen.unasked_skips_save {
-                            run(screen.after, &mut c)?;
-                            c = *entry;
-                            run(screen.after_restored, &mut c)?;
-                            return Ok(done());
-                        }
-                    } else {
-                        run(screen.leaving, &mut c)?;
-                    }
-                    c.measure_x = LOOP_FLAGS.item.get();
-                    screen.leave_saved_item.unwrap_or(screen.saved_item)().set(c.measure_x);
-                    clear_escape();
-                    run(screen.after, &mut c)?;
-                    c = *entry;
-                    run(screen.after_restored, &mut c)?;
+            }
+            Next::Leave => {
+                let done = || format!("{why}; {frames} frames, {actions} actions");
+                if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
                     return Ok(done());
                 }
-            };
-        }
+                if let Some(on_refusal) = screen.confirm {
+                    let asked = screen.always_asks
+                        || (CAPTIONS.screen_left.get() == 1
+                            && !screen.ask_unless.is_some_and(|flag| flag() == 1))
+                        || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
+                    if asked {
+                        run(screen.before_asking, &mut c)?;
+                        // The flags of `cmp g_yesNoAnswer, 1`.
+                        c.carry = confirm_leaving(&c)? < 1;
+                        if MENU_PAGES.yes_no_answer.get() != 1 {
+                            run(on_refusal, &mut c)?;
+                            next = Next::SetUp;
+                            continue;
+                        }
+                        run(screen.confirmed, &mut c)?;
+                        if screen.always_asks {
+                            return Ok(done());
+                        }
+                    } else if screen.unasked_skips_save {
+                        run(screen.after, &mut c)?;
+                        c = *entry;
+                        run(screen.after_restored, &mut c)?;
+                        return Ok(done());
+                    }
+                } else {
+                    run(screen.leaving, &mut c)?;
+                }
+                c.measure_x = LOOP_FLAGS.item.get();
+                screen.leave_saved_item.unwrap_or(screen.saved_item)().set(c.measure_x);
+                clear_escape();
+                run(screen.after, &mut c)?;
+                c = *entry;
+                run(screen.after_restored, &mut c)?;
+                return Ok(done());
+            }
+        };
     }
 }
 
 /// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`)
 /// gets the carried values as they are; every register comes back as it was.
-pub unsafe fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
+pub fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
     let mut asked = Ok(());
-    let answer = unsafe {
+    let answer = {
         crate::menu::confirm_leaving::confirm_leaving(&mut || {
             if quitting() {
                 // The window was closed: leaving is the answer. (The original asked; the
@@ -813,7 +801,7 @@ pub unsafe fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
 /// `run_screen`.
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     log(&format!("{name}: the Rust version runs"));
-    let why = unsafe { screen_loop(screen, &Carried::default()) }?;
+    let why = { screen_loop(screen, &Carried::default()) }?;
     log(&format!(
         "{name}: the Rust version has left the screen ({why})"
     ));
@@ -826,15 +814,15 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 /// trial's carousel refused with "no list of cars" when they were dropped, 2026-10-23).
 /// Returns the screen's result where it has one (the original's eax; every other register
 /// kept).
-pub unsafe fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refused> {
-    unsafe { screen_loop(screen, entry) }?;
+pub fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refused> {
+    { screen_loop(screen, entry) }?;
     Ok(screen.result.map(|result| result()))
 }
 
 /// `run_screen` for a flow that holds the carried values: the screen's result, where it
 /// has one, becomes `arg` (the original's eax); every other value is kept.
-pub unsafe fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
-    if let Some(result) = unsafe { run_screen(screen, c) }? {
+pub fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
+    if let Some(result) = { run_screen(screen, c) }? {
         c.arg = result;
     }
     Ok(())

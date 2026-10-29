@@ -39,7 +39,7 @@ use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
 fn place() {
-    unsafe { crate::physics::place_camera::place_camera() };
+    crate::physics::place_camera::place_camera();
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.

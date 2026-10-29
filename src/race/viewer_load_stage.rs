@@ -57,13 +57,12 @@ fn settings() -> [(&'static Dword, &'static Dword); 5] {
 pub fn viewer_load_stage() -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     if REPLAY_FILE.replay_open.get() == 1 {
-        unsafe {
-            stage_free::render3d_tidy()?;
-            stage_free::objects_tidy()?;
-            // nullsub_6
-            race_end::release_textures();
-            race_shell::set_race_screen_mode();
-        }
+        stage_free::render3d_tidy()?;
+        stage_free::objects_tidy()?;
+        // nullsub_6
+        race_end::release_textures();
+        race_shell::set_race_screen_mode();
+
         crate::menu::show_loading_picture::show_loading_picture()?;
         for (to, from) in settings() {
             to.set(from.get());
@@ -92,7 +91,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             REPLAY_FILE.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header();
-        unsafe { stage_loading::load_stage() }?;
+        { stage_loading::load_stage() }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game())?;
         crate::race::viewer_palettes::viewer_palettes()?;
         REPLAY_FILE.viewer_stage_loaded.set(1);

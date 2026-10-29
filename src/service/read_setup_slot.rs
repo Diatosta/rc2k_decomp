@@ -15,7 +15,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
-use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 
 // ---- game data ----
@@ -64,11 +63,8 @@ pub fn template_home() -> usize {
 }
 
 // "CRSU"
-pub fn slot_name(slot: u32) -> *mut u8 {
-    SET_UPS
-        .names
-        .as_ptr()
-        .wrapping_add(slot as usize * NAME_LEN)
+pub fn slot_name(slot: u32) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(SET_UPS.names.addr()).offset(slot * NAME_LEN as u32)
 }
 
 // ---- Rust version ----
@@ -89,8 +85,7 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
-                GamePtr::new(crate::pointers::game_address(slot_name(slot)))
-                    .write_bytes(&name[..NAME_LEN], "a setup's name")?;
+                slot_name(slot).write_bytes(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }
             _ => Ok(false),

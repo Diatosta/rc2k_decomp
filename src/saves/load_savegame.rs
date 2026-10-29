@@ -93,7 +93,7 @@ fn highlighted_slot() -> u32 {
 /// `entry` holds the carried values at entry (the original's eax .. esi, no carry): the
 /// callees get them as the original's registers stand at each call (edi and ebp, which it
 /// also writes, are read by none of them).
-pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
+pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
     let slot = highlighted_slot();
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
@@ -101,95 +101,89 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
     let cars = cars()?;
     let mut g = *entry;
 
-    unsafe {
-        game(Callee::Prepare, &mut g)?;
-        EVENT_STATE.event_goes_on.set(1u32);
-        MENU_PAGES.reset_times.set(0u32);
-        EVENT_STATE.event_out.set(0u32);
-        g.palette = slot;
-        g.arg = 0;
-        if !read_savegame_slot(slot)? {
-            g.arg = 8;
-            game(Callee::Refuse, &mut g)?;
+    game(Callee::Prepare, &mut g)?;
+    EVENT_STATE.event_goes_on.set(1u32);
+    MENU_PAGES.reset_times.set(0u32);
+    EVENT_STATE.event_out.set(0u32);
+    g.palette = slot;
+    g.arg = 0;
+    if !read_savegame_slot(slot)? {
+        g.arg = 8;
+        game(Callee::Refuse, &mut g)?;
+        go_back::go_back();
+        return Ok(());
+    }
+
+    let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
+    let mut cursor = GamePtr::new(payload);
+    for at in head() {
+        g.arg = cursor.read::<u32>("the savegame's head")?;
+        at.set(g.arg);
+        cursor = cursor.offset(4);
+    }
+    SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
+    g.cars = cursor.addr();
+    if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
+        game(Callee::CopySomeData, &mut g)?;
+    }
+    game(Callee::AfterHead, &mut g)?;
+
+    for car in cars {
+        let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
+        cursor.copy_to(GamePtr::new(car), CAR_LEN, "a saved car")?;
+        GamePtr::new(car + NAME_OFFSET).copy_to(GamePtr::new(name), NAME_LEN, "a player's name")?;
+        cursor = cursor.offset(CAR_LEN as u32);
+        g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
+    }
+    cursor.copy_to(
+        GamePtr::new(crate::menu::drivers_store::drivers_addr()),
+        RECORDS_LEN,
+        "the saved drivers",
+    )?;
+    g.cars = cursor.offset(RECORDS_LEN as u32).addr();
+    g.clock = 0xB4;
+    SCREEN_FLOW
+        .start_section
+        .set(GamePtr::new(cars[0] + 0x14).read::<u32>("a player's record")?);
+    g.arg = GamePtr::new(cars[0] + 0x274).read::<u32>("a player's record")?;
+    SCREEN_FLOW.start_section_a8.set(g.arg);
+
+    game(Callee::EventState, &mut g)?;
+    match resume(g.arg) {
+        Resume::NextSection => {
+            EVENT_STATE
+                .section
+                .set(EVENT_STATE.section.get().wrapping_add(1));
+            EVENT_STATE.index.set(0u32);
+        }
+        Resume::NextStage => EVENT_STATE
+            .index
+            .set(EVENT_STATE.index.get().wrapping_add(1)),
+        Resume::Over => {
             go_back::go_back();
             return Ok(());
         }
-
-        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
-        let mut cursor = GamePtr::new(payload);
-        for at in head() {
-            g.arg = cursor.read::<u32>("the savegame's head")?;
-            at.set(g.arg);
-            cursor = cursor.offset(4);
-        }
-        SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
-        g.cars = cursor.addr();
-        if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
-            game(Callee::CopySomeData, &mut g)?;
-        }
-        game(Callee::AfterHead, &mut g)?;
-
-        for car in cars {
-            let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
-            cursor.copy_to(GamePtr::new(car), CAR_LEN, "a saved car")?;
-            GamePtr::new(car + NAME_OFFSET).copy_to(
-                GamePtr::new(name),
-                NAME_LEN,
-                "a player's name",
-            )?;
-            cursor = cursor.offset(CAR_LEN as u32);
-            g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
-        }
-        cursor.copy_to(
-            GamePtr::new(crate::menu::drivers_store::drivers_addr()),
-            RECORDS_LEN,
-            "the saved drivers",
-        )?;
-        g.cars = cursor.offset(RECORDS_LEN as u32).addr();
-        g.clock = 0xB4;
-        SCREEN_FLOW
-            .start_section
-            .set(GamePtr::new(cars[0] + 0x14).read::<u32>("a player's record")?);
-        g.arg = GamePtr::new(cars[0] + 0x274).read::<u32>("a player's record")?;
-        SCREEN_FLOW.start_section_a8.set(g.arg);
-
-        game(Callee::EventState, &mut g)?;
-        match resume(g.arg) {
-            Resume::NextSection => {
-                EVENT_STATE
-                    .section
-                    .set(EVENT_STATE.section.get().wrapping_add(1));
-                EVENT_STATE.index.set(0u32);
+        Resume::Corrupt => {
+            return Err(FatalError {
+                code: CORRUPT,
+                message: "Corrupt SaveGame",
             }
-            Resume::NextStage => EVENT_STATE
-                .index
-                .set(EVENT_STATE.index.get().wrapping_add(1)),
-            Resume::Over => {
-                go_back::go_back();
-                return Ok(());
-            }
-            Resume::Corrupt => {
-                return Err(FatalError {
-                    code: CORRUPT,
-                    message: "Corrupt SaveGame",
-                }
-                .into());
-            }
+            .into());
         }
-        EVENT_STATE.continuing_save.set(1u32);
-        game(Callee::BeforeEvent, &mut g)?;
-        if CHAMP_VIEW.event_mode.get() == A8_MODE {
-            game(Callee::RunEventMode13, &mut g)?;
-        } else {
-            game(Callee::RunEvent, &mut g)?;
-        }
-        go_back::go_back();
     }
+    EVENT_STATE.continuing_save.set(1u32);
+    game(Callee::BeforeEvent, &mut g)?;
+    if CHAMP_VIEW.event_mode.get() == A8_MODE {
+        game(Callee::RunEventMode13, &mut g)?;
+    } else {
+        game(Callee::RunEvent, &mut g)?;
+    }
+    go_back::go_back();
     Ok(())
 }
 
 /// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
 pub fn entry(c: &Carried) -> Result<(), crate::errors::Refused> {
-    unsafe { load_savegame(c, &mut in_game) }
+    load_savegame(c, &mut in_game)
 }

@@ -90,7 +90,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     let kept = KEEP_CASE.swap(0, Relaxed);
     let to = at_name as usize + name.len();
     // room 0x19 is never refused
-    let _ = unsafe {
+    let _ = {
         crate::strings::copy_printable::copy_printable(
             crate::pointers::host(instance + field!(DiDeviceInstance, instance_name)) as *const u8,
             crate::pointers::host_at(to),

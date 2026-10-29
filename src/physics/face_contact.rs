@@ -115,7 +115,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     OBJECT_WORK.size.set(byte(face + 0x18)?);
     // esi and ebp both the face here.
     let (inside, _, point) =
-        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) }?;
+        { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) }?;
     if !inside {
         if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
@@ -137,7 +137,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
             return Ok(());
         }
         // esi the scene point, ebp the face.
-        if !unsafe { crate::physics::object_hits_car::object_hits_car(point, face) }? {
+        if !{ crate::physics::object_hits_car::object_hits_car(point, face) }? {
             return Ok(());
         }
     }
@@ -182,7 +182,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     PHYSICS
         .contact_record
         .set(crate::pointers::game_address(PHYSICS.contacts.as_ptr()));
-    unsafe { contact_force() };
+    contact_force();
     Ok(())
 }
 

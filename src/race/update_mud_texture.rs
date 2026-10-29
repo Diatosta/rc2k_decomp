@@ -68,72 +68,70 @@ fn take_units(at: &Float, units: &Dword) {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn update_mud_texture() -> Result<(), Refused> {
+pub fn update_mud_texture() -> Result<(), Refused> {
     let n = texture_and_mud()?;
     let k = n as usize;
-    unsafe {
-        crate::scene::forget_slot_texture::forget_slot_texture(
-            KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
-        )?;
-        PANEL
-            .texture_changes
-            .set(PANEL.texture_changes.get().wrapping_add(0x1_0000));
-        let texture = KIND_TEXTURES.kind_first_textures[256]
-            .bits()
-            .wrapping_add(n);
-        RACE_VARS.mud_locked.set_bits(texture);
-        if texture == 0 {
-            return Ok(());
-        }
-        if crate::d3d::lock_texture::lock_texture(texture)?.carry {
-            return Ok(());
-        }
-        // The throws.
-        let throws = whole_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
-        let count: u32 = RACE_VARS.mud_thrown_counts[k].bits();
-        if count <= LAST_THROWN {
-            let over = (count & 0xFFFF).wrapping_add(throws as u32);
-            if (over.wrapping_sub(0x100_0000) as i32) >= 0 {
-                let over = over.wrapping_sub(0x100_0000);
-                RACE_VARS
-                    .mud_throws
-                    .set_bits((throws as u32).wrapping_sub(over));
-            }
-            take_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
-            let throws = RACE_VARS.mud_throws.bits() as i32;
-            if throws > 0 {
-                let mut done = 0u32;
-                loop {
-                    throw_mud_texel()?;
-                    done = done.wrapping_add(1);
-                    if done == RACE_VARS.mud_throws.bits() {
-                        break;
-                    }
-                }
-            }
-        }
-        // The splashes.
-        whole_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
-        if RACE_VARS.mud_splash_counts[k].bits() < LAST_SPLASHED {
-            take_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
-            let splashes = RACE_VARS.mud_splashes.bits() as i32;
-            if splashes > 0 {
-                let mut done = 0u32;
-                loop {
-                    if RACE_VARS.mud_splash_counts[k].bits() >= LAST_SPLASHED {
-                        break;
-                    }
-                    splash_mud()?;
-                    done = done.wrapping_add(1);
-                    if done == RACE_VARS.mud_splashes.bits() {
-                        break;
-                    }
-                }
-            }
-        }
-        crate::d3d::unlock_texture::unlock_texture(RACE_VARS.mud_locked.bits())?;
-        Ok(())
+    crate::scene::forget_slot_texture::forget_slot_texture(
+        KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
+    )?;
+    PANEL
+        .texture_changes
+        .set(PANEL.texture_changes.get().wrapping_add(0x1_0000));
+    let texture = KIND_TEXTURES.kind_first_textures[256]
+        .bits()
+        .wrapping_add(n);
+    RACE_VARS.mud_locked.set_bits(texture);
+    if texture == 0 {
+        return Ok(());
     }
+    if crate::d3d::lock_texture::lock_texture(texture)?.carry {
+        return Ok(());
+    }
+    // The throws.
+    let throws = whole_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
+    let count: u32 = RACE_VARS.mud_thrown_counts[k].bits();
+    if count <= LAST_THROWN {
+        let over = (count & 0xFFFF).wrapping_add(throws as u32);
+        if (over.wrapping_sub(0x100_0000) as i32) >= 0 {
+            let over = over.wrapping_sub(0x100_0000);
+            RACE_VARS
+                .mud_throws
+                .set_bits((throws as u32).wrapping_sub(over));
+        }
+        take_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
+        let throws = RACE_VARS.mud_throws.bits() as i32;
+        if throws > 0 {
+            let mut done = 0u32;
+            loop {
+                throw_mud_texel()?;
+                done = done.wrapping_add(1);
+                if done == RACE_VARS.mud_throws.bits() {
+                    break;
+                }
+            }
+        }
+    }
+    // The splashes.
+    whole_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
+    if RACE_VARS.mud_splash_counts[k].bits() < LAST_SPLASHED {
+        take_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
+        let splashes = RACE_VARS.mud_splashes.bits() as i32;
+        if splashes > 0 {
+            let mut done = 0u32;
+            loop {
+                if RACE_VARS.mud_splash_counts[k].bits() >= LAST_SPLASHED {
+                    break;
+                }
+                splash_mud()?;
+                done = done.wrapping_add(1);
+                if done == RACE_VARS.mud_splashes.bits() {
+                    break;
+                }
+            }
+        }
+    }
+    crate::d3d::unlock_texture::unlock_texture(RACE_VARS.mud_locked.bits())?;
+    Ok(())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

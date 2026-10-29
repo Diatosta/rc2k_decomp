@@ -19,7 +19,7 @@ use crate::race::view_store::RACE_VIEW;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub unsafe fn race_tick() -> Result<(), Refused> {
+pub fn race_tick() -> Result<(), Refused> {
     if CAR_BLOCKS.cars[0].probe_count.bits() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
@@ -39,5 +39,5 @@ pub unsafe fn race_tick() -> Result<(), Refused> {
     ) {
         return Ok(());
     }
-    unsafe { crate::drive::replay_step::replay_step() }
+    crate::drive::replay_step::replay_step()
 }

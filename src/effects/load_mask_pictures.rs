@@ -73,7 +73,7 @@ fn read(path: u32) -> Result<(), Refused> {
 
 /// `gfx::put_surface_pixel` (components, x, y).
 pub fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
-    unsafe { crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y)? };
+    crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y)?;
     Ok(())
 }
 

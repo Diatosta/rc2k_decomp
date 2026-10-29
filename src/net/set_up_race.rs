@@ -94,7 +94,7 @@ pub fn set_up_race() -> Result<(), Refused> {
         };
         log_int_nl(value, 1);
     }
-    unsafe { crate::race::stage_loading::load_stage() }?;
+    { crate::race::stage_loading::load_stage() }?;
     log(crate::pointers::game_address(COMPLETE.as_ptr()), true, 1);
     log(crate::pointers::game_address(RULE_2.as_ptr()), true, 1);
     Ok(())

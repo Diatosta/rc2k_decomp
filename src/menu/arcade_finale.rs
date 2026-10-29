@@ -19,7 +19,7 @@ use crate::menu::player::player_at;
 use crate::race::state_store::RACE_STATE;
 
 /// The Rust version. The original keeps every register of its caller.
-pub unsafe fn arcade_finale() -> Result<(), Refused> {
+pub fn arcade_finale() -> Result<(), Refused> {
     let player0 = player_at(0);
     if player0 == 0 {
         return Err(BadInput("no player 0").into());
@@ -36,27 +36,25 @@ pub unsafe fn arcade_finale() -> Result<(), Refused> {
         .stage_index
         .set(rc2k_core::menu::arcade::levels_left(level));
     RACE_STATE.results.finished.set(0);
-    unsafe {
-        crate::race::sound_tables::set_up_race_sound_objects(
-            &crate::race::sound_tables::ObjectVars::game(),
-        )?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        crate::race::stage_free::render3d_tidy()?;
-        crate::race::stage_free::objects_tidy()?;
-        // `nullsub_6`.
-        crate::race::race_end::release_textures();
-        crate::drive::finish_race_0::finish_race_0()?;
-        crate::sound::stop_music::stop_music();
-        crate::platform::set_menu_mode_now();
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        crate::sound::stop_music::stop_music();
-        crate::sound::play_tune_3::play_tune_3();
-        // The pending key taken (eax 0).
-        crate::input::take_key::take_key();
-    }
+    crate::race::sound_tables::set_up_race_sound_objects(
+        &crate::race::sound_tables::ObjectVars::game(),
+    )?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds()?;
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::race::stage_free::render3d_tidy()?;
+    crate::race::stage_free::objects_tidy()?;
+    // `nullsub_6`.
+    crate::race::race_end::release_textures();
+    crate::drive::finish_race_0::finish_race_0()?;
+    crate::sound::stop_music::stop_music();
+    crate::platform::set_menu_mode_now();
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    crate::sound::stop_music::stop_music();
+    crate::sound::play_tune_3::play_tune_3();
+    // The pending key taken (eax 0).
+    crate::input::take_key::take_key();
     Ok(())
 }

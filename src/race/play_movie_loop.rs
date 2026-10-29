@@ -52,7 +52,7 @@ pub fn play_movie_loop() -> Result<(), Refused> {
         if DEVICES.keys_pressed.get(1) != 0 {
             break;
         }
-        unsafe { crate::drive::race_step::race_step() }?;
+        { crate::drive::race_step::race_step() }?;
         race_parts::race_frame()?;
         if REPLAY_VIEW.replay_block.get() == REPLAY_VIEW.play_end.get() {
             break;

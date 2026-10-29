@@ -11,13 +11,16 @@ use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::physics::car_store::CAR;
 
 /// The Rust version.
-pub unsafe fn turn_by_heading(point: u32, ebx: u32) {
-    unsafe {
-        let p = crate::pointers::host(point) as *mut u32;
-        let angle = CAR.car_heading.get().wrapping_neg();
-        let [x, _, z, _] =
-            turn_float_point_xz(p.read_unaligned(), ebx, p.add(2).read_unaligned(), angle);
-        p.write_unaligned(x);
-        p.add(2).write_unaligned(z);
-    }
+pub fn turn_by_heading(point: u32, ebx: u32) {
+    use crate::pointers::{read_or_end, write_or_end};
+    let what = "a point to turn";
+    let angle = CAR.car_heading.get().wrapping_neg();
+    let [x, _, z, _] = turn_float_point_xz(
+        read_or_end::<u32>(point, what),
+        ebx,
+        read_or_end::<u32>(point + 8, what),
+        angle,
+    );
+    write_or_end(point, x, what);
+    write_or_end(point + 8, z, what);
 }

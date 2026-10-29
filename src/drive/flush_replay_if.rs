@@ -13,9 +13,9 @@ use rc2k_core::drive::replay_frames::flush_due;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::flush_due`.
-pub unsafe fn flush_replay_if() -> Result<(), Refused> {
+pub fn flush_replay_if() -> Result<(), Refused> {
     if flush_due(NUMBERS.replay_mode.get(), REPLAY_FRAMES.tenth.get()) {
-        return unsafe { crate::drive::flush_replay::flush_replay() };
+        return crate::drive::flush_replay::flush_replay();
     }
     Ok(())
 }

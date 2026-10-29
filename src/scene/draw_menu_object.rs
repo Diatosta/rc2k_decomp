@@ -42,14 +42,12 @@ pub fn draw_menu_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Re
 
 /// With the Rust versions of what it calls. The drawing's esi (the description) is read
 /// only in the scene's modes 1 and 2; the menus draw in mode 0 (each caller writes it).
-pub unsafe fn draw_menu_object_in_game() -> Result<(), Refused> {
-    unsafe {
-        draw_menu_object(&mut |step| match step {
-            Step::Matrix => {
-                make_object_matrix();
-                Ok(())
-            }
-            Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(0),
-        })
-    }
+pub fn draw_menu_object_in_game() -> Result<(), Refused> {
+    draw_menu_object(&mut |step| match step {
+        Step::Matrix => {
+            make_object_matrix();
+            Ok(())
+        }
+        Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(0),
+    })
 }

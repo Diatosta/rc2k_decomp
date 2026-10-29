@@ -26,43 +26,41 @@ use crate::race::vars_store::RACE_VARS;
 pub const LAST_SPLASHED: u32 = 0x1000;
 
 /// The Rust version (see the header).
-pub unsafe fn splash_mud() -> Result<(), Refused> {
+pub fn splash_mud() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
     use rc2k_core::race::mud::{
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place,
     };
     let n = texture_and_mud()?;
-    unsafe {
-        // dword_623D90: each texture's count (the texture is 0 .. 3).
-        let count_cell = &RACE_VARS.mud_splash_counts[n as usize];
-        count_cell.set(count_cell.get().wrapping_add(1));
-        let (mut x, mut y) = splash_place(next_random());
-        let strength = strength_at(n, x, y)?;
-        if !splash_lands(strength, || next_random() & 0xFF) {
-            return Ok(());
-        }
-        // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
-        // when they skip a place.
-        let mut eax = splash_pattern(next_random());
-        let mut colours = (RACE_VARS.mud_colours[0].addr()).wrapping_add(eax);
-        RACE_VARS.mud_row.set_bits(0u32);
-        for row in 0..SPLASH_SIDE {
-            RACE_VARS.mud_column.set_bits(0u32);
-            for column in 0..SPLASH_SIDE {
-                eax = mud_texel(eax, x, y)?;
-                if muddy(eax) {
-                    let colour = GamePtr::new(colours).read::<u32>("the mud colours")?;
-                    let faded = fade_colour(eax, colour, colour >> 24);
-                    eax = put_mud_texel(faded | MUD_TOP, x, y)?;
-                }
-                colours = colours.wrapping_add(4);
-                x = x.wrapping_add(1);
-                RACE_VARS.mud_column.set_bits(column + 1);
-            }
-            x = x.wrapping_sub(4);
-            y = y.wrapping_add(1);
-            RACE_VARS.mud_row.set_bits(row + 1);
-        }
-        Ok(())
+    // dword_623D90: each texture's count (the texture is 0 .. 3).
+    let count_cell = &RACE_VARS.mud_splash_counts[n as usize];
+    count_cell.set(count_cell.get().wrapping_add(1));
+    let (mut x, mut y) = splash_place(next_random());
+    let strength = strength_at(n, x, y)?;
+    if !splash_lands(strength, || next_random() & 0xFF) {
+        return Ok(());
     }
+    // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
+    // when they skip a place.
+    let mut eax = splash_pattern(next_random());
+    let mut colours = (RACE_VARS.mud_colours[0].addr()).wrapping_add(eax);
+    RACE_VARS.mud_row.set_bits(0u32);
+    for row in 0..SPLASH_SIDE {
+        RACE_VARS.mud_column.set_bits(0u32);
+        for column in 0..SPLASH_SIDE {
+            eax = mud_texel(eax, x, y)?;
+            if muddy(eax) {
+                let colour = GamePtr::new(colours).read::<u32>("the mud colours")?;
+                let faded = fade_colour(eax, colour, colour >> 24);
+                eax = put_mud_texel(faded | MUD_TOP, x, y)?;
+            }
+            colours = colours.wrapping_add(4);
+            x = x.wrapping_add(1);
+            RACE_VARS.mud_column.set_bits(column + 1);
+        }
+        x = x.wrapping_sub(4);
+        y = y.wrapping_add(1);
+        RACE_VARS.mud_row.set_bits(row + 1);
+    }
+    Ok(())
 }

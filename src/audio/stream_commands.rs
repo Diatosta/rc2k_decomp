@@ -29,9 +29,13 @@ struct GamePlayer {
 }
 
 impl GamePlayer {
-    /// The player's record, to work on in place.
-    unsafe fn stream(&self) -> &'static mut AudioStream {
-        unsafe { self.player.borrow() }
+    /// `work` on a copy of the player's record, written back after it (the stream
+    /// functions do not reach the record by address).
+    fn with<R>(&self, work: impl FnOnce(&mut AudioStream) -> R) -> R {
+        let mut stream = self.player.get();
+        let out = work(&mut stream);
+        self.player.set(stream);
+        out
     }
 }
 
@@ -41,19 +45,20 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
         playing(self.player)
     }
     fn keep_volume(&mut self, volume: u32) {
-        unsafe { self.stream().volume = volume };
+        self.player.update(|s| s.volume = volume);
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        unsafe { start_stream(self.stream(), crate::pointers::GamePtr::new(self.path)) }
+        let path = crate::pointers::GamePtr::new(self.path);
+        self.with(|s| start_stream(s, path))
     }
     fn feed(&mut self) -> Result<(), Refused> {
-        unsafe { feed_stream(self.stream()) }.map(|_| ())
+        self.with(feed_stream).map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        unsafe { stop_stream(self.stream()) }
+        self.with(stop_stream)
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
-        unsafe { set_stream_volume(self.stream()) }
+        set_stream_volume(&self.player.get())
     }
 }
 

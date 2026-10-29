@@ -8,9 +8,7 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::text_state_store::TEXT_STATE;
 use crate::race::trap::Trap;
 use crate::scene::draw_store::DRAW;
-use crate::screens::font_at;
 use crate::session::{Dword, SCREEN};
-use crate::strings::text_from_ids::text;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -26,12 +24,11 @@ pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if rate == 0 || FRAME_COUNTER.show.get() == 0 {
         return Ok(());
     }
-    let t = text();
+    let t = crate::strings::text_from_ids::text_at();
     let bytes = fps_text(rate);
-    crate::pointers::GamePtr::new(crate::pointers::game_address(t))
-        .write_bytes(&bytes, "the frame rate's text")?;
+    t.write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
-        font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr() as usize),
+        crate::pointers::GamePtr::new(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
         t,
         0x190,
         4,
@@ -47,13 +44,7 @@ fn credit_line(id: u32, font: u32, x: i32, y: i32, canvas: &mut dyn Canvas) -> R
     if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
         return Ok(());
     }
-    draw_string_by_id_at(
-        id,
-        crate::pointers::host(font) as *mut crate::text::font::Font,
-        x,
-        y,
-        canvas,
-    )?;
+    draw_string_by_id_at(id, crate::pointers::GamePtr::new(font), x, y, canvas)?;
     Ok(())
 }
 

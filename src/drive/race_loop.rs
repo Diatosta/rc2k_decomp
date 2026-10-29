@@ -59,7 +59,7 @@ fn put_answer(answer: u32) -> Result<(), BadInput> {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
 /// edx and esi after `drive::play_race`'s call have no read point).
-pub unsafe fn race_loop() -> Result<(), Refused> {
+pub fn race_loop() -> Result<(), Refused> {
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
@@ -114,7 +114,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 }
             }
             if crate::input::store::DEVICES.keys_pressed.get(1) != 0 {
-                let answer = unsafe { crate::drive::quit_question::quit_question() }?;
+                let answer = { crate::drive::quit_question::quit_question() }?;
                 if answer == 0 {
                     break false;
                 }
@@ -139,7 +139,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                 break true;
             }
             race_keys()?;
-            unsafe { crate::drive::race_step::race_step() }?;
+            { crate::drive::race_step::race_step() }?;
             tyre_change()?;
             if players_all_out()? {
                 if RACE_WORK.in_credits.get() != 0 {

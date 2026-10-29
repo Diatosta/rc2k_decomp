@@ -118,7 +118,7 @@ fn steps() -> Result<(), Refused> {
     }));
     x87_1();
     p(&PHYSICS.contact_record, PHYSICS.forces[21].force[0].addr());
-    unsafe { contact_force() };
+    contact_force();
     { place_sound_e5() }?;
     for k in 0..3 {
         CONTACT_WORK.ground_force[k].set(PHYSICS.forces[21].force[k].bits());

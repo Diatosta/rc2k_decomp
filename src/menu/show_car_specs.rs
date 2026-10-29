@@ -17,7 +17,7 @@ use crate::menu::screen_loop::{Carried, run_screen_carried};
 
 /// The Rust version. `c` the carried values the item gets. (The original leaves the
 /// registers its callees leave, esi the list; an item's caller reads none.)
-pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
+pub fn show_car_specs(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let mut r = *c;
@@ -35,11 +35,11 @@ pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
         SpecsList::Kind5 => MENU_LISTS.cars_a8[0].addr(),
     };
     if !choice {
-        unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+        { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
         return Ok(());
     }
     crate::menu::cheat_car_list::carry_on(crate::menu::cheat_car_list::cheat_car_list(), &mut r);
-    unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+    { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
     if { CAPTIONS.screen_left.get() } != 1 {
         crate::menu::take_shown_car::take_shown_car(r.cars)?;
     }

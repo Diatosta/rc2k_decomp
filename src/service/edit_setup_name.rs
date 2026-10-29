@@ -30,6 +30,7 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
+use crate::pointers::GamePtr;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::state::current_player;
@@ -46,28 +47,27 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
+fn put_cursor(name: GamePtr) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);
     let len = LOOP_FLAGS.text_length.get() as i32;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(name).wrapping_add(len as u32))
+    name.offset(len as u32)
         .write_bytes(&tail, "the setup name")?;
     Ok(())
 }
 
 /// `c` at the name's character `at`.
-fn put_char(name: *mut u8, at: i32, c: u8) -> Result<(), BadInput> {
-    crate::pointers::GamePtr::new(crate::pointers::game_address(name).wrapping_add(at as u32))
-        .write(c, "the setup name")
+fn put_char(name: GamePtr, at: i32, c: u8) -> Result<(), BadInput> {
+    name.offset(at as u32).write(c, "the setup name")
 }
 
 /// The name cut at its length.
-fn end_name(name: *mut u8) -> Result<(), BadInput> {
+fn end_name(name: GamePtr) -> Result<(), BadInput> {
     put_char(name, LOOP_FLAGS.text_length.get() as i32, 0)
 }
 
-pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry()?;
     let slot = highlighted_slot();
@@ -78,46 +78,44 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         return Err(BadInput("no keyboard layout").into());
     }
 
-    unsafe {
-        let key = take_key();
-        // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
-        use rc2k_core::menu::text_entry::{self as entry, Key};
-        match entry::key(key) {
-            Key::None => {}
-            Key::Escape => {
-                restore_text(crate::pointers::game_address(name))?;
-                OPTION_WORK.typing.set(0u32);
-                return Ok(());
+    let key = take_key();
+    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    use rc2k_core::menu::text_entry::{self as entry, Key};
+    match entry::key(key) {
+        Key::None => {}
+        Key::Escape => {
+            restore_text(name.addr())?;
+            OPTION_WORK.typing.set(0u32);
+            return Ok(());
+        }
+        Key::Enter => {
+            if (LOOP_FLAGS.text_length.get() as i32) == 0 {
+                restore_text(name.addr())?;
+                add_text_length(name.addr())?;
             }
-            Key::Enter => {
-                if (LOOP_FLAGS.text_length.get() as i32) == 0 {
-                    restore_text(crate::pointers::game_address(name))?;
-                    add_text_length(crate::pointers::game_address(name))?;
-                }
-                OPTION_WORK.typing.set(0u32);
-                end_name(name)?;
-                write_setup_slot(slot)?;
-                end_name(name)?;
-                OPTION_WORK.typing.set(0u32);
-                return Ok(());
-            }
-            Key::Clear => clear_text(crate::pointers::game_address(name))?,
-            Key::Backspace => backspace_setup_name()?,
-            Key::Other(key) => {
-                let c = key_to_char(key as u32)? as u8;
-                let len = LOOP_FLAGS.text_length.get() as i32;
-                if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    put_char(name, len, c)?;
-                    set_length(len.wrapping_add(1));
-                    // x is whatever ecx held: the length before this character.
-                    let measured = measure_text_at(MEASURING_FONT.as_ptr(), name, len, canvas)?;
-                    if entry::too_wide(measured.width as i32) {
-                        backspace_setup_name()?;
-                    }
+            OPTION_WORK.typing.set(0u32);
+            end_name(name)?;
+            write_setup_slot(slot)?;
+            end_name(name)?;
+            OPTION_WORK.typing.set(0u32);
+            return Ok(());
+        }
+        Key::Clear => clear_text(name.addr())?,
+        Key::Backspace => backspace_setup_name()?,
+        Key::Other(key) => {
+            let c = key_to_char(key as u32)? as u8;
+            let len = LOOP_FLAGS.text_length.get() as i32;
+            if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
+                put_char(name, len, c)?;
+                set_length(len.wrapping_add(1));
+                // x is whatever ecx held: the length before this character.
+                let measured = measure_text_at(MEASURING_FONT.game_ptr(), name, len, canvas)?;
+                if entry::too_wide(measured.width as i32) {
+                    backspace_setup_name()?;
                 }
             }
         }
-        put_cursor(name)?;
     }
+    put_cursor(name)?;
     Ok(())
 }

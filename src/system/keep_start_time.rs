@@ -10,19 +10,18 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::moved::Place;
+use crate::session::Bytes;
 
 // ---- game data ----
 
 /// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
 /// `dword_5183A0`, `dword_5183A4`). Written once, by `start`'s first call.
 pub const KEPT_LEN: usize = 9;
-pub static KEPT: Place<[u8; KEPT_LEN]> = Place::new([0; KEPT_LEN]);
+pub static KEPT: Bytes<KEPT_LEN> = Bytes::new([0; KEPT_LEN]);
 
 /// The start's moment as kept (all 0 before `keep_start_time`).
 pub fn start_time() -> [u8; KEPT_LEN] {
-    // SAFETY: written once, before any reader, on the main thread.
-    unsafe { KEPT.ptr().read() }
+    KEPT.read()
 }
 
 // ---- Rust version ----
@@ -34,9 +33,8 @@ pub fn kept(t: &rc2k_core::system::time::LocalTime) -> [u8; KEPT_LEN] {
     rc2k_core::system::time::start_time(t)
 }
 
-pub unsafe fn keep_start_time() {
+pub fn keep_start_time() {
     // The game's `SystemTime` (0x518988), a local here: nothing else read it.
     let time = crate::os::local_time();
-    // SAFETY: written once, before any reader, on the main thread.
-    unsafe { KEPT.ptr().write(kept(&time)) };
+    KEPT.write(&kept(&time));
 }

@@ -21,43 +21,45 @@ use rc2k_core::text::{TIME_STEPS, columns};
 pub const CELL_OFFSET: usize = 0x40;
 
 /// Returns whether the last character was too wide: the carry flag.
-pub unsafe fn draw_time_fixed_pitch(
+pub fn draw_time_fixed_pitch(
     font: &mut Font,
-    text: *mut u8,
+    text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let mut too_wide = false;
-    unsafe {
-        let cell = text.add(CELL_OFFSET);
-        // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
-        for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
-            *cell = *text.add(i);
-            *cell.add(1) = 0;
-            too_wide = draw_text_keep_regs(font, cell, x, y, canvas)?;
-        }
+    let at = text.addr();
+    let cell = text.offset(CELL_OFFSET as u32);
+    // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
+    for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
+        put_cell(at, i)?;
+        too_wide = draw_text_keep_regs(font, cell, x, y, canvas)?;
     }
     Ok(too_wide)
 }
 
+/// Copies the text's byte `i` to its cell with a NUL after it.
+pub fn put_cell(text: u32, i: usize) -> Result<(), Refused> {
+    let b = crate::pointers::read_or_end::<u8>(text.wrapping_add(i as u32), "a fixed-pitch text");
+    crate::pointers::GamePtr::new(text.wrapping_add(CELL_OFFSET as u32))
+        .write_bytes(&[b, 0], "a fixed-pitch text's cell")?;
+    Ok(())
+}
+
 /// The same with a font object in game memory, for Rust callers.
-pub unsafe fn draw_time_fixed_pitch_at(
-    font: *mut Font,
-    text: *mut u8,
+pub fn draw_time_fixed_pitch_at(
+    font: crate::pointers::GamePtr,
+    text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    unsafe {
-        let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-            .read::<Font>("a font")?;
-        let mut copy = before;
-        let too_wide = draw_time_fixed_pitch(&mut copy, text, x, y, canvas)?;
-        if copy != before && canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-                .write(copy, "a font")?;
-        }
-        Ok(too_wide)
+    let before = font.read::<Font>("a font")?;
+    let mut copy = before;
+    let too_wide = draw_time_fixed_pitch(&mut copy, text, x, y, canvas)?;
+    if copy != before && canvas.keeps_font_changes() {
+        font.write(copy, "a font")?;
     }
+    Ok(too_wide)
 }

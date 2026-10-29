@@ -77,13 +77,11 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 /// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
 /// calls before it leave (the eax and ebx `sub_49007F` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
-    unsafe {
-        clear_depth_buffer();
-        assign_kind_textures()?;
-        assign_menu_textures()?;
-        map_texture_places();
-        load_slot_textures_in_game()?;
-        LIGHT_STATE.draw_mode.set_bits(0u32);
-        draw_highlighted(&mut || draw_menu_object_in_game())
-    }
+    clear_depth_buffer();
+    assign_kind_textures()?;
+    assign_menu_textures()?;
+    map_texture_places();
+    load_slot_textures_in_game()?;
+    LIGHT_STATE.draw_mode.set_bits(0u32);
+    draw_highlighted(&mut || draw_menu_object_in_game())
 }

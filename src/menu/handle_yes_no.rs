@@ -15,12 +15,12 @@ use crate::menu::leaving::{question, with_question};
 
 // ---- Rust version ----
 
-pub unsafe fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
+pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::leaving::Question::answer_key`.
     if !question().asks() {
         return Ok(());
     }
-    let said = match unsafe { yes_no_for_key(eax) }? {
+    let said = match { yes_no_for_key(eax) }? {
         YES => Some(true),
         NO => Some(false),
         _ => None,

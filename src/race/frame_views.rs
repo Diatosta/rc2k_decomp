@@ -403,41 +403,39 @@ pub fn clear_view_depth() {
 /// texture `dword_5D1E10`, render state 0x14 = 2, `g_polygonVertexCount` 4, the marks'
 /// overlays (`race::draw_marks_overlays`).
 /// Refuses (before anything) the car without its block.
-pub unsafe fn draw_own_car() -> Result<(), Refused> {
+pub fn draw_own_car() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    unsafe {
-        if FRAME_SWITCHES.other_way.get() == 0 {
-            return Ok(());
-        }
-        let number = RACE_VIEW.view_cars[RACE_VIEW.drawn_view.get() as usize].get();
-        let car = RACE_WORK.car_block(car_number(number) as usize);
-        if car == 0 {
-            return Err(BadInput("the drawn car without its block").into());
-        }
-        VIEW_VARS.drawn_car.set(number);
-        let block = car_at(car)?;
-        if !seen_inside(block.unknown_6f4[2].get()) {
-            return Ok(());
-        }
-        LIGHT_WORK.view_light_base.set(block.light_colour.get());
-        let clears = clears_depth(
-            block.surface_noise_a.get(),
-            || block.surface_noise_b.get(),
-            || OBJECT_WORK.view_cleared[0].get(),
-        );
-        if clears {
-            clear_view_depth();
-            crate::scene::depth_buffer_on::depth_buffer(true);
-        }
-        // `race::draw_car_shined` reads only esi, the car's block.
-        crate::race::car_draw::draw_car_shined(car)?;
-        VIEW_VARS.group_mask.set(u32::MAX);
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
-        crate::scene::set_render_state::set_render_state(2, 0x14);
-        DRAW.polygon_vertex_count.set(4);
-        draw_marks_overlays()
+    if FRAME_SWITCHES.other_way.get() == 0 {
+        return Ok(());
     }
+    let number = RACE_VIEW.view_cars[RACE_VIEW.drawn_view.get() as usize].get();
+    let car = RACE_WORK.car_block(car_number(number) as usize);
+    if car == 0 {
+        return Err(BadInput("the drawn car without its block").into());
+    }
+    VIEW_VARS.drawn_car.set(number);
+    let block = car_at(car)?;
+    if !seen_inside(block.unknown_6f4[2].get()) {
+        return Ok(());
+    }
+    LIGHT_WORK.view_light_base.set(block.light_colour.get());
+    let clears = clears_depth(
+        block.surface_noise_a.get(),
+        || block.surface_noise_b.get(),
+        || OBJECT_WORK.view_cleared[0].get(),
+    );
+    if clears {
+        clear_view_depth();
+        crate::scene::depth_buffer_on::depth_buffer(true);
+    }
+    // `race::draw_car_shined` reads only esi, the car's block.
+    crate::race::car_draw::draw_car_shined(car)?;
+    VIEW_VARS.group_mask.set(u32::MAX);
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
+    crate::scene::set_render_state::set_render_state(2, 0x14);
+    DRAW.polygon_vertex_count.set(4);
+    draw_marks_overlays()
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.

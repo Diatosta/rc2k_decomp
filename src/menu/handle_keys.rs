@@ -50,7 +50,7 @@ pub struct Keys {
 
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
-pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
+pub fn handle_keys(eax: u32) -> Result<Keys, Refused> {
     // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `entered_with_4`).
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Keys {
@@ -58,85 +58,83 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
         clock: None,
         menu: None,
     };
-    unsafe {
-        if keys::keys_off(MENU_STATE.service_ui.box_shown.get(), || {
-            CONTROLS_SCREEN.learning.get()
-        }) {
-            return Ok(nothing);
-        }
-        if SCREEN_FLOW.asking.get() == 1 && !has_layout() {
-            return Err(BadInput("no keyboard layout").into());
-        }
-        OPTION_WORK.menu_sound.set(keys::NO_SOUND);
-        LOOP_FLAGS.back.set(0u32);
-        let key = take_key();
-        if key == 0 {
-            return Ok(nothing);
-        }
-        let eax = eax & !0xFF | key as u32;
-        handle_yes_no(eax)?;
-        let action = keys::action(key, || CHEAT_VARS.cheats.get());
-        match action {
-            Action::Ignored => return Ok(nothing),
-            Action::Escape => {
-                LOOP_FLAGS.back.set(1u32);
-                DRAW_WORK.escaped.set(1u32);
-                CAPTIONS.screen_left.set(1);
-                return Ok(Keys {
-                    result: keys::ESCAPED,
-                    ..nothing
-                });
-            }
-            _ => {}
-        }
-        let clock: u32 = CLOCKS.frame.get();
-        if action == Action::Enter {
-            OPTION_WORK.menu_sound.set(keys::ENTER_SOUND);
-            CHAMP_VIEW.last_key_time.set(clock);
-            SCREEN_FLOW.enter_with_4.set(keys::entered_with_4(eax));
-            crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
+    if keys::keys_off(MENU_STATE.service_ui.box_shown.get(), || {
+        CONTROLS_SCREEN.learning.get()
+    }) {
+        return Ok(nothing);
+    }
+    if SCREEN_FLOW.asking.get() == 1 && !has_layout() {
+        return Err(BadInput("no keyboard layout").into());
+    }
+    OPTION_WORK.menu_sound.set(keys::NO_SOUND);
+    LOOP_FLAGS.back.set(0u32);
+    let key = take_key();
+    if key == 0 {
+        return Ok(nothing);
+    }
+    let eax = eax & !0xFF | key as u32;
+    handle_yes_no(eax)?;
+    let action = keys::action(key, || CHEAT_VARS.cheats.get());
+    match action {
+        Action::Ignored => return Ok(nothing),
+        Action::Escape => {
+            LOOP_FLAGS.back.set(1u32);
+            DRAW_WORK.escaped.set(1u32);
+            CAPTIONS.screen_left.set(1);
             return Ok(Keys {
-                result: keys::ENTERED,
-                clock: Some(clock),
-                menu: None,
+                result: keys::ESCAPED,
+                ..nothing
             });
         }
-        CHAMP_VIEW.last_key_time.set(clock);
-        let nothing = Keys {
-            clock: Some(clock),
-            ..nothing
-        };
-        let direction = match action {
-            Action::Move(Move::Up) => Direction::Up,
-            Action::Move(Move::Down) => Direction::Down,
-            Action::Move(Move::Right) => Direction::Right,
-            Action::Move(Move::Left) => Direction::Left,
-            Action::Screenshot => {
-                crate::gfx::take_screenshot::take_screenshot()?;
-                return Ok(nothing);
-            }
-            Action::Toggle => {
-                LOOP_FLAGS.toggle.set(LOOP_FLAGS.toggle.get() ^ 1);
-                return Ok(nothing);
-            }
-            Action::AddTime => {
-                EVENT_STATE.service_minutes.set(
-                    EVENT_STATE
-                        .service_minutes
-                        .get()
-                        .wrapping_add(keys::ADDED_TIME),
-                );
-                return Ok(nothing);
-            }
-            _ => return Ok(nothing),
-        };
-        let menu = crate::menu::menus_store::MenuId::from_code(
-            crate::menu::texts_store::MENU_TEXTS.keys_menu.get(),
-        )?;
-        move_highlight(direction)?;
-        Ok(Keys {
-            menu: Some(menu),
-            ..nothing
-        })
+        _ => {}
     }
+    let clock: u32 = CLOCKS.frame.get();
+    if action == Action::Enter {
+        OPTION_WORK.menu_sound.set(keys::ENTER_SOUND);
+        CHAMP_VIEW.last_key_time.set(clock);
+        SCREEN_FLOW.enter_with_4.set(keys::entered_with_4(eax));
+        crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
+        return Ok(Keys {
+            result: keys::ENTERED,
+            clock: Some(clock),
+            menu: None,
+        });
+    }
+    CHAMP_VIEW.last_key_time.set(clock);
+    let nothing = Keys {
+        clock: Some(clock),
+        ..nothing
+    };
+    let direction = match action {
+        Action::Move(Move::Up) => Direction::Up,
+        Action::Move(Move::Down) => Direction::Down,
+        Action::Move(Move::Right) => Direction::Right,
+        Action::Move(Move::Left) => Direction::Left,
+        Action::Screenshot => {
+            crate::gfx::take_screenshot::take_screenshot()?;
+            return Ok(nothing);
+        }
+        Action::Toggle => {
+            LOOP_FLAGS.toggle.set(LOOP_FLAGS.toggle.get() ^ 1);
+            return Ok(nothing);
+        }
+        Action::AddTime => {
+            EVENT_STATE.service_minutes.set(
+                EVENT_STATE
+                    .service_minutes
+                    .get()
+                    .wrapping_add(keys::ADDED_TIME),
+            );
+            return Ok(nothing);
+        }
+        _ => return Ok(nothing),
+    };
+    let menu = crate::menu::menus_store::MenuId::from_code(
+        crate::menu::texts_store::MENU_TEXTS.keys_menu.get(),
+    )?;
+    move_highlight(direction)?;
+    Ok(Keys {
+        menu: Some(menu),
+        ..nothing
+    })
 }

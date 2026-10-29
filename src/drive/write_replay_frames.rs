@@ -17,7 +17,7 @@ use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
-pub unsafe fn write_replay_frames() -> Result<(), Refused> {
+pub fn write_replay_frames() -> Result<(), Refused> {
     if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(());
     }
@@ -34,7 +34,7 @@ pub unsafe fn write_replay_frames() -> Result<(), Refused> {
         cell.set(cell.get() & !0xFF00 | u32::from(v as u8) << 8);
     }
     // `race::write_replay_block` reads no register at entry (liveness: DF only).
-    unsafe { crate::race::replay::write_replay_block() }?;
+    { crate::race::replay::write_replay_block() }?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_used
         .set(0);

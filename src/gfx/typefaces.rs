@@ -68,11 +68,6 @@ impl FontObject {
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self as *const Self)
     }
-
-    /// The object as the drawing functions' `Font`.
-    pub fn as_ptr(&self) -> *mut Font {
-        crate::pointers::host(self.addr()) as *mut Font
-    }
 }
 
 /// The font objects.
@@ -178,8 +173,9 @@ impl FontId {
         self.object().addr()
     }
 
-    pub fn as_ptr(self) -> *mut Font {
-        self.object().as_ptr()
+    /// Where the object is, as a checked game pointer.
+    pub fn game_ptr(self) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::new(self.addr())
     }
 }
 

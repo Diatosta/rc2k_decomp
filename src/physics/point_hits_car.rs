@@ -35,7 +35,7 @@ use rc2k_core::physics::contacts;
 /// caller) of the object at `object` is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
-pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
+pub fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
     let rd = |x: u32, what: &str| crate::race::course_places::read::<u32>(x, what);
     PHYSICS
         .point_hits
@@ -57,7 +57,7 @@ pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refus
     for k in 0..3 {
         CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
     }
-    unsafe { turn_by_heading(CONTACT_WORK.object_point_turned[0].addr(), y) };
+    turn_by_heading(CONTACT_WORK.object_point_turned[0].addr(), y);
     x87_2();
     let (x, z) = (
         CONTACT_WORK.contact_point[0].bits(),

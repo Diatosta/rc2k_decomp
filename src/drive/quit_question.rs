@@ -23,7 +23,7 @@ use rc2k_core::drive::race_ticks;
 // quit_answer}`.
 /// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
 /// (liveness: `race_loop` reads eax only).
-pub unsafe fn quit_question() -> Result<u32, Refused> {
+pub fn quit_question() -> Result<u32, Refused> {
     stop_race_sounds()?;
     RACE_VARS.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
@@ -43,7 +43,7 @@ pub unsafe fn quit_question() -> Result<u32, Refused> {
         CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
     let answer = loop {
-        eax = unsafe { crate::input::yes_no_key::yes_no_key(eax) }?;
+        eax = { crate::input::yes_no_key::yes_no_key(eax) }?;
         match race_ticks::quit_answer(
             eax,
             RACE_VARS.run_kind.get(),

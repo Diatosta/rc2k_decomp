@@ -58,7 +58,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 id,
-                font.as_ptr(),
+                font.game_ptr(),
                 x,
                 y,
                 &mut GameCanvas,
@@ -71,7 +71,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         let mut copy: crate::text::font::Font = font.read("a font record")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            TEXT_BUFFER.text.as_ptr() as *const u8,
+            crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr()),
             x,
             y,
             &mut GameCanvas,

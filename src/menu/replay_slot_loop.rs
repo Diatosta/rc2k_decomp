@@ -21,5 +21,5 @@ pub fn replay_slot_loop(c: &Carried) -> Result<u32, Refused> {
         &crate::menu::load_replay_loop::SCREEN
     };
     // (A screen with no result leaves eax as it was.)
-    Ok(unsafe { run_screen(screen, c) }?.unwrap_or(c.arg))
+    Ok({ run_screen(screen, c) }?.unwrap_or(c.arg))
 }

@@ -14,13 +14,11 @@ use crate::physics::reset_car_grades::reset_grades_at;
 /// The Rust version: `CAR.driver_kind` 2 resets the grades.
 pub fn grade_or_reset() {
     if CAR.driver_kind.get() == 2 {
-        unsafe {
-            reset_grades_at(
-                car_addr(),
-                CAR.suspension_stiffness.addr(),
-                CAR.ride_height.addr(),
-            )
-        };
+        reset_grades_at(
+            car_addr(),
+            CAR.suspension_stiffness.addr(),
+            CAR.ride_height.addr(),
+        );
     } else {
         rate_damage();
     }

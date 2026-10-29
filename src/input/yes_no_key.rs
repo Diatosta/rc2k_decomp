@@ -16,7 +16,7 @@ use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::input::take_key::take_key;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::strings::text_from_ids::TEXT_LEN;
 
 // ---- game data ----
 
@@ -29,52 +29,51 @@ pub const NO: u32 = u32::MAX;
 
 /// The answer a key gives. `eax` is the register as the original has it: the key in its low
 /// byte, and 0 as a whole means no key.
-pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
+pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     if eax == 0 {
         return Ok(0);
     }
-    unsafe {
-        let own_layout = KEYBOARD_FILE.mode.get() == 2;
-        let layout = KEYBOARD_FILE.layout.get();
-        if own_layout {
-            KEYBOARD_FILE
-                .layout
-                .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
-        }
-        let character = key_to_char(eax);
-        if own_layout {
-            KEYBOARD_FILE.layout.set(layout);
-        }
-        let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
-        // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
-        // buffer's start without a NUL, as the original does (their lengths checked first).
-        let mut strings = Vec::new();
-        for (id, _) in ANSWERS {
-            let mut string = Vec::new();
-            push_string(&mut string, id)?;
-            strings.push(string);
-        }
-        if strings.iter().any(|s| s.len() > TEXT_LEN) {
-            return Err(BadInput("a string longer than the text buffer"));
-        }
-        Ok(rc2k_core::input::keyboard::answer(lower, |id| {
-            let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
-            std::ptr::copy_nonoverlapping(strings[n].as_ptr(), text(), strings[n].len());
-            *text()
-        }))
+    let own_layout = KEYBOARD_FILE.mode.get() == 2;
+    let layout = KEYBOARD_FILE.layout.get();
+    if own_layout {
+        KEYBOARD_FILE
+            .layout
+            .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
     }
+    let character = key_to_char(eax);
+    if own_layout {
+        KEYBOARD_FILE.layout.set(layout);
+    }
+    let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
+    // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
+    // buffer's start without a NUL, as the original does (their lengths checked first).
+    let mut strings = Vec::new();
+    for (id, _) in ANSWERS {
+        let mut string = Vec::new();
+        push_string(&mut string, id)?;
+        strings.push(string);
+    }
+    if strings.iter().any(|s| s.len() > TEXT_LEN) {
+        return Err(BadInput("a string longer than the text buffer"));
+    }
+    Ok(rc2k_core::input::keyboard::answer(lower, |id| {
+        let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
+        let buffer = &crate::strings::text_buffer::TEXT_BUFFER.text;
+        for (k, &b) in strings[n].iter().enumerate() {
+            buffer.set(k, b);
+        }
+        buffer.get(0)
+    }))
 }
 
-pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
+pub fn yes_no_key(given: u32) -> Result<u32, BadInput> {
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
-    unsafe {
-        let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
-            given
-        } else {
-            take_key() as u32
-        };
-        answer_for_key(eax)
-    }
+    let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
+        given
+    } else {
+        take_key() as u32
+    };
+    answer_for_key(eax)
 }

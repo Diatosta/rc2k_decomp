@@ -15,11 +15,9 @@ pub fn lobby_launched_game() -> Result<(), Refused> {
     if NET.lobby_launched.get() == 1 {
         crate::scene::rebuild_front_end::rebuild_front_end()?;
         crate::net::start_link::start_link(3)?;
-        unsafe {
-            crate::race::stage_free::render3d_tidy()?;
-            crate::race::stage_free::objects_tidy()?;
-            crate::race::race_end::release_textures();
-        }
+        crate::race::stage_free::render3d_tidy()?;
+        crate::race::stage_free::objects_tidy()?;
+        crate::race::race_end::release_textures();
     }
     Ok(())
 }

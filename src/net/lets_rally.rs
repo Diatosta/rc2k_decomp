@@ -29,62 +29,60 @@ use rc2k_core::net::record;
 /// host, Escape, or the car not finished: the link ends).
 pub fn lets_rally() -> Result<bool, Refused> {
     use crate::race::sound_tables;
-    unsafe {
-        log(VIEWER_PANEL.text_addr(texts::NET_LETS_RALLY), true, 2);
-        NET.racing.set(1);
-        let own = &NET.player_block(NET.player.get()).record;
-        RACE_STATE.settings.race_mode.set(1);
-        RACE_STATE.settings.run_kind.set(0);
-        // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
-        RACE_STATE
-            .settings
-            .car_kind_current
-            .set(own.head.get(record::CAR) as u32);
-        RACE_STATE.settings.cars[0]
-            .record_30
-            .set(own.head.get(record::COLOURS) as u32);
-        let state = |n: u32| NET.player_block(n).record.state();
-        let Some(first) = record::first_not_host(NET.players.get(), state) else {
-            return Ok(true);
-        };
-        NET.first_host.set(first);
-        crate::sound::stop_music::stop_music();
-        crate::race::race_shell::set_race_screen_mode();
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        crate::net::set_up_race::set_up_race()?;
-        let tick = crate::system::tick_count::tick_count();
-        NET.clock_a.set(tick);
-        NET.sync_clock.set(tick);
-        NET.sync_first.set(1);
-        crate::net::list_players::list_players_regs()?;
-        // The race's time and whether the car did not finish (the original's eax and ebx);
-        // Escape leaves ebx 1.
-        let (time, not_finished) = loop {
-            run_frame(|| Ok::<(), Refused>(()))?;
-            if crate::input::take_key::take_key() == 1 {
-                break (1, 1);
-            }
-            if crate::net::race_wait::race_wait()? != 0 {
-                crate::gfx::clear_front_surface::clear_front_surface()?;
-                crate::net::copy_received::copy_received()?;
-                break crate::net::lets_race::lets_race()?;
-            }
-        };
-        crate::race::race_end::tidy_everything()?;
-        crate::sound::stop_music::stop_music();
-        crate::platform::set_menu_mode_now();
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        sound_tables::clear_race_sound_objects()?;
-        crate::sound::apply_settings::apply_settings()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        if not_finished != 0 {
-            return Ok(true);
+    log(VIEWER_PANEL.text_addr(texts::NET_LETS_RALLY), true, 2);
+    NET.racing.set(1);
+    let own = &NET.player_block(NET.player.get()).record;
+    RACE_STATE.settings.race_mode.set(1);
+    RACE_STATE.settings.run_kind.set(0);
+    // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
+    RACE_STATE
+        .settings
+        .car_kind_current
+        .set(own.head.get(record::CAR) as u32);
+    RACE_STATE.settings.cars[0]
+        .record_30
+        .set(own.head.get(record::COLOURS) as u32);
+    let state = |n: u32| NET.player_block(n).record.state();
+    let Some(first) = record::first_not_host(NET.players.get(), state) else {
+        return Ok(true);
+    };
+    NET.first_host.set(first);
+    crate::sound::stop_music::stop_music();
+    crate::race::race_shell::set_race_screen_mode();
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds()?;
+    crate::net::set_up_race::set_up_race()?;
+    let tick = crate::system::tick_count::tick_count();
+    NET.clock_a.set(tick);
+    NET.sync_clock.set(tick);
+    NET.sync_first.set(1);
+    crate::net::list_players::list_players_regs()?;
+    // The race's time and whether the car did not finish (the original's eax and ebx);
+    // Escape leaves ebx 1.
+    let (time, not_finished) = loop {
+        run_frame(|| Ok::<(), Refused>(()))?;
+        if crate::input::take_key::take_key() == 1 {
+            break (1, 1);
         }
-        crate::net::race_over::race_over(time)?;
-        Ok(false)
+        if crate::net::race_wait::race_wait()? != 0 {
+            crate::gfx::clear_front_surface::clear_front_surface()?;
+            crate::net::copy_received::copy_received()?;
+            break crate::net::lets_race::lets_race()?;
+        }
+    };
+    crate::race::race_end::tidy_everything()?;
+    crate::sound::stop_music::stop_music();
+    crate::platform::set_menu_mode_now();
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    sound_tables::clear_race_sound_objects()?;
+    crate::sound::apply_settings::apply_settings()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    if not_finished != 0 {
+        return Ok(true);
     }
+    crate::net::race_over::race_over(time)?;
+    Ok(false)
 }

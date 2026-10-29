@@ -28,30 +28,28 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of the panel drawn.
-pub unsafe fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
-    unsafe {
-        let page = MENU_PAGES.save_page.get();
-        match preview(menu_item(), page, SAVEGAME_PREVIEW.shown_slot.get()) {
-            Preview::NoSlot => {
-                SAVEGAME_PREVIEW.nothing_to_show.set(1u32);
-                SAVEGAME_PREVIEW.shown_slot.set(NO_SLOT);
-                return draw_empty_savegame(canvas);
-            }
-            Preview::Slot { slot, read: true } => {
-                // Refused before anything is written: a slot past the list.
-                let found = read_savegame_slot(slot)?;
-                SAVEGAME_PREVIEW.shown_slot.set(slot);
-                SAVEGAME_PREVIEW.nothing_to_show.set(!found as u32);
-            }
-            Preview::Slot { .. } => {}
+    let page = MENU_PAGES.save_page.get();
+    match preview(menu_item(), page, SAVEGAME_PREVIEW.shown_slot.get()) {
+        Preview::NoSlot => {
+            SAVEGAME_PREVIEW.nothing_to_show.set(1u32);
+            SAVEGAME_PREVIEW.shown_slot.set(NO_SLOT);
+            return draw_empty_savegame(canvas);
         }
-        if SAVEGAME_PREVIEW.nothing_to_show.get() == 1 {
-            draw_empty_savegame(canvas)
-        } else {
-            draw_savegame_details(canvas)
+        Preview::Slot { slot, read: true } => {
+            // Refused before anything is written: a slot past the list.
+            let found = read_savegame_slot(slot)?;
+            SAVEGAME_PREVIEW.shown_slot.set(slot);
+            SAVEGAME_PREVIEW.nothing_to_show.set(!found as u32);
         }
+        Preview::Slot { .. } => {}
+    }
+    if SAVEGAME_PREVIEW.nothing_to_show.get() == 1 {
+        draw_empty_savegame(canvas)
+    } else {
+        draw_savegame_details(canvas)
     }
 }

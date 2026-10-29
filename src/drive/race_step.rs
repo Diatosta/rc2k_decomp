@@ -15,11 +15,11 @@ use crate::physics::tables_store::PHYSICS;
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub unsafe fn race_step() -> Result<(), Refused> {
+pub fn race_step() -> Result<(), Refused> {
     crate::drive::race_clock_tick::race_clock_tick();
     if PHYSICS.frame_cleared[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
-            unsafe { crate::drive::race_tick::race_tick() }?;
+            { crate::drive::race_tick::race_tick() }?;
             let out = crate::race::frame::players_all_out()?;
             Ok::<_, Refused>((out, ecx))
         })?;

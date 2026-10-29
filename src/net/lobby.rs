@@ -160,13 +160,11 @@ pub fn give_back_lobby_settings() {
 
 /// `strings::copy_printable` (addresses).
 pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
-    unsafe {
-        crate::strings::copy_printable::copy_printable(
-            crate::pointers::host(text) as *const u8,
-            crate::pointers::host(to),
-            room,
-        )
-    }?;
+    crate::strings::copy_printable::copy_printable(
+        crate::pointers::host(text) as *const u8,
+        crate::pointers::host(to),
+        room,
+    )?;
     Ok(())
 }
 
@@ -210,7 +208,7 @@ pub fn other_key(key: u8) -> Result<(), Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    unsafe { crate::strings::maybe_compile_lexicon::maybe_compile_lexicon() }
+    crate::strings::maybe_compile_lexicon::maybe_compile_lexicon()
 }
 
 /// `gfx::lock_surface`: whether it is locked (the original's carry clear).
@@ -237,7 +235,7 @@ pub fn draw_string(
 ) -> Result<(), Refused> {
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
-        font.as_ptr(),
+        font.game_ptr(),
         x as i32,
         y as i32,
         &mut crate::text::draw_text::GameCanvas,

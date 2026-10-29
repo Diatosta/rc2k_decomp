@@ -13,7 +13,8 @@ use crate::race::vars_store::RACE_VARS;
 pub struct Freeing {
     pub list: fn() -> *mut MemoryList,
     pub counted: bool,
-    pub cleared: &'static [fn() -> *mut u32],
+    /// Each sets one of the pointers to 0.
+    pub cleared: &'static [fn()],
     /// What Rust owns on the list, given back with it.
     pub given_back: fn(),
 }
@@ -25,8 +26,8 @@ pub const COURSE: Freeing = Freeing {
     counted: true,
     // g_courseMemory, g_courseInfo
     cleared: &[
-        || COURSE_LISTS.course_memory.as_ptr(),
-        || COURSE_LISTS.course_info.as_ptr(),
+        || COURSE_LISTS.course_memory.set(0),
+        || COURSE_LISTS.course_info.set(0),
     ],
     given_back: || {
         crate::race::scene_points::give_back();
@@ -49,8 +50,8 @@ pub const COURSE_2: Freeing = Freeing {
     counted: true,
     // dword_5C6F98, dword_5C6F9C
     cleared: &[
-        || COURSE_LISTS.course_list_2_a.as_ptr(),
-        || COURSE_LISTS.course_list_2_b.as_ptr(),
+        || COURSE_LISTS.course_list_2_a.set(0),
+        || COURSE_LISTS.course_list_2_b.set(0),
     ],
     given_back: || {},
 };
@@ -60,7 +61,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     list: || COURSE_LISTS.point_records_list[0].as_ptr() as *mut MemoryList,
     counted: true,
     // g_pointRecords
-    cleared: &[|| COURSE_LISTS.point_records.as_ptr()],
+    cleared: &[|| COURSE_LISTS.point_records.set(0)],
     given_back: crate::scene::point_records::give_back,
 };
 /// `race::free_object_points` (0x41F89B).
@@ -70,8 +71,8 @@ pub const OBJECT_POINTS: Freeing = Freeing {
     counted: true,
     // g_objectPoints, g_faceMemory
     cleared: &[
-        || COURSE_LISTS.object_points.as_ptr(),
-        || COURSE_LISTS.face_memory.as_ptr(),
+        || COURSE_LISTS.object_points.set(0),
+        || COURSE_LISTS.face_memory.set(0),
     ],
     given_back: || {
         crate::scene::object_points::give_back();
@@ -84,7 +85,7 @@ pub const MUD: Freeing = Freeing {
     list: || COURSE_LISTS.mud_list[0].as_ptr() as *mut MemoryList,
     counted: true,
     // g_mud
-    cleared: &[|| RACE_VARS.mud.as_ptr()],
+    cleared: &[|| RACE_VARS.mud.set(0)],
     given_back: || crate::race::mud::MUD.give_back(),
 };
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
@@ -93,9 +94,7 @@ pub const FONTS: Freeing = Freeing {
     list: || crate::gfx::build_game_fonts::GAME_FONTS.memory.as_ptr(),
     counted: false,
     // g_gameFontGlyphs
-    cleared: &[|| unsafe {
-        &raw mut (*crate::gfx::fonts_store::FONTS.game_fonts[0].as_ptr()).glyph_table
-    }],
+    cleared: &[|| crate::gfx::fonts_store::FONTS.game_fonts[0].update(|f| f.glyph_table = 0)],
     given_back: || {},
 };
 
@@ -104,34 +103,36 @@ pub const FONTS: Freeing = Freeing {
 /// (`counted`); no caller reads them (taint at every site of `render3d_tidy`,
 /// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
 /// block while the game's own heap is in use (`free_list` refuses it).
-pub unsafe fn free(f: &Freeing) -> Result<(), Refused> {
-    unsafe {
-        let l = (f.list)();
-        if (*l).head != 0 && own_heap() == 1 {
-            return Err(BadInput("the game's own heap is in use (altmemenable)").into());
-        }
-        if f.counted {
-            let total = (*l).total;
-            // dword_5C6F90
+pub fn free(f: &Freeing) -> Result<(), Refused> {
+    let l = (f.list)();
+    let list = crate::pointers::GamePtr::new(crate::pointers::game_address(l))
+        .read::<MemoryList>("a memory list")?;
+    if list.head != 0 && own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
+    }
+    if f.counted {
+        // dword_5C6F90
+        COURSE_LISTS.course_bytes_total.set(
             COURSE_LISTS
                 .course_bytes_total
-                .set(COURSE_LISTS.course_bytes_total.bits().wrapping_sub(total));
-        }
-        crate::memory::free_list::free_list(l)?;
-        for at in f.cleared {
-            at().write(0);
-        }
-        (f.given_back)();
+                .bits()
+                .wrapping_sub(list.total),
+        );
     }
+    crate::memory::free_list::free_list(l)?;
+    for clear in f.cleared {
+        clear();
+    }
+    (f.given_back)();
     Ok(())
 }
 
 /// `race::render3d_tidy` (0x4433A7): `race::free_point_records`.
-pub unsafe fn render3d_tidy() -> Result<(), Refused> {
-    unsafe { free(&POINT_RECORDS) }
+pub fn render3d_tidy() -> Result<(), Refused> {
+    free(&POINT_RECORDS)
 }
 
 /// `race::objects_tidy` (0x44346B): `race::free_object_points`.
-pub unsafe fn objects_tidy() -> Result<(), Refused> {
-    unsafe { free(&OBJECT_POINTS) }
+pub fn objects_tidy() -> Result<(), Refused> {
+    free(&OBJECT_POINTS)
 }

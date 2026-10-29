@@ -9,8 +9,9 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::append_string_by_id;
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
 
@@ -36,29 +37,27 @@ pub fn draw_string_by_id(
     font: &mut Font,
     x: i32,
     y: i32,
-    buffer: *mut u8,
+    buffer: GamePtr,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     let bytes = string_text(id)?;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
-        .write_bytes(&bytes, "the text buffer")?;
+    buffer.write_bytes(&bytes, "the text buffer")?;
     draw_text(font, buffer, x, y, canvas)
 }
 
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.
 pub fn draw_string_by_id_at(
     id: u32,
-    font: *mut Font,
+    font: GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-        .read::<Font>("a font")?;
+    let before = font.read::<Font>("a font")?;
     let mut copy = before;
-    let out = draw_string_by_id(id, &mut copy, x, y, text(), canvas)?;
+    let out = draw_string_by_id(id, &mut copy, x, y, text_at(), canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
+        font.write(copy, "a font")?;
     }
     Ok(out)
 }

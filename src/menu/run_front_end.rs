@@ -29,26 +29,24 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 /// as the main menu does, which its callers do not read).
 pub fn run_front_end() -> Result<(), Refused> {
     log("menu::run_front_end: the Rust version runs");
-    unsafe {
-        OPTION_WORK
-            .master_volume_shown
-            .set(AUDIO.master_volume.get());
-        crate::menu::drop_missing_controllers::drop_missing_controllers()?;
-        crate::gfx::build_fonts::build_fonts()?;
-        // The films, with eax 0 (the game's start).
-        crate::menu::play_films::play_films(false)?;
-        crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
-        run_screen(&crate::menu::main_menu_loop::SCREEN, &Carried::default())?;
-        crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
-        crate::menu::store_player_names::store_player_names(&mut |line| {
-            crate::logfile::log_write::log_nul(line, true, 1)
-        })?;
-        crate::gfx::free_fonts::free_fonts(
-            crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
-            &FONTS.palettes,
-        )?;
-        crate::saves::list_car_numbers::list_car_numbers()?;
-    }
+    OPTION_WORK
+        .master_volume_shown
+        .set(AUDIO.master_volume.get());
+    crate::menu::drop_missing_controllers::drop_missing_controllers()?;
+    crate::gfx::build_fonts::build_fonts()?;
+    // The films, with eax 0 (the game's start).
+    crate::menu::play_films::play_films(false)?;
+    crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
+    run_screen(&crate::menu::main_menu_loop::SCREEN, &Carried::default())?;
+    crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
+    crate::menu::store_player_names::store_player_names(&mut |line| {
+        crate::logfile::log_write::log_nul(line, true, 1)
+    })?;
+    crate::gfx::free_fonts::free_fonts(
+        crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
+        &FONTS.palettes,
+    )?;
+    crate::saves::list_car_numbers::list_car_numbers()?;
     log("menu::run_front_end: the Rust version has come back");
     Ok(())
 }

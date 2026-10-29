@@ -68,30 +68,28 @@ fn at_block(block: u32, offset: u32) -> Result<u32, BadInput> {
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
 /// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
 /// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
-unsafe fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
+fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
     use crate::sound::race_sound_tick::race_sound_tick;
-    unsafe {
-        load_view_car(car)?;
-        crate::race::frame_draw::fetch_view_value()?;
-        crate::race::draw_view_scene::draw_view_scene()?;
-        race_sound_tick()?; // 0xD
-        if blit {
-            crate::d3d::copy_screen_to_texture::copy_screen_to_texture();
-            race_sound_tick()?; // 0xE
-        }
-        crate::race::draw_view_overlays::draw_view_overlays()?;
-        race_sound_tick()?; // 0xF
-        if PANEL.hud_flags[flags].get() & 8 != 0 {
-            load_view_car(car)?;
-            crate::race::draw_mirror_view::draw_mirror_view()?;
-        }
-        Ok(())
+    load_view_car(car)?;
+    crate::race::frame_draw::fetch_view_value()?;
+    crate::race::draw_view_scene::draw_view_scene()?;
+    race_sound_tick()?; // 0xD
+    if blit {
+        crate::d3d::copy_screen_to_texture::copy_screen_to_texture();
+        race_sound_tick()?; // 0xE
     }
+    crate::race::draw_view_overlays::draw_view_overlays()?;
+    race_sound_tick()?; // 0xF
+    if PANEL.hud_flags[flags].get() & 8 != 0 {
+        load_view_car(car)?;
+        crate::race::draw_mirror_view::draw_mirror_view()?;
+    }
+    Ok(())
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_race_scene() -> Result<(), Refused> {
+pub fn draw_race_scene() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks()?;
@@ -100,126 +98,122 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    unsafe {
-        crate::drive::choose_shown_cars::choose_shown_cars()?;
-        crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
-        for (flags, block) in PANEL.hud_flags.iter().zip(blocks) {
-            flags.set(at_block(block, 0x220)?);
+    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
+    for (flags, block) in PANEL.hud_flags.iter().zip(blocks) {
+        flags.set(at_block(block, 0x220)?);
+    }
+    for (flags, on) in PANEL.hud_flags.iter().zip(&RACE_VIEW.view_on) {
+        if on.get() == 0 {
+            flags.set(0);
         }
-        for (flags, on) in PANEL.hud_flags.iter().zip(&RACE_VIEW.view_on) {
-            if on.get() == 0 {
-                flags.set(0);
+    }
+    GROUND_WORK.split_polygon_count.set(0);
+    GROUND_WORK.whole_polygon_count.set(0);
+    for cell in [
+        &DRAW_BATCHES.plain_word,
+        &DRAW_BATCHES.plain_count,
+        &DRAW_BATCHES.textured_word,
+        &DRAW_BATCHES.textured_count,
+    ] {
+        cell.set(0);
+    }
+    FRAME_WORK.cars_drawn.set(0); // g_carsDrawn
+    FRAME_WORK.cars_culled.set(0); // g_carsCulled
+    LIGHT_WORK
+        .marks_mask
+        .set((STAGE_PREFS.refresh_flags_a.get() & 2) >> 1);
+    LIGHT_WORK
+        .lamps_mask
+        .set(STAGE_PREFS.refresh_flags_b.get() & 1);
+    PANEL.flat.set(PANEL.hud_flags[0].get() & 0x40);
+    FRAME_WORK.mirror_wanted.set(0); // dword_6415E0
+    if STAGE_PREFS.blit_cleared[0].get() | STAGE_PREFS.blit_cleared[1].get() != 0 {
+        FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0)?);
+    }
+    OBJECT_TABLES.has_3d.set(1);
+    race_sound_tick()?; // 0xA
+    COURSE.shine.set(STAGE_PREFS.shine_from.get());
+    // pusha; pushf .. popf; popa
+    crate::scene::set_filters::set_filters();
+    for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
+        set_render_state(value, state);
+    }
+    race_sound_tick()?; // 0xB
+    GROUND_WORK
+        .frames_drawn
+        .set(GROUND_WORK.frames_drawn.get().wrapping_add(1));
+    RACE_VIEW
+        .clock_base
+        .set(crate::scene::restart_clock::restart_clock(
+            crate::system::tick_count::tick_count(),
+        ));
+    crate::race::frame_views::full_view_window(true);
+    crate::race::car_parts::ready_car_parts()?;
+    crate::race::map_scroll::scroll_maps()?;
+    PANEL.texture_changes.set(0);
+    crate::race::frame_views::forget_view_textures()?;
+    crate::race::mud_frame::mud_frame()?;
+    FRAME_WORK.kind_textures_done.set(0);
+    crate::scene::assign_kind_textures::assign_kind_textures()?;
+    for (k, extra) in PANEL.lights.iter().map(|l| &l.lit).enumerate() {
+        let texture = extra.get();
+        if texture != u32::MAX {
+            let slot = KIND_TEXTURES.kind_first_slots[220 + k].get();
+            crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
+                .set(texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()));
+        }
+    }
+    crate::scene::map_texture_places::map_texture_places();
+    crate::scene::load_slot_textures::load_slot_textures_in_game()?;
+    race_sound_tick()?; // 0xC
+    if crate::drive::finish_store::FINISH.no_place.get() == 0 {
+        crate::race::frame_draw::set_up_panel()?;
+    }
+    if RACE_VIEW.views.get() == 1 {
+        RACE_VIEW.drawn_view.set(0);
+        draw_view(0, 0, true)?;
+    } else {
+        let side_by_side = RACE_VARS.split.bits() == 1;
+        for view in 0..2u32 {
+            RACE_VIEW.drawn_view.set(view);
+            let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
+            // (width, x, height, y).
+            if side_by_side {
+                DRAW.view_size[0].set_bits(w >> 1);
+                DRAW.view_offset[0].set_bits(if view == 0 { 0 } else { w >> 1 });
+                DRAW.view_size[1].set_bits(h);
+                DRAW.view_offset[1].set_bits(0);
+            } else {
+                DRAW.view_size[0].set_bits(w);
+                DRAW.view_offset[0].set_bits(0);
+                DRAW.view_size[1].set_bits(h >> 1);
+                DRAW.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
             }
+            DRAW.view_zoom.set_bits(0x100);
+            crate::scene::set_view_window::set_view_window_plain();
+            draw_view(view as usize, view as usize, false)?;
         }
-        GROUND_WORK.split_polygon_count.set(0);
-        GROUND_WORK.whole_polygon_count.set(0);
-        for cell in [
-            &DRAW_BATCHES.plain_word,
-            &DRAW_BATCHES.plain_count,
-            &DRAW_BATCHES.textured_word,
-            &DRAW_BATCHES.textured_count,
-        ] {
-            cell.set(0);
-        }
-        FRAME_WORK.cars_drawn.set(0); // g_carsDrawn
-        FRAME_WORK.cars_culled.set(0); // g_carsCulled
-        LIGHT_WORK
-            .marks_mask
-            .set((STAGE_PREFS.refresh_flags_a.get() & 2) >> 1);
-        LIGHT_WORK
-            .lamps_mask
-            .set(STAGE_PREFS.refresh_flags_b.get() & 1);
-        PANEL.flat.set(PANEL.hud_flags[0].get() & 0x40);
-        FRAME_WORK.mirror_wanted.set(0); // dword_6415E0
-        if STAGE_PREFS.blit_cleared[0].get() | STAGE_PREFS.blit_cleared[1].get() != 0 {
-            FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0)?);
-        }
-        OBJECT_TABLES.has_3d.set(1);
-        race_sound_tick()?; // 0xA
-        COURSE.shine.set(STAGE_PREFS.shine_from.get());
-        // pusha; pushf .. popf; popa
-        crate::scene::set_filters::set_filters();
-        for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
-            set_render_state(value, state);
-        }
-        race_sound_tick()?; // 0xB
-        GROUND_WORK
-            .frames_drawn
-            .set(GROUND_WORK.frames_drawn.get().wrapping_add(1));
-        RACE_VIEW
-            .clock_base
-            .set(crate::scene::restart_clock::restart_clock(
-                crate::system::tick_count::tick_count(),
-            ));
-        crate::race::frame_views::full_view_window(true);
-        crate::race::car_parts::ready_car_parts()?;
-        crate::race::map_scroll::scroll_maps()?;
-        PANEL.texture_changes.set(0);
-        crate::race::frame_views::forget_view_textures()?;
-        crate::race::mud_frame::mud_frame()?;
-        FRAME_WORK.kind_textures_done.set(0);
-        crate::scene::assign_kind_textures::assign_kind_textures()?;
-        for (k, extra) in PANEL.lights.iter().map(|l| &l.lit).enumerate() {
-            let texture = extra.get();
-            if texture != u32::MAX {
-                let slot = KIND_TEXTURES.kind_first_slots[220 + k].get();
-                crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
-                    .set(texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()));
-            }
-        }
-        crate::scene::map_texture_places::map_texture_places();
-        crate::scene::load_slot_textures::load_slot_textures_in_game()?;
-        race_sound_tick()?; // 0xC
-        if crate::drive::finish_store::FINISH.no_place.get() == 0 {
-            crate::race::frame_draw::set_up_panel()?;
-        }
-        if RACE_VIEW.views.get() == 1 {
-            RACE_VIEW.drawn_view.set(0);
-            draw_view(0, 0, true)?;
-        } else {
-            let side_by_side = RACE_VARS.split.bits() == 1;
-            for view in 0..2u32 {
-                RACE_VIEW.drawn_view.set(view);
-                let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
-                // (width, x, height, y).
-                if side_by_side {
-                    DRAW.view_size[0].set_bits(w >> 1);
-                    DRAW.view_offset[0].set_bits(if view == 0 { 0 } else { w >> 1 });
-                    DRAW.view_size[1].set_bits(h);
-                    DRAW.view_offset[1].set_bits(0);
-                } else {
-                    DRAW.view_size[0].set_bits(w);
-                    DRAW.view_offset[0].set_bits(0);
-                    DRAW.view_size[1].set_bits(h >> 1);
-                    DRAW.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
-                }
-                DRAW.view_zoom.set_bits(0x100);
-                crate::scene::set_view_window::set_view_window_plain();
-                draw_view(view as usize, view as usize, false)?;
-            }
-        }
-        crate::race::frame_views::load_first_car()?;
-        use crate::race::frame_flush::{flush_batch, plain, textured};
-        flush_batch(&plain(), false)?;
-        flush_batch(&textured(), true)?;
-        crate::race::sound_spots::find_sound_spots()?;
-        crate::race::frame_draw::share_sound_spots()?;
-        crate::race::frame_draw::wake_part_sounds()?;
-        race_sound_tick()?; // 0x10
-        for state in [0x11, 0x12] {
-            set_render_state(2, state);
-        }
-        if RACE_WORK.in_credits.bits() == 0
-            && crate::drive::finish_store::FINISH.no_place.get() == 0
-        {
-            crate::hud::overlay_pass::overlay_pass()?;
-        }
-        race_sound_tick()?; // 0x11
-        crate::race::skid_laying::lay_skidmarks_if_on()?;
-        crate::race::name_plates::update_name_plates()?;
-        if NUMBERS.replay_mode.bits() != 2 {
-            crate::drive::tyre_change_screen::tyre_change_screen()?;
-        }
+    }
+    crate::race::frame_views::load_first_car()?;
+    use crate::race::frame_flush::{flush_batch, plain, textured};
+    flush_batch(&plain(), false)?;
+    flush_batch(&textured(), true)?;
+    crate::race::sound_spots::find_sound_spots()?;
+    crate::race::frame_draw::share_sound_spots()?;
+    crate::race::frame_draw::wake_part_sounds()?;
+    race_sound_tick()?; // 0x10
+    for state in [0x11, 0x12] {
+        set_render_state(2, state);
+    }
+    if RACE_WORK.in_credits.bits() == 0 && crate::drive::finish_store::FINISH.no_place.get() == 0 {
+        crate::hud::overlay_pass::overlay_pass()?;
+    }
+    race_sound_tick()?; // 0x11
+    crate::race::skid_laying::lay_skidmarks_if_on()?;
+    crate::race::name_plates::update_name_plates()?;
+    if NUMBERS.replay_mode.bits() != 2 {
+        crate::drive::tyre_change_screen::tyre_change_screen()?;
     }
     Ok(())
 }

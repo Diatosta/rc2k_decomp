@@ -44,7 +44,7 @@ pub fn steps() -> Result<(), Refused> {
     fill_cells(&CONTACT_WORK.contact_point, 0);
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
-    unsafe { contact_force() };
+    contact_force();
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);
     Ok(())
