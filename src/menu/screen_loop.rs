@@ -89,8 +89,9 @@ const ENTER_SOUND: u32 = 0x14D;
 /// is a constant, and a constant cannot hold a reference to a static).
 pub type Cell = fn() -> &'static Dword;
 
-/// The address of something of the game that a screen's description names.
-pub type Place = fn() -> usize;
+/// A text of the game that a screen's description names (a picture's path), found when
+/// asked.
+pub type Text = fn() -> &'static dyn crate::session::TextPlace;
 
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
@@ -102,8 +103,9 @@ pub enum Step {
     WriteF32(fn() -> &'static Float, f32),
     /// Sets what the next call is handed (the original's eax).
     Arg(u32),
-    /// The same with the address of something in the game (a path, say).
-    ArgAddr(Place),
+    /// The same with a text of the game (a picture's path; the original's eax held its
+    /// address).
+    ArgText(Text),
     /// Calls the game function at this RVA, and if it comes back with the carry flag set,
     /// that is the fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -233,7 +235,7 @@ pub struct Screen {
 /// registers, and every callee that changes one changes it here (`call`, the screens' own
 /// steps). Its other registers are scratch that nothing reads (edi is the menu wherever a
 /// callee reads it; ebp nothing reads).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Carried {
     /// eax: what the next call is handed (a path, a direction, a mode); after a frame the
     /// milliseconds since set-up, whose bits 8 .. 15 `handle_keys` reads on Enter.
@@ -254,7 +256,34 @@ pub struct Carried {
     /// The carry flag, which `Step::CallOrFatal` reads after its call (a call that does not
     /// write it leaves the one before).
     pub carry: bool,
+    /// The text the next call is handed (`Step::ArgText`): a picture's path.
+    pub text: Option<Text>,
 }
+
+/// Equal when the registers are and the texts are the same places (the functions that
+/// find them are compared by what they give).
+impl PartialEq for Carried {
+    fn eq(&self, other: &Self) -> bool {
+        let place = |t: Option<Text>| t.map(|f| core::ptr::from_ref(f()).cast::<u8>());
+        (
+            self.arg,
+            self.palette,
+            self.measure_x,
+            self.clock,
+            self.cars,
+            self.carry,
+        ) == (
+            other.arg,
+            other.palette,
+            other.measure_x,
+            other.clock,
+            other.cars,
+            other.carry,
+        ) && place(self.text) == place(other.text)
+    }
+}
+
+impl Eq for Carried {}
 
 /// Whether the game is quitting (`dword_51837C`).
 pub fn quitting() -> bool {
@@ -389,7 +418,8 @@ impl Callee {
             Self::TakeKey => c.arg = c.arg & !0xFF | take_key() as u32,
             Self::NoOp => {}
             Self::LoadBackground => {
-                crate::menu::load_background::load_background(c.arg, c.palette, &mut GameCanvas)?;
+                let path = c.text.ok_or(BadInput("a background with no path named"))?;
+                crate::menu::load_background::load_background(path(), c.palette, &mut GameCanvas)?;
                 c.carry = false;
             }
             Self::PrepareScene => prepare_scene(c),
@@ -443,8 +473,8 @@ impl Callee {
                 c.carry = false;
             }
             Self::LoadPicture => {
-                c.carry =
-                    !crate::gfx::load_picture::load_picture(crate::pointers::GamePtr::new(c.arg))?
+                let path = c.text.ok_or(BadInput("a picture with no path named"))?;
+                c.carry = !crate::gfx::load_picture::load_picture(path())?
             }
             Self::ConvertPicture => c.carry = crate::gfx::convert_picture::convert_picture_now()?,
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?,
@@ -513,7 +543,7 @@ fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
             Step::Write(variable, value) => variable().set(value),
             Step::WriteF32(variable, value) => variable().set(value),
             Step::Arg(value) => c.arg = value,
-            Step::ArgAddr(what) => c.arg = what() as u32,
+            Step::ArgText(what) => c.text = Some(what),
             Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
             Step::Do(what) => what(c)?,
         }

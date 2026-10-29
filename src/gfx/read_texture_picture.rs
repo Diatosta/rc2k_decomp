@@ -36,7 +36,7 @@ pub fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool), Refu
     .ok_or(BadInput("a picture buffer shorter than a texture"))?;
     let failed = if path.is_null() {
         false
-    } else if read_picture_file(crate::files::game_path(path))? {
+    } else if read_picture_file(&crate::files::game_path(path))? {
         return Ok((
             DECODER.pixels.get(),
             DECODER.width.get(),

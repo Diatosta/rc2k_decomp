@@ -62,11 +62,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .overall_stage_results_picture
-                .addr()) as usize
-        }),
+        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.overall_stage_results_picture),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],
     after_first_frame: &[],

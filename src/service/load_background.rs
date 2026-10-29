@@ -31,7 +31,7 @@ pub fn load_background() -> Result<(), Refused> {
     )
     .map_err(BadInput::from)?;
     let path = MENU_LISTS.service_pictures[car as usize].get();
-    crate::gfx::load_picture::load_picture(GamePtr::new(path))?;
+    crate::gfx::load_picture::load_picture(&GamePtr::new(path))?;
     crate::gfx::convert_picture::convert_picture_now()?;
     Ok(())
 }

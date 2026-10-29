@@ -68,8 +68,8 @@ pub fn draw_stage_map() -> Result<(), Refused> {
         "a map overlay",
     )?;
     if load_picture_with_overlay(
-        crate::pointers::GamePtr::new(crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr()),
-        crate::pointers::GamePtr::new(overlay),
+        &crate::menu::texts_store::MENU_TEXTS.ukmap_png,
+        &crate::pointers::GamePtr::new(overlay),
     )? {
         return Err(NO_MAP.into());
     }

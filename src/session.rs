@@ -645,6 +645,55 @@ pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     out
 }
 
+/// A text the game keeps in place and may write into (a path whose ending the picture
+/// loader swaps): a typed buffer (`Bytes<N>`), or one known only by its game address
+/// (`GamePtr`, checked as game memory).
+pub trait TextPlace {
+    /// The bytes up to the NUL; refused when none comes before the place's end.
+    fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput>;
+    /// `bytes` written `at` bytes in.
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput>;
+}
+
+impl<const N: usize> TextPlace for Bytes<N> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let all = self.read();
+        match all.iter().position(|&c| c == 0) {
+            Some(n) => Ok(all[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.write_at(at, bytes, what)
+    }
+}
+
+impl TextPlace for crate::pointers::GamePtr {
+    fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        crate::files::cstring(*self, what)
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.offset(at as u32).write_bytes(bytes, what)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

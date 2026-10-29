@@ -54,7 +54,7 @@ pub fn load_car_background(
 /// In the game: the background through `menu::load_background` (its carry is never set).
 pub fn load_car_background_in_game() -> Result<(), Refused> {
     load_car_background(&mut |path, car| {
-        load_background(path, car, &mut GameCanvas)?;
+        load_background(&crate::pointers::GamePtr::new(path), car, &mut GameCanvas)?;
         Ok(false)
     })
 }

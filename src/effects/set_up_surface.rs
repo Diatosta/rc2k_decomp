@@ -37,7 +37,7 @@ fn read(path: &Bytes<21>) -> Result<bool, Refused> {
     PICTURE.width.set(SIDE);
     PICTURE.height.set(SIDE);
     PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(GamePtr::new(path.addr()));
+    let read = crate::gfx::read_picture_file::read_picture_file(path);
     PICTURE.width.set(sizes[0]);
     PICTURE.height.set(sizes[1]);
     PICTURE.row_bytes.set(sizes[2]);

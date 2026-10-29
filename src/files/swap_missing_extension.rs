@@ -12,14 +12,14 @@
 
 use crate::errors::BadInput;
 use crate::files::file_exists::file_exists;
-use crate::pointers::GamePtr;
+use crate::session::TextPlace;
 
 // ---- Rust version ----
 
 /// The path at `at`, its ending swapped there when the file is missing: the text as it is
 /// afterwards.
-pub fn swap_missing_extension(at: GamePtr) -> Result<Vec<u8>, BadInput> {
-    let mut text = crate::files::cstring(at, "a path")?;
+pub fn swap_missing_extension(at: &dyn TextPlace) -> Result<Vec<u8>, BadInput> {
+    let mut text = at.text("a path")?;
     if text.len() < 5 {
         return Ok(text);
     }
@@ -29,7 +29,7 @@ pub fn swap_missing_extension(at: GamePtr) -> Result<Vec<u8>, BadInput> {
     };
     if !file_exists(&text)? {
         let n = text.len() - 4;
-        at.offset(n as u32).write(*partner, "a path's ending")?;
+        at.write_text_at(n, partner, "a path's ending")?;
         text[n..].copy_from_slice(partner);
     }
     Ok(text)

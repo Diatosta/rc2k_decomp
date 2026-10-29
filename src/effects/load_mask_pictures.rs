@@ -61,7 +61,7 @@ fn read(path: u32) -> Result<(), Refused> {
     PICTURE.height.set(0x80u32);
     PICTURE.row_bytes.set(0xFFFF_FFFEu32);
     let read =
-        crate::gfx::read_picture_file::read_picture_file(crate::pointers::GamePtr::new(path));
+        crate::gfx::read_picture_file::read_picture_file(&crate::pointers::GamePtr::new(path));
     PICTURE.width.set(sizes[0]);
     PICTURE.height.set(sizes[1]);
     PICTURE.row_bytes.set(sizes[2]);

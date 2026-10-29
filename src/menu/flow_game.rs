@@ -310,16 +310,16 @@ impl flow::Game for Game {
             C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
             C::StopStream => crate::sound::stop_stream::stop_stream(),
             C::LoadPicture(p) => {
-                self.f.c.arg = match p {
-                    Picture::Championship => {
-                        crate::menu::texts_store::MENU_TEXTS.mob_welc_png.addr()
-                    }
-                    Picture::A8 => crate::menu::texts_store::MENU_TEXTS.a8_welc_png.addr(),
+                let texts = &crate::menu::texts_store::MENU_TEXTS;
+                let picture: &dyn crate::session::TextPlace = match p {
+                    Picture::Championship => &texts.mob_welc_png,
+                    Picture::A8 => &texts.a8_welc_png,
                 };
-                self.f.c.palette = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr();
+                // ebx, the title bar's path, is what the loop's next steps read as a palette.
+                self.f.c.palette = texts.titlebar_png.addr();
                 self.f.c.carry = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                    crate::pointers::GamePtr::new(self.f.c.arg),
-                    crate::pointers::GamePtr::new(self.f.c.palette),
+                    picture,
+                    &texts.titlebar_png,
                 )?;
             }
             C::ConvertPicture => {

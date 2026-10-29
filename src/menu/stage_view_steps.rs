@@ -125,11 +125,9 @@ pub fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Other => &MENU_LISTS.welcome_other,
     };
     let path = crate::session::read_on(table, section as usize, "a welcome picture")?;
-    let title_bar =
-        crate::pointers::GamePtr::new(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-        crate::pointers::GamePtr::new(path),
-        title_bar,
+        &crate::pointers::GamePtr::new(path),
+        &crate::menu::texts_store::MENU_TEXTS.titlebar_png,
     )? {
         return Err(FatalError {
             code: 0x8071_2345,

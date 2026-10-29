@@ -81,8 +81,8 @@ pub fn load_slideshow_picture(
 /// With the Rust versions of what it calls.
 pub fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
     load_slideshow_picture(way, &mut |step| match step {
-        Step::Overlay(path, over) => load_picture_with_overlay(path, over),
-        Step::Load(path) => load_picture(path).map(|_| false),
+        Step::Overlay(path, over) => load_picture_with_overlay(&path, &over),
+        Step::Load(path) => load_picture(&path).map(|_| false),
         Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
     })
 }

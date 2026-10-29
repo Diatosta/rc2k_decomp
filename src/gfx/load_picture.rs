@@ -26,7 +26,7 @@ use rc2k_core::gfx::picture_size as sizes;
 // ---- Rust version ----
 
 /// Returns whether the file was read.
-pub fn load_picture(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
+pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
     // Refused before anything is written, if there is no buffer.
     if !has_picture() {
         clear_picture()?;

@@ -42,7 +42,11 @@ pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Res
 pub fn call_in_game(call: Call) -> Result<(), Refused> {
     match call {
         Call::Background => load_car_background(&mut |path, car| {
-            crate::menu::load_background::load_background(path, car, &mut GameCanvas)?;
+            crate::menu::load_background::load_background(
+                &crate::pointers::GamePtr::new(path),
+                car,
+                &mut GameCanvas,
+            )?;
             Ok(false)
         }),
         Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),

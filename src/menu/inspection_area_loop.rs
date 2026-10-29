@@ -45,11 +45,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .inspection_area_picture
-                .addr()) as usize
-        }),
+        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.inspection_area_picture),
         Step::Call(Callee::LoadPicture),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],

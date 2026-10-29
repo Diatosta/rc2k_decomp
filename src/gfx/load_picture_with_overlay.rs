@@ -21,7 +21,6 @@ use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
-use crate::pointers::GamePtr;
 use crate::strings::compile_lexicon::LEXICON;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
@@ -29,7 +28,10 @@ const MEMORY: u32 = 0x1D4C00 + 0xC80;
 // ---- Rust version ----
 
 /// Returns the carry: true if the picture could not be read.
-pub fn load_picture_with_overlay(path: GamePtr, overlay_path: GamePtr) -> Result<bool, Refused> {
+pub fn load_picture_with_overlay(
+    path: &dyn crate::session::TextPlace,
+    overlay_path: &dyn crate::session::TextPlace,
+) -> Result<bool, Refused> {
     if !load_picture(path)? {
         return Ok(true);
     }

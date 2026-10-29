@@ -18,7 +18,6 @@ use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
-use crate::pointers::GamePtr;
 use crate::session::Dword;
 
 // ---- game data ----
@@ -39,9 +38,9 @@ pub fn png_setting_home() -> usize {
 
 /// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
 /// reader}`.
-pub fn read_picture_file(path: GamePtr) -> Result<bool, Refused> {
+pub fn read_picture_file(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};
-    let text = crate::files::cstring(path, "a picture's path")?;
+    let text = path.text("a picture's path")?;
     if &ending(&text)? == b".pcx" {
         return Ok(read_pcx(&text)?);
     }

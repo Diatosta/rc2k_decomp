@@ -49,9 +49,7 @@ use crate::session::CLOCKS;
 
 fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     EVENT_STATE.event_done.set(0u32);
-    c.arg = crate::menu::texts_store::MENU_TEXTS
-        .main_menu_picture
-        .addr();
+    c.text = Some(|| &crate::menu::texts_store::MENU_TEXTS.main_menu_picture);
     Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
     DRAW.view_offset[0].set(7u32);
     DRAW.view_offset[1].set(0xAu32);

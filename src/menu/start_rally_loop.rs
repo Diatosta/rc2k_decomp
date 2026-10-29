@@ -87,11 +87,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .start_rally_picture
-                .addr()) as usize
-        }),
+        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.start_rally_picture),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],

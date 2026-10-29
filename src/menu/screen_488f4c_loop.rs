@@ -48,11 +48,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgAddr(|| {
-            (crate::menu::texts_store::MENU_TEXTS
-                .screen_488f4c_picture
-                .addr()) as usize
-        }),
+        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.screen_488f4c_picture),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],

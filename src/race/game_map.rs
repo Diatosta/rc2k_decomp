@@ -379,7 +379,7 @@ pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels((marked << 8).wrapping_mul(bytes))?;
-        if !crate::gfx::read_picture_file::read_picture_file(crate::pointers::GamePtr::new(
+        if !crate::gfx::read_picture_file::read_picture_file(&crate::pointers::GamePtr::new(
             MAP.picture_path.get(),
         ))? {
             return Ok(());
