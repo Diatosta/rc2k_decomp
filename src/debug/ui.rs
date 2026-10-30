@@ -7,6 +7,8 @@
 //!   the frame rate, the course's memory, the processor's features, `dword_6218B8`) and our
 //!   own timings (`debug::timing`, `platform::frame_counters`): RAL.EXE writes none of its
 //!   page's 40 timers (the developers' timing code was taken out).
+//! - "Watch list": the variables of the developers' watch pages (`debug::watch_rows`), laid
+//!   out as "Display"; "Dumps": the league tables those pages dumped in hex.
 //! - "Rivals": the rivals' table the display page ended with (`g_rivalNames`,
 //!   `g_rivalScaled`, `g_rivalTimes`, as they are: unlike the original page this does not
 //!   refill them).
@@ -72,8 +74,9 @@ pub struct Group {
     pub rows: &'static [Row],
 }
 
-/// The filter's text (kept across frames).
+/// The filters' texts (kept across frames): one a tab of groups.
 static FILTER: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+static WATCH_FILTER: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
 /// How opaque the window's background is.
 const BACKGROUND: f32 = 0.6;
@@ -199,7 +202,13 @@ pub fn build(ui: &Ui) {
             ui.text_disabled("Ctrl+F11 hides this");
             if let Some(_bar) = ui.tab_bar("pages") {
                 if let Some(_tab) = ui.tab_item("Display") {
-                    display(ui);
+                    display(ui, crate::debug::display_rows::GROUPS, &FILTER);
+                }
+                if let Some(_tab) = ui.tab_item("Watch list") {
+                    display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
+                }
+                if let Some(_tab) = ui.tab_item("Dumps") {
+                    dumps(ui);
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
                     profiler(ui);
@@ -231,14 +240,14 @@ fn wanted_row(row: &Row, wanted: &str) -> bool {
         || row.label.to_lowercase().contains(wanted)
 }
 
-/// The "Display" tab: the groups in as many columns as the width holds.
-fn display(ui: &Ui) {
+/// A tab of groups, in as many columns as the width holds.
+fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
     let wanted = {
-        let mut filter = FILTER.lock().unwrap_or_else(|e| e.into_inner());
+        let mut filter = filter.lock().unwrap_or_else(|e| e.into_inner());
         ui.input_text("Filter", &mut filter).build();
         filter.to_lowercase()
     };
-    let groups: Vec<(&Group, usize)> = crate::debug::display_rows::GROUPS
+    let groups: Vec<(&Group, usize)> = all
         .iter()
         .map(|g| (g, g.rows.iter().filter(|r| wanted_row(r, &wanted)).count()))
         .filter(|&(_, n)| n > 0)
@@ -308,10 +317,15 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
         ui.table_next_column();
         ui.text_disabled(row.label);
         if ui.is_item_hovered() {
-            ui.tooltip_text(format!(
-                "IDA {:#08x}; at ({}, {}) on the original's page",
-                row.at, row.place.0, row.place.1
-            ));
+            let hex = value.map_or("?".to_owned(), |v| format!("{v:08x}"));
+            ui.tooltip_text(if row.place == (0, 0) {
+                format!("IDA {:#08x}; {hex}", row.at)
+            } else {
+                format!(
+                    "IDA {:#08x}; {hex}; at ({}, {}) on the original's page",
+                    row.at, row.place.0, row.place.1
+                )
+            });
         }
     }
 }
@@ -393,7 +407,7 @@ fn take_readings(t: &mut Timings) {
         at: std::time::Instant::now(),
         frame: crate::platform::frame_counters(),
         stages: crate::debug::timing::counts(),
-        ticks: crate::race::vars_store::RACE_VARS.race_ticks.get(),
+        ticks: crate::debug::timing::ticks(),
     };
     if let Some(then) = t
         .last
@@ -657,6 +671,42 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
     for (name, colour) in PARTS {
         ui.same_line();
         ui.text_colored(colour, name);
+    }
+}
+
+/// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
+/// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
+const DUMPS: [(&str, usize); 4] = [
+    ("g_leagueNames", 0x60410C),
+    ("g_leagueRows", 0x604134),
+    ("unk_75B02C", 0x75B02C),
+    ("unk_75B09C", 0x75B09C),
+];
+
+/// The "Dumps" tab.
+fn dumps(ui: &Ui) {
+    for (name, at) in DUMPS {
+        if !ui.collapsing_header(name, TreeNodeFlags::NONE) {
+            continue;
+        }
+        for row in 0..50 {
+            let place = at + 8 * row;
+            let bytes: Vec<String> = [place, place + 4]
+                .iter()
+                .flat_map(|&p| {
+                    value_at(p).map_or(
+                        [
+                            "??".to_owned(),
+                            "??".to_owned(),
+                            "??".to_owned(),
+                            "??".to_owned(),
+                        ],
+                        |v| v.to_le_bytes().map(|b| format!("{b:02x}")),
+                    )
+                })
+                .collect();
+            ui.text(format!("{place:06x}  {}", bytes.join(" ")));
+        }
     }
 }
 

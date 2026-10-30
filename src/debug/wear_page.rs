@@ -38,7 +38,8 @@ mod tests {
     #[test]
     fn every_place_is_a_variable_of_the_image() {
         // Each figure's place resolves, outside the dead bytes of the race block.
-        for group in crate::debug::display_rows::GROUPS {
+        let groups = crate::debug::display_rows::GROUPS.iter();
+        for group in groups.chain(crate::debug::watch_rows::GROUPS) {
             for at in group.rows.iter().map(|r| r.at()) {
                 let place = crate::moved::place(at) as u32;
                 assert!(!crate::race::store::is_dead(place), "{at:#x}");

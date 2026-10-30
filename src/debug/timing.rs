@@ -42,6 +42,21 @@ pub fn voices() -> (u32, u32) {
     (VOICES[0].load(Relaxed), VOICES[1].load(Relaxed))
 }
 
+/// The race's ticks run (`drive::race_step`), whichever way each goes.
+static TICKS: AtomicU32 = AtomicU32::new(0);
+
+/// A tick is run.
+#[inline]
+pub fn note_tick() {
+    TICKS.fetch_add(1, Relaxed);
+}
+
+/// The race's ticks so far.
+#[cfg(target_pointer_width = "64")]
+pub fn ticks() -> u32 {
+    TICKS.load(Relaxed)
+}
+
 /// A stage begins: the clock, only while the UI is open.
 #[inline]
 pub fn start() -> Option<Instant> {

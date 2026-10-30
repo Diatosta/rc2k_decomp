@@ -48,4 +48,6 @@ pub mod timing;
 #[cfg(target_pointer_width = "64")]
 pub mod ui;
 #[cfg(target_pointer_width = "64")]
+pub mod watch_rows;
+#[cfg(target_pointer_width = "64")]
 pub mod wear_page;
