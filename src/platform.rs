@@ -866,6 +866,26 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// The frames' running counters, for the debug UI's profiler: microseconds in the
+/// rasteriser, noting the triangles and showing the frame; triangle fans; pixels drawn.
+#[cfg(target_pointer_width = "64")]
+pub fn frame_counters() -> [u64; 5] {
+    use std::sync::atomic::Ordering::Relaxed;
+    [
+        crate::platform_3d::RASTER_MICROS.load(Relaxed),
+        crate::platform_3d::NOTE_MICROS.load(Relaxed),
+        SHOW_MICROS.load(Relaxed),
+        crate::platform_3d::FANS.load(Relaxed),
+        crate::platform_3d::PIXELS.load(Relaxed),
+    ]
+}
+
+/// The screen's pixels (its width times its height).
+#[cfg(target_pointer_width = "64")]
+pub fn screen_pixels() -> u64 {
+    u64::from(GAME_SCREEN.width.get()) * u64::from(GAME_SCREEN.height.get())
+}
+
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
 pub fn show_frame_now() -> bool {

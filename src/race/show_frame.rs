@@ -47,6 +47,8 @@ pub fn show_frame() -> Result<Shown, Refused> {
         )?;
     }
     { crate::race::frame_text::draw_frame_rate(&mut crate::text::draw_text::GameCanvas) }?;
+    // Not the original's: the debug UI stays open while race frames are drawn.
+    crate::debug::imgui_sdl::race_frame();
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame();
     if !crate::scene::present_frame::present_frame() {

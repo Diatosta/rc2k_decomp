@@ -17,7 +17,18 @@ static OPEN: AtomicBool = AtomicBool::new(false);
 
 /// The debug UI shown or hidden.
 pub fn toggle() -> bool {
+    FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
     !OPEN.fetch_xor(true, Ordering::Relaxed)
+}
+
+/// Frames shown since the last race frame (`race::show_frame`): the UI closes itself when
+/// the race is left (owner, 2026-10-30), i.e. after `RACE_GONE` frames without one.
+static FRAMES_WITHOUT_RACE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+const RACE_GONE: u32 = 30;
+
+/// A race frame is being drawn (a race or a replay).
+pub fn race_frame() {
+    FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
 }
 
 /// An SDL texture of ImGui's.
@@ -48,7 +59,9 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
         let mut gui = gui.borrow_mut();
         if gui.is_none() {
             let mut context = Context::create();
-            let _ = context.set_ini_filename(Some(crate::platform::beside_log("imgui.ini")));
+            // In the game's `var` folder, beside its other saved files (owner, 2026-10-30).
+            let ini = crate::platform::beside_log("var").join("imgui.ini");
+            let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
             let flags = io.backend_flags()
@@ -161,6 +174,12 @@ pub fn event(event: &SDL_Event) -> bool {
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
 pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
+    if OPEN.load(Ordering::Relaxed)
+        && FRAMES_WITHOUT_RACE.fetch_add(1, Ordering::Relaxed) >= RACE_GONE
+    {
+        OPEN.store(false, Ordering::Relaxed);
+        crate::framework::log("debug: the race was left: the UI hidden");
+    }
     let open = OPEN.load(Ordering::Relaxed);
     with_gui(|gui| {
         // ImGui's text fields need SDL's text input, started while the UI is shown.
