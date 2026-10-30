@@ -76,7 +76,7 @@ pub fn draw_menu_items(
             font: FontAt(i.font.get().addr()),
             pulse_font: FontAt(i.highlight_font.get().addr()),
             behind: i.behind.get(),
-            sprite: i.sprites.get(),
+            sprite: i.sprites.get().raw(),
             spaced: i.spaced.get() == 1,
         })
         .collect();

@@ -155,22 +155,23 @@ pub fn step_stage_page(up: bool) -> Result<(), Refused> {
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).
 pub fn style_stage_item(b: bool) -> Result<(), Refused> {
+    use crate::menu::item_sprites_store::ItemSprite;
     let item = crate::menu::item_at::item_at(1)?;
     let (a, c, font) = if b {
         (
             0xFFFF_FFA7,
-            crate::menu::item_sprites_store::ITEM_SPRITES.lists[1][0].addr(),
+            ItemSprite::List(1),
             crate::gfx::typefaces::fonts::STAGE_ITEM_B,
         )
     } else {
         (
             0xFFFF_FFA9,
-            0xFFFF_FFA9,
+            ItemSprite::Sprite(0xFFFF_FFA9),
             crate::gfx::typefaces::fonts::STAGE_TITLE,
         )
     };
     item.behind.set(a);
-    item.sprites.set(c);
+    item.sprites.set(c)?;
     item.highlight_font.set(font);
     Ok(())
 }

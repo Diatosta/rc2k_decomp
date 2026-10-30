@@ -11,15 +11,17 @@
 //! `rc2k_core::menu::tables`' (menus and labels), the memory the game walks by address.
 
 use crate::gfx::typefaces::FontCell;
+use crate::menu::item_sprites_store::SpriteCell;
 use crate::session::Dword;
 
-/// A label: x, y, the font record's address, the string id.
+/// A label: x, y, the font, the string id.
 #[repr(C)]
 pub struct MenuLabel {
     pub x: Dword,
     pub y: Dword,
-    /// The font record's address (IDA 0x51E...; `moved::point_into_homes` makes it real).
-    pub font: Dword,
+    /// The font (the original kept the object's address; `moved::point_into_homes` passes
+    /// it over).
+    pub font: FontCell,
     pub string: Dword,
 }
 
@@ -28,7 +30,7 @@ impl MenuLabel {
         Self {
             x: Dword::new(v[0]),
             y: Dword::new(v[1]),
-            font: Dword::new(v[2]),
+            font: FontCell::at(v[2]),
             string: Dword::new(v[3]),
         }
     }
@@ -68,7 +70,9 @@ pub struct MenuItem {
     pub font: FontCell,
     /// +0x1C; changed in play.
     pub behind: Dword,
-    pub sprites: Dword,
+    /// +0x20: the sprite behind it, or a button's sprite list (the original's the list's
+    /// address); changed in play (`menu::stage_view_steps::style_stage_item`).
+    pub sprites: SpriteCell,
     /// The items up, down, left and right of this one, by `id`.
     pub links: [Dword; 4],
     /// The code addresses of what a key does on it: up, down, left, right (+0x34 .. +0x40).
@@ -97,7 +101,7 @@ impl MenuItem {
             string: Dword::new(v[5]),
             font: FontCell::at(v[6]),
             behind: Dword::new(v[7]),
-            sprites: Dword::new(v[8]),
+            sprites: SpriteCell::at(v[8]),
             links: [
                 Dword::new(v[9]),
                 Dword::new(v[10]),
@@ -122,6 +126,7 @@ impl MenuItem {
 
 const _: () = assert!(core::mem::size_of::<MenuItem>() == 0x5C);
 const _: () = assert!(core::mem::offset_of!(MenuItem, font) == 0x18);
+const _: () = assert!(core::mem::offset_of!(MenuItem, sprites) == 0x20);
 const _: () = assert!(core::mem::offset_of!(MenuItem, measuring_font) == 0x4C);
 const _: () = assert!(core::mem::offset_of!(MenuItem, highlight_font) == 0x50);
 
@@ -740,6 +745,128 @@ pub static MENUS: MenuTables = MenuTables {
         review_options_481429: Menu::new(0x747F10, [MenuItem::new([0x2EB, 0x77, 0x0, 0x0, 0x1, 0x1F8, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x6, 0x2, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x92, 0x0, 0x0, 0x2, 0x518, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x1, 0x3, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47053E, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xAD, 0x0, 0x0, 0x3, 0x519, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x2, 0x4, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47052F, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xC8, 0x0, 0x0, 0x4, 0x51A, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x3, 0x5, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47D8F7, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xE3, 0x0, 0x0, 0x5, 0x51F, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x4, 0x6, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A94EC, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xFE, 0x0, 0x0, 0x6, 0x51E, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x5, 0x1, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A9583, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
 };
 
+/// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
+/// the other from IDA 0x747AD8).
+pub static LABEL_LISTS: [&LabelList; 98] = [
+    &MENUS.review_options_485f5e_labels,
+    &MENUS.arcade_review_options_labels,
+    &MENUS.review_options_4882e2_labels,
+    &MENUS.review_options_48861d_labels,
+    &MENUS.menu_74bafc_labels,
+    &MENUS.stage_result_labels,
+    &MENUS.labels_747b50,
+    &MENUS.results_48584b_labels,
+    &MENUS.menu_750b94_labels,
+    &MENUS.results_482e9b_labels,
+    &MENUS.screen_483163_labels,
+    &MENUS.time_trial_results_labels,
+    &MENUS.labels_747bc8,
+    &MENUS.main_menu_labels,
+    &MENUS.network_rally_labels,
+    &MENUS.start_rally_labels,
+    &MENUS.championship_new_simulation_labels,
+    &MENUS.new_simulation_labels,
+    &MENUS.menu_749290_labels,
+    &MENUS.menu_7493ac_labels,
+    &MENUS.simple_select_players_labels,
+    &MENUS.time_trial_select_players_labels,
+    &MENUS.labels_747c90,
+    &MENUS.arcade_select_level_labels,
+    &MENUS.service_area_labels,
+    &MENUS.menu_74d1e8_labels,
+    &MENUS.in_game_options_labels,
+    &MENUS.menu_7509b0_labels,
+    &MENUS.audio_setup_labels,
+    &MENUS.advanced_audio_labels,
+    &MENUS.leave_question_labels,
+    &MENUS.car_specification_labels,
+    &MENUS.slideshow_labels,
+    &MENUS.select_car_labels,
+    &MENUS.car_specs_47af4c_labels,
+    &MENUS.menu_74ba3c_labels,
+    &MENUS.inspection_area_labels,
+    &MENUS.welcome_labels,
+    &MENUS.arcade_next_stage_labels,
+    &MENUS.screen_488f4c_labels,
+    &MENUS.arcade_results_labels,
+    &MENUS.rally_stages_labels,
+    &MENUS.class_stage_results_labels,
+    &MENUS.overall_stage_results_labels,
+    &MENUS.class_rally_results_labels,
+    &MENUS.overall_rally_results_labels,
+    &MENUS.menu_74fde0_labels,
+    &MENUS.menu_74fe44_labels,
+    &MENUS.class_championship_standings_labels,
+    &MENUS.championship_standings_labels,
+    &MENUS.menu_74fea8_labels,
+    &MENUS.review_options_47d5a5_labels,
+    &MENUS.review_options_480d46_labels,
+    &MENUS.review_options_48108e_labels,
+    &MENUS.review_options_481429_labels,
+    &MENUS.select_stage_labels,
+    &MENUS.time_trial_select_stage_labels,
+    &MENUS.next_stage_labels,
+    &MENUS.view_stage_labels,
+    &MENUS.view_courses_labels,
+    &MENUS.labels_747f88,
+    &MENUS.player1_controller_labels,
+    &MENUS.player1_buttons_labels,
+    &MENUS.player2_controller_labels,
+    &MENUS.player2_buttons_labels,
+    &MENUS.player3_controller_labels,
+    &MENUS.player3_buttons_labels,
+    &MENUS.player4_controller_labels,
+    &MENUS.player4_buttons_labels,
+    &MENUS.redefine_keys_player1_labels,
+    &MENUS.redefine_keys_player2_labels,
+    &MENUS.redefine_keys_player3_labels,
+    &MENUS.redefine_keys_player4_labels,
+    &MENUS.view_best_times_labels,
+    &MENUS.view_best_scores_labels,
+    &MENUS.best_times_labels,
+    &MENUS.arcade_best_times_labels,
+    &MENUS.time_trial_best_times_labels,
+    &MENUS.best_scores_48a69e_labels,
+    &MENUS.best_class_scores_labels,
+    &MENUS.best_overall_scores_labels,
+    &MENUS.menu_74e168_labels,
+    &MENUS.options_labels,
+    &MENUS.menu_74e79c_labels,
+    &MENUS.player1_details_labels,
+    &MENUS.player2_details_labels,
+    &MENUS.player3_details_labels,
+    &MENUS.player4_details_labels,
+    &MENUS.player_details_labels,
+    &MENUS.information_labels,
+    &MENUS.load_championship_labels,
+    &MENUS.save_championship_labels,
+    &MENUS.load_replay_labels,
+    &MENUS.save_replay_labels,
+    &MENUS.labels_748230,
+    &MENUS.save_setup_labels,
+    &MENUS.visual_preferences_labels,
+    &MENUS.visual_options_labels,
+];
+
+/// The font of the label whose font field is at `at` (a game address in the label lists;
+/// `screens::draw_menu_labels` walks them by address). Refused: a place that is no label's
+/// font (the walk gone off the lists' grid: the original would take what is there for a
+/// font object's address).
+pub fn label_font(at: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
+    let off = at.wrapping_sub(menus_addr()) as usize;
+    if off >= LABEL_LISTS.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
+        return Err(crate::errors::BadInput("a label's font read off a label"));
+    }
+    Ok(LABEL_LISTS[off / LABEL_LIST_LEN].label.font.get())
+}
+
+/// A label list's length.
+const LABEL_LIST_LEN: usize = core::mem::size_of::<LabelList>();
+
+const _: () = assert!(LABEL_LIST_LEN == 0x14);
+const _: () = assert!(core::mem::offset_of!(MenuLabel, font) == 8);
+const _: () = assert!(core::mem::offset_of!(MenuTables, visual_options_labels) == 97 * 0x14);
+
 /// IDA 0x747AD8, the first byte of the piece.
 pub const START: usize = 0x747AD8;
 /// IDA 0x755144, the end of the piece.
@@ -750,9 +877,10 @@ pub fn menus_addr() -> u32 {
     crate::pointers::game_address(&MENUS as *const MenuTables)
 }
 
-/// Whether IDA's `ida` is one of the items' fonts (+0x18, +0x4C, +0x50): places the image
-/// relocated that hold a `FontCell` now (`moved::point_into_homes` passes them over).
-pub fn holds_font(ida: usize) -> bool {
+/// Whether IDA's `ida` is a place the image relocated that holds a handle now: the items'
+/// fonts (+0x18, +0x4C, +0x50) and sprites (+0x20), the labels' fonts (`FontCell`,
+/// `SpriteCell`; `moved::point_into_homes` passes them over).
+pub fn holds_handle(ida: usize) -> bool {
     static PLACES: std::sync::OnceLock<std::collections::HashSet<usize>> =
         std::sync::OnceLock::new();
     PLACES
@@ -762,8 +890,9 @@ pub fn holds_font(ida: usize) -> bool {
                 .flat_map(|n| MenuId(n).items())
                 .flat_map(|item| {
                     let at = START + item.addr() as usize - base;
-                    [at + 0x18, at + 0x4C, at + 0x50]
+                    [at + 0x18, at + 0x20, at + 0x4C, at + 0x50]
                 })
+                .chain((0..LABEL_LISTS.len()).map(|n| START + n * LABEL_LIST_LEN + 8))
                 .collect()
         })
         .contains(&ida)
@@ -1083,6 +1212,7 @@ impl MenuItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::item_sprites_store::ItemSprite;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
@@ -1120,7 +1250,8 @@ mod tests {
                 END - START,
             )
         };
-        // The items' fonts are kept as `FontCell`s: compared by the objects' IDA addresses.
+        // The items' and labels' fonts are kept as `FontCell`s: compared by the objects' IDA
+        // addresses.
         let mut mine = mine.to_vec();
         for item in (0..MENU_COUNT).flat_map(|n| MenuId(n).items()) {
             let at = (item.addr() - menus_addr()) as usize;
@@ -1132,9 +1263,18 @@ mod tests {
                 mine[at + off..at + off + 4]
                     .copy_from_slice(&(cell.get().ida() as u32).to_le_bytes());
             }
+            let sprites = match item.sprites.get() {
+                ItemSprite::Sprite(n) => n,
+                ItemSprite::List(n) => (crate::menu::item_sprites_store::START + 0x14 * n) as u32,
+            };
+            mine[at + 0x20..at + 0x24].copy_from_slice(&sprites.to_le_bytes());
+        }
+        for (n, list) in LABEL_LISTS.iter().enumerate() {
+            let at = n * LABEL_LIST_LEN + 8;
+            mine[at..at + 4].copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
         }
         assert_eq!(mine, image_bytes(START, END - START));
-        assert!(holds_font(
+        assert!(holds_handle(
             START + (MENUS.select_stage.items[0].addr() - menus_addr()) as usize + 0x18
         ));
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

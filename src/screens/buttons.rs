@@ -16,6 +16,7 @@ use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::item_sprites_store::{ITEM_SPRITES, ItemSprite};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -23,9 +24,9 @@ use crate::text::measure_string_by_id::measure_string_by_id_at;
 
 /// One of the three button functions.
 pub struct Kind {
-    /// Where in the item's five sprite numbers the two ends are.
-    left_at: u32,
-    right_at: u32,
+    /// Which of the item's five sprite numbers the two ends are.
+    left_at: usize,
+    right_at: usize,
     width: &'static Dword,
     x: &'static Dword,
     y: &'static Dword,
@@ -49,7 +50,7 @@ const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 /// `screens::draw_button` (0x4688A1).
 pub const PLAIN: Kind = Kind {
     left_at: 0,
-    right_at: 4,
+    right_at: 1,
     width: &DRAW_WORK.seconds,
     x: &DRAW_WORK.work_b0,
     y: &DRAW_WORK.work_b4,
@@ -65,8 +66,8 @@ pub const PLAIN: Kind = Kind {
 
 /// `screens::draw_button_highlighted` (0x468BBE).
 pub const HIGHLIGHTED: Kind = Kind {
-    left_at: 8,
-    right_at: 0xC,
+    left_at: 2,
+    right_at: 3,
     slips: false,
     bad_align: FatalError {
         code: 0x8070_2022,
@@ -78,7 +79,7 @@ pub const HIGHLIGHTED: Kind = Kind {
 /// `screens::draw_button_alt` (0x468EDD).
 pub const ALT: Kind = Kind {
     left_at: 0,
-    right_at: 4,
+    right_at: 1,
     width: &DRAW_WORK.figure,
     x: &DRAW_WORK.hhmm,
     y: &DRAW_WORK.work_f4,
@@ -97,10 +98,6 @@ pub const ALT: Kind = Kind {
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_RIGHT: u32 = 3;
 
-pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
 // ---- Rust version of the three button functions ----
 
 /// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
@@ -110,16 +107,19 @@ pub fn draw_button(
     x: i32,
     y: i32,
     align: u32,
-    set: u32,
+    set: ItemSprite,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    if set == 0 {
-        return Err(BadInput("a button without sprites").into());
-    }
+    let list = match set {
+        ItemSprite::List(n) => &ITEM_SPRITES.lists[n],
+        ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
+        // The original reads the five numbers at the sprite number as at an address.
+        ItemSprite::Sprite(_) => return Err(BadInput("a button's sprites at no list").into()),
+    };
     let sprites = [
-        dword(set + kind.left_at)?,
-        dword(set + kind.right_at)?,
-        dword(set + 0x10)?,
+        list[kind.left_at].get(),
+        list[kind.right_at].get(),
+        list[4].get(),
     ];
     kind.width.set(width);
     kind.x.set(x as u32);
