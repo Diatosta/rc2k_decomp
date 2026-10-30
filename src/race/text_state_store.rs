@@ -1,16 +1,19 @@
 //! The frame text's state in the race block, 0x5C6604 .. 0x5C6610: `dword_5C6604`, set to 2 by
-//! `race::draw_frame_rate` (the text drawing mode, a reading), and the two dwords after it
-//! (not read by the game's code).
+//! `race::draw_frame_rate` (the text drawing mode, a reading: also the debug font's colour,
+//! `debug::draw`), and the two dwords after it (the debug font's pixel, kept per depth).
 //! Names are readings unless IDA's.
 
 use crate::session::Dword;
 
 #[repr(C)]
 pub struct TextState {
-    /// +0x0 (0x5C6604): `dword_5C6604`: set to 2 by `race::draw_frame_rate` before the frame-rate text (a reading).
+    /// +0x0 (0x5C6604): `dword_5C6604`: set to 2 by `race::draw_frame_rate` before the frame-rate text; the debug font's colour number (`debug::draw::COLOURS`).
     pub text_mode: Dword,
-    /// +0x4 (0x5C6608): not named.
-    pub unknown_4: [Dword; 2],
+    /// +0x4 (0x5C6608): `g_debugPixel16`: the debug font's colour made a 16-bit pixel
+    /// (`debug::draw`).
+    pub debug_pixel_16: Dword,
+    /// +0x8 (0x5C660C): `g_debugPixel32`: the same, 32-bit.
+    pub debug_pixel_32: Dword,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

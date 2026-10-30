@@ -141,8 +141,11 @@ pub struct Numbers {
     pub point_95: Float,
     /// +0x128 (0x5C5E08): 1.6093457.
     pub kilometres_in_mile: Float,
-    /// +0x12c (0x5C5E0C): not named.
-    pub unknown_12c: [Dword; 3],
+    /// +0x12c (0x5C5E0C): `g_debugScale`: the debug font's pixel size (1 in the image;
+    /// `debug::draw`, written before each of the overlay's prints).
+    pub debug_scale: Dword,
+    /// +0x130 (0x5C5E10): not named.
+    pub unknown_130: [Dword; 2],
     /// +0x138 (0x5C5E18): 4096.0.
     pub k4096_a: Float,
     /// +0x13c (0x5C5E1C): 262144.0.

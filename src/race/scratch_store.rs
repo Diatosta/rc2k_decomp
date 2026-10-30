@@ -19,7 +19,14 @@ pub struct FrameScratch {
     /// +0x28 (0x5C5F70): `xmmword_5C5F70`: the four floats squared (`math::normalise_vector`).
     pub work_squares: [Dword; 4],
     /// +0x38 (0x5C5F80): not named.
-    pub unknown_38: [Dword; 12],
+    pub unknown_38: [Dword; 6],
+    /// +0x50 (0x5C5F98): `g_debugCursorX`: where the debug font's last print ended
+    /// (`debug::draw::print`, a print at (0, 0) goes on from here).
+    pub debug_cursor_x: Dword,
+    /// +0x54 (0x5C5F9C): `g_debugCursorY`: its row.
+    pub debug_cursor_y: Dword,
+    /// +0x58 (0x5C5FA0): not named.
+    pub unknown_58: [Dword; 4],
     /// +0x68 (0x5C5FB0): `dword_5C5FB0`: the locked surface's pitch (`scene::lock_frame`, `scene::unlock_frame`).
     pub frame_pitch: Dword,
     /// +0x6c (0x5C5FB4): `dword_5C5FB4`: the locked surface's pixels (`scene::lock_frame`, `scene::unlock_frame`).

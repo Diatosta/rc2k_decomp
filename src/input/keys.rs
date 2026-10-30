@@ -112,8 +112,10 @@ pub fn screenshot_if_key(shot: Screenshot) {
 pub fn end_frame(check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
     let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
-    for (cell, value) in PHYSICS.frame_cleared.iter().zip(left) {
-        cell.set(value);
+    // Not the original's 0s once the debug overlay's keys are used (`debug::overlay`).
+    let kept = crate::debug::overlay::words();
+    for ((cell, value), kept) in PHYSICS.debug.iter().zip(left).zip(kept) {
+        cell.set(value | kept);
     }
 }
 

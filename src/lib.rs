@@ -9,6 +9,7 @@ mod address_map;
 mod arch;
 mod audio;
 mod d3d;
+mod debug;
 mod drive;
 mod effects;
 mod errors;

@@ -90,8 +90,10 @@ pub struct PhysicsTables {
     pub view_counters: [Dword; 7],
     /// +0xc8 (0x6138F0): not named.
     pub unknown_c8: Dword,
-    /// +0xcc (0x6138F4): the frame's cleared flags (`input::keys`, `drive::race_step`).
-    pub frame_cleared: [Dword; 2],
+    /// +0xcc (0x6138F4): `g_debugPage`, the developers' debug overlay's page (0 .. 7), and
+    /// `g_debugFreezeRace` (`drive::race_step` skips the physics ticks while set): what is
+    /// left of the debug keys; `input::end_frame` sets both 0 every frame (`debug::overlay`).
+    pub debug: [Dword; 2],
     /// +0xd4 (0x6138FC): not named.
     pub unknown_d4: [Dword; 31],
     /// +0x150 (0x613978): `off_613978`: the ground kinds' records (`physics::wheel_surfaces`; twelve patched by `physics::apply_patches`).
