@@ -89,8 +89,9 @@ pub struct Textures {
     pub first_system: Dword,
     /// `dword_5ABA98`: five pairs of a size's number and the size (256, 128, 64, 32, 1024).
     pub sizes: [Dword; 10],
-    /// `off_5ABAC0`: a pixel kind's description (a pointer into `descriptions`; kind 0
-    /// none), filled by `d3d::find_texture_formats`.
+    /// `off_5ABAC0`: a pixel kind's description (by handle into `descriptions`,
+    /// `format_ref`: the original kept its address; kind 0 none), filled by
+    /// `d3d::find_texture_formats`.
     pub kinds: [Dword; 5],
     /// `stru_5ABAD4`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
     /// screen's (set by `platform::set_mode`).
@@ -127,14 +128,43 @@ const fn pool() -> Pool {
     }
 }
 
-/// The 3D card's tables; the first values are the image's (the kinds point at the
-/// image's descriptions until `moved::point_into_homes`).
+/// A texture format by handle (phase 13): `FORMAT_TAG | n` for `descriptions[n]`, 0 none.
+pub const FORMAT_TAG: u32 = 0xCC00_0000;
+/// IDA's address of `descriptions`.
+const DESCRIPTIONS_IDA: u32 = 0x5ABAD4;
+/// IDA's `off_5ABAC0`: its five places hold handles (`moved::point_into_homes` passes them
+/// over).
+const KINDS_IDA: usize = 0x5ABAC0;
+
+/// The handle for IDA's `ida` (a description's address or 0; anything else fails to
+/// compile).
+pub const fn format_ref(ida: u32) -> u32 {
+    if ida == 0 {
+        return 0;
+    }
+    assert!(ida >= DESCRIPTIONS_IDA && (ida - DESCRIPTIONS_IDA).is_multiple_of(0x40));
+    assert!((ida - DESCRIPTIONS_IDA) / 0x40 < 5);
+    FORMAT_TAG | ((ida - DESCRIPTIONS_IDA) / 0x40)
+}
+
+/// Whether IDA's `ida` is one of the kinds' places.
+pub fn holds_handle(ida: usize) -> bool {
+    (KINDS_IDA..KINDS_IDA + 0x14).contains(&ida)
+}
+
+/// The 3D card's tables; the first values are the image's (the kinds by handle).
 pub static TEXTURE_TABLES: Textures = Textures {
     alpha_kind: Dword::new(0),
     first_video: Dword::new(0),
     first_system: Dword::new(0),
     sizes: crate::gfx::dwords([0, 0x100, 1, 0x80, 2, 0x40, 3, 0x20, 4, 0x400]),
-    kinds: crate::gfx::dwords([0, 0x5abad4, 0x5abb14, 0x5abb54, 0x5abbd4]),
+    kinds: crate::gfx::dwords([
+        format_ref(0),
+        format_ref(0x5ABAD4),
+        format_ref(0x5ABB14),
+        format_ref(0x5ABB54),
+        format_ref(0x5ABBD4),
+    ]),
     descriptions: [const { Shared::new(NO_FORMAT) }; 5],
     video: pool(),
     system: pool(),
@@ -157,9 +187,29 @@ impl Textures {
             + core::mem::offset_of!(Self, sizes) as u32
     }
 
+    /// Where kind `n`'s description is (0: none). A value that is no handle ends the
+    /// program.
+    pub fn kind(&self, n: usize) -> u32 {
+        let handle = self.kinds[n].get();
+        if handle == 0 {
+            return 0;
+        }
+        let k = (handle ^ FORMAT_TAG) as usize;
+        if k >= self.descriptions.len() {
+            crate::fatal::raise::end(
+                "gfx::texture_upload::kind",
+                BadInput("a texture kind's handle that names none"),
+            );
+        }
+        self.descriptions[k].addr()
+    }
+
     /// The kinds table's entry `n`, read where the original reads it (not checked against
-    /// the table: a kind past it reads on into the descriptions).
+    /// the table: a kind past it reads on into the descriptions' bytes).
     pub fn kind_entry(&self, n: usize) -> u32 {
+        if n < self.kinds.len() {
+            return self.kind(n);
+        }
         crate::pointers::read_or_end(
             crate::pointers::game_address(self.kinds.as_ptr()).wrapping_add(4 * n as u32),
             "a texture kind",
@@ -307,7 +357,14 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&TEXTURE_TABLES, START, START + LEN);
+        crate::gfx::first_values_are_the_games_but(&TEXTURE_TABLES, START, START + LEN, |image| {
+            for k in 0..5 {
+                let o = KINDS_IDA - START + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
+                assert!(holds_handle(KINDS_IDA + 4 * k));
+            }
+        });
     }
 
     #[test]

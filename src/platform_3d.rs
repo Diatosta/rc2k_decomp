@@ -137,7 +137,8 @@ pub fn describe_texture_formats(bits: u32) {
             ],
         });
     }
-    let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr();
+    // By handle (`texture_upload::FORMAT_TAG`).
+    let at = |n: usize| crate::gfx::texture_upload::FORMAT_TAG | n as u32;
     let kinds = if bits == 32 {
         [at(3); 3]
     } else {

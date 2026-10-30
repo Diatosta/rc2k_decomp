@@ -92,8 +92,8 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     begin_glyph_tables()?;
     DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
     // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
-    let format = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
-        .get()
+    let format = crate::gfx::texture_upload::TEXTURE_TABLES
+        .kind(3)
         .wrapping_add(8);
     DECODER.format.set(format);
     let palette_a = crate::gfx::build_fonts::palette_place(list)?;

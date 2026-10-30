@@ -56,8 +56,8 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
         let screen = GamePtr::new(crate::session::SCREEN.format_addr())
             .read::<PixelFormat>("the screen's pixel format")?;
         let texture = GamePtr::new(
-            crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
-                .get()
+            crate::gfx::texture_upload::TEXTURE_TABLES
+                .kind(3)
                 .wrapping_add(8),
         )
         .read::<PixelFormat>("the texture pixel format")?;

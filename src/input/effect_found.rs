@@ -64,7 +64,7 @@ pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
         let failed = std::cell::Cell::new(None);
         let taken = take_listed(at(e, field!(ForceEffect, kind))?, &mut f, &listed, || {
             at(e, field!(ForceEffect, wanted))
-                .and_then(guid)
+                .and_then(crate::input::guids::guid_of)
                 .unwrap_or_else(|err| {
                     failed.set(Some(err));
                     [0; 16]

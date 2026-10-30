@@ -113,7 +113,7 @@ fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format() -> Result<(u32, PixelFormat), BadInput> {
-    let kind: u32 = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3].get();
+    let kind: u32 = crate::gfx::texture_upload::TEXTURE_TABLES.kind(3);
     let bytes = get(kind + 4)?;
     MAP.pixel_bytes.set(bytes);
     MAP.format.set(kind + 8);

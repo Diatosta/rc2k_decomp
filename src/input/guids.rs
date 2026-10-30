@@ -1,8 +1,9 @@
 //! The DirectInput identifiers the input module names (the joystick device's interface, the
 //! axes and the force-feedback effects), out of RAL.EXE's image (phase 5), typed (phase 7).
 //! `#[repr(C)]` struct of byte buffers with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at it: the effect templates
-//! (`input::store::Devices`) point at the effects' GUIDs.
+//! (`tests`); `moved::MOVED` points the image's addresses at it. The effect templates
+//! (`input::store::Devices`) name the effects' GUIDs by handle (`guid_ref`; the original kept
+//! their addresses).
 
 use crate::session::{Bytes, with_runs};
 
@@ -72,6 +73,30 @@ impl InputGuids {
     pub fn home() -> usize {
         (crate::pointers::game_address(&INPUT_GUIDS as *const InputGuids) + 8) as usize
     }
+}
+
+/// A GUID of these by handle (phase 13): `GUID_TAG | n`, `n` its place from IDA's `START`.
+pub const GUID_TAG: u32 = 0xCD00_0000;
+
+/// The handle for IDA's `ida` (a place in the GUIDs, 16 bytes in; anything else fails to
+/// compile).
+pub const fn guid_ref(ida: u32) -> u32 {
+    let at = ida as usize;
+    assert!(at >= InputGuids::START && at + 16 <= InputGuids::START + InputGuids::LEN);
+    GUID_TAG | (at - InputGuids::START) as u32
+}
+
+/// The GUID a handle names. Refused: what is no handle (the original reads the GUID at what
+/// it holds as an address).
+pub fn guid_of(handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
+    let at = (handle ^ GUID_TAG) as usize;
+    if at + 16 > InputGuids::LEN {
+        return Err(crate::errors::BadInput(
+            "an effect's GUID handle that names none",
+        ));
+    }
+    crate::pointers::GamePtr::new((InputGuids::home() + at) as u32)
+        .read::<[u8; 16]>("an effect's GUID")
 }
 
 #[cfg(test)]

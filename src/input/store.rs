@@ -255,7 +255,39 @@ pub struct Devices {
 }
 
 const fn records(runs: Runs, at: usize) -> [Bytes<RECORD_LEN>; 2] {
-    [bytes(runs, at), bytes(runs, at + RECORD_LEN)]
+    [
+        Bytes::new(with_guid_refs(init::<RECORD_LEN>(runs, at))),
+        Bytes::new(with_guid_refs(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
+    ]
+}
+
+/// The six effects' `wanted` (+8 of each `types::ForceEffect`, 0xA4 apart from +0x3C of a
+/// record): their GUIDs by handle (`guids::guid_ref`) where the image has their addresses.
+pub const WANTED_AT: usize = 0x44;
+pub const EFFECT_LEN: usize = 0xA4;
+pub const EFFECTS: usize = 6;
+
+const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
+    let mut k = 0;
+    while k < EFFECTS {
+        let o = WANTED_AT + EFFECT_LEN * k;
+        let v = u32::from_le_bytes([record[o], record[o + 1], record[o + 2], record[o + 3]]);
+        let h = crate::input::guids::guid_ref(v).to_le_bytes();
+        record[o] = h[0];
+        record[o + 1] = h[1];
+        record[o + 2] = h[2];
+        record[o + 3] = h[3];
+        k += 1;
+    }
+    record
+}
+
+/// Whether IDA's `ida` is one of the effects' `wanted` (`moved::point_into_homes` passes
+/// them over).
+pub fn holds_handle(ida: usize) -> bool {
+    let records = DEVICES_IDA + core::mem::offset_of!(Devices, records);
+    (0..2)
+        .any(|r| (0..EFFECTS).any(|k| ida == records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k))
 }
 
 const fn controllers(runs: Runs, at: usize) -> [Bytes<CONTROLLER_LEN>; 16] {
@@ -558,10 +590,21 @@ mod tests {
             (KEYBOARD_IDA, KEYBOARD_LEN, keyboard_addr()),
             (MOUSE_IDA, MOUSE_LEN, mouse_addr()),
         ] {
-            assert!(
-                bytes_of(addr as usize, len) == image_bytes(ida, len),
-                "{ida:X}"
-            );
+            let mut image = image_bytes(ida, len);
+            if ida == DEVICES_IDA {
+                // The effects' wanted GUIDs are handles.
+                let records = offset_of!(Devices, records);
+                for r in 0..2 {
+                    for k in 0..EFFECTS {
+                        let o = records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k;
+                        let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                        image[o..o + 4]
+                            .copy_from_slice(&crate::input::guids::guid_ref(v).to_le_bytes());
+                        assert!(holds_handle(DEVICES_IDA + o));
+                    }
+                }
+            }
+            assert!(bytes_of(addr as usize, len) == image, "{ida:X}");
         }
     }
 

@@ -69,7 +69,7 @@ pub struct ForceEffect {
     pub change: u32,
     /// The kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
     pub kind: u32,
-    /// The GUID wanted (a pointer).
+    /// The GUID wanted (by handle: `guids::guid_ref`).
     pub wanted: u32,
     /// 1 when the device listed one of its kind (`input::effect_found`).
     pub found: u32,
