@@ -27,6 +27,15 @@ pub fn set_frozen(on: bool) {
     crate::framework::log(&format!("debug: race frozen {}", on as u32));
 }
 
+/// Ctrl+F11 (`platform`, from the window's events).
+pub fn toggle_ui() {
+    let open = crate::debug::imgui_sdl::toggle();
+    crate::framework::log(&format!(
+        "debug: the UI {}",
+        if open { "shown" } else { "hidden" }
+    ));
+}
+
 /// The keys, once a frame (`input::update`, before the game reads the frame's keys): with
 /// Ctrl down, F11 pressed the UI shown or hidden, F12 pressed the race frozen or going; and
 /// both taken out of `g_keysDown` (the bindings read it), `g_keysNow` and `g_keysPressed`,
@@ -36,18 +45,11 @@ pub fn take_keys() {
         return;
     }
     let pressed = |key| DEVICES.keys_pressed.get(key) & 1 != 0;
-    let (ui, freeze) = (pressed(UI_KEY), pressed(FREEZE_KEY));
+    let freeze = pressed(FREEZE_KEY);
     for key in [UI_KEY, FREEZE_KEY] {
         DEVICES.keys_down.set(key, 0);
         DEVICES.keys_now.set(key, 0);
         DEVICES.keys_pressed.set(key, 0);
-    }
-    if ui {
-        let open = crate::debug::imgui_sdl::toggle();
-        crate::framework::log(&format!(
-            "debug: the UI {}",
-            if open { "shown" } else { "hidden" }
-        ));
     }
     if freeze {
         set_frozen(!frozen());

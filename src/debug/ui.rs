@@ -172,17 +172,52 @@ fn draw_probes(ui: &Ui) {
     }
 }
 
+/// The window's place when last drawn, and the screen it was on.
+#[derive(Clone, Copy)]
+struct Layout {
+    display: [f32; 2],
+    position: [f32; 2],
+    size: [f32; 2],
+}
+
+static LAYOUT: std::sync::Mutex<Option<Layout>> = std::sync::Mutex::new(None);
+
+/// A tab's contents, scrolled under the tabs (which stay; owner, 2026-10-30).
+fn body(ui: &Ui, f: impl FnOnce()) {
+    ui.child_window("body").build(ui, f);
+}
+
 /// The UI's frame.
 pub fn build(ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(ui);
     }
     crate::debug::kstar::over_picture(ui);
+    // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
+    // the race's own; owner, 2026-10-30).
+    let screen = ui.io().display_size();
+    let mut layout = LAYOUT.lock().unwrap_or_else(|e| e.into_inner());
+    let (position, size, condition) = match *layout {
+        Some(l) if l.display != screen => {
+            let (x, y) = (screen[0] / l.display[0], screen[1] / l.display[1]);
+            (
+                [l.position[0] * x, l.position[1] * y],
+                [l.size[0] * x, l.size[1] * y],
+                Condition::Always,
+            )
+        }
+        _ => ([40.0, 40.0], [760.0, 560.0], Condition::FirstUseEver),
+    };
     ui.window("Debug")
-        .size([760.0, 560.0], Condition::FirstUseEver)
-        .position([40.0, 40.0], Condition::FirstUseEver)
+        .size(size, condition)
+        .position(position, condition)
         .bg_alpha(BACKGROUND)
         .build(|| {
+            *layout = Some(Layout {
+                display: screen,
+                position: ui.window_pos(),
+                size: ui.window_size(),
+            });
             let mut frozen = crate::debug::overlay::frozen();
             if ui.checkbox("Race frozen (Ctrl+F12)", &mut frozen) {
                 crate::debug::overlay::set_frozen(frozen);
@@ -203,28 +238,67 @@ pub fn build(ui: &Ui) {
             ui.text_disabled("Ctrl+F11 hides this");
             if let Some(_bar) = ui.tab_bar("pages") {
                 if let Some(_tab) = ui.tab_item("Display") {
-                    display(ui, crate::debug::display_rows::GROUPS, &FILTER);
+                    body(ui, || {
+                        display(ui, crate::debug::display_rows::GROUPS, &FILTER)
+                    });
                 }
                 if let Some(_tab) = ui.tab_item("Watch list") {
-                    display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
+                    body(ui, || {
+                        display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER)
+                    });
                 }
                 if let Some(_tab) = ui.tab_item("Dumps") {
-                    dumps(ui);
+                    body(ui, || dumps(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
-                    profiler(ui);
+                    body(ui, || profiler(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    crate::debug::kstar::tab(ui);
+                    body(ui, || crate::debug::kstar::tab(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    crate::debug::switches::tab(ui);
+                    body(ui, || crate::debug::switches::tab(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
-                    rivals(ui);
+                    body(ui, || rivals(ui));
+                }
+                if let Some(_tab) = ui.tab_item("Effects") {
+                    body(ui, || crate::debug::effects_page::tab(ui));
+                }
+                if let Some(_tab) = ui.tab_item("Dyno") {
+                    body(ui, || crate::debug::dyno::tab(ui));
+                }
+                if let Some(_tab) = ui.tab_item("Players") {
+                    body(ui, || crate::debug::players::tab(ui));
+                }
+                if let Some(_tab) = ui.tab_item("Screens") {
+                    body(ui, || screens(ui));
+                }
+                if let Some(_tab) = ui.tab_item("Developers") {
+                    body(ui, || crate::debug::dev_front_end::tab(ui));
                 }
             }
         });
+}
+
+/// The screens no route reaches.
+fn screens(ui: &Ui) {
+    ui.text("Section best times (shown at the next menu's frame):");
+    for section in 0..6 {
+        let label = format!("Section {}", section + 1);
+        if crate::debug::screens::section_has_times(section) {
+            if ui.button(&label) {
+                crate::debug::screens::ask_section_times(section as u32);
+            }
+        } else {
+            ui.text_disabled(format!("{label}: no table"));
+        }
+        ui.same_line();
+    }
+    ui.new_line();
+    if ui.button("Car specifications (0x4AA1A3)") {
+        crate::debug::screens::ask_cspecs();
+    }
 }
 
 /// A figure's text.
@@ -683,36 +757,65 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
 
 /// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
 /// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
-const DUMPS: [(&str, usize); 4] = [
-    ("g_leagueNames", 0x60410C),
-    ("g_leagueRows", 0x604134),
-    ("unk_75B02C", 0x75B02C),
-    ("unk_75B09C", 0x75B09C),
+const DUMPS: [(&str, &str, usize, usize, usize); 4] = [
+    (
+        "League: the ten records' names (g_leagueNames)",
+        "`race::copy_league_table` fills them; `physics::compare_split_times` reads them.",
+        0x60410C,
+        1,
+        10,
+    ),
+    (
+        "League: kept times, sixteen rows of ten (g_leagueRows)",
+        "A row a split, a column a record; hundredths of a second.",
+        0x604134,
+        10,
+        16,
+    ),
+    (
+        "Car 1's times at the splits (unk_75B02C)",
+        "Noted at each split; kept in the player's +0x20C after the race; hundredths of a second.",
+        0x75B02C,
+        1,
+        16,
+    ),
+    (
+        "Car 2's times at the splits (unk_75B09C)",
+        "As car 1's.",
+        0x75B09C,
+        1,
+        16,
+    ),
 ];
 
-/// The "Dumps" tab.
+/// A row of a dump as text.
+fn dump_row(at: usize, columns: usize, row: usize) -> String {
+    let figures: Vec<String> = (0..columns)
+        .map(|column| {
+            value_at(at + 4 * (row * columns + column))
+                .map_or("?".to_owned(), |v| format!("{}", v as i32))
+        })
+        .collect();
+    format!("{row:2}: {}", figures.join("  "))
+}
+
+/// The "Dumps" tab: what the developers' page showed as bytes, read (2026-10-30).
 fn dumps(ui: &Ui) {
-    for (name, at) in DUMPS {
+    if ui.button("Write the four to the log") {
+        for (name, _, at, columns, rows) in DUMPS {
+            crate::framework::log(name);
+            for row in 0..rows {
+                crate::framework::log(&dump_row(at, columns, row));
+            }
+        }
+    }
+    for (name, about, at, columns, rows) in DUMPS {
         if !ui.collapsing_header(name, TreeNodeFlags::NONE) {
             continue;
         }
-        for row in 0..50 {
-            let place = at + 8 * row;
-            let bytes: Vec<String> = [place, place + 4]
-                .iter()
-                .flat_map(|&p| {
-                    value_at(p).map_or(
-                        [
-                            "??".to_owned(),
-                            "??".to_owned(),
-                            "??".to_owned(),
-                            "??".to_owned(),
-                        ],
-                        |v| v.to_le_bytes().map(|b| format!("{b:02x}")),
-                    )
-                })
-                .collect();
-            ui.text(format!("{place:06x}  {}", bytes.join(" ")));
+        ui.text_disabled(about);
+        for row in 0..rows {
+            ui.text(dump_row(at, columns, row));
         }
     }
 }

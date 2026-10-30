@@ -662,6 +662,8 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                 } else if !screen.no_quit_check && quitting() {
                     why = "the game is quitting".into();
                     Next::Leave
+                } else if crate::debug::screens::serve()? {
+                    Next::SetUp
                 } else {
                     if screen.no_quit_check {
                         OPTION_WORK.menu_sound.set(NO_SOUND);

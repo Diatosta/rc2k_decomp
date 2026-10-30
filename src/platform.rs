@@ -86,6 +86,16 @@ fn next_event() -> Option<Event> {
         if !SDL_PollEvent(&mut event) {
             return None;
         }
+        // Ctrl+F11, in the race and in the menus (which never run `input::update`), and
+        // whatever has the UI's keyboard.
+        if event.r#type == SDL_EVENT_KEY_DOWN.0
+            && event.key.scancode == SDL_SCANCODE_F11
+            && !event.key.repeat
+            && event.key.r#mod.0 & SDL_KMOD_CTRL.0 != 0
+        {
+            crate::debug::overlay::toggle_ui();
+            return Some(Event::Other);
+        }
         // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
         if crate::debug::imgui_sdl::event(&event) {
             return Some(Event::Other);

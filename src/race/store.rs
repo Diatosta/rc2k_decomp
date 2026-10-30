@@ -21,6 +21,24 @@ block!(pub mod vars {
     runs: crate::race::store_data::RUNS,
 });
 
+/// Tables only the original's dead code read (IDA 2026-10-30, every xref from the debug pages
+/// or the developers' front end; the debug UI has its own): the watch list, the surface names,
+/// the front end's name tables, the pace notes' `off_61FE18` (its one live read, 0x441DE9, is
+/// overwritten at once by `pop ebx`). Their addresses are not pointed anywhere and nothing may
+/// read them.
+pub const UNREAD: [(usize, usize); 6] = [
+    (0x5EBB5A, 0x5EE258),
+    (0x5FFFCC, 0x60000C),
+    (0x61FE18, 0x620218),
+    (0x621C68, 0x621E68),
+    (0x622084, 0x622114),
+    (0x622238, 0x6223C8),
+];
+/// Whether IDA's `ida` lies in a table of `UNREAD`.
+pub fn is_unread(ida: usize) -> bool {
+    UNREAD.iter().any(|&(s, e)| (s..e).contains(&ida))
+}
+
 /// The ranges of the block that are its own (IDA start, end): all but the holes and the
 /// pieces that left it (`LEFT`).
 pub const OWN: [(usize, usize); 23] = [
@@ -267,7 +285,7 @@ pub fn is_dead(addr: u32) -> bool {
         return false;
     }
     let ida = vars::START + (addr - start) as usize;
-    !OWN.iter().any(|&(s, e)| (s..e).contains(&ida))
+    is_unread(ida) || !OWN.iter().any(|&(s, e)| (s..e).contains(&ida))
 }
 
 /// The image's first values of the `N` bytes from IDA's `start` in the block (a left

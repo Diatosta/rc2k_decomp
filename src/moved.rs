@@ -2381,6 +2381,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
             Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}
             Some(_) if crate::input::store::holds_handle(ida) => {}
+            Some(_) if crate::race::store::is_unread(ida) => {}
             Some((home, _)) => unsafe {
                 let p = crate::pointers::host_at(home) as *mut u32;
                 let target = p.read_unaligned() as usize;

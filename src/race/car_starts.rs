@@ -186,7 +186,7 @@ pub fn start_car() -> Result<(), Refused> {
         &CAR.steer_angle_visual,
     ]);
     zero(&[&CAR.throttle, &CAR.brake, &CAR.handbrake]);
-    if RACE_VARS.run_kind.bits() != 4 {
+    if RACE_VARS.run_kind.bits() != 4 || crate::debug::screens::free_play_placed() {
         // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
         // side_offset, start_checks}`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};

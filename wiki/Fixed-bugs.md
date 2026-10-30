@@ -296,3 +296,10 @@ block's +0xB0.
   Harmless on the processors of 2000, where 2^31 cycles took seconds.
 - **Seen**: yes, in the conversion (0.0 in the debug UI at 18 frames a second).
 - **Fix**: the whole 64-bit counter is kept and subtracted.
+
+## The section best times drew a second, wrong sprite
+
+- **What**: `screens::draw_section_best_times` (0x46762B) drew each row's car sprite, then put the sprite's number through the same "car to sprite" step again and drew that too, at the same place.
+- **In game**: never, in the original: nothing reaches this screen. Opened from the debug UI, rows showed stray pieces of other sprites over their cars: red bars, a loading bar, badges.
+- **Seen**: yes, in the conversion's debug UI.
+- **Fix**: the second sprite is gone.

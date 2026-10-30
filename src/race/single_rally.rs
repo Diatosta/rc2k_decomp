@@ -592,6 +592,29 @@ fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refuse
     step(14) // sound::play_tune_3
 }
 
+/// The debug UI's test races: the players' records into the race's settings as a race does
+/// (the HUD, the keys, the set-up, ...), without their damage and wear.
+#[cfg(target_pointer_width = "64")]
+pub fn player_settings_in() -> Result<(), Refused> {
+    // As `single_rally`'s start: the last race's outcome, else the car starts out of it.
+    RESULT.set(0);
+    RESULT_2.set(0);
+    let fresh = |&&(off, _): &&(u32, &Dword)| !matches!(off, 0xD4..=0x108 | 0x17C..=0x208);
+    let first = player(1)?;
+    for &(off, to) in PLAYER_1_WORDS.iter().filter(fresh) {
+        to.set(field(first, off)?);
+    }
+    take_keys(first, &RACE_STATE.settings.cars[1].keys)?;
+    let rec = player(CURRENT.get())?;
+    for list in [&SECOND_HEAD[..], &SECOND_MID[..], &SECOND_TAIL[..]] {
+        for &(off, to) in list.iter().filter(fresh) {
+            to.set(field(rec, off)?);
+        }
+    }
+    take_keys(rec, &RACE_STATE.settings.cars[0].keys)?;
+    Ok(())
+}
+
 /// The original's body; `step(place)` does the call at `place`.
 fn single_rally(
     start: u32,
@@ -711,7 +734,7 @@ fn single_rally(
 /// The original's call at `place` (its index in `table::CALLS` plus one). The registers the
 /// original's calls leave (eax from `show_loading_picture`, eax .. edx from `set_up_engine`,
 /// al from `take_key`) are never read.
-fn step(place: u32) -> Result<(), Refused> {
+pub fn step(place: u32) -> Result<(), Refused> {
     match place {
         1 => crate::race::rally::copy_rally_times()?,
         2 => crate::sound::stop_music::stop_music(),

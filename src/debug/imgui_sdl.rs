@@ -26,24 +26,7 @@ static TEXT_INPUT: AtomicBool = AtomicBool::new(false);
 
 /// The debug UI shown or hidden.
 pub fn toggle() -> bool {
-    FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
     !OPEN.fetch_xor(true, Ordering::Relaxed)
-}
-
-/// Frames shown since the last race frame (`race::show_frame`): the UI closes itself when
-/// the race is left (owner, 2026-10-30), i.e. after `RACE_GONE` frames without one.
-static FRAMES_WITHOUT_RACE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-const RACE_GONE: u32 = 30;
-
-/// A race frame is being drawn (a race or a replay).
-pub fn race_frame() {
-    FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
-}
-
-/// The race has ended: the UI closes at the next frame shown, before the loading screen's
-/// few frames could hold it open (owner, 2026-10-30).
-pub fn race_left() {
-    FRAMES_WITHOUT_RACE.store(RACE_GONE, Ordering::Relaxed);
 }
 
 /// The first view's scene has been drawn.
@@ -84,6 +67,8 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
             let _ = context.set_ini_filename(Some(ini));
             let io = context.io_mut();
             io.set_config_flags(io.config_flags() | ConfigFlags::DOCKING_ENABLE);
+            // A drag's click without a move types its value (owner, 2026-10-30).
+            io.set_config_drag_click_to_input_text(true);
             let flags = io.backend_flags()
                 | BackendFlags::RENDERER_HAS_TEXTURES
                 | BackendFlags::RENDERER_HAS_VTX_OFFSET;
@@ -193,12 +178,6 @@ pub fn event(event: &SDL_Event) -> bool {
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
 pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
-    if OPEN.load(Ordering::Relaxed)
-        && FRAMES_WITHOUT_RACE.fetch_add(1, Ordering::Relaxed) >= RACE_GONE
-    {
-        OPEN.store(false, Ordering::Relaxed);
-        crate::framework::log("debug: the race was left: the UI hidden");
-    }
     let open = OPEN.load(Ordering::Relaxed);
     // ImGui's text fields need SDL's text input, started while the UI is shown.
     if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {
@@ -226,8 +205,8 @@ pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
             return;
         }
         if gui.scaled_for != h {
-            // Sizes for a screen of 800 lines and more as ImGui's for 600 or so.
-            let scale = (h as f32 / 720.0).max(1.0);
+            // Sizes with the screen, so that the menus' 480 lines are not filled.
+            let scale = (h as f32 / 720.0).max(0.7);
             let style = gui.context.style_mut();
             style.set_font_scale_main(scale);
             gui.scaled_for = h;

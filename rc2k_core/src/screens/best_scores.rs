@@ -123,7 +123,6 @@ pub fn section_best_times<S: Screen<Font = Font, Work = Work>>(
         s.sprite(flag_glyph(r.nation), 0xD2, y, place.after)?;
         let car = car_glyph(r.car);
         s.sprite(car, 0x276, y, place.after)?;
-        s.sprite(car_glyph(car), 0x276, y, place.after)?;
         y = y.wrapping_add(0x19);
     }
     Ok(())

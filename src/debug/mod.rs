@@ -21,12 +21,6 @@ pub mod imgui_sdl {
     }
 
     /// Nothing to note.
-    pub fn race_frame() {}
-
-    /// Nothing to close.
-    pub fn race_left() {}
-
-    /// Nothing to note.
     pub fn view_drawn() {}
 
     /// Never open.
@@ -42,15 +36,26 @@ pub mod imgui_sdl {
     }
 }
 #[cfg(target_pointer_width = "64")]
+pub mod dev_front_end;
+#[cfg(target_pointer_width = "64")]
 pub mod display_rows;
+#[cfg(target_pointer_width = "64")]
+pub mod dyno;
+#[cfg(target_pointer_width = "64")]
+pub mod effects_page;
 #[cfg(target_pointer_width = "64")]
 pub mod kstar;
 pub mod overlay;
+#[cfg(target_pointer_width = "64")]
+pub mod players;
+pub mod screens;
 #[cfg(target_pointer_width = "64")]
 pub mod switches;
 pub mod timing;
 #[cfg(target_pointer_width = "64")]
 pub mod ui;
+#[cfg(target_pointer_width = "64")]
+pub mod ui_plot;
 #[cfg(target_pointer_width = "64")]
 pub mod watch_rows;
 #[cfg(target_pointer_width = "64")]

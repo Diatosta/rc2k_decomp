@@ -75,9 +75,9 @@ pub fn tab(ui: &Ui) {
         6,
         "Setting 0",
         &words[0],
-        "goes into the sound listener's first figure; not worked out",
+        "only `listener_figures[0]`, which nothing reads: no change",
     );
-    ui.text("7: Car lights' kind");
+    ui.text("7: See-through windows: none, the viewed car, all cars");
     for (name, value) in [("0", 0), ("1", 1), ("2", 2)] {
         ui.same_line();
         if ui.radio_button_bool(name, words[3].get() == value) {
@@ -85,13 +85,13 @@ pub fn tab(ui: &Ui) {
         }
     }
     ui.same_line();
-    ui.text_disabled("race::frame_draw's light_word, not worked out");
+    ui.text_disabled("light_word: 1 and 2 differ only with other cars");
     tick(
         ui,
         8,
         "All cars' lamps light objects",
         &words[4],
-        "scene::add_car_lights, a reading",
+        "scene::add_car_lights: only other cars' lamps change; needs rivals, at night",
     );
     tick(
         ui,
