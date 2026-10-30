@@ -2374,6 +2374,8 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
         let ida = ida as usize;
         match moved_home(ida) {
             Some((_, block)) if RAW_KEPT.contains(&block) => {}
+            // Kept as handles, not addresses (phase 13).
+            Some(_) if crate::menu::menus_store::holds_font(ida) => {}
             Some((home, _)) => unsafe {
                 let p = crate::pointers::host_at(home) as *mut u32;
                 let target = p.read_unaligned() as usize;

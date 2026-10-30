@@ -28,7 +28,7 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
         Font::Grey => GREY_FONT,
     };
     item.skip_mark.set(state);
-    item.font.set(font.addr());
+    item.font.set(font);
     Ok(())
 }
 

@@ -10,6 +10,7 @@
 //! (a copy of the generator's input is the image). The data is the same as
 //! `rc2k_core::menu::tables`' (menus and labels), the memory the game walks by address.
 
+use crate::gfx::typefaces::FontCell;
 use crate::session::Dword;
 
 /// A label: x, y, the font record's address, the string id.
@@ -62,8 +63,9 @@ pub struct MenuItem {
     pub id: Dword,
     /// The string id (+0x14); changed in play.
     pub string: Dword,
-    /// The font record's address (+0x18); changed in play (`menu::disable_item` / `enable_item`).
-    pub font: Dword,
+    /// The font (+0x18, the original's the object's address); changed in play
+    /// (`menu::disable_item` / `enable_item`).
+    pub font: FontCell,
     /// +0x1C; changed in play.
     pub behind: Dword,
     pub sprites: Dword,
@@ -75,8 +77,10 @@ pub struct MenuItem {
     pub action: Dword,
     /// +0x48: passed over when the moves up and down meet it; changed in play.
     pub skip_mark: Dword,
-    pub measuring_font: Dword,
-    pub highlight_font: Dword,
+    /// +0x4C: the font a text button is measured in.
+    pub measuring_font: FontCell,
+    /// +0x50: the font a highlighted item pulses in.
+    pub highlight_font: FontCell,
     /// What `menu::run_item_action` hands the action.
     pub action_value: Dword,
     pub spaced: Dword,
@@ -91,7 +95,7 @@ impl MenuItem {
             text_y: Dword::new(v[3]),
             id: Dword::new(v[4]),
             string: Dword::new(v[5]),
-            font: Dword::new(v[6]),
+            font: FontCell::at(v[6]),
             behind: Dword::new(v[7]),
             sprites: Dword::new(v[8]),
             links: [
@@ -108,8 +112,8 @@ impl MenuItem {
             ],
             action: Dword::new(v[17]),
             skip_mark: Dword::new(v[18]),
-            measuring_font: Dword::new(v[19]),
-            highlight_font: Dword::new(v[20]),
+            measuring_font: FontCell::at(v[19]),
+            highlight_font: FontCell::at(v[20]),
             action_value: Dword::new(v[21]),
             spaced: Dword::new(v[22]),
         }
@@ -117,6 +121,9 @@ impl MenuItem {
 }
 
 const _: () = assert!(core::mem::size_of::<MenuItem>() == 0x5C);
+const _: () = assert!(core::mem::offset_of!(MenuItem, font) == 0x18);
+const _: () = assert!(core::mem::offset_of!(MenuItem, measuring_font) == 0x4C);
+const _: () = assert!(core::mem::offset_of!(MenuItem, highlight_font) == 0x50);
 
 /// A menu: the address of its labels, its `N` items and the -1 that ends them.
 #[repr(C)]
@@ -743,6 +750,25 @@ pub fn menus_addr() -> u32 {
     crate::pointers::game_address(&MENUS as *const MenuTables)
 }
 
+/// Whether IDA's `ida` is one of the items' fonts (+0x18, +0x4C, +0x50): places the image
+/// relocated that hold a `FontCell` now (`moved::point_into_homes` passes them over).
+pub fn holds_font(ida: usize) -> bool {
+    static PLACES: std::sync::OnceLock<std::collections::HashSet<usize>> =
+        std::sync::OnceLock::new();
+    PLACES
+        .get_or_init(|| {
+            let base = menus_addr() as usize;
+            (0..MENU_COUNT)
+                .flat_map(|n| MenuId(n).items())
+                .flat_map(|item| {
+                    let at = START + item.addr() as usize - base;
+                    [at + 0x18, at + 0x4C, at + 0x50]
+                })
+                .collect()
+        })
+        .contains(&ida)
+}
+
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
 /// order. The current menu (`LOOP_FLAGS.menu`), the keys menu and the item calls hold
 /// one in place of the menu's address.
@@ -1094,7 +1120,23 @@ mod tests {
                 END - START,
             )
         };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        // The items' fonts are kept as `FontCell`s: compared by the objects' IDA addresses.
+        let mut mine = mine.to_vec();
+        for item in (0..MENU_COUNT).flat_map(|n| MenuId(n).items()) {
+            let at = (item.addr() - menus_addr()) as usize;
+            for (off, cell) in [
+                (0x18, &item.font),
+                (0x4C, &item.measuring_font),
+                (0x50, &item.highlight_font),
+            ] {
+                mine[at + off..at + off + 4]
+                    .copy_from_slice(&(cell.get().ida() as u32).to_le_bytes());
+            }
+        }
+        assert_eq!(mine, image_bytes(START, END - START));
+        assert!(holds_font(
+            START + (MENUS.select_stage.items[0].addr() - menus_addr()) as usize + 0x18
+        ));
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(
             offset_of!(MenuTables, review_options_485f5e_labels),

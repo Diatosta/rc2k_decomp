@@ -19,7 +19,6 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
-use crate::text::font::Font;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
 
 /// One of the three button functions.
@@ -187,10 +186,7 @@ pub fn draw_text_button(
     measure_x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let font = item.measuring_font.get();
-    // The font object must lie in the game's memory before it is used.
-    let font = crate::pointers::GamePtr::new(font);
-    font.read::<Font>("an item's measuring font")?;
+    let font = item.measuring_font.get().game_ptr();
     let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
     draw_button(
         kind,

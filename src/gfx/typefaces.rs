@@ -177,6 +177,35 @@ impl FontId {
     pub fn game_ptr(self) -> crate::pointers::GamePtr {
         crate::pointers::GamePtr::new(self.addr())
     }
+
+    /// IDA's address of the object (what the image's tables held).
+    #[cfg(test)]
+    pub const fn ida(self) -> usize {
+        START + 0x20 * self.0
+    }
+}
+
+/// A font a table of the game's keeps (a menu item's): the object by number, where the
+/// original kept its address (phase 13, handles: `moved::point_into_homes` passes these
+/// places over).
+pub struct FontCell(std::sync::atomic::AtomicU32);
+
+impl FontCell {
+    /// The font at IDA's address `ida` (a constant that is not one fails to compile).
+    pub const fn at(ida: u32) -> Self {
+        Self(std::sync::atomic::AtomicU32::new(
+            FontId::at(ida as usize).0 as u32,
+        ))
+    }
+
+    pub fn get(&self) -> FontId {
+        FontId(self.0.load(std::sync::atomic::Ordering::Relaxed) as usize)
+    }
+
+    pub fn set(&self, font: FontId) {
+        self.0
+            .store(font.0 as u32, std::sync::atomic::Ordering::Relaxed)
+    }
 }
 
 /// The fonts the callers name (`stru_51E3C4` and so on, by IDA's address; the readings of

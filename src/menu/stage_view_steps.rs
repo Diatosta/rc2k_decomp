@@ -160,13 +160,13 @@ pub fn style_stage_item(b: bool) -> Result<(), Refused> {
         (
             0xFFFF_FFA7,
             crate::menu::item_sprites_store::ITEM_SPRITES.lists[1][0].addr(),
-            crate::gfx::typefaces::fonts::STAGE_ITEM_B.addr(),
+            crate::gfx::typefaces::fonts::STAGE_ITEM_B,
         )
     } else {
         (
             0xFFFF_FFA9,
             0xFFFF_FFA9,
-            crate::gfx::typefaces::fonts::STAGE_TITLE.addr(),
+            crate::gfx::typefaces::fonts::STAGE_TITLE,
         )
     };
     item.behind.set(a);
