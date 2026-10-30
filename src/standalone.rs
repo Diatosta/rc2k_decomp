@@ -470,8 +470,6 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// still `unsafe` (they write the game's state before any thread of the game's runs).
 fn start() {
     let r = Regs::default();
-    // The input module's two device-record pointers name the records' new places.
-    crate::input::store::point_devices_at_records();
     crate::sound::store::point_sound_objects();
     // `g_surface.format` (0x4F49B8): the image points it at the format record's old
     // place; the record is in `session::SCREEN` now (the platform sets it again at

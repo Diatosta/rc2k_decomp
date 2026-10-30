@@ -48,7 +48,7 @@ fn count() -> u32 {
 /// Whether the set-up would ask for the device; refused without a record to ask with.
 fn would_apply(controller: u32) -> Result<bool, Refused> {
     let applies = rc2k_core::menu::steps::listed(controller, count());
-    if applies && DEVICES.input_devices[0].get() == 0 {
+    if applies && DEVICES.device(0) == 0 {
         return Err(BadInput("no first input device record").into());
     }
     Ok(applies)

@@ -22,7 +22,7 @@ pub fn device_state(device: u32) -> Result<[u32; 4], BadInput> {
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
 pub fn first_device_state() -> Result<[u32; 4], BadInput> {
-    device_state(DEVICES.input_devices[0].get())
+    device_state(DEVICES.device(0))
 }
 
 /// What `input::axis_moved` leaves: the carry (none), eax.

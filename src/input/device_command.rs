@@ -25,7 +25,7 @@ use crate::race::state_store::RACE_STATE;
 use crate::sound::store::RACE_SOUNDS;
 
 fn device(n: usize) -> u32 {
-    DEVICES.input_devices[n].get()
+    DEVICES.device(n)
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).

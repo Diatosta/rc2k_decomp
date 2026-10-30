@@ -19,9 +19,8 @@
 //! image: the device records' effect slots point at them, and they are constants.
 //!
 //! The pointers in the data that name these blocks (IDA's addresses: the layouts' pointers
-//! to their tables, `input_devices`) keep working through `moved::MOVED`;
-//! `point_devices_at_records` sets `input_devices` to where the records are now (the
-//! standalone's start-up calls it).
+//! to their tables) keep working through `moved::MOVED`; `input_devices` names the records
+//! by handle (`DEVICE_TAG`, `Devices::device`).
 //!
 //! `ForceFeedback` (IDA 0x518084 .. 0x5180F0): the force-feedback effects' clock, the race
 //! switch, the surfaces' effect kinds and the effects' constants (split from sound's block
@@ -240,7 +239,8 @@ pub struct Devices {
     pub _unused_6df4: [Dword; 5],
     /// `unk_4F6E08`: the force-feedback effects' parameter rows (16 bytes each).
     pub effect_rows: [[Dword; 4]; 14],
-    /// `g_inputDevices` and `off_4F6EEC`: the two records' addresses.
+    /// `g_inputDevices` and `off_4F6EEC`: the two records, by handle (`DEVICE_TAG | n`; the
+    /// original kept their addresses and never changes them; 0 none).
     pub input_devices: [Dword; 2],
     /// `g_inputRecord1` and `g_inputRecord2` (`types::InputDevice`).
     pub records: [Bytes<RECORD_LEN>; 2],
@@ -285,6 +285,9 @@ const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
 /// Whether IDA's `ida` is one of the effects' `wanted` (`moved::point_into_homes` passes
 /// them over).
 pub fn holds_handle(ida: usize) -> bool {
+    if (INPUT_DEVICES_IDA..INPUT_DEVICES_IDA + 8).contains(&ida) {
+        return true;
+    }
     let records = DEVICES_IDA + core::mem::offset_of!(Devices, records);
     (0..2)
         .any(|r| (0..EFFECTS).any(|k| ida == records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k))
@@ -345,7 +348,7 @@ pub static DEVICES: Devices = {
         mouse_word: dword(R, 0x518),
         _unused_6df4: dwords(R, 0x51C),
         effect_rows: rows(R, 0x530),
-        input_devices: dwords(R, 0x610),
+        input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
         records: records(R, 0x618),
         controller_count: dword(R, 0x1008),
         controllers: controllers(R, 0x100C),
@@ -372,10 +375,18 @@ impl Devices {
         table
     }
 
+    /// Device `n`'s record (`g_inputDevices[n]`, by handle: `device_of`).
+    pub fn device(&self, n: usize) -> u32 {
+        device_of(self.input_devices[n].get())
+    }
+
     /// `g_inputDevices[n]` as the original indexes it: past the two pointers (`n` up to 7)
     /// it reads the first record's bytes (the drive code only refuses `n` past 7).
     pub fn input_device(&self, n: usize) -> u32 {
         use core::mem::offset_of;
+        if n < self.input_devices.len() {
+            return self.device(n);
+        }
         let at = offset_of!(Devices, input_devices) + 4 * n;
         assert!(at + 4 <= core::mem::size_of::<Devices>());
         unsafe {
@@ -397,12 +408,27 @@ impl Devices {
     }
 }
 
-/// Sets `input_devices` to the records' places now.
-pub fn point_devices_at_records() {
-    for (pointer, record) in DEVICES.input_devices.iter().zip(&DEVICES.records) {
-        pointer.set(record.addr());
+/// A device record by handle (phase 13): `DEVICE_TAG | n` for `records[n]`.
+pub const DEVICE_TAG: u32 = 0xCE00_0000;
+
+/// Where the record a handle names is (0 for 0). A value that is no handle ends the
+/// program.
+pub fn device_of(handle: u32) -> u32 {
+    if handle == 0 {
+        return 0;
+    }
+    match DEVICES.records.get((handle ^ DEVICE_TAG) as usize) {
+        Some(record) => record.addr(),
+        None => crate::fatal::raise::end(
+            "input::store::device_of",
+            crate::errors::BadInput("a device record's handle that names none"),
+        ),
     }
 }
+
+/// IDA's `g_inputDevices`: its two places hold handles (`moved::point_into_homes` passes
+/// them over).
+const INPUT_DEVICES_IDA: usize = 0x4F6EE8;
 
 // ---- the keyboard: 0x4F7FD8 .. 0x4F8294 ----
 
@@ -592,7 +618,15 @@ mod tests {
         ] {
             let mut image = image_bytes(ida, len);
             if ida == DEVICES_IDA {
-                // The effects' wanted GUIDs are handles.
+                // The two records' places and the effects' wanted GUIDs are handles.
+                let devices = offset_of!(Devices, input_devices);
+                for r in 0..2 {
+                    let o = devices + 4 * r;
+                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                    assert_eq!(v as usize, 0x4F6EF0 + RECORD_LEN * r);
+                    image[o..o + 4].copy_from_slice(&(DEVICE_TAG | r as u32).to_le_bytes());
+                    assert!(holds_handle(DEVICES_IDA + o));
+                }
                 let records = offset_of!(Devices, records);
                 for r in 0..2 {
                     for k in 0..EFFECTS {

@@ -66,7 +66,10 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     let p = Players {
         cars: v.cars.each_ref().map(|c| c.get()),
         one_player: v.one_player.get() == 1,
-        devices: v.devices.each_ref().map(|c| c.get()),
+        devices: v
+            .devices
+            .each_ref()
+            .map(|c| crate::input::store::device_of(c.get())),
         views: v
             .views
             .each_ref()

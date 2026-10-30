@@ -111,7 +111,7 @@ pub fn controller_page_refuses() -> Result<u32, Refused> {
     }
     let device =
         crate::pointers::GamePtr::new(player + 0x2C).read::<u32>("controller: a game value")?;
-    if device != 0 && crate::input::store::DEVICES.input_devices[0].get() == 0 {
+    if device != 0 && crate::input::store::DEVICES.device(0) == 0 {
         return Err(crate::errors::BadInput("no input device").into());
     }
     Ok(player)

@@ -24,7 +24,7 @@ pub fn request_device_setup(
     edx: u32,
     ebp: u32,
 ) -> Result<(), BadInput> {
-    let record = DEVICES.input_devices[0].get();
+    let record = DEVICES.device(0);
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
