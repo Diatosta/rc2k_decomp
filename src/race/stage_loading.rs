@@ -67,7 +67,17 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
+    use crate::race::loading_bar_frame::STAGE_LOADING;
+    STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
+    let begun = std::time::Instant::now();
     crate::race::loadlevel::loadlevel_init()?;
+    STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
+    let (shown, micros) = crate::race::loading_bar_frame::shown();
+    crate::framework::log(&format!(
+        "race::load_stage: loaded in {} ms, {shown} bar frames in {} ms",
+        begun.elapsed().as_millis(),
+        micros / 1000
+    ));
     indent(-3);
     log();
     indent(3);

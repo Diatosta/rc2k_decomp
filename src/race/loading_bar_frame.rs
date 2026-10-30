@@ -19,17 +19,57 @@
 
 use crate::errors::Refused;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::session::FLAGS;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
-/// The Rust version (see the header).
+/// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
+/// credits' race only; here for every stage, over the loading picture (owner, 2026-10-30).
+pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The bar's frames and their microseconds since last asked (the load's log line).
+static FRAMES: [std::sync::atomic::AtomicU64; 2] =
+    [const { std::sync::atomic::AtomicU64::new(0) }; 2];
+
+/// The time between the bar's frames, and when the last was.
+const BAR_FRAME: std::time::Duration = std::time::Duration::from_millis(33);
+static LAST_FRAME: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+/// The bar's frames and microseconds since last asked.
+pub fn shown() -> (u64, u64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
+}
+
+/// The Rust version (see the header), timed.
 pub fn loading_bar_frame() -> Result<(), Refused> {
+    use std::sync::atomic::Ordering::Relaxed;
+    // Not the original's: some 30 frames a second at most, and the last. Every step's frame
+    // was 3/4 of a load (882 ms of 1231, 2026-10-30).
+    let begun = std::time::Instant::now();
+    {
+        let mut last = LAST_FRAME.lock().unwrap_or_else(|e| e.into_inner());
+        if RACE_VARS.bar_share.bits() < 100
+            && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
+        {
+            return Ok(());
+        }
+        *last = Some(begun);
+    }
+    let result = frame();
+    FRAMES[0].fetch_add(1, Relaxed);
+    FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
+    result
+}
+
+fn frame() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    if RACE_WORK.in_credits.get() == 0 {
+    if RACE_WORK.in_credits.get() == 0 && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
+    {
         return Ok(());
     }
     LIGHT_STATE.scene_state.set_bits(FRAME_MARK);
