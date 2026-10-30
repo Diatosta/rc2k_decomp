@@ -86,7 +86,9 @@ pub fn race_loop() -> Result<(), Refused> {
             if FLAGS.paused.get() != 0 {
                 break true;
             }
+            let begun = crate::debug::timing::start();
             input_update();
+            crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if RACE_WORK.in_credits.get() != 0 {
                 if crate::race::frame_text::CREDITS.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
@@ -140,7 +142,9 @@ pub fn race_loop() -> Result<(), Refused> {
                 break true;
             }
             race_keys()?;
+            let begun = crate::debug::timing::start();
             { crate::drive::race_step::race_step() }?;
+            crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change()?;
             if players_all_out()? {
                 if RACE_WORK.in_credits.get() != 0 {

@@ -32,6 +32,14 @@ fn list(head: &Dword) -> HashSet<u32> {
     out
 }
 
+/// The voices on the playing and stopping lists (the debug UI's, on the audio thread).
+pub fn on_lists() -> (u32, u32) {
+    (
+        list(&AUDIO.playing_voices).len() as u32,
+        list(&AUDIO.stopping_voices).len() as u32,
+    )
+}
+
 /// Called after each turn's update.
 pub fn check() {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {

@@ -74,6 +74,10 @@ fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
     load_view_car(car)?;
     crate::race::frame_draw::fetch_view_value()?;
     crate::race::draw_view_scene::draw_view_scene()?;
+    // Not the original's: the debug UI's probe points need this view.
+    if car == 0 {
+        crate::debug::imgui_sdl::view_drawn();
+    }
     race_sound_tick()?; // 0xD
     if blit {
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture();

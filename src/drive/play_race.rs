@@ -20,6 +20,8 @@ pub fn play_race() -> Result<(), Refused> {
     log_line(c"CALLING DOPLAYGAME - START");
     crate::logfile::write_line::set_enabled(0); // g_logEnabled
     { crate::drive::race_loop::race_loop() }?;
+    // Not the original's: the debug UI closes with the race.
+    crate::debug::imgui_sdl::race_left();
     crate::logfile::write_line::set_enabled(1);
     log_line(c"CALLING DOPLAYGAME - FINIS");
     log_line(c"--------------------------");

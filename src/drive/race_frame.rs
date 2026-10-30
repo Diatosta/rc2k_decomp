@@ -38,11 +38,16 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
     }
     if FLAGS.window_active.get() != 0 && FLAGS.lost.get() != 1 {
         // `scene::begin_scene` leaves the carry clear: the frame is never lost there.
+        use crate::debug::timing::{Stage, start, stop};
+        let begun = start();
         crate::scene::begin_scene::begin_scene();
         { crate::race::draw_race_scene::draw_race_scene() }?;
         crate::scene::end_scene::end_scene();
+        stop(Stage::Scene, begun);
         // eax 0x12 here in the original; read by nothing.
+        let begun = start();
         crate::sound::race_sound_tick::race_sound_tick()?;
+        stop(Stage::SoundTick, begun);
         { crate::race::replay_screenshot::replay_screenshot() }?;
         let shown = { crate::race::show_frame::show_frame() }?;
         eax = shown.eax;

@@ -926,7 +926,7 @@ pub static GROUPS: &[Group] = &[
         name: "Player car: windows and animation",
         rows: &[
             Row::new(
-                "Window 1",
+                "Window 1 count",
                 "wind 1",
                 Shown::Whole,
                 0x70FAEC,
@@ -934,7 +934,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 214),
             ),
             Row::new(
-                "Window 2",
+                "Window 2 count",
                 "wind 2",
                 Shown::Whole,
                 0x70FAF0,
@@ -942,7 +942,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 220),
             ),
             Row::new(
-                "Window 3",
+                "Window 3 count",
                 "wind 3",
                 Shown::Whole,
                 0x70FAF4,
@@ -950,7 +950,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 226),
             ),
             Row::new(
-                "Window 4",
+                "Window 4 count",
                 "wind 4",
                 Shown::Whole,
                 0x70FAF8,
@@ -958,7 +958,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 232),
             ),
             Row::new(
-                "Window 5",
+                "Window 5 count",
                 "wind 5",
                 Shown::Whole,
                 0x70FAFC,
@@ -966,7 +966,7 @@ pub static GROUPS: &[Group] = &[
                 (68, 238),
             ),
             Row::new(
-                "Window 6",
+                "Window 6 count",
                 "wind 6",
                 Shown::Whole,
                 0x70FB00,
@@ -2078,7 +2078,7 @@ pub static GROUPS: &[Group] = &[
         name: "Car 2: windows and impacts",
         rows: &[
             Row::new(
-                "Window 1",
+                "Window 1 count",
                 "wind 1",
                 Shown::Whole,
                 0x710ACC,
@@ -2086,7 +2086,7 @@ pub static GROUPS: &[Group] = &[
                 (368, 370),
             ),
             Row::new(
-                "Window 2",
+                "Window 2 count",
                 "wind 2",
                 Shown::Whole,
                 0x710AD0,
@@ -2094,7 +2094,7 @@ pub static GROUPS: &[Group] = &[
                 (368, 376),
             ),
             Row::new(
-                "Window 3",
+                "Window 3 count",
                 "wind 3",
                 Shown::Whole,
                 0x710AD4,
@@ -2102,7 +2102,7 @@ pub static GROUPS: &[Group] = &[
                 (368, 382),
             ),
             Row::new(
-                "Window 4",
+                "Window 4 count",
                 "wind 4",
                 Shown::Whole,
                 0x710AD8,
@@ -2110,7 +2110,7 @@ pub static GROUPS: &[Group] = &[
                 (368, 388),
             ),
             Row::new(
-                "Window 5",
+                "Window 5 count",
                 "wind 5",
                 Shown::Whole,
                 0x710ADC,
@@ -2118,7 +2118,7 @@ pub static GROUPS: &[Group] = &[
                 (368, 394),
             ),
             Row::new(
-                "Window 6",
+                "Window 6 count",
                 "wind 6",
                 Shown::Whole,
                 0x710AE0,

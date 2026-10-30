@@ -57,12 +57,17 @@ pub fn audio_thread() -> Result<(), Refused> {
             AUDIO.audio_turn_tick.set(now);
             // Converted: `rc2k_core::audio::device::turn_sleep`.
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
+            let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).
             stream_commands::stream_command(0, 0, 1)?;
             stream_commands::music_command(0, 0, 0, 1)?;
             take_commands::take_commands()?;
             update_voices::update_voices()?;
             stray_voices::check();
+            if begun.is_some() {
+                crate::debug::timing::note_voices(stray_voices::on_lists());
+            }
+            crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
             if AUDIO.sound_buffer_lost.get() != 0 {
                 restore::restore_lost()?;
             }

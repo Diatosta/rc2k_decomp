@@ -19,14 +19,18 @@ pub fn count_frame(count: u32) -> (u32, bool) {
 
 /// The cycles since the last measure, when above 0 (signed): the rate is worked out
 /// only then.
-pub fn cycles_since(now: u32, last: u32) -> Option<u32> {
+///
+/// The original subtracts the counter's low halves and tests the difference as signed: a
+/// wait of 2^31 cycles or more reads as none, and below 28 frames a second at 3.8 GHz
+/// nothing was ever measured (`wiki/Fixed-bugs.md`). Here the whole counter.
+pub fn cycles_since(now: u64, last: u64) -> Option<u64> {
     let c = now.wrapping_sub(last);
-    ((c as i32) > 0).then_some(c)
+    ((c as i64) > 0).then_some(c)
 }
 
 /// The frame rate (`flt_6214F0`): the CPU's clock (`dword_5183E8`) x `k` x `k` x `k2`
 /// (`flt_5C5D18`, `flt_5C5D08`) / the cycles, as `fild`, `fmul`s, `fild`, `fdivp`, `fstp`.
-pub fn frame_rate(clock: i32, k: f32, k2: f32, cycles: i32) -> f32 {
+pub fn frame_rate(clock: i32, k: f32, k2: f32, cycles: u64) -> f32 {
     let product = clock as f64 * k as f64 * k as f64 * k2 as f64;
     (product / cycles as f64) as f32
 }
@@ -67,6 +71,8 @@ mod tests {
         assert_eq!(cycles_since(10, 4), Some(6));
         assert_eq!(cycles_since(4, 10), None);
         assert_eq!(cycles_since(4, 4), None);
+        // More than 2^31 cycles (16 frames at 18 a second on 3.8 GHz) is measured.
+        assert_eq!(cycles_since(3_300_000_000, 0), Some(3_300_000_000));
     }
 
     #[test]

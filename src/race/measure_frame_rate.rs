@@ -8,22 +8,27 @@
 //! Out: unchanged but on the 16th: eax and edx the counter, ebx the cycles; no flags read
 //!
 //! Caller: `sub_4547AE` (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
-//! `race::draw_frame_rate`. The rate is worked out in plain floats.
+//! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (2026-10-30,
+//! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::session::MACHINE;
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+
+/// The whole counter at the last measure (`dword_6214EC` holds its low half).
+static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// The rate worked out in plain floats.
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
-fn frame_rate_plain() {
+fn frame_rate_plain(cycles: u64) {
     let rate = rc2k_core::race::frame_rate::frame_rate(
         MACHINE.cpu_mhz.get() as i32,
         NUMBERS.thousand.get(),
         NUMBERS.sixteen.get(),
-        DRAW.scratch.bits() as i32,
+        cycles,
     );
     FRAME_SWITCHES.frame_rate.set_bits(rate.to_bits());
 }
@@ -39,14 +44,13 @@ pub fn measure_frame_rate() -> Option<u32> {
     if !due {
         return None;
     }
-    let now = crate::arch::rdtsc() as u32;
+    let whole = crate::arch::rdtsc();
+    let now = whole as u32;
     FRAME_SWITCHES.frame_now.set_bits(now);
-    let last: u32 = FRAME_SWITCHES.frame_last.bits();
-    if let Some(cycles) = cycles_since(now, last) {
-        DRAW.scratch.set_bits(cycles);
-        frame_rate_plain();
+    if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
+        DRAW.scratch.set_bits(cycles as u32);
+        frame_rate_plain(cycles);
     }
-    let now: u32 = FRAME_SWITCHES.frame_now.bits();
     FRAME_SWITCHES.frame_last.set_bits(now);
     Some(now)
 }

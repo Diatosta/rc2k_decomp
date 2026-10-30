@@ -15,6 +15,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The debug UI shown (`debug::overlay`'s key).
 static OPEN: AtomicBool = AtomicBool::new(false);
 
+/// Whether the debug UI is shown.
+#[inline]
+pub fn is_open() -> bool {
+    OPEN.load(Ordering::Relaxed)
+}
+
+/// SDL's text input is on (it goes off with the UI, once).
+static TEXT_INPUT: AtomicBool = AtomicBool::new(false);
+
 /// The debug UI shown or hidden.
 pub fn toggle() -> bool {
     FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
@@ -31,6 +40,19 @@ pub fn race_frame() {
     FRAMES_WITHOUT_RACE.store(0, Ordering::Relaxed);
 }
 
+/// The race has ended: the UI closes at the next frame shown, before the loading screen's
+/// few frames could hold it open (owner, 2026-10-30).
+pub fn race_left() {
+    FRAMES_WITHOUT_RACE.store(RACE_GONE, Ordering::Relaxed);
+}
+
+/// The first view's scene has been drawn.
+pub fn view_drawn() {
+    if OPEN.load(Ordering::Relaxed) {
+        crate::debug::ui::note_view();
+    }
+}
+
 /// An SDL texture of ImGui's.
 struct Texture {
     sdl: *mut SDL_Texture,
@@ -43,8 +65,6 @@ struct Gui {
     consumer: dear_imgui_rs::render::SynchronousRendererConsumer,
     textures: HashMap<SnapshotTextureId, Texture>,
     last: std::time::Instant,
-    /// The window's text input started (for ImGui's text fields).
-    text_input: bool,
     /// The style scaled for this height.
     scaled_for: i32,
 }
@@ -80,7 +100,6 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
                 consumer,
                 textures: HashMap::new(),
                 last: std::time::Instant::now(),
-                text_input: false,
                 scaled_for: 0,
             });
         }
@@ -181,22 +200,22 @@ pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
         crate::framework::log("debug: the race was left: the UI hidden");
     }
     let open = OPEN.load(Ordering::Relaxed);
-    with_gui(|gui| {
-        // ImGui's text fields need SDL's text input, started while the UI is shown.
-        if open != gui.text_input {
-            // SAFETY: the window SDL made, on its thread.
-            unsafe {
-                if open {
-                    SDL_StartTextInput(window);
-                } else {
-                    SDL_StopTextInput(window);
-                }
+    // ImGui's text fields need SDL's text input, started while the UI is shown.
+    if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {
+        // SAFETY: the window SDL made, on its thread.
+        unsafe {
+            if open {
+                SDL_StartTextInput(window);
+            } else {
+                SDL_StopTextInput(window);
             }
-            gui.text_input = open;
         }
-        if !open {
-            return;
-        }
+    }
+    // Closed: nothing else, and ImGui not even made until it is first opened.
+    if !open {
+        return;
+    }
+    with_gui(|gui| {
         let (mut w, mut h, mut pw, mut ph) = (0, 0, 0, 0);
         // SAFETY: as above; the renderer is the window's.
         unsafe {

@@ -880,6 +880,12 @@ pub fn frame_counters() -> [u64; 5] {
     ]
 }
 
+/// The screen's width and height.
+#[cfg(target_pointer_width = "64")]
+pub fn screen_size() -> (u32, u32) {
+    (GAME_SCREEN.width.get(), GAME_SCREEN.height.get())
+}
+
 /// The screen's pixels (its width times its height).
 #[cfg(target_pointer_width = "64")]
 pub fn screen_pixels() -> u64 {

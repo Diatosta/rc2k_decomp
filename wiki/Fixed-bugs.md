@@ -282,3 +282,17 @@ block's +0xB0.
   the last save.
 - **Seen**: yes, in the conversion (the options were not kept after closing the window).
 - **Fix**: the save is made on that way out too.
+
+## The frame rate never measured below some 28 frames a second
+
+*Original*: `race::measure_frame_rate` (0x42009E).
+*Fixed*: 2026-10-30.
+
+- **What**: every 16 frames the game subtracts the low halves of the processor's cycle
+  counter and tests the difference as a signed number, so a wait of 2^31 cycles or more
+  counts as no time at all and the measure is dropped.
+- **In game**: at 3.8 GHz, 16 frames take that long below some 28 frames a second: the
+  frame rate stays at its last value (0 from the start) and its "fps" text is not drawn.
+  Harmless on the processors of 2000, where 2^31 cycles took seconds.
+- **Seen**: yes, in the conversion (0.0 in the debug UI at 18 frames a second).
+- **Fix**: the whole 64-bit counter is kept and subtracted.

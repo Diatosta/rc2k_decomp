@@ -23,6 +23,17 @@ pub mod imgui_sdl {
     /// Nothing to note.
     pub fn race_frame() {}
 
+    /// Nothing to close.
+    pub fn race_left() {}
+
+    /// Nothing to note.
+    pub fn view_drawn() {}
+
+    /// Never open.
+    pub fn is_open() -> bool {
+        false
+    }
+
     /// Nothing drawn.
     pub fn draw(
         _renderer: *mut sdl3_sys::everything::SDL_Renderer,
@@ -33,6 +44,7 @@ pub mod imgui_sdl {
 #[cfg(target_pointer_width = "64")]
 pub mod display_rows;
 pub mod overlay;
+pub mod timing;
 #[cfg(target_pointer_width = "64")]
 pub mod ui;
 #[cfg(target_pointer_width = "64")]

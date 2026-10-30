@@ -4,17 +4,20 @@
 //!   (`debug::display_rows`), its bars as bars, filtered by name; a wide window lays the
 //!   groups out in columns side by side.
 //! - "Profiler": the original profile page's live items (`debug::draw_profile`, 0x43530E:
-//!   the frame rate, the course's memory, the processor's features, `dword_6218B8`) and the
-//!   standalone's own frame timings; the original's 40 timers are listed but RAL.EXE
-//!   writes none of them (the developers' timing code was taken out).
+//!   the frame rate, the course's memory, the processor's features, `dword_6218B8`) and our
+//!   own timings (`debug::timing`, `platform::frame_counters`): RAL.EXE writes none of its
+//!   page's 40 timers (the developers' timing code was taken out).
 //! - "Rivals": the rivals' table the display page ended with (`g_rivalNames`,
 //!   `g_rivalScaled`, `g_rivalTimes`, as they are: unlike the original page this does not
 //!   refill them).
 //!
 //! The race's freeze as a check box.
 
+use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
-use dear_imgui_rs::{Condition, TableColumnFlags, TableFlags, TreeNodeFlags, Ui};
+use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
 /// How a figure is shown.
 #[derive(Clone, Copy)]
@@ -78,8 +81,99 @@ const BACKGROUND: f32 = 0.6;
 /// A column of groups is at least this wide (pixels at the UI's scale 1).
 const COLUMN_WIDTH: f32 = 460.0;
 
+/// Whether the probe points are drawn.
+static PROBES: AtomicBool = AtomicBool::new(false);
+
+/// The view matrix, the scale, the centre.
+type NotedView = ([f32; 16], f32, [f32; 2]);
+
+/// The first view as its scene was drawn: the view matrix, the scale, the centre. Later
+/// drawing (the mirror) changes them, so they are noted here (`note_view`).
+static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
+
+/// The first view's scene has been drawn.
+pub fn note_view() {
+    use crate::race::matrices_store::MATRICES;
+    use crate::scene::draw_store::DRAW;
+    let view = (
+        std::array::from_fn(|n| MATRICES.view_matrix[n].get()),
+        DRAW.view_scale.get(),
+        [
+            f32::from_bits(DRAW.view_centre[0].bits()),
+            f32::from_bits(DRAW.view_centre[1].bits()),
+        ],
+    );
+    *VIEW.lock().unwrap_or_else(|e| e.into_inner()) = Some(view);
+}
+
+/// In the spirit of `sub_4295AD` (0x4295AD), the developers' mode 0xB, which drew the probe
+/// lists as one pixel each: the physics' probe points as last worked out
+/// (`physics::probe_ground`: 0x6D1E14 .. in the world, whole numbers), through the view
+/// noted, each with a line down to the ground found under it. Green the first four (the
+/// wheels, a reading), red a point at or under the ground, white the rest; yellow the
+/// ground. Above the window, and behind the eye skipped.
+fn draw_probes(ui: &Ui) {
+    use crate::physics::car_store::CAR;
+    use crate::physics::contact_store::CONTACT_WORK as W;
+    let Some((m, scale, centre)) = *VIEW.lock().unwrap_or_else(|e| e.into_inner()) else {
+        return;
+    };
+    let [w, h] = ui.io().display_size();
+    let (width, height) = crate::platform::screen_size();
+    let (sx, sy) = (w / width.max(1) as f32, h / height.max(1) as f32);
+    let place = |[x, y, z]: [i32; 3]| {
+        let [x, y, z] = [f64::from(x), f64::from(y), f64::from(z)];
+        let turned = |n: usize| {
+            f64::from(m[n]) * x
+                + f64::from(m[n + 4]) * y
+                + f64::from(m[n + 8]) * z
+                + f64::from(m[n + 12])
+        };
+        let (tx, ty, tz) = (turned(0), turned(1), turned(2));
+        (tz >= 4096.0).then(|| {
+            let s = f64::from(scale) / tz;
+            [
+                (f64::from(centre[0]) + tx * s) as f32 * sx,
+                (f64::from(centre[1]) - ty * s) as f32 * sy,
+            ]
+        })
+    };
+    let list = ui.get_foreground_draw_list();
+    let size = ui.current_font_size() / 4.0;
+    for n in 0..CAR.probe_count.get().min(0x40) as usize {
+        let (x, y, z) = (
+            W.probe_x[n].get() as i32,
+            W.probe_y[n].get() as i32,
+            W.probe_z[n].get() as i32,
+        );
+        let Some(p) = place([x, y, z]) else {
+            continue;
+        };
+        let found = W.probe_found[n].get() != 0;
+        if found && let Some(g) = place([x, W.probe_ground_height[n].get() as i32, z]) {
+            list.add_line(p, g, [1.0, 1.0, 0.0, 1.0]).build();
+        }
+        let colour = if found && (W.probe_height[n].get() as i32) <= 0 {
+            [1.0, 0.2, 0.2, 1.0]
+        } else if n < 4 {
+            [0.2, 1.0, 0.2, 1.0]
+        } else {
+            [1.0, 1.0, 1.0, 1.0]
+        };
+        list.add_circle(p, size, colour).filled(true).build();
+        list.add_text(
+            [p[0] + size * 1.5, p[1] - size * 2.0],
+            colour,
+            format!("{n}"),
+        );
+    }
+}
+
 /// The UI's frame.
 pub fn build(ui: &Ui) {
+    if PROBES.load(Relaxed) {
+        draw_probes(ui);
+    }
     ui.window("Debug")
         .size([760.0, 560.0], Condition::FirstUseEver)
         .position([40.0, 40.0], Condition::FirstUseEver)
@@ -88,6 +182,18 @@ pub fn build(ui: &Ui) {
             let mut frozen = crate::debug::overlay::frozen();
             if ui.checkbox("Race frozen (Ctrl+F12)", &mut frozen) {
                 crate::debug::overlay::set_frozen(frozen);
+            }
+            ui.same_line();
+            let mut probes = PROBES.load(Relaxed);
+            if ui.checkbox("Probe points", &mut probes) {
+                PROBES.store(probes, Relaxed);
+            }
+            if ui.is_item_hovered() {
+                ui.tooltip_text(
+                    "Where the physics asks for the ground (the last car simulated): green \
+                     the first four (the wheels, a reading), red at or under the ground, \
+                     white the rest; the yellow line goes down to the ground found",
+                );
             }
             ui.same_line();
             ui.text_disabled("Ctrl+F11 hides this");
@@ -170,10 +276,18 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
         return;
     };
-    ui.table_setup_column("Name", TableColumnFlags::NONE, None);
-    ui.table_setup_column("Value", TableColumnFlags::NONE, None);
-    ui.table_setup_column("Bar", TableColumnFlags::NONE, None);
-    ui.table_setup_column("Original", TableColumnFlags::NONE, None);
+    // The name wide, the figure narrow (owner, 2026-10-30).
+    let column = |name: &str, weight: f32| {
+        ui.table_setup_column(
+            name,
+            TableColumnFlags::NONE,
+            Some(TableColumnWidth::Stretch(weight)),
+        );
+    };
+    column("Name", 3.0);
+    column("Value", 1.2);
+    column("Bar", 1.5);
+    column("Original", 1.2);
     ui.table_headers_row();
     for row in group.rows.iter().filter(|r| wanted_row(r, wanted)) {
         let value = value_at(row.at);
@@ -202,119 +316,347 @@ fn group_table(ui: &Ui, group: &Group, wanted: &str) {
     }
 }
 
-/// The profiler's frame history (milliseconds a frame), kept across frames.
+/// How much of a new reading goes into the shown one (they jump from frame to frame).
+const SMOOTHING: f32 = 0.1;
+
+/// The graph's parts of a frame, with their colours. The rasteriser and noting the
+/// triangles are inside the scene's time (the scene's end flushes its fans).
+const PARTS: [(&str, [f32; 4]); 8] = [
+    ("Input", [0.6, 0.6, 1.0, 1.0]),
+    ("Physics", [0.3, 1.0, 0.3, 1.0]),
+    ("Scene", [1.0, 0.6, 0.2, 1.0]),
+    ("Sound commands", [1.0, 0.4, 1.0, 1.0]),
+    ("Rasteriser", [1.0, 0.25, 0.25, 1.0]),
+    ("Noting", [1.0, 1.0, 0.3, 1.0]),
+    ("Showing", [0.3, 1.0, 1.0, 1.0]),
+    ("The rest", [0.7, 0.7, 0.7, 1.0]),
+];
+
+/// `value` at the end of `history`, the last `HISTORY` kept.
+fn push(history: &mut VecDeque<f32>, value: f32) {
+    history.push_back(value);
+    if history.len() > HISTORY {
+        history.pop_front();
+    }
+}
+
+/// A reading of the running counters.
+#[derive(Clone, Copy)]
+struct Counts {
+    at: std::time::Instant,
+    frame: [u64; 5],
+    stages: ([u64; STAGES], [u64; STAGES]),
+    ticks: u32,
+}
+
+/// The profiler's readings, kept across frames.
 struct Timings {
-    frames: std::collections::VecDeque<f32>,
-    last: Option<(std::time::Instant, [u64; 5])>,
-    /// The last frame's parts (ms): rasteriser, noting the triangles, showing; triangles;
-    /// screens of pixels.
-    parts: [f32; 5],
+    /// Milliseconds a frame, the last `HISTORY`.
+    frames: VecDeque<f32>,
+    /// Each part's, the same frames.
+    parts: [VecDeque<f32>; PARTS.len()],
+    /// The screens of pixels drawn and the triangle fans, the same frames.
+    pixels: VecDeque<f32>,
+    fans: VecDeque<f32>,
+    /// Whether the graph shows each part (off: the frame's total alone).
+    each: bool,
+    /// Smoothed: the frame less what is timed.
+    rest: f32,
+    last: Option<Counts>,
+    /// Smoothed: `frame_counters`' five per frame (the three times in ms), the stages' ms a
+    /// run, the physics ticks a frame.
+    frame: [f32; 5],
+    stages: [f32; STAGES],
+    ticks: f32,
 }
 
 static TIMINGS: std::sync::Mutex<Timings> = std::sync::Mutex::new(Timings {
-    frames: std::collections::VecDeque::new(),
+    frames: VecDeque::new(),
+    parts: [const { VecDeque::new() }; PARTS.len()],
+    pixels: VecDeque::new(),
+    fans: VecDeque::new(),
+    each: false,
+    rest: 0.0,
     last: None,
-    parts: [0.0; 5],
+    frame: [0.0; 5],
+    stages: [0.0; STAGES],
+    ticks: 0.0,
 });
 
 /// Frames in the history.
 const HISTORY: usize = 240;
 
-/// The original profile page's timers (`debug::draw_profile`'s labels), none written by
-/// RAL.EXE.
-const ORIGINAL_TIMERS: [&str; 40] = [
-    "rdmap", "bitsy", "uplod", "scene", "overl", "addsk", "prepm", "tyrec", "goto2", "lockw",
-    "debug", "xchng", "muddy", "systm", "drv3d", "setst", "clrps", "reflc", "readz", "sorts",
-    "rainw", "revrb", "abmie", "camer", "mark", "cntrl", "chblb", "getys", "getyc", "cdata",
-    "carvc", "getcp", "ctrl1", "ctrl2", "ctrl3", "ctrl4", "ctrl5", "ctrl6", "ctrl7", "ctrl8",
-];
+/// The readings taken, once a UI frame while the tab is shown (a gap, from another tab, is
+/// not a frame's time).
+fn take_readings(t: &mut Timings) {
+    let now = Counts {
+        at: std::time::Instant::now(),
+        frame: crate::platform::frame_counters(),
+        stages: crate::debug::timing::counts(),
+        ticks: crate::race::vars_store::RACE_VARS.race_ticks.get(),
+    };
+    if let Some(then) = t
+        .last
+        .filter(|l| now.at.duration_since(l.at).as_millis() < 500)
+    {
+        let ms = now.at.duration_since(then.at).as_secs_f32() * 1000.0;
+        push(&mut t.frames, ms);
+        let ease = |shown: &mut f32, new: f32| *shown += (new - *shown) * SMOOTHING;
+        let screen = crate::platform::screen_pixels().max(1) as f32;
+        for (n, shown) in t.frame.iter_mut().enumerate() {
+            let d = now.frame[n].wrapping_sub(then.frame[n]) as f32;
+            ease(
+                shown,
+                match n {
+                    0..=2 => d / 1000.0,
+                    4 => d / screen,
+                    _ => d,
+                },
+            );
+        }
+        for (n, shown) in t.stages.iter_mut().enumerate() {
+            let runs = now.stages.1[n].wrapping_sub(then.stages.1[n]);
+            if runs != 0 {
+                let nanos = now.stages.0[n].wrapping_sub(then.stages.0[n]);
+                ease(shown, nanos as f32 / runs as f32 / 1e6);
+            }
+        }
+        ease(&mut t.ticks, now.ticks.wrapping_sub(then.ticks) as f32);
+        let stage = |n: usize| now.stages.0[n].wrapping_sub(then.stages.0[n]) as f32 / 1e6;
+        let counted = |n: usize| now.frame[n].wrapping_sub(then.frame[n]) as f32;
+        let timed = [
+            stage(0),
+            stage(1),
+            stage(2),
+            stage(3),
+            counted(0) / 1000.0,
+            counted(1) / 1000.0,
+            counted(2) / 1000.0,
+        ];
+        // The rasteriser (4) and noting (5) are inside the scene's time.
+        let inside: f32 = timed
+            .iter()
+            .enumerate()
+            .filter(|&(n, _)| n != 4 && n != 5)
+            .map(|(_, v)| v)
+            .sum();
+        let rest = (ms - inside).max(0.0);
+        ease(&mut t.rest, rest);
+        for (n, value) in timed.iter().chain([&rest]).enumerate() {
+            push(&mut t.parts[n], *value);
+        }
+        push(&mut t.pixels, counted(4) / screen);
+        push(&mut t.fans, counted(3));
+    }
+    t.last = Some(now);
+}
 
 /// The "Profiler" tab.
 fn profiler(ui: &Ui) {
+    use crate::audio::store::AUDIO;
+    use crate::debug::timing::Stage;
     use crate::race::course_lists_store::COURSE_LISTS;
     use crate::race::switches_store::FRAME_SWITCHES;
+    use crate::race::view_store::RACE_VIEW;
     use crate::session::MACHINE;
     let mut t = TIMINGS.lock().unwrap_or_else(|e| e.into_inner());
-    let now = std::time::Instant::now();
-    let counts = crate::platform::frame_counters();
-    if let Some((then, before)) = t.last {
-        let ms = now.duration_since(then).as_secs_f32() * 1000.0;
-        t.frames.push_back(ms);
-        if t.frames.len() > HISTORY {
-            t.frames.pop_front();
-        }
-        let d = |n: usize| counts[n].wrapping_sub(before[n]) as f32;
-        let screen = crate::platform::screen_pixels().max(1) as f32;
-        t.parts = [
-            d(0) / 1000.0,
-            d(1) / 1000.0,
-            d(2) / 1000.0,
-            d(3),
-            d(4) / screen,
-        ];
-    }
-    t.last = Some((now, counts));
+    take_readings(&mut t);
     let fps = f32::from_bits(FRAME_SWITCHES.frame_rate.bits());
-    ui.text(format!("Frame rate (the game's): {fps:.1}"));
+    ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
+    ui.same_line();
+    ui.checkbox("Each part in the graph", &mut t.each);
     let history: Vec<f32> = t.frames.iter().copied().collect();
     let average = history.iter().sum::<f32>() / history.len().max(1) as f32;
     let worst = history.iter().copied().fold(0.0f32, f32::max);
-    ui.plot_lines_config("##frames", &history)
-        .overlay_text(format!(
-            "{average:.1} ms a frame on average, {worst:.1} the worst"
-        ))
-        .scale_min(0.0)
-        .scale_max((worst * 1.2).max(20.0))
-        .graph_size([-1.0, 90.0 * ui.current_font_size() / 13.0])
-        .build();
-    if let Some(_table) =
-        ui.begin_table_with_flags("profile", 2, TableFlags::BORDERS | TableFlags::ROW_BG)
-    {
-        let row = |name: &str, value: String| {
-            ui.table_next_row();
-            ui.table_next_column();
-            ui.text(name);
-            ui.table_next_column();
-            ui.text(value);
+    let top = (worst * 1.2).max(20.0);
+    let line = 90.0 * ui.current_font_size() / 13.0;
+    let summary = format!("{average:.1} ms a frame on average, {worst:.1} the worst");
+    if t.each {
+        parts_graph(ui, &t, &history, top, line * 2.0, &summary);
+        let small = |label: &str, values: &VecDeque<f32>, text: String| {
+            let values: Vec<f32> = values.iter().copied().collect();
+            ui.plot_lines_config(label, &values)
+                .overlay_text(text)
+                .scale_min(0.0)
+                .graph_size([-1.0, line / 2.0])
+                .build();
         };
-        row("Rasteriser (last frame)", format!("{:.2} ms", t.parts[0]));
-        row("Noting the triangles", format!("{:.2} ms", t.parts[1]));
-        row("Showing the frame", format!("{:.2} ms", t.parts[2]));
-        row("Triangle fans", format!("{:.0}", t.parts[3]));
-        row("Pixels drawn", format!("{:.2} screens", t.parts[4]));
-        row(
-            "Course memory (mem)",
-            format!("{} KiB", COURSE_LISTS.course_bytes_total.get() >> 10),
+        small(
+            "##pixels",
+            &t.pixels,
+            format!("Pixels drawn: {:.2} screens", t.frame[4]),
         );
-        let features = [
-            ("MMX", MACHINE.has_mmx.get()),
-            ("3DNow!", MACHINE.has_3dnow.get()),
-            ("SSE", MACHINE.has_sse.get()),
-        ];
-        let list: Vec<&str> = features
+        small(
+            "##fans",
+            &t.fans,
+            format!("Triangle fans: {:.0}", t.frame[3]),
+        );
+    } else {
+        ui.plot_lines_config("##frames", &history)
+            .overlay_text(summary)
+            .scale_min(0.0)
+            .scale_max(top)
+            .graph_size([-1.0, line])
+            .build();
+    }
+    let section = |name: &str, rows: &[(&str, String)]| {
+        if !ui.collapsing_header(name, TreeNodeFlags::DEFAULT_OPEN) {
+            return;
+        }
+        let flags = TableFlags::BORDERS | TableFlags::ROW_BG;
+        if let Some(_table) = ui.begin_table_with_flags(name, 2, flags) {
+            for (label, value) in rows {
+                ui.table_next_row();
+                ui.table_next_column();
+                ui.text(label);
+                ui.table_next_column();
+                ui.text(value);
+            }
+        }
+    };
+    // Under a millisecond in microseconds: input and the sound commands take a few.
+    let ms = |v: f32| {
+        if v < 1.0 {
+            format!("{:.1} \u{b5}s", v * 1000.0)
+        } else {
+            format!("{v:.2} ms")
+        }
+    };
+    section(
+        "The frame",
+        &[
+            ("Input", ms(t.stages[Stage::Input as usize])),
+            ("Physics (all ticks)", ms(t.stages[Stage::Physics as usize])),
+            (
+                "Scene (all its 3D work)",
+                ms(t.stages[Stage::Scene as usize]),
+            ),
+            ("  of which the rasteriser", ms(t.frame[0])),
+            ("  of which noting the triangles", ms(t.frame[1])),
+            ("Sound commands", ms(t.stages[Stage::SoundTick as usize])),
+            ("Showing the frame", ms(t.frame[2])),
+            ("The rest (not timed, and the wait)", ms(t.rest)),
+        ],
+    );
+    section(
+        "Physics",
+        &[
+            ("Ticks a frame", format!("{:.1}", t.ticks)),
+            (
+                "Cars in the race",
+                format!("{}", RACE_VIEW.race_cars.bits()),
+            ),
+        ],
+    );
+    section(
+        "Drawing",
+        &[
+            ("Triangle fans a frame", format!("{:.0}", t.frame[3])),
+            ("Pixels drawn", format!("{:.2} screens", t.frame[4])),
+        ],
+    );
+    let (playing, stopping) = crate::debug::timing::voices();
+    section(
+        "Sound (its own thread)",
+        &[
+            (
+                "A turn's work (every 20 ms)",
+                ms(t.stages[Stage::AudioTurn as usize]),
+            ),
+            ("Voices playing", format!("{}", playing)),
+            ("Voices stopping", format!("{}", stopping)),
+            (
+                "Voices made (for the race's sounds)",
+                format!("{}", AUDIO.voice_count.get()),
+            ),
+            ("Channels in use", format!("{}", AUDIO.channels_used.get())),
+            ("Mode's bits", format!("{:08x}", AUDIO.sound_mode.get())),
+        ],
+    );
+    // The original profile page's items. `dword_6218B8` is the developers' switch: 1 in the
+    // image, changed only by a key of their handler at 0x43B3D6, which nothing calls; that
+    // handler is also all that masks the processor's features into `g_useSse`, `g_use3dNow`
+    // and `dword_621A60`, so "Game uses" stays at none.
+    let names = |flags: [(&'static str, Option<u32>); 3]| {
+        let on: Vec<&str> = flags
             .iter()
-            .filter(|(_, on)| *on != 0)
+            .filter(|(_, v)| v.is_some_and(|v| v != 0))
             .map(|(name, _)| *name)
             .collect();
-        row(
-            "Processor features (the game's)",
-            if list.is_empty() {
-                "none".to_owned()
-            } else {
-                list.join(", ")
-            },
-        );
-        row(
-            "dword_6218B8 (on / off)",
-            figure(value_at(0x6218B8), Shown::Whole),
-        );
+        if on.is_empty() {
+            "none".to_owned()
+        } else {
+            on.join(", ")
+        }
+    };
+    section(
+        "Machine",
+        &[
+            (
+                "Course memory",
+                format!("{} KiB", COURSE_LISTS.course_bytes_total.get() >> 10),
+            ),
+            (
+                "Processor has",
+                names([
+                    ("MMX", Some(MACHINE.has_mmx.get())),
+                    ("3DNow!", Some(MACHINE.has_3dnow.get())),
+                    ("SSE", Some(MACHINE.has_sse.get())),
+                ]),
+            ),
+            (
+                "Game uses",
+                names([
+                    ("MMX", value_at(0x621A60)),
+                    ("3DNow!", value_at(0x621A5C)),
+                    ("SSE", value_at(0x621A58)),
+                ]),
+            ),
+            (
+                "Developers' extensions switch",
+                figure(value_at(0x6218B8), Shown::Whole),
+            ),
+        ],
+    );
+}
+
+/// The frame's total (white) and each part, over one another, the colours named below.
+fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summary: &str) {
+    let [x, y] = ui.cursor_screen_pos();
+    let width = ui.content_region_avail_width().max(1.0);
+    ui.dummy([width, height]);
+    let list = ui.get_window_draw_list();
+    list.add_rect([x, y], [x + width, y + height], [0.1, 0.1, 0.1, 0.7])
+        .filled(true)
+        .build();
+    let points = |values: Vec<f32>| -> Vec<[f32; 2]> {
+        let step = width / (HISTORY - 1) as f32;
+        let from = HISTORY - values.len();
+        values
+            .iter()
+            .enumerate()
+            .map(|(n, v)| {
+                [
+                    x + (from + n) as f32 * step,
+                    y + height - (v / top).min(1.0) * height,
+                ]
+            })
+            .collect()
+    };
+    for (n, (_, colour)) in PARTS.iter().enumerate() {
+        list.add_polyline(points(t.parts[n].iter().copied().collect()), *colour)
+            .thickness(1.0)
+            .build();
     }
-    if ui.collapsing_header("The original's timers (never written)", TreeNodeFlags::NONE) {
-        ui.text_wrapped(
-            "RAL.EXE's profile page printed these 40 timers (dword_5EA8C8 ..), but no code of \
-             the shipped game writes them: the developers' timing calls were taken out.",
-        );
-        ui.text_disabled(ORIGINAL_TIMERS.join(" "));
+    list.add_polyline(points(total.to_vec()), [1.0, 1.0, 1.0, 1.0])
+        .thickness(2.0)
+        .build();
+    list.add_text([x + 4.0, y + 2.0], [1.0, 1.0, 1.0, 1.0], summary);
+    drop(list);
+    ui.text("Total");
+    for (name, colour) in PARTS {
+        ui.same_line();
+        ui.text_colored(colour, name);
     }
 }
 
