@@ -7,7 +7,6 @@ use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
@@ -90,16 +89,14 @@ pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
 
 /// An item's repair time, through its pointer (None: null).
 pub fn time_of(item: usize) -> Option<i32> {
-    let at: u32 = MENU_LISTS
+    let key: u32 = MENU_LISTS
         .repair_time_ptrs
         .get(item)
         .map(|p| p.get())
         .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
-    (at != 0).then(|| {
-        GamePtr::new(at)
-            .read::<i32>("a repair time")
-            .unwrap_or_else(|e| refuse(e))
-    })
+    crate::menu::lists_store::repair_time_at(key)
+        .unwrap_or_else(|e| refuse(e))
+        .map(|time| time.get() as i32)
 }
 
 /// The time of every item whose flag is not 0, as the original adds it up. Converted:

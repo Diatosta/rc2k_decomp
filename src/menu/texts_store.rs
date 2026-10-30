@@ -2,7 +2,7 @@
 //! two log texts of the map's polygon code, the keys menu (`dword_731BBB`), each menu
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
-//! `menu::lists_store`'s tables name by address), and two tables of speech samples' names
+//! `menu::lists_store`'s tables name by handle, `text_key`), and two tables of speech samples' names
 //! (`car_speech`, `stage_speech`: addresses into `audio::names_store`). Nothing writes
 //! the texts. `moved::MOVED` points the range at it; `moved::point_into_homes` makes the
 //! tables' addresses real.
@@ -2102,6 +2102,31 @@ pub static MENU_TEXTS: MenuTexts = MenuTexts {
 
 /// IDA 0x731B82, the first byte of the piece.
 pub const START: usize = 0x731B82;
+/// The bytes `MenuTexts` has before IDA's `START` (its `_lead`).
+const LEAD: usize = 2;
+
+/// A text's handle (phase 13): its place in `MENU_TEXTS` (the original kept its address). 0
+/// (none) and -1 (an end mark) stay; another address outside fails to compile.
+pub const fn text_key(ida: u32) -> u32 {
+    if ida == 0 || ida == 0xFFFF_FFFF {
+        return ida;
+    }
+    let at = ida as usize;
+    assert!(START <= at && at < END);
+    (at - START + LEAD) as u32
+}
+
+/// Where the text of `key` is (`text_key`).
+pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    let at = key as usize;
+    if !(LEAD..LEAD + END - START).contains(&at) {
+        return Err(crate::errors::BadInput(
+            "a text's handle off the menus' texts",
+        ));
+    }
+    Ok(crate::pointers::GamePtr::to(&MENU_TEXTS).offset(key))
+}
+
 /// IDA 0x734BC6, the end of the piece.
 pub const END: usize = 0x734BC6;
 

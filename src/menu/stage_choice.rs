@@ -62,22 +62,25 @@ pub fn draw_stage_map() -> Result<(), Refused> {
                 .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
         }
     };
-    let overlay = crate::session::read_on(
+    let overlay = crate::menu::texts_store::text_at(crate::session::read_on(
         &MENU_LISTS.map_overlays,
         dword(record + 0x3C)? as usize,
         "a map overlay",
-    )?;
-    if load_picture_with_overlay(
-        &crate::menu::texts_store::MENU_TEXTS.ukmap_png,
-        &crate::pointers::GamePtr::new(overlay),
-    )? {
+    )?)?;
+    if load_picture_with_overlay(&crate::menu::texts_store::MENU_TEXTS.ukmap_png, &overlay)? {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
     // The overlay's pointer is the blit's palette too (ebx all the way).
-    blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, overlay)?;
+    blit_glyph_on_surface(
+        MAP_SPRITE,
+        LOOP_FLAGS.sprite_table.get(),
+        0,
+        0,
+        overlay.addr(),
+    )?;
     Ok(())
 }
 

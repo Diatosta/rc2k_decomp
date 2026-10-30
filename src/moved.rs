@@ -2377,6 +2377,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             // Kept as handles, not addresses (phase 13).
             Some(_) if crate::menu::menus_store::holds_handle(ida) => {}
             Some(_) if crate::audio::store::holds_handle(ida) => {}
+            Some(_) if crate::menu::lists_store::holds_handle(ida) => {}
             Some(_) if crate::menu::cars_store::holds_handle(ida) => {}
             Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
             Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}

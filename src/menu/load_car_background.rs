@@ -13,7 +13,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_background::load_background;
 use crate::text::draw_text::GameCanvas;
 
@@ -38,9 +37,12 @@ pub fn load_car_background(
     // Converted: `rc2k_core::menu::slides::background_page`.
     let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
     let car = shown_car()?;
-    let table = MENU_LISTS.page_picture_lists[page as usize].get();
-    let path = crate::pointers::GamePtr::new(table + car * 4)
-        .read::<u32>("load car background: a game value")?;
+    let path = crate::menu::texts_store::text_at(crate::session::read_on(
+        crate::menu::lists_store::page_pictures(page)?,
+        car as usize,
+        "load car background: a game value",
+    )?)?
+    .addr();
     if load(path, car)? {
         return Err(FatalError {
             code: 0x8071_2345,

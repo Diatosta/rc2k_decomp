@@ -80,12 +80,18 @@ pub fn play_stage_speech() -> Result<(), Refused> {
     let record = stage_record()?;
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
-        let fault = Fault::default();
+        let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(get(record + 4)?, |n| {
-            fault.get(MENU_LISTS.stage_speeches[0].addr() + 4 * n)
+            crate::session::read_on(&MENU_LISTS.stage_speeches, n as usize, "a stage speech")
+                .unwrap_or_else(|e| {
+                    fault.set(Some(e));
+                    0
+                })
         });
-        fault.check()?;
-        let at = at?;
+        if let Some(e) = fault.take() {
+            return Err(e.into());
+        }
+        let at = crate::menu::texts_store::text_at(at?)?.addr();
         crate::sound::store::CAR_STREAM.on.set(1);
         crate::sound::store::CAR_STREAM.stream.set(at);
         crate::sound::store::CAR_STREAM.place.set(0);
@@ -103,11 +109,12 @@ pub fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            crate::session::read_on(
+            crate::audio::store::name_at(crate::session::read_on(
                 &MENU_LISTS.rally_speeches,
                 section as usize,
                 "a rally speech",
-            )?,
+            )?)?
+            .addr(),
             OPTION_WORK.speech_level.get(),
         );
     }
@@ -124,9 +131,13 @@ pub fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Championship => &MENU_LISTS.welcome_championship,
         stage_screens::Welcome::Other => &MENU_LISTS.welcome_other,
     };
-    let path = crate::session::read_on(table, section as usize, "a welcome picture")?;
+    let path = crate::menu::texts_store::text_at(crate::session::read_on(
+        table,
+        section as usize,
+        "a welcome picture",
+    )?)?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-        &crate::pointers::GamePtr::new(path),
+        &path,
         &crate::menu::texts_store::MENU_TEXTS.titlebar_png,
     )? {
         return Err(FatalError {

@@ -30,8 +30,8 @@ pub fn load_background() -> Result<(), Refused> {
         GamePtr::new(player + 8).read::<u32>("a player's record")?,
     )
     .map_err(BadInput::from)?;
-    let path = MENU_LISTS.service_pictures[car as usize].get();
-    crate::gfx::load_picture::load_picture(&GamePtr::new(path))?;
+    let path = crate::menu::texts_store::text_at(MENU_LISTS.service_pictures[car as usize].get())?;
+    crate::gfx::load_picture::load_picture(&path)?;
     crate::gfx::convert_picture::convert_picture_now()?;
     Ok(())
 }

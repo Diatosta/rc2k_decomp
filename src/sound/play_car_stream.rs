@@ -10,7 +10,7 @@
 //! Refuses what the record's lookup refuses.
 
 use crate::errors::Refused;
-use crate::framework::{game_read, rva};
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::pointers::GamePtr;
@@ -18,7 +18,6 @@ use crate::pointers::GamePtr;
 // ---- game data ----
 
 // dword_755990
-const STREAMS_IDA: usize = 0x75A31E; // off_75A31E: `MENU_LISTS.car_streams`
 
 // ---- Rust version ----
 
@@ -29,8 +28,13 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     let failed = std::cell::Cell::new(None);
     let s = rc2k_core::sound::set_up::car_stream(
         // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
-        // car's, past them what the image has after (`MOVED` resolves the address).
-        game_read(rva(STREAMS_IDA + car as usize * 4)),
+        // car's, past them what the image has after (`read_on` goes on past them too).
+        crate::menu::texts_store::text_at(crate::session::read_on(
+            &MENU_LISTS.car_streams,
+            car as usize,
+            "a car's stream",
+        )?)?
+        .addr(),
         |list| {
             GamePtr::new(list)
                 .read::<u32>("a car's stream list")

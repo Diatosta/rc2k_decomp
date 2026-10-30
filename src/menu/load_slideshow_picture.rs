@@ -47,14 +47,15 @@ pub fn load_slideshow_picture(
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car()?)?;
-    let template = MENU_LISTS.slideshow_templates[car as usize].get();
+    let template =
+        crate::menu::texts_store::text_at(MENU_LISTS.slideshow_templates[car as usize].get())?;
     let start: u32 = EVENT_STATE.picture.get();
     let mut path = GamePtr::new(0);
     slides::search(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            path = numbered_path_in_game(crate::pointers::GamePtr::new(template), number)?;
+            path = numbered_path_in_game(template, number)?;
             if file_exists_at(path)? {
                 return Ok(true);
             }
