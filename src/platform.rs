@@ -48,6 +48,10 @@ struct Screen {
     /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
     _lent: crate::pointers::Lent,
     window: usize,
+    /// The window's renderer (`SDL_Renderer`, 2026-10-30: the frame goes up as a texture,
+    /// the debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
+    renderer: usize,
+    texture: usize,
     width: usize,
     height: usize,
     bits: u32,
@@ -81,6 +85,10 @@ fn next_event() -> Option<Event> {
         let mut event: SDL_Event = std::mem::zeroed();
         if !SDL_PollEvent(&mut event) {
             return None;
+        }
+        // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
+        if crate::debug::imgui_sdl::event(&event) {
+            return Some(Event::Other);
         }
         let kind = event.r#type;
         Some(if kind == SDL_EVENT_QUIT.0 {
@@ -405,35 +413,56 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
 
     let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
     // SAFETY: SDL's calls on the window SDL made (kept in `SCREEN` while it lives), on
-    // the thread that opened it.
-    let window = unsafe {
-        let window = match screen.as_ref() {
-            Some(old) => std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
+    // the thread that opened it; its renderer and textures the same.
+    let (window, renderer, texture) = unsafe {
+        let (window, renderer) = match screen.as_ref() {
+            Some(old) => {
+                SDL_DestroyTexture(std::ptr::with_exposed_provenance_mut::<SDL_Texture>(
+                    old.texture,
+                ));
+                (
+                    std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
+                    std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(old.renderer),
+                )
+            }
             None => {
                 if !SDL_Init(SDL_INIT_VIDEO) {
                     return Err("SDL does not start".into());
                 }
-                SDL_CreateWindow(
+                let window = SDL_CreateWindow(
                     c"Rally Championship".as_ptr(),
                     width as i32,
                     height as i32,
                     SDL_WindowFlags(0),
-                )
+                );
+                if window.is_null() {
+                    return Err("SDL opens no window".into());
+                }
+                let renderer = SDL_CreateRenderer(window, std::ptr::null());
+                if renderer.is_null() {
+                    return Err("SDL makes no renderer for the window".into());
+                }
+                (window, renderer)
             }
         };
-        if window.is_null() {
-            return Err("SDL opens no window".into());
-        }
         SDL_SetWindowSize(window, width as i32, height as i32);
+        let texture = SDL_CreateTexture(
+            renderer,
+            SDL_PIXELFORMAT_XRGB8888,
+            SDL_TEXTUREACCESS_STREAMING,
+            width as i32,
+            height as i32,
+        );
+        if texture.is_null() {
+            return Err("SDL makes no texture for the frame".into());
+        }
         // Black at once, as a mode change leaves the screen: until the first frame is
         // shown the resized window would show what the window system puts there (white
         // under Wine, a frame's flash before the loading picture: owner, 2026-10-19).
-        let surface = SDL_GetWindowSurface(window);
-        if !surface.is_null() {
-            SDL_FillSurfaceRect(surface, std::ptr::null(), 0);
-            SDL_UpdateWindowSurface(window);
-        }
-        window
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        SDL_RenderPresent(renderer);
+        (window, renderer, texture)
     };
     let pixels = vec![0u8; (bytes * width * height) as usize];
     let lent = crate::pointers::Lent::new(&pixels);
@@ -445,6 +474,8 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     SURFACES.back.set(1);
     *screen = Some(Screen {
         window: window.expose_provenance(),
+        renderer: renderer.expose_provenance(),
+        texture: texture.expose_provenance(),
         width: width as usize,
         height: height as usize,
         bits,
@@ -785,75 +816,53 @@ fn report_timing() {
 
 fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
-    // SAFETY: the window SDL made (`set_screen_mode`), alive while `SCREEN` holds it.
-    let surface = unsafe { SDL_GetWindowSurface(window) };
-    if surface.is_null() {
-        return Err("the window has no surface");
-    }
-    // SAFETY: SDL's surface of a live window, until the next call on the window.
-    let s = unsafe { &*surface };
-    if s.pixels.is_null() || s.pitch <= 0 {
-        return Err("the window's surface has no pixels");
-    }
-    let rows = screen.height.min(s.h as usize);
-    let columns = screen.width.min(s.w as usize);
-    // The frame as XRGB8888: into the surface when it is that (Windows'), else into a
-    // buffer SDL converts into the surface's format (Wayland's, X11's: the same colours).
-    let direct = s.format == SDL_PIXELFORMAT_XRGB8888;
-    let mut buffer = Vec::new();
-    let (to_all, pitch) = if direct {
-        // SAFETY: the surface's `h` rows of `pitch` bytes (SDL's surface), written only here.
-        let all = unsafe {
-            std::slice::from_raw_parts_mut(s.pixels as *mut u8, s.pitch as usize * s.h as usize)
-        };
-        (all, s.pitch as usize)
-    } else {
-        buffer.resize(columns * 4 * rows, 0u8);
-        (&mut buffer[..], columns * 4)
-    };
+    let renderer = std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(screen.renderer);
+    let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(screen.texture);
+    // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
-    for y in 0..rows {
-        let to = &mut to_all[y * pitch..][..columns * 4];
-        let from = &screen.pixels[y * screen.width * bytes..][..columns * bytes];
-        if bytes == 4 {
-            to.copy_from_slice(from);
-            continue;
-        }
-        for (to, from) in to
-            .as_chunks_mut::<4>()
+    let converted;
+    let frame: &[u8] = if bytes == 4 {
+        &screen.pixels
+    } else {
+        converted = screen
+            .pixels
+            .as_chunks::<2>()
             .0
-            .iter_mut()
-            .zip(from.as_chunks::<2>().0)
-        {
-            let p = u16::from_le_bytes(*from) as u32;
-            let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
-            let p = (red << 3 | red >> 2) << 16
-                | (green << 2 | green >> 4) << 8
-                | blue << 3
-                | blue >> 2;
-            to.copy_from_slice(&p.to_le_bytes());
-        }
+            .iter()
+            .flat_map(|from| {
+                let p = u16::from_le_bytes(*from) as u32;
+                let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
+                let p = (red << 3 | red >> 2) << 16
+                    | (green << 2 | green >> 4) << 8
+                    | blue << 3
+                    | blue >> 2;
+                p.to_le_bytes()
+            })
+            .collect::<Vec<u8>>();
+        &converted
+    };
+    if frame.len() < screen.width * screen.height * 4 {
+        return Err("the frame is smaller than the screen");
     }
-    // SAFETY: `buffer` holds `rows` rows of `pitch` bytes; the surface's pixels are its
-    // `h` rows of `pitch` bytes, at least `rows` of `columns` pixels.
-    if !direct
-        && !unsafe {
-            SDL_ConvertPixels(
-                columns as i32,
-                rows as i32,
-                SDL_PIXELFORMAT_XRGB8888,
-                buffer.as_ptr().cast(),
-                pitch as i32,
-                s.format,
-                s.pixels,
-                s.pitch,
-            )
+    // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
+    // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
+    unsafe {
+        if !SDL_UpdateTexture(
+            texture,
+            std::ptr::null(),
+            frame.as_ptr().cast(),
+            (screen.width * 4) as i32,
+        ) {
+            return Err("SDL cannot take the frame into its texture");
         }
-    {
-        return Err("SDL cannot put the frame in the window's surface's format");
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        SDL_RenderTexture(renderer, texture, std::ptr::null(), std::ptr::null());
     }
+    // Not the original's: the debug UI over the frame.
+    crate::debug::imgui_sdl::draw(renderer, window);
     // SAFETY: as above.
-    unsafe { SDL_UpdateWindowSurface(window) };
+    unsafe { SDL_RenderPresent(renderer) };
     Ok(())
 }
 
@@ -941,7 +950,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
 ];
 
 /// A file of ours next to the log (the current folder can change: the installer).
-#[cfg(windows)]
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::framework::LOG_PATH.get().and_then(|p| p.parent()) {
         Some(folder) => folder.join(name),
