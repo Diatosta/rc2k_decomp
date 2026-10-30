@@ -103,10 +103,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates() -> Result<(), Refused> {
-    let blocks = [
-        RACE_VIEW.view_blocks[0].get(),
-        RACE_VIEW.view_blocks[1].get(),
-    ];
+    let blocks = [RACE_VIEW.view_block(0), RACE_VIEW.view_block(1)];
     if blocks.contains(&0) {
         return Err(crate::errors::BadInput("a view without its car block").into());
     }

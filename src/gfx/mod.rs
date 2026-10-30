@@ -119,6 +119,26 @@ pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end
     );
 }
 
+/// As `first_values_are_the_games`, the image's bytes first changed by `patch` (places
+/// that hold a handle where the image has an address).
+#[cfg(test)]
+pub(crate) fn first_values_are_the_games_but<T>(
+    block: &'static T,
+    start: usize,
+    end: usize,
+    patch: impl Fn(&mut [u8]),
+) {
+    let _g = crate::store::test_lock();
+    let len = end - start;
+    let mine = unsafe { core::slice::from_raw_parts(block as *const T as *const u8, len) };
+    let mut image = crate::moved::image_bytes(start, len);
+    patch(&mut image);
+    assert!(
+        mine == &image[..],
+        "the block's bytes differ from the image's"
+    );
+}
+
 /// An array of dwords with these first values (the blocks' tables).
 pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session::Dword; N] {
     let mut out = [const { crate::session::Dword::new(0) }; N];

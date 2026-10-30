@@ -125,9 +125,9 @@ pub fn panel_players() -> Result<(), BadInput> {
         }
         PANEL.view_a.back.set(u32::MAX);
         PANEL.view_a.front.set(u32::MAX);
-        let a = get(RACE_VIEW.view_blocks[0].get() + 0xFA4)?;
+        let a = get(RACE_VIEW.view_block(0) + 0xFA4)?;
         PANEL.view_a.place.set(a);
-        let b = get(RACE_VIEW.view_blocks[1].get() + 0xFA4)?;
+        let b = get(RACE_VIEW.view_block(1) + 0xFA4)?;
         PANEL.view_b.place.set(b);
     }
     Ok(())
@@ -164,7 +164,7 @@ fn drawn_view() -> Result<u32, Refused> {
     if n > 1 {
         return Err(BadInput("a view past the two").into());
     }
-    Ok(RACE_VIEW.view_blocks[n as usize].get())
+    Ok(RACE_VIEW.view_block(n as usize))
 }
 
 /// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `dword_6415C4`.
@@ -337,9 +337,9 @@ fn panel_half(b: u32, first: bool) -> Result<(), BadInput> {
 // Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
 pub fn panel_values_plain() -> Result<(), BadInput> {
     {
-        let a: u32 = RACE_VIEW.view_blocks[0].get();
+        let a: u32 = RACE_VIEW.view_block(0);
         panel_half(a, true)?;
-        let b: u32 = RACE_VIEW.view_blocks[1].get();
+        let b: u32 = RACE_VIEW.view_block(1);
         panel_half(b, false)?;
     }
     Ok(())
@@ -417,7 +417,7 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         if RACE_VARS.run_kind.bits() != 2 {
             return Ok(());
         }
-        let a = car_at(RACE_VIEW.view_blocks[0].get())?;
+        let a = car_at(RACE_VIEW.view_block(0))?;
         let place = a.mode2_place.get();
         // The place indexes unchecked, as the original does: `dword_604EC8[]`, the car at
         // each place, is `unknown_88c` run on into `arcade_car_kinds`; the numbers'
@@ -482,7 +482,7 @@ pub fn panel_motion_plain() -> Result<(), BadInput> {
             NUMBERS.k65536.get(),
         );
         for (view, out) in [(0, &PANEL.view_a.motion), (1, &PANEL.view_b.motion)] {
-            let b = RACE_VIEW.view_blocks[view].get();
+            let b = RACE_VIEW.view_block(view);
             out[0]
                 .set(motion(car_at(b)?.map_picture_place[0].bits() as i32, half, small).to_bits());
             out[1]
@@ -509,7 +509,7 @@ pub fn panel_marks() -> Result<(), BadInput> {
             }
         }
         for (view, shown) in PANEL.marks.iter().enumerate() {
-            let b: u32 = RACE_VIEW.view_blocks[view].get();
+            let b: u32 = RACE_VIEW.view_block(view);
             let offset = car_at(b)?.car_event_position.bits();
             let count = car_at(b)?.car_event_count.bits();
             let codes = &car_at(b)?.car_event_codes;
@@ -584,7 +584,7 @@ pub fn both_countdown_lights() -> Result<(), BadInput> {
             (0, &RACE_OVERLAY.forget_flag_0),
             (1, &RACE_OVERLAY.forget_flag_1),
         ] {
-            countdown_lights(&PANEL.lights[view], RACE_VIEW.view_blocks[view].get(), flag)?;
+            countdown_lights(&PANEL.lights[view], RACE_VIEW.view_block(view), flag)?;
         }
     }
     Ok(())
@@ -602,8 +602,8 @@ pub fn colour_buffers() -> [&'static [Dword; 64]; 2] {
 pub fn check_split_colours() -> Result<(), Refused> {
     {
         let fill: u32 = SPLIT_TABLES.split_colour_count.get();
-        for view in &RACE_VIEW.view_blocks {
-            let n = car_at(view.get())?.splits_passed.get();
+        for view in 0..2 {
+            let n = car_at(RACE_VIEW.view_block(view))?.splits_passed.get();
             rc2k_core::race::frame::check_split_colours(fill, n)?;
         }
         Ok(())
@@ -616,8 +616,12 @@ pub fn check_split_colours() -> Result<(), Refused> {
 pub fn both_split_colours() -> Result<(), Refused> {
     {
         check_split_colours()?;
-        for (view, buffer) in RACE_VIEW.view_blocks.iter().zip(colour_buffers()) {
-            split_colours(view.get(), buffer, SPLIT_TABLES.split_colour_count.get())?;
+        for (view, buffer) in (0..2).zip(colour_buffers()) {
+            split_colours(
+                RACE_VIEW.view_block(view),
+                buffer,
+                SPLIT_TABLES.split_colour_count.get(),
+            )?;
         }
         Ok(())
     }
@@ -629,7 +633,7 @@ fn check_panel_neighbours() -> Result<(), Refused> {
         if RACE_VARS.run_kind.bits() != 2 {
             return Ok(());
         }
-        let place = car_at(RACE_VIEW.view_blocks[0].get())?.mode2_place.get();
+        let place = car_at(RACE_VIEW.view_block(0))?.mode2_place.get();
         // `dword_604EC8[]` (see `panel_neighbours`) at the place and the one after.
         let first = std::slice::from_ref(&RACE_TABLES.unknown_88c);
         for n in [place, place.wrapping_add(1)] {

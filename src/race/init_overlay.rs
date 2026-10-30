@@ -94,8 +94,8 @@ pub fn init_overlay() -> Result<(), Refused> {
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);
         }
-        for car in &RACE_WORK.car_blocks {
-            let block = car.get();
+        for car in 0..RACE_WORK.car_blocks.len() {
+            let block = RACE_WORK.car_block(car);
             for off in OVERLAY_CLEARED {
                 put(block + off, 0)?;
             }

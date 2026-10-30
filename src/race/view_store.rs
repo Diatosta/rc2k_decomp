@@ -93,7 +93,8 @@ pub struct RaceView {
     pub shown_car: Dword,
     /// +0x1f0 (0x63DBA8): each view's car.
     pub view_cars: [Dword; 2],
-    /// +0x1f8 (0x63DBB0): `g_viewBlocks`: each view's car block.
+    /// +0x1f8 (0x63DBB0): `g_viewBlocks`: each view's car block (by handle:
+    /// `blocks_store::block_ref`; read through `view_block`).
     pub view_blocks: [Dword; 2],
     /// +0x200 (0x63DBB8): cleared by `race::draw_race_scene`.
     pub view_cleared: [Dword; 32],
@@ -122,7 +123,18 @@ unsafe impl crate::pointers::Cells for RaceView {}
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
 pub static RACE_VIEW: RaceView =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+    crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+        crate::race::store::first_values::<{ END - START }>(START),
+        crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
+        2,
+    ));
+
+impl RaceView {
+    /// View `n`'s car block (`g_viewBlocks[n]`, kept by handle: `blocks_store::block_of`).
+    pub fn view_block(&self, n: usize) -> u32 {
+        crate::race::blocks_store::block_of(self.view_blocks[n].get())
+    }
+}
 
 /// IDA 0x63D9B8, the first byte of the piece.
 pub const START: usize = 0x63D9B8;
@@ -143,7 +155,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&RACE_VIEW, START, END);
+        let at = crate::race::blocks_store::VIEW_BLOCKS_IDA - START;
+        crate::gfx::first_values_are_the_games_but(&RACE_VIEW, START, END, |image| {
+            for k in 0..2 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
     }
 
     #[test]

@@ -54,7 +54,7 @@ const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
 fn view_blocks() -> Result<[u32; 2], Refused> {
-    let blocks: [u32; 2] = crate::session::read_bits(&RACE_VIEW.view_blocks);
+    let blocks: [u32; 2] = [RACE_VIEW.view_block(0), RACE_VIEW.view_block(1)];
     if blocks.contains(&0) {
         return Err(BadInput("a null view block").into());
     }

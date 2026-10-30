@@ -53,8 +53,9 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
     if shown.split != split {
         put(v, 6, shown.split);
     }
-    put(v, 9, shown.blocks[0]);
-    put(v, 10, shown.blocks[1]);
+    // The views' blocks kept by handle (`blocks_store::block_ref`).
+    put(v, 9, crate::race::blocks_store::handle_of(shown.blocks[0]));
+    put(v, 10, crate::race::blocks_store::handle_of(shown.blocks[1]));
     for (k, &x) in shown.listed.iter().enumerate() {
         put(v, 11 + k, x);
     }

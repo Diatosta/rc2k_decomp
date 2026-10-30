@@ -2378,6 +2378,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::menu::menus_store::holds_handle(ida) => {}
             Some(_) if crate::audio::store::holds_handle(ida) => {}
             Some(_) if crate::menu::cars_store::holds_handle(ida) => {}
+            Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
             Some((home, _)) => unsafe {
                 let p = crate::pointers::host_at(home) as *mut u32;
                 let target = p.read_unaligned() as usize;

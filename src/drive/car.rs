@@ -32,8 +32,9 @@ impl CarPlaces {
     pub fn block(&self) -> Result<(u32, u32), Refused> {
         use rc2k_core::drive::work_car::{car_block, car_slot};
         let slot = car_slot(GamePtr::new(self.current).read("the current car")?);
-        let block =
-            car_block(GamePtr::new(self.blocks.wrapping_add(4 * slot)).read("a car's block")?)?;
+        // `g_carBlocks` keeps handles (`blocks_store::block_ref`).
+        let handle: u32 = GamePtr::new(self.blocks.wrapping_add(4 * slot)).read("a car's block")?;
+        let block = car_block(crate::race::blocks_store::block_of(handle))?;
         Ok((slot, block))
     }
 }

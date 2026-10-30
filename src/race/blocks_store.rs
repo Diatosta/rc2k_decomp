@@ -48,6 +48,86 @@ pub fn blocks_addr() -> u32 {
     ))
 }
 
+/// A car block by handle (phase 13): what `g_carBlocks` and `g_viewBlocks` hold where the
+/// original kept the block's address. `BLOCK_TAG | n` for block `n`; 0 stays 0.
+pub const BLOCK_TAG: u32 = 0xCB00_0000;
+/// The blocks.
+pub const BLOCK_COUNT: usize = 10;
+
+/// The handle for IDA's `ida` (a block's address, or 0; anything else fails to compile).
+pub const fn block_ref(ida: u32) -> u32 {
+    if ida == 0 {
+        return 0;
+    }
+    let off = ida as usize - START;
+    assert!(
+        ida as usize >= START && off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT
+    );
+    BLOCK_TAG | (off / BLOCK_LEN) as u32
+}
+
+/// `bytes` (a store's first values) with the dwords at `at` .. made `block_ref`s.
+pub const fn with_block_refs<const N: usize>(
+    mut bytes: [u8; N],
+    at: usize,
+    count: usize,
+) -> [u8; N] {
+    let mut k = 0;
+    while k < count {
+        let o = at + 4 * k;
+        let v = u32::from_le_bytes([bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]]);
+        let h = block_ref(v).to_le_bytes();
+        bytes[o] = h[0];
+        bytes[o + 1] = h[1];
+        bytes[o + 2] = h[2];
+        bytes[o + 3] = h[3];
+        k += 1;
+    }
+    bytes
+}
+
+/// Where the block a handle names is (0 for 0). A value that is no handle ends the program
+/// (as `Car::at` does an address off the blocks).
+pub fn block_of(handle: u32) -> u32 {
+    if handle == 0 {
+        return 0;
+    }
+    let n = (handle ^ BLOCK_TAG) as usize;
+    if n >= BLOCK_COUNT {
+        crate::fatal::raise::end(
+            "race::blocks_store::block_of",
+            crate::errors::BadInput("a car block's handle that names none"),
+        );
+    }
+    block_addr(n)
+}
+
+/// The handle of the block at `addr` (0 for 0); an address that is no block's start ends
+/// the program.
+pub fn handle_of(addr: u32) -> u32 {
+    if addr == 0 {
+        return 0;
+    }
+    let off = addr.wrapping_sub(blocks_addr()) as usize;
+    if !off.is_multiple_of(BLOCK_LEN) || off / BLOCK_LEN >= BLOCK_COUNT {
+        crate::fatal::raise::end(
+            "race::blocks_store::handle_of",
+            crate::errors::BadInput("a car block's address off the blocks"),
+        );
+    }
+    BLOCK_TAG | (off / BLOCK_LEN) as u32
+}
+
+/// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles
+/// (`moved::point_into_homes` passes them over).
+pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
+pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
+
+pub fn holds_handle(ida: usize) -> bool {
+    (VIEW_BLOCKS_IDA..VIEW_BLOCKS_IDA + 8).contains(&ida)
+        || (CAR_BLOCKS_IDA..CAR_BLOCKS_IDA + 0x20).contains(&ida)
+}
+
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
 /// only: reading it is the caller's business).
 pub fn block_addr(n: usize) -> u32 {

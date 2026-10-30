@@ -156,7 +156,7 @@ pub fn draw_marks_overlays() -> Result<(), Refused> {
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
 pub fn load_first_car() -> Result<(), Refused> {
-    if RACE_WORK.car_blocks[0].get() == 0 {
+    if RACE_WORK.car_block(0) == 0 {
         return Err(BadInput("car 0 without its block").into());
     }
     RACE_WORK.current_car.set(0);
@@ -267,10 +267,7 @@ pub fn forget_view_textures() -> Result<(), Refused> {
     use rc2k_core::race::view_steps::{
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
-    let blocks = [
-        RACE_VIEW.view_blocks[0].get(),
-        RACE_VIEW.view_blocks[1].get(),
-    ];
+    let blocks = [RACE_VIEW.view_block(0), RACE_VIEW.view_block(1)];
     if blocks.contains(&0) {
         return Err(BadInput("a view without its car block").into());
     }
@@ -463,7 +460,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
         return Ok(());
     }
     let view = RACE_VIEW.drawn_view.get();
-    let block = RACE_VIEW.view_blocks[view as usize].get();
+    let block = RACE_VIEW.view_block(view as usize);
     check_view_marks(
         block,
         |b| RACE_WORK.car_record(b as usize),

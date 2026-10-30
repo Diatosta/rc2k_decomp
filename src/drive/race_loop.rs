@@ -32,7 +32,8 @@ use crate::race::work_store::RACE_WORK;
 use crate::session::{Dword, FLAGS};
 
 fn view_bit(view: &Dword) -> Result<bool, BadInput> {
-    let bits: u32 = GamePtr::new(view.get().wrapping_add(0x468)).read("a view's block")?;
+    let block = crate::race::blocks_store::block_of(view.get());
+    let bits: u32 = GamePtr::new(block.wrapping_add(0x468)).read("a view's block")?;
     Ok(bits & 0x40 != 0)
 }
 

@@ -115,7 +115,7 @@ fn pressed(key: usize) -> bool {
 pub fn race_keys() -> Result<(), Refused> {
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
-    let view = RACE_VIEW.view_blocks[usize::from(second)].bits();
+    let view = RACE_VIEW.view_block(usize::from(second));
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
     // volume_step, flip_bit}`.
     use rc2k_core::race::keys::{
@@ -183,7 +183,7 @@ pub fn race_keys() -> Result<(), Refused> {
             set_car_counter(view, counter)?;
         }
         Some(Key::Shared) => {
-            let counter = flip(RACE_VIEW.view_blocks[0].bits(), SHARED_BIT)?;
+            let counter = flip(RACE_VIEW.view_block(0), SHARED_BIT)?;
             set_both_counters(counter)?;
         }
         None => {}

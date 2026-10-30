@@ -74,7 +74,7 @@ pub fn engine_sound() -> Result<(), Refused> {
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
     }
-    if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_blocks[0].get() == 0 {
+    if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run();

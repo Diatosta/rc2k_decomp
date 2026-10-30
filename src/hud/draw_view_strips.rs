@@ -35,11 +35,11 @@ pub fn draw_view_strips() -> Result<(), Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
         if REPLAY_FILE.hold_car_revs.bits() == 0 {
-            if flashing(RACE_VIEW.view_blocks[0].bits())? {
+            if flashing(RACE_VIEW.view_block(0))? {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
                 draw_view_strip(shown_layout())?;
             }
-            if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].bits())? {
+            if shown_layout() != 0 && flashing(RACE_VIEW.view_block(1))? {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
                 draw_view_strip(shown_layout().wrapping_add(SECOND_VIEW))?;
             }

@@ -37,7 +37,8 @@ const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 pub struct RaceWork {
     /// +0x0 (0x71AFB8): not named.
     pub unknown_0: [Dword; 256],
-    /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, addresses).
+    /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
+    /// `blocks_store::block_ref`).
     pub car_blocks: [Dword; 8],
     /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`).
     pub car_records: [Dword; 8],
@@ -196,9 +197,12 @@ pub struct RaceWork {
 }
 
 impl RaceWork {
-    /// Car `n`'s block (`g_carBlocks[n]`), read as the original reads it: past the eight
-    /// without a check (into `car_records`).
+    /// Car `n`'s block (`g_carBlocks[n]`, kept by handle: `blocks_store::block_of`), read as
+    /// the original reads it: past the eight without a check (into `car_records`).
     pub fn car_block(&self, n: usize) -> u32 {
+        if let Some(cell) = self.car_blocks.get(n) {
+            return crate::race::blocks_store::block_of(cell.get());
+        }
         crate::pointers::read_or_end(
             crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32,
             "a car block's pointer",
@@ -222,7 +226,11 @@ unsafe impl crate::pointers::Cells for RaceWork {}
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
 pub static RACE_WORK: RaceWork =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+    crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+        crate::race::store::first_values::<{ END - START }>(START),
+        crate::race::blocks_store::CAR_BLOCKS_IDA - START,
+        8,
+    ));
 
 /// IDA 0x71AFB8, the first byte of the piece.
 pub const START: usize = 0x71AFB8;
@@ -243,7 +251,15 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&RACE_WORK, START, END);
+        let at = crate::race::blocks_store::CAR_BLOCKS_IDA - START;
+        crate::gfx::first_values_are_the_games_but(&RACE_WORK, START, END, |image| {
+            for k in 0..8 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
     }
 
     #[test]

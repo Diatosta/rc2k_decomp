@@ -54,7 +54,7 @@ fn object() -> u32 {
 
 fn listener() -> u32 {
     if RACE_VIEW.players.get() == 1 {
-        RACE_VIEW.view_blocks[0].get()
+        RACE_VIEW.view_block(0)
     } else {
         crate::physics::car_store::car_addr()
     }
