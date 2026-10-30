@@ -5,6 +5,8 @@
 //! - 6: the camera's record (`sub_43B177`, the texts in `sub_427DB4`).
 //! - 7: the "error list", places kept (`g_errorList`, 0x20 bytes each; the stage's file loads it).
 //! - 8: a car's light places (`g_lightsData`), a flare at the light (`race::car_light_flares`).
+//!   One place a pair: the left is the right's x negated (`light_pair`). The car's real lights
+//!   are copies made at the load (`race::copy_lights_data`), hence "Apply".
 //! - 0xC: the road's height around the car (`sub_42985B`).
 //! - 0x11: the sun's point on the screen (`sub_428D75`).
 //! - 0x12: the course from above (`sub_42935E`; here the checkpoints' line, not its bitmap).
@@ -79,7 +81,7 @@ static KEPT: Mutex<usize> = Mutex::new(0);
 
 /// `v` at IDA's address `ida`, where it lives now (nothing when it cannot be written: the
 /// UI does not end the game).
-fn write_at(ida: usize, v: u32) {
+pub fn write_at(ida: usize, v: u32) {
     let _ = GamePtr::new(crate::moved::place(ida) as u32).write(v, "a debug page's value");
 }
 
@@ -276,6 +278,11 @@ fn lights(ui: &Ui) {
             LIGHT.store(n as u32, Relaxed);
         }
     }
+    ui.same_line();
+    if ui.button("Apply to the car's real lights") {
+        let _ = crate::race::stage_prefs::copy_lights_data();
+    }
+    ui.text_disabled("One place a pair: the left light is the right's x negated");
     let base = LIGHTS + (kind * 12 + light) * 12;
     for (k, label) in ["xoff", "yoff", "zoff"].iter().enumerate() {
         let at = base + 4 * k;

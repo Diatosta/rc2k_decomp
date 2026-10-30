@@ -217,6 +217,9 @@ pub fn build(ui: &Ui) {
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
                     crate::debug::kstar::tab(ui);
                 }
+                if let Some(_tab) = ui.tab_item("Switches") {
+                    crate::debug::switches::tab(ui);
+                }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     rivals(ui);
                 }

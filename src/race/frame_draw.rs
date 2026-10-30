@@ -2478,6 +2478,10 @@ pub fn car_light_flares(b: u32) -> Result<(), Refused> {
         ];
         OBJECT_WORK.other_light.set(0x00F0_F0F0u32);
         place_flare(b, point)?;
+        // Not the original's: the pair's other light, as `light_pair` (the debug UI).
+        if point[0] != 0 {
+            place_flare(b, [point[0].wrapping_neg(), point[1], point[2]])?;
+        }
         return Ok(());
     }
     if FRAME_SWITCHES.other_way.bits() == 0 {

@@ -60,12 +60,14 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
     Ok(())
 }
 
-/// `scene::place_object_points_any` (0x45BDE1). The 3DNow and SSE ways (`sub_45BF89`,
-/// `sub_45C04E`) are not ported: a call of either ended the program ("not ported"), a
-/// refusal ends it now.
+/// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (`sub_45BF89`) is not ported:
+/// a refusal ends the program.
 fn place_object_points_any() -> Result<(), Refused> {
-    if DRAW_SWITCHES.use_3dnow.bits() != 0 || DRAW_SWITCHES.use_sse.bits() != 0 {
-        return Err(BadInput("the 3DNow and SSE ways of placing points are not ported").into());
+    if DRAW_SWITCHES.use_3dnow.bits() != 0 {
+        return Err(BadInput("the 3DNow way of placing points is not ported").into());
+    }
+    if DRAW_SWITCHES.use_sse.bits() != 0 {
+        return crate::scene::place_object_points::place_object_points_sse();
     }
     place_object_points()?;
     Ok(())
