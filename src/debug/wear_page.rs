@@ -4,8 +4,8 @@
 //! `NUMBERS.hundred` (100.0), rounded, a rectangle from (x, y) that long and 4 high in colour
 //! 3; a label or figure: in colour 2 at scale 1 (`debug::draw`). A surface's figure: the
 //! name of the dword's low four bits (`off_5FFFCC`). The original's scratch dwords
-//! (`dword_62403C`, the rectangle's `dword_5C5FD4` .. `E0`) are not written. Its last call,
-//! the rivals' table (`sub_435F43`), is not ported yet.
+//! (`dword_62403C`, the rectangle's `dword_5C5FD4` .. `E0`) are not written. Its last call:
+//! the rivals' table (`debug::rivals`).
 
 use crate::debug::draw::{fill_rect, print, print_fixed, print_hex, print_whole};
 use crate::errors::Refused;
@@ -73,7 +73,7 @@ pub fn draw_wear_bars() -> Result<(), Refused> {
             Item::Bar(..) => {}
         }
     }
-    Ok(())
+    crate::debug::rivals::draw_rivals()
 }
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::race::text_state_store::TEXT_STATE;
 use crate::session::SCREEN;
-use rc2k_core::debug::font::{Frame, print_runs};
+use rc2k_core::debug::font::{Frame, Run, narrow_runs, print_runs};
 
 /// `dword_5C5FEC`: the debug colours (components, one per `g_textMode`); the table's other
 /// 238 are 0.
@@ -42,8 +42,19 @@ fn frame_and_pixel() -> Result<(u32, Vec<u8>, u32), Refused> {
     Ok((pixels, bytes, pixel))
 }
 
-/// `sub_420313`: `text` (to its NUL) at (`x`, `y`), or on from the last print at (0, 0).
-pub fn print(x: u32, y: u32, text: &[u8]) -> Result<(), Refused> {
+/// Not the original's (owner, 2026-10-30: "can they be scaled up with the display?"): the
+/// overlay is laid out for 800 x 600; on a larger screen its places, glyphs and rectangles
+/// are drawn this many times larger (the whole times both sides hold), so the layout keeps
+/// its shape.
+pub fn zoom() -> u32 {
+    (SCREEN.width.get() / 800)
+        .min(SCREEN.height.get() / 600)
+        .max(1)
+}
+
+/// The locked frame as the font's runs see it, its pixels and the pixel's bytes; the pixel
+/// kept in `g_debugPixel16` / `32` as the glyph drawers keep it.
+fn glyph_frame() -> Result<(Frame, u32, Vec<u8>), Refused> {
     let (pixels, bytes, pixel) = frame_and_pixel()?;
     if bytes.len() == 2 {
         TEXT_STATE.debug_pixel_16.set(pixel);
@@ -56,6 +67,23 @@ pub fn print(x: u32, y: u32, text: &[u8]) -> Result<(), Refused> {
         wide: bytes.len() as u32,
         len: pitch.wrapping_mul(SCREEN.height.get()),
     };
+    Ok((frame, pixels, bytes))
+}
+
+/// The runs filled with the pixel's bytes.
+fn fill_runs(runs: Vec<Run>, pixels: u32, bytes: &[u8]) -> Result<(), Refused> {
+    for (at, count) in runs {
+        GamePtr::new(pixels.wrapping_add(at))
+            .write_bytes(&bytes.repeat(count as usize), "the debug font's pixels")?;
+    }
+    Ok(())
+}
+
+/// `sub_420313`: `text` (to its NUL) at (`x`, `y`) (zoomed), or on from the last print at
+/// (0, 0).
+pub fn print(x: u32, y: u32, text: &[u8]) -> Result<(), Refused> {
+    let (frame, pixels, bytes) = glyph_frame()?;
+    let z = zoom();
     let cursor = (
         FRAME_SCRATCH.debug_cursor_x.get(),
         FRAME_SCRATCH.debug_cursor_y.get(),
@@ -63,27 +91,53 @@ pub fn print(x: u32, y: u32, text: &[u8]) -> Result<(), Refused> {
     let mut runs = Vec::new();
     let (end_x, end_y) = print_runs(
         text,
-        (x, y),
+        (x.wrapping_mul(z), y.wrapping_mul(z)),
         cursor,
-        NUMBERS.debug_scale.get(),
+        NUMBERS.debug_scale.get().wrapping_mul(z),
         SCREEN.width.get(),
         frame,
         &mut runs,
     );
-    for (at, count) in runs {
-        GamePtr::new(pixels.wrapping_add(at))
-            .write_bytes(&bytes.repeat(count as usize), "the debug font's pixels")?;
-    }
+    fill_runs(runs, pixels, &bytes)?;
     FRAME_SCRATCH.debug_cursor_x.set(end_x);
     FRAME_SCRATCH.debug_cursor_y.set(end_y);
     Ok(())
 }
 
+/// `sub_4202AB`: at most `count` characters of `text` at (`x`, `y`) (zoomed) in its own
+/// narrow way (`rc2k_core::debug::font::narrow_runs`), each glyph at scale 1
+/// (`sub_420ABB` sets `g_debugScale` 1). Its eax (2 from its caller) is not read.
+pub fn print_narrow(x: u32, y: u32, text: &[u8], count: usize) -> Result<(), Refused> {
+    NUMBERS.debug_scale.set(1);
+    let (frame, pixels, bytes) = glyph_frame()?;
+    let z = zoom();
+    let mut runs = Vec::new();
+    narrow_runs(
+        text,
+        count,
+        (x.wrapping_mul(z), y.wrapping_mul(z)),
+        z,
+        frame,
+        &mut runs,
+    );
+    fill_runs(runs, pixels, &bytes)
+}
+
 /// `sub_41FF44` (`sub_41FFE5` / `sub_420042`): the rectangle (left, top, right, bottom,
 /// inclusive; `dword_5C5FD4` .. `dword_5C5FE0`, here passed in) clamped to the screen and
-/// filled in the colour of `g_textMode` (which the original does not mask: past 0xFF refused).
+/// filled in the colour of `g_textMode` (which the original does not mask: past 0xFF refused);
+/// zoomed (`zoom`) before the clamp.
 pub fn fill_rect(rect: [u32; 4]) -> Result<(), Refused> {
     use rc2k_core::debug::numbers::clamped;
+    // Zoomed (`zoom`): each edge's pixel made a square of `z`.
+    let z = zoom();
+    let [left, top, right, bottom] = rect.map(|v| v.wrapping_mul(z));
+    let rect = [
+        left,
+        top,
+        right.wrapping_add(z - 1),
+        bottom.wrapping_add(z - 1),
+    ];
     if TEXT_STATE.text_mode.get() > 0xFF {
         return Err(BadInput("a debug rectangle's colour past the table").into());
     }

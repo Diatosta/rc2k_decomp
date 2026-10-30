@@ -85,7 +85,7 @@ pub fn draw_pages(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     NUMBERS.debug_scale.set(2);
     let line = format!("page {page}{}\0", if frozen { " frozen" } else { "" });
     // Top right, clear of the pages' items.
-    crate::debug::draw::print(0x2A0, 4, line.as_bytes())?;
+    crate::debug::draw::print(0x2C0, 4, line.as_bytes())?;
     if page == 2 {
         crate::debug::wear_page::draw_wear_bars()?;
     }

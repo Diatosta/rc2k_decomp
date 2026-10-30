@@ -84,6 +84,23 @@ pub fn clamped(
     Some((left, top, columns + 1, rows + 1))
 }
 
+/// `sub_435FEF`: a rival's time (hundredths of a second) as five characters: the seconds
+/// `s` (the hundredths dropped) as tens of minutes (`s / 600`), minutes (the rest over 60),
+/// '-', the seconds' two digits (each the low byte of its quotient plus '0').
+pub fn rival_time(time: u32) -> [u8; 5] {
+    let seconds = time / 100;
+    let (tens, rest) = (seconds / 600, seconds % 600);
+    let (minutes, seconds) = (rest / 60, rest % 60);
+    let digit = |v: u32| (v as u8).wrapping_add(b'0');
+    [
+        digit(tens),
+        digit(minutes),
+        b'-',
+        digit(seconds / 10),
+        digit(seconds % 10),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,6 +122,12 @@ mod tests {
         assert_eq!(text(|t| fixed(-4_321, 0, t)), b"-004321\0xxxx");
         // A million: the first "digit" is ':'.
         assert_eq!(text(|t| fixed(1_000_000, 0, t)), b"+:00000\0xxxx");
+    }
+
+    #[test]
+    fn rival_times() {
+        assert_eq!(&rival_time(12_000), b"02-00");
+        assert_eq!(&rival_time(1000 * 89 + 12_000), b"16-50");
     }
 
     #[test]

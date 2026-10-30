@@ -4,5 +4,6 @@
 
 pub mod draw;
 pub mod overlay;
+pub mod rivals;
 pub mod wear_items;
 pub mod wear_page;

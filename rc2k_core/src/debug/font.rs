@@ -149,6 +149,38 @@ pub fn print_runs(
     (x, y)
 }
 
+/// `sub_4202AB`'s glyph of a character: '=' the dot, '+', '-', a digit, a lower-case letter;
+/// anything else the blank (upper case too).
+pub fn narrow_glyph_of(c: u8) -> u8 {
+    match c {
+        b'=' => DOT,
+        b'+' => PLUS,
+        b'-' => MINUS,
+        b'0'..=b'9' => c - b'0',
+        b'a'..=b'z' => c - b'a' + 10,
+        _ => BLANK,
+    }
+}
+
+/// `sub_4202AB`: the runs of at most `count` characters of `text` (to its NUL) from
+/// (`x`, `y`) at `scale`, each glyph `sub_420ABB`'s; a character 4 `scale` wide, a blank 2
+/// (the original's scale is 1: it steps 2 and 2 more); no wrapping.
+pub fn narrow_runs(
+    text: &[u8],
+    count: usize,
+    (mut x, y): (u32, u32),
+    scale: u32,
+    frame: Frame,
+    runs: &mut Vec<Run>,
+) {
+    for &c in text.iter().take(count).take_while(|&&c| c != 0) {
+        let glyph = narrow_glyph_of(c);
+        glyph_runs(glyph, x, y, scale, frame, runs);
+        let step = if glyph == BLANK { 2 } else { 4 };
+        x = x.wrapping_add(step * scale);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,6 +197,23 @@ mod tests {
         // The minus is one bar in the middle row.
         let lit_at = |r| (0..COLUMNS).filter(|&c| lit(MINUS, c, r)).count();
         assert_eq!([0, 1, 2, 3, 4].map(lit_at), [0, 0, 3, 0, 0]);
+    }
+
+    #[test]
+    fn the_narrow_print_maps_and_steps_its_own_way() {
+        assert_eq!(narrow_glyph_of(b'='), DOT);
+        assert_eq!(narrow_glyph_of(b'A'), BLANK);
+        assert_eq!(narrow_glyph_of(b'b'), 11);
+        let frame = Frame {
+            pitch: 400,
+            wide: 4,
+            len: 400 * 10,
+        };
+        let mut runs = Vec::new();
+        // "1 1": the second '1' 4 + 2 pixels on; the count stops before the third.
+        narrow_runs(b"1 11", 3, (0, 0), 1, frame, &mut runs);
+        assert!(runs.contains(&(4, 1)) && runs.contains(&(4 + 6 * 4, 1)));
+        assert!(!runs.contains(&(4 + 10 * 4, 1)));
     }
 
     #[test]
