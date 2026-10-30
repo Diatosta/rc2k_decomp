@@ -150,11 +150,10 @@ pub fn fill_voice(
         shared,
         &from_file,
         sound_mode & 0x1_0000 != 0,
-        // The record's pointer (pointed at its target's home at start:
-        // `moved::point_into_homes`).
+        // The record's level (`audio::store::VolumeLevel`).
         |factor| {
-            GamePtr::new(factor)
-                .read::<u32>("a sample's volume factor")
+            crate::audio::store::volume_level(factor)
+                .map(|level| level.get())
                 .unwrap_or_else(|e| {
                     failed.set(failed.get().or(Some(e)));
                     0

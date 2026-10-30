@@ -20,7 +20,7 @@
 //! object, a kind of 0x22 or more and a list of names that does not hold 95 of at most 0x100
 //! bytes.
 
-use crate::audio::names_store::SAMPLE_NAMES;
+use crate::audio::names_store::SampleNames;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
@@ -93,9 +93,12 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
     };
     // Converted: `rc2k_core::sound::race::voices` and `sets`.
     use rc2k_core::sound::race::{Set, Voice, sets, voices};
-    let list = |v: Voice| match v {
-        Voice::Male => SAMPLE_NAMES.male_speech.addr(),
-        Voice::Female => SAMPLE_NAMES.female_speech.addr(),
+    // The lists by name key (`audio::store::name_key`: their places in the names).
+    let list = |v: Voice| {
+        (match v {
+            Voice::Male => core::mem::offset_of!(SampleNames, male_speech),
+            Voice::Female => core::mem::offset_of!(SampleNames, female_speech),
+        }) as u32
     };
     let (a, b) = voices(
         crate::sound::store::SoundObject::at(first as u32)?
@@ -108,7 +111,8 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
             .get(),
     );
     let (mut ebx, mut edx) = (list(a), list(b));
-    let (of_first, of_second) = (lengths(ebx as usize)?, lengths(edx as usize)?);
+    let name = |key| crate::audio::store::name_at(key).map(|at| at.addr() as usize);
+    let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
         let records = &crate::audio::store::SAMPLE_RECORDS.records;

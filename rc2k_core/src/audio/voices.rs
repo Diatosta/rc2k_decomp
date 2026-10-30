@@ -53,7 +53,7 @@ pub struct SampleRecord {
     pub copies: i32,
     /// The sample's volume scale out of 0x40 (`audio::prepare_sample`).
     pub scale: u32,
-    /// Points at a volume factor (0: 0x40).
+    /// Names a volume factor, read through the caller's `factor` (0: 0x40).
     pub volume_factor: u32,
     /// Its voices' 3D minimum distance (an f32).
     pub min_distance: u32,

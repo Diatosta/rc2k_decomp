@@ -809,10 +809,95 @@ pub struct SampleRecords {
     pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
 }
 
-/// The records as the image holds them: per record its group, data key (a pointer to the
-/// sample's name), priority, voice kind, copies, scale, volume factor (a pointer), minimum
-/// distance (bits of an f32), volume, pan and frequency; the number is the index and the
-/// first voice and place are 0.
+/// A record's `data_key` (phase 13, handles): its file's name by place in
+/// `names_store::SAMPLE_NAMES` (the original kept the name's address; 0: none). The key is
+/// also what voices sharing a sample are matched by.
+pub const fn name_key(ida: u32) -> u32 {
+    use crate::audio::names_store::SampleNames;
+    if ida == 0 {
+        return 0;
+    }
+    let at = ida as usize;
+    assert!(SampleNames::START <= at && at < SampleNames::START + SampleNames::LEN);
+    (at - SampleNames::START + NAMES_LEAD) as u32
+}
+
+/// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
+const NAMES_LEAD: usize = 12;
+
+/// Where the name of `key` is (`name_key`).
+pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    use crate::audio::names_store::{SAMPLE_NAMES, SampleNames};
+    let at = key as usize;
+    if !(NAMES_LEAD..NAMES_LEAD + SampleNames::LEN).contains(&at) {
+        return Err(crate::errors::BadInput(
+            "a sample record's name key off the names",
+        ));
+    }
+    Ok(crate::pointers::GamePtr::to(&SAMPLE_NAMES).offset(at as u32))
+}
+
+/// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
+/// kept the level's address; 0: none, 0x40).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u32)]
+pub enum VolumeLevel {
+    /// `dword_506958`: `AUDIO.unit_volume_factor`.
+    Unit = 1,
+    /// `dword_755694`: `OPTION_WORK.menu_sounds_a`.
+    MenuSounds = 2,
+    /// `dword_75569C`: `OPTION_WORK.sounds_a`.
+    SoundsA = 3,
+    /// `dword_7556A0`: `OPTION_WORK.sounds_b`.
+    SoundsB = 4,
+}
+
+/// The code of the level at IDA's `ida` (0 for none; another address fails to compile).
+pub const fn level_code(ida: u32) -> u32 {
+    match ida {
+        0 => 0,
+        0x506958 => VolumeLevel::Unit as u32,
+        0x755694 => VolumeLevel::MenuSounds as u32,
+        0x75569C => VolumeLevel::SoundsA as u32,
+        0x7556A0 => VolumeLevel::SoundsB as u32,
+        _ => panic!("a volume factor at no known level"),
+    }
+}
+
+/// The level a record's `volume_factor` names (`level_code`; 0 is no level).
+pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
+    use crate::menu::option_work_store::OPTION_WORK;
+    Ok(match code {
+        1 => &AUDIO.unit_volume_factor,
+        2 => &OPTION_WORK.menu_sounds_a,
+        3 => &OPTION_WORK.sounds_a,
+        4 => &OPTION_WORK.sounds_b,
+        _ => {
+            return Err(crate::errors::BadInput(
+                "a sample record's volume level unknown",
+            ));
+        }
+    })
+}
+
+/// A record's length, and its handles' places in it.
+const RECORD_LEN: usize = core::mem::size_of::<SampleRecord>();
+const KEY_AT: usize = core::mem::offset_of!(SampleRecord, data_key);
+const LEVEL_AT: usize = core::mem::offset_of!(SampleRecord, volume_factor);
+const _: () = assert!(RECORD_LEN == 0x40 && KEY_AT == 0xC && LEVEL_AT == 0x20);
+
+/// Whether IDA's `ida` is a record's name key or volume level: places the image relocated
+/// that hold a handle now (`moved::point_into_homes` passes them over).
+pub fn holds_handle(ida: usize) -> bool {
+    (SAMPLES_IDA..SAMPLES_END).contains(&ida)
+        && matches!((ida - SAMPLES_IDA) % RECORD_LEN, KEY_AT | LEVEL_AT)
+}
+
+/// The records as the image holds them: per record its group, data key (the sample's name,
+/// IDA's address of it), priority, voice kind, copies, scale, volume factor (IDA's address
+/// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
+/// is the index and the first voice and place are 0. The two addresses become handles
+/// (`name_key`, `level_code`).
 const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
     let rows: [[u32; 11]; SAMPLE_COUNT] = [
         [
@@ -2224,12 +2309,12 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
             number: n as u32,
             group: r[0],
             first_voice: 0,
-            data_key: r[1],
+            data_key: name_key(r[1]),
             priority: r[2],
             voice_kind: r[3],
             copies: r[4] as i32,
             scale: r[5],
-            volume_factor: r[6],
+            volume_factor: level_code(r[6]),
             min_distance: r[7],
             volume: r[8],
             pan: r[9],
@@ -2328,10 +2413,24 @@ mod tests {
     #[test]
     fn the_sample_records_start_as_the_games() {
         assert_eq!(size_of::<SampleRecords>(), SAMPLES_END - SAMPLES_IDA);
-        assert_eq!(
-            bytes_of(&SAMPLE_RECORDS, size_of::<SampleRecords>()),
-            image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA)
-        );
+        // The name keys and volume levels are handles: compared by IDA's addresses.
+        let mut mine = bytes_of(&SAMPLE_RECORDS, size_of::<SampleRecords>());
+        let levels = [0, 0x506958u32, 0x755694, 0x75569C, 0x7556A0];
+        for (n, record) in SAMPLE_RECORDS.records.iter().enumerate() {
+            let r = record.get();
+            let key = if r.data_key == 0 {
+                0
+            } else {
+                (r.data_key as usize - NAMES_LEAD + crate::audio::names_store::SampleNames::START)
+                    as u32
+            };
+            let at = n * RECORD_LEN;
+            mine[at + KEY_AT..at + KEY_AT + 4].copy_from_slice(&key.to_le_bytes());
+            mine[at + LEVEL_AT..at + LEVEL_AT + 4]
+                .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
+            assert!(holds_handle(SAMPLES_IDA + at + KEY_AT));
+        }
+        assert_eq!(mine, image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA));
     }
 
     #[test]

@@ -54,7 +54,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
     fn read(&mut self, at: rc2k_core::audio::load::At) -> Result<bool, Refused> {
         use crate::audio::{read_sample_of, samples};
         read_sample_of::read_sample_of(&SAMPLE_RECORDS.records[at.sound as usize].get(), &mut |p| {
-            samples::read_sample_in_game(crate::pointers::GamePtr::new(p))
+            samples::read_sample_in_game(crate::audio::store::name_at(p)?)
         })
     }
     fn new_voice(&mut self, _: rc2k_core::audio::load::At, _: u32) -> Result<u32, Refused> {
