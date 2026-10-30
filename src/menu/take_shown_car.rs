@@ -1,7 +1,7 @@
 //! `menu::take_shown_car` (0x47B29D): the car shown on the car choice given to the current
 //! player.
 //!
-//! In:  esi = the car list (pointers to the cars' entries)
+//! In:  esi = the car list (the cars' descriptions, by handle)
 //! Out: every register preserved
 //!
 //! The current player (`dword_75598C`) gets the entry `dword_755990` of the list: its +0 as
@@ -28,10 +28,12 @@ pub fn take_shown_car(list: u32) -> Result<(), Refused> {
     {
         let entry = crate::pointers::GamePtr::new(list.wrapping_add(shown.wrapping_mul(4)))
             .read::<u32>("take shown car: a game value")?;
-        let number =
-            crate::pointers::GamePtr::new(entry).read::<u32>("take shown car: a game value")?;
-        let no_turbo =
-            crate::pointers::GamePtr::new(entry + 8).read::<u32>("take shown car: a game value")?;
+        // The entry is a description's handle (`cars_store::car_ref`).
+        let description = crate::menu::cars_store::description_ptr(entry)?;
+        let number = description.read::<u32>("a car description's number")?;
+        let no_turbo = description
+            .offset(8)
+            .read::<u32>("a car description's turbo switch")?;
         let at = crate::pointers::GamePtr::new(player_at(current));
         let mut p = at.read::<Player>("the current player")?;
         p.take_car(number, no_turbo);

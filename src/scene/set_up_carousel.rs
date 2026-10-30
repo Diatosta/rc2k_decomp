@@ -112,13 +112,25 @@ fn list_entry(list: u32, n: usize) -> Result<u32, BadInput> {
 /// `rc2k_core::scene::carousel::check_cars`).
 fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
     reading(|read| {
-        carousel::check_cars(
+        let failed = std::cell::Cell::new(None);
+        // A car's number: the first dword of the description its handle names.
+        let number = |car: u32| match crate::menu::cars_store::description_ptr(car)
+            .and_then(|d| d.read::<u32>("a car of the carousel"))
+        {
+            Ok(n) => n,
+            Err(e) => {
+                failed.set(Some(e));
+                u32::MAX
+            }
+        };
+        let checked = carousel::check_cars(
             list,
             |n| read(list.wrapping_add(4 * n as u32)),
-            read,
+            number,
             from_second,
-        )
-    })??;
+        );
+        failed.take().map_or(Ok(checked), Err)
+    })???;
     Ok(())
 }
 
@@ -166,7 +178,8 @@ fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
                 break;
             }
             out.edi = Some(car);
-            let first: u32 = GamePtr::new(car).read("a car of the carousel")?;
+            let first: u32 =
+                crate::menu::cars_store::description_ptr(car)?.read("a car of the carousel")?;
             out.eax = Some(first);
             // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
             // on past the table, into what the image has after it (other statics now:

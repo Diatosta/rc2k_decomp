@@ -11,7 +11,6 @@
 //! Refuses a list without its end within its room.
 
 use crate::errors::BadInput;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::remove_secret_cars::{FIRST, List, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
@@ -29,7 +28,7 @@ const LISTS: [List; 3] = [
 // ---- Rust version ----
 
 pub fn add_clio_car() -> Result<(), BadInput> {
-    let clio = CAR_TABLE.descriptions[33].addr();
+    let clio = crate::menu::cars_store::car_handle(33);
     let mut ends = Vec::new();
     // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
     for list in LISTS {

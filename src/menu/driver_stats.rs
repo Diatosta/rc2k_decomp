@@ -23,7 +23,6 @@
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
@@ -69,15 +68,14 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
         0x21 => 0x17,
         c => c,
     };
-    let entry = if car < 0x100 {
-        CAR_TABLE.cars[car as usize].get()
-    } else {
-        0
-    };
-    if entry == 0 || get(entry + 0x74)? == 0 {
-        return Err(BadInput("a car past 0xFF or without its table"));
+    // The original reads entries up to 0xFF, on past the table's 34: refused there.
+    let table = crate::menu::cars_store::description_ptr(crate::menu::cars_store::car_entry(car)?)?
+        .offset(0x74)
+        .read::<u32>("a car description's table")?;
+    if table == 0 {
+        return Err(BadInput("a car without its table"));
     }
-    get(entry + 0x74)
+    Ok(table)
 }
 
 /// The Rust version (see the header): the registers it leaves.

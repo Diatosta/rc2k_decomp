@@ -36,8 +36,12 @@ pub fn list_car_numbers() -> Result<(), BadInput> {
         for (_, pointers) in LISTS {
             let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
             let reads = CheckedReads::new();
-            let answer =
-                rc2k_core::saves::cars::numbers(&list, |car| reads.dword(car, "a car's number"));
+            let answer = rc2k_core::saves::cars::numbers(&list, |car| {
+                reads.value(
+                    crate::menu::cars_store::description_ptr(car)
+                        .and_then(|d| d.read::<u32>("a car's number")),
+                )
+            });
             found.push(reads.finish(answer)??);
         }
         for ((numbers, _), list) in LISTS.into_iter().zip(found) {

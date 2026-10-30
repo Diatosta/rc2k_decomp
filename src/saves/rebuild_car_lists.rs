@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::car_numbers_store::CAR_NUMBERS;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
 use crate::system::checked_reads::CheckedReads;
@@ -36,10 +35,8 @@ pub fn rebuild_car_lists() -> Result<(), BadInput> {
         let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
         let reads = CheckedReads::new();
         let answer = rc2k_core::saves::cars::pointers(&list, |id| {
-            reads.dword(
-                CAR_TABLE.cars[0].addr() + (4 * id as usize) as u32,
-                "a car table's entry",
-            )
+            // Past the table's 34 the original reads on into the bytes after it: refused.
+            reads.value(crate::menu::cars_store::car_entry(id))
         });
         found.push(reads.finish(answer)??);
     }

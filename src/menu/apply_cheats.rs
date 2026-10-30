@@ -20,7 +20,6 @@
 //! without its end, or without room for a car more.
 
 use crate::errors::BadInput;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
 use crate::race::state_store::RACE_STATE;
@@ -68,9 +67,7 @@ pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
         };
         let (mut first, mut second) = (list(FIRST)?, list(SECOND)?);
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
-            CHEATS[bit]
-                .1
-                .map_or(0, |car| CAR_TABLE.descriptions[car].addr())
+            CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
         CHEAT_VARS.cheats.set(a.cheats);

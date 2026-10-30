@@ -71,7 +71,7 @@ pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<
             crate::strings::units::units(),
         );
         if d != before {
-            crate::pointers::GamePtr::new(record)
+            crate::menu::cars_store::description_ptr(record)?
                 .write::<CarDescription>(d, "a car description")?;
         }
         carry

@@ -4,6 +4,7 @@
 //! with the image's layout, one static; `moved::MOVED` points the range at it. (Split 2026-10-25 from
 //! the front end's block `menu::store`.)
 
+use crate::errors::BadInput;
 use crate::session::{Bytes, Dword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
 
@@ -14,7 +15,8 @@ pub struct CarTable {
     pub name_places: [Dword; 4],
     /// `dword_75649C`: The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair set).
     pub last_car: Dword,
-    /// `off_7564A0`: The addresses of the 34 car descriptions, by car number.
+    /// `off_7564A0`: The 34 car descriptions by car number (handles, `car_ref`: the original
+    /// kept their addresses).
     pub cars: [Dword; 34],
     /// Unreferenced bytes (IDA 0x756528 .. 0x756568).
     pub _gap_756528: Bytes<64>,
@@ -34,40 +36,40 @@ pub static CAR_TABLE: CarTable = CarTable {
     ],
     last_car: Dword::new(0xE),
     cars: [
-        Dword::new(0x756568),
-        Dword::new(0x7565E0),
-        Dword::new(0x756658),
-        Dword::new(0x7566D0),
-        Dword::new(0x756748),
-        Dword::new(0x7567C0),
-        Dword::new(0x756838),
-        Dword::new(0x7568B0),
-        Dword::new(0x756928),
-        Dword::new(0x7569A0),
-        Dword::new(0x756A18),
-        Dword::new(0x756A90),
-        Dword::new(0x756B08),
-        Dword::new(0x756B80),
-        Dword::new(0x756BF8),
-        Dword::new(0x756C70),
-        Dword::new(0x756CE8),
-        Dword::new(0x756D60),
-        Dword::new(0x756DD8),
-        Dword::new(0x756E50),
-        Dword::new(0x756EC8),
-        Dword::new(0x756F40),
-        Dword::new(0x756FB8),
-        Dword::new(0x757030),
-        Dword::new(0x7570A8),
-        Dword::new(0x757120),
-        Dword::new(0x757198),
-        Dword::new(0x757210),
-        Dword::new(0x757288),
-        Dword::new(0x757300),
-        Dword::new(0x757378),
-        Dword::new(0x7573F0),
-        Dword::new(0x757468),
-        Dword::new(0x7574E0),
+        car_cell(0x756568),
+        car_cell(0x7565E0),
+        car_cell(0x756658),
+        car_cell(0x7566D0),
+        car_cell(0x756748),
+        car_cell(0x7567C0),
+        car_cell(0x756838),
+        car_cell(0x7568B0),
+        car_cell(0x756928),
+        car_cell(0x7569A0),
+        car_cell(0x756A18),
+        car_cell(0x756A90),
+        car_cell(0x756B08),
+        car_cell(0x756B80),
+        car_cell(0x756BF8),
+        car_cell(0x756C70),
+        car_cell(0x756CE8),
+        car_cell(0x756D60),
+        car_cell(0x756DD8),
+        car_cell(0x756E50),
+        car_cell(0x756EC8),
+        car_cell(0x756F40),
+        car_cell(0x756FB8),
+        car_cell(0x757030),
+        car_cell(0x7570A8),
+        car_cell(0x757120),
+        car_cell(0x757198),
+        car_cell(0x757210),
+        car_cell(0x757288),
+        car_cell(0x757300),
+        car_cell(0x757378),
+        car_cell(0x7573F0),
+        car_cell(0x757468),
+        car_cell(0x7574E0),
     ],
     _gap_756528: Bytes::new(with_runs::<64>(&[(
         0x0,
@@ -1106,6 +1108,78 @@ pub static CAR_TABLE: CarTable = CarTable {
     ])),
 };
 
+/// A car description by handle (phase 13): what the car table, the car lists and the
+/// carousel keep where the original kept a description's address. `CAR_TAG | n` for
+/// description `n`; 0 (none) and -1 (a list's end) stay as they are.
+pub const CAR_TAG: u32 = 0xCA00_0000;
+
+/// IDA's address of the first description.
+const DESCRIPTIONS_IDA: u32 = 0x756568;
+const DESCRIPTION_LEN: u32 = 0x78;
+const DESCRIPTION_COUNT: u32 = 34;
+
+/// The handle for IDA's `ida` (a description's address, 0 or -1; anything else fails to
+/// compile).
+pub const fn car_ref(ida: u32) -> u32 {
+    if ida == 0 || ida == u32::MAX {
+        return ida;
+    }
+    assert!(
+        DESCRIPTIONS_IDA <= ida
+            && ida < DESCRIPTIONS_IDA + DESCRIPTION_COUNT * DESCRIPTION_LEN
+            && (ida - DESCRIPTIONS_IDA).is_multiple_of(DESCRIPTION_LEN)
+    );
+    CAR_TAG | ((ida - DESCRIPTIONS_IDA) / DESCRIPTION_LEN)
+}
+
+/// A cell holding `car_ref(ida)`.
+pub const fn car_cell(ida: u32) -> Dword {
+    Dword::new(car_ref(ida))
+}
+
+/// The handle of description `n`.
+pub const fn car_handle(n: usize) -> u32 {
+    CAR_TAG | n as u32
+}
+
+/// The description a handle names. Refused: 0, -1 and what is no handle (the original
+/// reads at what it holds as an address).
+pub fn car_of(handle: u32) -> Result<usize, BadInput> {
+    let n = handle ^ CAR_TAG;
+    if n < DESCRIPTION_COUNT {
+        Ok(n as usize)
+    } else {
+        Err(BadInput("a car description's handle that names none"))
+    }
+}
+
+/// Where the description a handle names is (`car_of`).
+pub fn description_ptr(handle: u32) -> Result<crate::pointers::GamePtr, BadInput> {
+    Ok(crate::pointers::GamePtr::to(
+        &CAR_TABLE.descriptions[car_of(handle)?],
+    ))
+}
+
+/// The table's entry for car `number` (refused past the 34: the original reads on into
+/// the bytes after the table as addresses).
+pub fn car_entry(number: u32) -> Result<u32, BadInput> {
+    CAR_TABLE
+        .cars
+        .get(number as usize)
+        .map(Dword::get)
+        .ok_or(BadInput("a car number past the car table"))
+}
+
+/// Whether IDA's `ida` is a place that holds a car handle now: the car table's entries and
+/// the car lists' (`lists_store::CAR_LISTS`; `moved::point_into_homes` passes them over).
+pub fn holds_handle(ida: usize) -> bool {
+    let table = 0x7564A0..0x7564A0 + 4 * DESCRIPTION_COUNT as usize;
+    table.contains(&ida)
+        || crate::menu::lists_store::CAR_LISTS
+            .iter()
+            .any(|&(at, len)| (at..at + 4 * len).contains(&ida))
+}
+
 /// IDA 0x75648C, the first byte of the piece.
 pub const START: usize = 0x75648C;
 /// IDA 0x7585D8, the end of the piece.
@@ -1131,7 +1205,17 @@ mod tests {
         let mine = unsafe {
             std::slice::from_raw_parts(crate::pointers::host(cars_addr()) as *const u8, END - START)
         };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        // The table's entries are handles: the image's addresses made handles to compare.
+        let mut image = image_bytes(START, END - START);
+        for n in 0..DESCRIPTION_COUNT as usize {
+            let at = 0x7564A0 - START + 4 * n;
+            let v = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            image[at..at + 4].copy_from_slice(&car_ref(v).to_le_bytes());
+            assert!(holds_handle(0x7564A0 + 4 * n));
+        }
+        assert_eq!(mine, &image[..]);
+        assert_eq!(car_of(CAR_TABLE.cars[33].get()), Ok(33));
+        assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(CarTable, name_places), 0x75648C);
         at(offset_of!(CarTable, last_car), 0x75649C);

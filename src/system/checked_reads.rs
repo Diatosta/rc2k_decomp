@@ -35,6 +35,14 @@ impl CheckedReads {
         })
     }
 
+    /// A read's value, or 0 with the refusal kept.
+    pub fn value(&self, read: Result<u32, BadInput>) -> u32 {
+        read.unwrap_or_else(|e| {
+            self.keep(e);
+            0
+        })
+    }
+
     /// The core's `answer`, unless a read it asked for was refused.
     pub fn finish<T>(&self, answer: T) -> Result<T, BadInput> {
         self.0.take().map_or(Ok(answer), Err)

@@ -13,25 +13,26 @@ pub use rc2k_core::screens::car_pages::CarDescription;
 
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 
-/// The carousels' entries: a table of 0x100 description pointers.
+/// The carousels' entries: a table of 0x100 description handles (`cars_store::car_ref`).
 const ENTRIES: u32 = 0x100;
 
-/// The description of the entry shown (`dword_755990` through `dword_75A65C`).
+/// The description of the entry shown (`dword_755990` through `dword_75A65C`), by handle.
 pub fn shown_description() -> Result<u32, Refused> {
     let table: u32 = MENU_STATE.carousel.entries.get();
     let entry: u32 = EVENT_STATE.shown_car.get();
     if table == 0 || entry >= ENTRIES {
         return Err(BadInput("no carousel records, or an entry past them").into());
     }
-    let record = crate::pointers::GamePtr::new(table + entry * 4)
-        .read::<u32>("a car description pointer")?;
+    let record =
+        crate::pointers::GamePtr::new(table + entry * 4).read::<u32>("a car description handle")?;
     if record == 0 {
         return Err(BadInput("an entry without its record").into());
     }
     Ok(record)
 }
 
-/// A description read where it lies.
+/// A description by handle (`cars_store::car_ref`).
 pub fn read(description: u32) -> Result<CarDescription, BadInput> {
-    crate::pointers::GamePtr::new(description).read::<CarDescription>("a car description")
+    crate::menu::cars_store::description_ptr(description)?
+        .read::<CarDescription>("a car description")
 }
