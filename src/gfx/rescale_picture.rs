@@ -109,7 +109,7 @@ pub fn rescale_picture() -> Result<(), Refused> {
     // The copy is Rust's memory (phase 12), counted on the list as the game's block
     // was; its rows are read in it, not through the row table (which the original
     // fills with the copy's rows and nothing reads before it is filled again).
-    let list = RESCALE.copy_memory.as_ptr();
+    let list = crate::pointers::GamePtr::to(&RESCALE.copy_memory);
     let row_bytes = from_width.wrapping_mul(4);
     let mut copy = crate::memory::owned::counted(list, from_width.wrapping_mul(from_height) << 2)?;
     let gap: u32 = DECODER.row_gap.get();

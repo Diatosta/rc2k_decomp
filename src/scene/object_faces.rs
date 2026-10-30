@@ -19,7 +19,7 @@ pub const BASE: u32 = 1;
 pub static FACES: Owned<Vec<u8>> = Owned::new("no objects' faces");
 
 /// `bytes` of faces, zeroed, counted on `list`.
-pub fn take(list: *mut crate::memory::MemoryList, bytes: u32) -> Result<(), Refused> {
+pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     FACES.take(list, bytes, vec![0; bytes as usize])?;
     COURSE_LISTS.face_memory.set(BASE);
     Ok(())
@@ -74,7 +74,11 @@ mod tests {
         let kept = COURSE_LISTS.face_memory.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        take(memory.as_mut_ptr() as *mut crate::memory::MemoryList, 0x40).unwrap();
+        take(
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
+            0x40,
+        )
+        .unwrap();
         let face = COURSE_LISTS.face_memory.get() + 0x10;
         write(face, &[3, 0, 0, 0, 9, 9, 0x1C, 5]).unwrap();
         assert_eq!((word(face).unwrap(), byte(face + 6).unwrap()), (3, 0x1C));

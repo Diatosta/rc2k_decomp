@@ -101,8 +101,8 @@ pub fn seal_replay_header() -> Result<(), Refused> {
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     game_write::<u8>(rva(0x719B58), SEAL_VERSION);
     crate::strings::copy_printable::copy_printable(
-        NAME_BUFFERS.player_names.as_ptr() as *const u8, // g_playerNames
-        crate::pointers::host(game_addr(rva(0x719B61))),
+        crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names), // g_playerNames
+        crate::pointers::GamePtr::new(game_addr(rva(0x719B61))),
         0x20,
     )?;
     for &(size, to, from) in &HEADER_MOVES {

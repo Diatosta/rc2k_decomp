@@ -151,7 +151,7 @@ pub fn apply_settings(text: *const u8) -> Result<(), BadInput> {
 }
 
 pub fn read_settings() -> Result<(), BadInput> {
-    match read_text(PATH.as_ptr())? {
+    match read_text(crate::pointers::GamePtr::to(PATH))? {
         Some((text, _)) => apply_settings(text),
         None => Ok(()),
     }

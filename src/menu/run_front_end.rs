@@ -43,7 +43,7 @@ pub fn run_front_end() -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(line, true, 1)
     })?;
     crate::gfx::free_fonts::free_fonts(
-        crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
+        crate::pointers::GamePtr::to(&crate::gfx::glyph_tables::TABLES.memory),
         &FONTS.palettes,
     )?;
     crate::saves::list_car_numbers::list_car_numbers()?;

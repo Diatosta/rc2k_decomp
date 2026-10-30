@@ -47,7 +47,7 @@ pub fn run_installer() -> Result<(), Refused> {
         crate::pointers::game_address(crate::files::state::base_directory()),
         0,
     );
-    i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.as_ptr() as *const u8)?;
+    i::read_languages::read_languages(crate::pointers::GamePtr::to(&INSTALLER_NAMES.lang_cfg))?;
     { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
@@ -86,10 +86,9 @@ pub fn run_installer() -> Result<(), Refused> {
         if INSTALLER_RUN.same_version.get() == 1 {
             INSTALLER_PAGES.record_flag.set(1);
             set_cd(&INSTALLER_PATHS.installed);
-            i::read_record::read_record(
-                Place::from(&crate::install::installer::INSTALL_TEXTS.record_path).ptr()
-                    as *const u8,
-            )?;
+            i::read_record::read_record(crate::pointers::GamePtr::to(
+                &crate::install::installer::INSTALL_TEXTS.record_path,
+            ))?;
             crate::install::installer::wb(
                 crate::pointers::game_address(crate::files::state::base_directory()),
                 0,

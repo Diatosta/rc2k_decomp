@@ -35,7 +35,7 @@ pub fn load_picture_with_overlay(
     if !load_picture(path)? {
         return Ok(true);
     }
-    let list = LEXICON.memory.as_ptr();
+    let list = crate::pointers::GamePtr::to(&LEXICON.memory);
     // The overlay's buffer is Rust's (phase 12, `gfx::picture`), counted on the list as
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {

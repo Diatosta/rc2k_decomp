@@ -1,6 +1,6 @@
 //! The polygon vertex buffer `g_polygonVertices`, typed (phase 7): IDA 0x9605A0 .. 0x960DA0,
 //! 64 transformed and lit vertices (`TLVertex`, 0x20 bytes) in the image's zeroed tail
-//! (`race::store::buffers`). The polygon about to be drawn stands in its first vertices
+//! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
 //! (`g_polygonVertexCount`, `DRAW.polygon_vertex_count`, says how many).
 
 use crate::session::{Dword, Float};
@@ -33,14 +33,13 @@ pub struct PolygonVertices {
     pub vertices: [Vertex; 64],
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const PolygonVertices) }
+        &crate::race::buffers_store::BUFFERS.vertices
     }
 }
 

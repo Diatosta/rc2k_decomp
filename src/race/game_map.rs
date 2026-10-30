@@ -16,7 +16,6 @@ use crate::files::scratch::SCRATCH;
 use crate::gfx::pcx::PCX;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::memory::MemoryList;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Loose};
 
@@ -108,8 +107,8 @@ fn get(at: u32) -> Result<u32, BadInput> {
     GamePtr::new(at).read("a map word")
 }
 
-fn list(bytes: &Bytes<16>) -> *mut MemoryList {
-    bytes.as_ptr().cast()
+fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(bytes)
 }
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.

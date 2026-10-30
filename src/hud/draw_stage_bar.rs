@@ -45,57 +45,55 @@ pub fn bars(
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    unsafe {
-        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
-        let count = get(0x74)?;
-        sb::check(count, kinds.len() as u32, |p, n| {
-            kinds[p as usize][n as usize].get()
-        })?;
-        set(0, sb::SOLID);
-        for (colour, c) in sb::frame(dy, kinds.len() == 2) {
-            quad(Some(colour), c)?;
+    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let count = get(0x74)?;
+    sb::check(count, kinds.len() as u32, |p, n| {
+        kinds[p as usize][n as usize].get()
+    })?;
+    set(0, sb::SOLID);
+    for (colour, c) in sb::frame(dy, kinds.len() == 2) {
+        quad(Some(colour), c)?;
+    }
+    if count == 0 {
+        return Ok(());
+    }
+    HUD.bar_width.set(sb::WIDTH);
+    HUD.ends[0].set_bits(0);
+    HUD.ends[1].set_bits(0);
+    let total = f32::from_bits(get(0x68)?);
+    for n in 0..count {
+        let left = count - n;
+        // `kind` is a byte offset into the colours (the original's, unchecked).
+        let colours: Vec<u32> = kinds
+            .iter()
+            .map(|&k| {
+                let kind: u32 = k[n as usize].get();
+                GamePtr::to(&HUD.stage_colours[0])
+                    .offset(kind)
+                    .read("a stage bar's colour")
+            })
+            .collect::<Result<_, _>>()?;
+        for (to, &c) in colour_vars.iter().zip(&colours) {
+            to.set(c);
         }
-        if count == 0 {
-            return Ok(());
-        }
-        HUD.bar_width.set(sb::WIDTH);
-        HUD.ends[0].set_bits(0);
-        HUD.ends[1].set_bits(0);
-        let total = f32::from_bits(get(0x68)?);
-        for n in 0..count {
-            let left = count - n;
-            let colours: Vec<u32> = kinds
-                .iter()
-                .map(|&k| {
-                    let kind: u32 = k[n as usize].get();
-                    (crate::pointers::host(
-                        crate::pointers::game_address(HUD.stage_colours.as_ptr()) + kind,
-                    ) as *const u32)
-                        .read_unaligned()
-                })
-                .collect();
-            for (to, &c) in colour_vars.iter().zip(&colours) {
-                to.set(c);
+        let end = sb::part_end(
+            RACE_OVERLAY.overlay_part_miles[n as usize].get(),
+            HUD.ends[1].get(),
+            left == 1,
+            total,
+        );
+        HUD.ends[1].set(end);
+        let a = sb::place(sb::WIDTH, HUD.ends[0].get(), total);
+        HUD.point[0].set(a);
+        let b = sb::place(sb::WIDTH, end, total);
+        HUD.point[1].set(b);
+        for q in sb::part_quads(a, b, &colours, left == 1, dy) {
+            if let Some(alpha) = q.alpha {
+                set(0, alpha);
             }
-            let end = sb::part_end(
-                RACE_OVERLAY.overlay_part_miles[n as usize].get(),
-                HUD.ends[1].get(),
-                left == 1,
-                total,
-            );
-            HUD.ends[1].set(end);
-            let a = sb::place(sb::WIDTH, HUD.ends[0].get(), total);
-            HUD.point[0].set(a);
-            let b = sb::place(sb::WIDTH, end, total);
-            HUD.point[1].set(b);
-            for q in sb::part_quads(a, b, &colours, left == 1, dy) {
-                if let Some(alpha) = q.alpha {
-                    set(0, alpha);
-                }
-                quad(q.colour, q.corners)?;
-            }
-            HUD.ends[0].set(end);
+            quad(q.colour, q.corners)?;
         }
+        HUD.ends[0].set(end);
     }
     Ok(())
 }

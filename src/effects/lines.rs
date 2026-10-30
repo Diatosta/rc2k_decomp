@@ -335,7 +335,7 @@ pub fn set_up_blocks() -> Result<(), Refused> {
             .get(k as usize)
             .ok_or(BadInput("more than 8 settings blocks"))?;
         table.take(
-            crate::pointers::host(block + 0x4C) as *mut crate::memory::MemoryList,
+            crate::pointers::GamePtr::new(block + 0x4C),
             bytes,
             vec![[0; 3]; points as usize],
         )?;
@@ -443,7 +443,8 @@ mod lines_work_tests {
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut crate::memory::MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         BLOCK_POINTS[2]
             .take(list, 24, vec![[1, 2, 3], [4, 5, 6]])
             .unwrap();

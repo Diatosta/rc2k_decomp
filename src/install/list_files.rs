@@ -34,14 +34,10 @@ pub fn list_files(pattern: impl Into<crate::place::Place>) -> Result<(), Refused
             // append_directory (edx the pattern's path, ebx the cursor)
             let name = made_name(|at| {
                 let (cursor, _) = crate::files::append_directory::append_directory(
-                    crate::pointers::host(pattern) as *const u8,
-                    crate::pointers::host(at),
+                    crate::pointers::GamePtr::new(pattern),
+                    crate::pointers::GamePtr::new(at),
                 )?;
-                Ok(append_byte(
-                    str_append(find_name(), crate::pointers::game_address(cursor)),
-                    0,
-                )
-                .game())
+                Ok(append_byte(str_append(find_name(), cursor.addr()), 0).game())
             })?;
             let used = FILES.with(|t| t.push(name))?;
             INSTALLER_RUN.file_cursor.set(used);

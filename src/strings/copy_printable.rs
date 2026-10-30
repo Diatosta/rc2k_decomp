@@ -34,10 +34,10 @@ pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
 }
 
 /// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
-pub fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput> {
+pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();
-    if !text.is_null() {
-        let at = crate::pointers::game_address(text);
+    if text.addr() != 0 {
+        let at = text.addr();
         // As far as the original reads: room - 1 characters or the NUL.
         for n in 0..(room as usize).saturating_sub(1) {
             let c = crate::pointers::GamePtr::new(at.wrapping_add(n as u32))
@@ -54,10 +54,13 @@ pub fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput> {
         .ok_or(BadInput("no room for a name: the original runs on"))
 }
 
-pub fn copy_printable(text: *const u8, to: *mut u8, room: u32) -> Result<(), BadInput> {
+pub fn copy_printable(
+    text: crate::pointers::GamePtr,
+    to: crate::pointers::GamePtr,
+    room: u32,
+) -> Result<(), BadInput> {
     let bytes = printable(text, room)?;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
-        .write_bytes(&bytes, "a printable name")?;
+    to.write_bytes(&bytes, "a printable name")?;
     Ok(())
 }
 

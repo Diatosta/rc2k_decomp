@@ -90,10 +90,8 @@ pub fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, Ba
         }
     } else {
         // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-        // SAFETY: the surface's format record is the game's own variable.
-        let format: PixelFormat = unsafe {
-            (crate::pointers::host(surface_format_addr()) as *const PixelFormat).read_unaligned()
-        };
+        let format: PixelFormat = crate::pointers::GamePtr::new(surface_format_addr())
+            .read("the surface's pixel format")?;
         let pixels = width as usize * height as usize;
         let converted = with_picture(|buffer| -> Result<_, BadInput> {
             let bytes = buffer

@@ -18,7 +18,10 @@ pub fn chat_key(key: u8) -> Result<(), Refused> {
         return Ok(());
     }
     if NET.chat_input.get(0) != 0 {
-        crate::net::send_chat::send_chat(NET.player.get(), NET.chat_input.as_ptr() as *const u8)?;
+        crate::net::send_chat::send_chat(
+            NET.player.get(),
+            crate::pointers::GamePtr::to(&NET.chat_input),
+        )?;
         NET.chat_input.set(0, 0);
     }
     Ok(())

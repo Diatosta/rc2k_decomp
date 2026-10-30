@@ -134,8 +134,8 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
             continue;
         }
         if player == 0 {
-            let place = crate::pointers::host_at(name as usize);
-            outside(Call::UserName(crate::pointers::game_address(place)))?;
+            let place = crate::pointers::GamePtr::new(name);
+            outside(Call::UserName(place.addr()))?;
             copy_printable(place, place, USER_NAME_ROOM)?;
             if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                 continue;
@@ -145,8 +145,8 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     }
 
     if NET.machine_name.get(0) == 0 {
-        let place = NET.machine_name.as_ptr();
-        outside(Call::ComputerName(crate::pointers::game_address(place)))?;
+        let place = crate::pointers::GamePtr::to(&NET.machine_name);
+        outside(Call::ComputerName(place.addr()))?;
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
         if NET.machine_name.get(0) == 0 {
             default_name(
@@ -214,9 +214,9 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             crate::saves::load_best_times::load_game_best_times()?;
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings()?,
-        Call::ReadSku => crate::install::read_sku::read_sku(crate::pointers::host_at(
-            SKU.path.addr() as usize,
-        ) as *const u8)?,
+        Call::ReadSku => {
+            crate::install::read_sku::read_sku(crate::pointers::GamePtr::to(&SKU.path))?
+        }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
             crate::settings::read_driver_names::path(),
         )?,

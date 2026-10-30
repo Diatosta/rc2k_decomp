@@ -64,17 +64,11 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     }
     let found = crate::input::axis_found::callback;
     crate::input::di_objects::enum_objects(device2, found, entry, 0);
-    // SAFETY: `instance` is the `DIDEVICEINSTANCEA` the emulation lists (a local of its own,
-    // no allocation of the game's), alive for this call.
-    let (dev_type, guid) = unsafe {
-        (
-            (crate::pointers::host(instance + field!(DiDeviceInstance, dev_type)) as *const u32)
-                .read_unaligned(),
-            (crate::pointers::host(instance + field!(DiDeviceInstance, instance))
-                as *const [u8; 16])
-                .read_unaligned(),
-        )
-    };
+    // `instance` is the `DIDEVICEINSTANCEA` the emulation lists, alive for this call.
+    let dev_type: u32 = GamePtr::new(instance + field!(DiDeviceInstance, dev_type))
+        .read("a listed device's type")?;
+    let guid: [u8; 16] = GamePtr::new(instance + field!(DiDeviceInstance, instance))
+        .read("a listed device's GUID")?;
     put(entry, field!(Controller, dev_type), dev_type)?;
     GamePtr::new(entry)
         .offset(field!(Controller, instance))
@@ -92,8 +86,8 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     // room 0x19 is never refused
     let _ = {
         crate::strings::copy_printable::copy_printable(
-            crate::pointers::host(instance + field!(DiDeviceInstance, instance_name)) as *const u8,
-            crate::pointers::host_at(to),
+            crate::pointers::GamePtr::new(instance + field!(DiDeviceInstance, instance_name)),
+            crate::pointers::GamePtr::new(to as u32),
             NAME_ROOM,
         )
     };

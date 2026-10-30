@@ -18,7 +18,7 @@ pub const BASE: u32 = 1;
 pub static POINTS: Owned<Vec<u8>> = Owned::new("no objects' points");
 
 /// `bytes` of points, zeroed, counted on `list`.
-pub fn take(list: *mut crate::memory::MemoryList, bytes: u32) -> Result<(), Refused> {
+pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     POINTS.take(list, bytes, vec![0; bytes as usize])?;
     COURSE_LISTS.object_points.set(BASE);
     Ok(())
@@ -89,7 +89,11 @@ mod tests {
         let kept = COURSE_LISTS.object_points.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        take(memory.as_mut_ptr() as *mut crate::memory::MemoryList, 36).unwrap();
+        take(
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
+            36,
+        )
+        .unwrap();
         let p = COURSE_LISTS.object_points.get() + 12;
         set_point(p, [1, 2, 3]).unwrap();
         assert_eq!((point(p).unwrap(), word(p + 8).unwrap()), ([1, 2, 3], 3));

@@ -173,25 +173,32 @@ pub fn append_string_by_id(id: u32, cursor: impl Into<Place>) -> Place {
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: impl Into<Place>) -> bool {
-    crate::files::directories::set_current_directory(path.into().ptr())
-        .unwrap_or_else(|e| refuse(e))
+    crate::files::directories::set_current_directory(crate::pointers::GamePtr::new(
+        path.into().game(),
+    ))
+    .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
 pub fn make_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::make_directory(path.into().ptr()).unwrap_or_else(|e| refuse(e)) != 0
+    crate::files::directories::make_directory(crate::pointers::GamePtr::new(path.into().game()))
+        .unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
 pub fn remove_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::remove_directory(path.into().ptr()).unwrap_or_else(|e| refuse(e))
+    crate::files::directories::remove_directory(crate::pointers::GamePtr::new(path.into().game()))
+        .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
 pub fn delete_file(path: impl Into<Place>) -> bool {
-    crate::files::directories::delete_file(path.into().ptr()).unwrap_or_else(|e| refuse(e)) != 0
+    crate::files::directories::delete_file(crate::pointers::GamePtr::new(path.into().game()))
+        .unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.

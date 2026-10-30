@@ -47,8 +47,7 @@ impl ObjectTables {
         let at = self.object_kinds[0]
             .addr()
             .wrapping_add(((object as usize).wrapping_mul(4)) as u32);
-        // SAFETY: as the game's own read, inside the race block.
-        unsafe { (crate::pointers::host_at(at as usize) as *const u32).read_unaligned() }
+        crate::pointers::read_or_end(at, "an object's kind")
     }
 }
 

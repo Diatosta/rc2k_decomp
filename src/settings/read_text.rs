@@ -17,10 +17,15 @@ use crate::settings::TEXT_ROOM;
 
 /// The text (NUL-terminated) and its length, or None if the file was not read.
 /// Refuses what `read_file` refuses.
-pub fn read_text(path: *const u8) -> Result<Option<(*const u8, u32)>, BadInput> {
+pub fn read_text(path: GamePtr) -> Result<Option<(*const u8, u32)>, BadInput> {
     {
         let text = crate::files::scratch::SCRATCH.buffer.as_ptr();
-        let read = read_file(crate::files::game_path(path), text, TEXT_ROOM, 0)?;
+        let read = read_file(
+            path,
+            GamePtr::to(&crate::files::scratch::SCRATCH.buffer),
+            TEXT_ROOM,
+            0,
+        )?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);

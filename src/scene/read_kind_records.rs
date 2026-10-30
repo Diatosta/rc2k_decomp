@@ -62,8 +62,8 @@ pub fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            crate::pointers::host(FILE_NUMBERS.text_addr(file.path)),
-            crate::pointers::host(to),
+            crate::pointers::GamePtr::new(FILE_NUMBERS.text_addr(file.path)),
+            crate::pointers::GamePtr::new(to),
             room as u32,
         )?;
     }

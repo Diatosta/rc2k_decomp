@@ -1,5 +1,5 @@
 //! The engine's lookup tables and the object file's room, typed (phase 7): IDA 0xA23AE4 ..
-//! 0xA8BB54, in the image's zeroed tail (`race::store::buffers`), made by
+//! 0xA8BB54, in the image's zeroed tail (`race::buffers_store`), made by
 //! `scene::fill_engine_tables` at start: the sines (the cosines are the same table 0x400
 //! places on), the arctangents, the noise bytes, the room the object files are read into
 //! and the shuffled words. Names are readings unless IDA's.
@@ -20,14 +20,13 @@ pub struct EngineTables {
     pub shuffled_words: [Word; 0x10000],
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = EngineTables;
     fn deref(&self) -> &EngineTables {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic or a cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const EngineTables) }
+        &crate::race::buffers_store::BUFFERS.engine_tables
     }
 }
 

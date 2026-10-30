@@ -74,10 +74,7 @@ static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex:
 /// `bytes` of course memory counted on `list`, the first `kept` of them held: their game
 /// address.
 fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> {
-    let mut memory = crate::memory::owned::counted(
-        crate::pointers::host(list) as *mut crate::memory::MemoryList,
-        bytes,
-    )?;
+    let mut memory = crate::memory::owned::counted(crate::pointers::GamePtr::new(list), bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
     let lent = crate::pointers::Lent::new(&memory);
@@ -152,7 +149,7 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list() -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        crate::pointers::host(FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH)),
+        crate::pointers::GamePtr::new(FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH)),
         &crate::race::error_list_store::ERROR_LIST.list,
     )?;
     Ok(())

@@ -87,7 +87,7 @@ pub fn take_info(len: u32) -> Result<u32, BadInput> {
 /// The file at game address `path` read whole into the course info from `at` (`count`
 /// bytes at most).
 pub fn read_file_into_info(path: u32, at: u32, count: u32) -> Result<(), BadInput> {
-    let path = crate::pointers::host(path) as *const u8;
+    let path = crate::pointers::GamePtr::new(path);
     INFO.with(|b| {
         let start = at.checked_sub(info_base())? as usize;
         let into = b.get_mut(start..start.checked_add(count as usize)?)?;

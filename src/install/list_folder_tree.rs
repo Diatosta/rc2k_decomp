@@ -37,8 +37,8 @@ fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Pla
     let a2: u32 = a2.into().game();
     crate::menu::event_flow::refuse_here(
         crate::strings::same_text::same_text(
-            crate::pointers::host(a1) as *const u8,
-            crate::pointers::host(a2) as *const u8,
+            crate::pointers::GamePtr::new(a1),
+            crate::pointers::GamePtr::new(a2),
         ),
         "install::list_folder_tree: a name",
     )
@@ -48,14 +48,10 @@ fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Pla
 fn found_path(search: u32) -> Result<Vec<u8>, Refused> {
     made_name(|at| {
         let (cursor, _) = crate::files::append_directory::append_directory(
-            crate::pointers::host(search) as *const u8,
-            crate::pointers::host(at),
+            crate::pointers::GamePtr::new(search),
+            crate::pointers::GamePtr::new(at),
         )?;
-        Ok(append_byte(
-            str_append(find_name(), crate::pointers::game_address(cursor)),
-            0,
-        )
-        .game())
+        Ok(append_byte(str_append(find_name(), cursor.addr()), 0).game())
     })
 }
 
@@ -72,7 +68,7 @@ fn walk(folder: u32) -> Result<(), Refused> {
     }
     loop {
         // list the folder
-        let base = crate::pointers::game_address(crate::files::numbered_path::buffer()); // byte_94E8B0
+        let base = crate::files::numbered_path::buffer().addr(); // byte_94E8B0
         crate::pointers::GamePtr::new(base).write_bytes(&folder, "the search path")?;
         let mut cursor = base.wrapping_add(folder.len() as u32);
         if rb(cursor.wrapping_sub(1)) != b'\\' {
@@ -178,7 +174,7 @@ mod tests {
         path.push(0);
         let memory = vec![0u8; size_of::<MemoryList>()];
         let list_region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_ptr() as *mut MemoryList;
+        let list = crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_ptr()));
         FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
         FILES.take(list, 0x40100, NameTable::default()).unwrap();
         for d in [

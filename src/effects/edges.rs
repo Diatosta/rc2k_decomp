@@ -40,14 +40,15 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
     }
     if done == 0 {
-        let boxes = KIND_BOXES.boxes.addr();
+        let boxes = &KIND_BOXES.boxes;
         let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
         for k in 0..KINDS {
-            x87::scale_record(
-                crate::pointers::host(boxes + 0x30 * k) as *mut u32,
-                scale[0],
-                scale[1],
-            );
+            let at = (0x30 * k) as usize;
+            let record = core::array::from_fn(|i| boxes.get_u32(at + 4 * i));
+            let scaled = x87::scale_record_bits(record, scale[0], scale[1]);
+            for (i, v) in scaled.into_iter().enumerate() {
+                boxes.set_u32(at + 4 * i, v);
+            }
             let f = &KIND_BOXES.kind_floats[k as usize];
             f.set_bits(x87::sub(scale[2], f.bits()));
         }

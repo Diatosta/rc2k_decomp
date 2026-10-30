@@ -61,11 +61,6 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
 
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with
 /// no NUL before its allocation's end is refused.
-/// A host pointer to a path in the game's memory, as the file calls take it.
-pub fn game_path(path: *const u8) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::new(crate::pointers::game_address(path))
-}
-
 pub fn cstring(
     at: crate::pointers::GamePtr,
     what: &str,

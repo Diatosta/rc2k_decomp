@@ -29,7 +29,7 @@ pub type Record = [u32; 8];
 pub static RECORDS: Owned<Vec<Record>> = Owned::new("no point records");
 
 /// The records made, zeroed, counted on `list`.
-pub fn take(list: *mut crate::memory::MemoryList) -> Result<(), Refused> {
+pub fn take(list: crate::pointers::GamePtr) -> Result<(), Refused> {
     RECORDS.take(list, BYTES, vec![[0; 8]; COUNT as usize])?;
     COURSE_LISTS.point_records.set(HELD);
     Ok(())
@@ -177,7 +177,10 @@ mod tests {
         let kept = COURSE_LISTS.point_records.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        take(memory.as_mut_ptr() as *mut crate::memory::MemoryList).unwrap();
+        take(crate::pointers::GamePtr::new(
+            crate::pointers::game_address(memory.as_mut_ptr()),
+        ))
+        .unwrap();
         assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));

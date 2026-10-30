@@ -160,7 +160,10 @@ impl Textures {
     /// The kinds table's entry `n`, read where the original reads it (not checked against
     /// the table: a kind past it reads on into the descriptions).
     pub fn kind_entry(&self, n: usize) -> u32 {
-        unsafe { (self.kinds.as_ptr().cast::<u32>().add(n)).read_volatile() }
+        crate::pointers::read_or_end(
+            crate::pointers::game_address(self.kinds.as_ptr()).wrapping_add(4 * n as u32),
+            "a texture kind",
+        )
     }
 }
 
@@ -278,7 +281,7 @@ pub fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refused> {
     let kept = if path == 0 {
         None
     } else {
-        match { read_texture_picture(crate::pointers::host(path)) }? {
+        match { read_texture_picture(crate::pointers::GamePtr::new(path)) }? {
             (_, _, _, true) => None,
             found => Some(found),
         }

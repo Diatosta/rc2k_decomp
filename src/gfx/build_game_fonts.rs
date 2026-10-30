@@ -81,7 +81,7 @@ fn fatal(code: u32) -> Refused {
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
 pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
-    let list = GAME_FONTS.memory.as_ptr();
+    let list = crate::pointers::GamePtr::to(&GAME_FONTS.memory);
     let bytes = GAME_FONTS
         .units
         .get()
@@ -102,7 +102,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     FONTS.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(list)?;
     build_glyphs(
-        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FNT22)) as *const u8,
+        crate::pointers::GamePtr::to(&crate::gfx::texts::FNT22),
         list,
     )?;
     let table = SHEET.table.get();

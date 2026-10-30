@@ -1,5 +1,5 @@
 //! The checkpoint tables, typed (phase 7): IDA 0x9E3738 .. 0xA12AE4, in the image's zeroed
-//! tail (`race::store::buffers`): for each checkpoint of the stage (up to 5146) its face, its
+//! tail (`race::buffers_store`): for each checkpoint of the stage (up to 5146) its face, its
 //! face count, its angle, its distance, its map place and its nearest replay cameras, then
 //! the two replay camera lists. Names are readings unless IDA's.
 
@@ -33,14 +33,13 @@ pub struct Checkpoints {
     pub replay_cameras_2: [Dword; 1024],
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Checkpoints;
     fn deref(&self) -> &Checkpoints {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const Checkpoints) }
+        &crate::race::buffers_store::BUFFERS.checkpoints
     }
 }
 
@@ -78,6 +77,7 @@ pub const END: usize = 0xA12AE4;
 const _: () = assert!(END - START == core::mem::size_of::<Checkpoints>());
 
 /// Where IDA 0x9E3738 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

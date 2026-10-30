@@ -15,14 +15,14 @@ use std::sync::Mutex;
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
 /// that with the header wraps.
-pub fn count_on(list: *mut MemoryList, bytes: u32) -> Result<(), Refused> {
+pub fn count_on(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     if own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)").into());
     }
-    if list.is_null() || rc2k_core::memory::block_size(bytes).is_none() {
+    if list.addr() == 0 || rc2k_core::memory::block_size(bytes).is_none() {
         return Err(BadInput("no list, or a size that wraps").into());
     }
-    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(list));
+    let at = list;
     let mut l = at.read::<MemoryList>("a memory list")?;
     l.total = l.total.wrapping_add(bytes);
     at.write(l, "a memory list")?;
@@ -35,7 +35,7 @@ pub fn count_on(list: *mut MemoryList, bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: *mut MemoryList, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: crate::pointers::GamePtr, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
@@ -79,7 +79,12 @@ impl<T> Owned<T> {
     }
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
-    pub fn take(&self, list: *mut MemoryList, bytes: u32, value: T) -> Result<(), Refused> {
+    pub fn take(
+        &self,
+        list: crate::pointers::GamePtr,
+        bytes: u32,
+        value: T,
+    ) -> Result<(), Refused> {
         count_on(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
@@ -124,7 +129,7 @@ mod tests {
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let l = memory.as_mut_ptr() as *mut MemoryList;
+        let l = crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         let owned: Owned<[u32; 2]> = Owned::new("no test table");
         assert_eq!(owned.with(|_| ()), Err(BadInput("no test table")));
         owned.take(l, 8, [1, 2]).unwrap();

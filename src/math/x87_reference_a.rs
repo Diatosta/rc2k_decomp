@@ -1447,7 +1447,7 @@ fn comparisons_with_nan() {
         let mut p = r;
         let z = n;
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), z) };
-        let two = plain::normalise_in_place(p.as_mut_ptr(), z);
+        let two = plain::normalise_in_place((&mut p[..3]).try_into().unwrap(), z);
         compare(
             "normalise_in_place (nan zero)",
             EXACT,
@@ -1488,7 +1488,7 @@ fn trigonometry() {
         let lent = (lend(&r), lend(&p));
         unsafe {
             sine_table(step, r.as_mut_ptr(), count);
-            plain::sine_table(step, p.as_mut_ptr(), count);
+            plain::sine_table(step, &mut p[..count as usize]);
         }
         drop(lent);
         compare(
@@ -1506,7 +1506,7 @@ fn trigonometry() {
         let lent = (lend(&r), lend(&p));
         unsafe {
             circle_points(&radius, r.as_mut_ptr(), count, &c, &d);
-            plain::circle_points(&radius, p.as_mut_ptr(), count, &c, &d);
+            plain::circle_points(radius, &mut p, count, c, d);
         }
         drop(lent);
         compare(
@@ -1565,7 +1565,7 @@ fn pointer_functions() {
         }
         let (mut r, mut p) = (v, v);
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), zero) };
-        let two = plain::normalise_in_place(p.as_mut_ptr(), zero);
+        let two = plain::normalise_in_place((&mut p[..3]).try_into().unwrap(), zero);
         compare(
             "normalise_in_place",
             EXACT,
@@ -1578,7 +1578,7 @@ fn pointer_functions() {
         let (x, z) = (g.f(), g.f());
         let (mut rx, mut rz, mut px, mut pz) = (x, z, x, z);
         turn_in_place(&s, &c, &mut rx, &mut rz);
-        plain::turn_in_place(&s, &c, &mut px, &mut pz);
+        plain::turn_in_place(s, c, &mut px, &mut pz);
         compare(
             "turn_in_place",
             EXACT,
@@ -1591,7 +1591,7 @@ fn pointer_functions() {
         let k = g.f();
         let (mut r, mut p) = (row, row);
         scale_row(r.as_mut_ptr(), k);
-        plain::scale_row(p.as_mut_ptr(), k);
+        p = plain::scale_row_bits(p, k);
         compare(
             "scale_row",
             EXACT,
@@ -1607,7 +1607,7 @@ fn pointer_functions() {
         let lent = (lend(&r), lend(&p));
         unsafe {
             ramp_down(r.as_mut_ptr(), count, last, first, by);
-            plain::ramp_down(p.as_mut_ptr(), count, last, first, by);
+            plain::ramp_down(&mut p[..count as usize], last, first, by);
         }
         drop(lent);
         compare(

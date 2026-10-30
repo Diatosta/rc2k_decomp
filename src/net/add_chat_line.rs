@@ -45,18 +45,18 @@ fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
 }
 
 /// The Rust version.
-pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
-    if GamePtr::new(crate::pointers::game_address(message)).read::<u8>("the chat's text")? == 0 {
+pub fn add_chat_line(player: u32, message: GamePtr) -> Result<(), Refused> {
+    if message.read::<u8>("the chat's text")? == 0 {
         return Ok(());
     }
     // "name> text"
     let cursor = str_append(
-        NET.player_block(player).name.as_ptr() as *const u8,
-        NET.chat_text.as_ptr(),
+        GamePtr::to(&NET.player_block(player).name),
+        GamePtr::to(&NET.chat_text),
     )?;
-    GamePtr::new(crate::pointers::game_address(cursor)).write(0x203Eu16, "the chat's text")?;
-    let cursor = str_append(message, cursor.wrapping_add(2))?;
-    GamePtr::new(crate::pointers::game_address(cursor)).write(0u8, "the chat's text")?;
+    cursor.write(0x203Eu16, "the chat's text")?;
+    let cursor = str_append(message, cursor.offset(2))?;
+    cursor.write(0u8, "the chat's text")?;
     let (line, chat, said) = (&NET.chat_line, &NET.chat, &NET.chat_text);
     let mut text = 0usize;
     loop {

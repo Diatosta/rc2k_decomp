@@ -205,14 +205,32 @@ impl ViewerPanelBlock {
         }
     }
 
+    /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
     fn tail_read(&self, ida: usize) -> u32 {
-        // SAFETY: inside the tail (`text_addr` checks); unaligned.
-        unsafe { (crate::pointers::host(self.text_addr(ida)) as *const u32).read_unaligned() }
+        let (n, shift) = Self::tail_cells(ida);
+        let low = self.unknown_3cc[n].get();
+        match shift {
+            0 => low,
+            _ => (low >> shift) | (self.unknown_3cc[n + 1].get() << (32 - shift)),
+        }
     }
 
+    /// `tail_read`'s write: the bytes of the two cells it spans that the dword covers.
     fn tail_write(&self, ida: usize, value: u32) {
-        // SAFETY: as `tail_read`; every other field is a cell, so the bytes are shared.
-        unsafe { (crate::pointers::host(self.text_addr(ida)) as *mut u32).write_unaligned(value) }
+        let (n, shift) = Self::tail_cells(ida);
+        if shift == 0 {
+            self.unknown_3cc[n].set(value);
+            return;
+        }
+        let (low, high) = (&self.unknown_3cc[n], &self.unknown_3cc[n + 1]);
+        low.set(low.get() & !(u32::MAX << shift) | value << shift);
+        high.set(high.get() & (u32::MAX << shift) | value >> (32 - shift));
+    }
+
+    /// The tail's cell holding IDA's `ida` and the dword's bit shift in it.
+    fn tail_cells(ida: usize) -> (usize, u32) {
+        assert!((TAIL..TAIL + 4 * 166).contains(&ida));
+        ((ida - TAIL) / 4, 8 * ((ida - TAIL) % 4) as u32)
     }
 }
 
@@ -235,6 +253,36 @@ pub fn piece_addr() -> u32 {
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    #[test]
+    fn tail_dwords_read_and_write_unaligned() {
+        let _g = crate::store::test_lock();
+        let v = &*VIEWER_PANEL;
+        let kept: Vec<u32> = v.unknown_3cc.iter().map(|c| c.get()).collect();
+        for (k, ida) in [0x5C2CE8, 0x5C2CEB, 0x5C2CEF, 0x5C2CF3]
+            .into_iter()
+            .enumerate()
+        {
+            for (n, c) in v.unknown_3cc.iter().enumerate() {
+                c.set(0xA5A5_0000 | n as u32);
+            }
+            let before: Vec<u8> = crate::pointers::GamePtr::new(v.text_addr(0x5C2CE8))
+                .read_bytes(24, "the tail")
+                .unwrap();
+            let value = 0x1122_3344 + k as u32;
+            v.tail_write(ida, value);
+            let after: Vec<u8> = crate::pointers::GamePtr::new(v.text_addr(0x5C2CE8))
+                .read_bytes(24, "the tail")
+                .unwrap();
+            let mut want = before.clone();
+            want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
+            assert_eq!(after, want, "{ida:#x}");
+            assert_eq!(v.tail_read(ida), value);
+        }
+        for (c, k) in v.unknown_3cc.iter().zip(kept) {
+            c.set(k);
+        }
+    }
 
     #[test]
     fn piece_sits_on_the_race_block() {

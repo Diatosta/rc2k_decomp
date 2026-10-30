@@ -107,7 +107,8 @@ mod target_tests {
         let kept = (ON_PICTURE.load(Relaxed), DRAW_SURFACE.pixels.get());
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut crate::memory::MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         let n = take(Buffer::Overlay, list, 0x100).unwrap();
         ON_PICTURE.store(n, Relaxed);
         DRAW_SURFACE.pixels.set(0);

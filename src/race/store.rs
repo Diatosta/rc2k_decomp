@@ -11,10 +11,7 @@
 //! The code names the variables by IDA's address (`framework::game_addr` takes such an
 //! address here); the inline asm reads them as `[{m} + RVA]` with `m = asm_base()`.
 //!
-//! `buffers`: IDA 0x960000 .. 0xA8C180, the image's zeroed tail (the object file and its
-//! materials, the faces, the replay viewer's blocks and cameras, the sort and depth lists,
-//! the checkpoints' angles, the nearest cameras, the shuffled words, the polygon
-//! vertices); its inline asm reads it as `[{bf} + RVA]` with `bf = buffers_asm_base()`.
+//! The image's zeroed tail after it (IDA 0x960000 .. 0xA8C180) is `race::buffers_store`.
 
 use crate::block;
 
@@ -23,17 +20,6 @@ block!(pub mod vars {
     end: 0x747AD8,
     runs: crate::race::store_data::RUNS,
 });
-
-block!(pub mod buffers {
-    start: 0x960000,
-    end: 0xA8C180,
-    runs: &[],
-});
-
-/// What an RVA of `buffers` is added to in inline asm (`[{bf} + RVA]`).
-pub fn buffers_asm_base() -> u32 {
-    (buffers::base() as u32).wrapping_sub(crate::framework::rva(buffers::START) as u32)
-}
 
 /// The ranges of the block that are its own (IDA start, end): all but the holes and the
 /// pieces that left it (`LEFT`).

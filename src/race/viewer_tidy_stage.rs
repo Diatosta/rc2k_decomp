@@ -55,7 +55,7 @@ fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
         TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
-            crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
+            crate::pointers::GamePtr::to(&crate::gfx::glyph_tables::TABLES.memory),
             &FONTS.palettes,
         )?,
         TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,

@@ -35,12 +35,11 @@ pub fn set_line_turn(line: u32, back: bool) -> Result<(), Refused> {
 /// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
 pub fn scale_rows3(rows: u32) -> Result<(), BadInput> {
     crate::race::trap::span(rows, 36, "a mark's three rows")?;
-    // SAFETY: the nine floats lie in one live region (checked above).
     for n in 0..3 {
-        x87::scale_row(
-            crate::pointers::host(rows + 12 * n) as *mut u32,
-            MASK_CONSTANTS.row_lengths[n as usize].bits(),
-        );
+        let at = GamePtr::new(rows + 12 * n);
+        let row: [u32; 3] = at.read("a mark's row")?;
+        let length = MASK_CONSTANTS.row_lengths[n as usize].bits();
+        at.write(x87::scale_row_bits(row, length), "a mark's row")?;
     }
     Ok(())
 }

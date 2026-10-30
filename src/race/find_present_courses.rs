@@ -21,9 +21,12 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-fn paths() -> [usize; 2] {
+fn paths() -> [crate::pointers::GamePtr; 2] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
-    [p.cdat_src.addr() as usize, p.cdat_files.addr() as usize]
+    [
+        crate::pointers::GamePtr::to(&p.cdat_src),
+        crate::pointers::GamePtr::to(&p.cdat_files),
+    ]
 }
 use rc2k_core::race::stage_objects::COURSES;
 
@@ -37,10 +40,12 @@ pub fn find_present_courses() -> Result<(), Refused> {
         FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
         let present = course_present(paths().len() as u32, |file| {
             BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
-            let mut buffer = DRAW.work_dword.get().to_le_bytes();
-            let path = crate::pointers::host_at(paths()[file as usize]) as *const u8;
-            read_whole_file(path, buffer.as_mut_ptr(), PROBE_BYTES)?;
-            DRAW.work_dword.set(u32::from_le_bytes(buffer));
+            let path = paths()[file as usize];
+            read_whole_file(
+                path,
+                crate::pointers::GamePtr::to(&DRAW.work_dword),
+                PROBE_BYTES,
+            )?;
             Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
         })?;
         if present {

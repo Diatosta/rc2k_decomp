@@ -37,13 +37,13 @@ const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
 pub static NAMES: Place<[u8; NAMES_LEN + POOL_ROOM]> = Place::new([0; NAMES_LEN + POOL_ROOM]);
 
 /// The path of `var\name.cfg`.
-pub fn path() -> *const u8 {
-    PATH.as_ptr()
+pub fn path() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&PATH)
 }
 
 // ---- Rust version ----
 
-pub fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
+pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".

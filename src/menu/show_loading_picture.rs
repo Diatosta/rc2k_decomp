@@ -11,7 +11,7 @@ use crate::gfx::show_picture_file::show_picture_file;
 
 /// The picture shown; what `gfx::show_picture_file` returns (eax: 1, or the path).
 pub fn show_loading_picture() -> Result<u32, crate::errors::Refused> {
-    show_picture_file(crate::pointers::host_at(
-        crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
+    show_picture_file(crate::pointers::GamePtr::to(
+        &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
     ))
 }

@@ -22,12 +22,11 @@ pub use rc2k_core::files::io::ReadResult;
 /// Refuses what `resolve_path` refuses.
 pub fn read_file(
     path: impl GamePath,
-    buffer: *mut u8,
+    to: GamePtr,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
     // Converted: `rc2k_core::files::io::read_file`.
-    let to = GamePtr::new(crate::pointers::game_address(buffer));
     let mut into = to.read_bytes(count as usize, "a file's buffer")?;
     let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
     to.write_bytes(&into, "a file's buffer")?;

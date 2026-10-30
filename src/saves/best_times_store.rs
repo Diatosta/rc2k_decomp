@@ -51,8 +51,8 @@ pub static BEST_TIMES: BestTimes = BestTimes {
 
 impl BestTimes {
     /// The memory list.
-    pub fn list(&self) -> *mut crate::memory::MemoryList {
-        crate::pointers::host(self.memory.addr()) as *mut _
+    pub fn list(&self) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(&self.memory)
     }
 }
 

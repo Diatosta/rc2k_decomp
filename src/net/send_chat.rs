@@ -17,14 +17,11 @@ use crate::net::{lock_received::lock_received, unlock_received::unlock_received}
 use crate::pointers::GamePtr;
 
 /// The Rust version.
-pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
+pub fn send_chat(player: u32, message: GamePtr) -> Result<(), Refused> {
     lock_received();
     add_chat_line(player, message)?;
     unlock_received();
-    let text = crate::files::cstring(
-        GamePtr::new(crate::pointers::game_address(message)),
-        "a chat line",
-    )?;
+    let text = crate::files::cstring(message, "a chat line")?;
     let mut line = vec![b'"'];
     line.extend_from_slice(&text);
     NET.send_buffer.write_at(0, &line, "the send buffer")?;

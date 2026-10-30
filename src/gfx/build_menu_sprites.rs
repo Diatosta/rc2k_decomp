@@ -23,12 +23,12 @@ use crate::menu::loop_store::LOOP_FLAGS;
 
 /// The table's address goes to `sprite_table`.
 pub fn build_menu_sprites(sprite_table: &crate::session::Dword) -> Result<(), Refused> {
-    let list = TABLES.memory.as_ptr();
+    let list = crate::pointers::GamePtr::to(&TABLES.memory);
     begin_glyph_tables()?;
     DECODER.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(list)?;
     build_glyphs(
-        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::MBUTS)) as *const u8,
+        crate::pointers::GamePtr::to(&crate::gfx::texts::MBUTS),
         list,
     )?;
     sprite_table.set(SHEET.table.get());

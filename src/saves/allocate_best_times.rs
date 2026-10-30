@@ -16,7 +16,6 @@
 //! what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::MemoryList;
 use crate::saves::best_times_store::BEST_TIMES;
 use crate::system::checked_reads::CheckedReads;
 use rc2k_core::saves::tables::TABLES;
@@ -45,7 +44,7 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 /// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
 /// (typed, `saves::best_times`, counted on it; `BEST_TIMES.tables` keeps each one's size),
 /// the marked ones ending in -1 (each typed table's own end).
-pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
+pub fn allocate_best_times(list: crate::pointers::GamePtr, records: u32) -> Result<(), Refused> {
     if BEST_TIMES.allocated.get() == 1 {
         return Ok(());
     }

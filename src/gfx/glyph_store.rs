@@ -15,7 +15,6 @@
 //! game address (the image's palettes, a screen's own): read and written there as before.
 
 use crate::errors::BadInput;
-use crate::memory::MemoryList;
 use crate::pointers::{GameBytes, GamePtr};
 use std::sync::{Arc, Mutex};
 
@@ -64,8 +63,8 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`):
 /// its place. Refused when all fifteen are held.
-pub fn new_palette(list: *mut MemoryList) -> Result<u32, BadInput> {
-    let list = crate::pointers::game_address(list);
+pub fn new_palette(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
+    let list = list.addr();
     let mut s = store();
     let id = (1..PALETTE_IDS)
         .find(|&id| s.palettes[id].is_none())
@@ -78,8 +77,8 @@ pub fn new_palette(list: *mut MemoryList) -> Result<u32, BadInput> {
 }
 
 /// A new glyph table, empty: its place. Refused past the places there are.
-pub fn new_table(list: *mut MemoryList) -> Result<u32, BadInput> {
-    let list = crate::pointers::game_address(list);
+pub fn new_table(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
+    let list = list.addr();
     let mut s = store();
     let held = Some(Held {
         list,
@@ -183,9 +182,10 @@ mod tests {
     #[test]
     fn places_are_kept_apart_and_given_back_by_list() {
         let _lock = crate::store::test_lock();
-        let mut memory = vec![0u8; size_of::<MemoryList>()];
+        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         let p = new_palette(list).unwrap();
         let t = new_table(list).unwrap();
         assert!(is_place(p) && is_place(t) && p < TABLE_FIRST && t >= TABLE_FIRST);
@@ -197,7 +197,7 @@ mod tests {
         write_bytes(t, 8, &[7; 4], "a table").unwrap();
         let held = bytes(t, "a table").unwrap();
         assert_eq!((held.byte(11), held.byte(12)), (Some(7), None));
-        give_back(crate::pointers::game_address(list));
+        give_back(list.addr());
         assert!(bytes(p, "a palette").is_err());
         assert!(bytes(t, "a table").is_err());
     }

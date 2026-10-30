@@ -52,10 +52,7 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
     for (n, &v) in dwords.iter().enumerate() {
         GamePtr::new(message + 4 * n as u32).write(v, "the network message")?;
     }
-    send_message(
-        crate::pointers::host(message) as *const u8,
-        4 * dwords.len() as u32,
-    )
+    send_message(GamePtr::new(message), 4 * dwords.len() as u32)
 }
 
 /// The Rust version.

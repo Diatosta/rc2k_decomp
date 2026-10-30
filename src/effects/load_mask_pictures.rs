@@ -134,12 +134,21 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
     // The masks and the picture copy are Rust's (phase 12), counted on their lists
     // as the game's blocks were.
     for (mask, list) in [
-        (Mask::Plain, MASK_BLOCKS.list_a.as_ptr()),
-        (Mask::Bordered, MASK_BLOCKS.list_b.as_ptr()),
+        (
+            Mask::Plain,
+            crate::pointers::GamePtr::to(&MASK_BLOCKS.list_a),
+        ),
+        (
+            Mask::Bordered,
+            crate::pointers::GamePtr::to(&MASK_BLOCKS.list_b),
+        ),
     ] {
         mask.pixels().take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
-    let mut copy = crate::memory::owned::counted(PICTURE_COPY.list.as_ptr(), COPY_BYTES)?;
+    let mut copy = crate::memory::owned::counted(
+        crate::pointers::GamePtr::to(&PICTURE_COPY.list),
+        COPY_BYTES,
+    )?;
     lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
     let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
     if width > MOST_WIDTH {
@@ -162,7 +171,7 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
     crate::scene::forget_slot_texture::forget_slot_texture(
         KIND_TEXTURES.kind_first_slots[202].bits(),
     )?;
-    crate::memory::free_list::free_list(PICTURE_COPY.list.as_ptr())?;
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&PICTURE_COPY.list))?;
     MASK_BLOCKS.seen.set(u32::MAX);
     Ok(())
 }

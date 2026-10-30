@@ -40,11 +40,10 @@ pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::force::take_listed`.
     use rc2k_core::input::force::{Found, Listed, take_listed};
     let guid = |at: u32| GamePtr::new(at).read::<[u8; 16]>("an effect's GUID");
-    // SAFETY: `info` is the `DIEFFECTINFOA` the emulation lists, alive for this call.
-    let listed = unsafe {
+    // `info` is the `DIEFFECTINFOA` the emulation lists, alive for this call.
+    let listed = {
         Listed {
-            guid: (crate::pointers::host(info + field!(DiEffectInfo, guid)) as *const [u8; 16])
-                .read_unaligned(),
+            guid: guid(info + field!(DiEffectInfo, guid))?,
             eff_type: listed_dword(info + field!(DiEffectInfo, eff_type)),
             static_params: listed_dword(info + field!(DiEffectInfo, static_params)),
             dynamic_params: listed_dword(info + field!(DiEffectInfo, dynamic_params)),

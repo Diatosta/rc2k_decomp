@@ -1,5 +1,5 @@
 //! The polygon work area, typed (phase 7): IDA 0x975510 .. 0x9A3730, in the image's zeroed
-//! tail (`race::store::buffers`): the 64 work entries a polygon is built in, the entries kept
+//! tail (`race::buffers_store`): the 64 work entries a polygon is built in, the entries kept
 //! for the fan, the two number lists (the polygon's vertices by entry and the list before a
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.
@@ -163,14 +163,13 @@ pub struct PolygonWork {
     pub object_materials: [ObjectMaterial; 1200],
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonWork;
     fn deref(&self) -> &PolygonWork {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic or a cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const PolygonWork) }
+        &crate::race::buffers_store::BUFFERS.polygon
     }
 }
 
@@ -184,6 +183,7 @@ pub const END: usize = 0x9A3730;
 const _: () = assert!(END - START == core::mem::size_of::<PolygonWork>());
 
 /// Where IDA 0x975510 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

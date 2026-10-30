@@ -51,7 +51,7 @@ pub fn open_installer() -> Result<(), Refused> {
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    let list = INSTALLER_RUN.buffers.as_ptr() as *mut _;
+    let list = crate::pointers::GamePtr::to(&INSTALLER_RUN.buffers);
     FOLDERS.take(list, 0x10100, NameTable::default())?;
     INSTALLER_RUN.dir_scan.set(0);
     INSTALLER_RUN.dir_cursor.set(0);

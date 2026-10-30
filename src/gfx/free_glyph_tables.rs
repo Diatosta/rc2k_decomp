@@ -13,6 +13,6 @@ use crate::gfx::glyph_tables::TABLES;
 
 /// The Rust version (see the header).
 pub fn free_glyph_tables() -> Result<(), Refused> {
-    { crate::memory::free_list::free_list(TABLES.memory.as_ptr()) }?;
+    { crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&TABLES.memory)) }?;
     Ok(())
 }

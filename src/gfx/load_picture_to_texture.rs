@@ -28,7 +28,7 @@ pub fn load_picture_to_texture(
 ) -> Result<(), Refused> {
     let record = Record::of(texture)?;
     keep_second_picture(&record, second)?;
-    let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
+    let (pixels, width, height, _) = read_texture_picture(crate::pointers::GamePtr::new(path))?;
     upload(texture, pixels, width, height)
 }
 

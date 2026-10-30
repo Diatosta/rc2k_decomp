@@ -20,12 +20,11 @@ use crate::pointers::GamePtr;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
-pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
+pub fn send_message(bytes: GamePtr, count: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
     let byte = inbox::next_sequence(NET.sequence.get());
-    let bytes = GamePtr::new(crate::pointers::game_address(bytes))
-        .read_bytes(count as usize, "a message to send")?;
+    let bytes = bytes.read_bytes(count as usize, "a message to send")?;
     let message = inbox::outgoing(byte, &bytes)?;
     NET.sequence.set(byte);
     NET.send_buffer.write_at(0, &message, "the send buffer")?;

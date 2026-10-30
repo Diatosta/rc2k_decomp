@@ -49,19 +49,16 @@ fn distance(point: [u32; 3]) {
 /// `ground_z` less the point's x and z; the last one is left in the scratch
 /// dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into +0x214D04.
 fn distance_at(s: usize) {
-    unsafe {
-        let s = crate::pointers::host_at(s) as *const u8;
-        let word = |p: *const u8| p.cast::<i32>().read_unaligned();
-        let dx = word(s).wrapping_sub(GROUND_WORK.ground_x.get() as i32);
-        DRAW.scratch.set_bits(dx as u32);
-        let first = int(DRAW.scratch.bits() as i32);
-        let dz = word(s.add(8)).wrapping_sub(GROUND_WORK.ground_z.get() as i32);
-        DRAW.scratch.set_bits(dz as u32);
-        let second = int(DRAW.scratch.bits() as i32);
-        PHYSICS.split_point_distance.set_bits(st(
-            (first * first + second * second).sqrt() * ld(NUMBERS.one_over_65536.bits())
-        ));
-    }
+    let word = |o: u32| crate::pointers::read_or_end::<i32>(s as u32 + o, "a split point");
+    let dx = word(0).wrapping_sub(GROUND_WORK.ground_x.get() as i32);
+    DRAW.scratch.set_bits(dx as u32);
+    let first = int(DRAW.scratch.bits() as i32);
+    let dz = word(8).wrapping_sub(GROUND_WORK.ground_z.get() as i32);
+    DRAW.scratch.set_bits(dz as u32);
+    let second = int(DRAW.scratch.bits() as i32);
+    PHYSICS.split_point_distance.set_bits(st(
+        (first * first + second * second).sqrt() * ld(NUMBERS.one_over_65536.bits())
+    ));
 }
 
 /// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
@@ -75,19 +72,16 @@ fn angle(point: [u32; 3]) {
 /// the point's, through the scratch dword +0x22400C), `fpatan`, over pi, x `flt_5C5E40` x
 /// `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
 fn angle_at(s: usize) {
-    unsafe {
-        let s = crate::pointers::host_at(s) as *const u8;
-        let word = |p: *const u8| p.cast::<i32>().read_unaligned();
-        let dx = (GROUND_WORK.ground_x.get() as i32).wrapping_sub(word(s));
-        DRAW.scratch.set_bits(dx as u32);
-        let y = int(DRAW.scratch.bits() as i32);
-        let dz = (GROUND_WORK.ground_z.get() as i32).wrapping_sub(word(s.add(8)));
-        DRAW.scratch.set_bits(dz as u32);
-        let x = int(DRAW.scratch.bits() as i32);
-        let turns = y.atan2_over_pi(x) * ld(NUMBERS.half.bits()) * ld(NUMBERS.k65536.bits());
-        DRAW.scratch.set_bits(to_int(turns) as u32);
-        DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
-    }
+    let word = |o: u32| crate::pointers::read_or_end::<i32>(s as u32 + o, "a split point");
+    let dx = (GROUND_WORK.ground_x.get() as i32).wrapping_sub(word(0));
+    DRAW.scratch.set_bits(dx as u32);
+    let y = int(DRAW.scratch.bits() as i32);
+    let dz = (GROUND_WORK.ground_z.get() as i32).wrapping_sub(word(8));
+    DRAW.scratch.set_bits(dz as u32);
+    let x = int(DRAW.scratch.bits() as i32);
+    let turns = y.atan2_over_pi(x) * ld(NUMBERS.half.bits()) * ld(NUMBERS.k65536.bits());
+    DRAW.scratch.set_bits(to_int(turns) as u32);
+    DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
 }
 
 /// The split's checkpoint, its face and the face's first point (esi), refused or fatal

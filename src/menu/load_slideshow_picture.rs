@@ -26,7 +26,6 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::pointers::GamePtr;
-use crate::strings::text_length::text_length;
 
 // ---- game data ----
 
@@ -50,28 +49,28 @@ pub fn load_slideshow_picture(
     let car = slides::slideshow_car(shown_car()?)?;
     let template = MENU_LISTS.slideshow_templates[car as usize].get();
     let start: u32 = EVENT_STATE.picture.get();
-    let mut path = std::ptr::null_mut();
+    let mut path = GamePtr::new(0);
     slides::search(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            path = numbered_path_in_game(crate::pointers::host(template) as *const u8, number)?
-                as *mut u8;
-            if file_exists_at(crate::files::game_path(path))? {
+            path = numbered_path_in_game(crate::pointers::GamePtr::new(template), number)?;
+            if file_exists_at(path)? {
                 return Ok(true);
             }
-            let length = text_length(path)? as usize;
+            let length =
+                crate::strings::text_length::nul_at(path.addr(), "a picture path")? as usize;
             slides::pcx(crate::menu::event_flow::game_slice(
-                crate::pointers::game_address(path),
+                path.addr(),
                 length as u32,
                 "a picture path",
             )?)?;
-            Ok(file_exists_at(crate::files::game_path(path))?)
+            Ok(file_exists_at(path)?)
         },
         |next| EVENT_STATE.picture.set(next),
     )?;
     let title_bar = GamePtr::to(&crate::menu::texts_store::MENU_TEXTS.titlebar_png);
-    if step(Step::Overlay(crate::files::game_path(path), title_bar))? {
+    if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }
     step(Step::Convert)?;

@@ -157,9 +157,9 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
                     .addr())
                 .wrapping_add(byte)
                 .wrapping_add(block.wrapping_mul(8));
-                let at = crate::pointers::host(byte);
-                let old = unsafe { at.read() };
-                unsafe { at.write(old ^ 1) };
+                let at = crate::pointers::GamePtr::new(byte);
+                let old: u8 = at.read("a replay block's camera byte")?;
+                at.write(old ^ 1, "a replay block's camera byte")?;
                 crate::race::spread_camera::spread_camera(byte, old)?;
             }
         }
@@ -212,10 +212,10 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
         .addr())
     .wrapping_add(byte as u32)
     .wrapping_add(block.wrapping_mul(8));
-    let at = crate::pointers::host(byte_at);
-    let old = unsafe { at.read() };
+    let at = crate::pointers::GamePtr::new(byte_at);
+    let old: u8 = at.read("a replay block's camera byte")?;
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
-    unsafe { at.write(dl) };
+    at.write(dl, "a replay block's camera byte")?;
     crate::race::spread_camera::spread_camera(byte_at, old)
 }
 

@@ -1,5 +1,5 @@
 //! The object faces and the two sort lists, typed (phase 7): IDA 0x9A3730 .. 0x9E3738, in
-//! the image's zeroed tail (`race::store::buffers`). Names are readings unless IDA's.
+//! the image's zeroed tail (`race::buffers_store`). Names are readings unless IDA's.
 
 use crate::session::Dword;
 
@@ -15,14 +15,13 @@ pub struct Faces {
     pub unknown_40000: [Dword; 2],
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Faces;
     fn deref(&self) -> &Faces {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const Faces) }
+        &crate::race::buffers_store::BUFFERS.faces
     }
 }
 
@@ -36,6 +35,7 @@ pub const END: usize = 0x9E3738;
 const _: () = assert!(END - START == core::mem::size_of::<Faces>());
 
 /// Where IDA 0x9A3730 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

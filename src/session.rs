@@ -564,11 +564,6 @@ pub struct Machine {
 }
 
 impl Machine {
-    /// The processor vendor's text (12 bytes).
-    pub fn vendor_addr(&self) -> u32 {
-        crate::pointers::game_address(self.cpu_vendor.as_ptr())
-    }
-
     /// The Windows version record (`OSVERSIONINFOA`, 148 bytes).
     pub fn version_addr(&self) -> u32 {
         crate::pointers::game_address(self.version.as_ptr())

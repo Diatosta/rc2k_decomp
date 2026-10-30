@@ -93,7 +93,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 GamePtr::new(m.size.wrapping_add(m.bytes)).write(0u8, "a received message")?;
                 chat_line_locked(
                     player,
-                    crate::pointers::host(m.bytes.wrapping_add(1)) as *const u8,
+                    crate::pointers::GamePtr::new(m.bytes.wrapping_add(1)),
                 )?;
             }
             Kind::Call { reply, ready } => {
@@ -127,7 +127,7 @@ pub fn take_messages() -> Result<(), Refused> {
                     first,
                     block,
                     time,
-                    crate::pointers::host(m.bytes.wrapping_add(1)) as *const u8,
+                    crate::pointers::GamePtr::new(m.bytes.wrapping_add(1)),
                     length,
                 )?;
                 unlock_received();

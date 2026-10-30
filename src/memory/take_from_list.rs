@@ -20,19 +20,19 @@ use crate::pointers::GamePtr;
 // ---- Rust version ----
 
 /// The address of the bytes, or None if the list has not that many left.
-pub fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option<u32>, BadInput> {
-    if list.is_null() {
+pub fn take_from_list(list: GamePtr, bytes: u32) -> Result<Option<u32>, BadInput> {
+    if list.addr() == 0 {
         return Err(BadInput("no list to take from"));
     }
-    let at = GamePtr::new(crate::pointers::game_address(list));
+    let at = list;
     let mut l = at.read::<MemoryList>("a memory list")?;
     let taken = l.take(bytes);
     at.write(l, "a memory list")?;
     Ok(taken)
 }
 
-pub fn rewind_list(list: *mut MemoryList) -> Result<(), BadInput> {
-    let at = GamePtr::new(crate::pointers::game_address(list));
+pub fn rewind_list(list: GamePtr) -> Result<(), BadInput> {
+    let at = list;
     let mut l = at.read::<MemoryList>("a memory list")?;
     l.rewind();
     at.write(l, "a memory list")

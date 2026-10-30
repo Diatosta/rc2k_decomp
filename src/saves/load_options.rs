@@ -149,15 +149,10 @@ pub struct Places<'a> {
 }
 
 /// `saves::load_options` (see the header).
-pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
+pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(0);
     let file = &crate::files::scratch::SCRATCH.buffer;
-    let read = read_file(
-        crate::files::game_path(path),
-        file.as_ptr(),
-        TEXT_ROOM + 1,
-        0,
-    )?;
+    let read = read_file(path, crate::pointers::GamePtr::to(file), TEXT_ROOM + 1, 0)?;
     use rc2k_core::saves::kept;
     let block = file.read_at(0, TEXT_ROOM as usize + 1, "the options file")?;
     if !read.ok || !kept::head_ok(&block, kept::OPTIONS) {
@@ -182,7 +177,7 @@ pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refuse
 
 pub fn load_game_options() -> Result<bool, Refused> {
     load_options(
-        PATH.as_ptr() as *const u8,
+        crate::pointers::GamePtr::to(&PATH),
         &mut Places {
             loaded: &LOOP_FLAGS.options_loaded,
             piece: &|n| GamePtr::new((crate::moved::place(OPTIONS[n].0 as usize)) as u32),

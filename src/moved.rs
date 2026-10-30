@@ -1093,11 +1093,11 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::gfx::jade_store::JadeFont::LEN,
         home: crate::gfx::jade_store::JadeFont::home,
     },
-    // race: the image's zeroed tail (`race::store::buffers`)
+    // race: the image's zeroed tail (`race::buffers_store`)
     Moved {
-        ida: crate::race::store::buffers::START,
-        len: crate::race::store::buffers::LEN,
-        home: crate::race::store::buffers::base,
+        ida: crate::race::buffers_store::START,
+        len: crate::race::buffers_store::END - crate::race::buffers_store::START,
+        home: crate::race::buffers_store::home,
     },
     // race: the race core (`race::store`), the ranges around the holes and the left pieces
     Moved {

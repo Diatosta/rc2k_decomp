@@ -115,11 +115,11 @@ pub fn make_wave_tables() -> Result<(), Refused> {
     for level in LEVELS.levels.iter().take(WAVE_LEVELS as usize).rev() {
         level.set(x87::int_div_less(level.get() as i32, scale, less));
     }
-    x87::sine_table(
-        WAVE.sine_step.bits(),
-        SINE_TABLE.table.as_ptr() as *mut u32,
-        SINES,
-    );
+    let mut sines = vec![0u32; SINES as usize];
+    x87::sine_table(WAVE.sine_step.bits(), &mut sines);
+    for (cell, &v) in SINE_TABLE.table.iter().zip(&sines) {
+        cell.set_bits(v);
+    }
     WAVE.done.set(target);
     Ok(())
 }
@@ -194,94 +194,95 @@ const QUAD_VALUE_RVAS: (usize, usize) = (rva(0x62409C), rva(0x6240A0));
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
 pub fn make_noise_curve() -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
-    unsafe {
-        let divisors = SNOW_LIGHT.divisors.each_ref().map(|d| d.get() as i32);
-        if !divisors.into_iter().all(core::divisor_fits) {
-            return Err(BadInput("a remainder's divisor is 0, 1 or -1: idiv traps").into());
+    let divisors = SNOW_LIGHT.divisors.each_ref().map(|d| d.get() as i32);
+    if !divisors.into_iter().all(core::divisor_fits) {
+        return Err(BadInput("a remainder's divisor is 0, 1 or -1: idiv traps").into());
+    }
+    for (cell, v) in SNOW_VARS.curve_vars.iter().zip([
+        0u32,
+        core::LEAST_STEP as u32,
+        core::MOST_STEP as u32,
+        core::CHANGE as u32,
+        0,
+    ]) {
+        cell.set(v);
+    }
+    // The roundings follow the x87's control word: the x87's.
+    let (scale, damp) = (SNOW_LIGHT.curve_scale.bits(), SNOW_LIGHT.curve_damp.bits());
+    let w = core::walk(
+        SNOW_VARS.curve_vars[5].get(),
+        |v| x87::int_times_to_int(v, scale),
+        |v| x87::int_times_to_int(v, damp),
+    );
+    SNOW_VARS.curve_vars[5].set(w.sum as u32);
+    SNOW_VARS.curve_vars[0].set(w.value as u32);
+    SNOW_VARS.curve_vars[4].set(w.step as u32);
+    let mut curve = w.curve;
+    let mut copy = vec![0; CURVE_LEN as usize];
+    let weights = SNOW_LIGHT.smooth_weights.each_ref().map(|f| f.bits());
+    for _ in 0..core::SMOOTHINGS {
+        core::smooth(&mut curve, &mut copy, |a, b, c| {
+            x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
+        });
+    }
+    for (cell, v) in SNOW_CURVE.curve.iter().zip(&curve) {
+        cell.set(*v as u32);
+    }
+    for (cell, v) in SNOW_CURVE.copy.iter().zip(&copy) {
+        cell.set(*v as u32);
+    }
+    let mut copy: Vec<i32> = SNOW_CURVE.copy.iter().map(|c| c.get() as i32).collect();
+    let (last, first) = (copy[0xFFF], copy[0]);
+    x87::ramp_down(
+        &mut copy[..0xFFE],
+        last,
+        first,
+        SNOW_LIGHT.ramp_by.get() as i32,
+    );
+    for (cell, &v) in SNOW_CURVE.copy.iter().zip(&copy) {
+        cell.set(v as u32);
+    }
+    let (spread_scale, spread_base): (u32, u32) = (
+        SNOW_LIGHT.spread_scale.bits(),
+        SNOW_LIGHT.spread_base.bits(),
+    );
+    let t = core::random_tables(w.seed, divisors);
+    for (cells, table) in SNOW_TABLES.randoms.iter().zip(&t.randoms) {
+        for (cell, v) in cells.iter().zip(table) {
+            cell.set(*v);
         }
-        for (cell, v) in SNOW_VARS.curve_vars.iter().zip([
-            0u32,
-            core::LEAST_STEP as u32,
-            core::MOST_STEP as u32,
-            core::CHANGE as u32,
-            0,
-        ]) {
-            cell.set(v);
+    }
+    let spread = t
+        .threes
+        .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
+    for (cell, v) in SNOW_TABLES.spreads.iter().zip(spread) {
+        cell.set_bits(v);
+    }
+    for (cells, table) in SNOW_TABLES.remainders.iter().zip(&t.remainders) {
+        for (cell, v) in cells.iter().zip(table) {
+            cell.set(*v);
         }
-        // The roundings follow the x87's control word: the x87's.
-        let (scale, damp) = (SNOW_LIGHT.curve_scale.bits(), SNOW_LIGHT.curve_damp.bits());
-        let w = core::walk(
-            SNOW_VARS.curve_vars[5].get(),
-            |v| x87::int_times_to_int(v, scale),
-            |v| x87::int_times_to_int(v, damp),
-        );
-        SNOW_VARS.curve_vars[5].set(w.sum as u32);
-        SNOW_VARS.curve_vars[0].set(w.value as u32);
-        SNOW_VARS.curve_vars[4].set(w.step as u32);
-        let mut curve = w.curve;
-        let mut copy = vec![0; CURVE_LEN as usize];
-        let weights = SNOW_LIGHT.smooth_weights.each_ref().map(|f| f.bits());
-        for _ in 0..core::SMOOTHINGS {
-            core::smooth(&mut curve, &mut copy, |a, b, c| {
-                x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
-            });
+    }
+    MARKS_WORK.seed.set(t.seed);
+    SNOW.flag.set(0);
+    let values = SNOW_LIGHT.record_values.each_ref().map(|f| f.bits());
+    let layout = core::record_values(values);
+    for n in 0..CURVE_RECORDS as usize {
+        for &(o, v) in &layout {
+            SNOW_VARS.records[n][o as usize / 4].set(v);
         }
-        for (cell, v) in SNOW_CURVE.curve.iter().zip(&curve) {
-            cell.set(*v as u32);
-        }
-        for (cell, v) in SNOW_CURVE.copy.iter().zip(&copy) {
-            cell.set(*v as u32);
-        }
-        let copy = SNOW_CURVE.copy.as_ptr() as *mut i32;
-        x87::ramp_down(
-            copy,
-            0xFFE,
-            copy.add(0xFFF).read_unaligned(),
-            copy.read_unaligned(),
-            SNOW_LIGHT.ramp_by.get() as i32,
-        );
-        let (spread_scale, spread_base): (u32, u32) = (
-            SNOW_LIGHT.spread_scale.bits(),
-            SNOW_LIGHT.spread_base.bits(),
-        );
-        let t = core::random_tables(w.seed, divisors);
-        for (cells, table) in SNOW_TABLES.randoms.iter().zip(&t.randoms) {
-            for (cell, v) in cells.iter().zip(table) {
-                cell.set(*v);
-            }
-        }
-        let spread = t
-            .threes
-            .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
-        for (cell, v) in SNOW_TABLES.spreads.iter().zip(spread) {
+    }
+    let first = x87::loaded(SNOW_LIGHT.quad_first.bits());
+    for cell in &SNOW.quad_a {
+        cell.set_bits(first);
+    }
+    for (quad, rva) in [
+        (&SNOW.quad_b, QUAD_VALUE_RVAS.0),
+        (&SNOW.quad_c, QUAD_VALUE_RVAS.1),
+    ] {
+        let v: u32 = game_read(rva);
+        for cell in quad {
             cell.set_bits(v);
-        }
-        for (cells, table) in SNOW_TABLES.remainders.iter().zip(&t.remainders) {
-            for (cell, v) in cells.iter().zip(table) {
-                cell.set(*v);
-            }
-        }
-        MARKS_WORK.seed.set(t.seed);
-        SNOW.flag.set(0);
-        let values = SNOW_LIGHT.record_values.each_ref().map(|f| f.bits());
-        let layout = core::record_values(values);
-        for n in 0..CURVE_RECORDS as usize {
-            for &(o, v) in &layout {
-                SNOW_VARS.records[n][o as usize / 4].set(v);
-            }
-        }
-        let first = x87::loaded(SNOW_LIGHT.quad_first.bits());
-        for cell in &SNOW.quad_a {
-            cell.set_bits(first);
-        }
-        for (quad, rva) in [
-            (&SNOW.quad_b, QUAD_VALUE_RVAS.0),
-            (&SNOW.quad_c, QUAD_VALUE_RVAS.1),
-        ] {
-            let v: u32 = game_read(rva);
-            for cell in quad {
-                cell.set_bits(v);
-            }
         }
     }
     Ok(())

@@ -66,12 +66,7 @@ pub fn start_log() -> Result<(), BadInput> {
     // the memory and the drive's numbers left in game memory as the original leaves
     // them), then each message logged as the original's call.
     use rc2k_core::files::log::{Machine, Message, head};
-    let c_text = |p: *const u8| {
-        crate::files::cstring(
-            crate::pointers::GamePtr::new(crate::pointers::game_address(p)),
-            "a start-up text",
-        )
-    };
+    let c_text = |p: crate::pointers::GamePtr| crate::files::cstring(p, "a start-up text");
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
     let scratch = scratch();
@@ -81,12 +76,14 @@ pub fn start_log() -> Result<(), BadInput> {
     let free = free_space_kb();
     FREE_SPACE_KB.store(free, Ordering::Relaxed);
     let m = Machine {
-        date: c_text(scratch)?,
+        date: c_text(crate::pointers::GamePtr::new(
+            crate::pointers::game_address(scratch),
+        ))?,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
         cpu_family: M.cpu_family.get() as i32,
         cpu_flags: M.cpu_signature.get(),
-        cpu_name: c_text(crate::pointers::host(M.vendor_addr()) as *const u8)?,
+        cpu_name: c_text(crate::pointers::GamePtr::to(&M.cpu_vendor))?,
         clock: M.cpu_mhz.get() as i32,
         fpu: M.has_fpu.get() as i32,
         mmx: M.found_mmx.get() as i32,
@@ -99,9 +96,7 @@ pub fn start_log() -> Result<(), BadInput> {
             M.version[2].get() as i32,
             (M.version[3].get() & 0xFFFF) as i32,
         ],
-        platform_text: c_text(
-            crate::pointers::host_at((M.version_addr() + 0x14) as usize) as *const u8
-        )?,
+        platform_text: c_text(crate::pointers::GamePtr::new(M.version_addr() + 0x14))?,
         memory,
         free_kb: free,
     };

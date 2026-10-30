@@ -619,10 +619,9 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
         spline_checks(o)?;
     }
     if loaded == 0 {
-        let file = SPLINE_HEAD.file.addr();
         crate::files::read_whole_file::read_whole_file(
-            SPLINE_PATH.path.as_ptr() as *const u8,
-            crate::pointers::host(file),
+            GamePtr::to(&SPLINE_PATH.path),
+            GamePtr::to(&SPLINE_HEAD.file),
             FILE_LEN,
         )?;
         SPLINE_KINDS.loaded.set_bits(resume);

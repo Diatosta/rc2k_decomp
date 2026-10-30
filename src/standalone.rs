@@ -562,17 +562,17 @@ fn start() {
     rust("system::check_developer_machine");
     crate::system::check_developer_machine::check_developer_machine();
     rust("install::read_languages");
-    if let Err(e) = crate::install::read_languages::read_languages(crate::pointers::host_at(
-        INSTALLER_NAMES.lang_cfg.addr() as usize,
-    ) as *const u8)
+    if let Err(e) = crate::install::read_languages::read_languages(crate::pointers::GamePtr::to(
+        &INSTALLER_NAMES.lang_cfg,
+    ))
     .map_err(Refused::from)
     {
         refused("install::read_languages", e, &r);
     }
     rust("install::read_record");
-    if let Err(e) = crate::install::read_record::read_record(crate::pointers::host_at(
-        crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
-    ) as *const u8)
+    if let Err(e) = crate::install::read_record::read_record(crate::pointers::GamePtr::to(
+        &crate::install::installer::INSTALL_TEXTS.record_path,
+    ))
     .map_err(Refused::from)
     {
         refused("install::read_record", e, &r);

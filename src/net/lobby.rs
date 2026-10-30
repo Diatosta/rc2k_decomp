@@ -178,7 +178,7 @@ pub fn copy_printable(
             crate::strings::copy_printable::printable_from(&rest, room)?
         }
         Place::At(a) => {
-            crate::strings::copy_printable::printable(crate::pointers::host(a) as *const u8, room)?
+            crate::strings::copy_printable::printable(crate::pointers::GamePtr::new(a), room)?
         }
     };
     to.into().write(&bytes, "a printable name")?;

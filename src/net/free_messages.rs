@@ -13,7 +13,7 @@ use crate::net::store::NET;
 
 /// The Rust version.
 pub fn free_messages() -> Result<(), Refused> {
-    { crate::memory::free_list::free_list(NET.memory.as_ptr() as *mut _) }?;
+    { crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&NET.memory)) }?;
     crate::net::tables::NET_TABLES.give_back();
     crate::net::lobby::give_back_lobby_settings();
     for cell in [

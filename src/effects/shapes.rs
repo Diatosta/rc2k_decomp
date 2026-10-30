@@ -237,7 +237,7 @@ fn circle_cells(r: u32, out: &[Float], count: u32, c: u32, d: u32) {
         *b = f.bits();
     }
     let c = c as i32;
-    x87::circle_points(&r, buf.as_mut_ptr(), count, &c, &d);
+    x87::circle_points(r, buf, count, c, d);
     for (f, &b) in out.iter().zip(buf.iter()) {
         f.set_bits(b);
     }

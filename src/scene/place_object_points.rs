@@ -178,7 +178,10 @@ pub fn place_object_points() -> Result<(), Refused> {
     if object.points <= 0 {
         return Ok(());
     }
-    let matrix = crate::pointers::host(object.matrix) as *const u32;
+    // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
+    let matrix: [u32; 16] =
+        crate::pointers::GamePtr::new(object.matrix).read("the object's matrix")?;
+    let matrix = matrix.as_ptr();
     let move_by: u32 = RACE_VARS.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

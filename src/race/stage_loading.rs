@@ -58,8 +58,8 @@ pub fn load_stage() -> Result<(), Refused> {
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(crate::pointers::host_at(
-            crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
+        crate::gfx::show_picture_file::show_picture_file(crate::pointers::GamePtr::to(
+            &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
         ))?;
     }
     REPLAY_FRAMES.last_kept.set(u32::MAX);

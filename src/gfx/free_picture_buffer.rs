@@ -22,5 +22,5 @@ pub fn free_picture_buffer() -> Result<(), BadInput> {
     PICTURE.flags.set(0u32);
     PICTURE.buffer.set(0u32);
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Main);
-    crate::memory::free_list::free_list(PICTURE.list.as_ptr())
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&PICTURE.list))
 }

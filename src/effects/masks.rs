@@ -173,7 +173,7 @@ pub fn make_masks() -> Result<(), Refused> {
     let ring_angles = [MASKS.ring_angles_a.addr(), MASKS.ring_angles_b.addr()];
     let masks = [MASKS.mask_a.addr(), MASKS.mask_b.addr()];
     let pixel_tables = [PICKS.pixel_table_a.addr(), PICKS.pixel_table_b.addr()];
-    let list = MASKS.list.as_ptr() as *mut crate::memory::MemoryList;
+    let list = crate::pointers::GamePtr::to(&MASKS.list);
     MASK_WORK.take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
     crate::effects::shape_points::make_shape_sets()?;
     crate::effects::corners::make_corners()?;

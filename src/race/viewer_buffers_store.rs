@@ -1,5 +1,5 @@
 //! The replay viewer's buffers, typed (phase 7): IDA 0x960FA0 .. 0x975510, in the image's
-//! zeroed tail (`race::store::buffers`): the panel fonts' colours, the block read from the
+//! zeroed tail (`race::buffers_store`): the panel fonts' colours, the block read from the
 //! replay file and the write cursor in it, the blocks' cameras, the one undo, the two marks,
 //! the clipboard and the two file handles of `race::save_viewed_replay`.
 //! Names are readings unless IDA's.
@@ -43,14 +43,13 @@ pub struct ViewerBuffers {
     pub to_file: Dword,
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = ViewerBuffers;
     fn deref(&self) -> &ViewerBuffers {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is an atomic or a cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ViewerBuffers) }
+        &crate::race::buffers_store::BUFFERS.viewer
     }
 }
 
@@ -99,6 +98,7 @@ pub const END: usize = 0x975510;
 const _: () = assert!(END - START == core::mem::size_of::<ViewerBuffers>());
 
 /// Where IDA 0x960FA0 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

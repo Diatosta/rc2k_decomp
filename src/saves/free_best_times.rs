@@ -9,7 +9,6 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::saves::best_times_store::BEST_TIMES;
 
@@ -17,7 +16,7 @@ use crate::saves::best_times_store::BEST_TIMES;
 
 // ---- Rust version ----
 
-pub fn free_best_times(list: *mut MemoryList) -> Result<(), BadInput> {
+pub fn free_best_times(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     free_list(list)?;
     crate::saves::best_times::give_back_all();
     BEST_TIMES.allocated.set(0);

@@ -304,6 +304,12 @@ pub enum Operand {
         reads: &'static [(usize, In)],
         writes: &'static [(usize, Out)],
     },
+    /// The image's zeroed tail (`race::buffers_store::BUFFERS`), as `RaceBlock`: the places
+    /// are RVAs; the register is the static's address less its first byte's RVA.
+    Buffers {
+        reads: &'static [(usize, In)],
+        writes: &'static [(usize, Out)],
+    },
 }
 
 /// An operand's places read and written.
@@ -312,9 +318,9 @@ type Places = (&'static [(usize, In)], &'static [(usize, Out)]);
 impl Operand {
     fn places(&self) -> Option<Places> {
         match *self {
-            Operand::Buffer { reads, writes } | Operand::RaceBlock { reads, writes } => {
-                Some((reads, writes))
-            }
+            Operand::Buffer { reads, writes }
+            | Operand::RaceBlock { reads, writes }
+            | Operand::Buffers { reads, writes } => Some((reads, writes)),
             Operand::Value(_) => None,
         }
     }
@@ -417,8 +423,14 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                         args.push((crate::pointers::game_address(v.as_mut_ptr())) as usize);
                         buffers.push(Mem::Buffer(v));
                     }
-                    Operand::RaceBlock { reads, writes } => {
-                        args.push(crate::race::store::asm_base() as usize);
+                    Operand::RaceBlock { reads, writes } | Operand::Buffers { reads, writes } => {
+                        args.push(match o {
+                            Operand::Buffers { .. } => crate::race::buffers_store::home()
+                                .wrapping_sub(crate::framework::rva(
+                                    crate::race::buffers_store::START,
+                                )),
+                            _ => crate::race::store::asm_base() as usize,
+                        });
                         let places = reads
                             .iter()
                             .map(|&(off, k)| (off, width_in(k)))

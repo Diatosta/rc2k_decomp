@@ -5,7 +5,6 @@
 //! (`free_messages`). The counts stay in `NET.connections` / `NET.sessions`.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::MemoryList;
 use crate::memory::owned::Owned;
 use crate::net::lobby::fatal;
 use crate::net::store::NET;
@@ -68,8 +67,8 @@ impl NetTables {
 pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
 /// The network's list (`g_netMemory`).
-pub fn list() -> *mut MemoryList {
-    NET.memory.as_ptr() as *mut MemoryList
+pub fn list() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&NET.memory)
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.

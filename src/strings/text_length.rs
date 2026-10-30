@@ -17,13 +17,6 @@ use rc2k_core::strings::bytes::Bytes;
 // leaves the same flags.
 // ---- Rust version ----
 
-pub fn text_length(text: *const u8) -> Result<u32, BadInput> {
-    if text.is_null() {
-        return Err(BadInput("no text"));
-    }
-    nul_at(crate::pointers::game_address(text), "a text")
-}
-
 /// The length of the text at `at` (to its NUL), which must end inside its block.
 pub fn nul_at(at: u32, what: &str) -> Result<u32, BadInput> {
     let bytes = GamePtr::new(at).bytes(what)?;

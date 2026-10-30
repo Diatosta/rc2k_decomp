@@ -42,7 +42,7 @@ pub fn free_voices() -> Result<(), Refused> {
     AUDIO.channels_used.set(0);
     AUDIO.playing_voices.set(0);
     AUDIO.stopping_voices.set(0);
-    crate::memory::free_list::free_list(AUDIO.sample_memory.as_ptr())?;
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&AUDIO.sample_memory))?;
     // The kept samples with it (and every data id: no voice is left).
     crate::audio::sample_data::forget_all();
     Ok(())

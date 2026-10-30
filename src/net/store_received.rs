@@ -33,14 +33,13 @@ pub fn store_received(
     sequence: u8,
     block: &PlayerBlock,
     time: u32,
-    bytes: *const u8,
+    bytes: GamePtr,
     length: u32,
 ) -> Result<(), Refused> {
     let base = GamePtr::new(block.inbox_addr());
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
     let mut inbox = base.read_bytes(inbox::INBOX, "a player's inbox")?;
-    let message = GamePtr::new(crate::pointers::game_address(bytes))
-        .read_bytes(length as usize, "a received message")?;
+    let message = bytes.read_bytes(length as usize, "a received message")?;
     inbox::store(&mut inbox, sequence, time, &message)?;
     base.write_bytes(&inbox, "a player's inbox")?;
     Ok(())

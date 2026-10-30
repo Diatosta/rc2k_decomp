@@ -77,14 +77,14 @@ pub fn tidy_marks() -> Result<(), Refused> {
     }
     for n in 0..count as u32 {
         let car = settings + n * CAR_LEN + CAR_PART;
-        free_list(crate::pointers::host(car + 0x4C) as *mut MemoryList)?;
+        free_list(crate::pointers::GamePtr::new(car + 0x4C))?;
         if let Some(points) = crate::effects::lines::BLOCK_POINTS.get(n as usize) {
             points.give_back();
         }
         GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
     }
     for a in lists() {
-        free_list(crate::pointers::host(a) as *mut MemoryList)?;
+        free_list(crate::pointers::GamePtr::new(a))?;
     }
     // The particles and the masks went with their lists.
     crate::effects::blocks::PARTICLES.give_back();

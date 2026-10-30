@@ -17,9 +17,7 @@ use std::cmp::Ordering;
 const SCRATCH_ROOM: usize = 0x100;
 
 fn scratch() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::new(crate::pointers::game_address(
-        crate::files::numbered_path::buffer(),
-    ))
+    crate::files::numbered_path::buffer()
 }
 
 /// `text` written into the path buffer at `at`.

@@ -54,11 +54,10 @@ pub fn set_case_table(table: &[u8; 256]) {
 
 /// How the first text's first differing character stands to the second's (converted:
 /// `rc2k_core::strings::case::CaseTable::compare`).
-pub fn compare_texts(a: *const u8, b: *const u8) -> Result<Ordering, BadInput> {
-    let read = |at: *const u8| -> Result<Vec<u8>, BadInput> {
-        let at = crate::pointers::game_address(at);
-        let len = crate::strings::text_length::nul_at(at, "a text to compare")?;
-        GamePtr::new(at).read_bytes(len as usize, "a text to compare")
+pub fn compare_texts(a: GamePtr, b: GamePtr) -> Result<Ordering, BadInput> {
+    let read = |at: GamePtr| -> Result<Vec<u8>, BadInput> {
+        let len = crate::strings::text_length::nul_at(at.addr(), "a text to compare")?;
+        at.read_bytes(len as usize, "a text to compare")
     };
     Ok(case_table().compare(&read(a)?, &read(b)?))
 }
@@ -74,7 +73,7 @@ pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
     case_table().compare(&text(a), &text(b))
 }
 
-pub fn same_text(a: *const u8, b: *const u8) -> Result<bool, BadInput> {
+pub fn same_text(a: GamePtr, b: GamePtr) -> Result<bool, BadInput> {
     Ok(compare_texts(a, b)? == Ordering::Equal)
 }
 

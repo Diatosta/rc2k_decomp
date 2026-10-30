@@ -199,27 +199,19 @@ impl RaceWork {
     /// Car `n`'s block (`g_carBlocks[n]`), read as the original reads it: past the eight
     /// without a check (into `car_records`).
     pub fn car_block(&self, n: usize) -> u32 {
-        // SAFETY: the original's own unchecked read; inside the race block for the numbers
-        // the game passes.
-        unsafe {
-            (crate::pointers::host_at(
-                (crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32) as usize,
-            ) as *const u32)
-                .read_unaligned()
-        }
+        crate::pointers::read_or_end(
+            crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32,
+            "a car block's pointer",
+        )
     }
 
     /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word), read without a
     /// check as the original reads it.
     pub fn car_record(&self, n: usize) -> u32 {
-        // SAFETY: as `car_block`.
-        unsafe {
-            (crate::pointers::host_at(
-                (crate::pointers::game_address(self.car_records.as_ptr()) + (4 * n) as u32)
-                    as usize,
-            ) as *const u32)
-                .read_unaligned()
-        }
+        crate::pointers::read_or_end(
+            crate::pointers::game_address(self.car_records.as_ptr()) + (4 * n) as u32,
+            "a car record's pointer",
+        )
     }
 }
 

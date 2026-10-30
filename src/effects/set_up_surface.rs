@@ -57,7 +57,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask = crate::memory::owned::counted(
-        MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList,
+        crate::pointers::GamePtr::to(&MASK_LIST.list[0]),
         MASK_BYTES,
     )?;
     lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
@@ -89,11 +89,9 @@ pub fn set_up_surface() -> Result<(), Refused> {
     crate::scene::forget_slot_texture::forget_slot_texture(
         KIND_TEXTURES.kind_first_slots[211].bits(),
     )?;
-    crate::memory::free_list::free_list(
-        MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
-    )?;
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&MASK_LIST.list[0]))?;
 
-    crate::effects::ring_entries::take(RING_WORK.list.as_ptr() as *mut crate::memory::MemoryList)?;
+    crate::effects::ring_entries::take(crate::pointers::GamePtr::to(&RING_WORK.list))?;
     RING_WORK.block.set(1);
     RING_WORK.cursor.set(1);
     RING_WORK.count.set(0);

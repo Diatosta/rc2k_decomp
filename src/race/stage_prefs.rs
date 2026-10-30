@@ -15,9 +15,9 @@ use crate::scene::object_store::OBJECT_WORK;
 
 // The stage's localdat is the whole of `STAGE_PREFS` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-fn prefs_paths() -> [*const u8; 2] {
+fn prefs_paths() -> [GamePtr; 2] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
-    [p.localdat_files.as_ptr(), p.localdat_src.as_ptr()]
+    [GamePtr::to(&p.localdat_files), GamePtr::to(&p.localdat_src)]
 }
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
@@ -130,7 +130,7 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data() -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        CAMERA_WORK.lights_path.as_ptr().cast(), // "files\s\data\ldata"
+        GamePtr::to(&CAMERA_WORK.lights_path), // "files\s\data\ldata"
         &crate::race::lights_store::LIGHTS_DATA.lights,
     )?;
     copy_lights_data()?;

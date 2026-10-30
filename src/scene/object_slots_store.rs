@@ -40,12 +40,9 @@ impl ObjectTables {
     /// A slot's entry of one of the 256-entry tables, read by address as the original does:
     /// a slot past the table reads on into the next one (for slots nothing has checked).
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
-        // SAFETY: the tables are contiguous in the race block; a slot far past them is the
-        // caller's slip, as it was the original's.
-        unsafe {
-            (crate::pointers::host_at((table[0].addr() + (4 * slot) as u32) as usize) as *const u32)
-                .read_volatile()
-        }
+        // The tables are contiguous; a slot far past them is the caller's slip, as it was the
+        // original's (a checked read: outside the allocation ends the program).
+        crate::pointers::read_or_end(table[0].addr() + (4 * slot) as u32, "an object slot")
     }
 }
 

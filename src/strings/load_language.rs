@@ -151,8 +151,14 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     KEYBOARD_FILE.built_in.set(1);
     KEYBOARD_FILE.mode.set(1);
 
-    let locale = LOCALE.as_ptr();
-    if read_first_match(LOCALE_FILES.as_ptr(), locale, LOCALE_LEN as u32, 0)?.is_none() {
+    if read_first_match(
+        crate::pointers::GamePtr::to(LOCALE_FILES),
+        crate::pointers::GamePtr::to(&LOCALE),
+        LOCALE_LEN as u32,
+        0,
+    )?
+    .is_none()
+    {
         return Err(fatal(0x80E3_8381, ""));
     }
     // Converted: `rc2k_core::strings::language::Locale`.
@@ -166,8 +172,14 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         player.update(|p| p.metric_units = units);
     }
 
-    let keyboard = KEYBOARD_FILE.magic.as_ptr();
-    if read_first_match(KEYBOARD_FILES.as_ptr(), keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
+    if read_first_match(
+        crate::pointers::GamePtr::to(KEYBOARD_FILES),
+        crate::pointers::GamePtr::to(&KEYBOARD_FILE.magic),
+        KEYBOARD_LEN as u32,
+        0,
+    )?
+    .is_some()
+    {
         if &KEYBOARD_FILE.magic.read() != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
@@ -205,7 +217,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     // `sub_403462`
     if MACHINE.keyboard_type.get() == 2 {
         GamePtr::to(&KEYBOARD_TABLES.nec_head).copy_to(
-            GamePtr::new(crate::pointers::game_address(keyboard)),
+            GamePtr::to(&KEYBOARD_FILE.magic),
             0x30,
             "the NEC keyboard head",
         )?;

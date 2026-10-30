@@ -22,13 +22,13 @@ use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
-    if list.is_null() {
+pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
+    if list.addr() == 0 {
         return Ok(());
     }
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
-    let at = GamePtr::new(crate::pointers::game_address(list));
+    let at = list;
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
     crate::gfx::glyph_store::give_back(at.addr());
     let mut l = at.read::<MemoryList>("a memory list")?;

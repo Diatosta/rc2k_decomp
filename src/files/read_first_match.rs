@@ -30,18 +30,15 @@ use std::sync::atomic::Ordering::Relaxed;
 /// None if nothing matched, else what the reading of the file found came to.
 /// Refuses what `resolve_path` and `read_file` refuse, and a null path.
 pub fn first_match_read(
-    pattern: *const u8,
-    buffer: *mut u8,
+    pattern: GamePtr,
+    buffer: GamePtr,
     count: u32,
     offset: u32,
 ) -> Result<Option<ReadResult>, BadInput> {
-    if pattern.is_null() {
+    if pattern.addr() == 0 {
         return Err(BadInput("no path to match"));
     }
-    let pattern = crate::files::cstring(
-        GamePtr::new(crate::pointers::game_address(pattern)),
-        "a search pattern",
-    )?;
+    let pattern = crate::files::cstring(pattern, "a search pattern")?;
     let resolved = resolve(&pattern)?;
     set_last_file_path(Some(&resolved));
     let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.load(Relaxed));
@@ -49,10 +46,9 @@ pub fn first_match_read(
         // Converted: `rc2k_core::files::io::match_path`.
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(&pattern, &name);
-        let path = SCRATCH.buffer.as_ptr();
         SCRATCH.buffer.write_at(0, &joined, "the scratch buffer")?;
         Some(read_file(
-            crate::files::game_path(path),
+            GamePtr::to(&SCRATCH.buffer),
             buffer,
             count,
             offset,
@@ -66,8 +62,8 @@ pub fn first_match_read(
 
 /// For Rust callers: the bytes read, or None if nothing matched or the reading failed.
 pub fn read_first_match(
-    pattern: *const u8,
-    buffer: *mut u8,
+    pattern: GamePtr,
+    buffer: GamePtr,
     count: u32,
     offset: u32,
 ) -> Result<Option<u32>, BadInput> {

@@ -1554,7 +1554,7 @@ mod diff {
             let (a, b) = (t.rng.fl(), t.rng.fl());
             let (mut want, mut got) = (r, r);
             super::scale_record(want.as_mut_ptr(), a, b);
-            plain::scale_record(got.as_mut_ptr(), a, b);
+            got = plain::scale_record_bits(got, a, b);
             let ok = want.same(&got, 0);
             t.record("scale_record", ok, || {
                 format!("{r:x?} {a:x} {b:x} want {want:x?} got {got:x?}")

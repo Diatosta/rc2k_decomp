@@ -16,15 +16,14 @@ use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after, and whether a directory was found.
-pub fn append_directory(path: *const u8, cursor: *mut u8) -> Result<(*mut u8, bool), BadInput> {
-    if path.is_null() {
+pub fn append_directory(path: GamePtr, cursor: GamePtr) -> Result<(GamePtr, bool), BadInput> {
+    if path.addr() == 0 {
         return Err(BadInput("a null path"));
     }
-    let text = crate::files::cstring(GamePtr::new(crate::pointers::game_address(path)), "a path")?;
+    let text = crate::files::cstring(path, "a path")?;
     let Some(directory) = rc2k_core::files::paths::directory(&text) else {
         return Ok((cursor, false));
     };
-    GamePtr::new(crate::pointers::game_address(cursor))
-        .write_bytes(directory, "a path being built")?;
-    Ok((cursor.wrapping_add(directory.len()), true))
+    cursor.write_bytes(directory, "a path being built")?;
+    Ok((cursor.offset(directory.len() as u32), true))
 }

@@ -135,10 +135,15 @@ pub fn compiled() -> Result<Compiled, FatalError> {
     }
     let mut text = vec![0u8; FILE_ROOM as usize];
     let lent = crate::pointers::Lent::new(&text);
-    let read = read_first_match(PATTERN.as_ptr(), text.as_mut_ptr(), FILE_ROOM, 0)
-        .ok()
-        .flatten()
-        .ok_or(NOT_LOADED)?;
+    let read = read_first_match(
+        crate::pointers::GamePtr::to(PATTERN),
+        crate::pointers::GamePtr::new(crate::pointers::game_address(text.as_mut_ptr())),
+        FILE_ROOM,
+        0,
+    )
+    .ok()
+    .flatten()
+    .ok_or(NOT_LOADED)?;
     drop(lent);
     text.truncate(read as usize);
     let compiled = compile(&text, memory).map_err(|e| {
@@ -183,7 +188,7 @@ pub fn compile_lexicon() -> Result<(), Refused> {
         WORK.write(&[0; WORK_LEN]);
         // The original's memory, for the game's memory figures: counted and given back
         // (nothing is put in it: the lexicon is built in Rust's memory).
-        let list = LEXICON.memory.as_ptr();
+        let list = crate::pointers::GamePtr::to(&LEXICON.memory);
         crate::memory::owned::count_on(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
 
         for (offset, value) in counts(&compiled) {

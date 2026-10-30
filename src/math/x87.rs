@@ -36,6 +36,7 @@ fn span<T>(p: *const T, bytes: usize) {
     );
 }
 
+#[cfg(all(test, target_arch = "x86"))] // the pointer forms' tests only
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
     bh::ld(unsafe { p.add(index).read_unaligned() })
 }
@@ -238,10 +239,8 @@ pub fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
 /// compared with `zero`; unless equal (or unordered), each of the three is divided by the
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
-pub fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
-    span(v, 12);
-
-    let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
+pub fn normalise_in_place(v: &mut [u32; 3], zero: u32) -> (u32, bool) {
+    let [x, y, z] = v.map(bh::ld);
     let root = (x * x + (y * y + z * z)).sqrt();
     let zero = bh::ld(zero);
     let equal = matches!(
@@ -249,11 +248,7 @@ pub fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
         None | Some(std::cmp::Ordering::Equal)
     );
     if !equal {
-        unsafe {
-            v.write_unaligned(bh::st(x / root));
-            v.add(1).write_unaligned(bh::st(y / root));
-            v.add(2).write_unaligned(bh::st(z / root));
-        }
+        *v = [bh::st(x / root), bh::st(y / root), bh::st(z / root)];
     }
     (bh::st(root), equal)
 }
@@ -276,20 +271,13 @@ pub fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 
 /// `math::turn_scratch_xz`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
-pub fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
-    span(sine, 4);
-    span(cosine, 4);
-    span(x, 4);
-    span(z, 4);
-
-    let (s, c) = unsafe { (load(sine, 0), load(cosine, 0)) };
-    let (xv, zv) = unsafe { (load(x, 0), load(z, 0)) };
+pub fn turn_in_place(sine: u32, cosine: u32, x: &mut u32, z: &mut u32) {
+    let (s, c) = (bh::ld(sine), bh::ld(cosine));
+    let (xv, zv) = (bh::ld(*x), bh::ld(*z));
     let new_x = xv * c + zv * s;
     let new_z = c * zv - s * xv;
-    unsafe {
-        z.write_unaligned(bh::st(new_z));
-        x.write_unaligned(bh::st(new_x));
-    }
+    *z = bh::st(new_z);
+    *x = bh::st(new_x);
 }
 
 /// `race::add_surface_share`'s sum: `a / b * c / d * e + f`.
@@ -327,15 +315,13 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) / bh::ld(b) - bh::ld(c))
 }
 
-/// `count` sines of an angle that starts at 0 and grows by `step` each time (the angle kept
-/// as a double, never rounded to a float), stored one dword each from `out`.
-pub fn sine_table(step: u32, out: *mut u32, count: u32) {
-    span(out, 4 * count as usize);
-
+/// `out.len()` sines of an angle that starts at 0 and grows by `step` each time (the angle
+/// kept as a double, never rounded to a float), one dword each.
+pub fn sine_table(step: u32, out: &mut [u32]) {
     let step = bh::ld(step);
     let mut angle = bh::X(0.0);
-    for i in 0..count as usize {
-        unsafe { out.add(i).write_unaligned(bh::st(angle.sin())) };
+    for o in out {
+        *o = bh::st(angle.sin());
         angle += step;
     }
 }
@@ -389,18 +375,14 @@ pub fn int_times_plus(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) + bh::ld(c))
 }
 
-/// The step `(last - first) / by`, then for each of `count` whole numbers at `values` the
+/// The step `(last - first) / by`, then for each of the whole numbers in `values` the
 /// number less the running sum, rounded to a whole number and stored back, and the sum
 /// grown by the step (both kept as doubles).
-pub fn ramp_down(values: *mut i32, count: u32, last: i32, first: i32, by: i32) {
-    span(values, 4 * count as usize);
-
+pub fn ramp_down(values: &mut [i32], last: i32, first: i32, by: i32) {
     let step = (bh::int(last) - bh::int(first)) / bh::int(by);
     let mut sum = bh::X(0.0);
-    for i in 0..count as usize {
-        let p = unsafe { values.add(i) };
-        let value = unsafe { p.read_unaligned() };
-        unsafe { p.write_unaligned(bh::to_int(bh::int(value) - sum)) };
+    for v in values {
+        *v = bh::to_int(bh::int(*v) - sum);
         sum += step;
     }
 }
@@ -535,25 +517,14 @@ pub fn circle_curve(i: i32, a: u32, b: u32, negate: bool) -> u32 {
 /// cos(angle) r, the dword between left alone. The angle starts at 0 and grows by
 /// `pi / c * d` each time, kept as a double. `count` at least 1 (the original would run 2^32
 /// times on 0; here nothing is done).
-pub fn circle_points(r: *const u32, out: *mut u32, count: u32, c: *const i32, d: *const u32) {
-    if count == 0 {
-        return;
-    }
-    span(r, 4);
-    span(c, 4);
-    span(d, 4);
-    span(out, 4 * (3 * (count as usize - 1) + 2));
+/// (`out` holds at least `3 (count - 1) + 2` dwords: the slice's index check.)
+pub fn circle_points(r: u32, out: &mut [u32], count: u32, c: i32, d: u32) {
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
         let (sin, cos) = angle.sin_cos();
-        let cos_r = cos * unsafe { load(r, 0) };
-        let sin_r = sin * unsafe { load(r, 0) };
-        unsafe {
-            out.add(i * 3 + 1).write_unaligned(bh::st(cos_r));
-            out.add(i * 3).write_unaligned(bh::st(sin_r));
-        }
-        let divisor = bh::int(unsafe { c.read_unaligned() });
-        angle += divisor.pi_over() * unsafe { load(d, 0) };
+        out[i * 3 + 1] = bh::st(cos * bh::ld(r));
+        out[i * 3] = bh::st(sin * bh::ld(r));
+        angle += bh::int(c).pi_over() * bh::ld(d);
     }
 }
 
@@ -575,16 +546,11 @@ pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
-pub fn scale_row(row: *mut u32, c: u32) {
-    span(row, 12);
-
-    let (x, y, z) = unsafe { (load(row, 0), load(row, 1), load(row, 2)) };
+/// (On a copy of the three floats' bits.)
+pub fn scale_row_bits(row: [u32; 3], c: u32) -> [u32; 3] {
+    let [x, y, z] = row.map(bh::ld);
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
-    unsafe {
-        row.write_unaligned(bh::st(k * x));
-        row.add(1).write_unaligned(bh::st(k * y));
-        row.add(2).write_unaligned(bh::st(k * z));
-    }
+    [bh::st(k * x), bh::st(k * y), bh::st(k * z)]
 }
 
 /// `x + (k - (y - n)) s`, n the whole number y rounds to (as the control word says),
@@ -742,19 +708,13 @@ pub fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
 /// One of the marks' kind records (0x30 bytes, 12 floats): +0xC and +0x24 negated in
 /// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
 /// place.
-pub fn scale_record(r: *mut u32, a: u32, b: u32) {
-    span(r, 48);
-
-    unsafe {
-        for i in [3, 9] {
-            r.add(i).write(bh::st(-bh::ld(r.add(i).read())));
-        }
-        let ratio = bh::ld(a) / bh::ld(b);
-        for i in 0..12 {
-            let x = bh::ld(r.add(i).read()) * ratio;
-            r.add(i).write(bh::to_int(x) as u32);
-        }
+/// (On a copy of the record's twelve floats' bits.)
+pub fn scale_record_bits(mut r: [u32; 12], a: u32, b: u32) -> [u32; 12] {
+    for i in [3, 9] {
+        r[i] = bh::st(-bh::ld(r[i]));
     }
+    let ratio = bh::ld(a) / bh::ld(b);
+    r.map(|v| bh::to_int(bh::ld(v) * ratio) as u32)
 }
 
 /// `a m + c` stored (the first), then `(a m + c) + d - e` stored (the second).

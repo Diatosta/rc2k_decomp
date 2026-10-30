@@ -11,7 +11,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::memory::MemoryList;
 use crate::memory::owned::Owned;
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
@@ -47,7 +46,7 @@ fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
 
 /// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was:
 /// whole pages less its header). Its number.
-pub fn take(which: Buffer, list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
+pub fn take(which: Buffer, list: crate::pointers::GamePtr, bytes: u32) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
     BUFFERS[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)
@@ -113,9 +112,10 @@ mod tests {
     fn a_buffer_is_taken_read_and_given_back() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let mut memory = vec![0u8; size_of::<MemoryList>()];
+        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         let n = take(Buffer::Key, list, 0x100).unwrap();
         assert_eq!(n, 3);
         assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 0x100);
@@ -134,9 +134,10 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
-        let mut memory = vec![0u8; size_of::<MemoryList>()];
+        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         PICTURE
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
@@ -233,9 +234,10 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
-        let mut memory = vec![0u8; size_of::<MemoryList>()];
+        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let list = memory.as_mut_ptr() as *mut MemoryList;
+        let list =
+            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         PICTURE
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());

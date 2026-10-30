@@ -31,14 +31,12 @@ pub fn turn_scratch_xz(point: &mut Scratch, angle: u32) -> u32 {
 }
 
 fn x87_turn(point: &mut Scratch, entry: u32) {
-    let a = |table: &crate::session::Float| table.addr() + (4 * entry as usize) as u32;
+    use crate::scene::engine_tables_store::{cosine, sine};
     crate::math::x87::turn_in_place(
-        crate::pointers::host_at((a(crate::scene::engine_tables_store::sine(0))) as usize)
-            as *const u32,
-        crate::pointers::host_at((a(crate::scene::engine_tables_store::cosine(0))) as usize)
-            as *const u32,
-        &raw mut point.x,
-        &raw mut point.z,
+        sine(entry as usize).bits(),
+        cosine(entry as usize).bits(),
+        &mut point.x,
+        &mut point.z,
     );
 }
 

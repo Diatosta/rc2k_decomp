@@ -21,7 +21,7 @@ pub type Entry = [u32; (ENTRY_LEN / 4) as usize];
 pub static RING: Owned<Vec<Entry>> = Owned::new("no marks ring");
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
-pub fn take(list: *mut crate::memory::MemoryList) -> Result<(), crate::errors::Refused> {
+pub fn take(list: crate::pointers::GamePtr) -> Result<(), crate::errors::Refused> {
     let ring = (0..ENTRIES)
         .map(|i| {
             let mut e = [0; (ENTRY_LEN / 4) as usize];
@@ -106,7 +106,10 @@ mod tests {
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        take(memory.as_mut_ptr() as *mut crate::memory::MemoryList).unwrap();
+        take(crate::pointers::GamePtr::new(
+            crate::pointers::game_address(memory.as_mut_ptr()),
+        ))
+        .unwrap();
         assert_eq!(
             u32::from_le_bytes(memory[4..8].try_into().unwrap()),
             RING_BYTES

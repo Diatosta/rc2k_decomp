@@ -220,7 +220,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
 fn tables(palettes: u32) -> Result<(), Refused> {
-    let list = TABLES.memory.as_ptr();
+    let list = crate::pointers::GamePtr::to(&TABLES.memory);
     let bytes = TABLES
         .units
         .get()
@@ -233,7 +233,7 @@ fn tables(palettes: u32) -> Result<(), Refused> {
     GamePtr::new(palettes).write(palette_place(list)?, "the fonts' palettes' place")?;
     begin_glyph_table(list)?;
     build_glyphs(
-        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00)) as *const u8,
+        crate::pointers::GamePtr::to(&crate::gfx::texts::PAL_00),
         list,
     )?;
     MENU_FONTS.font27_glyphs.set(SHEET.table.get());
@@ -245,7 +245,7 @@ fn tables(palettes: u32) -> Result<(), Refused> {
     )?;
     for (sheet, kept) in font_sheets() {
         begin_glyph_table(list)?;
-        build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
+        build_glyphs(crate::pointers::GamePtr::new(sheet), list)?;
         kept.set(SHEET.table.get());
     }
     end_glyph_tables()?;
@@ -254,7 +254,7 @@ fn tables(palettes: u32) -> Result<(), Refused> {
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
 /// when the list has no room (the original's cursor would have been none).
-pub fn palette_place(list: *mut crate::memory::MemoryList) -> Result<u32, Refused> {
+pub fn palette_place(list: crate::pointers::GamePtr) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(list)?,
         None => 0,

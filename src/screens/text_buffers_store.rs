@@ -1,5 +1,5 @@
 //! The screens' text buffers, typed (phase 7): IDA 0xA8BB54 .. 0xA8C180, in the image's
-//! zeroed tail (`race::store::buffers`): the line buffer the screens build their lines in,
+//! zeroed tail (`race::buffers_store`): the line buffer the screens build their lines in,
 //! the cells, the stage line, the caption, the title and the number text (0x100 bytes each),
 //! the stage result's value and the ten page-number texts. Names are readings unless IDA's.
 
@@ -25,14 +25,13 @@ pub struct TextBuffers {
     pub page_numbers: Bytes<40>,
 }
 
+/// The piece, a field of `race::buffers_store::BUFFERS`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = TextBuffers;
     fn deref(&self) -> &TextBuffers {
-        // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
-        // test checks); every field is a cell.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const TextBuffers) }
+        &crate::race::buffers_store::BUFFERS.text
     }
 }
 
@@ -46,6 +45,7 @@ pub const END: usize = 0xA8C180;
 const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());
 
 /// Where IDA 0xA8BB54 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

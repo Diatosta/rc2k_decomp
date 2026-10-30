@@ -38,6 +38,7 @@ use crate::physics::flow::{c3, ease_zero, hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::x87_mem::fld;
 use crate::session::Float;
 
@@ -48,7 +49,7 @@ fn steer_index() -> u32 {
 
 /// 0x43CDFF / 0x43CE21: +0x210 = sine x speed / `dword_614BA0`.
 fn steer_force(e: u32) {
-    x87_1(crate::race::store::buffers_asm_base() as usize, e as usize);
+    x87_1(e as usize);
 }
 
 /// The Rust version. The eax, ebx and edx it leaves are read by none of its callers.
@@ -109,10 +110,7 @@ pub fn drive_grip_forces() {
         x87_6();
         hold_high(&DRAW.scratch, &PHYSICS.grip_ramp);
         edx = steer_index();
-        x87_7(
-            crate::race::store::buffers_asm_base() as usize,
-            edx as usize,
-        );
+        x87_7(edx as usize);
     }
     // 0x43D08E: the engine braking.
     let eax = if kind != 0 {
@@ -163,10 +161,7 @@ pub fn drive_grip_forces() {
         negate(&PHYSICS.grip_force_limit);
         x87_4(&DRAW.scratch, &PHYSICS.grip_force_limit);
         edx = steer_index();
-        x87_13(
-            crate::race::store::buffers_asm_base() as usize,
-            edx as usize,
-        );
+        x87_13(edx as usize);
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
     x87_14();
@@ -190,8 +185,8 @@ pub fn drive_grip_forces() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1E8] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [rc + 0x214BA0]`
-fn x87_1(bf: usize, e: usize) {
-    let t0 = fld(bf, e * 4 + 0x623AE4);
+fn x87_1(e: usize) {
+    let t0 = ld(ENGINE_TABLES.sines[e].bits());
     let t1 = ld(CAR.local_velocity[2].bits());
     let t2 = t0 * t1;
     let t3 = ld(PHYSICS.spec_grip.bits());
@@ -265,13 +260,13 @@ fn x87_6() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_7(bf: usize, e: usize) {
+fn x87_7(e: usize) {
     let t0 = ld(PHYSICS.grip_ramp.bits());
     let t1 = ld(DRAW.scratch.bits());
     let t2 = t0 - t1;
     let t3 = ld(PHYSICS.grip_ramp.bits());
     let t4 = t2 / t3;
-    let t5 = fld(bf, e * 4 + 0x623AE4);
+    let t5 = ld(ENGINE_TABLES.sines[e].bits());
     let t6 = t4 * t5;
     let t7 = int(CAR.handbrake.bits() as i32);
     let t8 = t6 * t7;
@@ -352,8 +347,8 @@ fn x87_12() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_13(bf: usize, e: usize) {
-    let t0 = fld(bf, e * 4 + 0x623AE4);
+fn x87_13(e: usize) {
+    let t0 = ld(ENGINE_TABLES.sines[e].bits());
     let t1 = ld(PHYSICS.spec_grip.bits());
     let t2 = t0 / t1;
     let t3 = int(CAR.throttle.bits() as i32);
@@ -467,7 +462,7 @@ mod asm_reference {
             Block {
                 name: "drive_grip_forces line 39 idx e=0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE4, In::F)],
                         writes: &[],
                     },
@@ -479,12 +474,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 39 idx e=1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE8, In::F)],
                         writes: &[],
                     },
@@ -496,12 +491,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 39 idx e=4",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AF4, In::F)],
                         writes: &[],
                     },
@@ -513,7 +508,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 54",
@@ -591,7 +586,7 @@ mod asm_reference {
                         ],
                         writes: &[(0x31A1F4, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE4, In::F)],
                         writes: &[],
                     },
@@ -599,7 +594,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[1], a[2]),
+                plain: |a| x87_7(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 134 idx e=1",
@@ -616,7 +611,7 @@ mod asm_reference {
                         ],
                         writes: &[(0x31A1F4, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE8, In::F)],
                         writes: &[],
                     },
@@ -624,7 +619,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[1], a[2]),
+                plain: |a| x87_7(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 134 idx e=4",
@@ -641,7 +636,7 @@ mod asm_reference {
                         ],
                         writes: &[(0x31A1F4, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AF4, In::F)],
                         writes: &[],
                     },
@@ -649,7 +644,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[1], a[2]),
+                plain: |a| x87_7(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 151",
@@ -720,7 +715,7 @@ mod asm_reference {
             Block {
                 name: "drive_grip_forces line 222 idx e=0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE4, In::F)],
                         writes: &[],
                     },
@@ -739,12 +734,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[0], a[1]),
+                plain: |a| x87_13(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AE8, In::F)],
                         writes: &[],
                     },
@@ -763,12 +758,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[0], a[1]),
+                plain: |a| x87_13(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=4",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::Buffers {
                         reads: &[(0x623AF4, In::F)],
                         writes: &[],
                     },
@@ -787,7 +782,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[0], a[1]),
+                plain: |a| x87_13(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 235",

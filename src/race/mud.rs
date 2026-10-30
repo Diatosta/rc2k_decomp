@@ -73,7 +73,10 @@ pub fn load_mud() -> Result<(), Refused> {
     RACE_VARS.mud_path.set(0x11, tens as u8);
     RACE_VARS.mud_path.set(0x12, units as u8);
     MUD.with(|mud| {
-        crate::files::read_whole_file::read_whole_file_into(RACE_VARS.mud_path.as_ptr(), mud)
+        crate::files::read_whole_file::read_whole_file_into(
+            crate::pointers::GamePtr::to(&RACE_VARS.mud_path),
+            mud,
+        )
     })??;
     Ok(())
 }
@@ -120,7 +123,7 @@ pub fn init_mud() -> Result<(), Refused> {
         .course_bytes_total
         .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
     MUD.take(
-        COURSE_LISTS.mud_list[0].as_ptr() as *mut crate::memory::MemoryList,
+        crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list[0]),
         MUD_LEN,
         vec![0; MUD_LEN as usize],
     )?;

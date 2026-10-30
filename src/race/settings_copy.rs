@@ -107,23 +107,12 @@ pub(crate) use {car, car_bits, var};
 /// `race::clear_player_absences`, `race::copy_league_table`, `race::store_results_by_mode`.
 pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
 
-fn at(a: usize) -> *mut u32 {
-    crate::pointers::host(game_addr(rva(a))) as *mut u32
-}
-
 fn get(a: usize) -> u32 {
-    crate::pointers::read_or_end(
-        crate::pointers::game_address(at(a)),
-        "race::settings_copy's operand",
-    )
+    crate::pointers::read_or_end(game_addr(rva(a)), "race::settings_copy's operand")
 }
 
 fn set(a: usize, v: u32) {
-    crate::pointers::write_or_end(
-        crate::pointers::game_address(at(a)),
-        v,
-        "race::settings_copy's operand",
-    )
+    crate::pointers::write_or_end(game_addr(rva(a)), v, "race::settings_copy's operand")
 }
 
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx

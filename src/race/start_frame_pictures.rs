@@ -22,8 +22,8 @@ pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
     }
     VIEWER_PANEL.set_picture_time(picture_time(eax, rate));
     // The folder made (whether it was is not read).
-    crate::files::directories::make_directory(crate::pointers::host(
-        VIEWER_PANEL.picture_folder.addr(),
+    crate::files::directories::make_directory(crate::pointers::GamePtr::to(
+        &VIEWER_PANEL.picture_folder,
     ))?;
     VIEWER_PANEL.replay_recording.set(1);
     VIEWER_PANEL.pictures_started.set(0);

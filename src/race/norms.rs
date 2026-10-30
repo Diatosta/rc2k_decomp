@@ -18,7 +18,10 @@ use crate::scene::draw_store::DRAW;
 /// become 0. The length rounded into `dword_62400C`.
 pub fn normalise_work_vector() {
     let mut v = FRAME_SCRATCH.work_vector.each_ref().map(|c| c.bits());
-    let (length, zero) = x87::normalise_in_place(v.as_mut_ptr(), NUMBERS.zero.bits());
+    let (length, zero) = x87::normalise_in_place(
+        v.first_chunk_mut::<3>().expect("four parts"),
+        NUMBERS.zero.bits(),
+    );
     for (cell, &bits) in FRAME_SCRATCH.work_vector[..3].iter().zip(&v) {
         cell.set_bits(bits);
     }
