@@ -4,3 +4,5 @@
 
 pub mod draw;
 pub mod overlay;
+pub mod wear_items;
+pub mod wear_page;

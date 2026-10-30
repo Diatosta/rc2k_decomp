@@ -2,3 +2,4 @@
 //! started early by the owner: `notes/improvements.md`).
 
 pub mod font;
+pub mod numbers;

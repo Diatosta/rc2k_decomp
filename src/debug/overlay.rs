@@ -4,8 +4,8 @@
 //! `g_debugFreezeRace` is not in RAL.EXE (`input::end_frame` sets both 0 every frame):
 //! here two keys of our own, with Ctrl held (hidden from the game then), kept across frames and put back by
 //! `input::end_frame` (`words`): F11 the next page, F12 the race frozen (`drive::race_step`
-//! skips its physics ticks). So far each page draws its title and a line in the debug font
-//! (the page, frozen); the pages' own figures come piece by piece.
+//! skips its physics ticks). Each page draws its title and a line in the debug font (top
+//! right: the page, frozen); page 2 its wear bars (`wear_page`); the rest piece by piece.
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
@@ -73,8 +73,8 @@ pub fn words() -> [u32; 2] {
     [PAGE.load(Ordering::Relaxed), FROZEN.load(Ordering::Relaxed)]
 }
 
-/// `debug::draw_pages` (0x4297C5), so far: the page's title (`draw_page_title`) and the
-/// overlay's own line.
+/// `debug::draw_pages` (0x4297C5), so far: on page 2 the wear bars (`wear_page`), the
+/// page's title (`draw_page_title`) and the overlay's own line.
 pub fn draw_pages(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let page = PHYSICS.debug[0].get();
     let frozen = PHYSICS.debug[1].get() != 0;
@@ -84,7 +84,11 @@ pub fn draw_pages(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     TEXT_STATE.text_mode.set(2);
     NUMBERS.debug_scale.set(2);
     let line = format!("page {page}{}\0", if frozen { " frozen" } else { "" });
-    crate::debug::draw::print(4, 4, line.as_bytes())?;
+    // Top right, clear of the pages' items.
+    crate::debug::draw::print(0x2A0, 4, line.as_bytes())?;
+    if page == 2 {
+        crate::debug::wear_page::draw_wear_bars()?;
+    }
     draw_page_title(page, canvas)
 }
 
