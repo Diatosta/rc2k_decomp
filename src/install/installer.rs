@@ -291,11 +291,11 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
-pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_string(id: u32, font: crate::pointers::GamePtr, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
-        crate::pointers::GamePtr::new(font),
+        font,
         x as i32,
         y as i32,
         &mut GameCanvas,

@@ -46,13 +46,6 @@ fn dot(a: *const u8, b: *const u8, o: *mut u8) {
     fstp80(o, 0x0, t10);
 }
 
-/// `n` floats at `at` (the game's memory, unaligned).
-pub fn read_floats<const N: usize>(at: u32) -> [f32; N] {
-    std::array::from_fn(|n| {
-        crate::pointers::read_or_end::<f32>(at + 4 * n as u32, "scene::vector3's operand")
-    })
-}
-
 /// The floats written at `at`.
 pub fn write_floats(at: u32, v: &[f32]) {
     for (n, x) in v.iter().enumerate() {

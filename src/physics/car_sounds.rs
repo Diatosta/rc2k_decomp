@@ -18,7 +18,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::{read_floats, write_floats};
+use crate::scene::vector3::write_floats;
 use crate::scene::x87_mem::{fild, fstp80};
 use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
@@ -74,7 +74,7 @@ pub fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
         whole(&CAR.position),
         whole(&CAR.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &read_floats(MATRICES.view_turn_matrix[0].addr()),
+        &std::array::from_fn(|n| f32::from_bits(MATRICES.view_turn_matrix[n].bits())),
         f32::from_bits(NUMBERS.one_over_65536.bits()),
     );
     write_floats(o + at, &p);

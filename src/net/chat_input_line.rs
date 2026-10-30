@@ -16,7 +16,16 @@ pub const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::font
 
 /// The Rust version: the chat's input `text` for item `item` at `y` (x 0xA), with the caret
 /// while it is the item being edited; returns the next y (y + 0x1E, the original's ebp).
-pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
+pub fn chat_input_line(
+    text: impl Into<crate::place::Place>,
+    item: u32,
+    y: u32,
+) -> Result<u32, Refused> {
+    let text = text.into();
+    chat_input_line_at(text, item, y)
+}
+
+fn chat_input_line_at(text: crate::place::Place, item: u32, y: u32) -> Result<u32, Refused> {
     let shown = if item == NET.edited.get() {
         let mut cursor = Cursor::text();
         cursor.string(text);
@@ -24,7 +33,7 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
         cursor.nul()?;
         crate::place::Place::from(&TEXT_BUFFER.text)
     } else {
-        crate::place::Place::from(text)
+        text
     };
     {
         crate::text::draw_text::draw_text_at(

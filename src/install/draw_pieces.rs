@@ -46,7 +46,12 @@ pub fn draw_pieces() -> Result<(), Refused> {
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
         match Way::of(first, rb(piece + 1)) {
             Way::String { font_kind } => {
-                draw_string(rw(piece + 2) as u32, font(colour(first, font_kind)), x, y)?;
+                draw_string(
+                    rw(piece + 2) as u32,
+                    crate::pointers::GamePtr::new(font(colour(first, font_kind))),
+                    x,
+                    y,
+                )?;
             }
             Way::Edit => {
                 let item = rd(piece + 4);

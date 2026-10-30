@@ -26,7 +26,12 @@ pub fn draw_string_list(
     for (offset, _) in layout::list_records(count)? {
         let record = table.wrapping_add(offset);
         let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
-        draw_string(rd(record + 0xC), rd(record + 8), x, y)?;
+        draw_string(
+            rd(record + 0xC),
+            crate::pointers::GamePtr::new(rd(record + 8)),
+            x,
+            y,
+        )?;
     }
     Ok(())
 }

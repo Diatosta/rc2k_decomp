@@ -34,7 +34,7 @@ fn player(row: usize) -> Result<u32, Refused> {
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
-    let p = get(PLAYER_TABLE.pointers[0].addr() + o)?;
+    let p = PLAYER_TABLE.pointers[(o / 4) as usize].get();
     if p == 0 || get(p + 0x18)? == 0 {
         return Err(BadInput("a row's player without its record or name").into());
     }

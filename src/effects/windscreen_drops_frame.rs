@@ -78,15 +78,11 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
         if SETTINGS.pointer.get() == 0 {
             return Ok(Some("no marks settings"));
         }
-        let base = HEX.items.addr();
-        let mut bad = false;
-        for n in 0..ITEMS {
-            let e = base + n * ITEM_LEN;
-            if get(e)? == 1 && get(e + 4)? >= KINDS {
-                bad = true;
-                break;
-            }
-        }
+        let items = &HEX.items;
+        let bad = (0..ITEMS as usize).any(|n| {
+            let e = n * ITEM_LEN as usize;
+            items.get_u32(e) == 1 && items.get_u32(e + 4) >= KINDS
+        });
         bad.then_some("a live windscreen drop of a kind past 7")
     })
 }

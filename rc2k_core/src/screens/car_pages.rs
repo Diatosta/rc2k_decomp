@@ -54,6 +54,47 @@ pub struct CarDescription {
     pub field_74: u32,
 }
 
+impl CarDescription {
+    /// The record from its 120 bytes in the game's layout (little-endian dwords).
+    pub const fn from_le_bytes(b: [u8; 120]) -> Self {
+        const fn word(b: &[u8; 120], n: usize) -> u32 {
+            u32::from_le_bytes([b[4 * n], b[4 * n + 1], b[4 * n + 2], b[4 * n + 3]])
+        }
+        Self {
+            car: word(&b, 0),
+            name: word(&b, 1),
+            field_8: word(&b, 2),
+            capacity: word(&b, 3),
+            engine_type: word(&b, 4),
+            power: word(&b, 5),
+            power_rpm: word(&b, 6),
+            torque: word(&b, 7),
+            torque_rpm: word(&b, 8),
+            bore: word(&b, 9),
+            stroke: word(&b, 10),
+            compression: word(&b, 11),
+            transmission: word(&b, 12),
+            drive: word(&b, 13),
+            steering: word(&b, 14),
+            front_brake_size: word(&b, 15),
+            rear_brake_size: word(&b, 16),
+            front_brakes: word(&b, 17),
+            rear_brakes: word(&b, 18),
+            front_suspension: word(&b, 19),
+            rear_suspension: word(&b, 20),
+            length: word(&b, 21),
+            width: word(&b, 22),
+            height: word(&b, 23),
+            wheelbase: word(&b, 24),
+            front_track: word(&b, 25),
+            rear_track: word(&b, 26),
+            weight: word(&b, 27),
+            description: word(&b, 28),
+            field_74: word(&b, 29),
+        }
+    }
+}
+
 const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

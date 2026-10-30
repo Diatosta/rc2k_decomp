@@ -75,8 +75,14 @@ fn pixel(bits: u32, colour: u32, palette: u32) -> Vec<u8> {
     }
 }
 
-fn rect_at(rect: u32) -> [i32; 4] {
-    std::array::from_fn(|n| crate::pointers::read_or_end(rect + 4 * n as u32, "a rectangle"))
+/// A rectangle (x, y, width, height) kept as four dwords.
+pub fn rect_of(cells: &[crate::session::Dword; 4]) -> [i32; 4] {
+    cells.each_ref().map(|c| c.get() as i32)
+}
+
+/// A rectangle (x, y, width, height) kept in the first 16 bytes of a buffer.
+pub fn rect_in<const N: usize>(bytes: &crate::session::Bytes<N>) -> [i32; 4] {
+    std::array::from_fn(|n| bytes.get_u32(4 * n) as i32)
 }
 
 /// `gfx::fill_rect` (0x406869): rectangle ebx (x, y, width, height) filled, clipped. As the
@@ -84,8 +90,8 @@ fn rect_at(rect: u32) -> [i32; 4] {
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
-pub fn fill_rect(rect: u32, colour: u32, palette: u32) -> Result<(), Refused> {
-    let plan = rc2k_core::gfx::raster::fill(rect_at(rect), &core_clip(), &core_surface())?;
+pub fn fill_rect(rect: [i32; 4], colour: u32, palette: u32) -> Result<(), Refused> {
+    let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(), &core_surface())?;
     carry_out(&plan, colour, palette);
     Ok(())
 }
@@ -99,9 +105,8 @@ pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
 
 /// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
-pub fn frame_rect(rect: u32, dx: i32, dy: i32, colour: u32, palette: u32) {
-    for plan in rc2k_core::gfx::raster::frame(rect_at(rect), dx, dy, &core_clip(), &core_surface())
-    {
+pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: u32) {
+    for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(), &core_surface()) {
         carry_out(&plan, colour, palette);
     }
 }

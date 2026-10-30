@@ -44,7 +44,7 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     clear_rows(crate::gfx::surface::address()?, name_rows(line));
     FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
-        draw_text_in_game(FONTS.game_fonts[2].addr(), text, x, y)?;
+        draw_text_in_game(&FONTS.game_fonts[2], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -88,7 +88,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
         .zip(time_places(line))
     {
         FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(FONTS.game_fonts[3].addr(), text.addr(), x, y)?;
+        draw_text_in_game(&FONTS.game_fonts[3], text.addr(), x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -163,15 +163,13 @@ pub fn update_name_plates() -> Result<(), Refused> {
 /// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
 /// (the original's carry).
 pub fn draw_text_in_game(
-    font: u32,
+    font: &crate::session::Shared<crate::text::font::Font>,
     text: impl Into<crate::place::Place>,
     x: u32,
     y: u32,
 ) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
-    let font = GamePtr::new(font);
-    let mut copy: Font = font.read("a font record")?;
+    let mut copy = font.get();
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
         GamePtr::new(text.into().game()),
@@ -179,8 +177,8 @@ pub fn draw_text_in_game(
         y as i32,
         &mut GameCanvas,
     )?;
-    if copy != font.read::<Font>("a font record")? {
-        font.write(copy, "a font record")?;
+    if copy != font.get() {
+        font.set(copy);
     }
     Ok(wide)
 }

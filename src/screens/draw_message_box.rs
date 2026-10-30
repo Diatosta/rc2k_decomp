@@ -60,7 +60,7 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
     BOX[3].set(b.rect[3]);
     BOX[0].set(b.rect[0]);
     BOX[1].set(b.rect[1]);
-    let rect = BOX[0].addr();
+    let rect = crate::gfx::rect::rect_of(&BOX);
     let palettes = FONTS.palettes.get();
     fill_rect(rect, FILL, palettes)?;
     frame_rect(rect, 0, 0, FRAME, palettes);

@@ -25,10 +25,9 @@ pub fn reflect_vector() {
     );
     // The vector, the normal, d.
     let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-    reflect(
-        w.as_mut_ptr().cast(),
-        (crate::pointers::host(MATRICES.view_back_matrix[0].addr()) as *mut u32).cast(),
-    );
+    // The matrix is only read: a copy of its cells.
+    let m = MATRICES.view_back_matrix.each_ref().map(|f| f.bits());
+    reflect(w.as_mut_ptr().cast(), m.as_ptr().cast());
     crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
     DRAW.scratch.set_bits(w[6]);
 }

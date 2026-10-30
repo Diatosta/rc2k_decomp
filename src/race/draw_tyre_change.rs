@@ -42,8 +42,8 @@ fn set_clip(edge: &Dword, v: u32) {
 }
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
-fn font() -> u32 {
-    FONTS.game_fonts[2].addr()
+fn font() -> &'static crate::session::Shared<crate::text::font::Font> {
+    &FONTS.game_fonts[2]
 }
 
 /// A line's height (`FONTS.game_fonts[0]`'s).
@@ -75,11 +75,20 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
     }
-    crate::gfx::rect::fill_rect(VIEWER_PANEL.texture_rect[0].addr(), 0, TYRE.palette.addr())
+    crate::gfx::rect::fill_rect(
+        crate::gfx::rect::rect_of(&VIEWER_PANEL.texture_rect),
+        0,
+        TYRE.palette.addr(),
+    )
 }
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
-fn text(font: u32, text: impl Into<crate::place::Place>, x: u32, y: u32) -> Result<(), Refused> {
+fn text(
+    font: &crate::session::Shared<crate::text::font::Font>,
+    text: impl Into<crate::place::Place>,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
     Ok(())
 }
@@ -106,9 +115,9 @@ pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         if !failed && TYRE.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
-                (0x129u32, FONTS.game_fonts[2].addr(), 4u32),
-                (0x12A, FONTS.game_fonts[1].addr(), 0xFC),
-                (0x12B, FONTS.game_fonts[0].addr(), 0x84),
+                (0x129u32, &FONTS.game_fonts[2], 4u32),
+                (0x12A, &FONTS.game_fonts[1], 0xFC),
+                (0x12B, &FONTS.game_fonts[0], 0x84),
             ]
             .into_iter()
             .enumerate()
@@ -123,7 +132,7 @@ pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
                 }
                 crate::text::draw_string_by_id::draw_string_by_id_at(
                     id,
-                    crate::pointers::GamePtr::new(font),
+                    crate::pointers::GamePtr::to(font),
                     x as i32,
                     y as i32,
                     &mut crate::text::draw_text::GameCanvas,
@@ -140,7 +149,7 @@ pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         set_clip(&BLIT.clip.left, 0);
         fill(0, 0x99, 0x100, 0x19)?;
         FONTS.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(font(), TYRE.record_name.addr(), 4, 0x99)?;
+        text(font(), &TYRE.record_name, 4, 0x99)?;
         let x = if TYRE.player.get() == 0 {
             set_clip(&BLIT.clip.right, 0x7F);
             0

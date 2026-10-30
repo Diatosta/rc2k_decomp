@@ -93,7 +93,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             )?;
             x += 0x28;
             let mut cursor = Cursor::text();
-            cursor.string(block.name.addr());
+            cursor.string(&block.name);
             cursor.nul()?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
@@ -187,7 +187,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received();
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(NET.chat_input.addr(), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(&NET.chat_input, 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in screens::lobby_buttons(NET.car_item.get(), NET.stage_item.get())

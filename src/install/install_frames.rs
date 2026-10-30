@@ -56,7 +56,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
         }
         // gfx::fill_rect: colour 0
         crate::gfx::rect::fill_rect(
-            INSTALLER_PAGES.bar.addr(),
+            crate::gfx::rect::rect_in(&INSTALLER_PAGES.bar),
             0,
             crate::text::blend_font::BLENDED_PALETTE.addr(),
         )?;
@@ -98,7 +98,7 @@ pub fn copying_frame() -> Result<bool, Refused> {
         crate::install::draw_string_list::draw_string_list(2, &INSTALLER_PAGES.texts, 0, 0)?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
-            INSTALLER_PAGES.frame.addr(),
+            crate::gfx::rect::rect_in(&INSTALLER_PAGES.frame),
             0,
             0,
             0x2A,

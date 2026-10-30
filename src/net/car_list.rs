@@ -11,25 +11,26 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::MENU_LISTS;
-use crate::pointers::GamePtr;
+use crate::session::Dword;
 
-/// Whether one of the cars at `won` is in the list at `secret`.
-pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
+/// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
+/// the original reads to their ends' marks).
+pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
-    let at = |list: u32| {
-        let refused = &refused;
+    fn reader<'a>(
+        list: &'a [Dword],
+        refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
+    ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {
-            GamePtr::new(list.wrapping_add(4 * n))
-                .read::<u32>("a car list's entry")
-                .unwrap_or_else(|e| {
-                    refused.set(Some(e));
-                    0
-                })
+            crate::session::read_on(list, n as usize, "a car list's entry").unwrap_or_else(|e| {
+                refused.set(Some(e));
+                0
+            })
         }
-    };
-    let answer = rc2k_core::net::cars::any_won(at(secret), at(won));
+    }
+    let answer = rc2k_core::net::cars::any_won(reader(secret, &refused), reader(won, &refused));
     if let Some(e) = refused.take() {
         return Err(e.into());
     }
@@ -38,11 +39,11 @@ pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn car_list() -> Result<u32, Refused> {
-    let secret = MENU_LISTS.cars_second[0].addr();
-    let won = MENU_LISTS.secret_cars[0].addr();
-    Ok(if any_won(secret, won)? {
-        MENU_LISTS.cars_with_clio[0].addr()
-    } else {
-        MENU_LISTS.cars_first[0].addr()
-    })
+    Ok(
+        if any_won(&MENU_LISTS.cars_second, &MENU_LISTS.secret_cars)? {
+            MENU_LISTS.cars_with_clio[0].addr()
+        } else {
+            MENU_LISTS.cars_first[0].addr()
+        },
+    )
 }

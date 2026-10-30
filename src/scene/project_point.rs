@@ -194,7 +194,7 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
     let place = crate::race::scene_points::point(from)?;
     rotate(
         place.as_ptr() as *const i32,
-        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
+        MATRICES.view_matrix.each_ref().map(|f| f.bits()).as_ptr(),
         r.as_mut_ptr(),
     );
     r[3] = 0;

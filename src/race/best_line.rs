@@ -6,7 +6,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -437,11 +436,11 @@ pub fn surface_shares() -> Result<(), Refused> {
             let second = byte(f + 0x21)?;
             // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
             // field's 4 dwords), so read by address.
-            let kind: u32 = GamePtr::new(
-                RACE_VIEW.surface_kinds[0].addr()
-                    + (4 * byte(infos + second * 0x40 + 0x2C)? as usize) as u32,
-            )
-            .read("the surface kinds table")?;
+            let kind: u32 = crate::session::read_on(
+                &RACE_VIEW.surface_kinds,
+                byte(infos + second * 0x40 + 0x2C)? as usize,
+                "the surface kinds table",
+            )?;
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
             RACE_VARS
                 .surface_weight

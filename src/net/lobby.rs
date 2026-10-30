@@ -162,14 +162,25 @@ pub fn give_back_lobby_settings() {
     *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
-/// `strings::copy_printable`: the name at `text` (a pointer from the game's data) into `to`.
+/// `strings::copy_printable`: the name at `text` (a typed buffer, or a pointer from the
+/// game's data) into `to`.
 pub fn copy_printable(
-    text: u32,
+    text: impl Into<crate::place::Place>,
     to: impl Into<crate::place::Place>,
     room: u32,
 ) -> Result<(), Refused> {
-    let bytes =
-        crate::strings::copy_printable::printable(crate::pointers::host(text) as *const u8, room)?;
+    use crate::place::Place;
+    let bytes = match text.into() {
+        // As far as the original reads: room - 1 characters or the NUL (here also the
+        // buffer's end).
+        Place::In(b, at) => {
+            let rest = Place::In(b, at).read(b.len().saturating_sub(at), "a name to copy")?;
+            crate::strings::copy_printable::printable_from(&rest, room)?
+        }
+        Place::At(a) => {
+            crate::strings::copy_printable::printable(crate::pointers::host(a) as *const u8, room)?
+        }
+    };
     to.into().write(&bytes, "a printable name")?;
     Ok(())
 }

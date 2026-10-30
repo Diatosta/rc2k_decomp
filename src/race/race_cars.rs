@@ -359,8 +359,11 @@ pub fn set_car_times() -> Result<(), Refused> {
         number(count, false);
         text(w(1), false);
         number(level, false);
-        let at = (RACE_TABLES.time_percentages[0].addr()).wrapping_add(level.wrapping_mul(4));
-        let percentage = GamePtr::new(at).read::<u32>("the time percentages")?;
+        let percentage = crate::session::read_on(
+            &RACE_TABLES.time_percentages,
+            level as usize,
+            "the time percentages",
+        )?;
         text(w(2), false);
         number(percentage, false);
         DRAW.scratch.set_bits(percentage);

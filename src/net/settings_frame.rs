@@ -29,21 +29,25 @@ pub fn settings_frame() -> Result<(), Refused> {
     }
     copy_picture()?;
     let mut y = 0x92;
-    for (item, (label, value, number)) in [
-        (0x163, NET.saved_name.addr(), false),
-        (0x164, NET.machine_name.addr(), false),
-        (0x165, NET.most_players.get(), true),
-        (0x166, NET.host_address.addr(), false),
+    /// A setting's value: a text kept in the network's state, or a number.
+    enum Value {
+        Text(&'static crate::session::Bytes<64>),
+        Number(u32),
+    }
+    for (item, (label, value)) in [
+        (0x163, Value::Text(&NET.saved_name)),
+        (0x164, Value::Text(&NET.machine_name)),
+        (0x165, Value::Number(NET.most_players.get())),
+        (0x166, Value::Text(&NET.host_address)),
     ]
     .into_iter()
     .enumerate()
     {
         let item = item as u32;
         y = setting_label(label, item, y)?;
-        y = if number {
-            draw_number_value(value, item, y)?
-        } else {
-            draw_setting_value(value, item, y)?
+        y = match value {
+            Value::Number(n) => draw_number_value(n, item, y)?,
+            Value::Text(text) => draw_setting_value(text, item, y)?,
         };
     }
     // The last item's string measured (the x the original hands it is `draw_text`'s x of the

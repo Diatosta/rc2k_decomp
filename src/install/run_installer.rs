@@ -109,7 +109,7 @@ pub fn run_installer() -> Result<(), Refused> {
         && lock()
     {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.addr(), 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE.game_ptr(), 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(2000);
