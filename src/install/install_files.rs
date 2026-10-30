@@ -107,7 +107,8 @@ pub fn install_files() -> Result<(), Refused> {
         .files_to_copy
         .set(INSTALLER_RUN.file_count.get());
     let room = crate::install::installer::rd(
-        INSTALLER_NAMES.room_by_mode.addr() + 4 * crate::install::installer::media_mode(),
+        crate::place::Place::from(&INSTALLER_NAMES.room_by_mode)
+            .add(4 * crate::install::installer::media_mode()),
     );
     INSTALLER_RUN.room_needed.set(room);
     // loc_413130: the path is bad; loc_4134D6: no room or not a CD.

@@ -186,8 +186,8 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         text(word(2), false);
         number(pick.index, false);
         let set_up =
-            (crate::race::league_store::LEAGUE.auto_setups[0].addr()).wrapping_add(pick.index << 4);
-        let at = |k: u32| GamePtr::new(set_up + k).read::<u32>("the auto set-ups");
+            GamePtr::to(&crate::race::league_store::LEAGUE.auto_setups[0]).offset(pick.index << 4);
+        let at = |k: u32| set_up.offset(k).read::<u32>("the auto set-ups");
         for (value, off, words) in [
             (at(0)?, 0x30, [3, 4]),
             (at(4)?, 0x34, [5, 6]),

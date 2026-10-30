@@ -30,7 +30,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
 
-pub const GROUP_TITLES_RVA: &Dword = &RESULT_FIGURES.group_titles[0]; // dword_758718[group]: title string ids
+pub const GROUP_TITLES: &[Dword] = &RESULT_FIGURES.group_titles; // dword_758718[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;
@@ -48,7 +48,7 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     };
     label(
         canvas,
-        table_dword_at(GROUP_TITLES_RVA.addr() as usize, sel.group)?,
+        table_dword_at(GROUP_TITLES, sel.group)?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

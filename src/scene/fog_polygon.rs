@@ -52,7 +52,8 @@ pub fn fog_polygon() -> Result<(), Refused> {
         } else {
             length.wrapping_sub(1)
         };
-        let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr()).wrapping_add(place))
+        let fog = GamePtr::to(&LIGHT_STATE.fog_table[0])
+            .offset(place)
             .read::<u8>("the fog table")? as u32;
         entry.fog.set((fixed.unwrap_or(fog) ^ 0xFF) as u8);
     }

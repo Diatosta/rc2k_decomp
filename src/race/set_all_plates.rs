@@ -30,26 +30,26 @@ pub fn set_all_plates() -> Result<(), Refused> {
     };
     let cars: u32 = RACE_VIEW.race_cars.bits();
     check_picture_cars(cars)?;
-    let pictures = TEXTURE_PLACES.kind_pictures[0].addr();
+    let pictures = GamePtr::to(&TEXTURE_PLACES.kind_pictures[0]);
     for (kind, dwords) in PREF_PIECES {
         // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
         // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
-        let from = STAGE_PREFS.picture_lists_a[0].addr() + (4 * kind) as u32;
-        let to = pictures + (4 * kind) as u32;
-        GamePtr::new(from).copy_to(GamePtr::new(to), 4 * dwords, "the picture lists")?;
+        let from = GamePtr::to(&STAGE_PREFS.picture_lists_a[0]).offset(4 * kind as u32);
+        let to = pictures.offset(4 * kind as u32);
+        from.copy_to(to, 4 * dwords, "the picture lists")?;
     }
     for (kind, picture) in FIXED_PICTURES {
         crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.kind_pictures[0], kind as u32)
             .set(picture);
     }
-    let mut at = pictures + (4 * CAR_PICTURE_KINDS) as u32;
+    let mut at = pictures.offset(4 * CAR_PICTURE_KINDS as u32);
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
             RACE_VARS.race_car_kinds[car as usize].get(), // g_raceCarKinds
         );
         for picture in car_pictures(first) {
-            GamePtr::new(at).write(picture, "a car's pictures")?;
-            at += 4;
+            at.write(picture, "a car's pictures")?;
+            at = at.offset(4);
         }
     }
     crate::scene::reload_system_textures::reload_system_textures()?;

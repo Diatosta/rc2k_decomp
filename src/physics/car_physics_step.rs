@@ -200,15 +200,7 @@ pub fn steps() -> Result<(), Refused> {
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
     // A car number past 7 (refused further down) reads past the field.
     let car = RACE_WORK.current_car.get() as usize;
-    let listed = match FRAME_WORK.listed_car_sounds.get(car) {
-        Some(cell) => cell.get(),
-        None => unsafe {
-            (crate::pointers::host_at(
-                (FRAME_WORK.listed_car_sounds[0].addr() + (4 * car) as u32) as usize,
-            ) as *const u32)
-                .read_volatile()
-        },
-    };
+    let listed = crate::session::read_on(&FRAME_WORK.listed_car_sounds, car, "a listed car sound")?;
     if listed != u32::MAX {
         ph::camera_frame::camera_frame()?;
     }

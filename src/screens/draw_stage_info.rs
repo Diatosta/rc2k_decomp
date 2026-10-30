@@ -49,7 +49,7 @@ pub fn event_title() -> Result<u32, crate::errors::BadInput> {
     let section: u32 = EVENT_STATE.section.get();
     let first = find_record_in(table, 0, section)?;
     if CHAMP_VIEW.event_mode.get() == 0x13 {
-        table_dword_at(MENU_LISTS.section_titles[0].addr() as usize, section)
+        table_dword_at(&MENU_LISTS.section_titles, section)
     } else {
         dword(first.wrapping_add(0x38))
     }

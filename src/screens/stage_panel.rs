@@ -29,8 +29,11 @@ pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 }
 
 /// The dword `index` of the table at `table` (an address; no bounds, as the original).
-pub fn table_dword_at(table: usize, index: u32) -> Result<u32, crate::errors::BadInput> {
-    dword((table as u32).wrapping_add(index.wrapping_mul(4)))
+pub fn table_dword_at(
+    table: &[crate::session::Dword],
+    index: u32,
+) -> Result<u32, crate::errors::BadInput> {
+    crate::session::read_on(table, index as usize, "a table's dword")
 }
 
 // ---- the shared parts ----

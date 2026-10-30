@@ -86,13 +86,11 @@ fn set_up() -> Result<(), BadInput> {
 /// no read point).
 pub fn finish_race() -> Result<(), Refused> {
     // The stage index is not checked against the seven (a read past them is the original's).
-    RACE_VARS.stage_number.set(
-        GamePtr::new(
-            (FINISH.finish_stages[0].addr())
-                .wrapping_add(4u32.wrapping_mul(RACE_STATE.results.stage_index.get())),
-        )
-        .read::<u32>("the finish stages")?,
-    );
+    RACE_VARS.stage_number.set(crate::session::read_on(
+        &FINISH.finish_stages,
+        RACE_STATE.results.stage_index.get() as usize,
+        "the finish stages",
+    )?);
     RACE_VARS.race_car_kinds[0].set(RACE_STATE.results.finish_kind.get());
     CAR_BLOCKS.cars[0]
         .car_kind

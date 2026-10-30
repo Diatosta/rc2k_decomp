@@ -17,7 +17,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::menus_store::MENUS;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
-use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
+use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
@@ -45,7 +45,7 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
     }
     build_second_heading(s.record)?;
     GamePtr::new(item_0).write(
-        table_dword_at(GROUP_TITLES_RVA.addr() as usize, s.group)?,
+        table_dword_at(GROUP_TITLES, s.group)?,
         "a menu item's string",
     )?;
     GamePtr::new(item_1).write(dword(s.table.wrapping_add(0x38))?, "a menu item's string")?;

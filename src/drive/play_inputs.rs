@@ -25,11 +25,11 @@ pub fn play_inputs() -> Result<(), BadInput> {
     }
     let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
     let at = |o: u32| {
-        (REPLAY_WORK.replay_tape[0].addr())
-            .wrapping_add(esi)
-            .wrapping_add(o)
+        GamePtr::to(&REPLAY_WORK.replay_tape[0])
+            .offset(esi)
+            .offset(o)
     };
-    let [ebx, second]: [u32; 2] = GamePtr::new(at(0)).read("the replay tape")?;
+    let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         PHYSICS.input_words[k].set(*v);

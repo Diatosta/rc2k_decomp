@@ -23,15 +23,15 @@ pub fn current_player() -> Option<u32> {
     (player != 0).then_some(player)
 }
 
-/// Address of the flag of menu item `item` in the repair flag table.
-pub fn repair_flag_addr(item: u32) -> u32 {
-    (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(item.wrapping_mul(4))
-}
-
+/// The flag of menu item `item` in the repair flag table (the item not checked against
+/// the table: a read past it reads on, as the original's).
 pub fn repair_flag(item: u32) -> u32 {
-    GamePtr::new(repair_flag_addr(item))
-        .read::<u32>("a repair flag")
-        .unwrap_or_else(|e| refuse(e))
+    crate::session::read_on(
+        &MENU_LISTS.inspection_flags_a,
+        item as usize,
+        "a repair flag",
+    )
+    .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn edit_mode() -> bool {
@@ -61,9 +61,13 @@ pub fn flagged_item() -> Result<u32, BadInput> {
 }
 
 pub fn set_repair_flag(item: u32, value: u32) {
-    GamePtr::new(repair_flag_addr(item))
-        .write(value, "a repair flag")
-        .unwrap_or_else(|e| refuse(e))
+    crate::session::write_on(
+        &MENU_LISTS.inspection_flags_a,
+        item as usize,
+        value,
+        "a repair flag",
+    )
+    .unwrap_or_else(|e| refuse(e))
 }
 
 /// The flag table, with its end mark.
