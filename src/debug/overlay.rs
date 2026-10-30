@@ -2,7 +2,7 @@
 //! 0 .. 7; 1 "debug keys active", 2 the display (wear bars, profile), 3 and up the kstar
 //! modes, 4 .. 7 the dumps (`notes/reference.md`). The game's code that set the page and
 //! `g_debugFreezeRace` is not in RAL.EXE (`input::end_frame` sets both 0 every frame):
-//! here two keys of our own, with Ctrl held, kept across frames and put back by
+//! here two keys of our own, with Ctrl held (hidden from the game then), kept across frames and put back by
 //! `input::end_frame` (`words`): F11 the next page, F12 the race frozen (`drive::race_step`
 //! skips its physics ticks). So far each page draws its title and a line in the debug font
 //! (the page, frozen); the pages' own figures come piece by piece.
@@ -39,13 +39,22 @@ pub const TITLES: [&[u8]; PAGES as usize] = [
 static PAGE: AtomicU32 = AtomicU32::new(0);
 static FROZEN: AtomicU32 = AtomicU32::new(0);
 
-/// The keys, once a frame (`race::show_frame`): with Ctrl down, F11 pressed the next page
-/// (after 7, none), F12 pressed the race frozen or going again.
+/// The keys, once a frame (`input::update`, before the game reads the frame's keys): with
+/// Ctrl down, F11 pressed the next page (after 7, none), F12 pressed the race frozen or going
+/// again; and both taken out of `g_keysDown` (the bindings read it), `g_keysNow` and
+/// `g_keysPressed`, so that the game does not see them (F12 is its map).
 pub fn take_keys() {
     if DEVICES.keys_now.get(CONTROL_KEY) == 0 {
         return;
     }
     let pressed = |key| DEVICES.keys_pressed.get(key) & 1 != 0;
+    let (next, freeze) = (pressed(NEXT_PAGE_KEY), pressed(FREEZE_KEY));
+    for key in [NEXT_PAGE_KEY, FREEZE_KEY] {
+        DEVICES.keys_down.set(key, 0);
+        DEVICES.keys_now.set(key, 0);
+        DEVICES.keys_pressed.set(key, 0);
+    }
+    let pressed = |key| if key == NEXT_PAGE_KEY { next } else { freeze };
     if pressed(NEXT_PAGE_KEY) {
         let page = (PAGE.load(Ordering::Relaxed) + 1) % PAGES;
         PAGE.store(page, Ordering::Relaxed);

@@ -47,8 +47,7 @@ pub fn show_frame() -> Result<Shown, Refused> {
         )?;
     }
     { crate::race::frame_text::draw_frame_rate(&mut crate::text::draw_text::GameCanvas) }?;
-    // Not the original's: the developers' debug overlay (`debug::overlay`, its keys and pages).
-    crate::debug::overlay::take_keys();
+    // Not the original's: the developers' debug overlay (`debug::overlay`).
     crate::debug::overlay::draw_pages(&mut crate::text::draw_text::GameCanvas)?;
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame();

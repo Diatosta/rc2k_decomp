@@ -139,6 +139,8 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
     let (_, edx) = find_pressed_keys();
     repeat_keys();
     let right = take_mouse_clicks();
+    // Not the original's: the debug overlay's keys, taken from the game (`debug::overlay`).
+    crate::debug::overlay::take_keys();
     end_frame(&mut || screenshot_if_key(&mut *shot));
     (right, edx)
 }
