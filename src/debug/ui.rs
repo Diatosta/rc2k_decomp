@@ -177,6 +177,7 @@ pub fn build(ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(ui);
     }
+    crate::debug::kstar::over_picture(ui);
     ui.window("Debug")
         .size([760.0, 560.0], Condition::FirstUseEver)
         .position([40.0, 40.0], Condition::FirstUseEver)
@@ -212,6 +213,9 @@ pub fn build(ui: &Ui) {
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
                     profiler(ui);
+                }
+                if let Some(_tab) = ui.tab_item("Kstar modes") {
+                    crate::debug::kstar::tab(ui);
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     rivals(ui);

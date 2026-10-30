@@ -43,6 +43,8 @@ pub mod imgui_sdl {
 }
 #[cfg(target_pointer_width = "64")]
 pub mod display_rows;
+#[cfg(target_pointer_width = "64")]
+pub mod kstar;
 pub mod overlay;
 pub mod timing;
 #[cfg(target_pointer_width = "64")]
