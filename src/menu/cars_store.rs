@@ -12,6 +12,8 @@ use rc2k_core::screens::car_pages::CarDescription;
 #[repr(C)]
 pub struct CarTable {
     /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:
+    /// kept as IDA's addresses, as names (phase 13; nothing reads them, and
+    /// `moved::point_into_homes` passes them over).
     pub name_places: [Dword; 4],
     /// `dword_75649C`: The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair set).
     pub last_car: Dword,
@@ -1170,11 +1172,17 @@ pub fn car_entry(number: u32) -> Result<u32, BadInput> {
         .ok_or(BadInput("a car number past the car table"))
 }
 
-/// Whether IDA's `ida` is a place that holds a car handle now: the car table's entries and
-/// the car lists' (`lists_store::CAR_LISTS`; `moved::point_into_homes` passes them over).
+/// Whether IDA's `ida` is a place that holds a car handle now (or a name): the car table's
+/// entries and the car lists' (`lists_store::CAR_LISTS`), the players' name places and the
+/// descriptions' text places (`CarDescription::field_74`), which nothing reads
+/// (`moved::point_into_homes` passes them over).
 pub fn holds_handle(ida: usize) -> bool {
     let table = 0x7564A0..0x7564A0 + 4 * DESCRIPTION_COUNT as usize;
+    let name_places = START..START + 16;
+    let description_text = |n: usize| 0x756568 + 0x78 * n + 0x74;
     table.contains(&ida)
+        || name_places.contains(&ida)
+        || (0..DESCRIPTION_COUNT as usize).any(|n| ida == description_text(n))
         || crate::menu::lists_store::CAR_LISTS
             .iter()
             .any(|&(at, len)| (at..at + 4 * len).contains(&ida))
@@ -1214,6 +1222,32 @@ mod tests {
             assert!(holds_handle(0x7564A0 + 4 * n));
         }
         assert_eq!(mine, &image[..]);
+        // The name places and the descriptions' text places are the image's addresses,
+        // names that resolve to what they named.
+        for n in 0..4 {
+            let at = 4 * n;
+            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            assert!(holds_handle(START + at));
+            assert_eq!(name as usize, crate::menu::names_store::START + 0x20 * n);
+            assert_eq!(
+                crate::moved::named_in(
+                    name,
+                    crate::menu::names_store::START,
+                    crate::menu::names_store::END - crate::menu::names_store::START,
+                    "a player's name off the names"
+                ),
+                Ok(crate::menu::names_store::names_addr() + 0x20 * n as u32)
+            );
+        }
+        for n in 0..DESCRIPTION_COUNT as usize {
+            let at = 0x756568 - START + 0x78 * n + 0x74;
+            let text = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            assert!(holds_handle(START + at));
+            assert_eq!(
+                crate::moved::named_in(text, 0x757558, 4224, "a description's text off the texts"),
+                Ok(cars_addr() + (text as usize - START) as u32)
+            );
+        }
         assert_eq!(car_of(CAR_TABLE.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
