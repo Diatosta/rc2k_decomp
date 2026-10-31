@@ -159,7 +159,7 @@ pub const KEYBOARD_FILE_LEN: usize = core::mem::size_of::<KeyboardFile>();
 
 /// Where the keyboard file is (`moved::MOVED`'s home for IDA 0x4F07C8).
 pub fn keyboard_file_addr() -> u32 {
-    crate::pointers::game_address(&KEYBOARD_FILE as *const KeyboardFile)
+    crate::pointers::game_address(&raw const KEYBOARD_FILE)
 }
 
 // ---- the devices: 0x4F68D8 .. 0x4F7E18 ----
@@ -351,7 +351,7 @@ pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
 /// Where the devices are (`moved::MOVED`'s home for IDA 0x4F68D8).
 pub fn devices_addr() -> u32 {
-    crate::pointers::game_address(&DEVICES as *const Devices)
+    crate::pointers::game_address(&raw const DEVICES)
 }
 
 impl Devices {
@@ -379,7 +379,7 @@ impl Devices {
         let at = offset_of!(Devices, input_devices) + 4 * n;
         assert!(at + 4 <= core::mem::size_of::<Devices>());
         crate::pointers::read_or_end(
-            crate::pointers::game_address(self as *const Self).wrapping_add(at as u32),
+            crate::pointers::game_address(std::ptr::from_ref::<Self>(self)).wrapping_add(at as u32),
             "an input device past the table",
         )
     }
@@ -491,7 +491,7 @@ pub fn layout_table(layout: u32, at: u32) -> Result<u32, crate::errors::BadInput
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
 pub fn keyboard_addr() -> u32 {
-    crate::pointers::game_address(&KEYBOARD as *const Keyboard)
+    crate::pointers::game_address(&raw const KEYBOARD)
 }
 
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
@@ -531,7 +531,7 @@ pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
 
 /// Where the mouse is (`moved::MOVED`'s home for IDA 0x5C6924).
 pub fn mouse_addr() -> u32 {
-    crate::pointers::game_address(&MOUSE as *const Mouse)
+    crate::pointers::game_address(&raw const MOUSE)
 }
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
@@ -598,7 +598,7 @@ impl ForceFeedback {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&FORCE_FEEDBACK as *const ForceFeedback) as usize
+        crate::pointers::game_address(&raw const FORCE_FEEDBACK) as usize
     }
 }
 
@@ -610,7 +610,11 @@ mod tests {
 
     fn bytes_of(addr: usize, len: usize) -> Vec<u8> {
         (0..len)
-            .map(|i| unsafe { (crate::pointers::host_at(addr + i) as *const u8).read_volatile() })
+            .map(|i| unsafe {
+                crate::pointers::host_at(addr + i)
+                    .cast_const()
+                    .read_volatile()
+            })
             .collect()
     }
 
@@ -716,7 +720,7 @@ mod tests {
         let image = crate::moved::image_bytes(ForceFeedback::START, ForceFeedback::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ForceFeedback::home()) as *const u8,
+                crate::pointers::host_at(ForceFeedback::home()).cast_const(),
                 ForceFeedback::LEN,
             )
         };

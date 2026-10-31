@@ -69,7 +69,7 @@ fn set_up() -> Result<(), BadInput> {
             // Car block 0 (0x70F3EC) + o.
             Set::Lead(o) => {
                 GamePtr::new((crate::race::blocks_store::block_addr(0)).wrapping_add(o))
-                    .write(v, "a car's block")?
+                    .write(v, "a car's block")?;
             }
         }
     }

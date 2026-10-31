@@ -42,7 +42,7 @@ pub fn level() -> u32 {
 
 /// Turns the log on or off (`g_logEnabled`).
 pub fn set_enabled(value: i32) {
-    state::ENABLED.store(value, Ordering::Relaxed)
+    state::ENABLED.store(value, Ordering::Relaxed);
 }
 
 /// `dword_4E06EA` .. (`files`' table of file modes, 16 bytes each): mode 4's access,
@@ -129,7 +129,7 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
 /// Takes the lock the way `log_lock_acquire` does.
 pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
-        crate::system::sleep::sleep(1)
+        crate::system::sleep::sleep(1);
     }
 }
 

@@ -64,7 +64,7 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
         return Ok(());
     }
     let p = Players {
-        cars: v.cars.each_ref().map(|c| c.get()),
+        cars: v.cars.each_ref().map(super::super::session::Dword::get),
         one_player: v.one_player.get() == 1,
         devices: v
             .devices

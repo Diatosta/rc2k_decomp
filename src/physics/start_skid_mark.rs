@@ -60,5 +60,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn start_skid_mark() {
-    start_at(&game())
+    start_at(&game());
 }

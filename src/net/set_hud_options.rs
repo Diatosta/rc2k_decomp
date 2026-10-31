@@ -50,7 +50,7 @@ pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
     let mut bits = RACE_STATE.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
-        bits = cars::hud_bits(SWITCHES.map(|cell| cell.get()));
+        bits = cars::hud_bits(SWITCHES.map(super::super::session::Dword::get));
     }
     let block = crate::race::trap::car_at(block)?;
     block.option_bits.set(bits);

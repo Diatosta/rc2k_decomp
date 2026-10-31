@@ -41,7 +41,7 @@ fn frame_axes(s: u32) {
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
         &CLOCK,
-    )
+    );
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
@@ -49,7 +49,7 @@ fn frame_up(s: u32) {
     frame_up_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
-    )
+    );
 }
 
 /// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
@@ -57,17 +57,17 @@ fn frame_place(s: u32) {
     frame_place_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
-    )
+    );
 }
 
 /// The original's 0x4BAE27 .. 0x4BAE4D: the place's way dotted with the third axis into `flt_814718`.
 fn frame_facing() {
-    frame_facing_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base())
+    frame_facing_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base());
 }
 
 /// The original's 0x4BAEAB .. 0x4BAEEC: a point (x, y at p) turned onto the axes (x, y, z back at p).
 fn point_turned(p: u32) {
-    point_turned_x87(crate::effects::store::base() as usize, p as usize)
+    point_turned_x87(crate::effects::store::base() as usize, p as usize);
 }
 
 /// The Rust version (see the header).
@@ -92,7 +92,10 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    let [kx, ky] = WINDSCREEN_DROP_WORK.shares.each_ref().map(|f| f.bits());
+    let [kx, ky] = WINDSCREEN_DROP_WORK
+        .shares
+        .each_ref()
+        .map(super::super::session::Float::bits);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
         WINDSCREEN_DROP_WORK.scaled[o]
@@ -280,7 +283,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -312,7 +315,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -330,7 +333,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -350,7 +353,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -381,7 +384,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -452,7 +455,7 @@ mod asm_differential {
                         overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
                     ],
                     || super::frame_axes_x87(b[0], b[1], crate::effects::setup::clock_at(b[0])),
-                )
+                );
             },
         );
     }
@@ -501,7 +504,7 @@ mod asm_differential {
                     b[0],
                     &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
                     || super::frame_up_x87(b[0], b[1]),
-                )
+                );
             },
         );
     }
@@ -561,7 +564,7 @@ mod asm_differential {
                         overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
                     ],
                     || super::frame_facing_x87(b[0]),
-                )
+                );
             },
         );
     }
@@ -600,7 +603,7 @@ mod asm_differential {
                     b[0],
                     &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
                     || super::point_turned_x87(b[0], b[1]),
-                )
+                );
             },
         );
     }

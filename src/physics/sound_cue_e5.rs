@@ -15,7 +15,7 @@ use crate::session::Dword;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
 fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::sound_cue_e5's operand")
+    crate::pointers::write_or_end::<u32>(a, v, "physics::sound_cue_e5's operand");
 }
 
 /// The core: the car number, the listed table, the sound objects at these places.

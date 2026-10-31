@@ -295,7 +295,7 @@ pub const END: usize = 0x75ACCC;
 
 /// Where IDA 0X75A658 is now (`moved::MOVED`'s home).
 pub fn menu_state_addr() -> u32 {
-    crate::pointers::game_address(&MENU_STATE as *const MenuState)
+    crate::pointers::game_address(&raw const MENU_STATE)
 }
 
 #[cfg(test)]
@@ -309,7 +309,7 @@ mod tests {
         let size = size_of::<MenuState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(&MENU_STATE as *const MenuState as *const u8, END - START)
+            std::slice::from_raw_parts((&raw const MENU_STATE).cast::<u8>(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

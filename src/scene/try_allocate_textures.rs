@@ -79,7 +79,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         KIND_TEXTURES.textures_asked_other.set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        KIND_TEXTURES.kind_first_slots[texture as usize].set(slot)
+        KIND_TEXTURES.kind_first_slots[texture as usize].set(slot);
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) {
         cell_at(&TEXTURE_PLACES.texture_of[0], first).set(texture);

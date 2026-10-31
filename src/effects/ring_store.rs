@@ -97,7 +97,7 @@ impl RingWork {
     pub const LEN: usize = 0x11C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RING_WORK as *const RingWork) as usize
+        crate::pointers::game_address(&raw const RING_WORK) as usize
     }
 }
 
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn the_ring_work_starts_as_the_games() {
         assert_eq!(size_of::<RingWork>(), RingWork::LEN);
-        let p = &RING_WORK as *const RingWork as *const u8;
+        let p = (&raw const RING_WORK).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<RingWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -161,7 +161,7 @@ impl PictureNames {
     pub const LEN: usize = 0x2A;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PICTURE_NAMES as *const PictureNames) as usize
+        crate::pointers::game_address(&raw const PICTURE_NAMES) as usize
     }
 }
 
@@ -173,7 +173,7 @@ mod name_tests {
     #[test]
     fn the_picture_names_starts_as_the_games() {
         assert_eq!(size_of::<PictureNames>(), PictureNames::LEN);
-        let p = &PICTURE_NAMES as *const PictureNames as *const u8;
+        let p = (&raw const PICTURE_NAMES).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<PictureNames>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

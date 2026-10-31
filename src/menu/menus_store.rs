@@ -888,7 +888,7 @@ pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
 pub fn menus_addr() -> u32 {
-    crate::pointers::game_address(&MENUS as *const MenuTables)
+    crate::pointers::game_address(&raw const MENUS)
 }
 
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
@@ -1187,7 +1187,7 @@ impl MenuCell {
     }
 
     pub fn set(&self, menu: MenuId) {
-        self.0.set(menu.code())
+        self.0.set(menu.code());
     }
 }
 
@@ -1203,7 +1203,7 @@ impl MenuItem {
 
     /// The item's game address (for the callers still handed one).
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
     }
 }
 
@@ -1232,7 +1232,7 @@ mod tests {
             assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
             assert_eq!(MenuId::of(m.labels()), m);
             // The -1 after the items is the dword right after the last.
-            let last = m.items().last().unwrap() as *const MenuItem;
+            let last = std::ptr::from_ref::<MenuItem>(m.items().last().unwrap());
             assert_eq!(
                 unsafe { (*last.add(1).cast::<Dword>()).get() },
                 MenuItem::END
@@ -1255,7 +1255,7 @@ mod tests {
         assert_eq!(size_of::<MenuTables>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(menus_addr()) as *const u8,
+                crate::pointers::host(menus_addr()).cast_const(),
                 END - START,
             )
         };

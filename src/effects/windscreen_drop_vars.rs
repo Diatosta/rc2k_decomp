@@ -312,7 +312,7 @@ mod tests_hex {
             offset_of!(WindscreenDropVars, result_k),
             0x82E336 - WindscreenDropVars::START
         );
-        let p = core::ptr::addr_of!(HEX) as *const u8;
+        let p = core::ptr::addr_of!(HEX).cast::<u8>();
         let now: Vec<u8> = (0..WindscreenDropVars::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

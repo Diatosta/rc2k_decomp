@@ -130,7 +130,7 @@ impl PlayerBlock {
     /// Where the count and the records are (`+0x34`, the start of the inbox
     /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
     pub fn inbox_addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self) + 0x34
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self)) + 0x34
     }
 }
 
@@ -524,7 +524,7 @@ impl NetVars {
     pub const LEN: usize = 0x80F69;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&NET as *const NetVars) as usize
+        crate::pointers::game_address(&raw const NET) as usize
     }
 }
 
@@ -554,7 +554,7 @@ impl NetVars {
             crate::pointers::game_address(self.synced.as_ptr()).wrapping_add(n as u32),
             value,
             "a player's synced byte",
-        )
+        );
     }
 }
 
@@ -592,7 +592,7 @@ impl Button {
     pub const LEN: usize = 0x1C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&BUTTON as *const Button) as usize
+        crate::pointers::game_address(&raw const BUTTON) as usize
     }
 }
 
@@ -620,7 +620,7 @@ mod tests {
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
         check(
-            &NET as *const NetVars as *const u8,
+            (&raw const NET).cast::<u8>(),
             size_of::<NetVars>(),
             0,
             NetVars::START,
@@ -770,7 +770,7 @@ mod tests {
             0x5AB400 - NetVars::START
         );
         check(
-            &BUTTON as *const Button as *const u8,
+            (&raw const BUTTON).cast::<u8>(),
             size_of::<Button>(),
             0,
             Button::START,

@@ -146,7 +146,7 @@ impl MarksKind {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MARKS_KIND as *const MarksKind) as usize
+        crate::pointers::game_address(&raw const MARKS_KIND) as usize
     }
 }
 
@@ -158,7 +158,7 @@ mod marks_kind_tests {
     fn marks_kind_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksKind>(), MarksKind::LEN);
-        let p = &MARKS_KIND as *const MarksKind as *const u8;
+        let p = (&raw const MARKS_KIND).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksKind>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

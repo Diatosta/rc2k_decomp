@@ -181,7 +181,7 @@ impl Fonts {
     pub const LEN: usize = 0x554;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&FONTS as *const Fonts) as usize
+        crate::pointers::game_address(&raw const FONTS) as usize
     }
 }
 
@@ -196,7 +196,7 @@ mod tests {
         let image = crate::moved::image_bytes(Fonts::START, Fonts::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(Fonts::home()) as *const u8,
+                crate::pointers::host_at(Fonts::home()).cast_const(),
                 Fonts::LEN,
             )
         };

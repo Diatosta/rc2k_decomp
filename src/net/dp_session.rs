@@ -498,7 +498,9 @@ impl Session {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Shared> {
-        self.shared.lock().unwrap_or_else(|e| e.into_inner())
+        self.shared
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     pub fn is_host(&self) -> bool {
@@ -563,7 +565,7 @@ impl Session {
         session
             .links
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(1, stream);
         let s = session.clone();
         std::thread::spawn(move || s.follow_host(reader));
@@ -645,7 +647,10 @@ impl Session {
         };
         // the welcome under the links' lock, so that no change goes out before it
         {
-            let mut links = self.links.lock().unwrap_or_else(|e| e.into_inner());
+            let mut links = self
+                .links
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let mut writer = writer;
             if write_frame(&mut writer, &welcome).is_err() {
                 return;
@@ -685,7 +690,7 @@ impl Session {
         // the machine has gone: its players with it
         self.links
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&machine);
         let gone: Vec<Id> = {
             let s = self.lock();
@@ -702,7 +707,10 @@ impl Session {
     }
 
     fn to_machine(&self, machine: u32, bytes: &[u8]) {
-        let mut links = self.links.lock().unwrap_or_else(|e| e.into_inner());
+        let mut links = self
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(link) = links.get_mut(&machine)
             && write_frame(link, bytes).is_err()
         {
@@ -732,7 +740,10 @@ impl Session {
         };
         let bytes = change.write(W::default().u8(CHANGE)).0;
         {
-            let mut links = self.links.lock().unwrap_or_else(|e| e.into_inner());
+            let mut links = self
+                .links
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for link in links.values_mut() {
                 if write_frame(link, &bytes).is_err() {
                     let _ = link.shutdown(std::net::Shutdown::Both);
@@ -998,7 +1009,7 @@ impl Session {
             s = self
                 .answered
                 .wait_timeout(s, deadline - now)
-                .unwrap_or_else(|e| e.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .0;
         }
     }
@@ -1082,7 +1093,10 @@ impl Session {
     /// Leaves the session (the host: ends it for all).
     pub fn close(&self) {
         self.stop.store(true, Ordering::SeqCst);
-        let mut links = self.links.lock().unwrap_or_else(|e| e.into_inner());
+        let mut links = self
+            .links
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         for link in links.values_mut() {
             let _ = write_frame(link, &[BYE]);
             let _ = link.shutdown(std::net::Shutdown::Both);
@@ -1123,7 +1137,7 @@ fn probe_targets(host: &str, port: u16) -> Vec<SocketAddr> {
     };
     with_port
         .to_socket_addrs()
-        .map(|a| a.filter(|a| a.is_ipv4()).collect())
+        .map(|a| a.filter(std::net::SocketAddr::is_ipv4).collect())
         .unwrap_or_default()
 }
 
@@ -1131,7 +1145,9 @@ fn probe_targets(host: &str, port: u16) -> Vec<SocketAddr> {
 /// answers to it come in meanwhile, for the next call: DirectPlay's lists done
 /// asynchronously).
 pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc, SocketAddr)> {
-    let mut finder = FINDER.lock().unwrap_or_else(|e| e.into_inner());
+    let mut finder = FINDER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if finder.is_none() {
         let Ok(socket) = UdpSocket::bind(("0.0.0.0", 0)) else {
             return vec![];
@@ -1151,7 +1167,9 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
                         continue;
                     };
                     let at = SocketAddr::new(from.ip(), port as u16);
-                    let mut list = list.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut list = list
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
                     list.retain(|f| f.desc.instance != desc.instance);
                     list.push(Found {
                         desc,
@@ -1170,7 +1188,10 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
     for target in probe_targets(host, port) {
         let _ = f.socket.send_to(&probe, target);
     }
-    let mut list = f.found.lock().unwrap_or_else(|e| e.into_inner());
+    let mut list = f
+        .found
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     list.retain(|x| x.heard.elapsed() < Duration::from_secs(4));
     list.iter()
         .filter(|x| x.desc.application == application)
@@ -1180,12 +1201,14 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
 
 /// Where the session `instance` was heard from (for joining it).
 pub fn session_address(instance: &[u8; 16]) -> Option<SocketAddr> {
-    let finder = FINDER.lock().unwrap_or_else(|e| e.into_inner());
+    let finder = FINDER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let list = finder
         .as_ref()?
         .found
         .lock()
-        .unwrap_or_else(|e| e.into_inner());
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     list.iter()
         .find(|x| &x.desc.instance == instance)
         .map(|x| x.at)

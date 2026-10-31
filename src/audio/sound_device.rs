@@ -121,7 +121,7 @@ pub fn read_caps() -> Result<bool, Refused> {
                         CapsText::MaxHardware => MAX_HW_TEXT,
                         CapsText::Max3d => MAX_3D_TEXT,
                     };
-                    log_text(at, false)
+                    log_text(at, false);
                 }
                 CapsLog::Hex(n) => log_hex(field(n), false),
                 CapsLog::Int(n) => log_number(field(n), false),

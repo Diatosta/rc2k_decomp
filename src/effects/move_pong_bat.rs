@@ -18,5 +18,5 @@ use crate::effects::pong_bat_back::pong_bat_back;
 pub fn move_pong_bat() {
     PONG.saved_bat[0].set(PONG.bat[0].bits());
     PONG.saved_bat[1].set(PONG.bat[1].bits());
-    pong_bat_back()
+    pong_bat_back();
 }

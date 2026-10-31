@@ -27,7 +27,7 @@ impl ClipScreen {
     pub const LEN: usize = 0xD0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&CLIP as *const ClipScreen) as usize
+        crate::pointers::game_address(&raw const CLIP) as usize
     }
 }
 
@@ -69,7 +69,7 @@ impl GlowState {
     pub const LEN: usize = 0x40;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&GLOW as *const GlowState) as usize
+        crate::pointers::game_address(&raw const GLOW) as usize
     }
 }
 
@@ -78,7 +78,7 @@ mod tests {
     use super::*;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

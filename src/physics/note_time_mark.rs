@@ -47,5 +47,5 @@ fn core(v: &[&dyn Cell32]) {
 /// The Rust version (a compare of floats only: the same at any precision); `r` as the
 /// original leaves are read by none of its callers.
 pub fn note_time_mark() {
-    core(&game())
+    core(&game());
 }

@@ -52,7 +52,7 @@ impl<T: FileTable + Send> Typed for Owned<T> {
     }
 
     fn give_back(&self) {
-        Owned::give_back(self)
+        Owned::give_back(self);
     }
 
     fn bytes(&self) -> Result<Vec<u8>, BadInput> {

@@ -172,7 +172,7 @@ pub static TEXTURE_TABLES: Textures = Textures {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA8C).
 pub fn home() -> usize {
-    crate::pointers::game_address(&TEXTURE_TABLES as *const Textures) as usize
+    crate::pointers::game_address(&raw const TEXTURE_TABLES) as usize
 }
 
 impl Textures {
@@ -183,7 +183,7 @@ impl Textures {
 
     /// Where the sizes table is (five entries of two dwords, for `system::find_entry`).
     pub fn sizes_addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
             + core::mem::offset_of!(Self, sizes) as u32
     }
 
@@ -241,7 +241,7 @@ impl Record {
     pub fn set_keeps_alpha(&self, keeps: u32) {
         let mut record = self.get();
         record.keeps_alpha = keeps;
-        crate::pointers::write_or_end(self.0, record, "a texture's record")
+        crate::pointers::write_or_end(self.0, record, "a texture's record");
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {

@@ -13,7 +13,7 @@ use crate::session::Dword;
 // the work variables and pixels the plan holds written back.
 
 fn set(a: &Dword, v: i32) {
-    a.set(v as u32)
+    a.set(v as u32);
 }
 
 fn core_clip() -> rc2k_core::gfx::raster::Clip {

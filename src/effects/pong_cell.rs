@@ -24,7 +24,10 @@ use rc2k_core::math::extended::from_f64;
 pub fn pong_cell(pattern: u32, column: u32, row: u32) -> Result<(), Refused> {
     {
         if GamePtr::new(pattern).read::<u8>("a pong pattern byte")? != 0 {
-            let step = PONG_RULES.cell_step.each_ref().map(|f| f.get());
+            let step = PONG_RULES
+                .cell_step
+                .each_ref()
+                .map(super::super::session::Float::get);
             let at = pong::PONG.digit_at.each_ref().map(|d| d.get() as i32);
             let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
             let values = [

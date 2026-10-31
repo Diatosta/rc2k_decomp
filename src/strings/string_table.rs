@@ -18,7 +18,7 @@ const PTRS_LOW_RVA: usize = rva(0x95D664); // src[id], ids 0x5A5..=0x658
 
 /// The table's address now.
 pub fn blob() -> *const u8 {
-    crate::pointers::host(STRING_TABLE.load(Ordering::Relaxed)) as *const u8
+    crate::pointers::host(STRING_TABLE.load(Ordering::Relaxed)).cast_const()
 }
 
 /// Points the string table at the lexicon (`g_stringTable` = `g_lexicon`).

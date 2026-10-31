@@ -166,7 +166,7 @@ impl TyreChange {
     pub const LEN: usize = 0x170;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TYRE_CHANGE as *const TyreChange) as usize
+        crate::pointers::game_address(&raw const TYRE_CHANGE) as usize
     }
 }
 
@@ -181,7 +181,7 @@ mod tests {
         let image = crate::moved::image_bytes(TyreChange::START, TyreChange::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(TyreChange::home()) as *const u8,
+                crate::pointers::host_at(TyreChange::home()).cast_const(),
                 TyreChange::LEN,
             )
         };

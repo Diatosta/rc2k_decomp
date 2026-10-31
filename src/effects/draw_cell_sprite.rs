@@ -35,7 +35,7 @@ fn turn(p: &[[u8; 10]; 3]) {
         (crate::pointers::game_address(p.as_ptr())) as usize,
         &RING_WORK,
         &DRAW_WORK,
-    )
+    );
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
@@ -51,7 +51,7 @@ fn square(k: u32, s: u32) -> u32 {
             s as usize,
             &DRAW_WORK,
             &CORNER_SLOPES,
-        )
+        );
     }
     edi
 }
@@ -275,7 +275,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -369,7 +369,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
         result
     }
@@ -431,9 +431,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(b[2], w, dw)
-                    })
-                })
+                        super::turn_x87(b[2], w, dw);
+                    });
+                });
             },
         );
     }

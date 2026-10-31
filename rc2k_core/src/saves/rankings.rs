@@ -356,7 +356,7 @@ pub const A_FIELDS: [Field; 9] = [
 pub fn sort_a(t: &mut RankedTimes, count: usize, key: Field, kept: &mut [u8; NAME_MOVED]) {
     let key_of = |e: &BestTime| e.head.value(key);
     exchange_sort(&mut t.entries, count, key_of, false, |l, a, b| {
-        crate::saves::entries::exchange(l, a, b, &A_FIELDS, kept)
+        crate::saves::entries::exchange(l, a, b, &A_FIELDS, kept);
     });
 }
 
@@ -405,7 +405,7 @@ pub fn sort_b(
         BKey::StageTotal => e.stage[6],
     };
     exchange_sort(&mut t.entries, count, key_of, down, |l, a, b| {
-        exchange_b(l, a, b, kept)
+        exchange_b(l, a, b, kept);
     });
 }
 

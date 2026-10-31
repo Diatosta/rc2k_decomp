@@ -24,7 +24,7 @@ pub fn get(a: u32) -> u32 {
 }
 
 pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end(a, v, "a texture's record or surface")
+    crate::pointers::write_or_end(a, v, "a texture's record or surface");
 }
 
 pub const fn fatal(code: u32) -> FatalError {

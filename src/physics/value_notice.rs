@@ -43,5 +43,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn value_notice() {
-    core(&game())
+    core(&game());
 }

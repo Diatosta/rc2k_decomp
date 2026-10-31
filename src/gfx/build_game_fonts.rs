@@ -64,7 +64,7 @@ pub static GAME_FONTS: GameFontsMemory = GameFontsMemory {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BE894).
 pub fn home() -> usize {
-    crate::pointers::game_address(&GAME_FONTS as *const GameFontsMemory) as usize
+    crate::pointers::game_address(&raw const GAME_FONTS) as usize
 }
 
 // The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and

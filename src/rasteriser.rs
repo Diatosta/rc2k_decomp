@@ -186,9 +186,9 @@ impl Tile<'_> {
         unsafe {
             let row = f.pixels.add(y * f.pitch);
             if f.bits == 16 {
-                (row.add(x * 2) as *mut u16).write_unaligned(p as u16);
+                row.add(x * 2).cast::<u16>().write_unaligned(p as u16);
             } else {
-                (row.add(x * 4) as *mut u32).write_unaligned(p);
+                row.add(x * 4).cast::<u32>().write_unaligned(p);
             }
         }
     }
@@ -517,7 +517,9 @@ pub(crate) fn to_argb(pixel: u32, masks: &[u32; 4]) -> u32 {
 }
 
 fn table_for(masks: &[u32; 4]) -> Table {
-    let mut tables = TABLES.lock().unwrap_or_else(|e| e.into_inner());
+    let mut tables = TABLES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some((_, t)) = tables.iter().find(|(m, _)| m == masks) {
         return t.clone();
     }
@@ -611,9 +613,9 @@ impl<'a> Texels<'a> {
             unsafe {
                 let at = t.pixels.as_ptr().add(place);
                 if t.bytes == 2 {
-                    (at as *const u16).read_unaligned() as u32
+                    at.cast::<u16>().read_unaligned() as u32
                 } else {
-                    (at as *const u32).read_unaligned()
+                    at.cast::<u32>().read_unaligned()
                 }
             }
         } else {
@@ -657,7 +659,9 @@ impl<'a> Texels<'a> {
                     if live >> lane & 1 != 0 {
                         // Safety: `whole`, and the place wrapped or clamped into the texture.
                         let raw = unsafe {
-                            (base.add(place(xs[lane], ys[lane])) as *const u32).read_unaligned()
+                            base.add(place(xs[lane], ys[lane]))
+                                .cast::<u32>()
+                                .read_unaligned()
                         };
                         out[lane] = raw | full;
                     }
@@ -667,7 +671,9 @@ impl<'a> Texels<'a> {
                 for lane in 0..4 {
                     if live >> lane & 1 != 0 {
                         let raw = unsafe {
-                            (base.add(place(xs[lane], ys[lane])) as *const u16).read_unaligned()
+                            base.add(place(xs[lane], ys[lane]))
+                                .cast::<u16>()
+                                .read_unaligned()
                         };
                         out[lane] = table[raw as usize];
                     }
@@ -1348,10 +1354,10 @@ impl Texels<'_> {
                 let at = unsafe { base.add(at[lane] as u32 as usize) };
                 out[corner][lane] = match &self.kind {
                     // SAFETY: as above.
-                    Kind::Usual(full) => (unsafe { (at as *const u32).read_unaligned() }) | full,
+                    Kind::Usual(full) => (unsafe { at.cast::<u32>().read_unaligned() }) | full,
                     // SAFETY: as above.
                     Kind::Table(table) => {
-                        table[unsafe { (at as *const u16).read_unaligned() } as usize]
+                        table[unsafe { at.cast::<u16>().read_unaligned() } as usize]
                     }
                     Kind::Other => 0,
                 };
@@ -1401,7 +1407,7 @@ mod tests {
         // SAFETY: both buffers are the sizes given, and live and untouched meanwhile.
         let mut frame = unsafe {
             Frame::new(
-                pixels.as_mut_ptr() as *mut u8,
+                pixels.as_mut_ptr().cast::<u8>(),
                 w * 4,
                 w,
                 h,

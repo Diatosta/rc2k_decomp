@@ -15,7 +15,7 @@ pub fn init_standings_b() -> Result<(), Refused> {
     with_b(|t| {
         t.entries[..ROOM as usize]
             .iter_mut()
-            .for_each(rc2k_core::saves::rankings::empty_b)
+            .for_each(rc2k_core::saves::rankings::empty_b);
     })?;
     Ok(())
 }

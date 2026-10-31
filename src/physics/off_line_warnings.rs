@@ -35,7 +35,7 @@ fn counters() -> [&'static crate::session::Dword; 4] {
 }
 
 fn load() -> Warnings {
-    let [off, turned, off_time, turned_time] = counters().map(|c| c.get());
+    let [off, turned, off_time, turned_time] = counters().map(super::super::session::Dword::get);
     Warnings {
         off,
         turned,

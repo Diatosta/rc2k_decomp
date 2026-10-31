@@ -1231,7 +1231,7 @@ pub const END: usize = 0x7594AA;
 
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
 pub fn draw_lists_addr() -> u32 {
-    crate::pointers::game_address(&DRAW_LISTS as *const DrawLists)
+    crate::pointers::game_address(&raw const DRAW_LISTS)
 }
 
 #[cfg(test)]
@@ -1245,7 +1245,7 @@ mod tests {
         assert_eq!(size_of::<DrawLists>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(draw_lists_addr()) as *const u8,
+                crate::pointers::host(draw_lists_addr()).cast_const(),
                 END - START,
             )
         };

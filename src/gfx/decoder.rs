@@ -85,7 +85,7 @@ impl Decoder {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519118).
 pub fn home() -> usize {
-    crate::pointers::game_address(&DECODER as *const Decoder) as usize
+    crate::pointers::game_address(&raw const DECODER) as usize
 }
 
 #[cfg(test)]

@@ -37,7 +37,7 @@ pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
     let id = crate::sync::new_thread_id();
     crate::pointers::write_or_end(slot + THREAD_ID as u32, id, what);
     let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
-        run_routine(routine as u32)
+        run_routine(routine as u32);
     }) else {
         return Err(FatalError {
             code: 0x8010_8601,

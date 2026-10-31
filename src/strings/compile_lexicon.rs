@@ -83,7 +83,7 @@ pub static LEXICON: LexiconMemory = LexiconMemory {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
 pub fn memory_home() -> usize {
-    crate::pointers::game_address(&LEXICON as *const LexiconMemory) as usize
+    crate::pointers::game_address(&raw const LEXICON) as usize
 }
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.

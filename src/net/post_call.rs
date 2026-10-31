@@ -26,7 +26,9 @@ static POSTED: Mutex<Option<fn() -> u32>> = Mutex::new(None);
 /// The Rust version.
 pub fn post_call(code: fn() -> u32) -> u32 {
     if NET.posting.get() == 1 {
-        *POSTED.lock().unwrap_or_else(|e| e.into_inner()) = Some(code);
+        *POSTED
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(code);
         NET.posted_call.set(1);
         loop {
             let answered = NET.posted_answered.atomic().swap(0, Ordering::SeqCst);
@@ -48,5 +50,8 @@ pub fn take_posted() -> Option<fn() -> u32> {
     if NET.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
         return None;
     }
-    POSTED.lock().unwrap_or_else(|e| e.into_inner()).take()
+    POSTED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
 }

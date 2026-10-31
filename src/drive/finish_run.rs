@@ -36,7 +36,7 @@ fn lift_car() {
     CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
         ld(FINISH.unknown_20.bits()) * ld(NUMBERS.k65536.bits())
             + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
-    ) as u32)
+    ) as u32);
 }
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after

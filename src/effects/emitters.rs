@@ -26,7 +26,7 @@ impl Random for &Dword {
         self.get()
     }
     fn store(self, value: u32) {
-        self.set(value)
+        self.set(value);
     }
 }
 
@@ -91,7 +91,7 @@ pub fn gate(
     k: &[crate::session::Float; 4],
 ) -> Result<Gate, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = k.each_ref().map(|f| f.bits());
+        let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::Float::bits);
         let rate = x87::rate_to_int(
             at(wheel + a)?,
             at(wheel + b)?,
@@ -248,7 +248,7 @@ impl EmitterVars {
     pub const LEN: usize = 0x14C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&EMITTER as *const EmitterVars) as usize
+        crate::pointers::game_address(&raw const EMITTER) as usize
     }
 }
 
@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn the_emitters_vars_starts_as_the_games() {
         assert_eq!(size_of::<EmitterVars>(), EmitterVars::LEN);
-        let p = &EMITTER as *const EmitterVars as *const u8;
+        let p = (&raw const EMITTER).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<EmitterVars>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

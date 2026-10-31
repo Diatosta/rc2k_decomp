@@ -820,7 +820,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3a4,
                         &CAR.drive_speed_a,
                         &CAR.drive_speed_a,
-                    )
+                    );
                 },
             },
             Block {
@@ -843,7 +843,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3a8,
                         &CAR.drive_speed_b,
                         &CAR.drive_speed_b,
-                    )
+                    );
                 },
             },
             Block {

@@ -15,5 +15,5 @@ const STEP: Volume = Volume {
 
 /// The Rust version the typed tables run.
 pub fn run() {
-    volume_step(STEP)
+    volume_step(STEP);
 }

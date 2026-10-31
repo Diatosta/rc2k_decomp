@@ -38,7 +38,7 @@ fn clip(edge: &Dword) -> u32 {
 }
 
 fn set_clip(edge: &Dword, v: u32) {
-    edge.set(v)
+    edge.set(v);
 }
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).

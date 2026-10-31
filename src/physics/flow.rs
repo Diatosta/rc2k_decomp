@@ -15,7 +15,7 @@ pub fn g(x: impl crate::store::At) -> u32 {
 
 /// Writes the game's dword at IDA address `x`.
 pub fn p(x: impl crate::store::At, v: u32) {
-    crate::store::at_write(x, v)
+    crate::store::at_write(x, v);
 }
 
 /// The game's address of IDA address `x`.

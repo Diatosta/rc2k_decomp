@@ -22,7 +22,7 @@ pub static LOCKED: Locked = Locked {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F3870).
 pub fn home() -> usize {
-    crate::pointers::game_address(&LOCKED as *const Locked) as usize
+    crate::pointers::game_address(&raw const LOCKED) as usize
 }
 
 #[cfg(test)]

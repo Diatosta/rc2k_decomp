@@ -101,7 +101,7 @@ fn triangle_at(w: *mut u8) {
 }
 
 fn triangle(w: &mut [u32; 19]) {
-    triangle_at(w.as_mut_ptr().cast())
+    triangle_at(w.as_mut_ptr().cast());
 }
 
 pub fn face_faces_away(face: usize) -> Result<bool, Refused> {

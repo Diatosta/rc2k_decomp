@@ -40,7 +40,8 @@ pub fn local_time() -> rc2k_core::system::time::LocalTime {
     let mut now = 0;
     let mut dt = SDL_DateTime::default();
     // SAFETY: two out-parameters of documented calls that need no SDL start-up.
-    let read = unsafe { SDL_GetCurrentTime(&mut now) && SDL_TimeToDateTime(now, &mut dt, true) };
+    let read =
+        unsafe { SDL_GetCurrentTime(&raw mut now) && SDL_TimeToDateTime(now, &raw mut dt, true) };
     if !read {
         crate::fatal::raise::end(
             "os::local_time",

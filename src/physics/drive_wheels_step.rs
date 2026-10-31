@@ -815,7 +815,7 @@ mod asm_reference {
                     x87_1(
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
-                    )
+                    );
                 },
             },
             Block {
@@ -856,7 +856,7 @@ mod asm_reference {
                     x87_3(
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
-                    )
+                    );
                 },
             },
             Block {
@@ -892,7 +892,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3], a[4]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell as H;
-                    x87_4(&H(a[0]), &H(a[2]), &H(a[3]), &H(a[4]))
+                    x87_4(&H(a[0]), &H(a[2]), &H(a[3]), &H(a[4]));
                 },
             },
             Block {
@@ -917,7 +917,7 @@ mod asm_reference {
                     x87_5(
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
-                    )
+                    );
                 },
             },
             Block {
@@ -963,7 +963,7 @@ mod asm_reference {
                         &PHYSICS.wheel_grips
                     } else {
                         &PHYSICS.wheel_grips_b
-                    })
+                    });
                 },
             },
             Block {
@@ -999,7 +999,7 @@ mod asm_reference {
                         &PHYSICS.wheel_grips
                     } else {
                         &PHYSICS.wheel_grips_b
-                    })
+                    });
                 },
             },
             Block {

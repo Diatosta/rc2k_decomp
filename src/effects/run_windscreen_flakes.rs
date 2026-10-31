@@ -119,7 +119,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }

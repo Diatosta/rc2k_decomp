@@ -24,7 +24,7 @@ fn at(a: u32) -> u32 {
 }
 
 fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::queue_sound_cue's operand")
+    crate::pointers::write_or_end::<u32>(a, v, "physics::queue_sound_cue's operand");
 }
 
 /// `cue` queued in `object`'s queue (at `queue`), first or last. The registers it leaves

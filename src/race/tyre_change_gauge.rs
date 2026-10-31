@@ -46,7 +46,7 @@ const CLOCK: u32 = 0x4F4;
 
 #[cfg(all(test, target_arch = "x86"))]
 fn p(x: usize, v: u32) {
-    crate::store::game_write(crate::framework::rva(x), v)
+    crate::store::game_write(crate::framework::rva(x), v);
 }
 
 fn get(a: u32) -> Result<u32, BadInput> {

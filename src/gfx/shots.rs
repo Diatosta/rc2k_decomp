@@ -29,7 +29,7 @@ pub static SHOTS: Shots = Shots {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F52B4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&SHOTS as *const Shots) as usize
+    crate::pointers::game_address(&raw const SHOTS) as usize
 }
 
 /// Whether screenshots are on.

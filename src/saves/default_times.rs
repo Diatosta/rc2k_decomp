@@ -38,7 +38,7 @@ pub fn to_the_log(piece: Piece) {
     match piece {
         Piece::Text(text, newline) => crate::logfile::log_write::log_at(text, newline, 1),
         Piece::Number(number, newline) => {
-            crate::logfile::log_int::log_int(number as i32, newline, 1)
+            crate::logfile::log_int::log_int(number as i32, newline, 1);
         }
     }
 }
@@ -87,7 +87,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
         (self.log)(match piece {
             P::Text(t, newline) => Piece::Text(text(t), newline),
             P::Number(n, newline) => Piece::Number(n, newline),
-        })
+        });
     }
 }
 

@@ -20,7 +20,10 @@ use crate::pointers::GamePtr;
 
 /// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
 pub fn record_addrs() -> [u32; 2] {
-    DEVICES.records.each_ref().map(|record| record.addr())
+    DEVICES
+        .records
+        .each_ref()
+        .map(super::super::session::Bytes::addr)
 }
 
 /// The device's state (`g_deviceState`), 0x50 bytes.

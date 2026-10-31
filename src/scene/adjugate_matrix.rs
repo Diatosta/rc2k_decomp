@@ -21,7 +21,7 @@ pub fn adjugate_matrix(matrix: u32, out: u32) {
         crate::pointers::read_or_end::<u32>(matrix + o, "scene::adjugate_matrix's operand")
     };
     let put = |o: u32, v: u32| {
-        crate::pointers::write_or_end::<u32>(out + o, v, "scene::adjugate_matrix's operand")
+        crate::pointers::write_or_end::<u32>(out + o, v, "scene::adjugate_matrix's operand");
     };
     for (to, [a, b, c, d]) in COFACTORS {
         put(to, x87::product_difference(get(a), get(b), get(c), get(d)));

@@ -63,7 +63,7 @@ thread_local! {
 /// This thread's name, never 0.
 #[inline]
 fn this_thread() -> usize {
-    THREAD_MARK.with(|m| m as *const u8 as usize)
+    THREAD_MARK.with(|m| std::ptr::from_ref::<u8>(m) as usize)
 }
 
 /// A step ended (also when it unwinds).
@@ -85,7 +85,9 @@ impl<T> Owned<T> {
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, Option<Box<T>>> {
-        self.value.lock().unwrap_or_else(|e| e.into_inner())
+        self.value
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.

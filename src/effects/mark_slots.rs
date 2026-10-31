@@ -68,7 +68,7 @@ impl MarkSlots {
     pub const LEN: usize = 0x384;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SLOTS as *const MarkSlots) as usize
+        crate::pointers::game_address(&raw const SLOTS) as usize
     }
 }
 
@@ -114,7 +114,7 @@ impl SlotTuning {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TUNING as *const SlotTuning) as usize
+        crate::pointers::game_address(&raw const TUNING) as usize
     }
 }
 
@@ -123,7 +123,7 @@ mod tests {
     use super::*;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

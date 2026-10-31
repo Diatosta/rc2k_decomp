@@ -13,5 +13,5 @@ pub fn free_rev_in_neutral() {
     if CAR.gear.get() != 0 {
         return;
     }
-    free_rev()
+    free_rev();
 }

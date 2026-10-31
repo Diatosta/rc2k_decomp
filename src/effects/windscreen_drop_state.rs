@@ -52,7 +52,7 @@ impl WindscreenDropState {
     pub const LEN: usize = 0x60;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_DROP_STATE as *const WindscreenDropState) as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_DROP_STATE) as usize
     }
 }
 
@@ -64,7 +64,7 @@ mod windscreen_drop_state_tests {
     fn windscreen_drop_state_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropState>(), WindscreenDropState::LEN);
-        let p = &WINDSCREEN_DROP_STATE as *const WindscreenDropState as *const u8;
+        let p = (&raw const WINDSCREEN_DROP_STATE).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropState>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -228,7 +228,7 @@ impl WindscreenDropWork {
     pub const LEN: usize = 0xA18;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_DROP_WORK as *const WindscreenDropWork) as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_DROP_WORK) as usize
     }
 }
 
@@ -240,7 +240,7 @@ mod windscreen_drop_work_tests {
     fn windscreen_drop_work_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropWork>(), WindscreenDropWork::LEN);
-        let p = &WINDSCREEN_DROP_WORK as *const WindscreenDropWork as *const u8;
+        let p = (&raw const WINDSCREEN_DROP_WORK).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

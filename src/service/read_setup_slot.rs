@@ -48,7 +48,7 @@ pub static SET_UPS: SetUps = SetUps {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x527838).
 pub fn home() -> usize {
-    crate::pointers::game_address(&SET_UPS as *const SetUps) as usize
+    crate::pointers::game_address(&raw const SET_UPS) as usize
 }
 
 /// IDA's address of the file name's template.

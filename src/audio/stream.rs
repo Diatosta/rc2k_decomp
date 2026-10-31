@@ -153,16 +153,14 @@ pub fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
     }
     let b = s.buffer;
     // Converted: `rc2k_core::audio::streams::AudioStream::moved` and `advance`.
-    let cursor = match crate::platform_sound::current_position(b) {
-        Ok((play, _)) => play,
-        Err(_) => return failed(s),
+    let Ok((cursor, _)) = crate::platform_sound::current_position(b) else {
+        return failed(s);
     };
     let Some(moved) = s.moved(cursor) else {
         return Ok(true);
     };
-    let parts = match crate::platform_sound::lock(b, s.write_at, moved, 0) {
-        Ok(parts) => parts,
-        Err(_) => return failed(s),
+    let Ok(parts) = crate::platform_sound::lock(b, s.write_at, moved, 0) else {
+        return failed(s);
     };
     for (cell, part) in AUDIO.locked_parts.iter().zip(parts) {
         cell.set(part);

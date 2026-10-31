@@ -31,7 +31,10 @@ const LIFE: u32 = 0x3E8;
 /// The rate, from the wheel's +0xC.
 fn rate(wheel: u32) -> Result<i32, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = KIND21_SET.rate_k.each_ref().map(|f| f.bits());
+        let [k1, k2, k3, k4] = KIND21_SET
+            .rate_k
+            .each_ref()
+            .map(super::super::session::Float::bits);
         x87::speed_rate_to_int(at(wheel + 0xC)?, k1, k2, k3, MARKS_FLOATS.one.bits(), k4)
     })
 }
@@ -184,7 +187,7 @@ impl Kind21Set {
     pub const LEN: usize = 0x88;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KIND21_SET as *const Kind21Set) as usize
+        crate::pointers::game_address(&raw const KIND21_SET) as usize
     }
 }
 
@@ -194,7 +197,7 @@ mod kind21_set_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

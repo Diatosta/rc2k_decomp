@@ -112,7 +112,7 @@ fn get(a: usize) -> u32 {
 }
 
 fn set(a: usize, v: u32) {
-    crate::pointers::write_or_end(game_addr(rva(a)), v, "race::settings_copy's operand")
+    crate::pointers::write_or_end(game_addr(rva(a)), v, "race::settings_copy's operand");
 }
 
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
@@ -130,7 +130,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         a.get()
     }
     fn set(&mut self, a: Place, v: u32) {
-        a.set(v)
+        a.set(v);
     }
     fn eax(&self) -> u32 {
         self.eax

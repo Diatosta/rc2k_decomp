@@ -24,7 +24,7 @@ use crate::scene::draw_store::DRAW;
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87((crate::pointers::game_address(p.as_ptr())) as usize, &RAIN)
+    turn_x87((crate::pointers::game_address(p.as_ptr())) as usize, &RAIN);
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
@@ -33,7 +33,7 @@ fn project() {
         crate::d3d::vertices_store::piece_addr() as usize,
         &RAIN,
         &RAIN_RULES,
-    )
+    );
 }
 
 /// The Rust version (see the header).
@@ -294,7 +294,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -392,7 +392,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -539,8 +539,8 @@ mod asm_differential {
             |b| reference::project_x87(b[0], b[1], b[2]),
             |b| {
                 with_state_at(b[2], |r, k| {
-                    super::project_x87(b[1].wrapping_add(0x5605A0), r, k)
-                })
+                    super::project_x87(b[1].wrapping_add(0x5605A0), r, k);
+                });
             },
         );
     }

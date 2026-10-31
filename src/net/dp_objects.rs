@@ -146,7 +146,9 @@ static OBJECTS: Mutex<Vec<(u32, Arc<Object>)>> = Mutex::new(Vec::new());
 static NEXT: AtomicU32 = AtomicU32::new(1);
 
 fn object(this: u32) -> Arc<Object> {
-    let objects = OBJECTS.lock().unwrap_or_else(|e| e.into_inner());
+    let objects = OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     match objects.iter().find(|(id, _)| *id == this) {
         Some((_, o)) => Arc::clone(o),
         None => {
@@ -161,7 +163,10 @@ fn object(this: u32) -> Arc<Object> {
 /// The object's state, for `f`.
 fn with_state<R>(this: u32, f: impl FnOnce(&mut State) -> R) -> R {
     let o = object(this);
-    let mut s = o.state.lock().unwrap_or_else(|e| e.into_inner());
+    let mut s = o
+        .state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(&mut s)
 }
 
@@ -171,14 +176,17 @@ fn session(this: u32) -> Option<Arc<Session>> {
 
 fn make(kind: Kind) -> u32 {
     let id = NEXT.fetch_add(1, Ordering::SeqCst);
-    OBJECTS.lock().unwrap_or_else(|e| e.into_inner()).push((
-        id,
-        Arc::new(Object {
-            kind,
-            refs: AtomicU32::new(1),
-            state: Mutex::new(State::default()),
-        }),
-    ));
+    OBJECTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .push((
+            id,
+            Arc::new(Object {
+                kind,
+                refs: AtomicU32::new(1),
+                state: Mutex::new(State::default()),
+            }),
+        ));
     id
 }
 
@@ -268,7 +276,7 @@ pub fn release(this: u32) -> u32 {
         }
         OBJECTS
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .retain(|(id, _)| *id != this);
     }
     left

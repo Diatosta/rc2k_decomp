@@ -50,7 +50,9 @@ pub fn loading_bar_frame() -> Result<(), Refused> {
     // was 3/4 of a load (882 ms of 1231, 2026-10-30).
     let begun = std::time::Instant::now();
     {
-        let mut last = LAST_FRAME.lock().unwrap_or_else(|e| e.into_inner());
+        let mut last = LAST_FRAME
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if RACE_VARS.bar_share.bits() < 100
             && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
         {

@@ -34,7 +34,7 @@ use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
     let angle = CONTACT_WORK.face_angle.get() as u8;
     crate::race::course_places::update_face(face, "a touched face", |f| {
-        f.touch(mark as u8, angle, clear_9)
+        f.touch(mark as u8, angle, clear_9);
     })
 }
 
@@ -74,7 +74,7 @@ pub fn touch_face() -> Result<(), Refused> {
                 let (_, lucky) = lucky(next_random());
                 if lucky {
                     crate::race::course_places::update_face(face, "a touched face", |f| {
-                        f.set_mark(0xF)
+                        f.set_mark(0xF);
                     })?;
                     CONTACT_WORK.lit_face_count.set(count + 1);
                 }

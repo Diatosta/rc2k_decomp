@@ -52,7 +52,7 @@ pub static GRADING: Grading = Grading {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F4A24).
 pub fn home() -> usize {
-    crate::pointers::game_address(&GRADING as *const Grading) as usize
+    crate::pointers::game_address(&raw const GRADING) as usize
 }
 
 /// The second picture's place, in bytes from the first's start.

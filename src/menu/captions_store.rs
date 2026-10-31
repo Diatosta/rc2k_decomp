@@ -331,7 +331,7 @@ pub const END: usize = 0x758B72;
 
 /// Where IDA 0x758806 is now (`moved::MOVED`'s home).
 pub fn captions_addr() -> u32 {
-    crate::pointers::game_address(&CAPTIONS as *const CaptionTables)
+    crate::pointers::game_address(&raw const CAPTIONS)
 }
 
 #[cfg(test)]
@@ -348,7 +348,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(captions_addr()) as *const u8,
+                crate::pointers::host(captions_addr()).cast_const(),
                 END - START,
             )
         };

@@ -33,8 +33,8 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
     // precision: one rounding each).
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
     let place = place_behind(
-        so.place.each_ref().map(|f| f.get()),
-        so.motion.each_ref().map(|f| f.get()),
+        so.place.each_ref().map(super::super::session::Float::get),
+        so.motion.each_ref().map(super::super::session::Float::get),
     );
     for (n, v) in place.into_iter().enumerate() {
         GamePtr::new(request)

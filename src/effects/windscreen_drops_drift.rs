@@ -34,7 +34,7 @@ fn view_moved(s: u32) {
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
         &CLOCK,
-    )
+    );
 }
 
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
@@ -44,7 +44,7 @@ fn drift_turned(m: u32, t: u32, l: u32) {
         m as usize,
         t as usize,
         l as usize,
-    )
+    );
 }
 
 /// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
@@ -54,7 +54,7 @@ fn drift_back(m: u32, t: u32, l: u32) {
         m as usize,
         t as usize,
         l as usize,
-    )
+    );
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
@@ -63,7 +63,7 @@ fn move_kept(s: u32) {
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
         &CLOCK,
-    )
+    );
 }
 
 /// The Rust version (see the header).
@@ -283,7 +283,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -330,7 +330,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -384,7 +384,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -408,7 +408,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -572,8 +572,8 @@ mod asm_differential {
             |b| reference::drift_back_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 with_overlays(b[0], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
-                    super::drift_back_x87(b[0], b[1], b[2], b[3])
-                })
+                    super::drift_back_x87(b[0], b[1], b[2], b[3]);
+                });
             },
         );
     }

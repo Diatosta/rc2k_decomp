@@ -223,7 +223,7 @@ impl Quad1 {
     pub const LEN: usize = 0xF8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&QUAD_1 as *const QuadWork) as usize
+        crate::pointers::game_address(&raw const QUAD_1) as usize
     }
 }
 
@@ -235,7 +235,7 @@ impl Quad2 {
     pub const LEN: usize = 0xF8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&QUAD_2 as *const QuadWork) as usize
+        crate::pointers::game_address(&raw const QUAD_2) as usize
     }
 }
 
@@ -247,7 +247,7 @@ impl Quad3 {
     pub const LEN: usize = 0xF8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&QUAD_3 as *const QuadWork) as usize
+        crate::pointers::game_address(&raw const QUAD_3) as usize
     }
 }
 
@@ -1783,7 +1783,7 @@ impl Tables1 {
     pub const LEN: usize = 0xBC4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TABLES_1 as *const KindTables<0x1AC>) as usize
+        crate::pointers::game_address(&raw const TABLES_1) as usize
     }
 }
 
@@ -1795,7 +1795,7 @@ impl Tables2 {
     pub const LEN: usize = 0xBB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TABLES_2 as *const KindTables<0x198>) as usize
+        crate::pointers::game_address(&raw const TABLES_2) as usize
     }
 }
 
@@ -1822,7 +1822,7 @@ impl KindExtras1 {
     pub const LEN: usize = 0xC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&EXTRAS_1 as *const KindExtras1) as usize
+        crate::pointers::game_address(&raw const EXTRAS_1) as usize
     }
 }
 
@@ -1843,7 +1843,7 @@ impl KindExtra2 {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&EXTRA_2 as *const KindExtra2) as usize
+        crate::pointers::game_address(&raw const EXTRA_2) as usize
     }
 }
 
@@ -1934,7 +1934,7 @@ impl Consts1 {
     pub const LEN: usize = 0x54;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&CONSTS_1 as *const KindConsts) as usize
+        crate::pointers::game_address(&raw const CONSTS_1) as usize
     }
 }
 
@@ -1946,7 +1946,7 @@ impl Consts2 {
     pub const LEN: usize = 0x54;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&CONSTS_2 as *const KindConsts) as usize
+        crate::pointers::game_address(&raw const CONSTS_2) as usize
     }
 }
 
@@ -1956,7 +1956,7 @@ mod tests {
     use core::mem::{offset_of, size_of};
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

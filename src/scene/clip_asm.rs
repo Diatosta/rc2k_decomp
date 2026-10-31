@@ -27,7 +27,7 @@ pub const PLANE: usize = 0x140;
 
 /// `sub_44D247` from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
 pub fn cut_at_x(w: *mut Work) {
-    cut_x(w.cast())
+    cut_x(w.cast());
 }
 
 fn cut_x(w: *mut u8) {
@@ -159,7 +159,7 @@ fn cut_x(w: *mut u8) {
 
 /// `sub_44D532`, likewise with `flt_623F84`.
 pub fn cut_at_y(w: *mut Work) {
-    cut_y(w.cast())
+    cut_y(w.cast());
 }
 
 fn cut_y(w: *mut u8) {
@@ -291,7 +291,7 @@ fn cut_y(w: *mut u8) {
 
 /// `sub_44DB93` from 0x44DC37 to 0x44DD9A (`sub_44DEAA` has the same there).
 pub fn cut_at_depth(w: *mut Work) {
-    cut_depth(w.cast())
+    cut_depth(w.cast());
 }
 
 fn cut_depth(w: *mut u8) {

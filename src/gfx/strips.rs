@@ -32,7 +32,7 @@ pub static STRIPS: Strips = Strips {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x6D1870).
 pub fn home() -> usize {
-    crate::pointers::game_address(&STRIPS as *const Strips) as usize
+    crate::pointers::game_address(&raw const STRIPS) as usize
 }
 
 #[cfg(test)]

@@ -23,7 +23,7 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(&KEPT, &WINDSCREEN_FLAKE_TIMING, &WINDSCREEN_FLAKE_STATE)
+    rate_x87(&KEPT, &WINDSCREEN_FLAKE_TIMING, &WINDSCREEN_FLAKE_STATE);
 }
 
 /// The Rust version (see the header).
@@ -117,7 +117,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -176,12 +176,12 @@ mod asm_differential {
                                         b[1],
                                         &[overlay(&SHAPE_TILT, ShapeTilt::START)],
                                         || super::rate_x87(kv, sti, ss),
-                                    )
+                                    );
                                 },
-                            )
+                            );
                         },
-                    )
-                })
+                    );
+                });
             },
         );
     }

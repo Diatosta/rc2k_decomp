@@ -169,7 +169,7 @@ impl ProfileRings {
     pub const LEN: usize = 0x804;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PROFILE_RINGS as *const ProfileRings) as usize
+        crate::pointers::game_address(&raw const PROFILE_RINGS) as usize
     }
 }
 
@@ -208,7 +208,7 @@ impl ProfileLists {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PROFILE_LISTS as *const ProfileLists) as usize
+        crate::pointers::game_address(&raw const PROFILE_LISTS) as usize
     }
 }
 
@@ -257,7 +257,7 @@ impl ProfileTables {
     pub const LEN: usize = 0x6800;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PROFILE_TABLES as *const ProfileTables) as usize
+        crate::pointers::game_address(&raw const PROFILE_TABLES) as usize
     }
 }
 
@@ -272,7 +272,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(ProfileRings::START, ProfileRings::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileRings::home()) as *const u8,
+                crate::pointers::host_at(ProfileRings::home()).cast_const(),
                 ProfileRings::LEN,
             )
         };
@@ -296,7 +296,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(ProfileLists::START, ProfileLists::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileLists::home()) as *const u8,
+                crate::pointers::host_at(ProfileLists::home()).cast_const(),
                 ProfileLists::LEN,
             )
         };
@@ -320,7 +320,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(ProfileTables::START, ProfileTables::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ProfileTables::home()) as *const u8,
+                crate::pointers::host_at(ProfileTables::home()).cast_const(),
                 ProfileTables::LEN,
             )
         };

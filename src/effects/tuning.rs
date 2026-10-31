@@ -50,7 +50,7 @@ impl MarksFrame {
     pub const LEN: usize = 0x30;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MARKS_FRAME as *const MarksFrame) as usize
+        crate::pointers::game_address(&raw const MARKS_FRAME) as usize
     }
 }
 
@@ -62,7 +62,7 @@ mod marks_frame_tests {
     fn marks_frame_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFrame>(), MarksFrame::LEN);
-        let p = &MARKS_FRAME as *const MarksFrame as *const u8;
+        let p = (&raw const MARKS_FRAME).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFrame>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -259,7 +259,7 @@ impl MarksFloats {
     pub const LEN: usize = 0xF8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MARKS_FLOATS as *const MarksFloats) as usize
+        crate::pointers::game_address(&raw const MARKS_FLOATS) as usize
     }
 }
 
@@ -271,7 +271,7 @@ mod marks_floats_tests {
     fn marks_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFloats>(), MarksFloats::LEN);
-        let p = &MARKS_FLOATS as *const MarksFloats as *const u8;
+        let p = (&raw const MARKS_FLOATS).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -440,7 +440,7 @@ impl MarksKindFloats {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MARKS_KIND_FLOATS as *const MarksKindFloats) as usize
+        crate::pointers::game_address(&raw const MARKS_KIND_FLOATS) as usize
     }
 }
 
@@ -452,7 +452,7 @@ mod marks_kind_floats_tests {
     fn marks_kind_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksKindFloats>(), MarksKindFloats::LEN);
-        let p = &MARKS_KIND_FLOATS as *const MarksKindFloats as *const u8;
+        let p = (&raw const MARKS_KIND_FLOATS).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksKindFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

@@ -57,7 +57,7 @@ impl InstallVars {
     pub const LEN: usize = 0x4B6;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALL as *const InstallVars) + 1) as usize
+        (crate::pointers::game_address(&raw const INSTALL) + 1) as usize
     }
 }
 
@@ -106,7 +106,7 @@ impl DriveRows {
     pub const LEN: usize = 0x1A1;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&DRIVE_ROWS as *const DriveRows) as usize
+        crate::pointers::game_address(&raw const DRIVE_ROWS) as usize
     }
 }
 
@@ -147,7 +147,7 @@ impl LobbyKeys {
     pub const LEN: usize = 0x77;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&LOBBY_KEYS as *const LobbyKeys) as usize
+        crate::pointers::game_address(&raw const LOBBY_KEYS) as usize
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
         check(
-            &INSTALL as *const InstallVars as *const u8,
+            (&raw const INSTALL).cast::<u8>(),
             size_of::<InstallVars>(),
             1,
             InstallVars::START,
@@ -214,7 +214,7 @@ mod tests {
             1 + 0x529F1E - InstallVars::START
         );
         check(
-            &DRIVE_ROWS as *const DriveRows as *const u8,
+            (&raw const DRIVE_ROWS).cast::<u8>(),
             size_of::<DriveRows>(),
             0,
             DriveRows::START,
@@ -225,7 +225,7 @@ mod tests {
             0x52A30F - DriveRows::START
         );
         check(
-            &LOBBY_KEYS as *const LobbyKeys as *const u8,
+            (&raw const LOBBY_KEYS).cast::<u8>(),
             size_of::<LobbyKeys>(),
             0,
             LobbyKeys::START,

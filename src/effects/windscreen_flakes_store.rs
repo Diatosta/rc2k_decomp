@@ -26,8 +26,7 @@ impl WindscreenFlakeTiming {
     pub const LEN: usize = 0xC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_FLAKE_TIMING as *const WindscreenFlakeTiming)
-            as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TIMING) as usize
     }
 }
 
@@ -168,8 +167,7 @@ impl WindscreenFlakeTables {
     pub const LEN: usize = 0x6A0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_FLAKE_TABLES as *const WindscreenFlakeTables)
-            as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TABLES) as usize
     }
 }
 
@@ -227,8 +225,7 @@ impl WindscreenFlakeItems {
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_FLAKE_ITEMS as *const WindscreenFlakeItems)
-            as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_ITEMS) as usize
     }
 }
 
@@ -356,8 +353,7 @@ impl WindscreenFlakeState {
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WINDSCREEN_FLAKE_STATE as *const WindscreenFlakeState)
-            as usize
+        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_STATE) as usize
     }
 }
 
@@ -376,7 +372,7 @@ mod typed_tests {
             crate::moved::image_bytes(WindscreenFlakeTiming::START, WindscreenFlakeTiming::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(WindscreenFlakeTiming::home()) as *const u8,
+                crate::pointers::host_at(WindscreenFlakeTiming::home()).cast_const(),
                 WindscreenFlakeTiming::LEN,
             )
         };
@@ -404,7 +400,7 @@ mod typed_tests {
             crate::moved::image_bytes(WindscreenFlakeTables::START, WindscreenFlakeTables::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(WindscreenFlakeTables::home()) as *const u8,
+                crate::pointers::host_at(WindscreenFlakeTables::home()).cast_const(),
                 WindscreenFlakeTables::LEN,
             )
         };
@@ -465,7 +461,7 @@ mod typed_tests {
             crate::moved::image_bytes(WindscreenFlakeItems::START, WindscreenFlakeItems::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(WindscreenFlakeItems::home()) as *const u8,
+                crate::pointers::host_at(WindscreenFlakeItems::home()).cast_const(),
                 WindscreenFlakeItems::LEN,
             )
         };
@@ -483,7 +479,7 @@ mod typed_tests {
             crate::moved::image_bytes(WindscreenFlakeState::START, WindscreenFlakeState::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(WindscreenFlakeState::home()) as *const u8,
+                crate::pointers::host_at(WindscreenFlakeState::home()).cast_const(),
                 WindscreenFlakeState::LEN,
             )
         };

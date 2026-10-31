@@ -25,17 +25,23 @@ pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
     NET.elements.set(NET.elements.get().wrapping_add(1));
     ELEMENTS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .push((data_type.read(), data.to_vec()));
 }
 
 /// No elements (the count 0).
 pub fn clear() {
     NET.elements.set(0);
-    ELEMENTS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    ELEMENTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 }
 
 /// The elements added.
 pub fn elements() -> Vec<Element> {
-    ELEMENTS.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    ELEMENTS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
 }

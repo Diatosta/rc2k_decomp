@@ -52,7 +52,7 @@ pub static SAVE_GAMES: SaveGames = SaveGames {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51EBB0).
 pub fn home() -> usize {
-    crate::pointers::game_address(&SAVE_GAMES as *const SaveGames) as usize
+    crate::pointers::game_address(&raw const SAVE_GAMES) as usize
 }
 
 /// IDA's address of the file name's template.

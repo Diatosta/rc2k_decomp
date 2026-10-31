@@ -79,7 +79,9 @@ fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> 
     memory.shrink_to_fit();
     let lent = crate::pointers::Lent::new(&memory);
     let at = lent.addr();
-    *COURSE_MEMORY.lock().unwrap_or_else(|e| e.into_inner()) = Some(CourseMemory {
+    *COURSE_MEMORY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(CourseMemory {
         _lent: lent,
         _bytes: memory,
     });
@@ -88,7 +90,9 @@ fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> 
 
 /// The course memory given back (the list's `free_list` counts it down).
 pub fn give_back_course_memory() {
-    *COURSE_MEMORY.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *COURSE_MEMORY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from

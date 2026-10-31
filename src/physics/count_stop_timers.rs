@@ -44,5 +44,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn count_stop_timers() {
-    count_stop_timers_at(&game())
+    count_stop_timers_at(&game());
 }

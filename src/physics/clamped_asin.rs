@@ -20,7 +20,7 @@ use crate::session::Cell32;
 pub fn clamped_asin_at(x: [u8; 10], scratch: &dyn Cell32, limit: &dyn Cell32) -> [u8; 10] {
     let mut s = scratch.bits();
     let mut l = limit.bits();
-    let out = clamped_asin_80(x, &mut s, &mut l);
+    let out = clamped_asin_80(x, &raw mut s, &raw mut l);
     scratch.set_bits(s);
     limit.set_bits(l);
     out

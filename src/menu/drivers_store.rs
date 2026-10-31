@@ -7338,7 +7338,7 @@ pub const END: usize = 0x742C98;
 
 /// Where IDA 0x73B674 is now (`moved::MOVED`'s home).
 pub fn drivers_addr() -> u32 {
-    crate::pointers::game_address(&DRIVERS as *const DriverTable)
+    crate::pointers::game_address(&raw const DRIVERS)
 }
 
 #[cfg(test)]
@@ -7356,7 +7356,7 @@ mod tests {
         assert_eq!(offset_of!(Driver, results), 0x5C);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(drivers_addr()) as *const u8,
+                crate::pointers::host(drivers_addr()).cast_const(),
                 END - START,
             )
         };

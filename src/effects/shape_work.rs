@@ -190,7 +190,7 @@ mod tests_shape_work {
         );
         assert_eq!(offset_of!(ShapeWork, work), 0x884FB4 - ShapeWork::START);
         assert_eq!(offset_of!(ShapeWork, sets), 0x885A6C - ShapeWork::START);
-        let p = core::ptr::addr_of!(SHAPE_WORK) as *const u8;
+        let p = core::ptr::addr_of!(SHAPE_WORK).cast::<u8>();
         let now: Vec<u8> = (0..ShapeWork::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

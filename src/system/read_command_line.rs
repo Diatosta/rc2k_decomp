@@ -157,7 +157,7 @@ impl CommandLine {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&COMMAND_LINE as *const CommandLine) as usize
+        crate::pointers::game_address(&raw const COMMAND_LINE) as usize
     }
 }
 
@@ -172,7 +172,7 @@ mod command_line_tests {
         let image = crate::moved::image_bytes(CommandLine::START, CommandLine::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(CommandLine::home()) as *const u8,
+                crate::pointers::host_at(CommandLine::home()).cast_const(),
                 CommandLine::LEN,
             )
         };

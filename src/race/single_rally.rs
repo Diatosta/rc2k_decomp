@@ -882,7 +882,7 @@ mod table {
     ];
 
     fn mem(a: usize) -> *mut u32 {
-        crate::pointers::host(game_addr(rva(a))) as *mut u32
+        crate::pointers::host(game_addr(rva(a))).cast::<u32>()
     }
 
     fn reg(g: &mut Regs, r: R) -> &mut u32 {
@@ -930,25 +930,27 @@ mod table {
                     }
                     Push(r) => stack.push(*reg(&mut g, r)),
                     Pop(r) => *reg(&mut g, r) = stack.pop().expect("a pop after its push"),
-                    Store(R::Al, a) => *(mem(a) as *mut u8) = g.eax as u8,
+                    Store(R::Al, a) => *mem(a).cast::<u8>() = g.eax as u8,
                     Store(r, a) => mem(a).write_unaligned(*reg(&mut g, r)),
                     Load(r, a) => *reg(&mut g, r) = mem(a).read_unaligned(),
                     FromEdi(R::Al, n) => {
                         g.eax = g.eax & !0xFF
-                            | *(crate::pointers::host(g.edi.wrapping_add(n)) as *const u8) as u32
+                            | *crate::pointers::host(g.edi.wrapping_add(n)).cast_const() as u32;
                     }
                     FromEdi(r, n) => {
                         *reg(&mut g, r) = (crate::pointers::host(g.edi.wrapping_add(n))
                             as *const u32)
-                            .read_unaligned()
+                            .read_unaligned();
                     }
                     ToEdi(r, n) => {
                         let v = *reg(&mut g, r);
-                        (crate::pointers::host(g.edi.wrapping_add(n)) as *mut u32)
-                            .write_unaligned(v)
+                        crate::pointers::host(g.edi.wrapping_add(n))
+                            .cast::<u32>()
+                            .write_unaligned(v);
                     }
                     Put(a, v) => mem(a).write_unaligned(v),
-                    EdiPut(n, v) => (crate::pointers::host(g.edi.wrapping_add(n)) as *mut u32)
+                    EdiPut(n, v) => crate::pointers::host(g.edi.wrapping_add(n))
+                        .cast::<u32>()
                         .write_unaligned(v),
                     EdiFromTable(t) => {
                         let at = (game_addr(rva(t))).wrapping_add(g.eax.wrapping_mul(4));
@@ -964,21 +966,21 @@ mod table {
                     CmpEdi(n, v) => {
                         zero = (crate::pointers::host(g.edi.wrapping_add(n)) as *const u32)
                             .read_unaligned()
-                            == v
+                            == v;
                     }
                     CmpEdiEax(n) => {
                         zero = (crate::pointers::host(g.edi.wrapping_add(n)) as *const u32)
                             .read_unaligned()
-                            == g.eax
+                            == g.eax;
                     }
                     Jz(t) => {
                         if zero {
-                            pc = t
+                            pc = t;
                         }
                     }
                     Jnz(t) => {
                         if !zero {
-                            pc = t
+                            pc = t;
                         }
                     }
                     Jmp(t) => pc = t,
@@ -996,7 +998,7 @@ mod table {
                     }
                     RepMovsb => {
                         std::ptr::copy(
-                            crate::pointers::host(g.esi) as *const u8,
+                            crate::pointers::host(g.esi).cast_const(),
                             crate::pointers::host(g.edi),
                             g.ecx as usize,
                         );
@@ -1991,7 +1993,7 @@ mod tests {
             unsafe {
                 crate::pointers::host_at(base as usize)
                     .add(i)
-                    .write(rng.next() as u8)
+                    .write(rng.next() as u8);
             };
         }
         let records: Vec<Vec<u8>> = (0..4).map(|_| vec![0u8; RECORD_LEN]).collect();
@@ -2000,7 +2002,7 @@ mod tests {
             match *op {
                 Op::Store(R::Al, a) => ranges.push((game_addr(rva(a)) as usize, 1)),
                 Op::Store(_, a) | Op::Load(_, a) | Op::Put(a, _) | Op::CmpMem(a, _) => {
-                    ranges.push((game_addr(rva(a)) as usize, 4))
+                    ranges.push((game_addr(rva(a)) as usize, 4));
                 }
                 Op::AddMem(_, a) => ranges.push((game_addr(rva(a)) as usize, 4)),
                 _ => {}
@@ -2039,7 +2041,7 @@ mod tests {
         fn image_bytes(&self) -> Vec<u8> {
             unsafe {
                 std::slice::from_raw_parts(
-                    crate::pointers::host_at(self.image) as *const u8,
+                    crate::pointers::host_at(self.image).cast_const(),
                     IMAGE_LEN,
                 )
                 .to_vec()
@@ -2050,7 +2052,7 @@ mod tests {
             let mut out = Vec::new();
             for &(a, len) in &self.ranges {
                 out.extend_from_slice(unsafe {
-                    std::slice::from_raw_parts(crate::pointers::host_at(a) as *const u8, len)
+                    std::slice::from_raw_parts(crate::pointers::host_at(a).cast_const(), len)
                 });
             }
             out
@@ -2063,7 +2065,7 @@ mod tests {
                         bytes[at..].as_ptr(),
                         crate::pointers::host_at(a),
                         len,
-                    )
+                    );
                 };
                 at += len;
             }
@@ -2074,7 +2076,7 @@ mod tests {
                     bytes.as_ptr(),
                     crate::pointers::host_at(self.image),
                     IMAGE_LEN,
-                )
+                );
             }
         }
     }
@@ -2122,7 +2124,7 @@ mod tests {
         let mut h = 0xcbf2_9ce4_8422_2325u64;
         for &(a, len) in ranges {
             for i in 0..len {
-                h ^= unsafe { (crate::pointers::host_at(a + i) as *const u8).read() } as u64;
+                h ^= unsafe { crate::pointers::host_at(a + i).cast_const().read() } as u64;
                 h = h.wrapping_mul(0x100_0000_01b3);
             }
         }
@@ -2256,7 +2258,7 @@ mod tests {
                         match place {
                             4 => g.eax = junk,
                             11 => {
-                                [g.eax, g.ebx, g.ecx, g.edx] = [junk, junk + 1, junk + 2, junk + 3]
+                                [g.eax, g.ebx, g.ecx, g.edx] = [junk, junk + 1, junk + 2, junk + 3];
                             }
                             13 => g.eax = (g.eax & !0xFF) | 0x41,
                             _ => {}

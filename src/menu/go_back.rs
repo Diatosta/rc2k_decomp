@@ -14,5 +14,5 @@
 
 pub fn go_back() {
     // Converted: `rc2k_core::menu::leaving::Leaving::go_back`.
-    crate::menu::leaving::with_leaving(|l| l.go_back());
+    crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::go_back);
 }

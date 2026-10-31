@@ -66,7 +66,7 @@ pub fn set_repair_flag(item: u32, value: u32) {
         value,
         "a repair flag",
     )
-    .unwrap_or_else(|e| refuse(e))
+    .unwrap_or_else(|e| refuse(e));
 }
 
 /// The flag table, with its end mark.
@@ -75,7 +75,7 @@ pub fn flags() -> rc2k_core::service::repairs::Table {
 }
 
 pub fn store_flags(t: &rc2k_core::service::repairs::Table) {
-    write_all(&MENU_LISTS.inspection_flags_a, *t)
+    write_all(&MENU_LISTS.inspection_flags_a, *t);
 }
 
 /// The mark table, with its end mark.
@@ -84,7 +84,7 @@ pub fn marks() -> rc2k_core::service::repairs::Table {
 }
 
 pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
-    write_all(&MENU_LISTS.inspection_flags_b, *t)
+    write_all(&MENU_LISTS.inspection_flags_b, *t);
 }
 
 /// An item's repair time, through its pointer (None: null).
@@ -92,7 +92,7 @@ pub fn time_of(item: usize) -> Option<i32> {
     let key: u32 = MENU_LISTS
         .repair_time_ptrs
         .get(item)
-        .map(|p| p.get())
+        .map(super::super::session::Dword::get)
         .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
     crate::menu::lists_store::repair_time_at(key)
         .unwrap_or_else(|e| refuse(e))
@@ -106,7 +106,7 @@ pub fn chosen_repairs_time() -> Result<i32, BadInput> {
 }
 
 pub fn leave_edit_mode() {
-    MENU_STATE.service_ui.box_shown.set(0u32)
+    MENU_STATE.service_ui.box_shown.set(0u32);
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).

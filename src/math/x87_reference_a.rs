@@ -477,7 +477,7 @@ pub(super) unsafe fn sine_table(step: u32, out: *mut u32, count: u32) {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+        );
     }
 }
 
@@ -596,7 +596,7 @@ pub(super) unsafe fn ramp_down(values: *mut i32, count: u32, last: i32, first: i
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+        );
     }
 }
 
@@ -707,7 +707,7 @@ pub(super) fn mul2(a: u32, b: u32, c: u32) -> u32 {
     x87!(
         "fld dword ptr [{a}]", "fmul dword ptr [{b}]", "fmul dword ptr [{c}]",
         "fstp dword ptr [{o}]";
-        a = &a, b = &b, c = &c, o = &mut out
+        a = &raw const a, b = &raw const b, c = &raw const c, o = &raw mut out
     );
     out
 }
@@ -723,7 +723,7 @@ pub(super) fn circle_curve(i: i32, a: u32, b: u32, negate: bool) -> u32 {
             ".byte 0xD8, 0xC8", ".byte 0xD8, 0xE9", "fsqrt", ".byte 0xDE, 0xE9",
             "test {n}, {n}", "jz 2f", "fchs", "2:",
             "fstp dword ptr [{o}]",
-            i = in(reg) &i, a = in(reg) &a, b = in(reg) &b, n = in(reg) n, o = in(reg) &mut out,
+            i = in(reg) &raw const i, a = in(reg) &raw const a, b = in(reg) &raw const b, n = in(reg) n, o = in(reg) &raw mut out,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
         );
@@ -763,7 +763,7 @@ pub(super) unsafe fn circle_points(
 /// `fld a; fchs; fstp`.
 pub(super) fn negated(a: u32) -> u32 {
     let mut out = 0u32;
-    x87!("fld dword ptr [{a}]", "fchs", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    x87!("fld dword ptr [{a}]", "fchs", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -773,7 +773,7 @@ pub(super) fn sub_mul(b: u32, a: u32, k: u32) -> u32 {
     x87!(
         "fld dword ptr [{b}]", "fld dword ptr [{a}]", ".byte 0xDE, 0xE9",
         "fmul dword ptr [{k}]", "fstp dword ptr [{o}]";
-        b = &b, a = &a, k = &k, o = &mut out
+        b = &raw const b, a = &raw const a, k = &raw const k, o = &raw mut out
     );
     out
 }
@@ -786,7 +786,7 @@ pub(super) fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
         "fldpi", "fidiv dword ptr [{c}]", "fimul dword ptr [{m}]", "fcos", "fchs",
         "fmul dword ptr [{t}]", "fadd dword ptr [{a}]", "fadd dword ptr [{t}]",
         "fstp dword ptr [{o}]";
-        c = &c, m = &m, t = &t, a = &a, o = &mut out
+        c = &raw const c, m = &raw const m, t = &raw const t, a = &raw const a, o = &raw mut out
     );
     out
 }
@@ -804,7 +804,7 @@ pub(super) fn scale_row(row: *mut u32, c: u32) {
         "fmul dword ptr [{r}]", "fstp dword ptr [{r}]",
         "fmul dword ptr [{r} + 4]", "fstp dword ptr [{r} + 4]",
         "fmul dword ptr [{r} + 8]", "fstp dword ptr [{r} + 8]";
-        r = row, c = &c
+        r = row, c = &raw const c
     );
 }
 
@@ -816,7 +816,7 @@ pub(super) fn frac_step(y: u32, k: u32, s: u32, x: u32) -> (i32, u32) {
         "fld dword ptr [{y}]", "fist dword ptr [{n}]", "fisub dword ptr [{n}]",
         "fsubr dword ptr [{k}]", "fmul dword ptr [{s}]", "fadd dword ptr [{x}]",
         "fstp dword ptr [{o}]";
-        y = &y, n = &mut n, k = &k, s = &s, x = &x, o = &mut out
+        y = &raw const y, n = &raw mut n, k = &raw const k, s = &raw const s, x = &raw const x, o = &raw mut out
     );
     (n, out)
 }
@@ -824,7 +824,7 @@ pub(super) fn frac_step(y: u32, k: u32, s: u32, x: u32) -> (i32, u32) {
 /// `fld a; frndint; fstp`.
 pub(super) fn round_float(a: u32) -> u32 {
     let mut out = 0u32;
-    x87!("fld dword ptr [{a}]", "frndint", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    x87!("fld dword ptr [{a}]", "frndint", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -833,7 +833,7 @@ pub(super) fn compare_status(a: u32, b: u32) -> u16 {
     let mut status: u16 = 0;
     x87!(
         "fld dword ptr [{a}]", "fcomp dword ptr [{b}]", "fstsw word ptr [{s}]";
-        a = &a, b = &b, s = &mut status
+        a = &raw const a, b = &raw const b, s = &raw mut status
     );
     status & 0x700
 }
@@ -843,7 +843,7 @@ pub(super) fn float_less_int_to_int(a: u32, n: i32) -> i32 {
     let mut out = 0i32;
     x87!(
         "fld dword ptr [{a}]", "fisub dword ptr [{n}]", "fistp dword ptr [{o}]";
-        a = &a, n = &n, o = &mut out
+        a = &raw const a, n = &raw const n, o = &raw mut out
     );
     out
 }
@@ -857,7 +857,7 @@ pub(super) fn split_x(a: u32, b: u32, c: u32, x0: u32, x2: u32) -> u32 {
         "fld dword ptr [{b}]", "fsub dword ptr [{a}]", ".byte 0xDE, 0xC9",
         "fld dword ptr [{x2}]", "fsub dword ptr [{x0}]", ".byte 0xDE, 0xC9",
         "fadd dword ptr [{x0}]", "fstp dword ptr [{o}]";
-        a = &a, b = &b, c = &c, x0 = &x0, x2 = &x2, o = &mut out
+        a = &raw const a, b = &raw const b, c = &raw const c, x0 = &raw const x0, x2 = &raw const x2, o = &raw mut out
     );
     out
 }
@@ -869,7 +869,7 @@ pub(super) fn half_and_middle(b: u32, a: u32, k: u32) -> (u32, u32) {
     x87!(
         "fld dword ptr [{b}]", "fsub dword ptr [{a}]", "fmul dword ptr [{k}]",
         "fst dword ptr [{h}]", "fadd dword ptr [{a}]", "fstp dword ptr [{m}]";
-        b = &b, a = &a, k = &k, h = &mut h, m = &mut m
+        b = &raw const b, a = &raw const a, k = &raw const k, h = &raw mut h, m = &raw mut m
     );
     (h, m)
 }
@@ -877,7 +877,7 @@ pub(super) fn half_and_middle(b: u32, a: u32, k: u32) -> (u32, u32) {
 /// `fldpi; fidiv n; fstp`.
 pub(super) fn pi_over(n: i32) -> u32 {
     let mut out = 0u32;
-    x87!("fldpi", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; n = &n, o = &mut out);
+    x87!("fldpi", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; n = &raw const n, o = &raw mut out);
     out
 }
 
@@ -888,12 +888,12 @@ pub(super) fn less_cosine(a: u32, s: Option<u32>, h: u32, m: u32) -> u32 {
         Some(s) => x87!(
             "fld dword ptr [{a}]", "fadd dword ptr [{s}]", "fcos", "fchs",
             "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";
-            a = &a, s = &s, h = &h, m = &m, o = &mut out
+            a = &raw const a, s = &raw const s, h = &raw const h, m = &raw const m, o = &raw mut out
         ),
         None => x87!(
             "fld dword ptr [{a}]", "fcos", "fchs",
             "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";
-            a = &a, h = &h, m = &m, o = &mut out
+            a = &raw const a, h = &raw const h, m = &raw const m, o = &raw mut out
         ),
     }
     out
@@ -902,7 +902,7 @@ pub(super) fn less_cosine(a: u32, s: Option<u32>, h: u32, m: u32) -> u32 {
 /// `fld a; fsin; fstp`.
 pub(super) fn sine(a: u32) -> u32 {
     let mut out = 0u32;
-    x87!("fld dword ptr [{a}]", "fsin", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+    x87!("fld dword ptr [{a}]", "fsin", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -910,9 +910,9 @@ pub(super) fn sine(a: u32) -> u32 {
 pub(super) fn cosine(a: u32, negate: bool) -> u32 {
     let mut out = 0u32;
     if negate {
-        x87!("fld dword ptr [{a}]", "fcos", "fchs", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+        x87!("fld dword ptr [{a}]", "fcos", "fchs", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     } else {
-        x87!("fld dword ptr [{a}]", "fcos", "fstp dword ptr [{o}]"; a = &a, o = &mut out);
+        x87!("fld dword ptr [{a}]", "fcos", "fstp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
     }
     out
 }
@@ -923,7 +923,7 @@ pub(super) fn mul_add(a: u32, b: u32, c: u32) -> u32 {
     x87!(
         "fld dword ptr [{a}]", "fmul dword ptr [{b}]", "fadd dword ptr [{c}]",
         "fstp dword ptr [{o}]";
-        a = &a, b = &b, c = &c, o = &mut out
+        a = &raw const a, b = &raw const b, c = &raw const c, o = &raw mut out
     );
     out
 }
@@ -937,7 +937,7 @@ pub(super) fn int_length3(a: i32, b: i32, c: i32) -> i32 {
         "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
         "fild dword ptr [{v} + 8]", ".byte 0xD8, 0xC8",
         ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fsqrt", "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &mut out
+        v = v.as_ptr(), o = &raw mut out
     );
     out
 }
@@ -947,7 +947,7 @@ pub(super) fn int_sum(a: i32, b: i32) -> i32 {
     let mut out = 0i32;
     x87!(
         "fild dword ptr [{a}]", "fiadd dword ptr [{b}]", "fistp dword ptr [{o}]";
-        a = &a, b = &b, o = &mut out
+        a = &raw const a, b = &raw const b, o = &raw mut out
     );
     out
 }
@@ -962,7 +962,7 @@ pub(super) fn compare_squares(x0: i32, y0: i32, x1: i32, y1: i32) -> u16 {
         "fild dword ptr [{v} + 8]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 12]", ".byte 0xD8, 0xC8",
         ".byte 0xDE, 0xC1",
         "fcompp", "fstsw word ptr [{s}]";
-        v = v.as_ptr(), s = &mut status
+        v = v.as_ptr(), s = &raw mut status
     );
     status & 0x700
 }
@@ -970,28 +970,28 @@ pub(super) fn compare_squares(x0: i32, y0: i32, x1: i32, y1: i32) -> u16 {
 /// `fild a; fidiv n; fstp`.
 pub(super) fn int_div_int(a: i32, n: i32) -> u32 {
     let mut out = 0u32;
-    x87!("fild dword ptr [{a}]", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; a = &a, n = &n, o = &mut out);
+    x87!("fild dword ptr [{a}]", "fidiv dword ptr [{n}]", "fstp dword ptr [{o}]"; a = &raw const a, n = &raw const n, o = &raw mut out);
     out
 }
 
 /// `fld a; fsub b`, kept as an 80-bit value.
 pub(super) fn sub_80(a: u32, b: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    x87!("fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &a, b = &b, o = out.as_mut_ptr());
+    x87!("fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &raw const a, b = &raw const b, o = out.as_mut_ptr());
     out
 }
 
 /// `fild a; fsub b`, kept as an 80-bit value.
 pub(super) fn int_sub_80(a: i32, b: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    x87!("fild dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &a, b = &b, o = out.as_mut_ptr());
+    x87!("fild dword ptr [{a}]", "fsub dword ptr [{b}]", "fstp tbyte ptr [{o}]"; a = &raw const a, b = &raw const b, o = out.as_mut_ptr());
     out
 }
 
 /// `fld a; fadd b; fistp`.
 pub(super) fn add_to_int(a: u32, b: u32) -> i32 {
     let mut out = 0i32;
-    x87!("fld dword ptr [{a}]", "fadd dword ptr [{b}]", "fistp dword ptr [{o}]"; a = &a, b = &b, o = &mut out);
+    x87!("fld dword ptr [{a}]", "fadd dword ptr [{b}]", "fistp dword ptr [{o}]"; a = &raw const a, b = &raw const b, o = &raw mut out);
     out
 }
 
@@ -1505,7 +1505,13 @@ fn trigonometry() {
         let mut p = r.clone();
         let lent = (lend(&r), lend(&p));
         unsafe {
-            circle_points(&radius, r.as_mut_ptr(), count, &c, &d);
+            circle_points(
+                &raw const radius,
+                r.as_mut_ptr(),
+                count,
+                &raw const c,
+                &raw const d,
+            );
             plain::circle_points(radius, &mut p, count, c, d);
         }
         drop(lent);
@@ -1550,8 +1556,8 @@ fn pointer_functions() {
         let (x, start) = (g.f(), g.f());
         let (mut r, mut p) = (vec![start], vec![start]);
         let lent = (lend(&r), lend(&p));
-        add_into(&x, r.as_mut_ptr());
-        plain::add_into(&x, p.as_mut_ptr());
+        add_into(&raw const x, r.as_mut_ptr());
+        plain::add_into(&raw const x, p.as_mut_ptr());
         drop(lent);
         compare("add_into", EXACT, r, p, format!("{x:x} {start:x}"));
 
@@ -1577,7 +1583,7 @@ fn pointer_functions() {
         let (s, c) = (g.fa(), g.fa());
         let (x, z) = (g.f(), g.f());
         let (mut rx, mut rz, mut px, mut pz) = (x, z, x, z);
-        turn_in_place(&s, &c, &mut rx, &mut rz);
+        turn_in_place(&raw const s, &raw const c, &raw mut rx, &raw mut rz);
         plain::turn_in_place(s, c, &mut px, &mut pz);
         compare(
             "turn_in_place",
@@ -1680,7 +1686,7 @@ fn eighty_bit_conversions() {
         assert_eq!(from_f80(v).0.to_bits(), bits, "round trip of {bits:#x}");
         // against the hardware: `fld qword; fstp tbyte`
         let mut out = [0u8; 10];
-        x87!("fld qword ptr [{x}]", "fstp tbyte ptr [{o}]"; x = &x, o = out.as_mut_ptr());
+        x87!("fld qword ptr [{x}]", "fstp tbyte ptr [{o}]"; x = &raw const x, o = out.as_mut_ptr());
         assert_eq!(v, out, "f64_to_f80 of {bits:#x}");
         // and back through the hardware: `fld tbyte; fstp qword`, rounding to nearest even
         let mut raw = [0u8; 10];
@@ -1688,7 +1694,7 @@ fn eighty_bit_conversions() {
         let exp = (0x3C00 + g.below(0x0800) as u16) | ((g.below(2) as u16) << 15);
         raw[8..].copy_from_slice(&exp.to_le_bytes());
         let mut back = 0.0f64;
-        x87!("fld tbyte ptr [{v}]", "fstp qword ptr [{o}]"; v = raw.as_ptr(), o = &mut back);
+        x87!("fld tbyte ptr [{v}]", "fstp qword ptr [{o}]"; v = raw.as_ptr(), o = &raw mut back);
         assert_eq!(
             from_f80(raw).0.to_bits(),
             back.to_bits(),

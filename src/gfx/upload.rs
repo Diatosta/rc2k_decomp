@@ -72,13 +72,13 @@ pub static UPLOAD: Upload = Upload {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA18).
 pub fn home() -> usize {
-    crate::pointers::game_address(&UPLOAD as *const Upload) as usize
+    crate::pointers::game_address(&raw const UPLOAD) as usize
 }
 
 impl SurfaceDesc {
     /// Where the description is, for the surface's `Lock`.
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SurfaceDesc)
+        crate::pointers::game_address(std::ptr::from_ref::<SurfaceDesc>(self))
     }
 }
 

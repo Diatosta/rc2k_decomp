@@ -20,7 +20,7 @@ impl MarksSines {
     pub const LEN: usize = 0x500;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SINES as *const MarksSines) as usize
+        crate::pointers::game_address(&raw const SINES) as usize
     }
 }
 
@@ -58,7 +58,7 @@ impl WaveLevels {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WAVE_LEVELS as *const WaveLevels) as usize
+        crate::pointers::game_address(&raw const WAVE_LEVELS) as usize
     }
 }
 
@@ -87,7 +87,7 @@ impl WaveState {
     pub const LEN: usize = 0x10;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&WAVE as *const WaveState) as usize
+        crate::pointers::game_address(&raw const WAVE) as usize
     }
 }
 
@@ -96,7 +96,7 @@ mod tests {
     use super::*;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

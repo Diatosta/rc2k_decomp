@@ -56,7 +56,7 @@ pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::n
 pub fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    with_random(|r| r.draw())
+    with_random(rc2k_core::math::random::Random::draw)
 }
 
 #[cfg(test)]

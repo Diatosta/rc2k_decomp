@@ -28,7 +28,7 @@ fn get(v: &[&dyn Cell32], k: usize) -> u32 {
 }
 
 fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x)
+    v[k].set_bits(x);
 }
 
 /// The Rust version on the variables' cells `v`; what the rules change is written back. The
@@ -92,5 +92,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn gear_input_rules() {
-    rules_at(&game())
+    rules_at(&game());
 }

@@ -92,7 +92,7 @@ impl MaskConstants {
     pub const LEN: usize = 0x9C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MASK_CONSTANTS as *const MaskConstants) as usize
+        crate::pointers::game_address(&raw const MASK_CONSTANTS) as usize
     }
 }
 
@@ -107,7 +107,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(MaskConstants::START, MaskConstants::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MaskConstants::home()) as *const u8,
+                crate::pointers::host_at(MaskConstants::home()).cast_const(),
                 MaskConstants::LEN,
             )
         };

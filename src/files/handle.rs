@@ -29,7 +29,9 @@ static FILES: Mutex<Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> = Mutex::ne
 static NEXT_HANDLE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0x6000_0000);
 
 fn files() -> std::sync::MutexGuard<'static, Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> {
-    FILES.lock().unwrap_or_else(|e| e.into_inner())
+    FILES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// The file mode table (0x4E06EA in the image, 16 bytes per mode: +0 access, +4 disposition,
@@ -100,7 +102,9 @@ fn with_file<R>(
     let Some(open) = open else {
         return Err(std::io::ErrorKind::NotFound.into());
     };
-    let mut file = open.lock().unwrap_or_else(|e| e.into_inner());
+    let mut file = open
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(&mut file)
 }
 

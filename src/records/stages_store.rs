@@ -1228,7 +1228,7 @@ impl StageTables {
 
     /// The track pack's head.
     pub fn trak_pak(&self) -> u32 {
-        crate::pointers::game_address(&self.trak_pak as *const TrakPak)
+        crate::pointers::game_address(&raw const self.trak_pak)
     }
 }
 
@@ -1239,7 +1239,7 @@ pub const END: usize = 0x73B674;
 
 /// Where IDA 0x734BC6 is now (`moved::MOVED`'s home).
 pub fn stage_tables_addr() -> u32 {
-    crate::pointers::game_address(&STAGE_TABLES as *const StageTables) + 2
+    crate::pointers::game_address(&raw const STAGE_TABLES) + 2
 }
 
 #[cfg(test)]
@@ -1263,7 +1263,7 @@ mod tests {
         assert_eq!(stage_tables_addr() as usize % 4, START % 4);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(stage_tables_addr()) as *const u8,
+                crate::pointers::host(stage_tables_addr()).cast_const(),
                 END - START,
             )
         };

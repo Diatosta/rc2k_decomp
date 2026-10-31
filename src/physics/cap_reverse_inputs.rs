@@ -45,5 +45,5 @@ pub fn cap_reverse_inputs() {
         &CAR.gear,
         &CAR.local_velocity[2],
         [&PHYSICS.wheel_slips[0], &PHYSICS.wheel_slips[1]],
-    )
+    );
 }

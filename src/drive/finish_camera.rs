@@ -31,7 +31,7 @@ fn lines() {
 fn last_line() {
     VIEW_VARS
         .place_last_c
-        .set_bits(st(ld(FINISH.share.bits()) * ld(FINISH.unknown_60.bits())))
+        .set_bits(st(ld(FINISH.share.bits()) * ld(FINISH.unknown_60.bits())));
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).

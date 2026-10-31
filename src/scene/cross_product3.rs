@@ -82,11 +82,11 @@ mod asm_reference {
             };
             let (a, b) = (base, base.add(12));
             if reference {
-                cross_ref(a, b, o)
+                cross_ref(a, b, o);
             } else {
                 use crate::scene::x87_mem::HostCell;
                 let cells = |p: *mut u8| [0, 4, 8].map(|k| HostCell(p as usize + k));
-                cross(&cells(a), &cells(b), &cells(o))
+                cross(&cells(a), &cells(b), &cells(o));
             }
         }
     }

@@ -101,7 +101,7 @@ fn places() -> [&'static dyn Cell32; 15] {
 /// `f` run, the variables put back after it.
 fn kept<T>(f: impl FnOnce() -> T) -> T {
     let places = places();
-    let saved = places.map(|p| p.bits());
+    let saved = places.map(super::super::session::Cell32::bits);
     let result = f();
     for (place, bits) in places.iter().zip(saved) {
         place.set_bits(bits);
@@ -225,7 +225,9 @@ fn cursor() -> Option<(f32, f32, f32, i32)> {
 
 /// The tab.
 pub fn tab(ui: &Ui) {
-    let mut measured = MEASURED.lock().unwrap_or_else(|e| e.into_inner());
+    let mut measured = MEASURED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ui.button("Measure the car") || measured.is_none() {
         *measured = measure();
     }
@@ -336,9 +338,9 @@ mod tests {
         CAR.engine_speed_limit.set_bits(7000.0_f32.to_bits());
         PHYSICS.gear_count.set(1);
         PHYSICS.gear_ratios[2].set_bits(0.01_f32.to_bits());
-        let before = places().map(|p| p.bits());
+        let before = places().map(crate::session::Cell32::bits);
         let m = measure().expect("a car");
-        assert_eq!(places().map(|p| p.bits()), before);
+        assert_eq!(places().map(crate::session::Cell32::bits), before);
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
         CAR.engine_speed_limit.set_bits(was_limit);

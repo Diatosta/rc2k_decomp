@@ -26,7 +26,7 @@ use crate::scene::draw_store::DRAW;
 fn time() {
     FINISH.time.set_bits(st(
         int(DRAW.scratch.bits() as i32) / ld(NUMBERS.thousand.bits())
-    ))
+    ));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
@@ -80,7 +80,7 @@ pub fn timing_from(now: u32) {
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_timing() {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    timing_from(now)
+    timing_from(now);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

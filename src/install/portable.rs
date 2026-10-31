@@ -121,7 +121,9 @@ impl Registry for Portable {
     }
 
     fn close(&mut self, key: u32) {
-        let mut pending = PENDING.lock().unwrap_or_else(|e| e.into_inner());
+        let mut pending = PENDING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if key == KEPT
             && let (Some(status), folder) = std::mem::take(&mut *pending)
         {
@@ -132,14 +134,18 @@ impl Registry for Portable {
     fn create(&mut self, name: &[u8]) -> Result<u32, u32> {
         let kept = name.eq_ignore_ascii_case(KEY);
         if kept {
-            *PENDING.lock().unwrap_or_else(|e| e.into_inner()) = (None, None);
+            *PENDING
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = (None, None);
         }
         Ok(if kept { KEPT } else { OTHER })
     }
 
     fn set_value(&mut self, key: u32, name: &[u8], _kind: u32, data: &[u8]) -> u32 {
         if key == KEPT {
-            let mut pending = PENDING.lock().unwrap_or_else(|e| e.into_inner());
+            let mut pending = PENDING
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match name {
                 b"status" => pending.0 = data.first().copied(),
                 b"source" => {

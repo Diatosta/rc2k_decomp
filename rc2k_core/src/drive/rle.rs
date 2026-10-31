@@ -77,7 +77,7 @@ mod tests {
         let mut out = Vec::new();
         let n = unpack_rle(p, |k, b| {
             assert_eq!(k as usize, out.len());
-            out.push(b)
+            out.push(b);
         })?;
         assert_eq!(n as usize, out.len());
         Ok(out)

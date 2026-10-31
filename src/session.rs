@@ -26,7 +26,7 @@ impl Dword {
     }
 
     pub fn set(&self, value: u32) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 
     /// The atomic itself, for code that wants more than a load and a store.
@@ -50,7 +50,7 @@ impl Dword {
 
     /// Stores the bits, for the x87 model's stores (as `Float::set_bits`).
     pub fn set_bits(&self, bits: u32) {
-        self.set(bits)
+        self.set(bits);
     }
 }
 
@@ -115,7 +115,7 @@ impl Float {
     }
 
     pub fn set(&self, value: f32) {
-        self.0.store(value.to_bits(), Relaxed)
+        self.0.store(value.to_bits(), Relaxed);
     }
 
     /// The bits, for the x87 model's loads (`x87_float::ld`).
@@ -125,7 +125,7 @@ impl Float {
 
     /// Stores the bits, for the x87 model's stores (`x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
-        self.0.store(bits, Relaxed)
+        self.0.store(bits, Relaxed);
     }
 
     /// Its place, for code that is handed an address.
@@ -197,7 +197,7 @@ impl<T: Cell32 + ?Sized> Cell32 for &T {
         (**self).bits()
     }
     fn set_bits(&self, bits: u32) {
-        (**self).set_bits(bits)
+        (**self).set_bits(bits);
     }
 }
 
@@ -211,7 +211,7 @@ impl Cell32 for Dword {
         self.get()
     }
     fn set_bits(&self, bits: u32) {
-        self.set(bits)
+        self.set(bits);
     }
 }
 
@@ -220,7 +220,7 @@ impl Cell32 for Float {
         self.bits()
     }
     fn set_bits(&self, bits: u32) {
-        self.set_bits(bits)
+        self.set_bits(bits);
     }
 }
 
@@ -251,7 +251,7 @@ impl Word {
     }
 
     pub fn set(&self, value: u16) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 }
 
@@ -269,7 +269,7 @@ impl Byte {
     }
 
     pub fn set(&self, value: u8) {
-        self.0.store(value, Relaxed)
+        self.0.store(value, Relaxed);
     }
 
     pub fn addr(&self) -> u32 {
@@ -327,7 +327,7 @@ impl<const N: usize> Bytes<N> {
             self.as_ptr()
                 .add(offset)
                 .cast::<u32>()
-                .write_unaligned(value)
+                .write_unaligned(value);
         }
     }
 
@@ -621,7 +621,7 @@ pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// The address of a field or an array of cells, for code that is handed an address.
 pub fn address_of<T: ?Sized>(field: &T) -> u32 {
-    crate::pointers::game_address(field as *const T as *const u8)
+    crate::pointers::game_address(std::ptr::from_ref::<T>(field).cast::<u8>())
 }
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
@@ -695,7 +695,7 @@ mod tests {
     use crate::moved::image_bytes;
 
     fn bytes_of<T>(block: &'static T) -> Vec<u8> {
-        let p = block as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(block).cast::<u8>();
         (0..core::mem::size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

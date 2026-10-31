@@ -82,9 +82,9 @@ fn turn(on: bool) {
 }
 
 pub fn next_choice_car() {
-    turn(true)
+    turn(true);
 }
 
 pub fn previous_choice_car() {
-    turn(false)
+    turn(false);
 }

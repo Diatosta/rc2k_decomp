@@ -57,7 +57,7 @@ pub static PCX: Pcx = Pcx {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5195D4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&PCX as *const Pcx) as usize
+    crate::pointers::game_address(&raw const PCX) as usize
 }
 
 /// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`):

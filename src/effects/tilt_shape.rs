@@ -66,7 +66,7 @@ impl ShapeTilt {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SHAPE_TILT as *const ShapeTilt) as usize
+        crate::pointers::game_address(&raw const SHAPE_TILT) as usize
     }
 }
 
@@ -78,7 +78,7 @@ mod shape_tilt_tests {
     fn shape_tilt_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
-        let p = &SHAPE_TILT as *const ShapeTilt as *const u8;
+        let p = (&raw const SHAPE_TILT).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

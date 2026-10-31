@@ -109,11 +109,11 @@ impl arcade::Arcade for Game {
             Step::TakeStageBest => a::take_arcade_stage_best()?,
             Step::RepairCar => {
                 c.arg = 0;
-                crate::service::repair_parts::repair_car()?
+                crate::service::repair_parts::repair_car()?;
             }
             Step::Race => {
                 c.palette = 2;
-                crate::race::single_rally_race::single_rally_race(c.arg, 2)?
+                crate::race::single_rally_race::single_rally_race(c.arg, 2)?;
             }
             Step::ScoreStage => a::score_arcade_stage()?,
             Step::ResultsLoop => run_screen_carried(&m::arcade_results_loop::SCREEN, c)?,

@@ -92,7 +92,7 @@ mod tests {
                 super::SLOTS.ptr() as *const u8,
                 mine.as_mut_ptr(),
                 d.len(),
-            )
+            );
         };
         // The image's routines are relocated addresses; compared here as IDA's.
         assert_eq!(mine, d);

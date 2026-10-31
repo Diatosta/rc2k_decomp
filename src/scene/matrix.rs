@@ -119,8 +119,12 @@ pub fn set_light_direction() {
     let ahead = [0i32, 0, 1];
     rotate(
         ahead.as_ptr(),
-        MATRICES.lit_matrix.each_ref().map(|f| f.bits()).as_ptr(),
-        crate::pointers::host_at((DRAW.light_direction[0].addr() - 0x10) as usize) as *mut u32,
+        MATRICES
+            .lit_matrix
+            .each_ref()
+            .map(super::super::session::Float::bits)
+            .as_ptr(),
+        crate::pointers::host_at((DRAW.light_direction[0].addr() - 0x10) as usize).cast::<u32>(),
     );
 }
 

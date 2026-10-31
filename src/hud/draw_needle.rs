@@ -61,9 +61,13 @@ pub fn draw_needle() -> Result<(), Refused> {
     );
     HUD.scratch.set(turn);
     let angle = needle_edx(turn);
-    for (n, (x, y)) in needle_corners(HUD.needle_corners.each_ref().map(|c| c.bits()))
-        .into_iter()
-        .enumerate()
+    for (n, (x, y)) in needle_corners(
+        HUD.needle_corners
+            .each_ref()
+            .map(super::super::session::Float::bits),
+    )
+    .into_iter()
+    .enumerate()
     {
         let vertex = crate::d3d::vertices_store::piece_addr() + 0x20 * n as u32;
         let point = [extended(y), extended(x)].map(to_f64);

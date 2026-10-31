@@ -57,7 +57,13 @@ pub fn mix() -> Result<bool, Refused> {
             .write_cursor
             .set(round(bytes.wrapping_add(AUDIO.write_cursor.get()), size));
         crate::audio::write_mix::write_mix_in_game()?;
-        let r = ds::unlock(primary, AUDIO.locked_parts.each_ref().map(|d| d.get()));
+        let r = ds::unlock(
+            primary,
+            AUDIO
+                .locked_parts
+                .each_ref()
+                .map(super::super::session::Dword::get),
+        );
         if r != 0 {
             return Ok(failed(r));
         }

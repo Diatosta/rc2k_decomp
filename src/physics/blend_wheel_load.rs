@@ -67,5 +67,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 /// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
 /// original leaves are read by none of its callers.
 pub fn blend_wheel_load() {
-    blend_at(&game())
+    blend_at(&game());
 }

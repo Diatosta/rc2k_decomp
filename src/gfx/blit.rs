@@ -53,7 +53,7 @@ pub static BLIT: Blitter = Blitter {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F503C).
 pub fn home() -> usize {
-    crate::pointers::game_address(&BLIT as *const Blitter) as usize
+    crate::pointers::game_address(&raw const BLIT) as usize
 }
 
 #[cfg(test)]

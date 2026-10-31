@@ -23,7 +23,7 @@ pub fn version_record() -> [u8; 0x94] {
     unsafe {
         let mut info: OSVERSIONINFOA = std::mem::zeroed();
         info.dwOSVersionInfoSize = size_of::<OSVERSIONINFOA>() as u32;
-        GetVersionExA(&mut info);
+        GetVersionExA(&raw mut info);
         let mut record = [0u8; 0x94];
         let dwords = [
             info.dwOSVersionInfoSize,
@@ -51,7 +51,7 @@ pub fn volume() -> Option<(u32, [u8; 12])> {
             std::ptr::null(),
             name.as_mut_ptr(),
             name.len() as u32,
-            &mut serial,
+            &raw mut serial,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
@@ -138,7 +138,7 @@ pub fn memory() -> [u32; 4] {
     let m = unsafe {
         let mut m: MEMORYSTATUS = std::mem::zeroed();
         m.dwLength = size_of::<MEMORYSTATUS>() as u32;
-        GlobalMemoryStatus(&mut m);
+        GlobalMemoryStatus(&raw mut m);
         m
     };
     [
@@ -183,7 +183,7 @@ pub fn terminate(code: u32) -> ! {
 pub fn thread_stack() -> (usize, usize) {
     let (mut low, mut high) = (0usize, 0usize);
     // SAFETY: two out-parameters of the documented call.
-    unsafe { GetCurrentThreadStackLimits(&mut low, &mut high) };
+    unsafe { GetCurrentThreadStackLimits(&raw mut low, &raw mut high) };
     (low, high)
 }
 

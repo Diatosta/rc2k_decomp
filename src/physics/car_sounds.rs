@@ -24,7 +24,7 @@ use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
 pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::car_sounds's operand")
+    crate::pointers::write_or_end::<u32>(a, v, "physics::car_sounds's operand");
 }
 
 /// Whether car `car` (a number) is listed; refused past 7.

@@ -41,5 +41,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn keep_motion_vectors() {
-    core(&game())
+    core(&game());
 }

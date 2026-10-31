@@ -126,7 +126,7 @@ pub fn make_record(
 /// `project_polygon`'s test of a projected point's depth: nearer than `NEAR` or not below
 /// the farthest (`flt_6241C8`), each compare taking "no number" for "below".
 pub fn outside_depths(depth: f32, far: f32) -> bool {
-    let below = |a: f32, b: f32| a.partial_cmp(&b).is_none_or(|o| o.is_lt());
+    let below = |a: f32, b: f32| a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt);
     below(depth, NEAR) || !below(depth, far)
 }
 

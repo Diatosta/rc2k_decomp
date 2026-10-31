@@ -213,7 +213,7 @@ pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadIn
             nation: d.nation.get(),
             car: d.car.get(),
             entered: d.in_event.get(),
-            points: d.results.each_ref().map(|r| r.get()),
+            points: d.results.each_ref().map(super::super::session::Dword::get),
         })
         .collect())
 }
@@ -302,7 +302,7 @@ const SORTED: u32 = standings::SORTED as u32;
 pub fn sort_table_a(key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::rankings::sort_a`.
     with_a(|t| {
-        with_kept_name(|kept| rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept))
+        with_kept_name(|kept| rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept));
     })?;
 
     DRAW_WORK.work_b4.set(SORTED - 1);
@@ -340,7 +340,7 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
         name: bytes(name_ref)?,
     };
     scores.with(|t| {
-        with_kept_name(|kept| s::enter_best(&mut t.groups[group as usize], &best, kept))
+        with_kept_name(|kept| s::enter_best(&mut t.groups[group as usize], &best, kept));
     })?;
     Ok(())
 }
@@ -352,8 +352,8 @@ pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::rankings::sort_b`.
     with_b(|t| {
         with_kept_name(|kept| {
-            rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept)
-        })
+            rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);
+        });
     })?;
 
     DRAW_WORK.work_b4.set(SORTED - 1);

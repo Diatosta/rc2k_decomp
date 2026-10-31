@@ -26,7 +26,7 @@ fn rate() {
     rate_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         &KEPT,
-    )
+    );
 }
 
 /// The Rust version (see the header).
@@ -112,7 +112,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -165,8 +165,8 @@ mod asm_differential {
                             overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
                         ],
                         || super::rate_x87(b[1], kv),
-                    )
-                })
+                    );
+                });
             },
         );
     }

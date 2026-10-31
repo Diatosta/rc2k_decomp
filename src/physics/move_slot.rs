@@ -90,7 +90,7 @@ pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
     if s.spin_length.bits() != 0 {
         // From the spin's length on: two dwords past the slot, as the original has it (the
         // next slot's first, or what follows the table), so by address.
-        let past = crate::pointers::game_address(&s.spin_length as *const Float);
+        let past = crate::pointers::game_address(&raw const s.spin_length);
         unit_vector(&At(past), &COURSE_LISTS.spin_axis);
         COURSE_LISTS
             .spin_angle

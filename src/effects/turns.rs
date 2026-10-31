@@ -106,12 +106,12 @@ fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
 pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let scales = &MASK_CONSTANTS.pair_scales;
-    let (b, a) = scaled_ints(&inputs, scales.as_ptr() as *const u32);
+    let (b, a) = scaled_ints(&inputs, scales.as_ptr().cast::<u32>());
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);
     [
-        int_over_80(b, &raw const scales[3] as *const u32),
-        int_over_80(a, &raw const scales[2] as *const u32),
+        int_over_80(b, (&raw const scales[3]).cast::<u32>()),
+        int_over_80(a, (&raw const scales[2]).cast::<u32>()),
     ]
 }
 // ---- the converted versions (`rc2k_core::effects::turns`) ----
@@ -179,7 +179,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -198,7 +198,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -214,7 +214,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }

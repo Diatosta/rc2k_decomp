@@ -18,5 +18,5 @@ use crate::errors::BadInput;
 
 pub fn reset_tyre_wear() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::reset_tyre_wear`).
-    crate::service::repair_parts::with_player(|p| p.reset_tyre_wear())
+    crate::service::repair_parts::with_player(rc2k_core::menu::player::Player::reset_tyre_wear)
 }

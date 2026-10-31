@@ -86,7 +86,7 @@ pub static RESCALE: Rescaler = Rescaler {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F505C).
 pub fn home() -> usize {
-    crate::pointers::game_address(&RESCALE as *const Rescaler) as usize
+    crate::pointers::game_address(&raw const RESCALE) as usize
 }
 
 // ---- Rust version ----

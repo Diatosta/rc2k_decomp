@@ -31,5 +31,5 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
 
 /// The Rust version.
 pub fn turn_by_car_matrix(v: &(impl Cells + ?Sized)) {
-    turn_cells(&CAR.crash_matrix, v)
+    turn_cells(&CAR.crash_matrix, v);
 }

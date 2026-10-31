@@ -603,11 +603,11 @@ mod tests {
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::game_address(&CAR.gear as *const _),
+            crate::pointers::game_address(&raw const CAR.gear),
             car_addr() + 0x1D4
         );
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(car_addr()) as *const u8, END - START)
+            std::slice::from_raw_parts(crate::pointers::host(car_addr()).cast_const(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }

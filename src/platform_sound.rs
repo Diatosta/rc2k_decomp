@@ -76,7 +76,8 @@ type SoundData = Mutex<Vec<u8>>;
 
 /// A buffer's bytes, a poisoned lock taken as it is.
 fn bytes_of(data: &SoundData) -> std::sync::MutexGuard<'_, Vec<u8>> {
-    data.lock().unwrap_or_else(|e| e.into_inner())
+    data.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 struct Buffer {
@@ -701,7 +702,7 @@ pub fn create_device() -> Result<u32, i32> {
             };
             let stream = SDL_OpenAudioDeviceStream(
                 SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                &spec,
+                &raw const spec,
                 Some(feed),
                 std::ptr::null_mut(),
             );

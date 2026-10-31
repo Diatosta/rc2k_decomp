@@ -471,7 +471,7 @@ impl ShapeInputs {
     pub const LEN: usize = 0x3C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SHAPE_INPUTS as *const ShapeInputs) as usize
+        crate::pointers::game_address(&raw const SHAPE_INPUTS) as usize
     }
 }
 
@@ -483,7 +483,7 @@ mod shape_inputs_tests {
     fn shape_inputs_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeInputs>(), ShapeInputs::LEN);
-        let p = &SHAPE_INPUTS as *const ShapeInputs as *const u8;
+        let p = (&raw const SHAPE_INPUTS).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeInputs>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -702,7 +702,7 @@ impl ShapeSetTuning {
     pub const LEN: usize = 0x270;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SHAPE_SET_TUNING as *const ShapeSetTuning) as usize
+        crate::pointers::game_address(&raw const SHAPE_SET_TUNING) as usize
     }
 }
 
@@ -717,7 +717,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(ShapeSetTuning::START, ShapeSetTuning::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ShapeSetTuning::home()) as *const u8,
+                crate::pointers::host_at(ShapeSetTuning::home()).cast_const(),
                 ShapeSetTuning::LEN,
             )
         };

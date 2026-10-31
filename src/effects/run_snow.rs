@@ -40,7 +40,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
 fn turn_light() {
-    turn_light_x87(&SNOW_LIGHT)
+    turn_light_x87(&SNOW_LIGHT);
 }
 
 /// The Rust version (see the header).
@@ -81,7 +81,7 @@ pub fn run_snow() -> Result<(), Refused> {
         }
         let rhw = l.rhw.get();
         let light = FRAME_WORK.view_light.bits() | 0xFF00_0000;
-        let [u0, v0, u1, v1] = l.uv.each_ref().map(|d| d.get());
+        let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::Dword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
             let at = &VERTICES.vertices[n];
@@ -382,7 +382,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }

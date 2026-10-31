@@ -29,7 +29,10 @@ pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 /// The machine's facts as the game holds them.
 pub fn game_facts() -> Facts {
     Facts {
-        qualities: AUDIO.quality_modes.each_ref().map(|d| d.get()),
+        qualities: AUDIO
+            .quality_modes
+            .each_ref()
+            .map(super::super::session::Dword::get),
         has_3d: AUDIO.has_3d.get(),
         has_a3d2: AUDIO.has_a3d2.get(),
         has_eax: AUDIO.has_eax.get(),

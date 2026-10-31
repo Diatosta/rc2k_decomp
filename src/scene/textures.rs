@@ -15,7 +15,11 @@ pub fn with_cells<const N: usize, R>(
     cells: [&[crate::session::Dword]; N],
     f: impl FnOnce(&mut [Vec<u32>; N]) -> R,
 ) -> R {
-    let mut copies = cells.map(|t| t.iter().map(|c| c.get()).collect::<Vec<u32>>());
+    let mut copies = cells.map(|t| {
+        t.iter()
+            .map(super::super::session::Dword::get)
+            .collect::<Vec<u32>>()
+    });
     let result = f(&mut copies);
     for (table, copy) in cells.iter().zip(&copies) {
         for (cell, &v) in table.iter().zip(copy) {

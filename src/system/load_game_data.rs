@@ -215,7 +215,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings()?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(crate::pointers::GamePtr::to(&SKU.path))?
+            crate::install::read_sku::read_sku(crate::pointers::GamePtr::to(&SKU.path))?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
             crate::settings::read_driver_names::path(),
@@ -223,7 +223,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(&mut |line| {
-            crate::logfile::log_write::log_nul(line, true, 1)
+            crate::logfile::log_write::log_nul(line, true, 1);
         })?,
         Call::UserName(to) => {
             if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
@@ -269,7 +269,7 @@ impl RunCount {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RUN_COUNT as *const RunCount) as usize
+        crate::pointers::game_address(&raw const RUN_COUNT) as usize
     }
 }
 
@@ -284,7 +284,7 @@ mod run_count_tests {
         let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(RunCount::home()) as *const u8,
+                crate::pointers::host_at(RunCount::home()).cast_const(),
                 RunCount::LEN,
             )
         };

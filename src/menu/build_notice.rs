@@ -62,7 +62,7 @@ impl BuildNotice {
     pub const LEN: usize = 0xAC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&NOTICE as *const BuildNotice) as usize
+        crate::pointers::game_address(&raw const NOTICE) as usize
     }
 }
 
@@ -74,7 +74,7 @@ mod notice_tests {
     #[test]
     fn notice_starts_as_the_games_image() {
         assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        let p = &NOTICE as *const BuildNotice as *const u8;
+        let p = (&raw const NOTICE).cast::<u8>();
         let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
         for (i, &b) in image.iter().enumerate() {
             assert_eq!(

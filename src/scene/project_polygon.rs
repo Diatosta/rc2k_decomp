@@ -48,8 +48,12 @@ pub fn project_polygon() -> Result<(), Refused> {
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".
-        let near = depth.partial_cmp(&NEAR).is_none_or(|order| order.is_lt());
-        let in_reach = depth.partial_cmp(&far).is_none_or(|order| order.is_lt());
+        let near = depth
+            .partial_cmp(&NEAR)
+            .is_none_or(std::cmp::Ordering::is_lt);
+        let in_reach = depth
+            .partial_cmp(&far)
+            .is_none_or(std::cmp::Ordering::is_lt);
         if near || !in_reach {
             outside += 1;
         }

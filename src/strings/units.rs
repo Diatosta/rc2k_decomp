@@ -16,7 +16,7 @@ pub fn units() -> u32 {
 }
 
 pub fn set_units(units: u32) {
-    UNITS.store(units, Ordering::Relaxed)
+    UNITS.store(units, Ordering::Relaxed);
 }
 
 /// The setting as the core's `Units`; refused past 1 (the label tables have two entries).

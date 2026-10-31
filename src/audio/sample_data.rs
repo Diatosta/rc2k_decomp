@@ -52,21 +52,29 @@ fn buffer(which: Buffer) -> &'static Mutex<Vec<u8>> {
 
 /// A buffer taken anew, zeroed, for `bytes` (`take_sample_buffer`'s, the header's).
 pub fn take(which: Buffer, bytes: u32) {
-    *buffer(which).lock().unwrap_or_else(|e| e.into_inner()) = vec![0; block_bytes(bytes)];
+    *buffer(which)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = vec![0; block_bytes(bytes)];
 }
 
 /// A buffer given back.
 pub fn free(which: Buffer) {
-    *buffer(which).lock().unwrap_or_else(|e| e.into_inner()) = Vec::new();
+    *buffer(which)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Vec::new();
 }
 
 /// `f` on a buffer's bytes.
 pub fn with_buffer<R>(which: Buffer, f: impl FnOnce(&mut [u8]) -> R) -> R {
-    f(&mut buffer(which).lock().unwrap_or_else(|e| e.into_inner()))
+    f(&mut buffer(which)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
 
 fn add(data: Data) -> u32 {
-    let mut table = DATA.lock().unwrap_or_else(|e| e.into_inner());
+    let mut table = DATA
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     table.push(data);
     table.len() as u32
 }
@@ -81,7 +89,9 @@ pub fn in_buffer(which: Buffer, offset: u32) -> u32 {
 
 /// Where id `id`'s bytes start in its buffer (0 for a kept sample).
 pub fn offset(id: u32) -> Result<u32, BadInput> {
-    let table = DATA.lock().unwrap_or_else(|e| e.into_inner());
+    let table = DATA
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     match table.get((id as usize).wrapping_sub(1)) {
         Some(Data::Work { offset } | Data::Header { offset }) => Ok(*offset),
         Some(Data::Kept(_)) => Ok(0),
@@ -92,7 +102,9 @@ pub fn offset(id: u32) -> Result<u32, BadInput> {
 /// `f` on id `id`'s bytes: from its start to its memory's end. Refuses an id that names
 /// nothing, or a buffer place past the buffer.
 pub fn with_data<R>(id: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    let mut table = DATA.lock().unwrap_or_else(|e| e.into_inner());
+    let mut table = DATA
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let entry = table
         .get_mut((id as usize).wrapping_sub(1))
         .ok_or(BadInput("a sample data id that names nothing"))?;
@@ -101,7 +113,9 @@ pub fn with_data<R>(id: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInp
         Data::Work { offset } => (Buffer::Work, *offset),
         Data::Header { offset } => (Buffer::Header, *offset),
     };
-    let mut bytes = buffer(which).lock().unwrap_or_else(|e| e.into_inner());
+    let mut bytes = buffer(which)
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let bytes = bytes
         .get_mut(offset as usize..)
         .ok_or(BadInput("a sample's data past its buffer"))?;
@@ -132,9 +146,15 @@ impl View<'_> {
 
 /// `f` with every id's bytes readable.
 pub fn with_view<R>(f: impl FnOnce(&View) -> R) -> R {
-    let table = DATA.lock().unwrap_or_else(|e| e.into_inner());
-    let work = WORK.lock().unwrap_or_else(|e| e.into_inner());
-    let header = HEADER.lock().unwrap_or_else(|e| e.into_inner());
+    let table = DATA
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let work = WORK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let header = HEADER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(&View {
         table,
         work,
@@ -163,7 +183,9 @@ pub fn keep(
 
 /// Every id forgotten (the voices are gone: `audio::free_voices`).
 pub fn forget_all() {
-    DATA.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    DATA.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 }
 
 #[cfg(test)]

@@ -10,13 +10,13 @@ pub(super) fn sub_compare(a: u32, b: u32, negate: bool, c: u32) -> u16 {
         x87!(
             "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fchs", "fcomp dword ptr [{c}]",
             "fstsw word ptr [{s}]";
-            a = &a, b = &b, c = &c, s = &mut status
+            a = &raw const a, b = &raw const b, c = &raw const c, s = &raw mut status
         );
     } else {
         x87!(
             "fld dword ptr [{a}]", "fsub dword ptr [{b}]", "fcomp dword ptr [{c}]",
             "fstsw word ptr [{s}]";
-            a = &a, b = &b, c = &c, s = &mut status
+            a = &raw const a, b = &raw const b, c = &raw const c, s = &raw mut status
         );
     }
     status & 0x700
@@ -31,7 +31,7 @@ pub(super) fn random_step(r: i32, v: [u32; 7]) -> u32 {
         "fld dword ptr [{v} + 8]", "fsub dword ptr [{v} + 12]", "fmul dword ptr [{v} + 16]",
         "fadd dword ptr [{v} + 20]", "fmul dword ptr [{v} + 24]", ".byte 0xDE, 0xC9",
         "fstp dword ptr [{o}]";
-        r = &r, v = v.as_ptr(), o = &mut out
+        r = &raw const r, v = v.as_ptr(), o = &raw mut out
     );
     out
 }
@@ -42,7 +42,7 @@ pub(super) fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
     x87!(
         "fild dword ptr [{y}]", "fadd dword ptr [{a}]", "fsub dword ptr [{b}]",
         ".byte 0xD8, 0xC8", "fstp dword ptr [{o}]";
-        y = &y, a = &a, b = &b, o = &mut out
+        y = &raw const y, a = &raw const a, b = &raw const b, o = &raw mut out
     );
     out
 }
@@ -67,7 +67,7 @@ pub(super) fn scale_record(r: *mut u32, a: u32, b: u32) {
         "fld dword ptr [{r} + 0x24]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x24]",
         "fld dword ptr [{r} + 0x28]", ".byte 0xD8, 0xC9", "fistp dword ptr [{r} + 0x28]",
         "fld dword ptr [{r} + 0x2C]", ".byte 0xDE, 0xC9", "fistp dword ptr [{r} + 0x2C]";
-        r = r, a = &a, b = &b
+        r = r, a = &raw const a, b = &raw const b
     );
 }
 
@@ -136,7 +136,7 @@ pub(super) fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
 pub(super) fn two_pi_less(a: u32) -> u32 {
     let mut out = 0u32;
     x87!("fldpi", ".byte 0xD8, 0xC0", "fsub dword ptr [{a}]", "fstp dword ptr [{o}]";
-        a = &a, o = &raw mut out);
+        a = &raw const a, o = &raw mut out);
     out
 }
 
@@ -221,7 +221,7 @@ pub(super) fn pair_sum_80(a: i32, m1: u32, b: i32, m2: u32, d: u32) -> [u8; 10] 
 pub(super) fn ext_less(e: [u8; 10], f: u32) -> u32 {
     let mut out = 0u32;
     x87!("fld tbyte ptr [{e}]", "fsub dword ptr [{f}]", "fstp dword ptr [{o}]";
-        e = e.as_ptr(), f = &f, o = &raw mut out);
+        e = e.as_ptr(), f = &raw const f, o = &raw mut out);
     out
 }
 
@@ -1407,11 +1407,11 @@ mod diff {
         unsafe {
             core::arch::asm!(
                 "fld qword ptr [{x}]", "fstp tbyte ptr [{o}]",
-                x = in(reg) &x, o = in(reg) out.as_mut_ptr(),
+                x = in(reg) &raw const x, o = in(reg) out.as_mut_ptr(),
                 out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
-            )
+            );
         };
         out
     }

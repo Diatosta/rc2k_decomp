@@ -15,6 +15,6 @@ use crate::menu::standings::*;
 pub fn rank_entries(event: usize) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::saves::entries::rank_record`.
     with_event(event, |list| {
-        with_kept_name(|kept| rc2k_core::saves::entries::rank_record(list, kept))
+        with_kept_name(|kept| rc2k_core::saves::entries::rank_record(list, kept));
     })
 }

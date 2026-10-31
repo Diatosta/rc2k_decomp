@@ -28,7 +28,7 @@ const STATES: [(u32, u32); 7] = [
 
 /// The Rust version (see the header).
 pub fn windscreen_flakes_setup() {
-    setup_with(read_bits(&WINDSCREEN_FLAKE_STATE.setup_places))
+    setup_with(read_bits(&WINDSCREEN_FLAKE_STATE.setup_places));
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).

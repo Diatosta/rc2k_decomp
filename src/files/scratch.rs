@@ -40,7 +40,7 @@ impl Scratch {
     }
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SCRATCH as *const Scratch) as usize
+        crate::pointers::game_address(&raw const SCRATCH) as usize
     }
 }
 
@@ -55,7 +55,7 @@ mod tests {
         let image = crate::moved::image_bytes(Scratch::START, Scratch::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(Scratch::home()) as *const u8,
+                crate::pointers::host_at(Scratch::home()).cast_const(),
                 Scratch::LEN,
             )
         };

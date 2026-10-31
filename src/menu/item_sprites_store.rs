@@ -201,7 +201,7 @@ pub const END: usize = 0x747AD8;
 
 /// Where IDA 0x747998 is now (`moved::MOVED`'s home).
 pub fn item_sprites_addr() -> u32 {
-    crate::pointers::game_address(&ITEM_SPRITES as *const ItemSprites)
+    crate::pointers::game_address(&raw const ITEM_SPRITES)
 }
 
 #[cfg(test)]
@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(size_of::<ItemSprites>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(item_sprites_addr()) as *const u8,
+                crate::pointers::host(item_sprites_addr()).cast_const(),
                 END - START,
             )
         };

@@ -30,7 +30,7 @@ fn at(a: &dyn Cell32) -> u32 {
 }
 
 fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v)
+    a.set_bits(v);
 }
 
 /// The places: the allowance, the speed, the scratch, the drive speed.
@@ -68,5 +68,5 @@ fn game() -> CapPlaces {
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub fn cap_drive_speed() {
-    cap_drive_speed_at(game())
+    cap_drive_speed_at(game());
 }

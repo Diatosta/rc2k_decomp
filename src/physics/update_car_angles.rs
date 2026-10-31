@@ -17,6 +17,6 @@ use rc2k_core::physics::motion::angles_wanted as wanted;
 pub fn update_car_angles() {
     let (force, hold) = (CAR.camera_mode_is_2_or_3.get(), CAR.all_wheels_off.get());
     if wanted(force, hold) {
-        car_angles()
+        car_angles();
     }
 }

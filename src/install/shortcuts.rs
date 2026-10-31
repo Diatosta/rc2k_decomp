@@ -151,7 +151,7 @@ mod start_menu {
                 std::ptr::null_mut(),
                 CLSCTX_INPROC_SERVER,
                 &IID_SHELL_LINK_W,
-                &mut link,
+                &raw mut link,
             ) < 0
                 || link.is_null()
             {
@@ -169,7 +169,7 @@ mod start_menu {
                     *mut *mut c_void,
                 ) -> i32 = std::mem::transmute(slot(link, QUERY_INTERFACE));
                 let mut file: *mut c_void = std::ptr::null_mut();
-                ok = query(link, &IID_PERSIST_FILE, &mut file) >= 0 && !file.is_null();
+                ok = query(link, &IID_PERSIST_FILE, &raw mut file) >= 0 && !file.is_null();
                 if ok {
                     let save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32 =
                         std::mem::transmute(slot(file, PERSIST_SAVE));

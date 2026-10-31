@@ -35,7 +35,7 @@ impl StartTexts {
     pub const LEN: usize = 0x94;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&START_TEXTS as *const StartTexts) as usize
+        crate::pointers::game_address(&raw const START_TEXTS) as usize
     }
 }
 
@@ -50,7 +50,7 @@ mod tests {
         let image = crate::moved::image_bytes(StartTexts::START, StartTexts::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(StartTexts::home()) as *const u8,
+                crate::pointers::host_at(StartTexts::home()).cast_const(),
                 StartTexts::LEN,
             )
         };

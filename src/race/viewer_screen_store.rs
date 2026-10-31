@@ -182,7 +182,7 @@ impl ViewerPanelBlock {
     }
 
     pub fn set_picture_rate(&self, value: u32) {
-        self.tail_write(0x5C2CEF, value)
+        self.tail_write(0x5C2CEF, value);
     }
 
     /// `dword_5C2CF3` (unaligned): ms a picture.
@@ -191,7 +191,7 @@ impl ViewerPanelBlock {
     }
 
     pub fn set_picture_time(&self, value: u32) {
-        self.tail_write(0x5C2CF3, value)
+        self.tail_write(0x5C2CF3, value);
     }
 
     /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
@@ -291,7 +291,11 @@ mod tests {
     fn tail_dwords_read_and_write_unaligned() {
         let _g = crate::store::test_lock();
         let v = &*VIEWER_PANEL;
-        let kept: Vec<u32> = v.unknown_3cc.iter().map(|c| c.get()).collect();
+        let kept: Vec<u32> = v
+            .unknown_3cc
+            .iter()
+            .map(crate::session::Dword::get)
+            .collect();
         for (k, ida) in [0x5C2CE8, 0x5C2CEB, 0x5C2CEF, 0x5C2CF3]
             .into_iter()
             .enumerate()

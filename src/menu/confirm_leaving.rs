@@ -19,5 +19,5 @@ pub fn confirm_leaving(ask: &mut dyn FnMut()) -> u32 {
     // Converted: `rc2k_core::menu::leaving::Question` (`begin`, `confirm`).
     with_question(|q, _| q.begin());
     ask();
-    with_question(|q, l| q.confirm(l))
+    with_question(rc2k_core::menu::leaving::Question::confirm)
 }

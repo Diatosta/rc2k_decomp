@@ -17,5 +17,5 @@ use crate::physics::turn_by_car_matrix::turn_cells;
 
 /// The Rust version.
 pub fn turn_by_inverse(v: &(impl Cells + ?Sized)) {
-    turn_cells(&CAR.car_inverse_matrix, v)
+    turn_cells(&CAR.car_inverse_matrix, v);
 }

@@ -21,7 +21,7 @@ use crate::session::Cell32;
 use std::cmp::Ordering;
 
 fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v)
+    a.set_bits(v);
 }
 
 /// The core on the variables' cells: eax as the original leaves it (n less the

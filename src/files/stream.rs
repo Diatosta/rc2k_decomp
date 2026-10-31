@@ -19,7 +19,9 @@ static STREAM: std::sync::Mutex<Stream> = std::sync::Mutex::new(Stream {
 
 /// `f` on the stream (held meanwhile: the readers do not nest).
 pub fn with_stream<R>(f: impl FnOnce(&mut Stream) -> R) -> R {
-    f(&mut STREAM.lock().unwrap_or_else(|e| e.into_inner()))
+    f(&mut STREAM
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner))
 }
 
 // ---- for the self-tests: a file of the test's own in the game's `var` folder ----

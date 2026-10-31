@@ -33,7 +33,7 @@ fn frame_axes(s: u32) {
         &WINDSCREEN_FLAKE_TIMING,
         &WINDSCREEN_FLAKE_TABLES,
         &WINDSCREEN_FLAKE_STATE,
-    )
+    );
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
@@ -42,7 +42,7 @@ fn frame_up(s: u32) {
         s as usize,
         &WINDSCREEN_FLAKE_TABLES,
         &WINDSCREEN_FLAKE_STATE,
-    )
+    );
 }
 
 /// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
@@ -50,7 +50,7 @@ fn frame_place(s: u32) {
     frame_place_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
-    )
+    );
 }
 
 /// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
@@ -58,7 +58,7 @@ fn frame_facing() {
     frame_facing_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         &WINDSCREEN_FLAKE_TABLES,
-    )
+    );
 }
 
 /// The Rust version (see the header).
@@ -234,7 +234,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -266,7 +266,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -284,7 +284,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -304,7 +304,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -376,10 +376,10 @@ mod asm_differential {
                                 b[0],
                                 WindscreenFlakeState::START,
                                 |ss| super::frame_axes_x87(b[1], sti, sq, ss),
-                            )
+                            );
                         },
-                    )
-                })
+                    );
+                });
             },
         );
     }
@@ -426,9 +426,9 @@ mod asm_differential {
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
-                        super::frame_up_x87(b[1], sq, ss)
-                    })
-                })
+                        super::frame_up_x87(b[1], sq, ss);
+                    });
+                });
             },
         );
     }
@@ -489,9 +489,9 @@ mod asm_differential {
                             b[0],
                             WindscreenFlakeTables::START,
                             |sq| super::frame_facing_x87(b[0], sq),
-                        )
+                        );
                     },
-                )
+                );
             },
         );
     }

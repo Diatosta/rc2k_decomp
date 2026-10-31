@@ -28,7 +28,7 @@ fn ribbon() {
         crate::d3d::vertices_store::piece_addr() as usize,
         &DRAW_WORK,
         &VIEW_VARS,
-    )
+    );
 }
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
@@ -276,7 +276,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -361,9 +361,9 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
-                        super::ribbon_x87(b[1].wrapping_add(0x5605A0), dw, vv)
-                    })
-                })
+                        super::ribbon_x87(b[1].wrapping_add(0x5605A0), dw, vv);
+                    });
+                });
             },
         );
     }

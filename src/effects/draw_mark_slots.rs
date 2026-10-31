@@ -82,7 +82,10 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
             .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
         let p = (SPLINE_HEAD.points[0].addr()).wrapping_add(s.point.get().wrapping_mul(12));
         let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
-        let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
+        let k4 = TUNING
+            .place_k
+            .each_ref()
+            .map(super::super::session::Float::bits);
         let z = x87::mul(c, k4[0]);
         let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);

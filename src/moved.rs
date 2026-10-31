@@ -653,22 +653,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::session::SCREEN_IDA,
         len: crate::session::SCREEN_LEN,
-        home: || crate::pointers::game_address(&crate::session::SCREEN as *const _) as usize,
+        home: || crate::pointers::game_address(&raw const crate::session::SCREEN) as usize,
     },
     Moved {
         ida: crate::session::FLAGS_IDA,
         len: crate::session::FLAGS_LEN,
-        home: || crate::pointers::game_address(&crate::session::FLAGS as *const _) as usize,
+        home: || crate::pointers::game_address(&raw const crate::session::FLAGS) as usize,
     },
     Moved {
         ida: crate::session::MACHINE_IDA,
         len: crate::session::MACHINE_LEN,
-        home: || crate::pointers::game_address(&crate::session::MACHINE as *const _) as usize,
+        home: || crate::pointers::game_address(&raw const crate::session::MACHINE) as usize,
     },
     Moved {
         ida: crate::session::CLOCKS_IDA,
         len: crate::session::CLOCKS_LEN,
-        home: || crate::pointers::game_address(&crate::session::CLOCKS as *const _) as usize,
+        home: || crate::pointers::game_address(&raw const crate::session::CLOCKS) as usize,
     },
     // audio: the audio thread's variables and the sample records (`audio::store`)
     Moved {
@@ -2305,7 +2305,7 @@ pub fn snapshot() -> Vec<(usize, Vec<u8>)> {
         .iter()
         .map(|&(start, end, home)| {
             let bytes = unsafe {
-                std::slice::from_raw_parts(crate::pointers::host_at(home) as *const u8, end - start)
+                std::slice::from_raw_parts(crate::pointers::host_at(home).cast_const(), end - start)
             };
             (home, bytes.to_vec())
         })
@@ -2321,7 +2321,7 @@ pub fn restore(snap: &[(usize, Vec<u8>)]) {
                 bytes.as_ptr(),
                 crate::pointers::host_at(*home),
                 bytes.len(),
-            )
+            );
         };
     }
 }

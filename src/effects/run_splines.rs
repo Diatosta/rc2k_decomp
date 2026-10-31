@@ -86,7 +86,10 @@ pub fn run_splines() -> Result<(), Refused> {
         step_made(settings, CLOCK.frame_ticks.get() >> 1)?;
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
-        let k = SPLINE_CONSTANTS.wave_k.each_ref().map(|f| f.bits());
+        let k = SPLINE_CONSTANTS
+            .wave_k
+            .each_ref()
+            .map(super::super::session::Float::bits);
         let (angle, wave) = x87::angle_and_wave(
             SPLINE_HEAD.angle.bits(),
             (s & 0xFF).wrapping_sub(0x80) as i32,

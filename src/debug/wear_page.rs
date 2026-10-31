@@ -40,7 +40,7 @@ mod tests {
         // Each figure's place resolves, outside the dead bytes of the race block.
         let groups = crate::debug::display_rows::GROUPS.iter();
         for group in groups.chain(crate::debug::watch_rows::GROUPS) {
-            for at in group.rows.iter().map(|r| r.at()) {
+            for at in group.rows.iter().map(super::super::ui::Row::at) {
                 let place = crate::moved::place(at) as u32;
                 assert!(!crate::race::store::is_dead(place), "{at:#x}");
                 assert!(super::value_at(at).is_some(), "{at:#x}");

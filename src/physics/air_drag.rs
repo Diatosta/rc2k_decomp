@@ -45,5 +45,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn air_drag() {
-    drag_at(&game())
+    drag_at(&game());
 }

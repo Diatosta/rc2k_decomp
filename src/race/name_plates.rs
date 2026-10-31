@@ -141,10 +141,10 @@ pub fn update_name_plates() -> Result<(), Refused> {
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
-                draw_plate_by_id(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+                draw_plate_by_id(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?;
             }
             NameAsk::Text(_) => {
-                draw_name_plate(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+                draw_name_plate(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?;
             }
         }
         // ebx at the store: the name asked for (every drawing keeps its registers).

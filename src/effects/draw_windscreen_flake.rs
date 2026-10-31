@@ -24,7 +24,7 @@ const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
 /// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
 fn shifted_places(s: u32, p: u32) {
-    shifted_places_x87(s as usize, p as usize)
+    shifted_places_x87(s as usize, p as usize);
 }
 
 /// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
@@ -32,12 +32,12 @@ fn corners(v: &[[u8; 10]; 2]) {
     corners_x87(
         (crate::pointers::game_address(v.as_ptr())) as usize,
         &WINDSCREEN_FLAKE_TABLES,
-    )
+    );
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
 fn projected(p: u32) {
-    projected_x87(p as usize, &MARKS_KIND_FLOATS, &WINDSCREEN_FLAKE_TABLES)
+    projected_x87(p as usize, &MARKS_KIND_FLOATS, &WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
@@ -242,7 +242,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -310,7 +310,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -387,7 +387,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -509,8 +509,8 @@ mod asm_differential {
             |b| reference::corners_x87(b[0], b[1]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    super::corners_x87(b[1], sq)
-                })
+                    super::corners_x87(b[1], sq);
+                });
             },
         );
     }
@@ -575,8 +575,8 @@ mod asm_differential {
                         b[1],
                         WindscreenFlakeTables::START,
                         |sq| super::projected_x87(b[2], k, sq),
-                    )
-                })
+                    );
+                });
             },
         );
     }

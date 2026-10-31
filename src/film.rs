@@ -251,7 +251,7 @@ impl FrameHead {
     /// Plane `p` as `count` values of `T` (sound samples); None for an empty or
     /// misaligned plane.
     fn values<T: Copy>(&self, p: usize, count: usize) -> Option<&[T]> {
-        let at = self.data[p] as *const T;
+        let at = self.data[p].cast::<T>();
         if at.is_null() || !at.is_aligned() {
             return None;
         }
@@ -281,7 +281,7 @@ impl Decoder {
             let context = avcodec_alloc_context3(decoder);
             if context.is_null() || avcodec_open2(context, decoder, std::ptr::null_mut()) < 0 {
                 let mut c = context;
-                avcodec_free_context(&mut c);
+                avcodec_free_context(&raw mut c);
                 return Err(format!("{name:?} does not open"));
             }
             let parser = match parser {
@@ -316,8 +316,8 @@ impl Decoder {
                 av_parser_parse2(
                     self.parser,
                     self.context,
-                    &mut data,
-                    &mut size,
+                    &raw mut data,
+                    &raw mut size,
                     if rest.is_empty() {
                         std::ptr::null()
                     } else {
@@ -357,14 +357,14 @@ impl Decoder {
         unsafe {
             let sent = match bytes {
                 Some(bytes) => {
-                    let data = av_malloc(bytes.len() + PADDING) as *mut u8;
+                    let data = av_malloc(bytes.len() + PADDING).cast::<u8>();
                     if data.is_null() {
                         return Err("out of memory".into());
                     }
                     std::ptr::copy_nonoverlapping(bytes.as_ptr(), data, bytes.len());
                     std::ptr::write_bytes(data.add(bytes.len()), 0, PADDING);
                     if av_packet_from_data(self.packet, data, bytes.len() as i32) < 0 {
-                        av_free(data as *mut c_void);
+                        av_free(data.cast::<c_void>());
                         return Err("a packet that cannot be made".into());
                     }
                     let sent = avcodec_send_packet(self.context, self.packet);
@@ -393,9 +393,9 @@ impl Drop for Decoder {
             if !self.parser.is_null() {
                 av_parser_close(self.parser);
             }
-            av_frame_free(&mut self.frame);
-            av_packet_free(&mut self.packet);
-            avcodec_free_context(&mut self.context);
+            av_frame_free(&raw mut self.frame);
+            av_packet_free(&raw mut self.packet);
+            avcodec_free_context(&raw mut self.context);
         }
     }
 }
@@ -454,7 +454,7 @@ fn samples(head: &FrameHead, channels: usize, pcm: &mut Vec<i16>) -> Result<(), 
         "s16p" | "fltp" => {
             let planes = (0..channels)
                 .map(|c| match name.as_ref() {
-                    "s16p" => head.values::<i16>(c, n).map(|p| p.to_vec()),
+                    "s16p" => head.values::<i16>(c, n).map(<[i16]>::to_vec),
                     _ => head.values::<f32>(c, n).map(|p| {
                         p.iter()
                             .map(|&v| (v * 32767.0).clamp(-32768.0, 32767.0) as i16)
@@ -757,7 +757,7 @@ impl Sound {
             };
             let stream = SDL_OpenAudioDeviceStream(
                 SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                &spec,
+                &raw const spec,
                 None,
                 std::ptr::null_mut(),
             );
@@ -808,10 +808,12 @@ fn run(film: &mut Film) -> u8 {
                     }
                 }
                 Some(packet) => {
-                    let result = film.decoder.decode(packet.map(|p| p.as_slice()), &mut |f| {
-                        queue.push_back(picture(f)?);
-                        Ok(())
-                    });
+                    let result =
+                        film.decoder
+                            .decode(packet.map(std::vec::Vec::as_slice), &mut |f| {
+                                queue.push_back(picture(f)?);
+                                Ok(())
+                            });
                     if let Err(why) = result {
                         log(&format!("gfx::play_film: frame {shown}: {why}"));
                         ended = true;

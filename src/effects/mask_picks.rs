@@ -618,7 +618,7 @@ mod tests_picks {
             offset_of!(MaskPicks, pixel_table_b),
             0x864E58 - MaskPicks::START
         );
-        let p = core::ptr::addr_of!(PICKS) as *const u8;
+        let p = core::ptr::addr_of!(PICKS).cast::<u8>();
         let now: Vec<u8> = (0..MaskPicks::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

@@ -1439,7 +1439,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.engine_damage,
                         &CAR.engine_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1462,7 +1462,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.exhaust_damage,
                         &CAR.exhaust_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1485,7 +1485,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.cooling_damage,
                         &CAR.cooling_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1508,7 +1508,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.clutch_damage,
                         &CAR.clutch_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1531,7 +1531,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.differential_damage,
                         &CAR.differential_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1554,7 +1554,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.electrics_damage,
                         &CAR.electrics_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1577,7 +1577,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[0],
                         &CAR.light_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -1600,7 +1600,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[1],
                         &CAR.light_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -1623,7 +1623,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[2],
                         &CAR.light_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -1646,7 +1646,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[3],
                         &CAR.light_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -1669,7 +1669,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[4],
                         &CAR.light_damage[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -1692,7 +1692,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[5],
                         &CAR.light_damage[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -1715,7 +1715,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.steering_damage,
                         &CAR.steering_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1738,7 +1738,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.suspension_damage[0],
                         &CAR.suspension_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -1761,7 +1761,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.suspension_damage[1],
                         &CAR.suspension_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -1784,7 +1784,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.suspension_damage[2],
                         &CAR.suspension_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -1807,7 +1807,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.suspension_damage[3],
                         &CAR.suspension_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -1837,7 +1837,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b398,
                         &CAR.turbo_damage,
                         &CAR.turbo_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1908,7 +1908,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3b0,
                         &CAR.brake_wear_b,
                         &CAR.brake_wear_b,
-                    )
+                    );
                 },
             },
             Block {
@@ -1932,7 +1932,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.electrics_damage,
                         &CAR.electrics_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -1956,7 +1956,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[0],
                         &CAR.light_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -1980,7 +1980,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[1],
                         &CAR.light_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -2004,7 +2004,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[2],
                         &CAR.light_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2028,7 +2028,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[3],
                         &CAR.light_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -2052,7 +2052,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[4],
                         &CAR.light_damage[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -2076,7 +2076,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b38c,
                         &CAR.light_damage[5],
                         &CAR.light_damage[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -2136,7 +2136,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.part_hit_damage[0],
                         &CAR.part_hit_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -2160,7 +2160,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.part_hit_damage[1],
                         &CAR.part_hit_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -2184,7 +2184,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.part_hit_damage[2],
                         &CAR.part_hit_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2208,7 +2208,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.part_hit_damage[3],
                         &CAR.part_hit_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -2232,7 +2232,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.engine_damage,
                         &CAR.engine_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2256,7 +2256,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.cooling_damage,
                         &CAR.cooling_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2296,7 +2296,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.cooling_damage,
                         &CAR.cooling_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2384,7 +2384,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.wheel_hit_damage[0],
                         &CAR.wheel_hit_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -2408,7 +2408,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.wheel_hit_damage[1],
                         &CAR.wheel_hit_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -2432,7 +2432,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.wheel_hit_damage[2],
                         &CAR.wheel_hit_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2456,7 +2456,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.wheel_hit_damage[3],
                         &CAR.wheel_hit_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -2480,7 +2480,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[0],
                         &CAR.suspension_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -2504,7 +2504,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[1],
                         &CAR.suspension_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -2528,7 +2528,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[2],
                         &CAR.suspension_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2552,7 +2552,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[3],
                         &CAR.suspension_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -2576,7 +2576,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.body_hit_damage,
                         &CAR.body_hit_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2600,7 +2600,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.steering_damage,
                         &CAR.steering_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2624,7 +2624,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.engine_damage,
                         &CAR.engine_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2648,7 +2648,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.exhaust_damage,
                         &CAR.exhaust_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2672,7 +2672,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[0],
                         &CAR.gear_wear[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -2696,7 +2696,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[2],
                         &CAR.gear_wear[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2720,7 +2720,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[3],
                         &CAR.gear_wear[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -2744,7 +2744,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[4],
                         &CAR.gear_wear[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -2768,7 +2768,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[5],
                         &CAR.gear_wear[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -2792,7 +2792,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[6],
                         &CAR.gear_wear[6],
-                    )
+                    );
                 },
             },
             Block {
@@ -2816,7 +2816,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[7],
                         &CAR.gear_wear[7],
-                    )
+                    );
                 },
             },
             Block {
@@ -2840,7 +2840,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.gear_wear[8],
                         &CAR.gear_wear[8],
-                    )
+                    );
                 },
             },
             Block {
@@ -2864,7 +2864,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.differential_damage,
                         &CAR.differential_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2887,7 +2887,7 @@ mod asm_reference {
                         &dm(a[0]).figures[13],
                         &CAR.body_hit_damage,
                         &CAR.body_hit_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -2926,7 +2926,7 @@ mod asm_reference {
                         &dm(a[0]).figures[24],
                         &CAR.light_damage[0],
                         &CAR.light_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -2949,7 +2949,7 @@ mod asm_reference {
                         &dm(a[0]).figures[24],
                         &CAR.light_damage[1],
                         &CAR.light_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -2972,7 +2972,7 @@ mod asm_reference {
                         &dm(a[0]).figures[24],
                         &CAR.light_damage[2],
                         &CAR.light_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -2995,7 +2995,7 @@ mod asm_reference {
                         &dm(a[0]).figures[24],
                         &CAR.light_damage[3],
                         &CAR.light_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -3018,7 +3018,7 @@ mod asm_reference {
                         &dm(a[0]).figures[25],
                         &CAR.light_damage[4],
                         &CAR.light_damage[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -3041,7 +3041,7 @@ mod asm_reference {
                         &dm(a[0]).figures[25],
                         &CAR.light_damage[4],
                         &CAR.light_damage[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -3064,7 +3064,7 @@ mod asm_reference {
                         &dm(a[0]).figures[25],
                         &CAR.light_damage[5],
                         &CAR.light_damage[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -3087,7 +3087,7 @@ mod asm_reference {
                         &dm(a[0]).figures[25],
                         &CAR.light_damage[5],
                         &CAR.light_damage[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -3110,7 +3110,7 @@ mod asm_reference {
                         &dm(a[0]).figures[23],
                         &CAR.steering_damage,
                         &CAR.steering_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3133,7 +3133,7 @@ mod asm_reference {
                         &dm(a[0]).figures[22],
                         &CAR.electrics_damage,
                         &CAR.electrics_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3156,7 +3156,7 @@ mod asm_reference {
                         &dm(a[0]).figures[17],
                         &CAR.turbo_damage,
                         &CAR.turbo_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3179,7 +3179,7 @@ mod asm_reference {
                         &dm(a[0]).figures[18],
                         &CAR.clutch_damage,
                         &CAR.clutch_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3202,7 +3202,7 @@ mod asm_reference {
                         &dm(a[0]).figures[19],
                         &CAR.differential_damage,
                         &CAR.differential_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3225,7 +3225,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[0],
                         &CAR.gear_wear[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -3248,7 +3248,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[1],
                         &CAR.gear_wear[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -3271,7 +3271,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[2],
                         &CAR.gear_wear[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -3294,7 +3294,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[3],
                         &CAR.gear_wear[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -3317,7 +3317,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[4],
                         &CAR.gear_wear[4],
-                    )
+                    );
                 },
             },
             Block {
@@ -3340,7 +3340,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[5],
                         &CAR.gear_wear[5],
-                    )
+                    );
                 },
             },
             Block {
@@ -3363,7 +3363,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[6],
                         &CAR.gear_wear[6],
-                    )
+                    );
                 },
             },
             Block {
@@ -3386,7 +3386,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[7],
                         &CAR.gear_wear[7],
-                    )
+                    );
                 },
             },
             Block {
@@ -3409,7 +3409,7 @@ mod asm_reference {
                         &dm(a[0]).figures[20],
                         &CAR.gear_wear[8],
                         &CAR.gear_wear[8],
-                    )
+                    );
                 },
             },
             Block {
@@ -3448,7 +3448,7 @@ mod asm_reference {
                         &dm(a[0]).figures[28],
                         &CAR.wheel_hit_damage[0],
                         &CAR.wheel_hit_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -3471,7 +3471,7 @@ mod asm_reference {
                         &dm(a[0]).figures[28],
                         &CAR.wheel_hit_damage[1],
                         &CAR.wheel_hit_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -3494,7 +3494,7 @@ mod asm_reference {
                         &dm(a[0]).figures[28],
                         &CAR.wheel_hit_damage[2],
                         &CAR.wheel_hit_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -3517,7 +3517,7 @@ mod asm_reference {
                         &dm(a[0]).figures[28],
                         &CAR.wheel_hit_damage[3],
                         &CAR.wheel_hit_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -3540,7 +3540,7 @@ mod asm_reference {
                         &dm(a[0]).figures[30],
                         &CAR.suspension_damage[0],
                         &CAR.suspension_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -3563,7 +3563,7 @@ mod asm_reference {
                         &dm(a[0]).figures[30],
                         &CAR.suspension_damage[1],
                         &CAR.suspension_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -3586,7 +3586,7 @@ mod asm_reference {
                         &dm(a[0]).figures[30],
                         &CAR.suspension_damage[2],
                         &CAR.suspension_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -3609,7 +3609,7 @@ mod asm_reference {
                         &dm(a[0]).figures[30],
                         &CAR.suspension_damage[3],
                         &CAR.suspension_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -3632,7 +3632,7 @@ mod asm_reference {
                         &dm(a[0]).figures[27],
                         &CAR.cooling_damage,
                         &CAR.cooling_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3655,7 +3655,7 @@ mod asm_reference {
                         &dm(a[0]).figures[27],
                         &CAR.cooling_damage,
                         &CAR.cooling_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3678,7 +3678,7 @@ mod asm_reference {
                         &dm(a[0]).figures[26],
                         &CAR.engine_damage,
                         &CAR.engine_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3701,7 +3701,7 @@ mod asm_reference {
                         &dm(a[0]).figures[26],
                         &CAR.engine_damage,
                         &CAR.engine_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3724,7 +3724,7 @@ mod asm_reference {
                         &dm(a[0]).figures[29],
                         &CAR.brake_wear_a,
                         &CAR.brake_wear_a,
-                    )
+                    );
                 },
             },
             Block {
@@ -3747,7 +3747,7 @@ mod asm_reference {
                         &dm(a[0]).figures[29],
                         &CAR.brake_wear_a,
                         &CAR.brake_wear_a,
-                    )
+                    );
                 },
             },
             Block {
@@ -3770,7 +3770,7 @@ mod asm_reference {
                         &dm(a[0]).figures[29],
                         &CAR.brake_wear_b,
                         &CAR.brake_wear_b,
-                    )
+                    );
                 },
             },
             Block {
@@ -3793,7 +3793,7 @@ mod asm_reference {
                         &dm(a[0]).figures[29],
                         &CAR.brake_wear_b,
                         &CAR.brake_wear_b,
-                    )
+                    );
                 },
             },
             Block {
@@ -3817,7 +3817,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[0],
                         &CAR.suspension_damage[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -3841,7 +3841,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[1],
                         &CAR.suspension_damage[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -3865,7 +3865,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[2],
                         &CAR.suspension_damage[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -3889,7 +3889,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.suspension_damage[3],
                         &CAR.suspension_damage[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -3913,7 +3913,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.exhaust_damage,
                         &CAR.exhaust_damage,
-                    )
+                    );
                 },
             },
             Block {
@@ -3937,7 +3937,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b370,
                         &CAR.steering_damage,
                         &CAR.steering_damage,
-                    )
+                    );
                 },
             },
             Block {

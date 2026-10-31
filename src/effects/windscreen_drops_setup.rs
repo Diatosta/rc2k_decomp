@@ -34,7 +34,7 @@ const STATES: [(u32, u32); 8] = [
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 fn axes() {
-    axes_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base())
+    axes_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base());
 }
 
 /// The Rust version (see the header).
@@ -160,7 +160,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -225,7 +225,7 @@ mod asm_differential {
                     b[0],
                     &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
                     || super::axes_x87(b[0]),
-                )
+                );
             },
         );
     }

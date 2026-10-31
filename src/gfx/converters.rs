@@ -39,7 +39,7 @@ pub static CONVERTERS: Converters = Converters {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F51F0).
 pub fn home() -> usize {
-    crate::pointers::game_address(&CONVERTERS as *const Converters) as usize
+    crate::pointers::game_address(&raw const CONVERTERS) as usize
 }
 
 impl Converters {

@@ -36,7 +36,7 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
     ];
     for &(table, count) in &TABLES {
         let first = GamePtr::new(crate::pointers::game_address(
-            &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _,
+            &raw const crate::menu::drivers_store::DRIVERS.drivers[table],
         ));
         let n = count.get();
         for _ in 0..n {

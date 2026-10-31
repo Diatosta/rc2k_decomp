@@ -126,7 +126,7 @@ impl InstallerRun {
     pub const LEN: usize = 0x198;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_RUN as *const InstallerRun) + 8) as usize
+        (crate::pointers::game_address(&raw const INSTALLER_RUN) + 8) as usize
     }
 }
 
@@ -224,7 +224,7 @@ impl InstallerNames {
     pub const LEN: usize = 0x8A7;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&INSTALLER_NAMES as *const InstallerNames) as usize
+        crate::pointers::game_address(&raw const INSTALLER_NAMES) as usize
     }
 }
 
@@ -424,7 +424,7 @@ impl InstallerPages {
     pub const LEN: usize = 0x1A25;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PAGES as *const InstallerPages) + 7) as usize
+        (crate::pointers::game_address(&raw const INSTALLER_PAGES) + 7) as usize
     }
 }
 
@@ -462,7 +462,7 @@ impl InstallerPaths {
     pub const LEN: usize = 0x600;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PATHS as *const InstallerPaths) + 8) as usize
+        (crate::pointers::game_address(&raw const INSTALLER_PATHS) + 8) as usize
     }
 }
 
@@ -485,7 +485,7 @@ impl InstallerPalette {
     pub const LEN: usize = 0x300;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&INSTALLER_PALETTE as *const InstallerPalette) + 4) as usize
+        (crate::pointers::game_address(&raw const INSTALLER_PALETTE) + 4) as usize
     }
 }
 
@@ -570,7 +570,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerRun::START, InstallerRun::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerRun::home()) as *const u8,
+                crate::pointers::host_at(InstallerRun::home()).cast_const(),
                 InstallerRun::LEN,
             )
         };
@@ -586,7 +586,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerNames::START, InstallerNames::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerNames::home()) as *const u8,
+                crate::pointers::host_at(InstallerNames::home()).cast_const(),
                 InstallerNames::LEN,
             )
         };
@@ -603,7 +603,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPages::home()) as *const u8,
+                crate::pointers::host_at(InstallerPages::home()).cast_const(),
                 InstallerPages::LEN,
             )
         };
@@ -620,7 +620,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerPaths::START, InstallerPaths::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPaths::home()) as *const u8,
+                crate::pointers::host_at(InstallerPaths::home()).cast_const(),
                 InstallerPaths::LEN,
             )
         };
@@ -637,7 +637,7 @@ mod tests {
         let image = crate::moved::image_bytes(InstallerPalette::START, InstallerPalette::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(InstallerPalette::home()) as *const u8,
+                crate::pointers::host_at(InstallerPalette::home()).cast_const(),
                 InstallerPalette::LEN,
             )
         };

@@ -195,14 +195,16 @@ pub mod state {
 
     /// `g_lastFilePath` set to `path` (without its NUL), or to none.
     pub fn set_last_file_path(path: Option<&[u8]>) {
-        *LAST_FILE_PATH.lock().unwrap_or_else(|e| e.into_inner()) = path.map(<[u8]>::to_vec);
+        *LAST_FILE_PATH
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = path.map(<[u8]>::to_vec);
     }
 
     /// `g_lastFilePath`'s path.
     pub fn last_file_path() -> Option<Vec<u8>> {
         LAST_FILE_PATH
             .lock()
-            .unwrap_or_else(|e| e.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
     /// hFindFile (0x4E05A4): 1 while a search is open (`files::search`), `u32::MAX` for

@@ -41,7 +41,7 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
 
 /// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `flt_814772`, `flt_814776`.
 fn drift_cell(k: u32) {
-    drift_cell_x87(k as usize)
+    drift_cell_x87(k as usize);
 }
 
 /// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `flt_814BC2`[k] by `flt_81622A`, its place moved by it.
@@ -50,12 +50,12 @@ fn drift_move(k: u32, s: u32) {
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         k as usize,
         s as usize,
-    )
+    );
 }
 
 /// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `flt_814CAA` .., the depth also in `flt_814734`.
 fn sprite_depth() {
-    sprite_depth_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base())
+    sprite_depth_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base());
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
@@ -69,7 +69,7 @@ fn sprite_project(e: u32, inverse_depth: bh::X) {
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         e as usize,
         inverse_depth,
-    )
+    );
 }
 
 /// Why it refuses, if it does.
@@ -459,7 +459,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -490,7 +490,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -529,7 +529,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -597,11 +597,11 @@ mod asm_reference {
             rc = in(reg) rc,
             mk = in(reg) mk,
             c = in(reg) c,
-            out = in(reg) &mut out,
+            out = in(reg) &raw mut out,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
         out
     }
@@ -765,11 +765,11 @@ mod asm_reference {
             rc = in(reg) rc,
             mk = in(reg) mk,
             e = in(reg) e,
-            pre0 = in(reg) &pre0,
+            pre0 = in(reg) &raw const pre0,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -1133,8 +1133,8 @@ mod asm_differential {
                         b[1],
                         &[overlay(&MARKS_KIND_FLOATS, MarksKindFloats::START)],
                         || super::sprite_project_x87(b[1], b[2], super::bh::ld(b[3] as u32)),
-                    )
-                })
+                    );
+                });
             },
         );
     }

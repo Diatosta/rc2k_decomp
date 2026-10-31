@@ -37,8 +37,8 @@ fn round_units(f: usize, t: usize) {
     fistp(
         crate::pointers::host_at(t),
         0,
-        fld(crate::pointers::host_at(f) as *const u8, 0),
-    )
+        fld(crate::pointers::host_at(f).cast_const(), 0),
+    );
 }
 
 /// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
@@ -46,9 +46,9 @@ fn subtract_units(a: usize, u: usize) {
     fstp(
         crate::pointers::host_at(a),
         0,
-        fld(crate::pointers::host_at(a) as *const u8, 0)
-            - fild(crate::pointers::host_at(u) as *const u8, 0),
-    )
+        fld(crate::pointers::host_at(a).cast_const(), 0)
+            - fild(crate::pointers::host_at(u).cast_const(), 0),
+    );
 }
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;

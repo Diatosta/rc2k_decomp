@@ -32,7 +32,7 @@ fn question_cells() -> [&'static Dword; 3] {
 }
 
 fn get<const N: usize>(at: [&'static Dword; N]) -> [u32; N] {
-    at.map(|cell| cell.get())
+    at.map(super::super::session::Dword::get)
 }
 
 fn put<const N: usize>(at: [&'static Dword; N], v: [u32; N]) {

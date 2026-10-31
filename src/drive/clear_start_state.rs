@@ -29,5 +29,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn clear_start_state() {
-    core(&game())
+    core(&game());
 }

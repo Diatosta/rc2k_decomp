@@ -97,7 +97,7 @@ pub fn channel(id: u32) -> MixerChannel {
 
 /// The mixer channel of id `id` changed, as `update_voice`.
 pub fn update_channel(id: u32, change: impl FnOnce(&mut MixerChannel)) {
-    channel_place(id).update(change)
+    channel_place(id).update(change);
 }
 
 /// The sample record of sound `number`, as it is now.

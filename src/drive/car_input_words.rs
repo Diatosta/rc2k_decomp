@@ -39,10 +39,10 @@ pub fn car_input_words() -> Result<(), Refused> {
             let at = GamePtr::new(block.wrapping_add(4 * k));
             match replay_words(car, crate::net::store::NET.player.get()) {
                 ReplayWords::FromBlock => {
-                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?)
+                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?);
                 }
                 ReplayWords::IntoBlock => {
-                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?
+                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?;
                 }
             }
         }

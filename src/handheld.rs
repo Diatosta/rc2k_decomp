@@ -222,7 +222,9 @@ impl Small {
     /// flush, which the 3D may blend over).
     pub fn from_screen(screen: &[u8], pitch: usize, width: usize, height: usize) -> Self {
         let (w, h) = (width / SMALLER, height / SMALLER);
-        let mut b = SMALL.lock().unwrap_or_else(|e| e.into_inner());
+        let mut b = SMALL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if b.pixels.len() != w * h {
             b.pixels = vec![0; w * h];
             b.depth = vec![1.0; w * h];
@@ -302,7 +304,7 @@ pub fn start_profile() {
         let mut action: libc::sigaction = std::mem::zeroed();
         action.sa_sigaction = on_profile as *const () as usize;
         action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
-        libc::sigaction(libc::SIGPROF, &action, std::ptr::null_mut());
+        libc::sigaction(libc::SIGPROF, &raw const action, std::ptr::null_mut());
         let time = libc::timeval {
             tv_sec: 0,
             tv_usec: 2000,
@@ -311,7 +313,7 @@ pub fn start_profile() {
             it_interval: time,
             it_value: time,
         };
-        libc::setitimer(libc::ITIMER_PROF, &timer, std::ptr::null_mut());
+        libc::setitimer(libc::ITIMER_PROF, &raw const timer, std::ptr::null_mut());
     }
     crate::framework::log(&format!(
         "handheld: profiling; the code's base {:#x}",

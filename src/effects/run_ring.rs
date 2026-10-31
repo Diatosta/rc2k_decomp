@@ -43,12 +43,12 @@ fn k(cell: &Float) -> u32 {
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
 fn box_(e: u32, p: u32, m: u32) {
-    box_x87(&RING_WORK, e, p as usize, m as usize)
+    box_x87(&RING_WORK, e, p as usize, m as usize);
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
 fn facing(o: u32) {
-    facing_x87(o as usize, &MARKS_FLOATS, &RING_WORK)
+    facing_x87(o as usize, &MARKS_FLOATS, &RING_WORK);
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
@@ -58,13 +58,13 @@ fn pull_length(e: u32, p: u32, l: u32) {
         p as usize,
         l as usize,
         &RING_WORK,
-        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
-    )
+        crate::pointers::game_address(&raw const RING_KINDS) as usize,
+    );
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
 fn pull_facing(o: u32, l: u32) {
-    pull_facing_x87(o as usize, l as usize, &MARKS_FLOATS, &RING_WORK)
+    pull_facing_x87(o as usize, l as usize, &MARKS_FLOATS, &RING_WORK);
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
@@ -75,13 +75,13 @@ fn pull_strength(e: u32, o: u32) {
         &CLOCK,
         &MARKS_FLOATS,
         &RING_WORK,
-        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
-    )
+        crate::pointers::game_address(&raw const RING_KINDS) as usize,
+    );
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
 fn box_place(e: u32, m: u32) {
-    box_place_x87(&RING_WORK, e, m as usize)
+    box_place_x87(&RING_WORK, e, m as usize);
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
@@ -874,7 +874,7 @@ impl RingKinds {
     pub const LEN: usize = 0x9C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize
+        crate::pointers::game_address(&raw const RING_KINDS) as usize
     }
 }
 
@@ -884,7 +884,7 @@ mod ring_kinds_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -991,7 +991,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -1031,7 +1031,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -1068,7 +1068,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -1113,7 +1113,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -1142,7 +1142,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -1191,7 +1191,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -1257,9 +1257,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::box_x87(w, e, b[2], b[3])
-                    })
-                })
+                        super::box_x87(w, e, b[2], b[3]);
+                    });
+                });
             },
         );
     }
@@ -1298,8 +1298,8 @@ mod asm_differential {
             |b| reference::facing_x87(b[0], b[1]),
             |b| {
                 with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| super::facing_x87(b[1], f, w))
-                })
+                    with_copy(b[0], RingWork::START, |w| super::facing_x87(b[1], f, w));
+                });
             },
         );
     }
@@ -1352,9 +1352,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::pull_length_x87(e, b[2], b[3], w, b[4])
-                    })
-                })
+                        super::pull_length_x87(e, b[2], b[3], w, b[4]);
+                    });
+                });
             },
         );
     }
@@ -1406,9 +1406,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], MarksFloats::START, |f| {
                     with_copy(b[0], RingWork::START, |w| {
-                        super::pull_facing_x87(b[1], b[2], f, w)
-                    })
-                })
+                        super::pull_facing_x87(b[1], b[2], f, w);
+                    });
+                });
             },
         );
     }
@@ -1458,10 +1458,10 @@ mod asm_differential {
                                 f,
                                 w,
                                 b[3],
-                            )
-                        })
-                    })
-                })
+                            );
+                        });
+                    });
+                });
             },
         );
     }
@@ -1507,9 +1507,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::box_place_x87(w, e, b[2])
-                    })
-                })
+                        super::box_place_x87(w, e, b[2]);
+                    });
+                });
             },
         );
     }

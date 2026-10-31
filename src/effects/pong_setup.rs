@@ -12,5 +12,10 @@ use crate::effects::windscreen_flakes_setup::setup_with;
 
 /// The Rust version (see the header).
 pub fn pong_setup() {
-    setup_with(PONG_RULES.setup_places.each_ref().map(|f| f.bits()))
+    setup_with(
+        PONG_RULES
+            .setup_places
+            .each_ref()
+            .map(super::super::session::Float::bits),
+    );
 }

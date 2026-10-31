@@ -269,14 +269,14 @@ impl Gpu {
         unsafe {
             let display = (gl.eglGetDisplay)(std::ptr::null_mut());
             let (mut major, mut minor) = (0, 0);
-            if (gl.eglInitialize)(display, &mut major, &mut minor) == 0 {
+            if (gl.eglInitialize)(display, &raw mut major, &raw mut minor) == 0 {
                 return Err(format!("eglInitialize: {:#x}", (gl.eglGetError)()));
             }
             let wanted = [
                 0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3033, 4, 0x3040, 0x40, 0x3038i32,
             ];
             let (mut config, mut found) = (std::ptr::null_mut(), 0);
-            (gl.eglChooseConfig)(display, wanted.as_ptr(), &mut config, 1, &mut found);
+            (gl.eglChooseConfig)(display, wanted.as_ptr(), &raw mut config, 1, &raw mut found);
             if found == 0 {
                 return Err("EGL has no such config".into());
             }
@@ -355,10 +355,10 @@ impl Gpu {
         unsafe {
             let shader = (self.gl.glCreateShader)(kind);
             let pointer = text.as_ptr();
-            (self.gl.glShaderSource)(shader, 1, &pointer, std::ptr::null());
+            (self.gl.glShaderSource)(shader, 1, &raw const pointer, std::ptr::null());
             (self.gl.glCompileShader)(shader);
             let mut done = 0;
-            (self.gl.glGetShaderiv)(shader, 0x8B81, &mut done);
+            (self.gl.glGetShaderiv)(shader, 0x8B81, &raw mut done);
             if done == 0 {
                 let mut log = [0 as c_char; 600];
                 (self.gl.glGetShaderInfoLog)(shader, 600, std::ptr::null_mut(), log.as_mut_ptr());
@@ -414,9 +414,9 @@ impl Gpu {
         // SAFETY: names made here, each out-pointer valid for the call; the attribute layout is
         // `batches::Vertex`'s eight dwords.
         unsafe {
-            (gl.glGenVertexArrays)(1, &mut self.empty_array);
-            (gl.glGenVertexArrays)(1, &mut self.scene_array);
-            (gl.glGenBuffers)(1, &mut self.vertices);
+            (gl.glGenVertexArrays)(1, &raw mut self.empty_array);
+            (gl.glGenVertexArrays)(1, &raw mut self.scene_array);
+            (gl.glGenBuffers)(1, &raw mut self.vertices);
             (gl.glBindVertexArray)(self.scene_array);
             (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
             for (n, count, kind, normal, offset) in [
@@ -437,10 +437,10 @@ impl Gpu {
                 (gl.glSamplerParameteri)(sampler, 0x2802, wrap);
                 (gl.glSamplerParameteri)(sampler, 0x2803, wrap);
             }
-            (gl.glGenFramebuffers)(1, &mut self.framebuffer);
-            (gl.glGenTextures)(1, &mut self.colour);
-            (gl.glGenTextures)(1, &mut self.canvas);
-            (gl.glGenRenderbuffers)(1, &mut self.depth);
+            (gl.glGenFramebuffers)(1, &raw mut self.framebuffer);
+            (gl.glGenTextures)(1, &raw mut self.colour);
+            (gl.glGenTextures)(1, &raw mut self.canvas);
+            (gl.glGenRenderbuffers)(1, &raw mut self.depth);
             (gl.glFrontFace)(0x0900); // the shown ones are clockwise on the screen
         }
         Ok(())
@@ -753,7 +753,7 @@ impl Gpu {
             let mut name = known.map_or(0, |t| t.name);
             let new = known.is_none_or(|t| (t.width, t.height) != (note.width, note.height));
             if name == 0 {
-                (gl.glGenTextures)(1, &mut name);
+                (gl.glGenTextures)(1, &raw mut name);
             }
             (gl.glBindTexture)(TEXTURE_2D, name);
             if new {

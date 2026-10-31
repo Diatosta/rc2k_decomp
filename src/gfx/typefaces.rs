@@ -66,7 +66,7 @@ impl FontObject {
 
     /// Where the object is: what `draw_text` and the others take.
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
     }
 }
 
@@ -149,7 +149,7 @@ pub static FONTS: Fonts = Fonts {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&FONTS as *const Fonts) as usize
+    crate::pointers::game_address(&raw const FONTS) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -214,7 +214,7 @@ impl FontCell {
 
     pub fn set(&self, font: FontId) {
         self.0
-            .store(font.0 as u32, std::sync::atomic::Ordering::Relaxed)
+            .store(font.0 as u32, std::sync::atomic::Ordering::Relaxed);
     }
 }
 

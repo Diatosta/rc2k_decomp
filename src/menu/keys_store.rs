@@ -53,7 +53,7 @@ pub const END: usize = 0x755640;
 
 /// Where IDA 0x755595 is now (`moved::MOVED`'s home).
 pub fn key_tables_addr() -> u32 {
-    crate::pointers::game_address(&KEY_TABLES as *const KeyTables)
+    crate::pointers::game_address(&raw const KEY_TABLES)
 }
 
 #[cfg(test)]
@@ -70,7 +70,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(key_tables_addr()) as *const u8,
+                crate::pointers::host(key_tables_addr()).cast_const(),
                 END - START,
             )
         };

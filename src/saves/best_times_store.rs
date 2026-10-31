@@ -1256,7 +1256,7 @@ impl RallyTimes {
     pub const END: usize = 0x7475D0;
     /// Where IDA 0x742C98 is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RALLY_TIMES as *const RallyTimes) as usize
+        crate::pointers::game_address(&raw const RALLY_TIMES) as usize
     }
 }
 
@@ -1267,7 +1267,7 @@ pub const END: usize = 0x747660;
 
 /// Where IDA 0x7475D0 is now (`moved::MOVED`'s home).
 pub fn best_times_addr() -> u32 {
-    crate::pointers::game_address(&BEST_TIMES as *const BestTimes)
+    crate::pointers::game_address(&raw const BEST_TIMES)
 }
 
 #[cfg(test)]
@@ -1283,7 +1283,7 @@ mod tests {
         assert_eq!(offset_of!(BestTimes, tables), 0x747618 - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(best_times_addr()) as *const u8,
+                crate::pointers::host(best_times_addr()).cast_const(),
                 END - START,
             )
         };
@@ -1302,7 +1302,7 @@ mod tests {
         assert_eq!(offset_of!(TimeEntry, checkpoints), 0x5C);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(RallyTimes::home()) as *const u8,
+                crate::pointers::host_at(RallyTimes::home()).cast_const(),
                 len,
             )
         };

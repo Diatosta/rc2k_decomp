@@ -47,7 +47,7 @@ impl ViewSources {
     pub const LEN: usize = 0x38;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SOURCES as *const ViewSources) as usize
+        crate::pointers::game_address(&raw const SOURCES) as usize
     }
 }
 
@@ -165,7 +165,7 @@ impl KeptView {
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KEPT as *const KeptView) as usize
+        crate::pointers::game_address(&raw const KEPT) as usize
     }
 }
 
@@ -175,7 +175,7 @@ mod tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

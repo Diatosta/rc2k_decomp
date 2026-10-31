@@ -34,7 +34,9 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
         chat::MOST_PLAYERS => {
             let number = {
                 crate::settings::parse_number::parse_number(
-                    crate::place::Place::from(&INSTALLER_PATHS.path_a).ptr() as *const u8,
+                    crate::place::Place::from(&INSTALLER_PATHS.path_a)
+                        .ptr()
+                        .cast_const(),
                 )
             };
             NET.most_players.set(chat::most_players(

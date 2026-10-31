@@ -174,7 +174,7 @@ mod asm_reference {
             |base| unsafe { normalise_ref(base) },
             |base| {
                 use crate::scene::x87_mem::HostCell;
-                normalise(&[0, 4, 8].map(|k| HostCell(base as usize + k)))
+                normalise(&[0, 4, 8].map(|k| HostCell(base as usize + k)));
             },
         );
     }

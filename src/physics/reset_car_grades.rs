@@ -15,7 +15,7 @@ use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
 fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::reset_car_grades's operand")
+    crate::pointers::write_or_end::<u32>(a, v, "physics::reset_car_grades's operand");
 }
 
 /// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at

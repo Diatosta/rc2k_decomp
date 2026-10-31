@@ -89,7 +89,7 @@ pub static MAP: MapVars = MapVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BE90D).
 pub fn home() -> usize {
-    crate::pointers::game_address(&MAP as *const MapVars) as usize
+    crate::pointers::game_address(&raw const MAP) as usize
 }
 
 const SIDE: u32 = 0x80;

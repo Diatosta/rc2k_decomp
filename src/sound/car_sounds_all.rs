@@ -124,7 +124,7 @@ mod asm_reference {
                     unsafe {
                         &*(crate::pointers::host_at(a[1]) as *const crate::sound::store::RaceSounds)
                     },
-                )
+                );
             },
         }]
     }

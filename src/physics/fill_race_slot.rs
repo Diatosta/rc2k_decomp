@@ -32,7 +32,7 @@ fn at(a: u32) -> u32 {
 }
 
 fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::fill_race_slot's operand")
+    crate::pointers::write_or_end::<u32>(a, v, "physics::fill_race_slot's operand");
 }
 
 /// The Rust version: part `part` (eax) into a race slot. The registers the original leaves

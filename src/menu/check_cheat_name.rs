@@ -58,7 +58,7 @@ pub fn check_cheat_name() -> Result<(), Refused> {
     // the record.
     crate::sound::play_menu_sound::play_menu_sound_in_game(8);
     crate::menu::apply_cheats::apply_cheats(&mut |line| {
-        crate::logfile::log_write::log_nul(line, true, 1)
+        crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     let mut hidden = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;

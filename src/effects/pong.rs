@@ -108,7 +108,7 @@ impl PongState {
     pub const LEN: usize = 0x184;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PONG as *const PongState) as usize
+        crate::pointers::game_address(&raw const PONG) as usize
     }
 }
 
@@ -200,7 +200,7 @@ impl PongRules {
     pub const LEN: usize = 0xB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PONG_RULES as *const PongRules) as usize
+        crate::pointers::game_address(&raw const PONG_RULES) as usize
     }
 }
 
@@ -248,12 +248,12 @@ pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
         less_compare_x87_1(
             (crate::pointers::game_address(v.as_ptr())) as usize,
             crate::pointers::game_address(&raw mut s) as usize,
-        )
+        );
     } else {
         less_compare_x87_2(
             (crate::pointers::game_address(v.as_ptr())) as usize,
             crate::pointers::game_address(&raw mut s) as usize,
-        )
+        );
     };
     u32::from(s) & 0x700
 }
@@ -397,7 +397,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -415,7 +415,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -432,7 +432,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -527,7 +527,7 @@ mod state_tests {
     use super::*;
 
     fn bytes<T>(v: &'static T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..core::mem::size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

@@ -17,7 +17,10 @@ use crate::scene::draw_store::DRAW;
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
 /// become 0. The length rounded into `dword_62400C`.
 pub fn normalise_work_vector() {
-    let mut v = FRAME_SCRATCH.work_vector.each_ref().map(|c| c.bits());
+    let mut v = FRAME_SCRATCH
+        .work_vector
+        .each_ref()
+        .map(super::super::session::Dword::bits);
     let (length, zero) = x87::normalise_in_place(
         v.first_chunk_mut::<3>().expect("four parts"),
         NUMBERS.zero.bits(),
@@ -101,7 +104,7 @@ pub fn store_face_normal(
             || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
         crate::race::course_places::update_face(face, what, |f| {
-            f.set_switches(with_repeated(f.switches(), repeated))
+            f.set_switches(with_repeated(f.switches(), repeated));
         })?;
         let count: u32 = COURSE.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {

@@ -150,7 +150,9 @@ pub fn take_lobby_settings(bytes: u32) -> Result<u32, Refused> {
     let memory = crate::memory::owned::counted(crate::net::tables::list(), bytes)?;
     let lent = crate::pointers::Lent::new(&memory);
     let at = lent.addr();
-    *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = Some(LobbySettings {
+    *LOBBY_SETTINGS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(LobbySettings {
         _lent: lent,
         _bytes: memory,
     });
@@ -159,7 +161,9 @@ pub fn take_lobby_settings(bytes: u32) -> Result<u32, Refused> {
 
 /// The settings given back (the list's `free_list` counts them down).
 pub fn give_back_lobby_settings() {
-    *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *LOBBY_SETTINGS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// `strings::copy_printable`: the name at `text` (a typed buffer, or a pointer from the

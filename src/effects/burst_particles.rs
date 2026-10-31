@@ -69,7 +69,10 @@ pub fn burst_particles(record: u32) -> Result<(), Refused> {
         let s = next_seed();
         let r = s & 0xFFFF;
         let m = DRAW_WORK.uv_k.bits();
-        let [c, k] = PARTICLE_TUNING.burst_scale.each_ref().map(|f| f.bits());
+        let [c, k] = PARTICLE_TUNING
+            .burst_scale
+            .each_ref()
+            .map(super::super::session::Float::bits);
         let radius = x87::int_times_plus_times(r as i32, m, c, k);
         RING_POOL.burst_radius.set_bits(radius);
         RING_POOL.kind.set((s & 7) * 0x400);

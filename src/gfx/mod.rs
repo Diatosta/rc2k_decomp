@@ -111,7 +111,8 @@ pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end
         "the struct's size"
     );
     // Read in place: a copy of a big block would not fit the test thread's stack.
-    let mine = unsafe { core::slice::from_raw_parts(block as *const T as *const u8, len) };
+    let mine =
+        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
     let image = crate::moved::image_bytes(start, len);
     assert!(
         mine == &image[..],
@@ -130,7 +131,8 @@ pub(crate) fn first_values_are_the_games_but<T>(
 ) {
     let _g = crate::store::test_lock();
     let len = end - start;
-    let mine = unsafe { core::slice::from_raw_parts(block as *const T as *const u8, len) };
+    let mine =
+        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
     let mut image = crate::moved::image_bytes(start, len);
     patch(&mut image);
     assert!(

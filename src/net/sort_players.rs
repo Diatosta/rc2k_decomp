@@ -30,8 +30,12 @@ fn standing(block: &PlayerBlock) -> Standing {
 /// The two blocks swapped, a dword at a time.
 pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
     let (one, two) = (
-        GamePtr::new(crate::pointers::game_address(one as *const PlayerBlock)),
-        GamePtr::new(crate::pointers::game_address(two as *const PlayerBlock)),
+        GamePtr::new(crate::pointers::game_address(std::ptr::from_ref::<
+            PlayerBlock,
+        >(one))),
+        GamePtr::new(crate::pointers::game_address(std::ptr::from_ref::<
+            PlayerBlock,
+        >(two))),
     );
     for n in 0..BLOCK / 4 {
         let v = one.offset(4 * n).read::<u32>("a player's block")?;

@@ -250,7 +250,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SurfaceSounds)
                         },
                         a[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -274,7 +274,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SurfaceSounds)
                         },
                         a[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -310,7 +310,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[1])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                    )
+                    );
                 },
             },
             Block {
@@ -337,7 +337,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[1])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                    )
+                    );
                 },
             },
         ]

@@ -29,7 +29,7 @@ impl MenuSounds {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&MENU_SOUNDS as *const MenuSounds) + 4) as usize
+        (crate::pointers::game_address(&raw const MENU_SOUNDS) + 4) as usize
     }
 }
 
@@ -725,7 +725,7 @@ impl RaceSoundSets {
     pub const LEN: usize = 0x9D4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RACE_SOUND_SETS as *const RaceSoundSets) as usize
+        crate::pointers::game_address(&raw const RACE_SOUND_SETS) as usize
     }
 }
 
@@ -764,7 +764,7 @@ impl CueLists {
     pub const LEN: usize = 0x508;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&CUE_LISTS as *const CueLists) + 8) as usize
+        (crate::pointers::game_address(&raw const CUE_LISTS) + 8) as usize
     }
 }
 
@@ -1264,7 +1264,7 @@ impl SoundKinds {
     pub const LEN: usize = 0x13C8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SOUND_KINDS as *const SoundKinds) as usize
+        crate::pointers::game_address(&raw const SOUND_KINDS) as usize
     }
 }
 
@@ -1298,7 +1298,7 @@ impl SurfaceSets {
     pub const LEN: usize = 0x1C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&SURFACE_SETS as *const SurfaceSets) + 12) as usize
+        (crate::pointers::game_address(&raw const SURFACE_SETS) + 12) as usize
     }
 }
 
@@ -2903,7 +2903,7 @@ impl SpotVoices {
     pub const LEN: usize = 0x1680;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPOT_VOICES as *const SpotVoices) as usize
+        crate::pointers::game_address(&raw const SPOT_VOICES) as usize
     }
 }
 
@@ -2918,7 +2918,7 @@ mod tests {
         let image = crate::moved::image_bytes(MenuSounds::START, MenuSounds::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MenuSounds::home()) as *const u8,
+                crate::pointers::host_at(MenuSounds::home()).cast_const(),
                 MenuSounds::LEN,
             )
         };
@@ -2944,7 +2944,7 @@ mod tests {
         let image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(RaceSoundSets::home()) as *const u8,
+                crate::pointers::host_at(RaceSoundSets::home()).cast_const(),
                 RaceSoundSets::LEN,
             )
         };
@@ -2964,7 +2964,7 @@ mod tests {
         let image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(CueLists::home()) as *const u8,
+                crate::pointers::host_at(CueLists::home()).cast_const(),
                 CueLists::LEN,
             )
         };
@@ -2978,7 +2978,7 @@ mod tests {
         let image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundKinds::home()) as *const u8,
+                crate::pointers::host_at(SoundKinds::home()).cast_const(),
                 SoundKinds::LEN,
             )
         };
@@ -3000,7 +3000,7 @@ mod tests {
         let image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SurfaceSets::home()) as *const u8,
+                crate::pointers::host_at(SurfaceSets::home()).cast_const(),
                 SurfaceSets::LEN,
             )
         };
@@ -3014,7 +3014,7 @@ mod tests {
         let image = crate::moved::image_bytes(SpotVoices::START, SpotVoices::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotVoices::home()) as *const u8,
+                crate::pointers::host_at(SpotVoices::home()).cast_const(),
                 SpotVoices::LEN,
             )
         };

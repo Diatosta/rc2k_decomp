@@ -119,7 +119,7 @@ impl SdlBackend {
         // are kept in `devices` until closed.
         unsafe {
             let mut count = 0;
-            let ids = SDL_GetJoysticks(&mut count);
+            let ids = SDL_GetJoysticks(&raw mut count);
             if ids.is_null() {
                 return;
             }
@@ -133,7 +133,7 @@ impl SdlBackend {
                     self.add(id);
                 }
             }
-            SDL_free(ids as *mut _);
+            SDL_free(ids.cast());
         }
     }
 
@@ -496,11 +496,11 @@ impl Backend for SdlBackend {
         unsafe {
             let sdl_id = match made {
                 Some(sdl_id) => {
-                    SDL_UpdateHapticEffect(haptic, sdl_id, &sdl);
+                    SDL_UpdateHapticEffect(haptic, sdl_id, &raw const sdl);
                     sdl_id
                 }
                 None => {
-                    let sdl_id = SDL_CreateHapticEffect(haptic, &sdl);
+                    let sdl_id = SDL_CreateHapticEffect(haptic, &raw const sdl);
                     if sdl_id.0 < 0 {
                         let why = std::ffi::CStr::from_ptr(SDL_GetError())
                             .to_string_lossy()

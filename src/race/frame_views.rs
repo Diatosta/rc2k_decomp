@@ -72,7 +72,7 @@ pub fn mirror_view_window() -> Result<(), Refused> {
                     "the mirror places",
                 )
             },
-            |c| c.get(),
+            super::super::session::Dword::get,
         )
     };
     let Some(Window {
@@ -237,10 +237,10 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
         self.reads.read_or_end(at, "a surface's pixel")
     }
     fn write16(&mut self, at: u32, v: u16) {
-        self.writes.write_or_end(at, v, "a surface's pixel")
+        self.writes.write_or_end(at, v, "a surface's pixel");
     }
     fn write32(&mut self, at: u32, v: u32) {
-        self.writes.write_or_end(at, v, "a surface's pixel")
+        self.writes.write_or_end(at, v, "a surface's pixel");
     }
     fn components(&mut self, pixel: u32) -> u32 {
         crate::gfx::pixel_to_components::pixel_to_components(self.screen, pixel)

@@ -217,7 +217,7 @@ mod asm_reference {
                     x87_2(unsafe {
                         &*(crate::pointers::host_at(a[1])
                             as *const crate::sound::store::SoundObject)
-                    })
+                    });
                 },
             },
         ]

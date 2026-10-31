@@ -66,7 +66,7 @@ fn pace(wheel: u32) -> Result<Pace, Refused> {
                 strength: None,
             });
         }
-        let [k1, k2, least] = STRENGTH_K.map(|r| r.bits());
+        let [k1, k2, least] = STRENGTH_K.map(super::super::session::Float::bits);
         let (kept, status) = x87::abs_blend_compare(
             at(wheel + 0x10)?,
             k1,
@@ -222,7 +222,7 @@ impl Kind1Choice {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KIND1_CHOICE as *const Kind1Choice) as usize
+        crate::pointers::game_address(&raw const KIND1_CHOICE) as usize
     }
 }
 
@@ -232,7 +232,7 @@ mod kind1_choice_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -294,7 +294,7 @@ impl Kind1Set {
     pub const LEN: usize = 0x38;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KIND1_SET as *const Kind1Set) as usize
+        crate::pointers::game_address(&raw const KIND1_SET) as usize
     }
 }
 
@@ -304,7 +304,7 @@ mod kind1_set_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

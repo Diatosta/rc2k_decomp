@@ -81,7 +81,7 @@ impl Sku {
     pub const LEN: usize = 0x24;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SKU as *const Sku) as usize
+        crate::pointers::game_address(&raw const SKU) as usize
     }
 }
 
@@ -95,7 +95,7 @@ mod sku_tests {
         assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(Sku::START, Sku::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()) as *const u8, Sku::LEN)
+            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()).cast_const(), Sku::LEN)
         };
         assert_eq!(mine, &image[..]);
     }

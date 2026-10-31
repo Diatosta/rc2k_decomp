@@ -125,7 +125,7 @@ pub static CREDITS: Credits = Credits {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x52984C).
 pub fn credits_home() -> usize {
-    crate::pointers::game_address(&CREDITS as *const Credits) as usize
+    crate::pointers::game_address(&raw const CREDITS) as usize
 }
 
 /// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top

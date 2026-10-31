@@ -40,7 +40,8 @@ impl FnList {
     /// The list `entry` starts: an entry of the draw lists' (`DrawList::from`).
     pub fn starting_at(entry: &'static Dword) -> FnList {
         let all = draw_dwords();
-        let n = (entry as *const Dword as usize).wrapping_sub(all.as_ptr() as usize) / 4;
+        let n =
+            (std::ptr::from_ref::<Dword>(entry) as usize).wrapping_sub(all.as_ptr() as usize) / 4;
         assert!(n < all.len(), "a draw list's entry outside the draw lists");
         FnList::Draw(n as u16)
     }
@@ -71,7 +72,7 @@ impl ListCell {
     }
 
     pub fn set(&self, list: FnList) {
-        self.0.set(list.code())
+        self.0.set(list.code());
     }
 }
 

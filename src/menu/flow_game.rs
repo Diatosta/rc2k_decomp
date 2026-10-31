@@ -209,7 +209,7 @@ impl flow::Game for Game {
             C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
             C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points()?,
             C::ClassChampionshipPass => {
-                m::class_championship_pass::class_championship_pass(&self.f.c)?
+                m::class_championship_pass::class_championship_pass(&self.f.c)?;
             }
             C::AwardOverallPoints => {
                 let awarded = m::award_overall_points::award_overall_points()?;
@@ -222,14 +222,14 @@ impl flow::Game for Game {
                 numbered.carry_on(&mut self.f.c);
             }
             C::ShowChampionshipStandings => {
-                m::show_championship_standings::show_championship_standings(&self.f.c)?
+                m::show_championship_standings::show_championship_standings(&self.f.c)?;
             }
             C::SectionFinish => m::section_finish::section_finish()?,
             C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
             C::WalkSectionRecords => m::walk_section_records::walk_section_records()?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all()?,
             C::ClassRallyResultsPass => {
-                m::class_rally_results_pass::class_rally_results_pass(&self.f.c)?
+                m::class_rally_results_pass::class_rally_results_pass(&self.f.c)?;
             }
             C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
             C::NumberAllA => {
@@ -237,15 +237,15 @@ impl flow::Game for Game {
                 numbered.carry_on(&mut self.f.c);
             }
             C::ShowOverallRallyResults => {
-                m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?
+                m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?;
             }
             C::RunEventRaces => m::run_event_races::run_event_races(&mut self.f)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times()?,
             C::ClassStageResultsPass => {
-                m::class_stage_results_pass::class_stage_results_pass(&self.f.c)?
+                m::class_stage_results_pass::class_stage_results_pass(&self.f.c)?;
             }
             C::ShowOverallStageResults => {
-                m::show_overall_stage_results::show_overall_stage_results(&self.f.c)?
+                m::show_overall_stage_results::show_overall_stage_results(&self.f.c)?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
@@ -263,7 +263,7 @@ impl flow::Game for Game {
             C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options()?,
             C::HideInGameOptions { players } => {
                 self.f.c.arg = players;
-                m::in_game_options_items::hide_in_game_options(players)?
+                m::in_game_options_items::hide_in_game_options(players)?;
             }
             C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
             C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,
@@ -271,10 +271,10 @@ impl flow::Game for Game {
                 if let Some(car) = car {
                     self.f.c.measure_x = car;
                 }
-                crate::service::repair_parts::repair_car()?
+                crate::service::repair_parts::repair_car()?;
             }
             C::CheatCarList => {
-                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), &mut self.f.c)
+                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), &mut self.f.c);
             }
             C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
             C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
@@ -284,7 +284,7 @@ impl flow::Game for Game {
             C::Race { next, kind } => {
                 self.f.c.arg = u32::from(next);
                 self.f.c.palette = kind;
-                crate::race::single_rally_race::single_rally_race(self.f.c.arg, kind)?
+                crate::race::single_rally_race::single_rally_race(self.f.c.arg, kind)?;
             }
             C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
             C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
@@ -296,7 +296,7 @@ impl flow::Game for Game {
                 if let Some(players) = players {
                     self.f.c.measure_x = players;
                 }
-                m::time_trial_qualifies::time_trial_qualifies()?
+                m::time_trial_qualifies::time_trial_qualifies()?;
             }
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
             C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best()?,
@@ -323,7 +323,7 @@ impl flow::Game for Game {
                 )?;
             }
             C::ConvertPicture => {
-                self.f.c.carry = crate::gfx::convert_picture::convert_picture_now()?
+                self.f.c.carry = crate::gfx::convert_picture::convert_picture_now()?;
             }
             C::TakeKey => {
                 let key = crate::input::take_key::take_key();

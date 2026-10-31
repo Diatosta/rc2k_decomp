@@ -380,7 +380,7 @@ mod asm_reference {
                         &CONTACT_WORK.contact_turn_cross,
                         &CONTACT_WORK.contact_car_speed,
                         &CONTACT_WORK.contact_point_speed,
-                    )
+                    );
                 },
             },
             Block {
@@ -462,7 +462,7 @@ mod asm_reference {
                         &CONTACT_WORK.contact_normal_push,
                         &CONTACT_WORK.contact_extra,
                         &CONTACT_WORK.contact_normal_push,
-                    )
+                    );
                 },
             },
             Block {
@@ -527,7 +527,7 @@ mod asm_reference {
                         &CONTACT_WORK.contact_slide,
                         &CONTACT_WORK.contact_normal_push,
                         &CONTACT_WORK.contact_total,
-                    )
+                    );
                 },
             },
             Block {

@@ -40,5 +40,5 @@ fn core(v: &[&dyn Cell32]) {
 
 /// The Rust version.
 pub fn count_start_second() {
-    core(&game())
+    core(&game());
 }

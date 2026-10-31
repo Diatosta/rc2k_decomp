@@ -452,21 +452,21 @@ impl Callee {
             Self::GoBack => crate::menu::go_back::go_back(),
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(),
             Self::EditPlayerName => {
-                crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?
+                crate::menu::edit_player_name::edit_player_name(&mut GameCanvas)?;
             }
             Self::EditSetupName => {
-                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?
+                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?;
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                 &mut GameCanvas,
                 &mut crate::menu::edit_savegame_name::save_game,
             )?,
             Self::EditReplayName => {
-                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?
+                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?;
             }
             Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name()?,
             Self::LoadSlideshowPicture => {
-                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?
+                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?;
             }
             Self::LoadCarBackground => {
                 crate::menu::load_car_background::load_car_background_in_game()?;
@@ -474,7 +474,7 @@ impl Callee {
             }
             Self::LoadPicture => {
                 let path = c.text.ok_or(BadInput("a picture with no path named"))?;
-                c.carry = !crate::gfx::load_picture::load_picture(path())?
+                c.carry = !crate::gfx::load_picture::load_picture(path())?;
             }
             Self::ConvertPicture => c.carry = crate::gfx::convert_picture::convert_picture_now()?,
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?,
@@ -484,7 +484,7 @@ impl Callee {
                 [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
             }
             Self::SetUpFrontEndScene => {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
+                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
             }
         }
 

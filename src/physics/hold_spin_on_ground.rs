@@ -52,5 +52,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 /// The Rust version (compares and copies of floats only: the same at any precision); `r`
 /// the registers it leaves are read by none of its callers.
 pub fn hold_spin_on_ground() {
-    hold_at(&game())
+    hold_at(&game());
 }

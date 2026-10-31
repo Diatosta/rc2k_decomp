@@ -231,7 +231,7 @@ impl SoundObject {
 
     /// Its address, as the game's tables hold it.
     pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const SoundObject)
+        crate::pointers::game_address(std::ptr::from_ref::<SoundObject>(self))
     }
 
     /// The timed slot the image names by its offset in the object (the core's lists of
@@ -504,7 +504,7 @@ pub static RACE_SOUNDS: RaceSounds = RaceSounds {
 
 /// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
 pub fn race_sounds_addr() -> u32 {
-    crate::pointers::game_address(&RACE_SOUNDS as *const RaceSounds)
+    crate::pointers::game_address(&raw const RACE_SOUNDS)
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
@@ -550,7 +550,7 @@ pub static RACE_CLOCK: RaceClock = RaceClock {
 
 /// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
 pub fn race_clock_addr() -> u32 {
-    crate::pointers::game_address(&RACE_CLOCK as *const RaceClock)
+    crate::pointers::game_address(&raw const RACE_CLOCK)
 }
 
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
@@ -618,7 +618,7 @@ pub static SURFACE_SOUNDS: SurfaceSounds = SurfaceSounds {
 
 /// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
 pub fn surface_sounds_addr() -> u32 {
-    crate::pointers::game_address(&SURFACE_SOUNDS as *const SurfaceSounds)
+    crate::pointers::game_address(&raw const SURFACE_SOUNDS)
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
@@ -750,7 +750,7 @@ pub static STAGE_SOUNDS: StageSounds = StageSounds {
 
 /// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
 pub fn stage_sounds_addr() -> u32 {
-    crate::pointers::game_address(&STAGE_SOUNDS as *const StageSounds)
+    crate::pointers::game_address(&raw const STAGE_SOUNDS)
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
@@ -957,7 +957,7 @@ impl SpotPicks {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPOT_PICKS as *const SpotPicks) as usize
+        crate::pointers::game_address(&raw const SPOT_PICKS) as usize
     }
 }
 
@@ -978,7 +978,7 @@ impl SettingsApplied {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SETTINGS_APPLIED as *const SettingsApplied) as usize
+        crate::pointers::game_address(&raw const SETTINGS_APPLIED) as usize
     }
 }
 
@@ -1011,7 +1011,7 @@ impl SoundOptions {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&SOUND_OPTIONS as *const SoundOptions) as usize
+        crate::pointers::game_address(&raw const SOUND_OPTIONS) as usize
     }
 }
 
@@ -1050,7 +1050,7 @@ impl CdAudio {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&CD_AUDIO as *const CdAudio) as usize
+        crate::pointers::game_address(&raw const CD_AUDIO) as usize
     }
 }
 
@@ -1083,7 +1083,9 @@ pub const CAR_STREAM_IDA: usize = 0xA8C180;
 /// Sets `g_raceSoundObjects` to the objects' places now.
 pub fn point_sound_objects() {
     for (pointer, object) in RACE_SOUNDS.table.iter().zip(&RACE_SOUNDS.objects) {
-        pointer.set(crate::pointers::game_address(object as *const SoundObject));
+        pointer.set(crate::pointers::game_address(std::ptr::from_ref::<
+            SoundObject,
+        >(object)));
     }
 }
 
@@ -1111,7 +1113,7 @@ mod tests {
     #[test]
     fn wheel_surfaces_start_as_the_games() {
         let image = crate::moved::image_bytes(0x4F66F1, 8);
-        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr() as *const u8, 8) };
+        let mine = unsafe { std::slice::from_raw_parts(WHEEL_SURFACES.as_ptr().cast::<u8>(), 8) };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1121,7 +1123,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x516358, 0x44);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(surface_sounds_addr()) as *const u8,
+                crate::pointers::host(surface_sounds_addr()).cast_const(),
                 0x44,
             )
         };
@@ -1142,7 +1144,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x51655C, 0x364);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(stage_sounds_addr()) as *const u8,
+                crate::pointers::host(stage_sounds_addr()).cast_const(),
                 0x364,
             )
         };
@@ -1155,7 +1157,7 @@ mod tests {
         let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SpotPicks::home()) as *const u8,
+                crate::pointers::host_at(SpotPicks::home()).cast_const(),
                 SpotPicks::LEN,
             )
         };
@@ -1168,7 +1170,7 @@ mod tests {
         let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SettingsApplied::home()) as *const u8,
+                crate::pointers::host_at(SettingsApplied::home()).cast_const(),
                 SettingsApplied::LEN,
             )
         };
@@ -1181,7 +1183,7 @@ mod tests {
         let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SoundOptions::home()) as *const u8,
+                crate::pointers::host_at(SoundOptions::home()).cast_const(),
                 SoundOptions::LEN,
             )
         };
@@ -1194,7 +1196,7 @@ mod tests {
         let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(CdAudio::home()) as *const u8,
+                crate::pointers::host_at(CdAudio::home()).cast_const(),
                 CdAudio::LEN,
             )
         };
@@ -1227,7 +1229,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x512A10, 0x2580);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(race_sounds_addr()) as *const u8,
+                crate::pointers::host(race_sounds_addr()).cast_const(),
                 0x2580,
             )
         };
@@ -1240,7 +1242,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x5124E4, 0x24);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(super::race_clock_addr()) as *const u8,
+                crate::pointers::host(super::race_clock_addr()).cast_const(),
                 0x24,
             )
         };

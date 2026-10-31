@@ -26,7 +26,7 @@ pub static SURFACES: Surfaces = Surfaces {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F32B4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&SURFACES as *const Surfaces) as usize
+    crate::pointers::game_address(&raw const SURFACES) as usize
 }
 
 #[cfg(test)]

@@ -36,7 +36,7 @@ pub static PNG_FILE: PngFile = PngFile {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BEC30).
 pub fn home() -> usize {
-    crate::pointers::game_address(&PNG_FILE as *const PngFile) as usize
+    crate::pointers::game_address(&raw const PNG_FILE) as usize
 }
 
 #[cfg(test)]

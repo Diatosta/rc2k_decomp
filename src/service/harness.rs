@@ -11,7 +11,7 @@ pub fn capture(regions: &[Region]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for &(addr, len) in regions {
         bytes.extend_from_slice(unsafe {
-            from_raw_parts(crate::pointers::host(addr) as *const u8, len)
+            from_raw_parts(crate::pointers::host(addr).cast_const(), len)
         });
     }
     bytes

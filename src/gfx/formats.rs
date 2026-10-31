@@ -55,7 +55,7 @@ pub static FORMATS: Formats = Formats {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F3F78).
 pub fn home() -> usize {
-    crate::pointers::game_address(&FORMATS as *const Formats) as usize
+    crate::pointers::game_address(&raw const FORMATS) as usize
 }
 
 #[cfg(test)]

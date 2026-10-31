@@ -98,7 +98,7 @@ pub fn split_colours(esi: u32, edi: &[Dword; 64], fill: u32) -> Result<(), Refus
     }
     let splits: Vec<u32> = block.split_times[..n as usize]
         .iter()
-        .map(|c| c.get())
+        .map(super::super::session::Dword::get)
         .collect();
     let colours = split_colours(&splits);
     for (cell, &c) in edi.iter().zip(colours.iter()) {
@@ -249,7 +249,7 @@ pub fn object_bytes() -> Result<(), BadInput> {
         TEXTURE_PLACES
             .place_slot
             .get(n as usize)
-            .map(|c| c.get())
+            .map(super::super::session::Dword::get)
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     let outputs = face_tables();
@@ -520,7 +520,7 @@ pub fn panel_marks() -> Result<(), BadInput> {
                         past.set(true);
                         0
                     },
-                    |c| c.get(),
+                    super::super::session::Dword::get,
                 )
             });
             if past.get() {
@@ -1147,7 +1147,7 @@ pub fn visible_records() -> Result<Vec<u32>, BadInput> {
         let records: u32 = COURSE.course_records.bits();
         let grid = &LEVEL_GRID.course_grid;
         let list = rc2k_core::race::view::visible_records(
-            grid.iter().map(|c| c.get()),
+            grid.iter().map(super::super::session::Dword::get),
             COURSE.course_record_count.bits(),
         )
         .into_iter()
@@ -1258,7 +1258,7 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     let mut out = [0u32; 3];
     let matrix: [u32; 16] = crate::session::read_bits(&MATRICES.view_matrix);
     crate::math::x87_load::rotate_rounding_z(
-        place.as_ptr() as *const i32,
+        place.as_ptr().cast::<i32>(),
         matrix.as_ptr(),
         out.as_mut_ptr(),
     );
@@ -1488,7 +1488,7 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
     ];
     let mut t = [0u32; 3];
     rotate_rounding(
-        d.as_ptr() as *const i32,
+        d.as_ptr().cast::<i32>(),
         crate::session::read_bits(&car_at(b)?.car_inverse_matrix).as_ptr(),
         t.as_mut_ptr(),
     );
@@ -2340,7 +2340,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     let matrix: [u32; 16] = crate::session::read_bits(&MATRICES.view_matrix);
     let mut t = [0u32; 3];
     crate::math::x87_load::rotate_rounding(
-        place.as_ptr() as *const i32,
+        place.as_ptr().cast::<i32>(),
         matrix.as_ptr(),
         t.as_mut_ptr(),
     );
@@ -2392,7 +2392,7 @@ fn add_flare() -> Result<(), BadInput> {
     }
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
-        place.as_ptr() as *const i32,
+        place.as_ptr().cast::<i32>(),
         crate::session::read_bits(&MATRICES.view_matrix).as_ptr(),
         out.as_mut_ptr(),
     );
@@ -2414,7 +2414,7 @@ fn add_flare() -> Result<(), BadInput> {
 fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
     let mut t = [0u32; 3];
     crate::math::x87_load::rotate_rounding(
-        point.as_ptr() as *const i32,
+        point.as_ptr().cast::<i32>(),
         crate::session::read_bits(&car_at(b)?.crash_matrix).as_ptr(),
         t.as_mut_ptr(),
     );

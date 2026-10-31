@@ -55,7 +55,7 @@ pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
 
 /// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
 pub fn texts_home() -> usize {
-    crate::pointers::game_address(&INSTALL_TEXTS as *const InstallTexts) as usize
+    crate::pointers::game_address(&raw const INSTALL_TEXTS) as usize
 }
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
@@ -66,7 +66,7 @@ pub fn media_mode() -> u32 {
 }
 
 pub fn set_media_mode(mode: u32) {
-    crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed)
+    crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed);
 }
 // dword_51B9CC (-u)
 // g_removeStartItems
@@ -96,7 +96,7 @@ pub fn rb(at: impl Into<Place>) -> u8 {
 pub fn wb(at: impl Into<Place>, v: u8) {
     at.into()
         .write(&[v], "an installer byte")
-        .unwrap_or_else(|e| refuse(e))
+        .unwrap_or_else(|e| refuse(e));
 }
 
 pub fn rw(at: impl Into<Place>) -> u16 {
@@ -110,7 +110,7 @@ pub fn rw(at: impl Into<Place>) -> u16 {
 pub fn ww(at: impl Into<Place>, v: u16) {
     at.into()
         .write(&v.to_le_bytes(), "an installer word")
-        .unwrap_or_else(|e| refuse(e))
+        .unwrap_or_else(|e| refuse(e));
 }
 
 pub fn rd(at: impl Into<Place>) -> u32 {
@@ -125,7 +125,7 @@ pub fn rd(at: impl Into<Place>) -> u32 {
 pub fn wd(at: impl Into<Place>, v: u32) {
     at.into()
         .write(&v.to_le_bytes(), "an installer dword")
-        .unwrap_or_else(|e| refuse(e))
+        .unwrap_or_else(|e| refuse(e));
 }
 
 pub fn fatal(code: u32) -> Refused {
@@ -232,12 +232,12 @@ pub fn find_next() -> bool {
 
 /// `files::close_search` (0x40301F).
 pub fn close_search() {
-    crate::files::search::close()
+    crate::files::search::close();
 }
 
 /// `system::sleep` (0x41100C).
 pub fn sleep(milliseconds: u32) {
-    crate::system::sleep::sleep(milliseconds)
+    crate::system::sleep::sleep(milliseconds);
 }
 
 /// `input::take_key` (0x407F95): the pending key (0: none).
@@ -263,7 +263,7 @@ pub fn show() -> bool {
 
 /// `system::pump_messages` (0x410535).
 pub fn pump() {
-    crate::platform::pump_messages_now()
+    crate::platform::pump_messages_now();
 }
 
 /// A frame of the installer's for `screens::run_frame`: its carry.

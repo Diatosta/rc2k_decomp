@@ -28,5 +28,5 @@ pub fn tick_from(now: u32) {
 /// The Rust version.
 pub fn race_clock_tick() {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    tick_from(now)
+    tick_from(now);
 }

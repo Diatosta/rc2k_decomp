@@ -18,12 +18,12 @@ use crate::math::x87;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
 fn centres() {
-    centres_x87(&PONG, &PONG_RULES)
+    centres_x87(&PONG, &PONG_RULES);
 }
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
 fn new_way() {
-    new_way_x87(&PONG, &PONG_RULES, MARKS_FLOATS.one.bits())
+    new_way_x87(&PONG, &PONG_RULES, MARKS_FLOATS.one.bits());
 }
 
 /// The Rust version (see the header).
@@ -132,7 +132,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -162,7 +162,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -240,7 +240,7 @@ mod asm_differential {
                 let length = unsafe {
                     (crate::pointers::host_at(b[0] + 0x22C) as *const u32).read_unaligned()
                 };
-                super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length)
+                super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
             },
         );
     }

@@ -10,5 +10,5 @@
 /// The Rust version (see the header).
 pub fn ask_to_leave() {
     // Converted: `rc2k_core::menu::leaving::Leaving::ask_to_leave`.
-    crate::menu::leaving::with_leaving(|l| l.ask_to_leave());
+    crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::ask_to_leave);
 }

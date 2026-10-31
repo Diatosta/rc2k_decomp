@@ -351,7 +351,10 @@ pub fn turn_spline_points(s: Spline) -> Result<(), Refused> {
     let n = s.count()?;
     let points = s.points(0, n)?;
     crate::scene::matrix3::transform_int_points(&points[..], &points[..], n, &SPLINE_WORK.turn)?;
-    let turned: Vec<u32> = points.iter().map(|c| c.get()).collect();
+    let turned: Vec<u32> = points
+        .iter()
+        .map(super::super::session::Dword::get)
+        .collect();
     s.put_words(COORDS, &turned)?;
     Ok(())
 }
@@ -458,7 +461,10 @@ pub fn order_spline_points(s: Spline) -> Result<(), Refused> {
         let n_us = n as usize;
         // What the moves back read: the ordered tables' first `n`, those not placed as
         // they were.
-        let mut ordered_ids: Vec<u32> = ids[..n_us].iter().map(|c| c.get()).collect();
+        let mut ordered_ids: Vec<u32> = ids[..n_us]
+            .iter()
+            .map(super::super::session::Dword::get)
+            .collect();
         let mut ordered_coords: Vec<[u32; 3]> = coords[..3 * n_us]
             .chunks(3)
             .map(|p| [p[0].get(), p[1].get(), p[2].get()])
@@ -847,7 +853,7 @@ impl SplineHead {
     pub const LEN: usize = 0xEC0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_HEAD as *const SplineHead) as usize
+        crate::pointers::game_address(&raw const SPLINE_HEAD) as usize
     }
 }
 
@@ -859,7 +865,7 @@ mod spline_head_tests {
     fn spline_head_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineHead>(), SplineHead::LEN);
-        let p = &SPLINE_HEAD as *const SplineHead as *const u8;
+        let p = (&raw const SPLINE_HEAD).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineHead>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -951,7 +957,7 @@ impl SplineWork {
     pub const LEN: usize = 0x17E0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_WORK as *const SplineWork) as usize
+        crate::pointers::game_address(&raw const SPLINE_WORK) as usize
     }
 }
 
@@ -963,7 +969,7 @@ mod spline_work_tests {
     fn spline_work_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineWork>(), SplineWork::LEN);
-        let p = &SPLINE_WORK as *const SplineWork as *const u8;
+        let p = (&raw const SPLINE_WORK).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1249,7 +1255,7 @@ impl SplineTables {
     pub const LEN: usize = 0x1D200;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_TABLES as *const SplineTables) as usize
+        crate::pointers::game_address(&raw const SPLINE_TABLES) as usize
     }
 }
 
@@ -1261,7 +1267,7 @@ mod spline_tables_tests {
     fn spline_tables_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineTables>(), SplineTables::LEN);
-        let p = &SPLINE_TABLES as *const SplineTables as *const u8;
+        let p = (&raw const SPLINE_TABLES).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineTables>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1489,7 +1495,7 @@ impl SplineKinds {
     pub const LEN: usize = 0x348;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_KINDS as *const SplineKinds) as usize
+        crate::pointers::game_address(&raw const SPLINE_KINDS) as usize
     }
 }
 
@@ -1501,7 +1507,7 @@ mod spline_kinds_tests {
     fn spline_kinds_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineKinds>(), SplineKinds::LEN);
-        let p = &SPLINE_KINDS as *const SplineKinds as *const u8;
+        let p = (&raw const SPLINE_KINDS).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineKinds>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1543,7 +1549,7 @@ impl SplinePath {
     pub const LEN: usize = 0x13;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_PATH as *const SplinePath) as usize
+        crate::pointers::game_address(&raw const SPLINE_PATH) as usize
     }
 }
 
@@ -1555,7 +1561,7 @@ mod spline_path_tests {
     fn spline_path_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplinePath>(), SplinePath::LEN);
-        let p = &SPLINE_PATH as *const SplinePath as *const u8;
+        let p = (&raw const SPLINE_PATH).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplinePath>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -1602,7 +1608,7 @@ impl SplineConstants {
     pub const LEN: usize = 0x5C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPLINE_CONSTANTS as *const SplineConstants) as usize
+        crate::pointers::game_address(&raw const SPLINE_CONSTANTS) as usize
     }
 }
 
@@ -1614,7 +1620,7 @@ mod spline_constants_tests {
     fn spline_constants_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<SplineConstants>(), SplineConstants::LEN);
-        let p = &SPLINE_CONSTANTS as *const SplineConstants as *const u8;
+        let p = (&raw const SPLINE_CONSTANTS).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<SplineConstants>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

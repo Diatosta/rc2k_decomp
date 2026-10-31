@@ -47,7 +47,7 @@ pub static TEMPLATES: Templates = Templates {
 
 /// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
 pub fn templates_home() -> usize {
-    crate::pointers::game_address(&TEMPLATES as *const Templates) as usize
+    crate::pointers::game_address(&raw const TEMPLATES) as usize
 }
 
 #[cfg(test)]

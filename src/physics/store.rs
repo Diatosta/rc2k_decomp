@@ -650,7 +650,7 @@ pub const END: usize = 0x75B940;
 
 /// Where IDA 0X75B340 is now (`moved::MOVED`'s home).
 pub fn damage_addr() -> u32 {
-    crate::pointers::game_address(&DAMAGE as *const DamageModel)
+    crate::pointers::game_address(&raw const DAMAGE)
 }
 
 #[cfg(test)]
@@ -663,9 +663,8 @@ mod tests {
     fn damage_starts_as_the_games() {
         let size = size_of::<DamageModel>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts(&DAMAGE as *const DamageModel as *const u8, END - START)
-        };
+        let mine =
+            unsafe { std::slice::from_raw_parts((&raw const DAMAGE).cast::<u8>(), END - START) };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DamageModel, lerp_tables), 0x75B4A8);

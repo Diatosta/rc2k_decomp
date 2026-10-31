@@ -60,7 +60,7 @@ const TOO_HIGH: FatalError = FatalError {
 /// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
 pub(crate) fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
-    rotate_at(point.cast(), matrix.cast(), record.cast())
+    rotate_at(point.cast(), matrix.cast(), record.cast());
 }
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
@@ -193,8 +193,12 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
     r[0] = point;
     let place = crate::race::scene_points::point(from)?;
     rotate(
-        place.as_ptr() as *const i32,
-        MATRICES.view_matrix.each_ref().map(|f| f.bits()).as_ptr(),
+        place.as_ptr().cast::<i32>(),
+        MATRICES
+            .view_matrix
+            .each_ref()
+            .map(super::super::session::Float::bits)
+            .as_ptr(),
         r.as_mut_ptr(),
     );
     r[3] = 0;

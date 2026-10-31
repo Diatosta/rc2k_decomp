@@ -46,7 +46,7 @@ impl ScreenMode {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&SCREEN_MODE as *const ScreenMode) + 12) as usize
+        (crate::pointers::game_address(&raw const SCREEN_MODE) + 12) as usize
     }
 }
 
@@ -117,7 +117,7 @@ impl DrawSurface {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&DRAW_SURFACE as *const DrawSurface) + 4) as usize
+        (crate::pointers::game_address(&raw const DRAW_SURFACE) + 4) as usize
     }
 }
 
@@ -134,7 +134,7 @@ mod tests {
         let image = crate::moved::image_bytes(ScreenMode::START, ScreenMode::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ScreenMode::home()) as *const u8,
+                crate::pointers::host_at(ScreenMode::home()).cast_const(),
                 ScreenMode::LEN,
             )
         };
@@ -150,7 +150,7 @@ mod tests {
         let image = crate::moved::image_bytes(DrawSurface::START, DrawSurface::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawSurface::home()) as *const u8,
+                crate::pointers::host_at(DrawSurface::home()).cast_const(),
                 DrawSurface::LEN,
             )
         };

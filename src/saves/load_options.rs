@@ -191,7 +191,7 @@ mod tests {
     #[test]
     fn kept_starts_as_the_games() {
         let image = crate::moved::image_bytes(0x4F66DD, 20);
-        let mine = unsafe { std::slice::from_raw_parts(super::KEPT.as_ptr() as *const u8, 20) };
+        let mine = unsafe { std::slice::from_raw_parts(super::KEPT.as_ptr().cast::<u8>(), 20) };
         assert_eq!(mine, &image[..]);
     }
 

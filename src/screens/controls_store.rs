@@ -100,7 +100,7 @@ pub const END: usize = 0x755224;
 
 /// Where IDA 0X755170 is now (`moved::MOVED`'s home).
 pub fn controls_screen_addr() -> u32 {
-    crate::pointers::game_address(&CONTROLS_SCREEN as *const ControlsScreen)
+    crate::pointers::game_address(&raw const CONTROLS_SCREEN)
 }
 
 #[cfg(test)]
@@ -115,7 +115,7 @@ mod tests {
         assert!(size_of::<ControlsScreen>() <= (END - START).next_multiple_of(4));
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(controls_screen_addr()) as *const u8,
+                crate::pointers::host(controls_screen_addr()).cast_const(),
                 END - START,
             )
         };

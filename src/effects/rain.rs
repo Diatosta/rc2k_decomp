@@ -194,7 +194,7 @@ impl RainState {
     pub const LEN: usize = 0x1A50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RAIN as *const RainState) as usize
+        crate::pointers::game_address(&raw const RAIN) as usize
     }
 }
 
@@ -263,7 +263,7 @@ impl RainRules {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&RAIN_RULES as *const RainRules) as usize
+        crate::pointers::game_address(&raw const RAIN_RULES) as usize
     }
 }
 
@@ -273,7 +273,7 @@ pub mod tests {
     use core::mem::{offset_of, size_of};
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -287,11 +287,13 @@ pub mod tests {
         let state = crate::pointers::host_at(
             mk.wrapping_add(RainState::START)
                 .wrapping_sub(crate::effects::store::START),
-        ) as *mut RainState;
+        )
+        .cast::<RainState>();
         let rules = crate::pointers::host_at(
             mk.wrapping_add(RainRules::START)
                 .wrapping_sub(crate::effects::store::START),
-        ) as *mut RainRules;
+        )
+        .cast::<RainRules>();
         unsafe {
             let (s, r) = (state.read_unaligned(), rules.read_unaligned());
             let out = f(&s, &r);

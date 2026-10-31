@@ -22,7 +22,7 @@ use crate::scene::x87_mem::fstp;
 pub use rc2k_core::hud::disc::ENTRIES;
 
 fn place(h: &Hud, k: u32, e: u32) {
-    x87_1(h, k as usize, e as usize)
+    x87_1(h, k as usize, e as usize);
 }
 
 /// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
@@ -131,7 +131,7 @@ mod asm_reference {
                         unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
                         a[1],
                         a[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -167,7 +167,7 @@ mod asm_reference {
                         unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
                         a[1],
                         a[2],
-                    )
+                    );
                 },
             },
             Block {
@@ -203,7 +203,7 @@ mod asm_reference {
                         unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
                         a[1],
                         a[2],
-                    )
+                    );
                 },
             },
         ]

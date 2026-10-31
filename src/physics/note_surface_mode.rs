@@ -16,7 +16,7 @@ use rc2k_core::physics::ground::surface_flag;
 /// The Rust version on the variables' cells `v`.
 // Converted: `rc2k_core::physics::ground::surface_flag`.
 pub fn note_at(v: &[&dyn Cell32]) {
-    v[1].set_bits(surface_flag(v[0].bits()))
+    v[1].set_bits(surface_flag(v[0].bits()));
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
@@ -25,5 +25,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn note_surface_mode() {
-    note_at(&game())
+    note_at(&game());
 }

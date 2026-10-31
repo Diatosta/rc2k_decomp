@@ -29,14 +29,17 @@ pub fn match_spot_voices() -> Result<(), Refused> {
         .iter()
         .map(|spot| Spot {
             id: spot.id.get(),
-            place: spot.place.each_ref().map(|f| f.bits()),
+            place: spot
+                .place
+                .each_ref()
+                .map(super::super::session::Float::bits),
             kind: spot.kind.get(),
         })
         .collect();
     let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::store::SPOT_PICKS
         .kind_sounds
         .each_ref()
-        .map(|d| d.get());
+        .map(super::super::session::Dword::get);
     let mut voices = load_voices();
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(&voices);

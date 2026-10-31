@@ -29,7 +29,7 @@ impl SnowTables {
     pub const LEN: usize = 0xC000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SNOW_TABLES as *const SnowTables) as usize
+        crate::pointers::game_address(&raw const SNOW_TABLES) as usize
     }
 }
 
@@ -52,7 +52,7 @@ impl SnowCurve {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SNOW_CURVE as *const SnowCurve) as usize
+        crate::pointers::game_address(&raw const SNOW_CURVE) as usize
     }
 }
 
@@ -248,7 +248,7 @@ impl SnowState {
     pub const LEN: usize = 0x310;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SNOW as *const SnowState) as usize
+        crate::pointers::game_address(&raw const SNOW) as usize
     }
 }
 
@@ -277,7 +277,7 @@ impl SnowCurveVars {
     pub const LEN: usize = 0x1020;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SNOW_VARS as *const SnowCurveVars) as usize
+        crate::pointers::game_address(&raw const SNOW_VARS) as usize
     }
 }
 
@@ -423,7 +423,7 @@ impl SnowLight {
     pub const LEN: usize = 0x128;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SNOW_LIGHT as *const SnowLight) as usize
+        crate::pointers::game_address(&raw const SNOW_LIGHT) as usize
     }
 }
 
@@ -432,7 +432,7 @@ mod tests {
     use super::*;
 
     fn same<T>(v: &T, start: usize, len: usize) -> bool {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         let mine: Vec<u8> = (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

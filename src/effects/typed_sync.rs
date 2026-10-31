@@ -16,7 +16,7 @@ pub struct Overlay {
 /// The overlay of `st`, a typed static whose first byte is IDA's address `start`.
 pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
     Overlay {
-        home: st as *const T as *mut u8,
+        home: std::ptr::from_ref::<T>(st) as *mut u8,
         len: size_of::<T>(),
         start,
     }

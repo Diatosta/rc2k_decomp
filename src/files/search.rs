@@ -84,7 +84,9 @@ fn put((name, attributes): &(Vec<u8>, u32)) {
 /// The search's next name not of the `skipped` attributes, put in the record; false when
 /// there is none (the search stays open, as the game closes it).
 pub fn next(skipped: u32) -> bool {
-    let mut search = SEARCH.lock().unwrap_or_else(|e| e.into_inner());
+    let mut search = SEARCH
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(s) = search.as_mut() else {
         return false;
     };
@@ -103,7 +105,9 @@ pub fn next(skipped: u32) -> bool {
 pub fn first(pattern: &[u8], skipped: u32) -> bool {
     let found = list(pattern);
     let open = found.is_some();
-    *SEARCH.lock().unwrap_or_else(|e| e.into_inner()) =
+    *SEARCH
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
         found.map(|found| Search { found, next: 0 });
     FIND_HANDLE.store(if open { OPEN } else { NO_SEARCH }, Relaxed);
     open && next(skipped)
@@ -111,7 +115,9 @@ pub fn first(pattern: &[u8], skipped: u32) -> bool {
 
 /// The search closed, if there is one.
 pub fn close() {
-    *SEARCH.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *SEARCH
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     FIND_HANDLE.store(NO_SEARCH, Relaxed);
 }
 

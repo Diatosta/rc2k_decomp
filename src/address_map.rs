@@ -157,7 +157,9 @@ pub fn game_of(p: usize) -> Option<u32> {
             return Some(at);
         }
         let range = {
-            let ranges = RANGES.lock().unwrap_or_else(|e| e.into_inner());
+            let ranges = RANGES
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match ranges.by_host.range(..=p).next_back() {
                 Some((_, &r)) if r.game_of(p).is_some() => r,
                 // An end pointer: the range that ends there.
@@ -201,7 +203,9 @@ pub fn map(host: usize, len: usize) -> u32 {
 }
 
 fn map_range(host: usize, len: usize) -> Range {
-    let mut ranges = RANGES.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ranges = RANGES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ranges.free.is_empty() && ranges.by_host.is_empty() {
         ranges.free.insert(FIRST, LAST - FIRST);
     }
@@ -254,7 +258,9 @@ pub fn unmap(game: u32) {
     if !table() {
         return;
     }
-    let mut ranges = RANGES.lock().unwrap_or_else(|e| e.into_inner());
+    let mut ranges = RANGES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(&h) = ranges.by_game.get(&game) {
         take_off(&mut ranges, h);
     }

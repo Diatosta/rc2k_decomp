@@ -42,7 +42,9 @@ impl Object {
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state.lock().unwrap_or_else(|e| e.into_inner())
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
@@ -54,7 +56,7 @@ fn add(object: Arc<Object>) -> u32 {
     let handle = NEXT_HANDLE.fetch_add(4, Ordering::Relaxed);
     OBJECTS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .insert(handle, object);
     handle
@@ -63,7 +65,7 @@ fn add(object: Arc<Object>) -> u32 {
 fn object(handle: u32) -> Option<Arc<Object>> {
     OBJECTS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .get(&handle)
         .cloned()
@@ -180,7 +182,10 @@ fn wait_on(o: &Object, until: Option<Instant>) -> u32 {
             return WAIT_OBJECT_0;
         }
         state = match until {
-            None => o.changed.wait(state).unwrap_or_else(|e| e.into_inner()),
+            None => o
+                .changed
+                .wait(state)
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
             Some(until) => {
                 let now = Instant::now();
                 if now >= until {
@@ -188,7 +193,7 @@ fn wait_on(o: &Object, until: Option<Instant>) -> u32 {
                 }
                 o.changed
                     .wait_timeout(state, until - now)
-                    .unwrap_or_else(|e| e.into_inner())
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .0
             }
         };
@@ -228,7 +233,7 @@ pub fn wait_all_threads(handles: &[u32], milliseconds: u32) -> u32 {
 pub fn close(handle: u32) -> bool {
     OBJECTS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .remove(&handle)
         .is_some()
@@ -272,7 +277,7 @@ pub fn spawn(name: &str, id: u32, routine: impl FnOnce() + Send + 'static) -> Op
 /// Ends the running thread (`ExitThread`), from any depth of a thread `spawn` made: it
 /// unwinds to the thread's start. On another thread it ends the program.
 pub fn exit_thread() -> ! {
-    if !SPAWNED.with(|cell| cell.get()) {
+    if !SPAWNED.with(std::cell::Cell::get) {
         crate::standalone::finish("sync: a thread not started here was to end itself", 1);
     }
     std::panic::resume_unwind(Box::new(ThreadExit))

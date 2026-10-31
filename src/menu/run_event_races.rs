@@ -80,7 +80,7 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(v).set(value)
+        cell(v).set(value);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {

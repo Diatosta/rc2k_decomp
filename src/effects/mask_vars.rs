@@ -326,7 +326,7 @@ mod tests_masks {
             offset_of!(MaskVars, pixel_corners),
             0x8445E6 - MaskVars::START
         );
-        let p = core::ptr::addr_of!(MASKS) as *const u8;
+        let p = core::ptr::addr_of!(MASKS).cast::<u8>();
         let now: Vec<u8> = (0..MaskVars::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

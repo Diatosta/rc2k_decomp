@@ -13,7 +13,7 @@ pub fn length() -> i32 {
 }
 
 pub fn set_length(length: i32) {
-    LOOP_FLAGS.text_length.set(length as u32)
+    LOOP_FLAGS.text_length.set(length as u32);
 }
 
 /// Where the backup copy of the text is.

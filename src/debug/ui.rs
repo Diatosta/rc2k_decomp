@@ -106,7 +106,9 @@ pub fn note_view() {
             f32::from_bits(DRAW.view_centre[1].bits()),
         ],
     );
-    *VIEW.lock().unwrap_or_else(|e| e.into_inner()) = Some(view);
+    *VIEW
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(view);
 }
 
 /// In the spirit of `sub_4295AD` (0x4295AD), the developers' mode 0xB, which drew the probe
@@ -118,7 +120,10 @@ pub fn note_view() {
 fn draw_probes(ui: &Ui) {
     use crate::physics::car_store::CAR;
     use crate::physics::contact_store::CONTACT_WORK as W;
-    let Some((m, scale, centre)) = *VIEW.lock().unwrap_or_else(|e| e.into_inner()) else {
+    let Some((m, scale, centre)) = *VIEW
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    else {
         return;
     };
     let [w, h] = ui.io().display_size();
@@ -196,7 +201,9 @@ pub fn build(ui: &Ui) {
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
     // the race's own; owner, 2026-10-30).
     let screen = ui.io().display_size();
-    let mut layout = LAYOUT.lock().unwrap_or_else(|e| e.into_inner());
+    let mut layout = LAYOUT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let (position, size, condition) = match *layout {
         Some(l) if l.display != screen => {
             let (x, y) = (screen[0] / l.display[0], screen[1] / l.display[1]);
@@ -239,12 +246,12 @@ pub fn build(ui: &Ui) {
             if let Some(_bar) = ui.tab_bar("pages") {
                 if let Some(_tab) = ui.tab_item("Display") {
                     body(ui, || {
-                        display(ui, crate::debug::display_rows::GROUPS, &FILTER)
+                        display(ui, crate::debug::display_rows::GROUPS, &FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Watch list") {
                     body(ui, || {
-                        display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER)
+                        display(ui, crate::debug::watch_rows::GROUPS, &WATCH_FILTER);
                     });
                 }
                 if let Some(_tab) = ui.tab_item("Dumps") {
@@ -324,7 +331,9 @@ fn wanted_row(row: &Row, wanted: &str) -> bool {
 /// A tab of groups, in as many columns as the width holds.
 fn display(ui: &Ui, all: &'static [Group], filter: &std::sync::Mutex<String>) {
     let wanted = {
-        let mut filter = filter.lock().unwrap_or_else(|e| e.into_inner());
+        let mut filter = filter
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         ui.input_text("Filter", &mut filter).build();
         filter.to_lowercase()
     };
@@ -554,7 +563,9 @@ fn profiler(ui: &Ui) {
     use crate::race::switches_store::FRAME_SWITCHES;
     use crate::race::view_store::RACE_VIEW;
     use crate::session::MACHINE;
-    let mut t = TIMINGS.lock().unwrap_or_else(|e| e.into_inner());
+    let mut t = TIMINGS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(&mut t);
     let fps = f32::from_bits(FRAME_SWITCHES.frame_rate.bits());
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
@@ -658,8 +669,8 @@ fn profiler(ui: &Ui) {
                 "A turn's work (every 20 ms)",
                 ms(t.stages[Stage::AudioTurn as usize]),
             ),
-            ("Voices playing", format!("{}", playing)),
-            ("Voices stopping", format!("{}", stopping)),
+            ("Voices playing", format!("{playing}")),
+            ("Voices stopping", format!("{stopping}")),
             (
                 "Voices made (for the race's sounds)",
                 format!("{}", AUDIO.voice_count.get()),

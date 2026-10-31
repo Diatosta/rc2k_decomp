@@ -163,7 +163,7 @@ impl Gpu {
             ..Default::default()
         };
         // SAFETY: `info` and the code it points to live through the call.
-        let shader = unsafe { SDL_CreateGPUShader(self.device, &info) };
+        let shader = unsafe { SDL_CreateGPUShader(self.device, &raw const info) };
         (!shader.is_null()).then_some(shader).ok_or_else(sdl_error)
     }
 
@@ -188,7 +188,7 @@ impl Gpu {
             ..Default::default()
         };
         // SAFETY: `info` lives through the call.
-        let sampler = unsafe { SDL_CreateGPUSampler(self.device, &info) };
+        let sampler = unsafe { SDL_CreateGPUSampler(self.device, &raw const info) };
         (!sampler.is_null())
             .then_some(sampler)
             .ok_or_else(sdl_error)
@@ -222,7 +222,7 @@ impl Gpu {
             props: SDL_PropertiesID(0),
         };
         // SAFETY: `info` lives through the call.
-        let texture = unsafe { SDL_CreateGPUTexture(self.device, &info) };
+        let texture = unsafe { SDL_CreateGPUTexture(self.device, &raw const info) };
         (!texture.is_null())
             .then_some(texture)
             .ok_or_else(sdl_error)
@@ -249,7 +249,7 @@ impl Gpu {
             ..Default::default()
         };
         // SAFETY: `info` and `colour` live through the call.
-        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &info) };
+        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &raw const info) };
         (!pipeline.is_null())
             .then_some(pipeline)
             .ok_or_else(sdl_error)
@@ -332,7 +332,7 @@ impl Gpu {
             ..Default::default()
         };
         // SAFETY: `info` and the arrays it points to live through the call.
-        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &info) };
+        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &raw const info) };
         if pipeline.is_null() {
             return Err(sdl_error());
         }
@@ -384,7 +384,7 @@ impl Gpu {
             props: SDL_PropertiesID(0),
         };
         // SAFETY: `info` lives through the call.
-        let transfer = unsafe { SDL_CreateGPUTransferBuffer(self.device, &info) };
+        let transfer = unsafe { SDL_CreateGPUTransferBuffer(self.device, &raw const info) };
         (!transfer.is_null())
             .then_some(transfer)
             .ok_or_else(sdl_error)
@@ -445,7 +445,7 @@ impl Gpu {
                 if !self.vertices.is_null() {
                     SDL_ReleaseGPUBuffer(self.device, self.vertices);
                 }
-                self.vertices = SDL_CreateGPUBuffer(self.device, &info);
+                self.vertices = SDL_CreateGPUBuffer(self.device, &raw const info);
             }
             if self.vertices.is_null() {
                 return Err(sdl_error());
@@ -552,7 +552,7 @@ impl Gpu {
                 size: vertex_bytes,
             };
             if vertex_bytes > 0 {
-                SDL_UploadToGPUBuffer(copy, &from, &to, true);
+                SDL_UploadToGPUBuffer(copy, &raw const from, &raw const to, true);
             }
             for (note, offset) in &placed {
                 let texture = self.textures.get_mut(&note.pixels).expect("made above");
@@ -595,7 +595,7 @@ impl Gpu {
                 ..Default::default()
             };
             self.depth_is_new = false;
-            let pass = SDL_BeginGPURenderPass(buffer, &colour, 1, &depth);
+            let pass = SDL_BeginGPURenderPass(buffer, &raw const colour, 1, &raw const depth);
             self.draw_overlay(pass);
             let size = [self.width as f32, self.height as f32];
             SDL_PushGPUVertexUniformData(buffer, 0, size.as_ptr().cast(), 8);
@@ -603,7 +603,7 @@ impl Gpu {
                 buffer: self.vertices,
                 offset: 0,
             };
-            SDL_BindGPUVertexBuffers(pass, 0, &binding, 1);
+            SDL_BindGPUVertexBuffers(pass, 0, &raw const binding, 1);
             let mut last_pipeline = null_mut();
             let mut last_values = None;
             let mut last_sampling = None;
@@ -631,7 +631,7 @@ impl Gpu {
                         texture,
                         sampler: self.samplers[sampler_number(batch)],
                     };
-                    SDL_BindGPUFragmentSamplers(pass, 0, &bound, 1);
+                    SDL_BindGPUFragmentSamplers(pass, 0, &raw const bound, 1);
                     last_sampling = Some(sampling);
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
@@ -641,7 +641,7 @@ impl Gpu {
                         w: (right - left) as i32,
                         h: (bottom - top) as i32,
                     };
-                    SDL_SetGPUScissor(pass, &rect);
+                    SDL_SetGPUScissor(pass, &raw const rect);
                     scissored = true;
                 } else if scissored {
                     let rect = SDL_Rect {
@@ -650,7 +650,7 @@ impl Gpu {
                         w: self.width as i32,
                         h: self.height as i32,
                     };
-                    SDL_SetGPUScissor(pass, &rect);
+                    SDL_SetGPUScissor(pass, &raw const rect);
                     scissored = false;
                 }
                 SDL_DrawGPUPrimitives(pass, batch.vertices, 1, batch.first_vertex, 0);
@@ -676,7 +676,7 @@ impl Gpu {
         // SAFETY: the caller's pass; handles ours; `bound` lives through the call.
         unsafe {
             SDL_BindGPUGraphicsPipeline(pass, self.overlay);
-            SDL_BindGPUFragmentSamplers(pass, 0, &bound, 1);
+            SDL_BindGPUFragmentSamplers(pass, 0, &raw const bound, 1);
             SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
         }
     }
@@ -707,13 +707,13 @@ impl Gpu {
                 transfer_buffer: transfer,
                 ..Default::default()
             };
-            SDL_DownloadFromGPUTexture(copy, &region, &to);
+            SDL_DownloadFromGPUTexture(copy, &raw const region, &raw const to);
             SDL_EndGPUCopyPass(copy);
             let fence = SDL_SubmitGPUCommandBufferAndAcquireFence(buffer);
             if fence.is_null() {
                 return Err(sdl_error());
             }
-            SDL_WaitForGPUFences(self.device, true, &fence, 1);
+            SDL_WaitForGPUFences(self.device, true, &raw const fence, 1);
             SDL_ReleaseGPUFence(self.device, fence);
             let map = SDL_MapGPUTransferBuffer(self.device, transfer, false);
             if map.is_null() {
@@ -753,7 +753,7 @@ unsafe fn upload(
         ..Default::default()
     };
     // SAFETY: the caller's pass and buffer; the two records live through the call.
-    unsafe { SDL_UploadToGPUTexture(copy, &from, &to, true) };
+    unsafe { SDL_UploadToGPUTexture(copy, &raw const from, &raw const to, true) };
 }
 
 fn sampler_number(batch: &Batch) -> usize {

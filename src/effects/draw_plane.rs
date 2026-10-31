@@ -72,7 +72,7 @@ impl PlaneTuning {
     pub const LEN: usize = 0x4C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PLANE_TUNING as *const PlaneTuning) as usize
+        crate::pointers::game_address(&raw const PLANE_TUNING) as usize
     }
 }
 
@@ -83,12 +83,12 @@ fn plane_axes(s: u32) {
         &WINDSCREEN_FLAKE_TIMING,
         &WINDSCREEN_FLAKE_TABLES,
         &PLANE_TUNING,
-    )
+    );
 }
 
 /// The original's 0x4C900D .. 0x4C906D: the second axis (`flt_89CF26` ..), its length over `flt_934F38` into `flt_89CEF2`.
 fn plane_up(s: u32) {
-    plane_up_x87(s as usize, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING)
+    plane_up_x87(s as usize, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING);
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
@@ -96,7 +96,7 @@ fn plane_place(s: u32) {
     plane_place_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         s as usize,
-    )
+    );
 }
 
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
@@ -104,17 +104,17 @@ fn plane_facing() {
     plane_facing_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
         &WINDSCREEN_FLAKE_TABLES,
-    )
+    );
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
 fn plane_corners() {
-    plane_corners_x87(&WINDSCREEN_FLAKE_TABLES, &QUAD_3)
+    plane_corners_x87(&WINDSCREEN_FLAKE_TABLES, &QUAD_3);
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
 fn plane_projected() {
-    plane_projected_x87(&QUAD_3)
+    plane_projected_x87(&QUAD_3);
 }
 
 /// The Rust version (see the header).
@@ -422,7 +422,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -454,7 +454,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -472,7 +472,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -492,7 +492,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -550,7 +550,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -602,7 +602,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -670,11 +670,11 @@ mod asm_differential {
                         WindscreenFlakeTables::START,
                         |sq| {
                             with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                                super::plane_axes_x87(b[1], sti, sq, pt)
-                            })
+                                super::plane_axes_x87(b[1], sti, sq, pt);
+                            });
                         },
-                    )
-                })
+                    );
+                });
             },
         );
     }
@@ -721,9 +721,9 @@ mod asm_differential {
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                        super::plane_up_x87(b[1], sq, pt)
-                    })
-                })
+                        super::plane_up_x87(b[1], sq, pt);
+                    });
+                });
             },
         );
     }
@@ -784,9 +784,9 @@ mod asm_differential {
                             b[0],
                             WindscreenFlakeTables::START,
                             |sq| super::plane_facing_x87(b[0], sq),
-                        )
+                        );
                     },
-                )
+                );
             },
         );
     }
@@ -841,8 +841,8 @@ mod asm_differential {
             |b| reference::plane_corners_x87(b[0]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q))
-                })
+                    with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
+                });
             },
         );
     }

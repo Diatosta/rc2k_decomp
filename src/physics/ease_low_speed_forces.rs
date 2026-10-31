@@ -19,7 +19,7 @@ fn at(a: &dyn Cell32) -> u32 {
 }
 
 fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v)
+    a.set_bits(v);
 }
 
 /// The core: the factor, the speed and the two forces at these places.
@@ -49,5 +49,5 @@ pub fn ease_low_speed_forces() {
         &PHYSICS.low_speed_share,
         &CAR.local_velocity[2],
         [&PHYSICS.drive_forces[0], &PHYSICS.drive_forces[1]],
-    )
+    );
 }

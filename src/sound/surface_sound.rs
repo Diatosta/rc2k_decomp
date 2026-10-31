@@ -109,7 +109,7 @@ mod asm_reference {
                             as *const crate::sound::store::SurfaceSounds)
                     },
                     a[1],
-                )
+                );
             },
         }]
     }

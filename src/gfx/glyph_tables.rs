@@ -50,7 +50,7 @@ pub static TABLES: GlyphTables = GlyphTables {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51B980).
 pub fn home() -> usize {
-    crate::pointers::game_address(&TABLES as *const GlyphTables) as usize
+    crate::pointers::game_address(&raw const TABLES) as usize
 }
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the

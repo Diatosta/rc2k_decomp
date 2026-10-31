@@ -40,7 +40,7 @@ pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     let fault = crate::menu::event_flow::Fault::default();
     let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
         fault.ok(append_string_by_id(id, &mut |bytes| {
-            out.extend_from_slice(bytes)
+            out.extend_from_slice(bytes);
         }))
     });
     fault.check()?;

@@ -145,7 +145,7 @@ impl StagePrefs {
     pub fn dwords(&self) -> &[Dword; (END - START) / 4] {
         // SAFETY: `#[repr(C)]`, every field a `Dword` or an array of them (no padding:
         // the size assert below), so the piece is that many `Dword`s in a row.
-        unsafe { &*(self as *const Self).cast() }
+        unsafe { &*std::ptr::from_ref::<Self>(self).cast() }
     }
 }
 

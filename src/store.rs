@@ -86,7 +86,7 @@ pub fn at_read<T: Copy>(at: impl At) -> T {
 
 /// Writes the variable named by `at` (an IDA address of the image).
 pub fn at_write<T: Copy>(at: impl At, value: T) {
-    crate::pointers::write_or_end(at.here() as u32, value, "a game variable")
+    crate::pointers::write_or_end(at.here() as u32, value, "a game variable");
 }
 
 /// Reads the variable named by `at` (an IDA address, or a typed cell).
@@ -101,7 +101,7 @@ pub fn game_addr(place: impl Where) -> u32 {
 
 /// Pointer to the game's memory at `place`.
 pub fn game_ptr<T>(place: impl Where) -> *mut T {
-    crate::pointers::host_at(place.address()) as *mut T
+    crate::pointers::host_at(place.address()).cast::<T>()
 }
 
 /// Reads a variable (`framework::game_read`, over a block or the image).
@@ -133,9 +133,9 @@ pub fn game_write<T: Copy>(place: impl Where, value: T) {
     // SAFETY: inside one live region (checked above).
     unsafe {
         if p.is_aligned() {
-            p.write_volatile(value)
+            p.write_volatile(value);
         } else {
-            p.write_unaligned(value)
+            p.write_unaligned(value);
         }
     }
 }
@@ -217,5 +217,6 @@ macro_rules! block {
 #[cfg(test)]
 pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    LOCK.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }

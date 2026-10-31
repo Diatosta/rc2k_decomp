@@ -26,7 +26,7 @@ fn sides(v: &[[u8; 10]; 4]) {
         &PONG,
         &MARKS_FLOATS,
         &WINDSCREEN_FLAKE_TABLES,
-    )
+    );
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
@@ -35,18 +35,21 @@ fn corners(v: &[[u8; 10]; 4]) {
         (crate::pointers::game_address(v.as_ptr())) as usize,
         &PONG,
         &WINDSCREEN_FLAKE_TABLES,
-    )
+    );
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
 fn projected(p: u32) {
-    projected_x87(p as usize, &WINDSCREEN_FLAKE_TABLES)
+    projected_x87(p as usize, &WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The Rust version (see the header).
 pub fn draw_pong_box(v: [[u8; 10]; 4]) {
     sides(&v);
-    let [pa, pb, pc, pd] = PONG_RULES.box_places.each_ref().map(|f| f.bits());
+    let [pa, pb, pc, pd] = PONG_RULES
+        .box_places
+        .each_ref()
+        .map(super::super::session::Float::bits);
     for (n, (u, w)) in [(pa, pb), (pc, pb), (pc, pd), (pa, pd)]
         .into_iter()
         .enumerate()
@@ -276,7 +279,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -338,7 +341,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -411,7 +414,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -478,11 +481,11 @@ mod asm_differential {
                             b[0],
                             WindscreenFlakeTables::START,
                             |sq| {
-                                super::sides_x87(b[1], crate::effects::pong::state_at(b[0]), f, sq)
+                                super::sides_x87(b[1], crate::effects::pong::state_at(b[0]), f, sq);
                             },
-                        )
+                        );
                     },
-                )
+                );
             },
         );
     }
@@ -545,8 +548,8 @@ mod asm_differential {
             |b| reference::corners_x87(b[0], b[1]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    super::corners_x87(b[1], crate::effects::pong::state_at(b[0]), sq)
-                })
+                    super::corners_x87(b[1], crate::effects::pong::state_at(b[0]), sq);
+                });
             },
         );
     }
@@ -606,8 +609,8 @@ mod asm_differential {
             |b| reference::projected_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
-                    super::projected_x87(b[2], sq)
-                })
+                    super::projected_x87(b[2], sq);
+                });
             },
         );
     }

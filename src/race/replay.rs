@@ -56,7 +56,7 @@ pub static REPLAYS: Replays = Replays {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x528504).
 pub fn home() -> usize {
-    crate::pointers::game_address(&REPLAYS as *const Replays) as usize
+    crate::pointers::game_address(&raw const REPLAYS) as usize
 }
 
 #[cfg(test)]

@@ -95,7 +95,7 @@ pub const END: usize = 0x755784;
 
 /// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
 pub fn champ_view_addr() -> u32 {
-    crate::pointers::game_address(&CHAMP_VIEW as *const ChampView)
+    crate::pointers::game_address(&raw const CHAMP_VIEW)
 }
 
 #[cfg(test)]
@@ -112,7 +112,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(champ_view_addr()) as *const u8,
+                crate::pointers::host(champ_view_addr()).cast_const(),
                 END - START,
             )
         };

@@ -97,7 +97,7 @@ fn get(x: Place) -> i32 {
     x.get() as i32
 }
 fn set(x: Place, v: i32) {
-    x.set(v as u32)
+    x.set(v as u32);
 }
 
 /// The Rust version (see the header). What it leaves in registers is read by none of its

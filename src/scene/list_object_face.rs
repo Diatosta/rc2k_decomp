@@ -88,7 +88,7 @@ impl FaceWorld for GameFace {
         crate::session::read_first(&COURSE.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::session::write_first(&COURSE.group_masks[13..15], &groups)
+        crate::session::write_first(&COURSE.group_masks[13..15], &groups);
     }
     fn other_groups(&self) -> [u32; 2] {
         [15, 16].map(|k| COURSE.group_masks[k].get())
@@ -128,7 +128,7 @@ impl FaceWorld for GameFace {
         GROUND_WORK.object_fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        GROUND_WORK.object_see_through.set_bits(value)
+        GROUND_WORK.object_see_through.set_bits(value);
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {

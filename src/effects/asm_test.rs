@@ -59,13 +59,13 @@ impl Buf {
 impl std::ops::Deref for Buf {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.0.as_ptr() as *const u8, self.1) }
+        unsafe { std::slice::from_raw_parts(self.0.as_ptr().cast::<u8>(), self.1) }
     }
 }
 
 impl std::ops::DerefMut for Buf {
     fn deref_mut(&mut self) -> &mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.0.as_mut_ptr() as *mut u8, self.1) }
+        unsafe { std::slice::from_raw_parts_mut(self.0.as_mut_ptr().cast::<u8>(), self.1) }
     }
 }
 
@@ -80,7 +80,7 @@ impl PartialEq for Buf {
 /// address need not be aligned for its cells) and put back afterwards. The buffer must
 /// hold the whole block.
 pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    let p = crate::pointers::host_at(mk.wrapping_add(start).wrapping_sub(START)) as *mut T;
+    let p = crate::pointers::host_at(mk.wrapping_add(start).wrapping_sub(START)).cast::<T>();
     unsafe {
         let local = p.read_unaligned();
         let out = f(&local);
@@ -137,7 +137,7 @@ fn fill(buf: &mut [u8], lo: usize, reads: &[(usize, Kind)], r: &mut Rng, sincos:
         let at = off - lo;
         match kind {
             F32 => {
-                buf[at..at + 4].copy_from_slice(&random_float(r, sincos).to_bits().to_le_bytes())
+                buf[at..at + 4].copy_from_slice(&random_float(r, sincos).to_bits().to_le_bytes());
             }
             I32 => buf[at..at + 4].copy_from_slice(&random_int(r).to_le_bytes()),
             F80 => {

@@ -155,11 +155,16 @@ mod asm_reference {
     }
 
     fn bytes(ty: &TyreChange) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(ty as *const TyreChange as *const u8, WINDOW_END) }
+        unsafe {
+            std::slice::from_raw_parts(
+                std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
+                WINDOW_END,
+            )
+        }
     }
 
     fn put_ty(ty: &TyreChange, off: usize, v: u32) {
-        unsafe { ((ty as *const TyreChange as *const u8).add(off) as *mut u32).write(v) }
+        unsafe { (std::ptr::from_ref::<TyreChange>(ty).cast::<u8>().add(off) as *mut u32).write(v) }
     }
 
     /// The device's turn is a small whole number and the factor small, so the angle is
@@ -178,7 +183,7 @@ mod asm_reference {
         // Lent while the runs read them as game memory.
         let as_bytes = |ty: &TyreChange| unsafe {
             std::slice::from_raw_parts(
-                ty as *const TyreChange as *const u8,
+                std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
                 size_of::<TyreChange>(),
             )
         };
@@ -224,7 +229,7 @@ mod asm_reference {
                 t_b.copy_from_slice(&t_a);
                 unsafe {
                     ref_turn(
-                        (crate::pointers::game_address(&*ty_a as *const TyreChange)
+                        (crate::pointers::game_address(&raw const *ty_a)
                             .wrapping_sub(RVA_OFFSET as u32)) as usize,
                         (crate::pointers::game_address(e_a.as_mut_ptr())) as usize,
                         (crate::pointers::game_address(d_a.as_mut_ptr())) as usize,

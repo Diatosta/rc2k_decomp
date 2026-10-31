@@ -31,5 +31,5 @@ fn core(v: &[&dyn Cell32]) {
 
 /// The Rust version.
 pub fn ease_pitch_down() {
-    core(&game())
+    core(&game());
 }

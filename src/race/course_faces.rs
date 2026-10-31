@@ -1047,8 +1047,12 @@ mod asm_reference {
                 options(nostack),
             );
             drop(old);
-            (crate::pointers::host(v + 0xC) as *mut u32).write_unaligned(0);
-            (crate::pointers::host(v + 0x1C) as *mut u32).write_unaligned(0);
+            crate::pointers::host(v + 0xC)
+                .cast::<u32>()
+                .write_unaligned(0);
+            crate::pointers::host(v + 0x1C)
+                .cast::<u32>()
+                .write_unaligned(0);
             if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
                 return;
             }
@@ -1138,8 +1142,8 @@ mod asm_reference {
             );
             drop(old);
             for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
-                let sum = (crate::pointers::host(second + o) as *const u8).read() as u32
-                    + (crate::pointers::host(first + o) as *const u8).read() as u32;
+                let sum = crate::pointers::host(second + o).cast_const().read() as u32
+                    + crate::pointers::host(first + o).cast_const().read() as u32;
                 crate::pointers::host(to + o).write((sum >> 1) as u8);
             }
         }
@@ -1255,7 +1259,7 @@ mod asm_reference {
                         crate::pointers::game_address(a.as_ptr()),
                         crate::pointers::game_address(b.as_ptr()),
                         crate::pointers::game_address(v1.as_mut_ptr()),
-                    )
+                    );
                 };
                 let kept = DRAW.scratch.get();
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
@@ -1298,7 +1302,9 @@ mod asm_reference {
                     t1.set_word(4 * k, 0xAAAA_AAAA);
                     t2.set_word(4 * k, 0xAAAA_AAAA);
                 }
-                let at = |e: &PolygonEntry| crate::pointers::game_address(e as *const PolygonEntry);
+                let at = |e: &PolygonEntry| {
+                    crate::pointers::game_address(std::ptr::from_ref::<PolygonEntry>(e))
+                };
                 let (_r1, _r2, _r3) = (
                     crate::race::trap::test_region(std::slice::from_ref(&f)),
                     crate::race::trap::test_region(std::slice::from_ref(&s)),

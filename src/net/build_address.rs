@@ -58,7 +58,7 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
         }
         Provider::Other => {
             let data = &guid[..address::PROVIDER_SIZE as usize];
-            add_address_element(&NET.aid_service_provider, data)
+            add_address_element(&NET.aid_service_provider, data);
         }
     }
     if address::posts(provider) {

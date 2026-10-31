@@ -56,7 +56,7 @@ pub static FILMS: Films = Films {
 
 /// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
 pub fn films_home() -> usize {
-    crate::pointers::game_address(&FILMS as *const Films) as usize
+    crate::pointers::game_address(&raw const FILMS) as usize
 }
 
 // ---- Rust version ----
@@ -118,7 +118,7 @@ impl Game {
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {
                 crate::race::race_shell::clear_player_absences();
-                crate::race::credits_race::credits_race()?
+                crate::race::credits_race::credits_race()?;
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,

@@ -33,7 +33,7 @@ pub fn apply_received() -> Result<(), Refused> {
             loop {
                 apply_message(
                     player,
-                    crate::pointers::host_at((record + 2) as usize) as *const u8,
+                    crate::pointers::host_at((record + 2) as usize).cast_const(),
                 )?;
                 record += 0x100;
                 left = left.wrapping_sub(1);

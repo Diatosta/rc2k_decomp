@@ -69,7 +69,7 @@ fn in_game(callee: Callee, regs: &mut Carried) -> Result<(), Refused> {
     match callee {
         Callee::Prepare => crate::menu::ready_players::ready_players()?,
         Callee::CopySomeData => {
-            crate::saves::keep_player_settings::keep_player_settings(regs.cars)?
+            crate::saves::keep_player_settings::keep_player_settings(regs.cars)?;
         }
         // (The championship drivers keep every register of their caller.)
         Callee::RunEvent => crate::menu::run_championship::run_championship(regs)?,

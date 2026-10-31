@@ -225,7 +225,9 @@ fn camera(ui: &Ui) {
 fn kept_places(ui: &Ui) {
     const ENTRIES: usize = 0x100;
     let at = |n: usize, offset: usize| ERROR_LIST + 0x20 * n + offset;
-    let mut kept = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+    let mut kept = KEPT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ui.button("Keep the car's place") {
         // The first free, as the original's key (0x43B0BF).
         if let Some(n) = (0..ENTRIES).find(|&n| dword(at(n, 0x1C)) == 0) {

@@ -141,7 +141,7 @@ mod tests {
     fn a_connection_is_found_kept_and_found_again() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept_list: Vec<u32> = NET.memory.iter().map(|d| d.get()).collect();
+        let kept_list: Vec<u32> = NET.memory.iter().map(crate::session::Dword::get).collect();
         let bytes = |b: &crate::session::Bytes<16>| (0..16).map(|k| b.get(k)).collect::<Vec<u8>>();
         let kept_saved = bytes(&NET.saved_connection);
         let kept_name: Vec<u8> = (0..64).map(|k| NET.saved_name.get(k)).collect();

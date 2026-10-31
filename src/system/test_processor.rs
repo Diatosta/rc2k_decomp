@@ -82,8 +82,8 @@ fn fpu_words() -> (u16, u16) {
             "fninit",
             "fnstsw word ptr [{s}]",
             "fnstcw word ptr [{c}]",
-            s = in(reg) &mut status,
-            c = in(reg) &mut control,
+            s = in(reg) &raw mut status,
+            c = in(reg) &raw mut control,
             // `fninit` empties the x87 stack.
             out("st(0)") _,
             out("st(1)") _,

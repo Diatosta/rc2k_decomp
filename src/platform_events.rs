@@ -27,7 +27,7 @@ fn next_event() -> Option<Event> {
     // its `type` says which member the reads below take.
     unsafe {
         let mut event: SDL_Event = std::mem::zeroed();
-        if !SDL_PollEvent(&mut event) {
+        if !SDL_PollEvent(&raw mut event) {
             return None;
         }
         // Ctrl+F11, in the race and in the menus (which never run `input::update`), and
@@ -205,7 +205,7 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
         std::sync::OnceLock::new();
     PAD.get_or_init(Default::default)
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// A gamepad's button, for the menus.

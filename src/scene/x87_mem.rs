@@ -80,7 +80,7 @@ fn store<T: Copy>(base: impl Base, off: usize, value: T) {
     unsafe {
         operand(base, off, size_of::<T>())
             .cast::<T>()
-            .write_unaligned(value)
+            .write_unaligned(value);
     }
 }
 
@@ -100,7 +100,7 @@ impl crate::session::Cell32 for HostCell {
         load(self.0, 0)
     }
     fn set_bits(&self, bits: u32) {
-        store(self.0, 0, bits)
+        store(self.0, 0, bits);
     }
 }
 
@@ -119,30 +119,30 @@ pub(crate) fn fld80(base: impl Base, off: usize) -> X {
 /// `fstp dword ptr [base + off]`: the value rounded to a float as the control word says.
 #[track_caller]
 pub(crate) fn fstp(base: impl Base, off: usize, x: X) {
-    store(base, off, st(x))
+    store(base, off, st(x));
 }
 
 /// `fistp dword ptr [base + off]`: the value rounded to a whole number as the control word
 /// says.
 #[track_caller]
 pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
-    store(base, off, to_int(x))
+    store(base, off, to_int(x));
 }
 
 /// `fstp tbyte ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
-    store(base, off, f80(x))
+    store(base, off, f80(x));
 }
 
 /// `fnstsw word ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fnstsw(base: impl Base, off: usize, status: u16) {
-    store(base, off, status)
+    store(base, off, status);
 }
 
 /// `mov dword ptr [base + off], value`.
 #[track_caller]
 pub(crate) fn mov(base: impl Base, off: usize, value: u32) {
-    store(base, off, value)
+    store(base, off, value);
 }

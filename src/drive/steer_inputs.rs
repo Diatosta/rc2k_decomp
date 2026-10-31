@@ -32,7 +32,7 @@ fn scale(
     by: &impl crate::session::Cell32,
     to: &impl crate::session::Cell32,
 ) {
-    to.set_bits(to_int(int(from.bits() as i32) * ld(by.bits())) as u32)
+    to.set_bits(to_int(int(from.bits() as i32) * ld(by.bits())) as u32);
 }
 
 const LEFT: u32 = 0xE000_0000;

@@ -493,16 +493,16 @@ pub struct Game;
 
 impl submit_polygon::Outside for Game {
     fn set_texture(&mut self, texture: u32) {
-        submit_polygon::Game.set_texture(texture)
+        submit_polygon::Game.set_texture(texture);
     }
     fn draw_fan(&mut self) -> u32 {
         submit_polygon::Game.draw_fan()
     }
     fn bad_vertex(&mut self) {
-        submit_polygon::Game.bad_vertex()
+        submit_polygon::Game.bad_vertex();
     }
     fn not_drawn(&mut self, result: u32) {
-        submit_polygon::Game.not_drawn(result)
+        submit_polygon::Game.not_drawn(result);
     }
 }
 

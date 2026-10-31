@@ -57,7 +57,7 @@ pub fn place_sound_object() -> Result<(), Refused> {
         CONTACT_WORK
             .object_point_offset
             .each_ref()
-            .map(|c| c.bits()),
+            .map(super::super::session::Dword::bits),
     );
     cue_plain(o, FIRST, sound, b, offset);
     Ok(())

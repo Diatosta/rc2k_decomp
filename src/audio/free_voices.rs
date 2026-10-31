@@ -29,7 +29,7 @@ pub fn free_voices() -> Result<(), Refused> {
         for n in 0..count as usize {
             crate::audio::release_voice::release_voice_in_game(crate::audio::voices::voice_id(
                 n as u32,
-            ))
+            ));
         }
         AUDIO.voice_count.set(0);
     }

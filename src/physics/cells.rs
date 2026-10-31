@@ -6,7 +6,7 @@ pub fn get(a: u32) -> u32 {
 /// `now` into the cell when it is not `was` (what was read from it).
 pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
     if now != was {
-        c.set_bits(now)
+        c.set_bits(now);
     }
 }
 
@@ -19,7 +19,7 @@ pub fn values<const N: usize>(cells: &[crate::session::Dword; N]) -> [u32; N] {
 /// What changed from `was` to `now` stored into `cells`.
 pub fn set_values_changed(cells: &[crate::session::Dword], was: &[u32], now: &[u32]) {
     for ((c, &w), &n) in cells.iter().zip(was).zip(now) {
-        set_changed(c, w, n)
+        set_changed(c, w, n);
     }
 }
 

@@ -129,7 +129,7 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(a[0], unsafe {
                         &*(crate::pointers::host_at(a[1]) as *const crate::sound::store::RaceClock)
-                    })
+                    });
                 },
             },
             Block {
@@ -161,7 +161,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[2])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                    )
+                    );
                 },
             },
             Block {

@@ -153,7 +153,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -230,9 +230,9 @@ mod asm_differential {
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<WindscreenFlakeState, _>(b[0], WindscreenFlakeState::START, |ss| {
-                        super::scale_axes_x87(sq, ss)
-                    })
-                })
+                        super::scale_axes_x87(sq, ss);
+                    });
+                });
             },
         );
     }

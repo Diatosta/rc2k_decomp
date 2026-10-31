@@ -41,7 +41,7 @@ pub const END: usize = 0x755170;
 
 /// Where IDA 0X755144 is now (`moved::MOVED`'s home).
 pub fn savegame_preview_addr() -> u32 {
-    crate::pointers::game_address(&SAVEGAME_PREVIEW as *const SavegamePreview)
+    crate::pointers::game_address(&raw const SAVEGAME_PREVIEW)
 }
 
 #[cfg(test)]
@@ -56,7 +56,7 @@ mod tests {
         assert!(size_of::<SavegamePreview>() <= (END - START).next_multiple_of(4));
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(savegame_preview_addr()) as *const u8,
+                crate::pointers::host(savegame_preview_addr()).cast_const(),
                 END - START,
             )
         };

@@ -53,7 +53,7 @@ impl SpreadRandom {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPREAD_RANDOM as *const SpreadRandom) as usize
+        crate::pointers::game_address(&raw const SPREAD_RANDOM) as usize
     }
 }
 
@@ -68,7 +68,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(SpreadRandom::START, SpreadRandom::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(SpreadRandom::home()) as *const u8,
+                crate::pointers::host_at(SpreadRandom::home()).cast_const(),
                 SpreadRandom::LEN,
             )
         };

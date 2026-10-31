@@ -104,7 +104,7 @@ fn moved_at(w: *mut u8) {
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
 fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
-    turn_normal(normal.cast(), matrix.cast(), record.cast())
+    turn_normal(normal.cast(), matrix.cast(), record.cast());
 }
 
 fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
@@ -203,7 +203,7 @@ pub fn place_object_points() -> Result<(), Refused> {
         } else {
             crate::scene::object_points::point(from)?
         };
-        rotate(point.as_ptr() as *const i32, matrix, r.as_mut_ptr());
+        rotate(point.as_ptr().cast::<i32>(), matrix, r.as_mut_ptr());
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {

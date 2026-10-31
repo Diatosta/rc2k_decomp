@@ -444,7 +444,7 @@ pub enum Rounding {
 
 /// This thread's rounding (the emulated control word's bits 10 .. 11).
 pub fn rounding() -> Rounding {
-    match (CONTROL.with(|c| c.get()) >> 10) & 3 {
+    match (CONTROL.with(std::cell::Cell::get) >> 10) & 3 {
         0 => Rounding::Nearest,
         1 => Rounding::Down,
         2 => Rounding::Up,
@@ -480,13 +480,13 @@ pub fn finit() {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+        );
     }
 }
 
 /// The control word (`fnstcw`): this thread's emulated one.
 pub fn control_word() -> u16 {
-    CONTROL.with(|c| c.get())
+    CONTROL.with(std::cell::Cell::get)
 }
 
 /// `fldcw`: the control word set (the emulated one; in the tests the real one too).
@@ -495,7 +495,7 @@ pub fn set_control_word(w: u16) {
     // The real control word only matters to the tests' reference assembly.
     #[cfg(all(test, target_arch = "x86"))]
     unsafe {
-        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack))
+        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack));
     };
 }
 

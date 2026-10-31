@@ -128,7 +128,7 @@ impl EdgeMask {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&EDGE_MASK as *const EdgeMask) as usize
+        crate::pointers::game_address(&raw const EDGE_MASK) as usize
     }
 }
 
@@ -140,7 +140,7 @@ mod edge_mask_tests {
     fn edge_mask_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<EdgeMask>(), EdgeMask::LEN);
-        let p = &EDGE_MASK as *const EdgeMask as *const u8;
+        let p = (&raw const EDGE_MASK).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<EdgeMask>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -329,7 +329,7 @@ impl KindBoxes {
     pub const LEN: usize = 0x6E8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KIND_BOXES as *const KindBoxes) as usize
+        crate::pointers::game_address(&raw const KIND_BOXES) as usize
     }
 }
 
@@ -341,7 +341,7 @@ mod kind_boxes_tests {
     fn kind_boxes_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<KindBoxes>(), KindBoxes::LEN);
-        let p = &KIND_BOXES as *const KindBoxes as *const u8;
+        let p = (&raw const KIND_BOXES).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<KindBoxes>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -400,7 +400,7 @@ impl EdgeSettings {
     pub const LEN: usize = 0x5F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&EDGE_SETTINGS as *const EdgeSettings) as usize
+        crate::pointers::game_address(&raw const EDGE_SETTINGS) as usize
     }
 }
 
@@ -419,7 +419,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(EdgeSettings::START, EdgeSettings::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(EdgeSettings::home()) as *const u8,
+                crate::pointers::host_at(EdgeSettings::home()).cast_const(),
                 EdgeSettings::LEN,
             )
         };

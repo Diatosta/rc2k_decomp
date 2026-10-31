@@ -19,7 +19,7 @@ fn get(v: &[&dyn Cell32], k: usize) -> u32 {
 }
 
 fn put(v: &[&dyn Cell32], k: usize, x: u32) {
-    v[k].set_bits(x)
+    v[k].set_bits(x);
 }
 
 /// The Rust core on the variables' cells `v`: the last move.

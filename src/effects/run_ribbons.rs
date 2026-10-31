@@ -21,7 +21,7 @@
 
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::RING_WORK;
-use crate::effects::run_ring::{RING_KINDS, RingKinds};
+use crate::effects::run_ring::RING_KINDS;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
@@ -63,7 +63,7 @@ impl Colours257 {
     pub const LEN: usize = 0x404;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&COLOURS_257 as *const Colours257) as usize
+        crate::pointers::game_address(&raw const COLOURS_257) as usize
     }
 }
 
@@ -76,8 +76,8 @@ fn first_frame(e: u32) {
     first_frame_x87(
         e,
         &CLOCK,
-        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
-    )
+        crate::pointers::game_address(&raw const RING_KINDS) as usize,
+    );
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
@@ -85,13 +85,13 @@ fn move_(e: u32) {
     move_x87(
         e,
         &CLOCK,
-        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
-    )
+        crate::pointers::game_address(&raw const RING_KINDS) as usize,
+    );
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
 fn turn_place(e: u32) {
-    turn_place_x87(e, &DRAW_WORK)
+    turn_place_x87(e, &DRAW_WORK);
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
@@ -182,7 +182,7 @@ fn streak(e: u32) -> Result<bool, Refused> {
 }
 
 fn move_on(e: u32) {
-    move_(e)
+    move_(e);
 }
 
 /// The Rust version (see the header).
@@ -406,7 +406,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -435,7 +435,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -484,7 +484,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -559,8 +559,8 @@ mod asm_differential {
             |b| reference::first_frame_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x38, |e| {
-                    super::first_frame_x87(e, crate::effects::setup::clock_at(b[1]), b[3])
-                })
+                    super::first_frame_x87(e, crate::effects::setup::clock_at(b[1]), b[3]);
+                });
             },
         );
     }
@@ -602,8 +602,8 @@ mod asm_differential {
             |b| reference::move_x87(b[0], b[1], b[2]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x38, |e| {
-                    super::move_x87(e, crate::effects::setup::clock_at(b[0]), b[2])
-                })
+                    super::move_x87(e, crate::effects::setup::clock_at(b[0]), b[2]);
+                });
             },
         );
     }
@@ -650,9 +650,9 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
                     crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x1C, |e| {
-                        super::turn_place_x87(e, dw)
-                    })
-                })
+                        super::turn_place_x87(e, dw);
+                    });
+                });
             },
         );
     }
@@ -665,7 +665,7 @@ mod colours_tests {
     #[test]
     fn colours_start_as_the_games() {
         assert_eq!(size_of::<Colours257>(), Colours257::LEN);
-        let p = &COLOURS_257 as *const Colours257 as *const u8;
+        let p = (&raw const COLOURS_257).cast::<u8>();
         let own: Vec<u8> = (0..Colours257::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

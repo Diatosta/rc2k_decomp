@@ -86,7 +86,7 @@ impl DrawWork {
     pub const LEN: usize = 0x100;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&DRAW_WORK as *const DrawWork) as usize
+        crate::pointers::game_address(&raw const DRAW_WORK) as usize
     }
 }
 
@@ -142,7 +142,7 @@ impl ViewVars {
     pub const LEN: usize = 0x58;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&VIEW_VARS as *const ViewVars) as usize
+        crate::pointers::game_address(&raw const VIEW_VARS) as usize
     }
 }
 
@@ -247,7 +247,7 @@ impl DrawFrame {
     pub const LEN: usize = 0xA4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&DRAW_FRAME as *const DrawFrame) as usize
+        crate::pointers::game_address(&raw const DRAW_FRAME) as usize
     }
 }
 
@@ -334,7 +334,7 @@ impl FlareParts {
     pub const LEN: usize = 0xD8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&FLARE_PARTS as *const FlareParts) as usize
+        crate::pointers::game_address(&raw const FLARE_PARTS) as usize
     }
 }
 
@@ -360,7 +360,7 @@ impl FlareScales {
     pub const LEN: usize = 0x14;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&FLARE_SCALES as *const FlareScales) as usize
+        crate::pointers::game_address(&raw const FLARE_SCALES) as usize
     }
 }
 
@@ -375,7 +375,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(DrawWork::START, DrawWork::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawWork::home()) as *const u8,
+                crate::pointers::host_at(DrawWork::home()).cast_const(),
                 DrawWork::LEN,
             )
         };
@@ -404,7 +404,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(ViewVars::START, ViewVars::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(ViewVars::home()) as *const u8,
+                crate::pointers::host_at(ViewVars::home()).cast_const(),
                 ViewVars::LEN,
             )
         };
@@ -436,7 +436,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(DrawFrame::START, DrawFrame::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(DrawFrame::home()) as *const u8,
+                crate::pointers::host_at(DrawFrame::home()).cast_const(),
                 DrawFrame::LEN,
             )
         };
@@ -476,7 +476,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(FlareParts::START, FlareParts::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(FlareParts::home()) as *const u8,
+                crate::pointers::host_at(FlareParts::home()).cast_const(),
                 FlareParts::LEN,
             )
         };
@@ -495,7 +495,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(FlareScales::START, FlareScales::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(FlareScales::home()) as *const u8,
+                crate::pointers::host_at(FlareScales::home()).cast_const(),
                 FlareScales::LEN,
             )
         };

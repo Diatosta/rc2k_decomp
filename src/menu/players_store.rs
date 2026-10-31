@@ -247,7 +247,7 @@ pub const END: usize = 0x75648C;
 
 /// Where IDA 0x755A4C is now (`moved::MOVED`'s home).
 pub fn players_addr() -> u32 {
-    crate::pointers::game_address(&PLAYER_TABLE as *const PlayerTable)
+    crate::pointers::game_address(&raw const PLAYER_TABLE)
 }
 
 /// Sets the table and each player's name pointer to their places now (the image's held the
@@ -278,7 +278,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(players_addr()) as *const u8,
+                crate::pointers::host(players_addr()).cast_const(),
                 END - START,
             )
         };

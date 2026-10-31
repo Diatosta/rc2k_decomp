@@ -43,7 +43,7 @@ impl GroundNames {
     pub const LEN: usize = 0xA6;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&GROUND_NAMES as *const GroundNames) as usize
+        crate::pointers::game_address(&raw const GROUND_NAMES) as usize
     }
 }
 
@@ -133,7 +133,7 @@ impl MaskBlocks {
     pub const LEN: usize = 0xBB;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&MASK_BLOCKS as *const MaskBlocks) as usize
+        crate::pointers::game_address(&raw const MASK_BLOCKS) as usize
     }
 }
 
@@ -174,7 +174,7 @@ impl PictureCopy {
     pub const LEN: usize = 0x7F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PICTURE_COPY as *const PictureCopy) as usize
+        crate::pointers::game_address(&raw const PICTURE_COPY) as usize
     }
 }
 
@@ -230,7 +230,7 @@ impl KindPictures {
     pub const LEN: usize = 0x88;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&KIND_PICTURES as *const KindPictures) as usize
+        crate::pointers::game_address(&raw const KIND_PICTURES) as usize
     }
 }
 
@@ -240,7 +240,7 @@ mod tests {
     use core::mem::{offset_of, size_of};
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

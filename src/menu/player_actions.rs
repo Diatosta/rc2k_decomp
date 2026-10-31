@@ -133,7 +133,7 @@ pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
 
 pub fn leave_with_carry() {
     // Converted: `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
-    crate::menu::leaving::with_leaving(|l| l.leave_with_carry());
+    crate::menu::leaving::with_leaving(rc2k_core::menu::leaving::Leaving::leave_with_carry);
 }
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current

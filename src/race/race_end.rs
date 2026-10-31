@@ -226,7 +226,7 @@ struct Tidy;
 impl Tidy {
     /// `log_write_l1_nl` of a word.
     fn log(&self, word: &std::ffi::CStr) {
-        crate::logfile::log_write::log_nul(&word, true, 1)
+        crate::logfile::log_write::log_nul(&word, true, 1);
     }
 
     /// `log_write_l1_nl` of the empty text (0x4E00B7).

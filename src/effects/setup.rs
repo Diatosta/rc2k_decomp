@@ -62,7 +62,7 @@ impl MarksClock {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&CLOCK as *const MarksClock) as usize
+        crate::pointers::game_address(&raw const CLOCK) as usize
     }
 }
 
@@ -219,7 +219,10 @@ pub fn make_noise_curve() -> Result<(), Refused> {
     SNOW_VARS.curve_vars[4].set(w.step as u32);
     let mut curve = w.curve;
     let mut copy = vec![0; CURVE_LEN as usize];
-    let weights = SNOW_LIGHT.smooth_weights.each_ref().map(|f| f.bits());
+    let weights = SNOW_LIGHT
+        .smooth_weights
+        .each_ref()
+        .map(super::super::session::Float::bits);
     for _ in 0..core::SMOOTHINGS {
         core::smooth(&mut curve, &mut copy, |a, b, c| {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
@@ -265,7 +268,10 @@ pub fn make_noise_curve() -> Result<(), Refused> {
     }
     MARKS_WORK.seed.set(t.seed);
     SNOW.flag.set(0);
-    let values = SNOW_LIGHT.record_values.each_ref().map(|f| f.bits());
+    let values = SNOW_LIGHT
+        .record_values
+        .each_ref()
+        .map(super::super::session::Float::bits);
     let layout = core::record_values(values);
     for n in 0..CURVE_RECORDS as usize {
         for &(o, v) in &layout {
@@ -306,7 +312,7 @@ impl MarksSettings {
     pub const LEN: usize = 4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SETTINGS as *const MarksSettings) as usize
+        crate::pointers::game_address(&raw const SETTINGS) as usize
     }
 }
 
@@ -330,7 +336,7 @@ impl ClockK {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&CLOCK_K as *const ClockK) as usize
+        crate::pointers::game_address(&raw const CLOCK_K) as usize
     }
 }
 
@@ -340,7 +346,7 @@ mod clock_k_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -371,7 +377,7 @@ mod clock_tests {
         assert_eq!(size_of::<MarksClock>(), MarksClock::LEN);
         let bytes = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(MarksClock::home()) as *const u8,
+                crate::pointers::host_at(MarksClock::home()).cast_const(),
                 MarksClock::LEN,
             )
         };

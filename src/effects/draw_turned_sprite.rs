@@ -108,7 +108,7 @@ impl SpriteUv {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SPRITE_UV as *const SpriteUv) as usize
+        crate::pointers::game_address(&raw const SPRITE_UV) as usize
     }
 }
 
@@ -118,7 +118,7 @@ mod sprite_uv_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

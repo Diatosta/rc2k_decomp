@@ -405,7 +405,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3b0,
                         &CAR.brake_heat[0],
                         &CAR.brake_heat[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -429,7 +429,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3b0,
                         &CAR.brake_heat[1],
                         &CAR.brake_heat[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -452,7 +452,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[4],
                         &CAR.brake_heat[0],
                         &CAR.brake_heat[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -475,7 +475,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[4],
                         &CAR.brake_heat[1],
                         &CAR.brake_heat[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -499,7 +499,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3a8,
                         &CAR.damper_wear[0],
                         &CAR.damper_wear[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -523,7 +523,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3ac,
                         &CAR.damper_wear[1],
                         &CAR.damper_wear[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -546,7 +546,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[6],
                         &CAR.damper_wear[0],
                         &CAR.damper_wear[0],
-                    )
+                    );
                 },
             },
             Block {
@@ -569,7 +569,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[6],
                         &CAR.damper_wear[1],
                         &CAR.damper_wear[1],
-                    )
+                    );
                 },
             },
             Block {
@@ -593,7 +593,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3b4,
                         &CAR.brake_fade,
                         &CAR.brake_fade,
-                    )
+                    );
                 },
             },
             Block {
@@ -616,7 +616,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[8],
                         &CAR.brake_fade,
                         &CAR.brake_fade,
-                    )
+                    );
                 },
             },
             Block {
@@ -640,7 +640,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b3b0,
                         &CAR.brake_fade,
                         &CAR.brake_fade,
-                    )
+                    );
                 },
             },
             Block {
@@ -674,7 +674,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b464,
                         &CAR.engine_heat,
                         &CAR.engine_heat,
-                    )
+                    );
                 },
             },
             Block {
@@ -697,7 +697,7 @@ mod asm_reference {
                         &dm(a[0]).wear_rates[1],
                         &CAR.engine_heat,
                         &CAR.engine_heat,
-                    )
+                    );
                 },
             },
             Block {
@@ -721,7 +721,7 @@ mod asm_reference {
                         &dm(a[0]).flt_75b39c,
                         &CAR.engine_heat,
                         &CAR.engine_heat,
-                    )
+                    );
                 },
             },
             Block {

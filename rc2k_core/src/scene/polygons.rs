@@ -34,7 +34,7 @@ pub struct Vertex {
 
 /// The x87's "below" (C0): also when one of the two is no number.
 fn below(a: f32, b: f32) -> bool {
-    a.partial_cmp(&b).is_none_or(|o| o.is_lt())
+    a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt)
 }
 
 /// `sub_451EED`: whether some vertex of a polygon of three or more is nearer than the

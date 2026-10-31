@@ -83,7 +83,7 @@ pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result
     }
     mixed?;
     MIX.lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
@@ -110,7 +110,9 @@ pub fn write_mix(mode: u32, primary: u32, parts: [u32; 4]) -> Result<(), Refused
     // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer,
     // whole frames of each.
     let size = rc2k_core::audio::mixer::frame_bytes(mode);
-    let mix = *MIX.lock().unwrap_or_else(|e| e.into_inner());
+    let mix = *MIX
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let written = crate::platform_sound::with_parts(primary, parts, |first, second| {
         let whole = |p: &mut [u8]| p.len() / size * size;
         let n = whole(first);

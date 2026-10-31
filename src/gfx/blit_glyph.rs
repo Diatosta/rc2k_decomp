@@ -227,7 +227,7 @@ pub fn blit_glyph_on_surface(
             &mut scratch,
             &mut |offset, bytes| match target {
                 Target::Address(a) => {
-                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface")
+                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface");
                 }
                 Target::Picture(n) => {
                     if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {

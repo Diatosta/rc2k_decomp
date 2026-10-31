@@ -148,11 +148,15 @@ static BACKEND: Mutex<Option<Box<dyn Backend>>> = Mutex::new(None);
 
 /// The backend from now on.
 pub fn set_backend(backend: Box<dyn Backend>) {
-    *BACKEND.lock().unwrap_or_else(|e| e.into_inner()) = Some(backend);
+    *BACKEND
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(backend);
 }
 
 fn backend<R>(f: impl FnOnce(&mut dyn Backend) -> R) -> Option<R> {
-    let mut b = BACKEND.lock().unwrap_or_else(|e| e.into_inner());
+    let mut b = BACKEND
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     b.as_mut().map(|b| f(b.as_mut()))
 }
 
@@ -260,7 +264,9 @@ struct State {
 static STATE: Mutex<Option<State>> = Mutex::new(None);
 
 fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
-    let mut s = STATE.lock().unwrap_or_else(|e| e.into_inner());
+    let mut s = STATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let s = s.get_or_insert_with(|| State {
         entries: HashMap::new(),
     });
@@ -280,7 +286,7 @@ fn arg<T: Copy>(at: u32) -> T {
 
 /// A value written where the game asked (ended when the address is outside its memory).
 fn put<T: Copy>(at: u32, value: T) {
-    crate::pointers::write_or_end(at, value, "a DirectInput method's result")
+    crate::pointers::write_or_end(at, value, "a DirectInput method's result");
 }
 
 /// A new object, in the lowest free place: its handle (0 when the pool is full).
@@ -416,11 +422,7 @@ pub fn enum_devices(
     let devices = backend(|b| b.devices()).unwrap_or_default();
     for d in &devices {
         let instance = device_instance(d);
-        if callback(
-            crate::pointers::game_address(&instance as *const DiDeviceInstance),
-            context,
-        ) == 0
-        {
+        if callback(crate::pointers::game_address(&raw const instance), context) == 0 {
             break;
         }
     }
@@ -517,11 +519,7 @@ pub fn enum_objects(this: u32, callback: EnumObjectsCallback, context: u32, _fla
             name: [0; 260],
             rest: [0; 24],
         };
-        if callback(
-            crate::pointers::game_address(&object as *const DiDeviceObjectInstance),
-            context,
-        ) == 0
-        {
+        if callback(crate::pointers::game_address(&raw const object), context) == 0 {
             break;
         }
     }
@@ -716,11 +714,7 @@ pub fn enum_effects(this: u32, callback: EnumEffectsCallback, context: u32, kind
             dynamic_params: 0x1E5,
             name,
         };
-        if callback(
-            crate::pointers::game_address(&info as *const DiEffectInfo),
-            context,
-        ) == 0
-        {
+        if callback(crate::pointers::game_address(&raw const info), context) == 0 {
             break;
         }
     }

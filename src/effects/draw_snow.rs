@@ -46,12 +46,12 @@ fn scratch() -> Vec<Region> {
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
 fn turn(v: &[u32; 3]) {
-    turn_x87((crate::pointers::game_address(v.as_ptr())) as usize, &SNOW)
+    turn_x87((crate::pointers::game_address(v.as_ptr())) as usize, &SNOW);
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
 fn fade() {
-    fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS)
+    fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS);
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
@@ -62,7 +62,7 @@ fn square(i: u32) {
         &SNOW_TABLES,
         &SNOW,
         &SNOW_LIGHT,
-    )
+    );
 }
 
 /// Flake k's whole-number place and the two curve indices: (eax, ebx, ecx, x index, z
@@ -76,7 +76,7 @@ fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
         let f = (ebx & 0xF_FFFF) >> 11;
         let ix = f.wrapping_add(t.remainders[0][k as usize].get());
         let iz = f.wrapping_add(t.remainders[1][k as usize].get());
-        let shift: [u32; 3] = SNOW.view.each_ref().map(|d| d.get());
+        let shift: [u32; 3] = SNOW.view.each_ref().map(super::super::session::Dword::get);
         let curve = |i: u32| {
             if i < CURVE {
                 SNOW_CURVE.curve[i as usize].get()
@@ -151,7 +151,10 @@ pub fn draw_snow() -> Result<(), Refused> {
                     }
                 }
                 square(4 * k);
-                let [top, bottom] = SNOW_LIGHT.v.each_ref().map(|d| d.get());
+                let [top, bottom] = SNOW_LIGHT
+                    .v
+                    .each_ref()
+                    .map(super::super::session::Dword::get);
                 for n in 0..4 {
                     VERTICES.vertices[n]
                         .v
@@ -324,7 +327,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -369,7 +372,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -421,7 +424,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -520,9 +523,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], SnowState::START, |s| {
                     with_copy(b[0], SnowLight::START, |l| {
-                        with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f))
-                    })
-                })
+                        with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f));
+                    });
+                });
             },
         );
     }
@@ -588,10 +591,10 @@ mod asm_differential {
                 with_copy(b[2], SnowTables::START, |t| {
                     with_copy(b[2], SnowState::START, |s| {
                         with_copy(b[2], SnowLight::START, |l| {
-                            super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l)
-                        })
-                    })
-                })
+                            super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l);
+                        });
+                    });
+                });
             },
         );
     }

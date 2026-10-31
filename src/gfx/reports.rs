@@ -22,7 +22,7 @@ pub static REPORTS: Reports = Reports { on: Dword::new(1) };
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F52AC).
 pub fn home() -> usize {
-    crate::pointers::game_address(&REPORTS as *const Reports) as usize
+    crate::pointers::game_address(&raw const REPORTS) as usize
 }
 
 #[cfg(test)]

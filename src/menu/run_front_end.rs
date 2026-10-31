@@ -40,7 +40,7 @@ pub fn run_front_end() -> Result<(), Refused> {
     run_screen(&crate::menu::main_menu_loop::SCREEN, &Carried::default())?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
     crate::menu::store_player_names::store_player_names(&mut |line| {
-        crate::logfile::log_write::log_nul(line, true, 1)
+        crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(
         crate::pointers::GamePtr::to(&crate::gfx::glyph_tables::TABLES.memory),

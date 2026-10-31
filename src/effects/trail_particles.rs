@@ -110,7 +110,10 @@ pub fn trail_particles(p: u32) -> Result<(), Refused> {
             put(0x34, rounded(moved[0]))?;
             put(0x2C, rounded(moved[1]))?;
             put(0x28, rounded(moved[2]))?;
-            let [a, b] = PARTICLE_TUNING.trail_size_k.each_ref().map(|f| f.bits());
+            let [a, b] = PARTICLE_TUNING
+                .trail_size_k
+                .each_ref()
+                .map(super::super::session::Float::bits);
             put(
                 0x38,
                 x87::times_plus_to_int(a, particle(p, 0x2C)?, b) as u32,

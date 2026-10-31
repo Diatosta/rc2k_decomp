@@ -45,10 +45,14 @@ impl Canvas for GameCanvas {
         true
     }
     fn kerning(&self) -> State {
-        *STATE.lock().unwrap_or_else(|e| e.into_inner())
+        *STATE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     fn set_kerning(&mut self, kerning: State) {
-        *STATE.lock().unwrap_or_else(|e| e.into_inner()) = kerning;
+        *STATE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = kerning;
     }
     fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
         blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette).map(|_| ())

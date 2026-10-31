@@ -80,5 +80,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
 /// the registers it leaves are read by none of its callers.
 pub fn count_down_timers() {
-    count_at(&game())
+    count_at(&game());
 }

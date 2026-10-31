@@ -277,7 +277,7 @@ impl FirstTuning {
 
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&FIRST_TUNING as *const BurstTuning) as usize
+        crate::pointers::game_address(&raw const FIRST_TUNING) as usize
     }
 }
 
@@ -287,7 +287,7 @@ mod first_tuning_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

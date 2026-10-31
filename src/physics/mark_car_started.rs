@@ -29,5 +29,5 @@ fn core(v: &[&dyn Cell32]) {
 
 /// The Rust version.
 pub fn mark_car_started() {
-    core(&game())
+    core(&game());
 }

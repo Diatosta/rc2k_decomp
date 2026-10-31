@@ -509,7 +509,7 @@ pub static HUD: Hud = Hud {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
 pub fn hud_addr() -> u32 {
-    crate::pointers::game_address(&HUD as *const Hud)
+    crate::pointers::game_address(&raw const HUD)
 }
 
 /// The rectangle `n` of the table as an address (`add_sprite` is handed rectangles by
@@ -527,7 +527,7 @@ mod tests {
         let _g = crate::store::test_lock();
         assert_eq!(size_of::<Hud>(), LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host(hud_addr()) as *const u8, LEN)
+            std::slice::from_raw_parts(crate::pointers::host(hud_addr()).cast_const(), LEN)
         };
         let image = crate::moved::image_bytes(START, LEN);
         assert!(

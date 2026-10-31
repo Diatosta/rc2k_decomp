@@ -67,5 +67,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn stall_when_still() {
-    stall_at(&game())
+    stall_at(&game());
 }

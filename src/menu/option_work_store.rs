@@ -109,7 +109,7 @@ pub const END: usize = 0x7556B4;
 
 /// Where IDA 0x755640 is now (`moved::MOVED`'s home).
 pub fn option_work_addr() -> u32 {
-    crate::pointers::game_address(&OPTION_WORK as *const OptionWork)
+    crate::pointers::game_address(&raw const OPTION_WORK)
 }
 
 impl OptionWork {
@@ -144,7 +144,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(option_work_addr()) as *const u8,
+                crate::pointers::host(option_work_addr()).cast_const(),
                 END - START,
             )
         };

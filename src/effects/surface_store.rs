@@ -183,7 +183,7 @@ impl SurfaceTables {
     pub const LEN: usize = 0x464C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&SURFACE as *const SurfaceTables) as usize
+        crate::pointers::game_address(&raw const SURFACE) as usize
     }
 }
 
@@ -195,7 +195,7 @@ impl SurfaceTables {
     pub fn word(&self, at: usize) -> u32 {
         assert!(at + 4 <= Self::LEN);
         crate::pointers::read_or_end(
-            crate::pointers::game_address(self as *const Self) + at as u32,
+            crate::pointers::game_address(std::ptr::from_ref::<Self>(self)) + at as u32,
             "a surface word",
         )
     }
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn the_surface_tables_starts_as_the_games() {
         assert_eq!(size_of::<SurfaceTables>(), SurfaceTables::LEN);
-        let p = &SURFACE as *const SurfaceTables as *const u8;
+        let p = (&raw const SURFACE).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<SurfaceTables>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

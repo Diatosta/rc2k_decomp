@@ -22,7 +22,7 @@ impl<C: Cell32> Cells for [C] {
         self[n].bits()
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        self[n].set_bits(bits)
+        self[n].set_bits(bits);
     }
     fn count(&self) -> usize {
         self.len()
@@ -34,7 +34,7 @@ impl<C: Cell32, const N: usize> Cells for [C; N] {
         self[n].bits()
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        self[n].set_bits(bits)
+        self[n].set_bits(bits);
     }
     fn count(&self) -> usize {
         N
@@ -47,7 +47,7 @@ impl<const N: usize> Cells for crate::session::Bytes<N> {
         self.get_u32(4 * n)
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        self.set_u32(4 * n, bits)
+        self.set_u32(4 * n, bits);
     }
     fn count(&self) -> usize {
         N / 4
@@ -59,7 +59,7 @@ impl<T: Cells + ?Sized> Cells for &T {
         (**self).bits(n)
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        (**self).set_bits(n, bits)
+        (**self).set_bits(n, bits);
     }
     fn count(&self) -> usize {
         (**self).count()
@@ -92,7 +92,7 @@ impl Cells for At {
             self.0.wrapping_add(4 * n as u32),
             bits,
             "a helper's cell",
-        )
+        );
     }
 }
 
@@ -104,7 +104,7 @@ impl<T: Cells + ?Sized> Cells for Off<'_, T> {
         self.0.bits(self.1 + n)
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        self.0.set_bits(self.1 + n, bits)
+        self.0.set_bits(self.1 + n, bits);
     }
 }
 

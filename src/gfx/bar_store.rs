@@ -38,7 +38,7 @@ pub static BAR: BarVars = BarVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x755224).
 pub fn home() -> usize {
-    crate::pointers::game_address(&BAR as *const BarVars) as usize
+    crate::pointers::game_address(&raw const BAR) as usize
 }
 
 #[cfg(test)]

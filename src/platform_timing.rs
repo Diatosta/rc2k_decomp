@@ -91,7 +91,7 @@ pub fn start_sampler() {
                         }
                         let mut context: CONTEXT = std::mem::zeroed();
                         context.ContextFlags = crate::arch::CONTEXT_CONTROL;
-                        let got = GetThreadContext(thread, &mut context) != 0;
+                        let got = GetThreadContext(thread, &raw mut context) != 0;
                         ResumeThread(thread);
                         if got
                             && let Ok(mut samples) = SAMPLES.lock()
@@ -140,7 +140,7 @@ fn hot_places() -> String {
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                     | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                 std::ptr::with_exposed_provenance::<u8>(at),
-                &mut module,
+                &raw mut module,
             ) == 0
             {
                 return format!("{at:#x}");

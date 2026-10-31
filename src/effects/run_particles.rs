@@ -645,7 +645,7 @@ impl TrailColours {
     pub const LEN: usize = 0x4A8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TRAIL_PALETTE as *const TrailColours) as usize
+        crate::pointers::game_address(&raw const TRAIL_PALETTE) as usize
     }
 }
 
@@ -679,7 +679,7 @@ impl PuffWork {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PUFF_WORK as *const PuffWork) as usize
+        crate::pointers::game_address(&raw const PUFF_WORK) as usize
     }
 }
 
@@ -694,7 +694,7 @@ mod typed_tests {
         let image = crate::moved::image_bytes(TrailColours::START, TrailColours::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(TrailColours::home()) as *const u8,
+                crate::pointers::host_at(TrailColours::home()).cast_const(),
                 TrailColours::LEN,
             )
         };
@@ -711,7 +711,7 @@ mod puff_work_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -762,7 +762,7 @@ impl BurstColours {
     pub const LEN: usize = 0x2000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&BURST_COLOURS as *const BurstColours) as usize
+        crate::pointers::game_address(&raw const BURST_COLOURS) as usize
     }
 }
 
@@ -772,7 +772,7 @@ mod burst_colours_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -893,7 +893,7 @@ impl ParticleTuning {
     pub const LEN: usize = 0xB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&PARTICLE_TUNING as *const ParticleTuning) as usize
+        crate::pointers::game_address(&raw const PARTICLE_TUNING) as usize
     }
 }
 
@@ -903,7 +903,7 @@ mod particle_tuning_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

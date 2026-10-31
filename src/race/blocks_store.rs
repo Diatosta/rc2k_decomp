@@ -144,7 +144,7 @@ mod tests {
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::game_address(&CAR_BLOCKS.cars[1].gear as *const _),
+            crate::pointers::game_address(&raw const CAR_BLOCKS.cars[1].gear),
             blocks_addr() + 0xFE0 + 0x1D4
         );
         assert_eq!(
@@ -153,7 +153,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(blocks_addr()) as *const u8,
+                crate::pointers::host(blocks_addr()).cast_const(),
                 END - START,
             )
         };

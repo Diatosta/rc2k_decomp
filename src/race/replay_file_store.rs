@@ -79,7 +79,7 @@ impl ReplayFileBlock {
         // SAFETY: `#[repr(C)]` dwords from `index_magic` to the end of `block_places`, with
         // no padding (all `Dword`s), inside `self`.
         unsafe {
-            &*(self as *const Self)
+            &*std::ptr::from_ref::<Self>(self)
                 .cast::<u8>()
                 .add(core::mem::offset_of!(Self, index_magic))
                 .cast()

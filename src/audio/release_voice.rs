@@ -46,5 +46,5 @@ pub fn release_voice(at: u32, a3d: bool) {
 
 /// With the game's A3D switch.
 pub fn release_voice_in_game(at: u32) {
-    release_voice(at, AUDIO.use_a3d.get() == 1)
+    release_voice(at, AUDIO.use_a3d.get() == 1);
 }

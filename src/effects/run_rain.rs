@@ -45,22 +45,22 @@ fn get(a: u32) -> Result<u32, BadInput> {
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
 fn box_moved(i: usize) {
-    box_moved_x87(i, &RAIN, &RAIN_RULES)
+    box_moved_x87(i, &RAIN, &RAIN_RULES);
 }
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
 fn move_length() {
-    move_length_x87(&RAIN, &RAIN_RULES)
+    move_length_x87(&RAIN, &RAIN_RULES);
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
 fn move_held() {
-    move_held_x87(&RAIN, &RAIN_RULES)
+    move_held_x87(&RAIN, &RAIN_RULES);
 }
 
 /// The original's 0x4C1A0A .. 0x4C1A1C: the view's y plus the drift (`fistp`) kept in its entry.
 fn keep_y(i: usize) {
-    keep_y_x87(i, &RAIN)
+    keep_y_x87(i, &RAIN);
 }
 
 /// The Rust version (see the header).
@@ -248,7 +248,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -272,7 +272,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -296,7 +296,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -311,7 +311,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }

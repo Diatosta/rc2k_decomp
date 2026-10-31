@@ -13,7 +13,7 @@ impl Loose32 {
     }
 
     pub fn set(&self, value: u32) {
-        self.0.set_u32(0, value)
+        self.0.set_u32(0, value);
     }
 
     pub fn addr(&self) -> u32 {

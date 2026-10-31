@@ -20,7 +20,7 @@ impl TextBuffer {
     pub const LEN: usize = 0x400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TEXT_BUFFER as *const TextBuffer) as usize
+        crate::pointers::game_address(&raw const TEXT_BUFFER) as usize
     }
 }
 
@@ -35,7 +35,7 @@ mod tests {
         let image = crate::moved::image_bytes(TextBuffer::START, TextBuffer::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(TextBuffer::home()) as *const u8,
+                crate::pointers::host_at(TextBuffer::home()).cast_const(),
                 TextBuffer::LEN,
             )
         };

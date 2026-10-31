@@ -72,7 +72,7 @@ fn in_module(address: usize) -> Option<String> {
         if GetModuleHandleExW(
             flags,
             std::ptr::with_exposed_provenance::<u16>(address),
-            &mut module,
+            &raw mut module,
         ) == 0
         {
             return None;
@@ -95,7 +95,7 @@ fn in_module(address: usize) -> Option<String> {
     // the module is loaded.
     unsafe {
         let mut found: libc::Dl_info = std::mem::zeroed();
-        if libc::dladdr(std::ptr::with_exposed_provenance(address), &mut found) == 0
+        if libc::dladdr(std::ptr::with_exposed_provenance(address), &raw mut found) == 0
             || found.dli_fname.is_null()
         {
             return None;
@@ -270,9 +270,9 @@ fn install_fault_reporter() {
         let mut action: libc::sigaction = std::mem::zeroed();
         action.sa_sigaction = on_signal as *const () as usize;
         action.sa_flags = libc::SA_SIGINFO | libc::SA_ONSTACK;
-        libc::sigemptyset(&mut action.sa_mask);
+        libc::sigemptyset(&raw mut action.sa_mask);
         for signal in [libc::SIGSEGV, libc::SIGBUS] {
-            libc::sigaction(signal, &action, std::ptr::null_mut());
+            libc::sigaction(signal, &raw const action, std::ptr::null_mut());
         }
     }
 }

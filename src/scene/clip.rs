@@ -61,7 +61,7 @@ pub fn listed_with_records() -> Result<Vec<&'static PolygonEntry>, BadInput> {
 
 /// The x87's "below" of `a` against `b`: also when one of them is no number.
 pub fn below(a: f64, b: f64) -> bool {
-    a.partial_cmp(&b).is_none_or(|order| order.is_lt())
+    a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt)
 }
 
 /// `bytes` into the work's dwords from byte `at` (little-endian, as the work is laid out).
@@ -109,15 +109,15 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
         Edge::X(at) => {
             DRAW.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4] = at;
-            cut_at_x(&mut w);
+            cut_at_x(&raw mut w);
         }
         Edge::Y(at) => {
             DRAW.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4 + 1] = at;
-            cut_at_y(&mut w);
+            cut_at_y(&raw mut w);
         }
         Edge::Depth(_) => {
-            cut_at_depth(&mut w);
+            cut_at_depth(&raw mut w);
             // Onto the screen, as `scene::project_point` does it.
             let mut point = [0u32; 8];
             point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);

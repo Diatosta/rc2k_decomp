@@ -140,7 +140,7 @@ pub fn place_camera() {
             turn_point_xz::turn_point_xz,
         ),
         &second,
-    )
+    );
 }
 
 // ---- the arithmetic that was x87 assembly ----

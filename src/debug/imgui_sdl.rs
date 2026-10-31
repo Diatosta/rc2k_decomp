@@ -198,8 +198,8 @@ pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
         let (mut w, mut h, mut pw, mut ph) = (0, 0, 0, 0);
         // SAFETY: as above; the renderer is the window's.
         unsafe {
-            SDL_GetWindowSize(window, &mut w, &mut h);
-            SDL_GetRenderOutputSize(renderer, &mut pw, &mut ph);
+            SDL_GetWindowSize(window, &raw mut w, &raw mut h);
+            SDL_GetRenderOutputSize(renderer, &raw mut pw, &raw mut ph);
         }
         if w <= 0 || h <= 0 {
             return;
@@ -312,7 +312,12 @@ fn render(
                     };
                     // SAFETY: `rows` holds the rectangle's rows of `pitch` bytes.
                     unsafe {
-                        SDL_UpdateTexture(texture.sdl, &rect, rows.as_ptr().cast(), pitch as i32)
+                        SDL_UpdateTexture(
+                            texture.sdl,
+                            &raw const rect,
+                            rows.as_ptr().cast(),
+                            pitch as i32,
+                        )
                     };
                 }
                 let id = TextureId::new(texture.sdl.expose_provenance() as u64);
@@ -386,7 +391,7 @@ fn render(
             // SAFETY: the vertices from `first` on and `count` indices of them (each below
             // the vertex count, ImGui's), the texture one made above.
             unsafe {
-                SDL_SetRenderClipRect(renderer, &clip);
+                SDL_SetRenderClipRect(renderer, &raw const clip);
                 SDL_RenderGeometryRaw(
                     renderer,
                     texture,

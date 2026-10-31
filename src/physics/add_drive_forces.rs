@@ -17,7 +17,7 @@ use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 fn put(a: &dyn Cell32, v: u32) {
-    a.set_bits(v)
+    a.set_bits(v);
 }
 
 /// The core on the variables' cells.
@@ -54,5 +54,5 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub fn add_drive_forces() {
-    add_drive_forces_at(&game())
+    add_drive_forces_at(&game());
 }

@@ -421,7 +421,7 @@ impl LinesWork {
     pub const LEN: usize = 0x188;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&LINES_WORK as *const LinesWork) as usize
+        crate::pointers::game_address(&raw const LINES_WORK) as usize
     }
 }
 
@@ -431,7 +431,7 @@ mod lines_work_tests {
     use std::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

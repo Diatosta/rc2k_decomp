@@ -592,7 +592,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell;
-                    x87_7(&HostCell(a[0]), &HostCell(a[1]), &HostCell(a[3]))
+                    x87_7(&HostCell(a[0]), &HostCell(a[1]), &HostCell(a[3]));
                 },
             },
             Block {

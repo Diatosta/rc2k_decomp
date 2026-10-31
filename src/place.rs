@@ -24,7 +24,7 @@ impl<const N: usize> Run for Bytes<N> {
         Bytes::get(self, n)
     }
     fn set(&self, n: usize, v: u8) {
-        Bytes::set(self, n, v)
+        Bytes::set(self, n, v);
     }
     fn as_ptr(&self) -> *mut u8 {
         Bytes::as_ptr(self)

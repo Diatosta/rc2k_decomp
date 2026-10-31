@@ -171,7 +171,7 @@ mod asm_reference {
                         0x18,
                         0x10,
                         4,
-                    )
+                    );
                 },
             },
             Block {
@@ -208,7 +208,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SurfaceSounds)
                         },
                         a[3],
-                    )
+                    );
                 },
             },
             Block {
@@ -241,7 +241,7 @@ mod asm_reference {
                         0x24,
                         0x1C,
                         8,
-                    )
+                    );
                 },
             },
             Block {
@@ -272,7 +272,7 @@ mod asm_reference {
                                 as *const crate::sound::store::SoundObject)
                         },
                         a[1],
-                    )
+                    );
                 },
             },
         ]

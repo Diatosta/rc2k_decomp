@@ -51,7 +51,7 @@ fn differences(w: *mut u8, top: *mut u8, below: *mut u8) {
 
 /// t = `below` / `top` into the work block (`fdivp`).
 fn ratio(w: *mut u8, top: *const u8, below: *const u8) {
-    fstp(w, 0x30, fld80(below, 0) / fld80(top, 0))
+    fstp(w, 0x30, fld80(below, 0) / fld80(top, 0));
 }
 
 /// The point (A + (B - A) t in x, y and z) into the work block.
@@ -192,7 +192,7 @@ mod asm_reference {
                         crate::pointers::host_at(a[0]),
                         crate::pointers::host_at(a[1]),
                         crate::pointers::host_at(a[2]),
-                    )
+                    );
                 },
             },
             Block {
@@ -216,9 +216,9 @@ mod asm_reference {
                 plain: |a| {
                     ratio(
                         crate::pointers::host_at(a[0]),
-                        crate::pointers::host_at(a[1]) as *const u8,
-                        crate::pointers::host_at(a[2]) as *const u8,
-                    )
+                        crate::pointers::host_at(a[1]).cast_const(),
+                        crate::pointers::host_at(a[2]).cast_const(),
+                    );
                 },
             },
             Block {

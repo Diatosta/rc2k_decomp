@@ -53,7 +53,7 @@ impl TwentySecondTuning {
 
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TWENTY_SECOND_TUNING as *const TwinTuning) as usize
+        crate::pointers::game_address(&raw const TWENTY_SECOND_TUNING) as usize
     }
 }
 
@@ -62,7 +62,7 @@ mod twenty_second_tuning_tests {
     use super::*;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

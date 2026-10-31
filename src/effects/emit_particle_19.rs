@@ -182,7 +182,7 @@ impl TwinState {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&TWIN_STATE as *const TwinState) as usize
+        crate::pointers::game_address(&raw const TWIN_STATE) as usize
     }
 }
 
@@ -192,7 +192,7 @@ mod twin_state_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
@@ -259,7 +259,7 @@ impl NineteenthTuning {
 
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&NINETEENTH_TUNING as *const TwinTuning) as usize
+        crate::pointers::game_address(&raw const NINETEENTH_TUNING) as usize
     }
 }
 
@@ -269,7 +269,7 @@ mod nineteenth_tuning_tests {
     use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = v as *const T as *const u8;
+        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()

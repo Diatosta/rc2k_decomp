@@ -33,7 +33,7 @@ fn turn(p: &[[u8; 10]; 3]) {
         (crate::pointers::game_address(p.as_ptr())) as usize,
         &RING_WORK,
         &DRAW_WORK,
-    )
+    );
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
@@ -42,7 +42,7 @@ fn square() {
     square_x87(
         crate::d3d::vertices_store::piece_addr() as usize,
         &DRAW_WORK,
-    )
+    );
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
@@ -225,7 +225,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 
@@ -279,7 +279,7 @@ mod asm_reference {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-            )
+            );
         }
     }
 }
@@ -339,9 +339,9 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(b[2], w, dw)
-                    })
-                })
+                        super::turn_x87(b[2], w, dw);
+                    });
+                });
             },
         );
     }
@@ -394,8 +394,8 @@ mod asm_differential {
             |b| reference::square_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    super::square_x87(b[1].wrapping_add(0x5605A0), dw)
-                })
+                    super::square_x87(b[1].wrapping_add(0x5605A0), dw);
+                });
             },
         );
     }

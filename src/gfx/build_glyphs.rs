@@ -106,7 +106,7 @@ pub static SHEET: SheetVars = SheetVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519598).
 pub fn home() -> usize {
-    crate::pointers::game_address(&SHEET as *const SheetVars) as usize
+    crate::pointers::game_address(&raw const SHEET) as usize
 }
 
 const RECORD_HEAD: u32 = 0x1C;

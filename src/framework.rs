@@ -35,7 +35,7 @@ pub fn game_addr(rva: usize) -> u32 {
 
 /// Pointer to game memory at `rva`.
 pub fn game_ptr<T>(rva: usize) -> *mut T {
-    crate::pointers::host(game_addr(rva)) as *mut T
+    crate::pointers::host(game_addr(rva)).cast::<T>()
 }
 
 /// Reads a game global. Call it on every use: the game changes these at runtime.
@@ -67,9 +67,9 @@ pub fn game_write<T: Copy>(rva: usize, value: T) {
     );
     unsafe {
         if p.is_aligned() {
-            p.write_volatile(value)
+            p.write_volatile(value);
         } else {
-            p.write_unaligned(value)
+            p.write_unaligned(value);
         }
     }
 }

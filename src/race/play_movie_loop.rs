@@ -27,11 +27,11 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 ]; // "dpg replay" ..
 
 fn log_text(text: &std::ffi::CStr, newline: bool) {
-    crate::logfile::log_write::log_nul(&text, newline, 1)
+    crate::logfile::log_write::log_nul(&text, newline, 1);
 }
 
 fn log_number(n: u32) {
-    crate::logfile::log_int::log_int(n as i32, true, 1)
+    crate::logfile::log_int::log_int(n as i32, true, 1);
 }
 
 /// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose

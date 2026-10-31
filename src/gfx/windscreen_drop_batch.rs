@@ -41,7 +41,7 @@ pub static WINDSCREEN_DROP_BATCH: WindscreenDrops = WindscreenDrops {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x62423C).
 pub fn home() -> usize {
-    crate::pointers::game_address(&WINDSCREEN_DROP_BATCH as *const WindscreenDrops) as usize
+    crate::pointers::game_address(&raw const WINDSCREEN_DROP_BATCH) as usize
 }
 
 #[cfg(test)]

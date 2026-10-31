@@ -51,7 +51,10 @@ pub fn place_spline(n: u32) -> Result<(), Refused> {
         return Err(BadInput("a spline number of 8 or more").into());
     }
     {
-        let k = SPLINE_CONSTANTS.place_k.each_ref().map(|f| f.bits());
+        let k = SPLINE_CONSTANTS
+            .place_k
+            .each_ref()
+            .map(super::super::session::Float::bits);
         SPLINE_WORK.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(get(settings + 0x26DC)?, k[0], k[1]);

@@ -330,7 +330,9 @@ static SEEN: std::sync::Mutex<Option<Seen>> = std::sync::Mutex::new(None);
 /// ends the watch). At most four at once: a fifth is not watched.
 pub fn watch(name: &'static str, start: u32, end: u32) {
     use std::sync::atomic::Ordering::Release;
-    let mut names = WATCH_NAMES.lock().unwrap_or_else(|e| e.into_inner());
+    let mut names = WATCH_NAMES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let slot = names
         .iter()
         .position(|n| *n == name)
@@ -419,7 +421,7 @@ impl GamePtr {
 
     /// The game address of a field of Rust's game state (a store's cell, buffer or place).
     pub fn to<T: ?Sized>(field: &T) -> Self {
-        Self::new(game_address(field as *const T as *const u8))
+        Self::new(game_address(std::ptr::from_ref::<T>(field).cast::<u8>()))
     }
 
     pub const fn addr(self) -> u32 {
@@ -473,7 +475,7 @@ impl GamePtr {
     pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: as `read`; the regions are the game's writable memory.
-        unsafe { (host(self.0) as *mut T).write_unaligned(value) };
+        unsafe { host(self.0).cast::<T>().write_unaligned(value) };
         Ok(())
     }
 
@@ -676,7 +678,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { (host(addr) as *mut T).write_unaligned(value) }
+        unsafe { host(addr).cast::<T>().write_unaligned(value) }
     }
 
     /// Checked bytes written, as `write_or_end`.

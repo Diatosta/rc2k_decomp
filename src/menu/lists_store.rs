@@ -1457,7 +1457,7 @@ pub const END: usize = 0x75A658;
 
 /// Where IDA 0X7594AA is now (`moved::MOVED`'s home).
 pub fn menu_lists_addr() -> u32 {
-    crate::pointers::game_address(&MENU_LISTS as *const MenuLists)
+    crate::pointers::game_address(&raw const MENU_LISTS)
 }
 
 /// The tables of text handles (IDA start, entries).
@@ -1506,7 +1506,7 @@ mod tests {
         let size = size_of::<MenuLists>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(&MENU_LISTS as *const MenuLists as *const u8, END - START)
+            std::slice::from_raw_parts((&raw const MENU_LISTS).cast::<u8>(), END - START)
         };
         // The car lists' entries are handles: the image's addresses made handles to compare.
         let mut image = image_bytes(START, END - START);

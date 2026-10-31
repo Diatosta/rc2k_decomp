@@ -27,7 +27,7 @@ fn get(v: &[&Dword], k: usize) -> u32 {
 }
 
 fn put(v: &[&Dword], k: usize, x: u32) {
-    v[k].set_bits(x)
+    v[k].set_bits(x);
 }
 
 /// The Rust version on the variables at `v` (`game`'s order).

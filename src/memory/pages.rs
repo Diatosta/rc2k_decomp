@@ -27,7 +27,7 @@ pub fn take(bytes: usize) -> Option<u32> {
     let at = crate::pointers::lend_system_block(block, bytes);
     BLOCKS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .insert(at, (block.expose_provenance(), layout));
     Some(at)
@@ -38,7 +38,7 @@ pub fn take(bytes: usize) -> Option<u32> {
 pub fn give_back(at: u32) -> Result<(), crate::errors::BadInput> {
     let (host, layout) = BLOCKS
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .remove(&at)
         .ok_or(crate::errors::BadInput(

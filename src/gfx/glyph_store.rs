@@ -41,7 +41,9 @@ static STORE: Mutex<Store> = Mutex::new(Store {
 });
 
 fn store() -> std::sync::MutexGuard<'static, Store> {
-    STORE.lock().unwrap_or_else(|e| e.into_inner())
+    STORE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// Whether `v` names a palette or a table of the store (not a game address).

@@ -28,12 +28,12 @@ fn turn_kept(a: usize, b: usize, sc: &[Float; 2]) {
 
 /// `effects::turn_kept_xz`: x and z by the second angle.
 pub fn turn_kept_xz() {
-    turn_kept(0, 2, &KEPT.second_sine_cosine)
+    turn_kept(0, 2, &KEPT.second_sine_cosine);
 }
 
 /// `effects::turn_kept_zy`: z and y by the first angle.
 pub fn turn_kept_zy() {
-    turn_kept(2, 1, &KEPT.first_sine_cosine)
+    turn_kept(2, 1, &KEPT.first_sine_cosine);
 }
 
 /// `effects::turn_kept_vectors`: the sines and cosines, then both turns.
