@@ -32,13 +32,10 @@
 //! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
 //! and says so in the log.
 
-use crate::framework::{log, rva};
+use crate::framework::log;
 use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use std::ffi::{CStr, c_char, c_void};
-
-pub static HOOK: crate::framework::RawHook =
-    crate::framework::RawHook::new("gfx::play_film", rva(0x41AE39));
 
 /// IDA's address of the `nofmv` switch.
 pub const NO_FMV_START: usize = 0x5BE870;
@@ -857,7 +854,6 @@ fn run(film: &mut Film) -> u8 {
 /// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
 /// (the zero flag clear); else the film at `path`, true at its end.
 pub fn play_film_now(path: u32) -> bool {
-    HOOK.count_call();
     if NO_FMV.get() != 0 {
         return false;
     }

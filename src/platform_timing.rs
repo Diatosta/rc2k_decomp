@@ -107,7 +107,7 @@ pub fn start_sampler() {
 }
 
 /// The samples since the last report, as a line of the hottest places: the program's
-/// (`rc2k+offset`, for `llvm-symbolizer`), the game's (its IDA address) or a DLL's.
+/// (`rc2k+offset`, for `llvm-symbolizer`) or a DLL's.
 #[cfg(windows)]
 fn hot_places() -> String {
     use windows_sys::Win32::System::LibraryLoader::{
@@ -125,11 +125,9 @@ fn hot_places() -> String {
     if total == 0 {
         return String::new();
     }
-    // Host addresses throughout (sampled instruction pointers, modules); the game's
-    // reserved image by its host address.
+    // Host addresses throughout (sampled instruction pointers, modules).
     // SAFETY: a null name asks for the program's own module.
     let program = unsafe { GetModuleHandleA(std::ptr::null()) }.expose_provenance();
-    let game = crate::pointers::host(crate::framework::game_addr(0)).expose_provenance();
     // by function-sized buckets would need symbols: by address, the top 24
     let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
@@ -150,9 +148,6 @@ fn hot_places() -> String {
             let base = module.expose_provenance();
             if base == program {
                 return format!("rc2k+{:#x}", at - base);
-            }
-            if base == game.wrapping_add(0x40_0000) || base == game {
-                return format!("game {:#x}", at.wrapping_sub(game));
             }
             let mut file = [0u8; 260];
             let n = GetModuleFileNameA(module, file.as_mut_ptr(), 260) as usize;

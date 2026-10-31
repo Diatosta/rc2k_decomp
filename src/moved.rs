@@ -2514,21 +2514,6 @@ mod tests {
         places
     }
 
-    /// `standalone`'s reserved image has the image's size and its code where the image had it.
-    #[test]
-    fn the_image_layout_is_the_images() {
-        let word = |at: usize| u32::from_le_bytes(IMAGE_DATA[at..at + 4].try_into().unwrap());
-        assert_eq!(word(8) as usize, crate::standalone::IMAGE_SIZE);
-        assert_eq!(word(12) as usize, IMAGE_BASE);
-        let code: Vec<(usize, usize)> = image_sections()
-            .0
-            .into_iter()
-            .filter(|&(_, _, flags)| flags & 1 != 0)
-            .map(|(rva, len, _)| (rva, len))
-            .collect();
-        assert_eq!(&code[..], &crate::standalone::CODE[..]);
-    }
-
     #[test]
     fn image_bytes_reads_the_image() {
         assert_eq!(image_bytes(0x4E0000, 6), b"$VER: ");

@@ -26,12 +26,10 @@
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
-use crate::framework::{RawHook, Regs, log, rva};
+use crate::framework::{Regs, log};
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
 use std::sync::atomic::Ordering;
-
-pub static HOOK: RawHook = RawHook::new("fatal::report", rva(0x40763C));
 
 const _: () = assert!(size_of::<Regs>() == 36);
 
@@ -110,7 +108,6 @@ pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInpu
 /// out, on a slot's thread its routine (the Rust version) run again, which finds the game
 /// quitting, and the thread ended.
 pub fn report_now(r: &Regs) {
-    HOOK.count_call();
     let context = Context {
         eax: r.eax,
         ebx: r.ebx,

@@ -2,8 +2,11 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
+#[cfg(test)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+/// Where a test's memory stands for addresses with no home (`game_addr`).
+#[cfg(test)]
 pub static BASE: AtomicUsize = AtomicUsize::new(0);
 /// The program's log (`rc2k.log`), set by `standalone::run`. Nothing is written before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
@@ -15,68 +18,17 @@ pub const fn rva(addr: usize) -> usize {
     addr - IMAGE_BASE
 }
 
-pub trait GameHook: Sync {
-    fn name(&self) -> &'static str;
-    fn rva(&self) -> usize;
-    fn stats(&self) -> &HookStats;
-}
-
-/// A function of the game's that the platform (or the fatal reporter) stands for: its
-/// name, its address (to name a fault's place) and its calls counted. Nothing runs at the
-/// address itself (2026-10-24).
-pub struct RawHook {
-    name: &'static str,
-    rva: usize,
-    pub stats: HookStats,
-}
-impl RawHook {
-    pub const fn new(name: &'static str, rva: usize) -> Self {
-        Self {
-            name,
-            rva,
-            stats: HookStats::new(),
-        }
-    }
-
-    /// Counts one call. First line of every `dispatch`.
-    pub fn count_call(&self) {
-        self.stats.calls.fetch_add(1, Ordering::Relaxed);
-    }
-}
-impl GameHook for RawHook {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-    fn rva(&self) -> usize {
-        self.rva
-    }
-    fn stats(&self) -> &HookStats {
-        &self.stats
-    }
-}
-
-pub struct HookStats {
-    pub calls: AtomicUsize,
-}
-impl Default for HookStats {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-impl HookStats {
-    pub const fn new() -> Self {
-        Self {
-            calls: AtomicUsize::new(0),
-        }
-    }
-}
-
 /// The address of the game's variable at `rva`: in the image, or for a variable that has
 /// left it (phase 5, `crate::moved`) its new home, so an address the code still names by its
 /// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
 pub fn game_addr(rva: usize) -> u32 {
     match crate::moved::home_of_rva(rva) {
         Some(home) => home as u32,
+        // No home: the number as IDA shows it, which no allocation holds, so a read of it ends
+        // the program naming it.
+        #[cfg(not(test))]
+        None => (IMAGE_BASE + rva) as u32,
+        #[cfg(test)]
         None => (BASE.load(Ordering::Relaxed) + rva) as u32,
     }
 }

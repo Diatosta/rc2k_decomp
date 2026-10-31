@@ -2,17 +2,13 @@
 //! Rust, without RAL.EXE.
 //!
 //! What happens (`run`):
-//! 1. The game's address range (0x400000 on, `IMAGE_SIZE`) is reserved with no access
-//!    and nothing in it (`build_image`): every variable and constant of the game's has a
-//!    home in Rust (`crate::moved`, phase 5), and the game's pointers that moved with
-//!    their blocks are pointed at their targets.
+//! 1. Every variable and constant of the game's has a home in Rust (`crate::moved`); the
+//!    game's own pointers stay IDA's addresses, resolved where they are read.
 //! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
 //!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
 //!    version (`menu::table_calls`, `crate::routes`); an address
-//!    with none ends the program, "not ported" (owner, 2026-10-23). The functions the
-//!    platform stands for are named here by their addresses (`HOOKED`).
-//! 3. `on_exception` only reports: a read or write of an address with no home, a jump
-//!    into the game's range, anything else, with the place and the stack's return
+//!    with none ends the program, "not ported" (owner, 2026-10-23).
+//! 3. `on_exception` only reports the fault, with the place and the stack's return
 //!    addresses, and ends the program.
 //!
 //! A refusal (`BadInput`) ends the program with its reason; a fatal error is reported
@@ -20,13 +16,11 @@
 //! piece of the platform: see `stand_in`.
 
 use crate::errors::Refused;
-use crate::framework::{GameHook, LOG_PATH, Regs, log};
+use crate::framework::{LOG_PATH, Regs, log};
 use crate::install::outside::Game as Outside;
 use crate::install::vars::INSTALLER_NAMES;
-use crate::registry::ALL;
 use crate::session::MACHINE;
 use std::path::Path;
-use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
@@ -34,67 +28,6 @@ use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
 use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
 };
-
-const IMAGE_BASE: usize = 0x400000;
-
-// ---- the game's file, laid out in memory ----
-
-/// Where the game's image is, and its sections of code.
-struct Image {
-    base: usize,
-    size: usize,
-    code: Vec<(usize, usize)>,
-}
-
-static IMAGE: OnceLock<Image> = OnceLock::new();
-
-/// The size of RAL.EXE's image, from its base 0x400000.
-pub(crate) const IMAGE_SIZE: usize = 0x6C0000;
-
-/// RAL.EXE's sections of code (rva, length): `.text` and `GURUS`.
-pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8B)];
-
-/// The game's image as places only (phase 5, 2026-10-24: every variable and constant the
-/// game reads has a home in Rust, `crate::moved`): the address range RAL.EXE would have,
-/// reserved without access. A call into it is a hook's address or a function not ported,
-/// and a read of it an address with no home: the fault handler names either.
-fn build_image() -> Result<Image, String> {
-    let base = match crate::os::reserve(IMAGE_SIZE) {
-        None => 0,
-        Some(reserved) => crate::address_map::map(reserved, IMAGE_SIZE),
-    };
-    if base == 0 {
-        return Err("no address range for the game's image".into());
-    }
-    log(&format!(
-        "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
-    ));
-    Ok(Image {
-        base: base as usize,
-        size: IMAGE_SIZE,
-        code: CODE
-            .iter()
-            .map(|&(rva, len)| (base as usize + rva, len))
-            .collect(),
-    })
-}
-
-/// The address as IDA shows it, if it lies in the game's image.
-fn ida(address: usize) -> Option<usize> {
-    let image = IMAGE.get()?;
-    (image.base..image.base + image.size)
-        .contains(&address)
-        .then(|| address - image.base + IMAGE_BASE)
-}
-
-fn in_code(address: usize) -> bool {
-    IMAGE.get().is_some_and(|image| {
-        image
-            .code
-            .iter()
-            .any(|&(at, len)| (at..at + len).contains(&address))
-    })
-}
 
 // ---- the hooks, and no execution of anything else ----
 
@@ -116,35 +49,6 @@ const LONE_RETN: [usize; 119] = [
     0x4C9AF5, 0x4CAE5B, 0x4CB795, 0x4D0BA7, 0x4D0BA8, 0x4D0EB3, 0x4D1710, 0x4D2C9A, 0x4D5C40,
     0x4D6AE4, 0x48558A,
 ];
-
-/// Every hook's place and name.
-static HOOKED: OnceLock<Vec<(usize, &'static str)>> = OnceLock::new();
-
-fn install_and_lock(image: &Image) -> Result<(), String> {
-    // No code runs at the game's addresses: the platform's functions and the fatal
-    // reporter are named by theirs, kept here to name a fault's place and for the calls
-    // counted at the end.
-    let installed = crate::mark_all_installed(image.base);
-    let hooks: Vec<&'static dyn GameHook> = ALL
-        .iter()
-        .zip(&installed)
-        .filter(|&(_, &ok)| ok)
-        .map(|(hook, _)| *hook)
-        .chain(crate::platform::HOOKS.iter().copied())
-        .chain(crate::platform_3d::HOOKS.iter().copied())
-        .collect();
-    let hooked: Vec<(usize, &'static str)> = hooks
-        .iter()
-        .map(|hook| (image.base + hook.rva(), hook.name()))
-        .collect();
-    log(&format!(
-        "standalone: {} functions of the game's stand in Rust by their addresses, {} of them the platform's",
-        hooked.len(),
-        crate::platform::HOOKS.len() + crate::platform_3d::HOOKS.len()
-    ));
-    let _ = HOOKED.set(hooked);
-    Ok(())
-}
 
 // ---- what the faults catch ----
 
@@ -252,43 +156,9 @@ pub fn not_ported(at: usize, from: &str) -> ! {
 
 pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
-    menu_watch::report();
-    // The functions of the game's that the platform stands for, by their calls.
-    let mut reached: Vec<(&str, usize)> = ALL
-        .iter()
-        .map(|h| (h.name(), h.stats().calls.load(Ordering::Relaxed)))
-        .filter(|&(_, calls)| calls > 0)
-        .collect();
-    reached.sort();
-    log(&format!(
-        "standalone: {} hooks were reached by address:",
-        reached.len()
-    ));
-    for (name, calls) in reached {
-        log(&format!("  {name}  {calls} calls"));
-    }
     // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
     crate::os::terminate(code)
-}
-
-fn place(address: usize) -> String {
-    match ida(address) {
-        Some(at) => {
-            let hook = HOOKED.get().and_then(|hooked| {
-                hooked.iter().find(|&&(hook, _)| {
-                    IMAGE
-                        .get()
-                        .is_some_and(|image| hook - image.base + IMAGE_BASE == at)
-                })
-            });
-            match hook {
-                Some((_, name)) => format!("{at:#x} ({name})"),
-                None => format!("{at:#x}"),
-            }
-        }
-        None => "Rust code".into(),
-    }
 }
 
 /// The platform's functions `start` calls that SDL stands for: (the function, what it is).
@@ -312,56 +182,14 @@ pub fn answers(at: usize) -> bool {
 /// address it read or wrote (`write`), `sp` the thread's stack pointer (host addresses).
 /// Shared by the systems' handlers.
 fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
-    // The system's numbers are host addresses: `ida`, `in_code` and `place` take game ones,
-    // `in_module` and `stack_returns` host ones.
-    let game = |n: usize| crate::pointers::game_of(n) as usize;
-    let address = game(host);
     let verb = if write { "writing" } else { "reading" };
-    // A call or jump into the game's image faults at the address it went to.
-    if ida(address).is_none() {
-        // Rust reading the game's code, which the standalone does not have (step B's audit)
-        let read = game(data);
-        if !write && in_code(read) {
-            log(&format!(
-                "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
-                ida(read).unwrap_or(0),
-                stack_returns(sp)
-            ));
-        } else if let Some(at) = ida(read) {
-            log(&format!(
-                "standalone: Rust {} the game's variable at {at:#x}, which has no home in Rust (phase 5: not moved); return addresses on the stack: {}",
-                if write { "wrote" } else { "read" },
-                stack_returns(sp)
-            ));
-        }
-        log(&format!(
-            "standalone: the fault is in {}; return addresses on the stack: {}",
-            in_module(host).unwrap_or_else(|| "no module".into()),
-            stack_returns(sp)
-        ));
-        finish(
-            &format!(
-                "access violation at {address:#x} ({}), {verb} address {data:#x}",
-                place(address)
-            ),
-            1,
-        );
-    }
-    // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
-    // address goes to its Rust version): a jump there is a slip, and names the place.
-    // SAFETY: the faulting thread's stack pointer's slot: committed, and that thread is
-    // stopped in the handler.
-    let from = unsafe { std::ptr::with_exposed_provenance::<usize>(sp).read_unaligned() };
-    let from = match ida(game(from)) {
-        Some(from) => format!("{from:#x}"),
-        None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
-    };
+    log(&format!(
+        "standalone: the fault is in {}; return addresses on the stack: {}",
+        in_module(host).unwrap_or_else(|| "no module".into()),
+        stack_returns(sp)
+    ));
     finish(
-        &format!(
-            "Rust jumped into the game's code at {} (no code of RAL.EXE runs), from {from}; return addresses on the stack: {}",
-            place(address),
-            stack_returns(sp)
-        ),
+        &format!("access violation at {host:#x}, {verb} address {data:#x}"),
         1,
     );
 }
@@ -697,18 +525,6 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     std::panic::set_hook(Box::new(|info| {
         log(&format!("standalone: panic: {info}"));
     }));
-    let image = match build_image() {
-        Ok(image) => image,
-        Err(why) => {
-            log(&format!("standalone: {why}"));
-            crate::os::terminate(2)
-        }
-    };
-    let image = IMAGE.get_or_init(|| image);
-    menu_watch::snapshot();
-    if let Err(why) = install_and_lock(image) {
-        finish(&why, 2);
-    }
     #[cfg(unix)]
     install_fault_reporter();
     #[cfg(windows)]
@@ -723,71 +539,4 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // SAFETY: once, here, on the main thread.
     start();
     finish("start came to its end", 0)
-}
-
-/// The menus' and draw lists' memory as the image starts and as it ends (typed tables,
-/// 2026-10-22): which of their fields the game changes in play.
-mod menu_watch {
-    use super::log;
-    use std::sync::OnceLock;
-
-    use crate::menu::{draw_lists_store, menus_store};
-
-    /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B72 ..), in their
-    /// homes (`menu::menus_store`, `menu::draw_lists_store`): each range's first place and
-    /// its end.
-    fn ranges() -> [(usize, usize, usize); 2] {
-        [
-            (
-                0x7482B8,
-                (menus_store::menus_addr() + (0x7482B8 - menus_store::START) as u32) as usize,
-                0x755130 - 0x7482B8,
-            ),
-            (
-                0x758B72,
-                draw_lists_store::draw_lists_addr() as usize,
-                0x7594AA - 0x758B72,
-            ),
-        ]
-    }
-
-    static START: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
-
-    fn bytes((_, at, len): (usize, usize, usize)) -> Vec<u8> {
-        // SAFETY: each range lies whole in one of our statics, read-write; read at start and
-        // at the end, a snapshot (a torn word only shows as changed).
-        unsafe { std::slice::from_raw_parts(crate::pointers::host_at(at) as *const u8, len) }
-            .to_vec()
-    }
-
-    pub fn snapshot() {
-        let _ = START.set(ranges().iter().map(|&r| bytes(r)).collect());
-    }
-
-    pub fn report() {
-        let Some(start) = START.get() else {
-            return;
-        };
-        let mut changed = Vec::new();
-        for (&range, before) in ranges().iter().zip(start) {
-            let now = bytes(range);
-            for (n, (a, b)) in before.chunks(4).zip(now.chunks(4)).enumerate() {
-                if a != b {
-                    changed.push(format!(
-                        "  {:#x}: {:02x?} -> {:02x?}",
-                        range.0 + 4 * n,
-                        a,
-                        b
-                    ));
-                }
-            }
-        }
-        log(&format!(
-            "standalone: {} dwords of the menus and draw lists changed in play:",
-            changed.len()
-        ));
-        for line in changed {
-            log(&line);
-        }
-    }
 }

@@ -24,7 +24,7 @@
 //!
 //! Where the time goes: `platform_timing`.
 
-use crate::framework::{GameHook, RawHook, log, rva};
+use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::SURFACES;
 use crate::gfx::locked::LOCKED;
@@ -71,13 +71,10 @@ fn quitting() -> bool {
 
 // ---- gfx::choose_screen_modes (0x404481) ----
 
-static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481));
-
 /// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
 /// original's choices in order) and the graphics options' choices. Fails (the original's
 /// carry, which its caller makes fatal error 0x90201101) when no mode works.
 pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
-    CHOOSE.count_call();
     {
         // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
         // mode table lists it: the window takes any listed mode, and every listed mode
@@ -124,8 +121,6 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
 }
 
 // ---- gfx::set_screen_mode (0x404B63) ----
-
-static SET_MODE: RawHook = RawHook::new("gfx::set_screen_mode", rva(0x404B63));
 
 /// The value of a table's entry for a key.
 fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
@@ -293,7 +288,6 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
 pub fn set_mode_now(mode: u32) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    SET_MODE.count_call();
     let done = set_screen_mode(mode);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
@@ -303,14 +297,11 @@ pub fn set_mode_now(mode: u32) -> bool {
 
 // ---- gfx::set_menu_screen_mode (0x404823) ----
 
-static MENU_MODE: RawHook = RawHook::new("gfx::set_menu_screen_mode", rva(0x404823));
-
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
 pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    MENU_MODE.count_call();
     let mode = SCREEN_MODE.menu_mode.get();
     let done = set_screen_mode(mode);
     if let Err(why) = &done {
@@ -321,14 +312,11 @@ pub fn set_menu_mode_now() -> bool {
 
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
 
-static LOCK: RawHook = RawHook::new("gfx::lock_surface", rva(0x4058AD));
-
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); `g_surfaceLocked` after it (1: locked).
 pub fn lock_surface() -> u32 {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    LOCK.count_call();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !quitting() && have {
         LOCKED.surface.set(1);
@@ -354,12 +342,9 @@ pub fn lock_surface() -> u32 {
     LOCKED.surface.get()
 }
 
-static UNLOCK: RawHook = RawHook::new("gfx::unlock_surface", rva(0x405949));
-
 /// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
 /// it (1: it was).
 pub fn unlock_surface() -> u32 {
-    UNLOCK.count_call();
     let locked: u32 = LOCKED.surface.get();
     if locked == 1 {
         LOCKED.surface.set(0);
@@ -368,8 +353,6 @@ pub fn unlock_surface() -> u32 {
 }
 
 // ---- gfx::show_frame (0x4057D1) ----
-
-static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1));
 
 /// The GPU's colour target as a texture of the window's renderer: made once for a target.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -532,7 +515,6 @@ pub fn screen_pixels() -> u64 {
 pub fn show_frame_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    SHOW.count_call();
     {
         if quitting() {
             return false;
@@ -583,35 +565,17 @@ pub fn show_frame_now() -> bool {
 
 // ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
 
-static PUMP: RawHook = RawHook::new("system::pump_messages", rva(0x410535));
-
 /// `system::pump_messages`: the window's events (SDL's).
 pub fn pump_messages_now() {
-    PUMP.count_call();
     crate::platform_events::pump();
 }
-
-static RUN_FRAME: RawHook = RawHook::new("screens::run_frame", rva(0x405A71));
 
 /// `screens::run_frame` for Rust callers with a frame of their own (the screen loops,
 /// 2026-10-24): the messages, then the frame unless quitting (None then).
 pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
-    RUN_FRAME.count_call();
     crate::platform_events::pump();
     if quitting() { None } else { Some(frame()) }
 }
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &CHOOSE,
-    &SET_MODE,
-    &MENU_MODE,
-    &LOCK,
-    &UNLOCK,
-    &SHOW,
-    &PUMP,
-    &RUN_FRAME,
-    &crate::film::HOOK,
-];
 
 /// A file of ours next to the log (the current folder can change: the installer).
 #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows

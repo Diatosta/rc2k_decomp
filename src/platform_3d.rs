@@ -31,7 +31,7 @@
 
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
-use crate::framework::{GameHook, RawHook, Regs, log, rva};
+use crate::framework::{Regs, log};
 use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
@@ -500,8 +500,6 @@ pub fn draw_indexed<const V: usize, const I: usize>(
 
 // ---- gfx::allocate_textures (0x4051ED) ----
 
-static ALLOCATE: RawHook = RawHook::new("gfx::allocate_textures", rva(0x4051ED));
-
 fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
 }
@@ -622,7 +620,7 @@ pub fn allocate_textures_for(
                 ebp: mips,
                 ..Regs::default()
             };
-            crate::fatal::raise::refused_in(ALLOCATE.name(), e, &r);
+            crate::fatal::raise::refused_in("gfx::allocate_textures", e, &r);
             (video, system)
         }
     }
@@ -639,7 +637,6 @@ pub fn allocate_textures_now(
     kind: u32,
     mips: u32,
 ) -> Result<(u32, u32), FatalError> {
-    ALLOCATE.count_call();
     flush();
     let reports: u32 = REPORTS.on.get();
     REPORTS.on.set(0);
@@ -653,8 +650,6 @@ pub fn allocate_textures_now(
 }
 
 // ---- gfx::release_all_textures (0x4051D3) ----
-
-static RELEASE: RawHook = RawHook::new("gfx::release_all_textures", rva(0x4051D3));
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
 fn release_pool(pool: usize) {
@@ -687,7 +682,6 @@ fn release_pool(pool: usize) {
 
 /// `gfx::release_all_textures` for Rust callers, as a call by its address.
 pub fn release_textures() {
-    RELEASE.count_call();
     release_all_textures();
 }
 
@@ -708,12 +702,9 @@ pub fn release_all_textures() {
 
 // ---- scene::load_texture (0x44E778) ----
 
-static LOAD: RawHook = RawHook::new("scene::load_texture", rva(0x44E778));
-
 /// `scene::load_texture` for Rust callers: video texture `video` holds system texture
 /// `system`. Every register kept.
 pub fn load_texture(system: u32, video: u32) {
-    LOAD.count_call();
     hold_texture("scene::load_texture", system, video);
 }
 
@@ -750,8 +741,6 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
 
 // ---- d3d::begin_scene (0x41ABC7), d3d::end_scene (0x41AB8A) ----
 
-static BEGIN: RawHook = RawHook::new("d3d::begin_scene", rva(0x41ABC7));
-
 /// The layer's own states at a scene's beginning: (value, state).
 const BEGIN_STATES: [(u32, u32); 12] = [
     (1, 0x1F),
@@ -771,7 +760,6 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
 pub fn begin_layer() {
-    BEGIN.count_call();
     CARDS_3D.in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
@@ -784,12 +772,9 @@ pub fn begin_layer() {
     crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }
 
-static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A));
-
 /// `d3d::end_scene` for Rust callers: true when a scene was open and is ended (the
 /// original then leaves eax 0 and the zero flag set; the carry always clear).
 pub fn end_layer() -> bool {
-    END.count_call();
     flush();
     {
         if CARDS_3D.in_scene.get() == 1 {
@@ -802,19 +787,14 @@ pub fn end_layer() -> bool {
 
 // ---- d3d::clear_viewport (0x44E9D9) ----
 
-static CLEAR: RawHook = RawHook::new("d3d::clear_viewport", rva(0x44E9D9));
-
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
 pub fn clear_viewport() {
-    CLEAR.count_call();
     let [left, top, right, bottom] =
         crate::session::read_bits(&DRAW.cleared_rectangle).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
     note(Command::Clear([c(left), c(top), c(right), c(bottom)]));
 }
-
-pub static HOOKS: &[&dyn GameHook] = &[&ALLOCATE, &RELEASE, &LOAD, &BEGIN, &END, &CLEAR];
 
 #[cfg(test)]
 mod block_tests {

@@ -44,7 +44,6 @@ mod rasteriser;
 #[cfg(target_arch = "aarch64")]
 mod rasteriser_neon;
 mod records;
-mod registry;
 mod render;
 mod saves;
 mod scene;
@@ -60,14 +59,3 @@ mod sync;
 mod system;
 mod text;
 mod threading;
-
-use crate::framework::BASE;
-use crate::registry::ALL;
-use std::sync::atomic::Ordering;
-
-/// The program's hooks counted as in place at `base` (the image holds no code to patch:
-/// the platform's functions are named by their addresses, nothing runs there).
-pub fn mark_all_installed(base: usize) -> Vec<bool> {
-    BASE.store(base, Ordering::Relaxed);
-    vec![true; ALL.len()]
-}
