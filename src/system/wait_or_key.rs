@@ -26,11 +26,13 @@ pub fn wait_or_key(milliseconds: u32) -> u8 {
     let end = wait_end(tick_count(), milliseconds);
     loop {
         crate::system::sleep::sleep(10);
+        // The original's window thread saw to these; here the window waits on this thread.
+        crate::platform::pump_messages_now();
         let key = crate::input::take_key::take_key();
         if key != 0 {
             return key;
         }
-        if time_up(tick_count(), end) {
+        if crate::platform::quitting() || time_up(tick_count(), end) {
             return 0;
         }
     }

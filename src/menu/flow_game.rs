@@ -356,6 +356,9 @@ impl flow::Game for Game {
                 self.f.c.carry = false;
             }
             C::StreamPlaying => {
+                // The welcome polls this until a key comes: the window goes on meanwhile.
+                crate::system::sleep::sleep(10);
+                crate::platform::pump_messages_now();
                 let (zero, carry) = crate::sound::stream_playing::stream_playing();
                 self.f.zero = zero;
                 self.f.c.carry = carry;

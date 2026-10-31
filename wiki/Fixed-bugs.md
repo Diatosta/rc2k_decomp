@@ -303,3 +303,10 @@ block's +0xB0.
 - **In game**: never, in the original: nothing reaches this screen. Opened from the debug UI, rows showed stray pieces of other sprites over their cars: red bars, a loading bar, badges.
 - **Seen**: yes, in the conversion's debug UI.
 - **Fix**: the second sprite is gone.
+
+## The championship's welcome speech cannot be skipped
+
+- **What**: `menu::championship_welcome` (0x47F314) waits in `system::wait_or_key` (0x407F69) and then polls the stream's state and the pending key, without pumping the window's messages.
+- **In game**: choosing a car for a championship freezes the window for the length of the speech (about 25 seconds): a key does not skip it and closing the window does nothing until it ends.
+- **Seen**: yes, in the conversion, and reported in the original.
+- **Fix**: both waits pump the window's events, and the polling loop sleeps 10 ms a turn instead of spinning. A key now skips the speech and closing the window ends the wait (`system::wait_or_key`, `menu::flow_game`).

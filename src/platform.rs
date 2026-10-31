@@ -65,7 +65,7 @@ pub(crate) static SHOWN: AtomicU32 = AtomicU32::new(0);
 pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
-fn quitting() -> bool {
+pub fn quitting() -> bool {
     FLAGS.quitting.get() == 1
 }
 
