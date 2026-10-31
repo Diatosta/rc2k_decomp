@@ -6,7 +6,6 @@
 //! address).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::game_map::MAP;
 use crate::race::numbers_store::NUMBERS;
@@ -17,8 +16,8 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::light_work_store::LIGHT_WORK;
-const BAR_RVA: usize = rva(0x4467C7); // sub_4467C7: the loading bar's 3D frame
-const BAR_DONE_RVA: usize = rva(0x4467C6); // nullsub_8
+const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
+const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
 const WORDS: [&std::ffi::CStr; 28] = [
@@ -61,9 +60,7 @@ pub struct LoadVars {
 
 impl LoadVars {
     pub fn game() -> Self {
-        Self {
-            bar: game_addr(BAR_RVA),
-        }
+        Self { bar: BAR }
     }
 }
 
@@ -269,7 +266,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     crate::race::mud::init_mud()?;
     s.progress(0x64)?;
     s.progress(0x64)?;
-    RACE_VARS.bar_function.set_bits(game_addr(BAR_DONE_RVA));
+    RACE_VARS.bar_function.set_bits(BAR_DONE);
     s.indent(-3);
     s.step(
         &mut || {

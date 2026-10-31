@@ -10,15 +10,14 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
 /// `dword_623634` the low end, `dword_623638` the high end.
-const BAR_RVA: usize = rva(0x4467C7); // race::loading_bar_frame
-const NOTHING_RVA: usize = rva(0x4467C6); // nullsub_8
+const BAR: u32 = 0x4467C7; // race::loading_bar_frame
+const NOTHING: u32 = 0x4467C6; // nullsub_8
 
 // ---- Rust version ----
 
@@ -46,9 +45,9 @@ pub fn step_loading_bar(done: u32) -> Result<(), Refused> {
     if let Some(progress) = progress(done) {
         RACE_VARS.bar_share.set_bits(progress);
     }
-    if show == game_addr(BAR_RVA) {
+    if show == BAR {
         crate::race::loading_bar_frame::loading_bar_frame()
-    } else if show == game_addr(NOTHING_RVA) {
+    } else if show == NOTHING {
         Ok(())
     } else {
         Err(BadInput("a loading bar function that is neither of the loading's").into())

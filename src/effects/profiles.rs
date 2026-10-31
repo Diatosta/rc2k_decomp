@@ -6,13 +6,12 @@
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::{DRAW_FRAME, DRAW_WORK};
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::session::Dword;
 
-pub const RESUME_RVA: usize = rva(0x4C3EA6); // loc_4C3EA6
+pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 

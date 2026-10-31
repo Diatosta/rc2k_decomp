@@ -30,7 +30,6 @@ use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::session::SCREEN;
-use crate::store::game_addr;
 
 // ---- game data ----
 
@@ -61,13 +60,13 @@ pub fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, Ba
         return Err(BadInput("a picture without a width or a height"));
     }
     let pixels = width.wrapping_mul(height);
-    if converter as usize == game_addr(COPY_PIXEL_ROWS) as usize {
+    if converter == COPY_PIXEL_ROWS {
         // The picture is already what the surface wants: from and to the same place,
         // `copy_pixel_rows` does nothing.
         if screen_bits != 16 {
             return Ok(screen_bits < 16);
         }
-    } else if converter as usize == game_addr(COMPONENTS_TO_4444_ROWS) as usize {
+    } else if converter == COMPONENTS_TO_4444_ROWS {
         if pixels == 0 {
             return Err(BadInput("a picture without a width or a height"));
         }
@@ -78,10 +77,7 @@ pub fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, Ba
     } else if converter != 0 {
         // The table's converter: an MMX / 3DNow one by its Rust version (the table
         // holds no other: `gfx::install_converters`).
-        let at = (converter as usize)
-            .wrapping_sub(game_addr(0) as usize)
-            .wrapping_add(crate::framework::IMAGE_BASE) as u32;
-        let Some(c) = crate::gfx::mmx_converters::converter_at(at) else {
+        let Some(c) = crate::gfx::mmx_converters::converter_at(converter) else {
             return Err(BadInput("a converter with no Rust version in the table"));
         };
         with_picture(|b| crate::gfx::mmx_converters::convert_in_place(b, pixels, c))??;

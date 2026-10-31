@@ -16,9 +16,8 @@
 //! its only call (from = to, one row, ebp 0).
 
 use crate::errors::BadInput;
-use crate::framework::rva;
 
-pub const COMPONENTS_TO_4444_ROWS: usize = rva(0x40750D);
+pub const COMPONENTS_TO_4444_ROWS: u32 = 0x40750D;
 
 // ---- Rust version ----
 

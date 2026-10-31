@@ -3,16 +3,14 @@
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
 use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::store::game_addr;
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword, Float, Loose, read_bits};
 
-pub const RESUME_RVA: usize = rva(0x4C0FFD); // loc_4C0FFD
+pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
 const SETTING: u32 = 0x2708;
 const SETTING_VALUE: u32 = 0xFFFF_7B2E;
@@ -89,12 +87,12 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         .tilt
         .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
     crate::effects::masks::make_masks()?;
-    crate::effects::shapes::set_up_windscreen_drops(game_addr(
+    crate::effects::shapes::set_up_windscreen_drops(
         crate::effects::shapes::WINDSCREEN_DROPS.resume,
-    ))?;
-    crate::effects::shapes::set_up_windscreen_flakes(game_addr(
+    )?;
+    crate::effects::shapes::set_up_windscreen_flakes(
         crate::effects::shapes::WINDSCREEN_FLAKES_RESUME,
-    ))?;
+    )?;
     Ok(())
 }
 
@@ -108,8 +106,8 @@ pub fn load_kind_data() -> Result<(), Refused> {
         let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
         let kind = GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")?;
         MARKS_KIND.kind.set_bits(kind);
-        load_edges(game_addr(RESUME_RVA))?;
-        crate::effects::splines::load_splines(game_addr(crate::effects::splines::RESUME_RVA))?;
+        load_edges(RESUME)?;
+        crate::effects::splines::load_splines(crate::effects::splines::RESUME)?;
     }
     Ok(())
 }

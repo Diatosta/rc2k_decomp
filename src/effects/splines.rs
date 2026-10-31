@@ -6,7 +6,6 @@
 
 use crate::effects::kind_values::MARKS_KIND;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -582,7 +581,7 @@ pub fn make_spline(object: u32) -> Result<(), Refused> {
     }
     Ok(())
 }
-pub const RESUME_RVA: usize = rva(0x4B9706); // loc_4B9706
+pub const RESUME: u32 = 0x4B9706; // loc_4B9706
 pub const FILE_LEN: u32 = 0xC00;
 const KINDS: u32 = 0x22;
 /// The settings' objects: a count at +0x26B8, then the objects.

@@ -3,7 +3,7 @@
 //! `effects::run_frame`, 0x4D1549).
 
 use crate::effects::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
-use crate::effects::store::{game_addr, game_read};
+use crate::effects::store::game_read;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -66,7 +66,7 @@ impl MarksClock {
     }
 }
 
-const WAVE_DONE_TARGET_RVA: usize = rva(0x4C4EA0); // nullsub_23
+const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
@@ -104,7 +104,7 @@ pub fn seed_noise() {
 pub fn make_wave_tables() -> Result<(), Refused> {
     use crate::effects::waves::{SINES as SINE_TABLE, WAVE, WAVE_LEVELS as LEVELS};
     let done = WAVE.done.get();
-    let target = game_addr(WAVE_DONE_TARGET_RVA);
+    let target = WAVE_DONE_TARGET;
     if done == target {
         return Ok(());
     }

@@ -34,7 +34,6 @@
 //! of its parts comes with the work half done.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -55,7 +54,7 @@ use crate::scene::view_matrix::set_view_matrices;
 use crate::session::Dword;
 
 // ---- game data ----
-const SHOW_BAR_RVA: usize = rva(0x4467C7); // sub_4467C7
+const SHOW_BAR: u32 = 0x4467C7; // sub_4467C7
 fn system_levels() -> &'static [Dword; 1024] {
     &OBJECT_TABLES.system_levels
 }
@@ -150,7 +149,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
             picture = picture.wrapping_add(1);
         }
     }
-    RACE_VARS.bar_function.set_bits(game_addr(SHOW_BAR_RVA));
+    RACE_VARS.bar_function.set_bits(SHOW_BAR);
     crate::scene::reload_system_textures::reload_system_textures()?;
     allocate_point_records_in_game()?;
     colours(0);

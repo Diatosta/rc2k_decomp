@@ -7,7 +7,6 @@ use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK;
 use crate::effects::windscreen_drop_vars::HEX;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::session::{Bytes, Dword, Float, write_bits};
@@ -37,7 +36,7 @@ impl Var {
 /// One kind's tables.
 pub struct Shapes {
     pub done: Var,
-    pub resume: usize,
+    pub resume: u32,
     /// The items (`ITEMS` of `item_len` bytes).
     pub items: &'static Bytes<0x18000>,
     pub item_len: u32,
@@ -59,7 +58,7 @@ const RADII: u32 = 8;
 /// `sub_4BAA55`'s.
 pub static WINDSCREEN_DROPS: Shapes = Shapes {
     done: Var::Dword(&HEX.done), // g_marksWindscreenDropsDone
-    resume: rva(0x4BAAC5),       // loc_4BAAC5
+    resume: 0x4BAAC5,            // loc_4BAAC5
     items: &HEX.items,           // g_marksWindscreenDropItems
     item_len: 0x30,
     curve: &WINDSCREEN_DROP_WORK.curve, // g_marksWindscreenDropCurve
@@ -73,7 +72,7 @@ pub static WINDSCREEN_DROPS: Shapes = Shapes {
 };
 
 /// Where `sub_4BF529` goes on once done: `loc_4BF545`.
-pub const WINDSCREEN_FLAKES_RESUME: usize = rva(0x4BF545);
+pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
 
 /// The squares' side of `Shapes` (`sub_4BF529`'s): the same steps over the squares' typed
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.

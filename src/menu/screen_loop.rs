@@ -54,7 +54,7 @@
 //! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, log, rva};
+use crate::framework::{log, rva};
 use crate::input::take_key::take_key;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_work_store::DRAW_WORK;
@@ -628,7 +628,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                 CLOCKS.setup_time.set(c.arg);
                 PHYSICS.scene_clock.set(0u32);
                 run(screen.before_first_frame, &mut c)?;
-                c.arg = game_addr(callback);
+                c.arg = (callback + crate::framework::IMAGE_BASE) as u32;
                 set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
                 run_frame(callback, menu, &c)?;
                 if screen.late_highlight {
@@ -669,7 +669,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                         OPTION_WORK.menu_sound.set(NO_SOUND);
                     }
                     run(screen.before_frame, &mut c)?;
-                    c.arg = game_addr(later_callback);
+                    c.arg = (later_callback + crate::framework::IMAGE_BASE) as u32;
                     set_lists(screen, screen.lists);
                     run_frame(later_callback, menu, &c)?;
                     c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());

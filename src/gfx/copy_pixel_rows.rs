@@ -11,9 +11,7 @@
 //! screen that is every picture), `sub_41A828` with a locked texture as the destination.
 //! The name is a reading.
 
-use crate::framework::rva;
-
-pub const COPY_PIXEL_ROWS: usize = rva(0x407540);
+pub const COPY_PIXEL_ROWS: u32 = 0x407540;
 
 // ---- Rust version ----
 
