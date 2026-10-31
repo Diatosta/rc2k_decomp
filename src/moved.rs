@@ -2382,6 +2382,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::sound::sets_store::CueLists::holds_handle(ida) => {}
             Some(_) if crate::sound::sets_store::SoundKinds::holds_handle(ida) => {}
             Some(_) if crate::sound::sets_store::SurfaceSets::holds_handle(ida) => {}
+            Some(_) if crate::sound::sets_store::RaceSoundSets::holds_handle(ida) => {}
             Some(_) if crate::menu::cars_store::holds_handle(ida) => {}
             Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
             Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}

@@ -704,6 +704,27 @@ pub static RACE_SOUND_SETS: RaceSoundSets = RaceSoundSets {
 };
 
 impl RaceSoundSets {
+    /// Where the sets of the kind-table entry `n` (two a kind of car) are.
+    pub fn kind_set_of(n: usize) -> Result<u32, crate::errors::BadInput> {
+        if n >= Self::KIND_ENTRIES {
+            return Err(crate::errors::BadInput("a race sound kind past the table"));
+        }
+        named(
+            RACE_SOUND_SETS.kinds[n].get(),
+            Self::START,
+            Self::LEN,
+            Self::home(),
+        )
+    }
+
+    /// Whether IDA's `ida` is one of the kind table's dwords (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (Self::KINDS_AT..Self::KINDS_AT + Self::KIND_ENTRIES * 4).contains(&ida)
+    }
+
+    /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
+    const KINDS_AT: usize = 0x512360;
+    const KIND_ENTRIES: usize = 72;
     pub const START: usize = 0x511B10;
     pub const LEN: usize = 0x9D4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -2925,6 +2946,18 @@ mod tests {
 
     #[test]
     fn racesoundsets_starts_as_the_games() {
+        for n in 0..72 {
+            let ida = RACE_SOUND_SETS.kinds[n].get() as usize;
+            let at = RaceSoundSets::kind_set_of(n).unwrap() as usize;
+            assert_eq!(at, RaceSoundSets::home() + (ida - RaceSoundSets::START));
+            // The image's relocated dword names the same set.
+            let image = crate::moved::image_bytes(RaceSoundSets::KINDS_AT + 4 * n, 4);
+            assert_eq!(
+                u32::from_le_bytes(image[..4].try_into().unwrap()) as usize,
+                ida
+            );
+        }
+        assert!(RaceSoundSets::kind_set_of(72).is_err());
         let size = size_of::<RaceSoundSets>();
         assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);

@@ -131,13 +131,17 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
     ) {
         send(match set {
             Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set),
-            Set::FirstKind(k) => RACE_SOUND_SETS.kinds[2 * k as usize].get(),
+            Set::FirstKind(k) => {
+                crate::sound::sets_store::RaceSoundSets::kind_set_of(2 * k as usize)?
+            }
             Set::First(n) => [
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_a),
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_b),
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_c),
             ][n],
-            Set::SecondKind(k) => RACE_SOUND_SETS.kinds[2 * k as usize + 1].get(),
+            Set::SecondKind(k) => {
+                crate::sound::sets_store::RaceSoundSets::kind_set_of(2 * k as usize + 1)?
+            }
             Set::Second(n) => [
                 crate::session::address_of(&RACE_SOUND_SETS.second_set_a),
                 crate::session::address_of(&RACE_SOUND_SETS.second_set_b),
