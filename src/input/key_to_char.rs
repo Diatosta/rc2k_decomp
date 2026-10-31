@@ -65,12 +65,10 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     if layout == 0 {
         return Err(BadInput("no keyboard layout"));
     }
-    // The built-in layout's pointers name its tables' homes (`moved::point_into_homes`);
-    // a keyboard file's layout's are given as places.
+    // The built-in layouts name their tables by IDA's addresses (`layout_table`); a keyboard
+    // file's layout's are given as places.
     let table = |at: u32| -> Result<Option<GameBytes>, BadInput> {
-        let p: u32 = GamePtr::new(layout)
-            .offset(at)
-            .read("a keyboard layout's table")?;
+        let p = crate::input::store::layout_table(layout, at)?;
         (p != 0)
             .then(|| GamePtr::new(p).bytes("a keyboard layout's table"))
             .transpose()

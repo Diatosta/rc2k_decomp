@@ -285,7 +285,7 @@ const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
 /// Whether IDA's `ida` is one of the effects' `wanted` (`moved::point_into_homes` passes
 /// them over).
 pub fn holds_handle(ida: usize) -> bool {
-    if (INPUT_DEVICES_IDA..INPUT_DEVICES_IDA + 8).contains(&ida) {
+    if (INPUT_DEVICES_IDA..INPUT_DEVICES_IDA + 8).contains(&ida) || holds_keyboard_names(ida) {
         return true;
     }
     let records = DEVICES_IDA + core::mem::offset_of!(Devices, records);
@@ -481,6 +481,32 @@ pub static KEYBOARD: Keyboard = {
 
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
+
+/// Whether IDA's `ida` is one of the built-in layout's tables' places (`plain`, `shifted`,
+/// `key_names`: kept as IDA's addresses, as names; `layout_table` makes them real, and
+/// `moved::point_into_homes` passes them over).
+pub fn holds_keyboard_names(ida: usize) -> bool {
+    [0x4F7FE0, 0x4F7FE4, 0x4F7FEC].contains(&ida)
+}
+
+/// The table at `at` (0 .. 0x10) of the keyboard layout block at `layout`, as an address, 0
+/// for none. The built-in layout's tables are named by IDA's addresses, which are not
+/// addresses of the program's memory; a keyboard file's layout holds the real places
+/// (`strings::load_language`).
+pub fn layout_table(layout: u32, at: u32) -> Result<u32, crate::errors::BadInput> {
+    let p: u32 = crate::pointers::GamePtr::new(layout)
+        .offset(at)
+        .read("a keyboard layout's table")?;
+    if (KEYBOARD_IDA..KEYBOARD_IDA + KEYBOARD_LEN).contains(&(p as usize)) {
+        return crate::moved::named_in(
+            p,
+            KEYBOARD_IDA,
+            KEYBOARD_LEN,
+            "a keyboard table off the built-in layout",
+        );
+    }
+    Ok(p)
+}
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
 pub fn keyboard_addr() -> u32 {
@@ -680,6 +706,30 @@ mod tests {
         assert_eq!(offset_of!(Keyboard, plain), 0x4F806C - 0x4F7FD8);
         assert_eq!(offset_of!(Keyboard, axes_rest), 0x4F8270 - 0x4F7FD8);
         assert_eq!(MOUSE_LEN, 0x24);
+    }
+
+    #[test]
+    fn the_built_in_layouts_tables_resolve() {
+        let _g = crate::store::test_lock();
+        let layout = KEYBOARD.built_in_layout.dead_keys.addr();
+        let image = image_bytes(0x4F7FDC, 0x14);
+        for (at, ida) in [(4, 0x4F806C), (8, 0x4F80EC), (0x10, 0x4F816C)] {
+            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            assert_eq!(name as usize, ida);
+            assert!(holds_keyboard_names(0x4F7FDC + at));
+            assert_eq!(
+                layout_table(layout, at as u32),
+                Ok(keyboard_addr() + (ida - KEYBOARD_IDA) as u32)
+            );
+        }
+        // The dead keys' list and the AltGr table are not named.
+        assert_eq!(layout_table(layout, 0xC), Ok(0));
+        // A place that is not a name is kept as it is.
+        let place = KEYBOARD_FILE.tables.addr();
+        KEYBOARD_FILE.layouts[0].plain.set(place);
+        let file_layout = KEYBOARD_FILE.layouts[0].dead_keys.addr();
+        assert_eq!(layout_table(file_layout, 4), Ok(place));
+        KEYBOARD_FILE.layouts[0].plain.set(0u32);
     }
 
     #[test]

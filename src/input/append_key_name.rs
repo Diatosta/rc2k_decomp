@@ -24,9 +24,7 @@ pub fn append_key_name(key: u32) -> Result<(Vec<u8>, u32), Refused> {
     if layout == 0 {
         return Err(BadInput("no keyboard layout").into());
     }
-    let names: u32 = GamePtr::new(layout)
-        .offset(0x10)
-        .read("a keyboard layout's key names")?;
+    let names = crate::input::store::layout_table(layout, 0x10)?;
     if names == 0 {
         return Err(BadInput("a keyboard layout without its key names").into());
     }
