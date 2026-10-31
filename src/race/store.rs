@@ -25,15 +25,12 @@ block!(pub mod vars {
 /// or the developers' front end; the debug UI has its own): the watch list, the surface names,
 /// the front end's name tables, the pace notes' `off_61FE18` (its one live read, 0x441DE9, is
 /// overwritten at once by `pop ebx`), the debug pages' titles (`g_debugPageTitles`, read only
-/// by `debug::draw_page_title`) and the developers' front end's digit texts (`off_621C44`,
-/// read only by `dev_front_end__draw`). Their addresses are not pointed anywhere and nothing
-/// may read them.
-pub const UNREAD: [(usize, usize); 8] = [
-/// overwritten at once by `pop ebx`), the texture kinds' names `off_64CD0C` (its one read,
+/// by `debug::draw_page_title`), the developers' front end's digit texts (`off_621C44`, read
+/// only by `dev_front_end__draw`) and the texture kinds' names `off_64CD0C` (its one read,
 /// 0x459D6F in `sub_459CC2`, a stage-by-stage dump of the texture kinds to the log reached only
-/// from the `running sub program` chunk at 0x442BE3, no function of the Rust side). Their addresses are not pointed anywhere and nothing may
-/// read them.
-pub const UNREAD: [(usize, usize); 7] = [
+/// from the `running sub program` chunk at 0x442BE3, no function of the Rust side). Their
+/// addresses are not pointed anywhere and nothing may read them.
+pub const UNREAD: [(usize, usize); 9] = [
     (0x5EBB5A, 0x5EE258),
     (0x5FFF12, 0x5FFF32),
     (0x5FFFCC, 0x60000C),
@@ -44,6 +41,7 @@ pub const UNREAD: [(usize, usize); 7] = [
     (0x622238, 0x6223C8),
     (0x64CD0C, 0x64CDA8),
 ];
+
 /// Whether IDA's `ida` lies in a table of `UNREAD`.
 pub fn is_unread(ida: usize) -> bool {
     UNREAD.iter().any(|&(s, e)| (s..e).contains(&ida))
