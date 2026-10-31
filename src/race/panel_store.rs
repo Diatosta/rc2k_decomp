@@ -99,7 +99,10 @@ pub struct Panel {
     pub distance: [Loose32; 2],
     /// +0x74 (0x6D1472): `g_overlayParts`: the number of parts of the stage bar (`race::init_overlay`).
     pub overlay_parts: Loose32,
-    /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes).
+    /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes): the three arrays' places of the
+    /// overlay (`g_overlayPartMiles`, `g_overlayPartKindsA`, `g_overlayPartKindsB`), kept as
+    /// IDA's addresses, as names (phase 13; nothing reads them, and `moved::point_into_homes`
+    /// passes them over).
     pub unknown_78: Bytes<12>,
     /// +0x84 (0x6D1482): `unk_6D1482`, `unk_6D1492`: the two views' start lights.
     pub lights: [Lights; 2],
@@ -143,6 +146,11 @@ pub const END: usize = 0x6D150C;
 
 const _: () = assert!(END - START == core::mem::size_of::<Panel>());
 
+/// Whether IDA's `ida` is one of the three overlay places at +0x78 (`moved::point_into_homes`).
+pub fn holds_handle(ida: usize) -> bool {
+    (0x6D1476..0x6D1476 + 12).contains(&ida)
+}
+
 /// Where IDA 0x6D13FE is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
@@ -175,5 +183,25 @@ mod tests {
         assert_eq!(offset_of!(Panel, players), 0x6D14F2 - START);
         assert_eq!(offset_of!(Panel, flat), 0x6D1502 - START);
         assert_eq!(offset_of!(Panel, texture_changes), 0x6D1508 - START);
+
+        // The three places at +0x78 are the image's addresses of the overlay's arrays, names
+        // that resolve to them.
+        let image = crate::moved::image_bytes(0x6D1476, 12);
+        for (k, miles) in [0x6D150C_usize, 0x6D160C, 0x6D170C].into_iter().enumerate() {
+            let name = u32::from_le_bytes(image[4 * k..4 * k + 4].try_into().unwrap());
+            assert_eq!(name as usize, miles);
+            assert!(holds_handle(0x6D1476 + 4 * k));
+            assert_eq!(
+                crate::moved::named_in(
+                    name,
+                    crate::race::overlay_store::START,
+                    crate::race::overlay_store::END - crate::race::overlay_store::START,
+                    "an overlay array off the overlay"
+                ),
+                Ok(crate::race::overlay_store::piece_addr()
+                    + (miles - crate::race::overlay_store::START) as u32)
+            );
+        }
+        assert!(!holds_handle(0x6D1475) && !holds_handle(0x6D1482));
     }
 }
