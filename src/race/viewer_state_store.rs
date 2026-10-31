@@ -45,6 +45,73 @@ unsafe impl crate::pointers::Cells for ReplayViewBlock {}
 pub static REPLAY_VIEW: ReplayViewBlock =
     crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
+impl ReplayViewBlock {
+    /// IDA's address of the viewer's list and the count of its items (from 24 bytes in).
+    const LIST: usize = 0x5C255C;
+    const ITEMS: u32 = 26;
+    /// IDA's ranges the list's names point into: the key table and place rectangles
+    /// (untyped, the race block's bytes), and the panel with the pictures' rectangles.
+    const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
+    const PANEL: core::ops::Range<usize> = 0x5C291C..0x5C2FE4;
+
+    /// Where IDA's name `ida` is now, if it lies in `range` (phase 13: the list keeps IDA's
+    /// addresses as names, and `moved::point_into_homes` passes them over).
+    fn named(
+        ida: u32,
+        range: core::ops::Range<usize>,
+        what: &'static str,
+    ) -> Result<u32, crate::errors::BadInput> {
+        if !range.contains(&(ida as usize)) {
+            return Err(crate::errors::BadInput(what));
+        }
+        Ok(crate::moved::place(ida as usize) as u32)
+    }
+
+    /// Where the list's key table (the header's +0x10) is.
+    pub fn key_table() -> Result<u32, crate::errors::BadInput> {
+        Self::named(
+            REPLAY_VIEW.viewer_list[4].get(),
+            Self::RECTANGLES,
+            "the viewer list's key table off its place",
+        )
+    }
+
+    /// Where item `index`'s screen rectangle (its +4) is.
+    pub fn item_place(index: u32) -> Result<u32, crate::errors::BadInput> {
+        Self::named(
+            Self::item_dword(index, 1)?,
+            Self::RECTANGLES,
+            "a viewer item's place off the rectangles",
+        )
+    }
+
+    /// Where item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is.
+    pub fn item_picture(index: u32) -> Result<u32, crate::errors::BadInput> {
+        Self::named(
+            Self::item_dword(index, 3)?,
+            Self::PANEL,
+            "a viewer item's picture off the panel",
+        )
+    }
+
+    fn item_dword(index: u32, field: usize) -> Result<u32, crate::errors::BadInput> {
+        if index >= Self::ITEMS {
+            return Err(crate::errors::BadInput("a viewer item past the 26"));
+        }
+        Ok(REPLAY_VIEW.viewer_list[6 + 4 * index as usize + field].get())
+    }
+
+    /// Whether IDA's `ida` is one of the list's names (`moved::point_into_homes`): the key
+    /// table's and each item's +4 and +0xC.
+    pub fn holds_handle(ida: usize) -> bool {
+        ida == Self::LIST + 0x10
+            || (0..Self::ITEMS as usize).any(|k| {
+                let item = Self::LIST + 0x18 + 0x10 * k;
+                ida == item + 4 || ida == item + 0xC
+            })
+    }
+}
+
 /// IDA 0x5C2518, the first byte of the piece.
 pub const START: usize = 0x5C2518;
 /// IDA 0x5C2714, the end of the piece.
@@ -65,6 +132,43 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&REPLAY_VIEW, START, END);
+    }
+
+    #[test]
+    fn the_list_names_its_targets_as_the_image_does() {
+        let name =
+            |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+        let key_table = ReplayViewBlock::LIST + 0x10;
+        assert!(ReplayViewBlock::holds_handle(key_table));
+        assert_eq!(REPLAY_VIEW.viewer_list[4].get(), name(key_table));
+        assert_eq!(
+            ReplayViewBlock::key_table().unwrap() as usize,
+            crate::moved::place(name(key_table) as usize)
+        );
+        for k in 0..26u32 {
+            let item = ReplayViewBlock::LIST + 0x18 + 0x10 * k as usize;
+            assert!(ReplayViewBlock::holds_handle(item + 4));
+            assert!(ReplayViewBlock::holds_handle(item + 0xC));
+            assert!(!ReplayViewBlock::holds_handle(item + 8));
+            // Kept as the image's names; resolved to the same places.
+            assert_eq!(
+                REPLAY_VIEW.viewer_list[6 + 4 * k as usize + 1].get(),
+                name(item + 4)
+            );
+            assert_eq!(
+                REPLAY_VIEW.viewer_list[6 + 4 * k as usize + 3].get(),
+                name(item + 0xC)
+            );
+            assert_eq!(
+                ReplayViewBlock::item_place(k).unwrap() as usize,
+                crate::moved::place(name(item + 4) as usize)
+            );
+            assert_eq!(
+                ReplayViewBlock::item_picture(k).unwrap() as usize,
+                crate::moved::place(name(item + 0xC) as usize)
+            );
+        }
+        assert!(ReplayViewBlock::item_place(26).is_err());
     }
 
     #[test]

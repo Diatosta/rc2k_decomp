@@ -18,7 +18,7 @@ use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::REPLAY_VIEW;
+use crate::race::viewer_state_store::{REPLAY_VIEW, ReplayViewBlock};
 
 fn camera_byte(byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
@@ -34,7 +34,7 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     if byte(0)? & 0x40 != 0 {
         return Ok(());
     }
-    let mut picture = word(item + 0xC)?;
+    let mut picture = ReplayViewBlock::item_picture(index)?;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     if picture == (VIEWER_PANEL.switch_pictures_a[0].addr()) {
@@ -47,7 +47,7 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     if picture == (VIEWER_PANEL.switch_pictures_c[0].addr()) {
         picture = word(picture.wrapping_add(4 * camera_byte(4)?))?;
     }
-    let place = word(item + 4)?;
+    let place = ReplayViewBlock::item_place(index)?;
     let width = (word(picture + 8)? as i32).unsigned_abs();
     VIEWER_PANEL.item_place[2].set(width); // dword_5C29FC: the quad's place
     VIEWER_PANEL.item_place[0].set(centred(word(place)?, word(place + 8)?, width));

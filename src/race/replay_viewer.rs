@@ -43,7 +43,7 @@ use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::REPLAY_VIEW;
+use crate::race::viewer_state_store::{REPLAY_VIEW, ReplayViewBlock};
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
@@ -265,7 +265,7 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
         .wrapping_mul(0x10)
         .wrapping_add(r.record)
         .wrapping_add(0x18);
-    r.c.palette = GamePtr::new(r.record + 0x10).read::<u32>("game data")?;
+    r.c.palette = ReplayViewBlock::key_table()?;
     step(13, r)?;
     if r.zero {
         return Ok(Next::Mark);
@@ -312,7 +312,7 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
             }
             // On the way it went while it cannot be chosen.
             loop {
-                r.c.palette = GamePtr::new(r.record + 0x10).read::<u32>("game data")?;
+                r.c.palette = ReplayViewBlock::key_table()?;
                 step(13, r)?;
                 if !r.zero {
                     break;
