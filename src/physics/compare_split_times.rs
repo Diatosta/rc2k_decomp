@@ -17,7 +17,6 @@
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::physics::cells::get_list;
 use crate::race::league_store::LEAGUE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::work_store::RACE_WORK;
@@ -32,8 +31,11 @@ pub fn compare_split_times() -> Result<(), Refused> {
     let time = CAR.stage_time.get();
     LEAGUE.car_time.set(time);
     // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
-    let list = (LEAGUE.rows[0].addr()).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
-    let kept: [u32; 10] = get_list(list);
+    let first = CAR.splits_recorded.get().wrapping_mul(10) as usize;
+    let mut kept = [0u32; 10];
+    for (k, part) in kept.iter_mut().enumerate() {
+        *part = crate::session::read_on(&LEAGUE.rows, first + k, "a kept split time")?;
+    }
     let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;
     for (k, v) in [

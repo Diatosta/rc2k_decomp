@@ -36,7 +36,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -101,10 +100,11 @@ impl FaceWorld for GameFace {
     }
     fn group_table(&self, group: u32) -> u32 {
         // The table is typed by its first dword only.
-        self.0.read(
-            (DRAW_SWITCHES.group_table.addr()).wrapping_add(group.wrapping_mul(4)),
+        self.0.keep(crate::session::read_on(
+            std::slice::from_ref(&DRAW_SWITCHES.group_table),
+            group as usize,
             "the groups' table",
-        )
+        ))
     }
     fn no_second_mask(&self) -> u32 {
         CAR.camera_switch_active.bits()
@@ -150,10 +150,11 @@ impl FaceWorld for GameFace {
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
-        let at = OBJECT_TABLES.car_mark_textures[0]
-            .addr()
-            .wrapping_add(((kind as usize).wrapping_mul(4)) as u32);
-        self.0.read(at, "the car marks' textures")
+        self.0.keep(crate::session::read_on(
+            &OBJECT_TABLES.car_mark_textures,
+            kind as usize,
+            "the car marks' textures",
+        ))
     }
 }
 
@@ -198,18 +199,24 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     DRAW.face_sort_key.set_bits(0u32);
     face_sort_key(face, count)?;
     // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
-    let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-        + (listed as usize * 0x10) as u32;
+    let entry = listed as usize * 4;
     let key = listed_key(bytes, DRAW.face_sort_key.bits());
-    GamePtr::new(entry).write(
-        [
-            RACE_VARS.face_number.bits(),
-            key,
-            DRAW.entry_third.bits(),
-            GROUND_WORK.object_see_through.bits(),
-        ],
-        "the list of faces",
-    )?;
+    for (k, v) in [
+        RACE_VARS.face_number.bits(),
+        key,
+        DRAW.entry_third.bits(),
+        GROUND_WORK.object_see_through.bits(),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        crate::session::write_on(
+            &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
+            entry + k,
+            v,
+            "the list of faces",
+        )?;
+    }
     LIGHT_WORK.listed_face_count.set_bits(listed + 1);
     Ok(())
 }

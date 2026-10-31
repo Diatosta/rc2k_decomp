@@ -38,7 +38,7 @@ pub fn take_split_counted() -> Result<(), Refused> {
     { keep_split_time() }?;
     { set_flag_51659c() }?;
     split_by_mode()?;
-    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get());
+    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get())?;
     if CAR.splits_passed.get() < SPLIT_TABLES.split_colour_count.get() {
         CAR.notice_id.set(SPLIT_NOTICE);
         CAR.notice_time_b.set(0x32);

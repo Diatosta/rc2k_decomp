@@ -1,8 +1,3 @@
-/// The dword at `a`.
-pub fn get(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cells's operand")
-}
-
 /// `now` into the cell when it is not `was` (what was read from it).
 pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
     if now != was {
@@ -10,7 +5,6 @@ pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
     }
 }
 
-/// `N` dwords from `a` on.
 /// The values of `cells`.
 pub fn values<const N: usize>(cells: &[crate::session::Dword; N]) -> [u32; N] {
     std::array::from_fn(|k| cells[k].get())
@@ -21,10 +15,6 @@ pub fn set_values_changed(cells: &[crate::session::Dword], was: &[u32], now: &[u
     for ((c, &w), &n) in cells.iter().zip(was).zip(now) {
         set_changed(c, w, n);
     }
-}
-
-pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
-    std::array::from_fn(|k| get(a + 4 * k as u32))
 }
 
 /// Reads of the game's memory made inside a closure the core calls (which can answer a

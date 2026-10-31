@@ -33,13 +33,11 @@ pub fn restore_saved_car() -> Result<(), Refused> {
     }
     // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
     // follows each).
-    let (from, to) = (
-        CONTACT_WORK.probe_saved_faces[0].addr(),
-        CAR.probe_point_face[0].addr(),
-    );
-    for k in 0..n as u32 {
-        let v = crate::pointers::read_or_end::<u32>(from + 4 * k, "the saved faces");
-        crate::pointers::write_or_end::<u32>(to + 4 * k, v, "the car's faces");
-    }
+    crate::session::copy_on(
+        &CONTACT_WORK.probe_saved_faces,
+        &CAR.probe_point_face,
+        n as usize,
+        "the saved faces",
+    )?;
     Ok(())
 }

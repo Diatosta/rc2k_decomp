@@ -22,7 +22,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::polygon::dword;
 
 // ---- game data ----
 
@@ -30,6 +29,15 @@ const LIST_ENTRY_LEN: usize = 0x10;
 const FACES: u32 = 0xC000;
 
 // ---- Rust version ----
+
+/// Dword `n` of the list of faces (the original reads on past its end).
+fn listed_dword(n: usize) -> Result<u32, BadInput> {
+    crate::session::read_on(
+        &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
+        n,
+        "the list of faces",
+    )
+}
 
 pub fn draw_object_faces(
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
@@ -42,9 +50,8 @@ pub fn draw_object_faces(
     // Every face is looked up before anything is written.
     let mut faces = Vec::with_capacity(listed as usize);
     for n in 0..listed as usize {
-        let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-            + (n * LIST_ENTRY_LEN) as u32;
-        let number = dword(entry as usize).wrapping_add(first);
+        let entry = n * LIST_ENTRY_LEN / 4;
+        let number = listed_dword(entry)?.wrapping_add(first);
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
@@ -57,8 +64,8 @@ pub fn draw_object_faces(
     for &(entry, _, face) in &faces {
         GROUND_WORK
             .object_see_through
-            .set_bits(dword((entry + 0xC) as usize));
-        RACE_VARS.face_number.set_bits(dword(entry as usize));
+            .set_bits(listed_dword(entry + 3)?);
+        RACE_VARS.face_number.set_bits(listed_dword(entry)?);
         let head = crate::scene::object_faces::bytes(face as u32, 0xC)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         DRAW.polygon_textures[0]

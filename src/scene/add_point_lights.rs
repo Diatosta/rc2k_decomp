@@ -48,10 +48,13 @@ pub fn add_point_lights() -> Result<(), Refused> {
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
-        let [point, strength, colour] = reading.read::<[u32; 3]>(
-            LEVEL_GRID.lamps[0].addr() + (n * 0x10) as u32,
-            "a lamp of the level",
-        );
+        let [point, strength, colour] = [0, 1, 2].map(|k| {
+            reading.keep(crate::session::read_on(
+                &LEVEL_GRID.lamps,
+                4 * n + k,
+                "a lamp of the level",
+            ))
+        });
         Lamp {
             point,
             strength,

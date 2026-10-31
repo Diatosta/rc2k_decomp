@@ -29,7 +29,7 @@ pub fn take_split() -> Result<(), Refused> {
         return Ok(());
     }
     split_by_mode()?;
-    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get());
+    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get())?;
     CAR.splits_recorded.set(CAR.splits_passed.get());
     if finished_at(
         CAR.splits_recorded.get(),

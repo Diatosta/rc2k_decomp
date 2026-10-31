@@ -44,10 +44,6 @@ pub fn materials_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
-pub fn dword(at: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>((at) as u32, "scene::polygon's operand")
-}
-
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
 pub fn listed() -> Result<Vec<&'static PolygonEntry>, BadInput> {

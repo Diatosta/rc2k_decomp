@@ -44,10 +44,8 @@ impl ObjectTables {
     /// `g_objectKinds[object]`, read by address: the object numbers the game's code passes
     /// are not all bounded by the table.
     pub fn object_kind(&self, object: u32) -> u32 {
-        let at = self.object_kinds[0]
-            .addr()
-            .wrapping_add(((object as usize).wrapping_mul(4)) as u32);
-        crate::pointers::read_or_end(at, "an object's kind")
+        crate::session::read_on(&self.object_kinds, object as usize, "an object's kind")
+            .unwrap_or_else(|e| crate::fatal::raise::end("an object's kind", e))
     }
 }
 
