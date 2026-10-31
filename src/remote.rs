@@ -100,15 +100,37 @@ fn button(name: &str) -> Option<SDL_GamepadButton> {
 
 fn state() -> String {
     use crate::menu::loop_store::LOOP_FLAGS;
+    use crate::physics::car_store::CAR;
+    use crate::race::checkpoints_store::{CHECKPOINTS, nth};
+    let at = CAR.checkpoint.get() as usize;
+    // The stage line ahead, for `tools/remote.py pilot`.
+    let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
     format!(
-        "frames={} race={} menu={:?} item={} focused={}",
+        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} heading={} matrix={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         crate::race::numbers_store::NUMBERS.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
         LOOP_FLAGS.item.get(),
         crate::session::FLAGS.window_focused.get(),
+        CAR.speed.get(),
+        CAR.stage_time.get(),
+        CAR.splits_passed.get(),
+        at,
+        CAR.map_place[0].get() as i32,
+        CAR.map_place[1].get() as i32,
+        nth(&CHECKPOINTS.map_x[0], ahead).get() as i32,
+        nth(&CHECKPOINTS.map_y[0], ahead).get() as i32,
+        CAR.car_heading.get() as i32,
+        CAR.crash_matrix[..12]
+            .iter()
+            .map(|cell| format!("{:.2}", cell.get()))
+            .collect::<Vec<_>>()
+            .join(","),
     )
 }
+
+/// How many checkpoints ahead `state`'s target is.
+const LOOK_AHEAD: usize = 12;
 
 fn run(line: &str) {
     let words: Vec<&str> = line.split_whitespace().collect();

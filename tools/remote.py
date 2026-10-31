@@ -7,14 +7,14 @@
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py shot name                  the next frame to <folder>/shots/name.png
-    remote.py state                      frames, race flag, menu, item
+    remote.py state                      frames, race flag, menu, item, speed, time, place
     remote.py log [n]                    the game's log, last n lines
     remote.py stop                       quits, then ends it
 
 --handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH. There var and
 savedata are put back on stop, as the folder is the real one.
 """
-import itertools, os, shutil, struct, subprocess, sys, time, zlib
+import os, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser('~/.cache/rc2k_remote')
@@ -79,7 +79,7 @@ def ask(command, timeout=20):
         for line in replies().splitlines():
             if line.startswith(number + ' '):
                 return line[len(number) + 1:]
-        time.sleep(0.15)
+        time.sleep(0.02)
     sys.exit(f'no answer to "{command}" in {timeout} s: is the game running? (remote.py log)')
 
 
