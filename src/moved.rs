@@ -2406,6 +2406,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::install::vars::InstallerPages::holds_handle(ida) => {}
             Some(_) if crate::gfx::fonts_store::Fonts::holds_handle(ida) => {}
             Some(_) if crate::menu::cars_store::holds_handle(ida) => {}
+            Some(_) if crate::saves::best_times_store::RallyTimes::holds_handle(ida) => {}
             Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
             Some(_) if crate::physics::tables_store::PhysicsTables::holds_handle(ida) => {}
             Some(_) if crate::race::view_vars_store::ViewVars::holds_handle(ida) => {}

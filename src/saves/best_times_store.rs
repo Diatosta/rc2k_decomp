@@ -122,8 +122,9 @@ impl TimeEntry {
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
 /// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `off_742C98`, the six tables'
-/// addresses (`screens::draw_section_best_times`, `saves::default_championship_times`;
-/// `moved::point_into_homes` makes them real), then the tables, twenty entries each.
+/// addresses, kept as IDA's, as names (phase 13; `RallyTimes::table_of` makes one real, for
+/// `screens::draw_section_best_times` and `saves::default_championship_times`;
+/// `moved::point_into_homes` passes them over), then the tables, twenty entries each.
 #[repr(C)]
 pub struct RallyTimes {
     pub tables: [Dword; 6],
@@ -1236,6 +1237,24 @@ pub static RALLY_TIMES: RallyTimes = RallyTimes {
 };
 
 impl RallyTimes {
+    /// Where rally `n`'s table is.
+    pub fn table_of(n: usize) -> Result<u32, crate::errors::BadInput> {
+        let name = RALLY_TIMES.tables.get(n).ok_or(crate::errors::BadInput(
+            "a rally past the six best-times tables",
+        ))?;
+        crate::moved::named_in(
+            name.get(),
+            Self::START,
+            Self::END - Self::START,
+            "a best-times table off the rallies' tables",
+        )
+    }
+
+    /// Whether IDA's `ida` is one of the six table names (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (Self::START..Self::START + 24).contains(&ida)
+    }
+
     /// IDA 0x742C98, the first byte of the piece.
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.
@@ -1292,6 +1311,22 @@ mod tests {
                 len,
             )
         };
-        assert_eq!(mine, &image_bytes(RallyTimes::START, len)[..]);
+        let image = image_bytes(RallyTimes::START, len);
+        assert_eq!(mine, &image[..]);
+        // The six names are the image's addresses of the six tables and resolve to them.
+        for n in 0..6 {
+            let name = u32::from_le_bytes(image[4 * n..4 * n + 4].try_into().unwrap());
+            assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
+            assert!(RallyTimes::holds_handle(RallyTimes::START + 4 * n));
+            assert_eq!(
+                RallyTimes::table_of(n),
+                Ok(RallyTimes::home() as u32 + name - RallyTimes::START as u32)
+            );
+            assert_eq!(
+                RallyTimes::table_of(n).unwrap(),
+                crate::pointers::game_address(core::ptr::from_ref(&RALLY_TIMES.rallies[n]))
+            );
+        }
+        assert!(RallyTimes::table_of(6).is_err());
     }
 }

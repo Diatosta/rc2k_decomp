@@ -31,10 +31,7 @@ pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
     }
-    let e = crate::saves::best_times_store::RALLY_TIMES.tables[section as usize].get();
-    if e == 0 {
-        return Err(BadInput("a section with no best-times table").into());
-    }
+    let e = crate::saves::best_times_store::RallyTimes::table_of(section as usize)?;
     // Converted: `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
     let f = crate::menu::event_flow::Fault::default();

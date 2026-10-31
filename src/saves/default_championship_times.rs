@@ -39,10 +39,10 @@ pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
             .map(|n| read_record(records_at + n * RECORD_LEN))
             .collect::<Result<_, _>>()?;
         let mut tables = vec![Target::Stages(table)];
-        let mut present = [false; RALLIES];
-        for (rally, there) in present.iter_mut().enumerate() {
-            let entries = crate::saves::best_times_store::RALLY_TIMES.tables[rally].get();
-            *there = entries != 0;
+        // Every rally has its table.
+        let present = [true; RALLIES];
+        for rally in 0..RALLIES {
+            let entries = crate::saves::best_times_store::RallyTimes::table_of(rally)?;
             tables.push(Target::Game(entries, RALLY_TABLE_LEN));
         }
         let filled = championship_times(
