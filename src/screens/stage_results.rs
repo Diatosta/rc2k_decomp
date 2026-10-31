@@ -194,7 +194,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let mut seal_code = |a: u32, b: u32| {
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(a, b));
         seal_fault.ok(crate::strings::text_length::nul_at(
-            crate::strings::format_seal_code::SEAL_TEXT.addr(),
+            GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT),
             "the seal text",
         )
         .and_then(|len| {

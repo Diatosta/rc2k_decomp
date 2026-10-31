@@ -31,11 +31,10 @@ pub fn draw_clock_fixed_pitch(
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
     let at = columns(x, &CLOCK_STEPS);
-    let base = text.addr();
     let cell = text.offset(CELL_OFFSET as u32);
     // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
     for (i, &x) in at.iter().enumerate() {
-        crate::text::draw_time_fixed_pitch::put_cell(base, i)?;
+        crate::text::draw_time_fixed_pitch::put_cell(text, i)?;
         draw_text_keep_regs(font, cell, x, y, canvas)?;
     }
     // The flags of the original's last `add`, after the fifth character.

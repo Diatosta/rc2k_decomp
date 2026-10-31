@@ -59,8 +59,7 @@ pub fn load_slideshow_picture(
             if file_exists_at(path)? {
                 return Ok(true);
             }
-            let length =
-                crate::strings::text_length::nul_at(path.addr(), "a picture path")? as usize;
+            let length = crate::strings::text_length::nul_at(path, "a picture path")? as usize;
             let mut text = path.read_bytes(length, "a picture path")?;
             slides::pcx(&mut text)?;
             path.write_bytes(&text, "a picture path")?;

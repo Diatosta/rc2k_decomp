@@ -293,7 +293,7 @@ pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = crate::files::state::PACKED_PATH.addr();
-        let len = crate::strings::text_length::nul_at(picture, "a text to append")?;
+        let len = crate::strings::text_length::nul_at(GamePtr::new(picture), "a text to append")?;
         GamePtr::new(picture).copy_to(GamePtr::new(path + 3), len as usize, "a text to append")?;
         GamePtr::new((path + 3 + len).wrapping_sub(4))
             .write(0x0071_732Eu32, "the packed map's path")?;

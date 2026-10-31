@@ -60,6 +60,13 @@ fn read(at: u32) -> Result<u32, BadInput> {
     GamePtr::new(at).read("a screen mode table's dword")
 }
 
+/// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
+fn list_mode(place: u32) -> Result<u32, BadInput> {
+    GamePtr::to(&CHOICES.list)
+        .offset(16 * place + 0xC)
+        .read("a screen mode table's dword")
+}
+
 fn read_word(at: u32) -> Result<u32, BadInput> {
     Ok(GamePtr::new(at).read::<u16>("a screen mode table's word")? as u32)
 }
@@ -117,7 +124,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
         if CHOICES.resolution.get() >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
-        let current = read(CHOICES.list.addr() + 16 * CHOICES.resolution.get() + 0xC)?;
+        let current = list_mode(CHOICES.resolution.get())?;
         if try_choice {
             // The choice tried.
             let (third, place) = (CHOICES.buffering.get(), CHOICES.resolution.get());
@@ -126,7 +133,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
             }
             let mode = mc::tried_mode(
                 MODES.kind_bits[kind as usize].get(),
-                read(CHOICES.list.addr() + 16 * place + 0xC)?,
+                list_mode(place)?,
                 MODES.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;

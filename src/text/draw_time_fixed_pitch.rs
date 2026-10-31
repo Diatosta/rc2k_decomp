@@ -29,20 +29,19 @@ pub fn draw_time_fixed_pitch(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let mut too_wide = false;
-    let at = text.addr();
     let cell = text.offset(CELL_OFFSET as u32);
     // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
     for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
-        put_cell(at, i)?;
+        put_cell(text, i)?;
         too_wide = draw_text_keep_regs(font, cell, x, y, canvas)?;
     }
     Ok(too_wide)
 }
 
 /// Copies the text's byte `i` to its cell with a NUL after it.
-pub fn put_cell(text: u32, i: usize) -> Result<(), Refused> {
-    let b = crate::pointers::read_or_end::<u8>(text.wrapping_add(i as u32), "a fixed-pitch text");
-    crate::pointers::GamePtr::new(text.wrapping_add(CELL_OFFSET as u32))
+pub fn put_cell(text: crate::pointers::GamePtr, i: usize) -> Result<(), Refused> {
+    let b = text.offset(i as u32).read::<u8>("a fixed-pitch text")?;
+    text.offset(CELL_OFFSET as u32)
         .write_bytes(&[b, 0], "a fixed-pitch text's cell")?;
     Ok(())
 }

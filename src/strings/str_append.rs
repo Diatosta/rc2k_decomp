@@ -11,7 +11,7 @@ use crate::pointers::GamePtr;
 
 /// The text at `src` copied to `cursor` without its NUL; the cursor after it.
 pub fn str_append(src: GamePtr, cursor: GamePtr) -> Result<GamePtr, BadInput> {
-    let len = crate::strings::text_length::nul_at(src.addr(), "a text to append")?;
+    let len = crate::strings::text_length::nul_at(src, "a text to append")?;
     src.copy_to(cursor, len as usize, "a text to append")?;
     Ok(cursor.offset(len))
 }

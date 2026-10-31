@@ -18,8 +18,8 @@ use rc2k_core::strings::bytes::Bytes;
 // ---- Rust version ----
 
 /// The length of the text at `at` (to its NUL), which must end inside its block.
-pub fn nul_at(at: u32, what: &str) -> Result<u32, BadInput> {
-    let bytes = GamePtr::new(at).bytes(what)?;
+pub fn nul_at(at: GamePtr, what: &str) -> Result<u32, BadInput> {
+    let bytes = at.bytes(what)?;
     (0..)
         .map_while(|n| bytes.byte(n))
         .position(|b| b == 0)
