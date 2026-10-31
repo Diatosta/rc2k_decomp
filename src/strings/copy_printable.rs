@@ -36,7 +36,7 @@ pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
 /// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
 pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();
-    if text.addr() != 0 {
+    if !text.is_null() {
         let at = text.addr();
         // As far as the original reads: room - 1 characters or the NUL.
         for n in 0..(room as usize).saturating_sub(1) {

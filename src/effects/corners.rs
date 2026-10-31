@@ -119,8 +119,9 @@ pub fn make_corners() -> Result<(), Refused> {
                 }
             }
         }
-        let bx_at = KIND_BOXES.boxes.addr() + kind * 0x30;
-        let bx = |o: u32| -> Result<_, Refused> { Ok(get(bx_at + o)? as i32) };
+        let bx_at = (kind * 0x30) as usize;
+        let bx =
+            |o: usize| -> Result<_, Refused> { Ok(KIND_BOXES.boxes.get_u32(bx_at + o) as i32) };
         let divisors: [i32; 2] = MASK_CONSTANTS.divisors.each_ref().map(|c| c.get() as i32);
         let scales = [
             x87::int_div_int(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),

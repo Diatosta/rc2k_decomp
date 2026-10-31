@@ -32,7 +32,7 @@ pub fn blend_palette(
             "no entries: the original goes through all 32 bits",
         ));
     }
-    if first == 0 || second == 0 || out.addr() == 0 {
+    if first == 0 || second == 0 || out.is_null() {
         return Err(BadInput("a null palette"));
     }
     // The two palettes are places of `gfx::glyph_store` or game addresses.

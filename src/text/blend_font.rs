@@ -38,7 +38,7 @@ const FONT_LEN: usize = 0x20;
 // ---- Rust version ----
 
 pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<(), BadInput> {
-    if a.addr() == 0 || b.addr() == 0 {
+    if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
     let mode: u32 = BLEND_MODE.load(Ordering::Relaxed);

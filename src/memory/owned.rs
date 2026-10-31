@@ -19,7 +19,7 @@ pub fn count_on(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refuse
     if own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)").into());
     }
-    if list.addr() == 0 || rc2k_core::memory::block_size(bytes).is_none() {
+    if list.is_null() || rc2k_core::memory::block_size(bytes).is_none() {
         return Err(BadInput("no list, or a size that wraps").into());
     }
     let at = list;

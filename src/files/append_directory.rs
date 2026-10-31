@@ -17,7 +17,7 @@ use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after, and whether a directory was found.
 pub fn append_directory(path: GamePtr, cursor: GamePtr) -> Result<(GamePtr, bool), BadInput> {
-    if path.addr() == 0 {
+    if path.is_null() {
         return Err(BadInput("a null path"));
     }
     let text = crate::files::cstring(path, "a path")?;

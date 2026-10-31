@@ -35,7 +35,7 @@ pub fn first_match_read(
     count: u32,
     offset: u32,
 ) -> Result<Option<ReadResult>, BadInput> {
-    if pattern.addr() == 0 {
+    if pattern.is_null() {
         return Err(BadInput("no path to match"));
     }
     let pattern = crate::files::cstring(pattern, "a search pattern")?;

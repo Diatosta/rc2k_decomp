@@ -279,7 +279,7 @@ fn read_alpha_sheet(template: GamePtr) -> Result<(), Refused> {
 }
 
 pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result<(), Refused> {
-    if template.addr() == 0 {
+    if template.is_null() {
         return Err(BadInput("no path for the sheets").into());
     }
     let work = crate::pointers::GamePtr::to(&LEXICON.memory);

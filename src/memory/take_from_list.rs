@@ -21,7 +21,7 @@ use crate::pointers::GamePtr;
 
 /// The address of the bytes, or None if the list has not that many left.
 pub fn take_from_list(list: GamePtr, bytes: u32) -> Result<Option<u32>, BadInput> {
-    if list.addr() == 0 {
+    if list.is_null() {
         return Err(BadInput("no list to take from"));
     }
     let at = list;

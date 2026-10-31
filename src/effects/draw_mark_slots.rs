@@ -38,6 +38,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
+use crate::session::read_on;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -80,8 +81,9 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
         }
         s.life
             .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
-        let p = (SPLINE_HEAD.points[0].addr()).wrapping_add(s.point.get().wrapping_mul(12));
-        let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
+        let p = s.point.get() as usize * 3;
+        let at = |n: usize| read_on(&SPLINE_HEAD.points, p + n, "a spline point");
+        let [a, b, c] = [at(0)? ^ 0x8000_0000, at(1)?, at(2)?];
         let k4 = TUNING
             .place_k
             .each_ref()

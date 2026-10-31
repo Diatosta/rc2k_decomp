@@ -23,7 +23,7 @@ use crate::pointers::GamePtr;
 // ---- Rust version ----
 
 pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
-    if list.addr() == 0 {
+    if list.is_null() {
         return Ok(());
     }
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners

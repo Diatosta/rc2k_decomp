@@ -40,7 +40,7 @@ pub fn measure_string_by_id_at(
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    if font.addr() == 0 {
+    if font.is_null() {
         return Err(BadInput("no font").into());
     }
     let mut copy = font.read::<Font>("a font")?;

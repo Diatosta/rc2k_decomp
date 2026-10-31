@@ -296,8 +296,7 @@ pub fn run_particles() -> Result<(), Refused> {
             s & 0xFFFF
         };
         let r = seed();
-        let at = MATRICES.view_place[0].addr();
-        let view = |o: u32| -> Result<_, Refused> { Ok(get(at + o)?) };
+        let view = |o: usize| MATRICES.view_place[o / 4].bits();
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
@@ -308,9 +307,9 @@ pub fn run_particles() -> Result<(), Refused> {
                 cosine,
             )
         };
-        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30)?, false);
-        let y = x87::loaded(view(0x34)?);
-        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38)?, true);
+        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30), false);
+        let y = x87::loaded(view(0x34));
+        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38), true);
         let lift = seed();
         let up = x87::int_times_plus_times_plus(
             lift as i32,
@@ -319,8 +318,8 @@ pub fn run_particles() -> Result<(), Refused> {
             PARTICLE_TUNING.puff_y[1].bits(),
             PARTICLE_TUNING.puff_y[2].bits(),
         );
-        let mx = x87::sub_mul(view(0x30)?, x, PARTICLE_TUNING.puff_m[0].bits());
-        let mz = x87::sub_mul(view(0x38)?, z, PARTICLE_TUNING.puff_m[1].bits());
+        let mx = x87::sub_mul(view(0x30), x, PARTICLE_TUNING.puff_m[0].bits());
+        let mz = x87::sub_mul(view(0x38), z, PARTICLE_TUNING.puff_m[1].bits());
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             PUFF_WORK.puff[n].set_bits(v);
         }

@@ -82,15 +82,11 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
         HEX.moved.set(1);
         if second != 0 {
             view_moved(s);
-            let view = MATRICES.view_place[0].addr();
-            for col in 0..3u32 {
-                let v = [
-                    get(view + 4 * col)?,
-                    get(view + 0x10 + 4 * col)?,
-                    get(view + 0x20 + 4 * col)?,
-                ];
+            let view = &MATRICES.view_place;
+            for col in 0..3usize {
+                let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
                 for (k, x) in v.into_iter().enumerate() {
-                    HEX.turn[3 * col as usize + k].set_bits(x);
+                    HEX.turn[3 * col + k].set_bits(x);
                 }
             }
             let turn = crate::pointers::game_address(HEX.turn.as_ptr());
