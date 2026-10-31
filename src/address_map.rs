@@ -83,6 +83,16 @@ static RANGES: Mutex<Ranges> = Mutex::new(Ranges {
 /// Whether table mode is on.
 #[inline]
 pub fn table() -> bool {
+    // Always on 64 bits: asked on every access, so nothing is read there.
+    #[cfg(target_pointer_width = "64")]
+    return true;
+    #[cfg(not(target_pointer_width = "64"))]
+    table_32_bit()
+}
+
+/// Whether the table is on where it is optional (a shifted test of the 32-bit build).
+#[cfg(not(target_pointer_width = "64"))]
+fn table_32_bit() -> bool {
     static TABLE: OnceLock<bool> = OnceLock::new();
     *TABLE.get_or_init(|| {
         let on = cfg!(target_pointer_width = "64") || std::path::Path::new("rc2k_map.on").exists();
@@ -165,6 +175,13 @@ pub fn game_of(p: usize) -> Option<u32> {
 }
 
 /// The program's own image (code, constants, statics), its range made at the first use.
+/// Whether `len` bytes from host address `at` lie in the program's own image (its statics).
+#[inline]
+pub fn in_image(at: usize, len: usize) -> bool {
+    let image = image();
+    at >= image.host && at.wrapping_add(len) <= image.host + image.len && table()
+}
+
 fn image() -> Range {
     static IMAGE: OnceLock<Range> = OnceLock::new();
     *IMAGE.get_or_init(|| {

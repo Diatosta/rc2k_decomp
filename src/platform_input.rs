@@ -67,6 +67,8 @@ struct Device {
     info: DeviceInfo,
     /// The game's effects (their object numbers) as SDL's.
     effects: HashMap<u32, SDL_HapticEffectID>,
+    /// Which of the sticks' four axes have left their rest (`stick_axis`).
+    stick_moved: [bool; 4],
 }
 
 pub struct SdlBackend {
@@ -220,6 +222,7 @@ impl SdlBackend {
                 features,
                 info,
                 effects: HashMap::new(),
+                stick_moved: [false; 4],
             });
         }
     }
@@ -240,7 +243,17 @@ const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
 ];
 
 /// A gamepad read as DirectInput reads an XInput pad (see the header).
-fn pad_reading(device: &Device) -> Reading {
+/// A stick's axis as the game should see it. SDL can report a stick that has not moved yet at
+/// the end of its range (seen on the Anbernic's pad, whose kernel says 0: until the first move
+/// the left stick read full left): an axis counts as at rest until it first leaves that end.
+fn stick_axis(raw: i32, moved: &mut bool) -> i32 {
+    if raw != i16::MIN as i32 {
+        *moved = true;
+    }
+    if *moved { raw } else { 0 }
+}
+
+fn pad_reading(device: &mut Device) -> Reading {
     let pad = device.gamepad;
     // SAFETY: the device's gamepad, opened by `add` and open while the device is listed.
     unsafe {
@@ -251,12 +264,13 @@ fn pad_reading(device: &Device) -> Reading {
         let axis = |a| SDL_GetGamepadAxis(pad, a) as i32;
         // the triggers 0 .. 32767 each: the left one up, the right one down
         let z = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) - axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+        let moved = &mut device.stick_moved;
         r.axes = [
-            axis(SDL_GAMEPAD_AXIS_LEFTX),
-            axis(SDL_GAMEPAD_AXIS_LEFTY),
+            stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTX), &mut moved[0]),
+            stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTY), &mut moved[1]),
             z.clamp(-32768, 32767),
-            axis(SDL_GAMEPAD_AXIS_RIGHTX),
-            axis(SDL_GAMEPAD_AXIS_RIGHTY),
+            stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTX), &mut moved[2]),
+            stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTY), &mut moved[3]),
             0,
         ];
         for (n, &b) in PAD_BUTTONS.iter().enumerate() {
@@ -435,7 +449,7 @@ impl Backend for SdlBackend {
     }
 
     fn read(&mut self, device: usize) -> Reading {
-        let Some(d) = self.devices.get(device) else {
+        let Some(d) = self.devices.get_mut(device) else {
             return Reading::default();
         };
         let mut r = Reading::default();
@@ -543,5 +557,19 @@ impl Backend for SdlBackend {
             // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
             unsafe { SDL_StopHapticEffects(d.haptic) };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stick_axis;
+
+    #[test]
+    fn a_stick_at_the_end_of_its_range_rests_until_it_moves() {
+        let mut moved = false;
+        assert_eq!(stick_axis(-32768, &mut moved), 0);
+        assert_eq!(stick_axis(-32768, &mut moved), 0);
+        assert_eq!(stick_axis(5, &mut moved), 5);
+        assert_eq!(stick_axis(-32768, &mut moved), -32768);
     }
 }

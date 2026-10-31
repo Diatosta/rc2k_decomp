@@ -61,12 +61,14 @@ struct Cache {
     map_generation: u32,
     regions: [(u32, u32); 4],
     next: usize,
+    /// The region the last check was in.
+    last: usize,
     stack: Option<(u32, u32)>,
 }
 
 thread_local! {
     static CACHE: std::cell::RefCell<Cache> = const {
-        std::cell::RefCell::new(Cache { generation: u32::MAX, map_generation: u32::MAX, regions: [(0, 0); 4], next: 0, stack: None })
+        std::cell::RefCell::new(Cache { generation: u32::MAX, map_generation: u32::MAX, regions: [(0, 0); 4], next: 0, last: 0, stack: None })
     };
 }
 
@@ -89,7 +91,12 @@ fn inside(addr: u32, len: usize) -> bool {
             // overlapping): it is looked up afresh.
             cache.stack = None;
         }
-        if cache.regions.iter().any(|&r| fits(r)) {
+        // The last one found first: most reads follow one another in one store.
+        if fits(cache.regions[cache.last]) {
+            return true;
+        }
+        if let Some(k) = cache.regions.iter().position(|&r| fits(r)) {
+            cache.last = k;
             return true;
         }
         let stack = *cache.stack.get_or_insert_with(|| to_game(stack()));

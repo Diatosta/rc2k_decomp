@@ -9,6 +9,10 @@ use crate::math::x87_float::{X, f80, from_f80, int, ld, st, to_int};
 /// An operand's base: an address, as the runs hold it, or a pointer.
 pub(crate) trait Base: Copy {
     fn address(self) -> usize;
+    /// The host pointer itself, when the base is one.
+    fn direct(self) -> Option<*mut u8> {
+        None
+    }
 }
 
 impl Base for usize {
@@ -21,11 +25,17 @@ impl Base for *const u8 {
     fn address(self) -> usize {
         crate::pointers::game_address(self) as usize
     }
+    fn direct(self) -> Option<*mut u8> {
+        Some(self.cast_mut())
+    }
 }
 
 impl Base for *mut u8 {
     fn address(self) -> usize {
         crate::pointers::game_address(self) as usize
+    }
+    fn direct(self) -> Option<*mut u8> {
+        Some(self)
     }
 }
 
@@ -33,6 +43,20 @@ impl Base for *mut u8 {
 /// otherwise, `pointers::check_or_end`).
 #[track_caller]
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
+    // A pointer to one of the program's statics or to this thread's stack (a local of the
+    // caller's, near this frame): released builds go straight there, as these run many times
+    // a physics tick; the check by region stays in debug builds and tests, and for everything
+    // else.
+    if !cfg!(debug_assertions)
+        && let Some(p) = base.direct()
+    {
+        let at = p.wrapping_add(off);
+        let here = (&raw const off) as usize;
+        if crate::address_map::in_image(at as usize, len) || (at as usize).abs_diff(here) < 0x1_0000
+        {
+            return at;
+        }
+    }
     // A game address (the race core's base and an RVA, a record's address).
     let at = base.address().wrapping_add(off) as u32;
     crate::pointers::check_or_end(at, len, "an x87 operand");
