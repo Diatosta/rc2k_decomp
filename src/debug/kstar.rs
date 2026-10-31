@@ -20,7 +20,7 @@ use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -195,7 +195,10 @@ fn camera(ui: &Ui) {
         .collect();
     ui.text(format!("View {view}: {}", name.trim_end()));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
-    let record = VIEW_VARS.view_records[view].get();
+    let Ok(record) = ViewVars::record_of(view) else {
+        ui.text("This view's record is not readable");
+        return;
+    };
     let cell = |offset: u32| GamePtr::new(record.wrapping_add(offset));
     for (label, offset) in CAMERA {
         let Ok(bits) = cell(offset).read::<u32>("a view's record") else {

@@ -15,14 +15,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
 fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
-    reading.read(
-        VIEW_VARS.view_records[mode as usize].get(), // off_606320
-        "a camera mode's record",
-    )
+    // off_606320
+    let record = reading.keep(ViewVars::record_of(mode as usize));
+    reading.read(record, "a camera mode's record")
 }
 
 /// The Rust version.

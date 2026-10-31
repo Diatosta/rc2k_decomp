@@ -9,12 +9,12 @@
 
 use crate::errors::Refused;
 use crate::race::frame_store::FRAME_WORK;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 
 /// The Rust version (see the header): the record's pointer (the original's esi; read by
 /// no caller).
 // Converted: `rc2k_core::effects::race::stage_record`
 pub fn stage_record() -> Result<u32, Refused> {
     let n = rc2k_core::effects::race::stage_record(FRAME_WORK.lead_kept[0].bits())?;
-    Ok(VIEW_VARS.view_records[n].get())
+    Ok(ViewVars::record_of(n)?)
 }

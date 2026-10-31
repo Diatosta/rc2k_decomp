@@ -11,14 +11,14 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::fild;
 
 /// esi as the original leaves it: the mode's record.
-pub fn record() -> u32 {
+pub fn record() -> Result<u32, crate::errors::BadInput> {
     let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
-    VIEW_VARS.view_records[mode as usize].get()
+    ViewVars::record_of(mode as usize)
 }
 
 pub fn rd(x: u32) -> u32 {

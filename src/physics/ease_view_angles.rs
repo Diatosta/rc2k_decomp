@@ -22,16 +22,17 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::fld;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_angles() {
-    let esi = record();
+pub fn ease_view_angles() -> Result<(), crate::errors::BadInput> {
+    let esi = record()?;
     if rd(esi + 0x3C) == 0 {
-        return;
+        return Ok(());
     }
     share_done(esi);
     for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
         x87_1((esi + 0x40 + 4 * k as u32) as usize);
         to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----

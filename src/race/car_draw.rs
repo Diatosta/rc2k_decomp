@@ -18,7 +18,7 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::{VIEW_VARS, ViewVars};
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -278,7 +278,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
     if !below(stage, 0x33) {
         stage = 0x33;
     }
-    let record = VIEW_VARS.view_records[stage as usize].bits();
+    let record = ViewVars::record_of(stage as usize)?;
     if get(record + 0x50)? != 0 {
         FRAME_WORK.car_depth.set(0x5_0000);
     }

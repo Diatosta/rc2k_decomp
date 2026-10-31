@@ -23,19 +23,20 @@ use crate::scene::x87_mem::fld;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
-pub fn take_view_a(s: u32) {
+pub fn take_view_a(s: u32) -> Result<(), crate::errors::BadInput> {
     x87_1(s as usize);
     for (k, put) in copies().iter().enumerate() {
         put(rd(s + 0x10 + 4 * k as u32));
     }
     CAMERA_WORK.view_a_heading.set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
-    if rd(record() + 0x4C) != 0 {
+    if rd(record()? + 0x4C) != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
     CAMERA_WORK.view_a_pitch.set(eax);
     CAMERA_WORK.view_a_roll.set(ebx);
+    Ok(())
 }
 
 /// Where the record's +0x10 .. +0x38 go (the statics deref at run time, so a function).

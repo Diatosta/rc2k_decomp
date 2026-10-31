@@ -48,7 +48,7 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::{VIEW_VARS, ViewVars};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fld};
@@ -56,7 +56,7 @@ use crate::session::Cell32;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
-fn fixed_camera(second: bool) {
+fn fixed_camera(second: bool) -> Result<(), crate::errors::BadInput> {
     let (nearest, replay) = if second {
         (
             &CHECKPOINTS.nearest_camera_2[0],
@@ -80,7 +80,7 @@ fn fixed_camera(second: bool) {
     for k in 0..3 {
         CAR.camera_position[k as usize].set(crate::race::scene_points::word_or_end(point + 4 * k));
     }
-    crate::physics::camera_height_bias::camera_height_bias();
+    crate::physics::camera_height_bias::camera_height_bias()?;
     let d = |k: usize| {
         CAR.position[k]
             .get()
@@ -100,7 +100,7 @@ fn fixed_camera(second: bool) {
     }));
     CAR.camera_zoom
         .set_bits(CAMERA_WORK.camera_zoom_kept.bits());
-    if rd(record() + 0x50) != 0 {
+    if rd(record()? + 0x50) != 0 {
         CAR.camera_zoom.set_bits(0x180);
         x87_3();
         hold_low(&CAR.camera_zoom, &NUMBERS.k384);
@@ -109,6 +109,7 @@ fn fixed_camera(second: bool) {
     for turn in &CAR.camera_offset_turns {
         turn.set(0);
     }
+    Ok(())
 }
 
 /// The steps. The registers the original leaves are read by none of its callers.
@@ -132,7 +133,7 @@ pub fn steps() -> Result<(), Refused> {
     if CAR.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(CAR.camera_view.get())
     {
-        fixed_camera(second);
+        fixed_camera(second)?;
         return Ok(());
     }
     // 0x437BE4: the camera at the car, the views blended.
@@ -167,8 +168,8 @@ pub fn steps() -> Result<(), Refused> {
     }
     let (mode, before) = (CAR.camera_view.get(), CAR.camera_blend_view.get());
     camera_view::check_modes(mode, before)?;
-    crate::physics::take_view_a::take_view_a(VIEW_VARS.view_records[mode as usize].get());
-    crate::physics::take_view_b::take_view_b(VIEW_VARS.view_records[before as usize].get());
+    crate::physics::take_view_a::take_view_a(ViewVars::record_of(mode as usize)?)?;
+    crate::physics::take_view_b::take_view_b(ViewVars::record_of(before as usize)?);
     x87_6();
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&CAMERA_WORK, &CAR.camera_offset_turns);
@@ -240,8 +241,8 @@ pub fn steps() -> Result<(), Refused> {
         .set(CAMERA_WORK.view_a_aux_2.get());
     x87_8();
     hold_low(&CAR.camera_zoom, &VIEW_VARS.camera_zoom_hold);
-    crate::physics::ease_view_angles::ease_view_angles();
-    crate::physics::ease_view_blend::ease_view_blend();
+    crate::physics::ease_view_angles::ease_view_angles()?;
+    crate::physics::ease_view_blend::ease_view_blend()?;
     crate::physics::camera_avoid_ground::steps()?;
     x87_9();
     COURSE.camera_first.set(VIEW_VARS.view_angles[1].get());

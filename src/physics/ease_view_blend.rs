@@ -24,16 +24,17 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_blend() {
-    let esi = record();
+pub fn ease_view_blend() -> Result<(), crate::errors::BadInput> {
+    let esi = record()?;
     if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
-        return;
+        return Ok(());
     }
     share_done(esi);
     if (rd(esi + 0x58) as i32) < 0 {
         x87_1();
     }
     x87_2();
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----

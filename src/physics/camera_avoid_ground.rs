@@ -116,7 +116,7 @@ pub fn steps() -> Result<(), Refused> {
     RACE_TABLES.camera_turn_step.set(u32::MAX);
     DRAW.camera_heading_kept.set(CAR.camera_heading.get());
     place();
-    if rd(record() + 0x4C) == 0 {
+    if rd(record()? + 0x4C) == 0 {
         return Ok(());
     }
     if !camera_over_ground()? {

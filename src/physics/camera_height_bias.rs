@@ -24,10 +24,10 @@ use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn camera_height_bias() {
-    let esi = record();
+pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
+    let esi = record()?;
     if rd(esi + 0x54) == 0 {
-        return;
+        return Ok(());
     }
     x87_1();
     hold_low(&DRAW.scratch, &NUMBERS.zero);
@@ -39,6 +39,7 @@ pub fn camera_height_bias() {
     let eax = DRAW.scratch.get();
     VIEW_VARS.camera_height_bias.set(eax);
     CAR.camera_position[1].set(CAR.camera_position[1].get().wrapping_add(eax));
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----

@@ -116,6 +116,36 @@ impl core::ops::Deref for InGroup {
 
 pub static VIEW_VARS: InGroup = InGroup;
 
+impl ViewVars {
+    /// IDA's address of the table of view records (`off_606320`) and its length (52 dwords).
+    const TABLE: usize = 0x606320;
+    /// IDA's addresses of the first view record and the end of the last (52 of 0x5C).
+    const RECORDS: usize = 0x606500;
+    const RECORDS_END: usize = 0x6077B0;
+
+    /// Where view record `n` is (phase 13: the table keeps IDA's addresses as names, and
+    /// `moved::point_into_homes` passes them over). A view past the 52, or a name off the
+    /// records, is refused.
+    pub fn record_of(n: usize) -> Result<u32, crate::errors::BadInput> {
+        let cell = VIEW_VARS
+            .view_records
+            .get(n)
+            .ok_or(crate::errors::BadInput("a view past the 52 records"))?;
+        let at = cell.get() as usize;
+        if !(Self::RECORDS..Self::RECORDS_END).contains(&at) {
+            return Err(crate::errors::BadInput(
+                "a view record's name off the records",
+            ));
+        }
+        Ok(crate::moved::place(at) as u32)
+    }
+
+    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (Self::TABLE..Self::TABLE + 4 * 52).contains(&ida)
+    }
+}
+
 /// IDA 0x60626C, the first byte of the piece.
 pub const START: usize = 0x60626C;
 /// IDA 0x60674C, the end of the piece.
@@ -137,6 +167,24 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&*VIEW_VARS, START, END);
+    }
+
+    #[test]
+    fn the_view_table_names_its_records_as_the_image_does() {
+        for n in 0..52usize {
+            let ida = ViewVars::TABLE + 4 * n;
+            assert!(ViewVars::holds_handle(ida));
+            let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+            // Kept as the image's name; resolved to the same record's place.
+            assert_eq!(VIEW_VARS.view_records[n].get(), image);
+            assert_eq!(image as usize, ViewVars::RECORDS + 0x5C * n);
+            assert_eq!(
+                ViewVars::record_of(n).unwrap() as usize,
+                crate::moved::place(ViewVars::RECORDS) + 0x5C * n
+            );
+        }
+        assert!(!ViewVars::holds_handle(ViewVars::TABLE + 4 * 52));
+        assert!(ViewVars::record_of(52).is_err());
     }
 
     #[test]
