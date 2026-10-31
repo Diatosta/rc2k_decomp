@@ -293,7 +293,7 @@ pub fn place_object_points_sse() -> Result<(), Refused> {
     normal(object.table, 0)
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(target_arch = "x86", target_arch = "x86_64")))] // x86's instructions
 mod sse_tests {
     use super::sse_lanes;
     #[cfg(target_arch = "x86")]

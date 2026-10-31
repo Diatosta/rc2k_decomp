@@ -832,7 +832,7 @@ impl Triangle<'_> {
         let vw = line(self.vw[0], self.vw[1], self.vw[2]);
         let u = line(a.u, b.u, c.u);
         let v = line(a.v, b.v, c.v);
-        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
         if !SCALAR_ONLY.load(std::sync::atomic::Ordering::Relaxed) {
             let lines = Lines {
                 z,
@@ -845,6 +845,7 @@ impl Triangle<'_> {
                 v,
             };
             // SAFETY: SSE2 is in both targets' baseline (i686 and x86_64 Windows).
+            #[cfg_attr(target_arch = "aarch64", allow(unused_unsafe))] // NEON's are safe calls
             return unsafe { self.row4(y, first, last, &lines) };
         }
         for x in first..=last {
@@ -924,7 +925,7 @@ impl Triangle<'_> {
 pub static SCALAR_ONLY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A row's values: each (at its first place, its change a pixel).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 struct Lines {
     z: (f32, f32),
     colour: [(f32, f32); 4],
@@ -936,6 +937,8 @@ struct Lines {
     v: (f32, f32),
 }
 
+#[cfg(target_arch = "aarch64")]
+use crate::rasteriser_neon::*;
 #[cfg(target_arch = "x86")]
 use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
@@ -943,42 +946,42 @@ use std::arch::x86_64::*;
 
 // A vector's lanes as an array and back: both 16 bytes, every bit pattern a value of
 // either, so the transmutes are sound.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn i32s(v: __m128i) -> [i32; 4] {
     // SAFETY: see above.
     unsafe { core::mem::transmute(v) }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn from_u32s(a: [u32; 4]) -> __m128i {
     // SAFETY: see above.
     unsafe { core::mem::transmute(a) }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn f32s(v: __m128) -> [f32; 4] {
     // SAFETY: see above.
     unsafe { core::mem::transmute(v) }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn from_f32s(a: [f32; 4]) -> __m128 {
     // SAFETY: see above.
     unsafe { core::mem::transmute(a) }
 }
 
 /// `compare` on four lanes: their mask (all ones where it holds).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn compare4(function: u32, value: __m128, reference: __m128) -> __m128 {
     match function {
         1 => _mm_setzero_ps(),
@@ -993,9 +996,9 @@ fn compare4(function: u32, value: __m128, reference: __m128) -> __m128 {
 }
 
 /// `floor` on four lanes, as the scalar one: truncated, one less where that is above.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn floor4(x: __m128) -> __m128i {
     let i = _mm_cvttps_epi32(x);
     let above = _mm_castps_si128(_mm_cmpgt_ps(_mm_cvtepi32_ps(i), x));
@@ -1005,9 +1008,9 @@ fn floor4(x: __m128) -> __m128i {
 
 /// Four lanes' 0xAARRGGBB as four channels (blue, green, red, alpha) of 0 .. 1, each
 /// n x (1 / 255) as `UNIT` has it.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn channels4(argb: __m128i) -> [__m128; 4] {
     let byte = _mm_set1_epi32(0xFF);
     let most = _mm_set1_ps(INV_255);
@@ -1027,9 +1030,9 @@ fn channels4(argb: __m128i) -> [__m128; 4] {
 
 /// The scalar `lerp` of `Texels::bilinear` on four lanes: two channels at a time in 16-bit
 /// halves (each product at most 255 x 256, so the same numbers).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn lerp4(a: __m128i, b: __m128i, w: __m128i) -> __m128i {
     let mask = _mm_set1_epi32(0x00FF_00FF);
     // w in both halves of each lane, and 256 - w
@@ -1052,9 +1055,9 @@ fn lerp4(a: __m128i, b: __m128i, w: __m128i) -> __m128i {
 }
 
 /// `factor` on four lanes: each channel's factor (blue, green, red, alpha).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn factor4(blend: u32, source: &[__m128; 4], target: &[__m128; 4]) -> [__m128; 4] {
     let one = _mm_set1_ps(1.0);
     let less = |x: __m128| _mm_sub_ps(one, x);
@@ -1078,10 +1081,10 @@ fn factor4(blend: u32, source: &[__m128; 4], target: &[__m128; 4]) -> [__m128; 4
 
 /// `read` on four places from x (lanes past `n` read as 0): the channels as 0 .. 1,
 /// alpha 1, each by the same multiplication as the scalar one.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 impl Tile<'_> {
     #[inline]
-    #[target_feature(enable = "sse2")]
+    #[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
     fn read4(&self, x: usize, y: usize, n: usize) -> [__m128; 4] {
         let mut p = [0u32; 4];
         for (lane, p) in p.iter_mut().enumerate().take(n) {
@@ -1118,11 +1121,11 @@ impl Tile<'_> {
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 impl Triangle<'_> {
     /// `row`'s places `first ..= last` four at a time with SSE2: the same
     /// numbers as the scalar loop, but the texels' reads, which stay one by one.
-    #[target_feature(enable = "sse2")]
+    #[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
     fn row4(&self, y: usize, first: usize, last: usize, l: &Lines) -> u64 {
         let tile = self.tile;
         let mut written = 0u64;
@@ -1286,9 +1289,9 @@ impl Triangle<'_> {
 }
 
 /// SSE2's lane-wise `min` and `max` of signed dwords (SSE4.1 has them).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[inline]
-#[target_feature(enable = "sse2")]
+#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
 fn clamp4(v: __m128i, most: i32) -> __m128i {
     // not below 0: zero where the sign is set
     let v = _mm_andnot_si128(_mm_srai_epi32(v, 31), v);
@@ -1297,14 +1300,14 @@ fn clamp4(v: __m128i, most: i32) -> __m128i {
     _mm_or_si128(_mm_and_si128(over, most), _mm_andnot_si128(over, v))
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 impl Texels<'_> {
     /// The four corners' texels (x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1) for four
     /// lanes, as `argb` gives them, with the places worked out four at a time: for a whole
     /// texture of a pitch and texel of powers of two, wrapped by masks or clamped (every lane
     /// read: wrapping and clamping keep every place inside); else None.
     #[inline]
-    #[target_feature(enable = "sse2")]
+    #[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
     fn quad4(&self, x: __m128i, y: __m128i) -> Option<[[u32; 4]; 4]> {
         let (pitch_shift, byte_shift) = self.shifts?;
         if !self.whole || matches!(self.kind, Kind::Other) {

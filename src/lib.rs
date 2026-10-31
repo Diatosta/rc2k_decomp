@@ -39,6 +39,8 @@ mod platform_sound;
 mod pointers;
 mod race;
 mod rasteriser;
+#[cfg(target_arch = "aarch64")]
+mod rasteriser_neon;
 mod records;
 mod registry;
 mod relocations;
