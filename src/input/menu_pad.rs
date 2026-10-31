@@ -28,8 +28,9 @@ pub enum MenuAction {
 /// Not an answer yet.
 const NONE: u32 = 0;
 /// The answer the last button gave (`input::yes_no_key`'s values), for a question to take. The
-/// questions read a typed character, the first of the language's word: the pad's buttons
-/// answer directly, in any language.
+/// race's (`drive::quit_question`) reads a typed character, the first of the language's word,
+/// and shows nothing to choose from: the pad's buttons answer it directly, in any language.
+/// The menus' question has items to choose from: there only Back answers (`handle_yes_no`).
 static ANSWER: AtomicU32 = AtomicU32::new(NONE);
 
 /// A button's answer.

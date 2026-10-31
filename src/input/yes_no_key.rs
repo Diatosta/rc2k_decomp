@@ -71,10 +71,6 @@ pub fn yes_no_key(given: u32) -> Result<u32, BadInput> {
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
-    // A gamepad's button answers directly (not the original's).
-    if let Some(answer) = crate::input::menu_pad::take_answer() {
-        return Ok(answer);
-    }
     let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
         given
     } else {

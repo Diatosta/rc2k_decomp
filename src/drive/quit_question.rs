@@ -45,7 +45,12 @@ pub fn quit_question() -> Result<u32, Refused> {
         CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
     let answer = loop {
-        eax = { crate::input::yes_no_key::yes_no_key(eax) }?;
+        // A gamepad's button answers directly (not the original's): this question has no
+        // items on screen to choose from.
+        eax = match crate::input::menu_pad::take_answer() {
+            Some(answer) => answer,
+            None => { crate::input::yes_no_key::yes_no_key(eax) }?,
+        };
         match race_ticks::quit_answer(
             eax,
             RACE_VARS.run_kind.get(),
