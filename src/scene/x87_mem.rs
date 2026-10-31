@@ -60,11 +60,34 @@ fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
     crate::pointers::host(at)
 }
 
+/// The `T` at the operand.
+#[track_caller]
+#[inline(always)]
+fn load<T: Copy>(base: impl Base, off: usize) -> T {
+    // SAFETY: checked in one live region; any bits make a value of the plain types used here.
+    unsafe {
+        operand(base, off, size_of::<T>())
+            .cast::<T>()
+            .read_unaligned()
+    }
+}
+
+/// `value` written at the operand.
+#[track_caller]
+#[inline(always)]
+fn store<T: Copy>(base: impl Base, off: usize, value: T) {
+    // SAFETY: checked in one live region.
+    unsafe {
+        operand(base, off, size_of::<T>())
+            .cast::<T>()
+            .write_unaligned(value)
+    }
+}
+
 /// `fld dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fld(base: impl Base, off: usize) -> X {
-    // SAFETY: checked in one live region.
-    ld(unsafe { operand(base, off, 4).cast::<u32>().read_unaligned() })
+    ld(load(base, off))
 }
 
 /// A test buffer's dword as a cell (checked in one live region, as `fld`).
@@ -74,69 +97,52 @@ pub(crate) struct HostCell(pub usize);
 #[cfg(all(test, target_arch = "x86"))]
 impl crate::session::Cell32 for HostCell {
     fn bits(&self) -> u32 {
-        // SAFETY: checked in one live region.
-        unsafe { operand(self.0, 0, 4).cast::<u32>().read_unaligned() }
+        load(self.0, 0)
     }
     fn set_bits(&self, bits: u32) {
-        // SAFETY: checked in one live region.
-        unsafe { operand(self.0, 0, 4).cast::<u32>().write_unaligned(bits) }
+        store(self.0, 0, bits)
     }
 }
 
 /// `fild dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fild(base: impl Base, off: usize) -> X {
-    // SAFETY: checked in one live region.
-    int(unsafe { operand(base, off, 4).cast::<i32>().read_unaligned() })
+    int(load(base, off))
 }
 
 /// `fld tbyte ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fld80(base: impl Base, off: usize) -> X {
-    // SAFETY: checked in one live region.
-    from_f80(unsafe { operand(base, off, 10).cast::<[u8; 10]>().read_unaligned() })
+    from_f80(load(base, off))
 }
 
 /// `fstp dword ptr [base + off]`: the value rounded to a float as the control word says.
 #[track_caller]
 pub(crate) fn fstp(base: impl Base, off: usize, x: X) {
-    // SAFETY: checked in one live region.
-    unsafe { operand(base, off, 4).cast::<u32>().write_unaligned(st(x)) }
+    store(base, off, st(x))
 }
 
 /// `fistp dword ptr [base + off]`: the value rounded to a whole number as the control word
 /// says.
 #[track_caller]
 pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
-    // SAFETY: checked in one live region.
-    unsafe {
-        operand(base, off, 4)
-            .cast::<i32>()
-            .write_unaligned(to_int(x))
-    }
+    store(base, off, to_int(x))
 }
 
 /// `fstp tbyte ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
-    // SAFETY: checked in one live region.
-    unsafe {
-        operand(base, off, 10)
-            .cast::<[u8; 10]>()
-            .write_unaligned(f80(x))
-    }
+    store(base, off, f80(x))
 }
 
 /// `fnstsw word ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fnstsw(base: impl Base, off: usize, status: u16) {
-    // SAFETY: checked in one live region.
-    unsafe { operand(base, off, 2).cast::<u16>().write_unaligned(status) }
+    store(base, off, status)
 }
 
 /// `mov dword ptr [base + off], value`.
 #[track_caller]
 pub(crate) fn mov(base: impl Base, off: usize, value: u32) {
-    // SAFETY: checked in one live region.
-    unsafe { operand(base, off, 4).cast::<u32>().write_unaligned(value) }
+    store(base, off, value)
 }

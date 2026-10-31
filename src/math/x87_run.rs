@@ -12,40 +12,34 @@
 use crate::math::x87::{set_chop, set_control};
 use crate::math::x87_float::{ONE, X, compare, f80, from_f80, int, ld, st, to_int};
 
-/// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
-/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
-fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        bytes,
+/// The `T` at `p`, checked to lie in one region (the program ends otherwise).
+fn get<T: Copy, P>(p: *const P) -> T {
+    crate::pointers::read_or_end(crate::pointers::game_address(p), "a math helper's operand")
+}
+
+/// `value` written at `p`, checked as `get`.
+fn put<T: Copy, P>(p: *mut P, value: T) {
+    crate::pointers::write_or_end(
+        crate::pointers::game_address(p.cast_const()),
+        value,
         "a math helper's operand",
     );
 }
 
+/// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
 /// rounded to a float).
 pub fn length_80(v: *const u32) -> [u8; 10] {
-    span(v, 12);
-
-    unsafe {
-        let a = ld(v.read_unaligned());
-        let b = ld(v.add(1).read_unaligned());
-        let c = ld(v.add(2).read_unaligned());
-        let (a2, b2, c2) = (a * a, b * b, c * c);
-        f80((a2 + (b2 + c2)).sqrt())
-    }
+    let [a, b, c]: [u32; 3] = get(v);
+    let (a, b, c) = (ld(a), ld(b), ld(c));
+    let (a2, b2, c2) = (a * a, b * b, c * c);
+    f80((a2 + (b2 + c2)).sqrt())
 }
 
 /// The three floats at `v` each times the 80-bit `s` and stored as floats.
 pub fn scale_by_80(v: *mut u32, s: [u8; 10]) {
-    span(v, 12);
-
-    unsafe {
-        let s = from_f80(s);
-        for k in 0..3 {
-            let p = v.add(k);
-            p.write_unaligned(st(ld(p.read_unaligned()) * s));
-        }
-    }
+    let s = from_f80(s);
+    let parts: [u32; 3] = get(v);
+    put(v, parts.map(|part| st(ld(part) * s)));
 }
 
 /// `((a + b) h) / d`.
@@ -326,27 +320,22 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
 /// stored as a float and held to -limit ..= limit (`fpatan`: libm's `atan2` within 2 ulp
 /// of the instruction's). A compare that finds the values unordered counts as "below".
 pub fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
-    span(s, 4);
-    span(l, 4);
-
-    unsafe {
-        let x = from_f80(x);
-        let limit = ld(l.read_unaligned());
-        let mut value = st(x);
-        // Not below the limit (and a number): the limit.
-        if compare(ld(value), limit) & 0x100 == 0 {
-            value = st(limit);
-        }
-        // The limit negated (stored as a float), the value below it or unordered: it.
-        let minus = st(-limit);
-        if compare(ld(value), ld(minus)) & 0x100 != 0 {
-            value = st(ld(minus));
-        }
-        s.write_unaligned(value);
-        l.write_unaligned(st(-ld(minus)));
-        let v = ld(value);
-        f80(x.atan2((ONE - v * v).sqrt()))
+    let x = from_f80(x);
+    let limit = ld(get(l));
+    let mut value = st(x);
+    // Not below the limit (and a number): the limit.
+    if compare(ld(value), limit) & 0x100 == 0 {
+        value = st(limit);
     }
+    // The limit negated (stored as a float), the value below it or unordered: it.
+    let minus = st(-limit);
+    if compare(ld(value), ld(minus)) & 0x100 != 0 {
+        value = st(ld(minus));
+    }
+    put(s, value);
+    put(l, st(-ld(minus)));
+    let v = ld(value);
+    f80(x.atan2((ONE - v * v).sqrt()))
 }
 
 /// The angle of (x, y), `atan2(y, x)`, as a float (`fpatan`: within an ulp of the
