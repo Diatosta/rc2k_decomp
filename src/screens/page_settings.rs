@@ -136,7 +136,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
 pub fn stage_choice_texts() -> Result<(), Refused> {
     let (a, b) = (EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get());
     stage_refuses(a, b)?;
-    let pointed = MENUS.view_courses.head.get();
+    let pointed = crate::menu::menus_store::labels_place_of(&MENUS.view_courses.head)?;
     if pointed == 0 {
         return Err(BadInput("no item table").into());
     }

@@ -2379,6 +2379,20 @@ fn moved_home(ida: usize) -> Option<(usize, usize)> {
         .map(|m| ((m.home)() + (ida - m.ida), m.ida))
 }
 
+/// Relocated places `standalone::start` sets before any game code runs, so the image's values
+/// are never read: the surface's format, the race sounds' objects, the players' table and name
+/// pointers, font 56's palette.
+const SET_AT_START: [(usize, usize); 8] = [
+    (0x4F49B8, 0x4F49BC),
+    (0x512A10, 0x512A30),
+    (0x51EAB8, 0x51EABC),
+    (0x755A64, 0x755A68),
+    (0x755CF0, 0x755CF4),
+    (0x755F7C, 0x755F80),
+    (0x756208, 0x75620C),
+    (0x75647C, 0x75648C),
+];
+
 /// Points the game's pointers that moved with their blocks (`relocations::PLACES`, whose
 /// first values are the image's bytes before relocation, IDA addresses) at their targets,
 /// as the image's relocation pointed them: a moved target's home, or else its place in the
@@ -2419,6 +2433,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::input::store::holds_handle(ida) => {}
             Some(_) if crate::strings::keyboard_tables::KeyboardTables::holds_handle(ida) => {}
             Some(_) if crate::race::store::is_unread(ida) => {}
+            Some(_) if SET_AT_START.iter().any(|&(s, e)| (s..e).contains(&ida)) => {}
             Some((home, _)) => unsafe {
                 let p = crate::pointers::host_at(home) as *mut u32;
                 let target = p.read_unaligned() as usize;

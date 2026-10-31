@@ -267,6 +267,20 @@ pub fn players_addr() -> u32 {
     crate::pointers::game_address(&PLAYER_TABLE as *const PlayerTable)
 }
 
+/// Sets the table and each player's name pointer to their places now (the image's held the
+/// old ones).
+pub fn point_players() {
+    for (n, (pointer, player)) in PLAYER_TABLE
+        .pointers
+        .iter()
+        .zip(&PLAYER_TABLE.players)
+        .enumerate()
+    {
+        pointer.set(player.addr());
+        player.update(|p| p.name = crate::menu::player_names::name(n));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

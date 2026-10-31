@@ -27,10 +27,7 @@ fn places() -> Result<(u32, u32), BadInput> {
     // menu's (the original's slip, `notes/bugs.md`): it lands in the memory after them.
     Ok((
         MENUS.select_stage.items[0].string.addr(),
-        MENUS
-            .select_stage
-            .head
-            .get()
+        crate::menu::menus_store::labels_place_of(&MENUS.select_stage.head)?
             .wrapping_add(MENU_HEAD_LEN + ITEM_LEN + 0x14),
     ))
 }

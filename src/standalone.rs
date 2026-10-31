@@ -479,6 +479,11 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 fn start() {
     let r = Regs::default();
     crate::sound::store::point_sound_objects();
+    crate::menu::players_store::point_players();
+    // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
+    crate::gfx::typefaces::FONTS.objects[56]
+        .palette
+        .set(crate::gfx::fonts_store::FONTS.palette_sheet[0].addr());
     // `g_surface.format` (0x4F49B8): the image points it at the format record's old
     // place; the record is in `session::SCREEN` now (the platform sets it again at
     // every lock).

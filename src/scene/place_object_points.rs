@@ -161,7 +161,8 @@ fn object() -> Result<Object, BadInput> {
         normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
             as i32,
         table: COURSE_LISTS.object_points.bits(),
-        matrix: MATRICES.object_matrix_ptr.bits(),
+        // `g_objectMatrix`: only ever `g_madeObjectMatrix`, the image's value, never written.
+        matrix: MATRICES.made_object_matrix[0].addr(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));

@@ -848,6 +848,20 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
     &MENUS.visual_options_labels,
 ];
 
+/// Where the label list a menu's +0 names is now; 0 for a menu without any. A name off the
+/// lists is refused.
+pub fn labels_place_of(head: &Dword) -> Result<u32, crate::errors::BadInput> {
+    match head.get() {
+        0 => Ok(0),
+        ida => crate::moved::named_in(
+            ida,
+            START,
+            LABEL_LISTS.len() * LABEL_LIST_LEN,
+            "a menu's labels off the label lists",
+        ),
+    }
+}
+
 /// The font of the label whose font field is at `at` (a game address in the label lists;
 /// `screens::draw_menu_labels` walks them by address). Refused: a place that is no label's
 /// font (the walk gone off the lists' grid: the original would take what is there for a
@@ -892,6 +906,10 @@ pub fn holds_handle(ida: usize) -> bool {
                     let at = START + item.addr() as usize - base;
                     [at + 0x18, at + 0x20, at + 0x4C, at + 0x50]
                 })
+                .chain((0..MENU_COUNT).map(|n| {
+                    START + crate::pointers::game_address(MenuId(n).labels().as_ptr()) as usize
+                        - base
+                }))
                 .chain((0..LABEL_LISTS.len()).map(|n| START + n * LABEL_LIST_LEN + 8))
                 .collect()
         })
@@ -1131,9 +1149,14 @@ impl MenuId {
         }
     }
 
-    /// The address of the menu's labels (+0).
+    /// The menu's +0: the IDA address of its labels, a name (`labels_place` finds them).
     pub fn labels(self) -> &'static Dword {
         self.parts().0
+    }
+
+    /// Where the menu's labels are now; 0 for a menu without any.
+    pub fn labels_place(self) -> Result<u32, crate::errors::BadInput> {
+        labels_place_of(self.labels())
     }
 
     /// The menu's items (the -1 after them is `MenuItem::END`'s place: not among them).
@@ -1215,6 +1238,17 @@ mod tests {
     use crate::menu::item_sprites_store::ItemSprite;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
+
+    #[test]
+    fn menu_heads_name_label_lists() {
+        for n in 0..MENU_COUNT {
+            let head = MenuId(n).labels().get();
+            assert!(
+                head == 0 || MenuId(n).labels_place().is_ok(),
+                "menu {n}: {head:#X}"
+            );
+        }
+    }
 
     #[test]
     fn menus_by_handle() {

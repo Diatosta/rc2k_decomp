@@ -30,7 +30,13 @@ block!(pub mod vars {
 /// 0x459D6F in `sub_459CC2`, a stage-by-stage dump of the texture kinds to the log reached only
 /// from the `running sub program` chunk at 0x442BE3, no function of the Rust side). Their
 /// addresses are not pointed anywhere and nothing may read them.
-pub const UNREAD: [(usize, usize); 9] = [
+///
+/// Also `g_objectMatrix` (0x5EA40C; `scene::place_object_points` takes the matrix it always
+/// names) and two sample records' levels before the sample table (no reference in IDA).
+pub const UNREAD: [(usize, usize); 12] = [
+    (0x50A744, 0x50A748),
+    (0x50A784, 0x50A788),
+    (0x5EA40C, 0x5EA410),
     (0x5EBB5A, 0x5EE258),
     (0x5FFF12, 0x5FFF32),
     (0x5FFFCC, 0x60000C),
