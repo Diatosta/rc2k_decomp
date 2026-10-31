@@ -2349,6 +2349,24 @@ pub fn home_of_rva(rva: usize) -> Option<usize> {
     (ida < end).then(|| home + (ida - start))
 }
 
+/// Where a table's entry names (phase 13: the tables keep IDA's addresses as names, and
+/// `point_into_homes` passes them over): IDA's `ida`, which must lie in `start .. start + len`
+/// (the moved piece it names), at its new home. A name off the piece is refused with `what`.
+pub fn named_in(
+    ida: u32,
+    start: usize,
+    len: usize,
+    what: &'static str,
+) -> Result<u32, crate::errors::BadInput> {
+    let at = ida as usize;
+    if !(start..start + len).contains(&at) {
+        return Err(crate::errors::BadInput(what));
+    }
+    home_of_rva(at - IMAGE_BASE)
+        .map(|home| home as u32)
+        .ok_or(crate::errors::BadInput(what))
+}
+
 /// The moved ranges (by IDA address) whose readers take the image's pointers in them as IDA
 /// addresses on purpose: the thread slots (`threading::start_slot_thread`) and the marks'
 /// profile ramps (`effects::profiles::ProfileLists`).
@@ -2379,6 +2397,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::audio::store::holds_handle(ida) => {}
             Some(_) if crate::menu::lists_store::holds_handle(ida) => {}
             Some(_) if crate::menu::texts_store::holds_handle(ida) => {}
+            Some(_) if crate::menu::captions_store::CaptionTables::holds_handle(ida) => {}
             Some(_) if crate::sound::sets_store::CueLists::holds_handle(ida) => {}
             Some(_) if crate::sound::sets_store::SoundKinds::holds_handle(ida) => {}
             Some(_) if crate::sound::sets_store::SurfaceSets::holds_handle(ida) => {}

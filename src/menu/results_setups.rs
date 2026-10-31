@@ -24,7 +24,7 @@
 //! (the pointer table likewise), a null place pointer.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
+use crate::menu::captions_store::{CAPTIONS, CaptionTables};
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::player_at;
@@ -49,10 +49,7 @@ fn place_pointer(offset: u32) -> Result<u32, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the place pointers").into());
     }
-    match CAPTIONS.place_pointers[offset as usize / 4].get() {
-        0 => Err(BadInput("a null place pointer").into()),
-        to => Ok(to),
-    }
+    Ok(CaptionTables::place_of(offset as usize / 4)?)
 }
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.

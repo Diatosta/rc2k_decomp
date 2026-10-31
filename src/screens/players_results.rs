@@ -7,7 +7,7 @@
 //! row's time at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
+use crate::menu::captions_store::CaptionTables;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::players_store::PLAYER_TABLE;
@@ -43,11 +43,7 @@ fn player(row: usize) -> Result<u32, Refused> {
 
 /// The row's points' place (`off_758992[offset]`).
 fn points_at(row: usize) -> Result<u32, Refused> {
-    let p = get(CAPTIONS.sum_pointers[0].addr() + offset(row))?;
-    if p == 0 || p == u32::MAX {
-        return Err(BadInput("a row without its points").into());
-    }
-    Ok(p)
+    Ok(CaptionTables::sum_of(offset(row) as usize / 4)?)
 }
 
 /// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +

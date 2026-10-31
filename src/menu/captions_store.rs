@@ -5,6 +5,7 @@
 //! points the range at it. Its dwords lie two bytes past a multiple of four in IDA's addresses.
 //! (Split 2026-10-25 from the front end's block `menu::store`.)
 
+use crate::errors::BadInput;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
@@ -24,13 +25,14 @@ pub struct CaptionTables {
     pub duel_labels: [Dword; 22],
     /// `g_placePoints`: The points of each place (0, 20000, ..., -1 ends).
     pub place_points: [Dword; 22],
-    /// `off_758982`: The addresses of the four positions in `Results::positions`, by byte offset.
+    /// `off_758982`: The four positions in `Results::positions`, by byte offset, kept as IDA's
+    /// addresses, as names (phase 13; `CaptionTables::place_of` makes the real address).
     pub place_pointers: [Dword; 4],
-    /// `off_758992`: The addresses of the four sums in `Results::sums`.
+    /// `off_758992`: The four sums in `Results::sums` (names, `CaptionTables::sum_of`).
     pub sum_pointers: [Dword; 4],
     /// Unreferenced bytes (IDA 0x7589A2 .. 0x7589A6).
     pub _gap_7589a2: Bytes<4>,
-    /// `off_7589A6`: The addresses of the four totals in `Results::totals`.
+    /// `off_7589A6`: The four totals in `Results::totals` (names, `CaptionTables::total_of`).
     pub total_pointers: [Dword; 4],
     /// Unreferenced bytes (IDA 0x7589B6 .. 0x7589BA).
     pub _gap_7589b6: Bytes<4>,
@@ -40,6 +42,53 @@ pub struct CaptionTables {
     pub second_views: [Dword; 14],
     /// `unk_758A12`: The lists of captions' string ids, each ended by -1 (`screens::draw_highlighted_caption`, `menu::option_steps`).
     pub caption_lists: [Dword; 88],
+}
+
+impl CaptionTables {
+    /// Where a result array's name lands: in `menu::results_store`'s piece.
+    fn result_at(name: &Dword) -> Result<u32, BadInput> {
+        crate::moved::named_in(
+            name.get(),
+            crate::menu::results_store::START,
+            crate::menu::results_store::END - crate::menu::results_store::START,
+            "a results pointer off the results",
+        )
+    }
+
+    /// Where position `k` of the results is (`Results::positions[k]`).
+    pub fn place_of(k: usize) -> Result<u32, BadInput> {
+        let name = CAPTIONS
+            .place_pointers
+            .get(k)
+            .ok_or(BadInput("a place pointer past the four"))?;
+        Self::result_at(name)
+    }
+
+    /// Where sum `k` of the results is (`Results::sums[k]`).
+    pub fn sum_of(k: usize) -> Result<u32, BadInput> {
+        let name = CAPTIONS
+            .sum_pointers
+            .get(k)
+            .ok_or(BadInput("a sum pointer past the four"))?;
+        Self::result_at(name)
+    }
+
+    /// Where total `k` of the results is (`Results::totals[k]`).
+    pub fn total_of(k: usize) -> Result<u32, BadInput> {
+        let name = CAPTIONS
+            .total_pointers
+            .get(k)
+            .ok_or(BadInput("a total pointer past the four"))?;
+        Self::result_at(name)
+    }
+
+    /// Whether IDA's `ida` is one of the three pointer tables' dwords (they stay IDA's
+    /// addresses: `moved::point_into_homes` passes them over).
+    pub fn holds_handle(ida: usize) -> bool {
+        [0x758982, 0x758992, 0x7589A6]
+            .iter()
+            .any(|&table| (table..table + 16).contains(&ida))
+    }
 }
 
 /// First values the image's (`tests::captions_starts_as_the_games`).
@@ -326,5 +375,31 @@ mod tests {
         at(offset_of!(CaptionTables, views), 0x7589BA);
         at(offset_of!(CaptionTables, second_views), 0x7589DA);
         at(offset_of!(CaptionTables, caption_lists), 0x758A12);
+        // The three pointer tables' entries are the image's addresses, names of the results'
+        // arrays: they resolve to what the image's address named.
+        let results = crate::menu::results_store::results_addr();
+        let image = image_bytes(0x758982, 0x7589B6 - 0x758982);
+        for (table, from, positions) in [
+            (0x758982, 0, 0x758768),
+            (0x758992, 1, 0x758798),
+            (0x7589A6, 2, 0x7587B8),
+        ] {
+            for k in 0..4 {
+                let at = table - 0x758982 + 4 * k;
+                let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+                assert_eq!(name as usize, positions + 4 * k);
+                assert!(CaptionTables::holds_handle(table + 4 * k));
+                let resolved = [
+                    CaptionTables::place_of,
+                    CaptionTables::sum_of,
+                    CaptionTables::total_of,
+                ][from](k);
+                assert_eq!(
+                    resolved,
+                    Ok(results + (name as usize - crate::menu::results_store::START) as u32)
+                );
+            }
+            assert!(CaptionTables::sum_of(4).is_err());
+        }
     }
 }

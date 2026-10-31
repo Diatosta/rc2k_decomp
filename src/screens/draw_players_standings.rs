@@ -14,7 +14,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
+use crate::menu::captions_store::CaptionTables;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::text::draw_text::Canvas;
@@ -26,16 +26,17 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     } else {
         4
     };
-    for row in 0..rows {
+    let mut totals = [0u32; 4];
+    for (row, total) in totals.iter_mut().enumerate().take(rows) {
         let p = PLAYER_TABLE.pointers[row].get();
         if p == 0
             || crate::pointers::GamePtr::new(p + 0x18)
                 .read::<u32>("draw players standings: a game value")?
                 == 0
-            || CAPTIONS.total_pointers[row].get() == 0
         {
-            return Err(BadInput("a standings row without its player, name or points").into());
+            return Err(BadInput("a standings row without its player or name").into());
         }
+        *total = CaptionTables::total_of(row)?;
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
     let fault = crate::menu::event_flow::Fault::default();
@@ -45,7 +46,7 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             name: field(row, 0x18),
             nation: field(row, 4),
             car: field(row, 8),
-            points: fault.get(CAPTIONS.total_pointers[row].get()),
+            points: fault.get(totals[row]),
         })
         .collect();
     fault.check()?;
