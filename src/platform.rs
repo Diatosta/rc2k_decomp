@@ -535,6 +535,8 @@ pub fn show_frame_now() -> bool {
             DRAW_SURFACE
                 .frames
                 .set(DRAW_SURFACE.frames.get().wrapping_add(1));
+            #[cfg(feature = "remote")]
+            crate::remote::frame(&screen.pixels, screen.width as u32, screen.height as u32);
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {

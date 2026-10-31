@@ -17,3 +17,4 @@ Stock OS with the community mod: Ubuntu 22.04 arm64, glibc 2.35, kernel 4.9, no 
   unstripped build with `aarch64-linux-gnu-addr2line -i -f -C`.
 - Testing over SSH: stop `loadapp.sh` and `dmenu_ln` (SIGSTOP), kill `dmenu.bin`; SIGCONT brings
   the launcher back. Writing `input_event`s to `/dev/input/event1` presses buttons.
+- Automated runs: `tools/remote.py build --handheld`, then `start`, `pad`, `key`, `shot`, `state`, `stop` with `--handheld`.

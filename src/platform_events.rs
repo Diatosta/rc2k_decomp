@@ -158,6 +158,8 @@ fn end_if_not_left() {
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump() {
     restore_if_asked();
+    #[cfg(feature = "remote")]
+    crate::remote::poll();
     while let Some(event) = next_event() {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {

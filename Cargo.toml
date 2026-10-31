@@ -7,6 +7,10 @@ name = "rc2k_hook"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
+remote = []
+
 [lib]
 crate-type = ["rlib"]
 

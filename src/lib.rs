@@ -44,6 +44,8 @@ mod rasteriser;
 #[cfg(target_arch = "aarch64")]
 mod rasteriser_neon;
 mod records;
+#[cfg(feature = "remote")]
+mod remote;
 mod render;
 mod saves;
 mod scene;
