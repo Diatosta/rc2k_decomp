@@ -24,12 +24,16 @@ block!(pub mod vars {
 /// Tables only the original's dead code read (IDA 2026-10-30, every xref from the debug pages
 /// or the developers' front end; the debug UI has its own): the watch list, the surface names,
 /// the front end's name tables, the pace notes' `off_61FE18` (its one live read, 0x441DE9, is
-/// overwritten at once by `pop ebx`). Their addresses are not pointed anywhere and nothing may
-/// read them.
-pub const UNREAD: [(usize, usize); 6] = [
+/// overwritten at once by `pop ebx`), the debug pages' titles (`g_debugPageTitles`, read only
+/// by `debug::draw_page_title`) and the developers' front end's digit texts (`off_621C44`,
+/// read only by `dev_front_end__draw`). Their addresses are not pointed anywhere and nothing
+/// may read them.
+pub const UNREAD: [(usize, usize); 8] = [
     (0x5EBB5A, 0x5EE258),
+    (0x5FFF12, 0x5FFF32),
     (0x5FFFCC, 0x60000C),
     (0x61FE18, 0x620218),
+    (0x621C44, 0x621C5C),
     (0x621C68, 0x621E68),
     (0x622084, 0x622114),
     (0x622238, 0x6223C8),
