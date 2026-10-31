@@ -29,10 +29,10 @@ use crate::place::Place;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
-pub fn edit_font(record: u32) -> u32 {
+pub fn edit_font(record: u32) -> Result<u32, crate::errors::BadInput> {
     let kind = rb(record + 4) as u32;
     let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts).add(5 + 8 * kind)) as u32;
-    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * font)
+    crate::install::vars::InstallerPages::font_of(font)
 }
 
 fn past_nul(mut at: u32) -> u32 {
@@ -134,7 +134,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
     wb(end, 0);
     // ecx as the original has it at the measure: the text's last place.
     let (width, _) = measure_text(
-        edit_font(record),
+        edit_font(record)?,
         text,
         most.wrapping_add(text).wrapping_add(1),
     )?;

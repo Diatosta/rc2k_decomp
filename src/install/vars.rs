@@ -220,6 +220,13 @@ pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
 };
 
 impl InstallerNames {
+    /// Whether IDA's `ida` is a dword of the languages' keys table (`moved::point_into_homes`
+    /// passes it over). The table (0x51C378: `lang1` .. `lang9`, a slot's address each) is
+    /// read by nothing: `install::read_languages` has the keys and the slots as constants.
+    pub fn holds_handle(ida: usize) -> bool {
+        (0x51C378..0x51C378 + 127).contains(&ida)
+    }
+
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -384,6 +391,28 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
 };
 
 impl InstallerPages {
+    /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
+    /// as names, `moved::point_into_homes` passes them over). A slot that names no font
+    /// object (the unused slot 0, an index off the table) is refused.
+    pub fn font_of(index: u32) -> Result<u32, crate::errors::BadInput> {
+        let cell = INSTALLER_PAGES
+            .fonts
+            .get(index as usize)
+            .ok_or(crate::errors::BadInput("a page font past the table"))?;
+        crate::gfx::typefaces::FontId::try_at(cell.get() as usize)
+            .map(crate::gfx::typefaces::FontId::addr)
+            .ok_or(crate::errors::BadInput(
+                "a page font that is no font object",
+            ))
+    }
+
+    /// Whether IDA's `ida` is one of the fonts table's dwords (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (Self::FONTS_AT..Self::FONTS_AT + 25 * 4).contains(&ida)
+    }
+
+    /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
+    const FONTS_AT: usize = 0x51D4C4;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -456,6 +485,34 @@ impl InstallerPalette {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn installer_page_fonts_resolve_as_the_images_do() {
+        // Slot 0 is no font; the others name font objects, as the image's dwords do.
+        assert!(InstallerPages::font_of(0).is_err());
+        assert!(InstallerPages::font_of(25).is_err());
+        for n in 1..25 {
+            let image = crate::moved::image_bytes(0x51D4C4 + 4 * n, 4);
+            let ida = u32::from_le_bytes(image[..4].try_into().unwrap()) as usize;
+            let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
+            assert_eq!(font.ida(), ida);
+            assert_eq!(InstallerPages::font_of(n as u32).unwrap(), font.addr());
+        }
+    }
+
+    #[test]
+    fn installer_languages_keys_are_the_images() {
+        // Nine keys, a slot's address each (0x51BEEE + 0x80 n), kept as the image's numbers.
+        assert!(InstallerNames::holds_handle(0x51C37E) && InstallerNames::holds_handle(0x51C3EE));
+        assert!(!InstallerNames::holds_handle(0x51C377) && !InstallerNames::holds_handle(0x51C3F7));
+        for n in 0..9 {
+            let at = 0x51C378 + 0xE * n;
+            let image = crate::moved::image_bytes(at, 0xE);
+            assert_eq!(&image[..5], format!("lang{}", n + 1).as_bytes());
+            let slot = u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize;
+            assert_eq!(slot, 0x51BEEE + 0x80 * n);
+        }
+    }
 
     #[test]
     fn installerrun_starts_as_the_games() {

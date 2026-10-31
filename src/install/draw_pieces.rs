@@ -25,8 +25,8 @@ use crate::place::Place;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font(index: u32) -> u32 {
-    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * index)
+fn font(index: u32) -> Result<u32, BadInput> {
+    crate::install::vars::InstallerPages::font_of(index)
 }
 
 fn colour(marks: u8, kind: u32) -> u32 {
@@ -48,7 +48,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
             Way::String { font_kind } => {
                 draw_string(
                     rw(piece + 2) as u32,
-                    crate::pointers::GamePtr::new(font(colour(first, font_kind))),
+                    crate::pointers::GamePtr::new(font(colour(first, font_kind))?),
                     x,
                     y,
                 )?;
@@ -56,7 +56,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
             Way::Edit => {
                 let item = rd(piece + 4);
                 let record = rd(item + 0xC);
-                let edit_font = font(colour(first, rb(record + 4) as u32));
+                let edit_font = font(colour(first, rb(record + 4) as u32))?;
                 let mut text = Place::At(rd(item + 8));
                 if pieces::caret(first, rb(record)) {
                     let cursor = str_append(text, &TEXT_BUFFER.text);
@@ -75,7 +75,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
                 }
                 append_byte(cursor, 0);
                 draw_text(
-                    font(colour(first, rb(item + 1) as u32)),
+                    font(colour(first, rb(item + 1) as u32))?,
                     &TEXT_BUFFER.text,
                     x,
                     y,

@@ -23,8 +23,8 @@ use crate::install::vars::INSTALLER_PAGES;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font_of(index: u32) -> u32 {
-    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * index)
+fn font_of(index: u32) -> Result<u32, BadInput> {
+    crate::install::vars::InstallerPages::font_of(index)
 }
 
 pub fn measure_pieces() -> Result<(), Refused> {
@@ -48,7 +48,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
             Way::String { font_kind } => {
                 let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
                     .add(pieces::measure_colour_at(font_kind))) as u32;
-                measure_string(rw(piece + 2) as u32, font_of(font), left)?
+                measure_string(rw(piece + 2) as u32, font_of(font)?, left)?
             }
             Way::Edit => {
                 let item = rd(piece + 4);
@@ -69,7 +69,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 let kind = rb(item + 1) as u32;
                 let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
                     .add(pieces::measure_colour_at(kind))) as u32;
-                measure_text(font_of(font), &TEXT_BUFFER.text, left)?
+                measure_text(font_of(font)?, &TEXT_BUFFER.text, left)?
             }
             Way::Action => {
                 let the_box = rd(rd(piece + 4) + 4);

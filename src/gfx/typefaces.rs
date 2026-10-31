@@ -164,6 +164,16 @@ impl FontId {
         Self((ida - START) / 0x20)
     }
 
+    /// The font at IDA's address `ida`, if it is one of the block's (a table that keeps
+    /// the image's addresses as names resolves them here).
+    pub fn try_at(ida: usize) -> Option<Self> {
+        (START..START + LEN)
+            .contains(&ida)
+            .then(|| ida - START)
+            .filter(|off| off.is_multiple_of(0x20))
+            .map(|off| Self(off / 0x20))
+    }
+
     pub fn object(self) -> &'static FontObject {
         &FONTS.objects[self.0]
     }
