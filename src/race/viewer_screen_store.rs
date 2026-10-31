@@ -205,6 +205,46 @@ impl ViewerPanelBlock {
         }
     }
 
+    /// Where the picture `n` places on in switch table `table` (0 `off_5C2C70`, 1
+    /// `off_5C2C78`, 2 `off_5C2C88`) is (phase 13: the tables keep IDA's addresses as names,
+    /// and `moved::point_into_homes` passes them over). The three tables are one run of nine
+    /// names, which an `n` past a table's end reads on into, as the original; past the run,
+    /// or a name off the panel, is refused.
+    pub fn switch_picture(&self, table: usize, n: u32) -> Result<u32, crate::errors::BadInput> {
+        let run: [&Dword; 9] = [
+            &self.switch_pictures_a[0],
+            &self.switch_pictures_a[1],
+            &self.switch_pictures_b[0],
+            &self.switch_pictures_b[1],
+            &self.switch_pictures_b[2],
+            &self.switch_pictures_b[3],
+            &self.switch_pictures_c[0],
+            &self.switch_pictures_c[1],
+            &self.switch_pictures_c[2],
+        ];
+        let first = [0usize, 2, 6]
+            .get(table)
+            .ok_or(crate::errors::BadInput("a switch table past the 3"))?;
+        let cell = usize::try_from(n)
+            .ok()
+            .and_then(|n| run.get(first + n))
+            .ok_or(crate::errors::BadInput(
+                "a camera byte past the switch pictures",
+            ))?;
+        let ida = cell.get() as usize;
+        if !(START..END).contains(&ida) {
+            return Err(crate::errors::BadInput(
+                "a switch picture's name off the panel",
+            ));
+        }
+        Ok(crate::moved::place(ida) as u32)
+    }
+
+    /// Whether IDA's `ida` is one of the switch tables' names (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (0x5C2C70..0x5C2C70 + 4 * 9).contains(&ida)
+    }
+
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
     fn tail_read(&self, ida: usize) -> u32 {
         let (n, shift) = Self::tail_cells(ida);
@@ -282,6 +322,36 @@ mod tests {
         for (c, k) in v.unknown_3cc.iter().zip(kept) {
             c.set(k);
         }
+    }
+
+    #[test]
+    fn the_switch_tables_name_their_pictures_as_the_image_does() {
+        let v = &*VIEWER_PANEL;
+        let name =
+            |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+        for k in 0..9usize {
+            let ida = 0x5C2C70 + 4 * k;
+            assert!(ViewerPanelBlock::holds_handle(ida));
+            // The three tables hold two, four and three names, one run.
+            let (table, n) = match k {
+                0..2 => (0, k),
+                2..6 => (1, k - 2),
+                _ => (2, k - 6),
+            };
+            let cell = match table {
+                0 => &v.switch_pictures_a[n],
+                1 => &v.switch_pictures_b[n],
+                _ => &v.switch_pictures_c[n],
+            };
+            assert_eq!(cell.get(), name(ida));
+            assert_eq!(
+                v.switch_picture(table, n as u32).unwrap() as usize,
+                crate::moved::place(name(ida) as usize)
+            );
+        }
+        assert!(!ViewerPanelBlock::holds_handle(0x5C2C70 + 4 * 9));
+        assert!(v.switch_picture(0, 9).is_err());
+        assert!(v.switch_picture(3, 0).is_err());
     }
 
     #[test]

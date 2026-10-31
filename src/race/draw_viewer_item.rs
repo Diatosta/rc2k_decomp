@@ -39,13 +39,13 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     if picture == (VIEWER_PANEL.switch_pictures_a[0].addr()) {
         let n = camera_byte(switch_byte(byte(1)?) as usize)?;
-        picture = word(picture.wrapping_add(4 * n))?;
+        picture = VIEWER_PANEL.switch_picture(0, n)?;
     }
     if picture == (VIEWER_PANEL.switch_pictures_b[0].addr()) {
-        picture = word(picture.wrapping_add(4 * camera_byte(5)?))?;
+        picture = VIEWER_PANEL.switch_picture(1, camera_byte(5)?)?;
     }
     if picture == (VIEWER_PANEL.switch_pictures_c[0].addr()) {
-        picture = word(picture.wrapping_add(4 * camera_byte(4)?))?;
+        picture = VIEWER_PANEL.switch_picture(2, camera_byte(4)?)?;
     }
     let place = ReplayViewBlock::item_place(index)?;
     let width = (word(picture + 8)? as i32).unsigned_abs();

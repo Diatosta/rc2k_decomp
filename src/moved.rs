@@ -2391,6 +2391,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::physics::tables_store::PhysicsTables::holds_handle(ida) => {}
             Some(_) if crate::race::view_vars_store::ViewVars::holds_handle(ida) => {}
             Some(_) if crate::race::viewer_state_store::ReplayViewBlock::holds_handle(ida) => {}
+            Some(_) if crate::race::viewer_screen_store::ViewerPanelBlock::holds_handle(ida) => {}
             Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}
             Some(_) if crate::input::store::holds_handle(ida) => {}
             Some(_) if crate::race::store::is_unread(ida) => {}
