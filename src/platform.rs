@@ -215,15 +215,20 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
                     return Err("SDL opens no window".into());
                 }
                 // `RC2K_RENDERER=gpu`: the window's renderer shares the 3D's device.
+                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
                 let device = if crate::render::gpu::wanted() {
                     crate::render::gpu::make_device()
                 } else {
                     None
                 };
+                // The handheld's starts with its first frame (`render::show_on_panel`).
+                #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+                let device: Option<*mut SDL_GPUDevice> = None;
                 let renderer = match device {
                     Some(device) => SDL_CreateGPURenderer(device, window),
                     None => SDL_CreateRenderer(window, std::ptr::null()),
                 };
+                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
                 if let Some(device) = device
                     && !renderer.is_null()
                 {
@@ -254,6 +259,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         SDL_RenderPresent(renderer);
         (window, renderer, texture)
     };
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut() {
         gpu.set_size(width, height)?;
     }
@@ -447,7 +453,16 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
         return Err("the frame is smaller than the screen");
     }
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    return crate::handheld::present(frame, screen.width, screen.height);
+    {
+        // The framebuffer's mode first, its memory then the GPU's or ours.
+        crate::handheld::open_screen()?;
+        if let Some(target) = crate::platform_3d::screen()
+            && crate::render::show_on_panel(&target, frame, screen.width, screen.height)
+        {
+            return Ok(());
+        }
+        crate::handheld::present(frame, screen.width, screen.height)
+    }
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
         let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
@@ -460,12 +475,14 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
         // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
         // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
         unsafe {
-            if !SDL_UpdateTexture(
-                texture,
-                std::ptr::null(),
-                frame.as_ptr().cast(),
-                (screen.width * 4) as i32,
-            ) {
+            if gpu_view.is_none()
+                && !SDL_UpdateTexture(
+                    texture,
+                    std::ptr::null(),
+                    frame.as_ptr().cast(),
+                    (screen.width * 4) as i32,
+                )
+            {
                 return Err("SDL cannot take the frame into its texture");
             }
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

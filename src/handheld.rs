@@ -106,9 +106,8 @@ fn open_framebuffer() -> Result<Framebuffer, String> {
     }
 }
 
-/// Shows a frame of `width` x `height` XRGB8888 rows, centred; one too big for the panel (the
-/// menus' 800 x 600) is made smaller to fit, keeping its shape, by the nearest pixels.
-pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static str> {
+/// The framebuffer in its mode, the first time.
+pub fn open_screen() -> Result<(), &'static str> {
     let mut held = FRAMEBUFFER.lock().map_err(|_| "the framebuffer's lock")?;
     if held.is_none() {
         match open_framebuffer() {
@@ -122,6 +121,14 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
             }
         }
     }
+    Ok(())
+}
+
+/// Shows a frame of `width` x `height` XRGB8888 rows, centred; one too big for the panel (the
+/// menus' 800 x 600) is made smaller to fit, keeping its shape, by the nearest pixels.
+pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static str> {
+    open_screen()?;
+    let mut held = FRAMEBUFFER.lock().map_err(|_| "the framebuffer's lock")?;
     let Some(fb) = held.as_mut() else {
         return Err("no framebuffer");
     };

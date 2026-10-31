@@ -102,7 +102,10 @@ fn draw(into: &Target, noted: Vec<Command>) {
     // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
     // frame, which takes the screen's picture so far and gives it back enlarged.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let mut small = (into.bits == 32 && crate::handheld::draws_small()).then(|| {
+    let mut small = (into.bits == 32
+        && crate::handheld::draws_small()
+        && !crate::render::gpu::wanted())
+    .then(|| {
         scale_noted(&mut noted);
         // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
         // while the game's code waits here.

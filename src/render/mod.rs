@@ -4,6 +4,12 @@
 
 pub mod batches;
 pub mod dump;
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub mod gles;
+// The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub use gles as gpu;
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub mod gpu;
 pub mod software;
 
@@ -81,7 +87,11 @@ pub fn bring_back(target: &Target) {
         && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
     {
         // SAFETY: the game's code waits; nothing else writes the canvas meanwhile.
-        if let Err(why) = gpu.bring_back(unsafe { target.bytes() }) {
+        let canvas = unsafe { target.bytes() };
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        gpu.bring_back(canvas);
+        #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+        if let Err(why) = gpu.bring_back(canvas) {
             crate::framework::log(&format!("render: the frame did not come back: {why}"));
         }
     }
@@ -95,6 +105,7 @@ fn give_frame_back(target: &Target) {
 
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
 /// canvas's written pixels over it.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn finish_frame(target: &Target) -> Option<*mut sdl3_sys::everything::SDL_GPUTexture> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
@@ -110,6 +121,27 @@ pub fn finish_frame(target: &Target) -> Option<*mut sdl3_sys::everything::SDL_GP
         crate::framework::log(&format!("render: the frame did not finish: {why}"));
     }
     Some(gpu.colour_texture())
+}
+
+/// The frame on the panel, by the GPU when it is running: the target during a race, else
+/// `frame`, the canvas's picture. False: it is not running.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn show_on_panel(target: &Target, frame: &[u8], width: usize, height: usize) -> bool {
+    gpu::start_if_wanted();
+    if GPU_HOLDS_FRAME.load(Relaxed) && crate::race::numbers_store::NUMBERS.in_race.get() == 0 {
+        give_frame_back(target);
+    }
+    let mut gpu = gpu::GPU.lock().unwrap();
+    let Some(gpu) = gpu.as_mut() else {
+        return false;
+    };
+    if GPU_HOLDS_FRAME.load(Relaxed) {
+        // SAFETY: the game's code waits; nothing else writes the canvas meanwhile.
+        gpu.finish_and_show(unsafe { target.bytes() });
+    } else {
+        gpu.show_picture(frame, width, height);
+    }
+    true
 }
 
 // ---- textures' changes ----
