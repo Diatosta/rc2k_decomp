@@ -23,7 +23,7 @@ use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::gfx::glyph_store::{self, Glyphs};
 use crate::pointers::{GameBytes, GamePtr};
 use crate::text::font::Font;
-use crate::text::glyph_kerning::{State, state_ptr};
+use crate::text::glyph_kerning::{STATE, State};
 
 // ---- Rust version ----
 
@@ -32,7 +32,8 @@ pub trait Canvas {
     /// False for a canvas that only predicts: font objects in game memory are then left alone.
     fn keeps_font_changes(&self) -> bool;
     /// The kerning row table the canvas keeps.
-    fn kerning(&mut self) -> &mut State;
+    fn kerning(&self) -> State;
+    fn set_kerning(&mut self, kerning: State);
     fn blit_glyph(&mut self, call: BlitCall) -> Result<(), Refused>;
 }
 
@@ -43,8 +44,11 @@ impl Canvas for GameCanvas {
     fn keeps_font_changes(&self) -> bool {
         true
     }
-    fn kerning(&mut self) -> &mut State {
-        unsafe { &mut *state_ptr() }
+    fn kerning(&self) -> State {
+        *STATE.lock().unwrap_or_else(|e| e.into_inner())
+    }
+    fn set_kerning(&mut self, kerning: State) {
+        *STATE.lock().unwrap_or_else(|e| e.into_inner()) = kerning;
     }
     fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
         blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette).map(|_| ())
@@ -65,7 +69,24 @@ pub struct Outcome {
 }
 
 /// A canvas of this crate as the core's.
-pub struct Adapt<'a>(pub &'a mut dyn Canvas);
+pub struct Adapt<'a> {
+    canvas: &'a mut dyn Canvas,
+    kerning: State,
+}
+
+impl<'a> Adapt<'a> {
+    pub fn new(canvas: &'a mut dyn Canvas) -> Self {
+        let kerning = canvas.kerning();
+        Self { canvas, kerning }
+    }
+}
+
+/// The kerning table goes back when the drawing ends, whichever way: it lasts from text to text.
+impl Drop for Adapt<'_> {
+    fn drop(&mut self) {
+        self.canvas.set_kerning(self.kerning);
+    }
+}
 
 pub enum AdaptError {
     Refused(Refused),
@@ -82,11 +103,11 @@ impl From<rc2k_core::Invalid> for AdaptError {
 impl rc2k_core::text::Canvas for Adapt<'_> {
     type Error = AdaptError;
     fn kerning(&mut self) -> &mut State {
-        self.0.kerning()
+        &mut self.kerning
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
         let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
-        { self.0.blit_glyph(call) }.map_err(AdaptError::Refused)
+        { self.canvas.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }
 
@@ -101,7 +122,7 @@ pub fn run_core<T>(
 ) -> Result<T, Refused> {
     let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
     let words = text.bytes("a text")?;
-    match f(&words, &glyphs, &mut Adapt(canvas)) {
+    match f(&words, &glyphs, &mut Adapt::new(canvas)) {
         Ok(value) => Ok(value),
         Err(AdaptError::Refused(e)) => Err(e),
         Err(AdaptError::Invalid) => {
@@ -152,7 +173,7 @@ pub fn draw_bytes_at(
     let before = at.read::<Font>("a font")?;
     let mut copy = before;
     let glyphs = glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
-    let out = match rc2k_core::text::draw(&mut copy, text, &glyphs, x, y, &mut Adapt(canvas)) {
+    let out = match rc2k_core::text::draw(&mut copy, text, &glyphs, x, y, &mut Adapt::new(canvas)) {
         Ok(out) => out,
         Err(AdaptError::Refused(e)) => return Err(e),
         Err(AdaptError::Invalid) => {

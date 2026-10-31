@@ -265,11 +265,6 @@ pub(crate) const MOVED: &[Moved] = &[
         len: 0x20,
         home: || crate::text::blend_font::BLENDED_FONT.addr() as usize,
     },
-    Moved {
-        ida: 0x93E830, // g_kerningRowState
-        len: rc2k_core::text::KERNING_ROWS * 2,
-        home: || crate::text::glyph_kerning::STATE.addr() as usize,
-    },
     // files (the search record, the paths' buffers)
     Moved {
         ida: 0x4E05A4, // hFindFile

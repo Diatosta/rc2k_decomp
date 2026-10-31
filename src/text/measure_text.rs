@@ -60,7 +60,7 @@ pub fn measure_bytes_at(
     let at = font;
     let mut copy = at.read::<Font>("a font")?;
     let glyphs = crate::gfx::glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
-    let m = match rc2k_core::text::measure(&mut copy, text, &glyphs, x, &mut Adapt(canvas)) {
+    let m = match rc2k_core::text::measure(&mut copy, text, &glyphs, x, &mut Adapt::new(canvas)) {
         Ok(m) => m,
         Err(AdaptError::Refused(e)) => return Err(e),
         Err(AdaptError::Invalid) => {
