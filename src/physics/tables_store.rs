@@ -527,6 +527,37 @@ unsafe impl crate::pointers::Cells for PhysicsTables {}
 pub static PHYSICS: PhysicsTables =
     crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
+impl PhysicsTables {
+    /// IDA's address of the first ground record (`off_613978`).
+    const SURFACES: usize = 0x613978;
+    /// IDA's address of the first surface table (`g_surfaceTables`) and its length.
+    const TABLES: usize = 0x613C78;
+    const TABLES_LEN: usize = 104 * 4;
+
+    /// Where ground kind `n`'s table is (phase 13: the records keep IDA's addresses as names,
+    /// and `moved::point_into_homes` passes them over). A kind past the 16, or a name off
+    /// the tables, is refused.
+    pub fn surface_table_of(n: u32) -> Result<u32, crate::errors::BadInput> {
+        let record = PHYSICS
+            .surfaces
+            .get(n as usize)
+            .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
+        let at = record.table.get() as usize;
+        if !(Self::TABLES..Self::TABLES + Self::TABLES_LEN).contains(&at) {
+            return Err(crate::errors::BadInput(
+                "a ground record's table off the tables",
+            ));
+        }
+        let home = crate::pointers::game_address(PHYSICS.surface_tables.as_ptr());
+        Ok(home + (at - Self::TABLES) as u32)
+    }
+
+    /// Whether IDA's `ida` is one of the ground records' table names (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (0..16).any(|k| ida == Self::SURFACES + 0x30 * k)
+    }
+}
+
 /// IDA 0x613828, the first byte of the piece.
 pub const START: usize = 0x613828;
 /// IDA 0x614D38, the end of the piece.
@@ -561,6 +592,27 @@ mod tests {
         assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x614D34 - START);
         assert_eq!(PHYSICS.gravity.get(), 9.8);
         assert_eq!(PHYSICS.surfaces[1].slide_grip.get(), 1.0);
+    }
+
+    #[test]
+    fn the_ground_records_name_their_tables_as_the_image_does() {
+        let home = crate::pointers::game_address(PHYSICS.surface_tables.as_ptr());
+        for n in 0..16u32 {
+            let ida = PhysicsTables::SURFACES + 0x30 * n as usize;
+            assert!(PhysicsTables::holds_handle(ida));
+            let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
+            // Kept as the image's name; resolved to the same table's place.
+            assert_eq!(PHYSICS.surfaces[n as usize].table.get(), image);
+            let slot = (image as usize - PhysicsTables::TABLES) / 4;
+            assert_eq!(
+                PhysicsTables::surface_table_of(n).unwrap(),
+                crate::pointers::game_address(PHYSICS.surface_tables[slot].as_ptr())
+            );
+            assert!(slot.is_multiple_of(13) && slot < 104);
+            assert!(PhysicsTables::surface_table_of(n).unwrap() >= home);
+        }
+        assert!(!PhysicsTables::holds_handle(PhysicsTables::SURFACES + 4));
+        assert!(PhysicsTables::surface_table_of(16).is_err());
         assert_eq!(
             PHYSICS.contacts[0].force[0].addr(),
             crate::framework::game_addr(crate::framework::rva(0x614A50))

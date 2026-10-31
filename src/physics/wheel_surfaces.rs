@@ -40,8 +40,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
+use crate::physics::tables_store::{PHYSICS, PhysicsTables};
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
@@ -144,8 +143,8 @@ fn steps() -> Result<(), Refused> {
             let edi = surfaces + s2 * 0x30;
             x87_3(esi as usize, edi as usize, c as usize);
             let (ps, pd) = (
-                GamePtr::new(esi).read::<u32>("a surface record")?,
-                GamePtr::new(edi).read::<u32>("a surface record")?,
+                PhysicsTables::surface_table_of(s1)?,
+                PhysicsTables::surface_table_of(s2)?,
             );
             let k = CAR.tyre_kind.get();
             x87_4(ps as usize, pd as usize, k as usize);
