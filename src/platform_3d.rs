@@ -137,10 +137,9 @@ fn record_at(pool: usize, number: u32) -> &'static crate::session::Shared<Textur
 }
 
 struct Level {
-    /// The pixels a region while the level lives (locked, the game's code writes them by
-    /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
-    _lent: crate::pointers::Lent,
-    pixels: Vec<u8>,
+    /// The pixels, a region while the level lives (locked, the game's code writes them by
+    /// address: `pointers`).
+    pixels: crate::pointers::LentBytes,
     pitch: u32,
 }
 
@@ -171,7 +170,7 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
         .unwrap()
         .get(number)
         .and_then(|l| l.as_ref())
-        .map(|l| crate::pointers::game_address(l.pixels.as_ptr()));
+        .map(|l| l.pixels.addr());
     if pixels.is_none_or(reads_texture) {
         flush();
     }
@@ -182,11 +181,7 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
         Some(level) => {
             let what = "a surface description";
-            crate::pointers::write_or_end(
-                description + 0x24,
-                crate::pointers::game_address(level.pixels.as_mut_ptr()),
-                what,
-            );
+            crate::pointers::write_or_end(description + 0x24, level.pixels.addr(), what);
             crate::pointers::write_or_end(description + 0x10, level.pitch, what);
             0
         }
@@ -331,7 +326,7 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
             let format =
                 crate::pointers::read_or_end::<TextureFormat>(record.format, "a texture format");
             Some(TextureNote {
-                pixels: (crate::pointers::game_address(level.pixels.as_ptr())) as usize,
+                pixels: level.pixels.addr() as usize,
                 len: level.pixels.len(),
                 width: record.width as usize,
                 height: record.height as usize,
@@ -425,7 +420,8 @@ pub fn copy_screen_to_system_texture(number: u32) {
             };
             let texel = put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
             let at = y * level.pitch as usize + x * bytes;
-            if let Some(to) = level.pixels.get_mut(at..at + bytes) {
+            // SAFETY: this thread draws; the texture's level is not locked while it is copied to.
+            if let Some(to) = unsafe { level.pixels.slice_mut() }.get_mut(at..at + bytes) {
                 to.copy_from_slice(&texel.to_le_bytes()[..bytes.min(4)]);
             }
         }
@@ -541,10 +537,8 @@ fn make_texture(
             let surface = surface_number(pool, number, level);
             if level < levels {
                 let (w, h) = ((width >> level).max(1), (height >> level).max(1));
-                let pixels = vec![0; (w * h * bytes) as usize];
                 memory[surface] = Some(Level {
-                    _lent: crate::pointers::Lent::new(&pixels),
-                    pixels,
+                    pixels: crate::pointers::LentBytes::from_vec(vec![0; (w * h * bytes) as usize]),
                     pitch: w * bytes,
                 });
                 record.surfaces[level as usize] = object(surface);
@@ -660,9 +654,7 @@ fn release_pool(pool: usize) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
                 if let Some(gone) = slot {
-                    crate::render::texture_changed(crate::pointers::game_address(
-                        gone.pixels.as_ptr(),
-                    ) as usize);
+                    crate::render::texture_changed(gone.pixels.addr() as usize);
                 }
                 *slot = None;
             }
@@ -726,15 +718,15 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
         let from = surface_number(0, system, level);
         let to = surface_number(1, video, level);
         let pixels = match memory.get(from).and_then(|l| l.as_ref()) {
-            Some(level) => level.pixels.clone(),
+            Some(level) => level.pixels.to_vec(),
             None => continue,
         };
         if let Some(Some(target)) = memory.get_mut(to) {
-            crate::render::texture_changed(
-                crate::pointers::game_address(target.pixels.as_ptr()) as usize
-            );
+            crate::render::texture_changed(target.pixels.addr() as usize);
             let n = pixels.len().min(target.pixels.len());
-            target.pixels[..n].copy_from_slice(&pixels[..n]);
+            // SAFETY: this thread draws; the target is not locked while it is loaded.
+            let to = unsafe { target.pixels.slice_mut() };
+            to[..n].copy_from_slice(&pixels[..n]);
         }
     }
 }

@@ -138,9 +138,7 @@ pub fn log_int_nl(value: u32, level: u8) {
 /// Only a lobby's launch reaches it, which the platform never reports
 /// (`dp_objects::get_connection_settings`).
 struct LobbySettings {
-    // Declared first: the region goes before the bytes (`pointers::Lent`).
-    _lent: crate::pointers::Lent,
-    _bytes: Vec<u8>,
+    _bytes: crate::pointers::LentBytes,
 }
 
 static LOBBY_SETTINGS: std::sync::Mutex<Option<LobbySettings>> = std::sync::Mutex::new(None);
@@ -148,14 +146,12 @@ static LOBBY_SETTINGS: std::sync::Mutex<Option<LobbySettings>> = std::sync::Mute
 /// `bytes` of settings taken: their game address.
 pub fn take_lobby_settings(bytes: u32) -> Result<u32, Refused> {
     let memory = crate::memory::owned::counted(crate::net::tables::list(), bytes)?;
-    let lent = crate::pointers::Lent::new(&memory);
-    let at = lent.addr();
+    let memory = crate::pointers::LentBytes::from_vec(memory);
+    let at = memory.addr();
     *LOBBY_SETTINGS
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(LobbySettings {
-        _lent: lent,
-        _bytes: memory,
-    });
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+        Some(LobbySettings { _bytes: memory });
     Ok(at)
 }
 

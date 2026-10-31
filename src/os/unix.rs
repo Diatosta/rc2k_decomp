@@ -180,6 +180,7 @@ pub fn terminate(code: u32) -> ! {
 }
 
 /// The running thread's stack: its lowest byte and the byte past its top.
+#[cfg(not(miri))]
 pub fn thread_stack() -> (usize, usize) {
     // SAFETY: the running thread's attributes, read and destroyed here.
     unsafe {
@@ -198,8 +199,21 @@ pub fn thread_stack() -> (usize, usize) {
     }
 }
 
+/// Miri cannot ask for the stack; its tests have none to register.
+#[cfg(miri)]
+pub fn thread_stack() -> (usize, usize) {
+    (0, 0)
+}
+
+/// Miri cannot ask the loader; its tests have no image to find.
+#[cfg(miri)]
+pub fn image() -> (usize, Vec<(usize, usize)>) {
+    (0, Vec::new())
+}
+
 /// The program's own image: its load address, and its loaded segments (first byte, byte
 /// past the end), from the program's headers.
+#[cfg(not(miri))]
 pub fn image() -> (usize, Vec<(usize, usize)>) {
     unsafe extern "C" fn each(
         info: *mut libc::dl_phdr_info,

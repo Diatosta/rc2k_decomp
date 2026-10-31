@@ -52,11 +52,10 @@ pub fn append_name(
 /// A name made by the game's text helpers (which write at an address) in a lent buffer:
 /// `make` writes it from the cursor it is given and gives the cursor past its NUL.
 pub fn made_name(make: impl FnOnce(u32) -> Result<u32, Refused>) -> Result<Vec<u8>, Refused> {
-    let buffer = vec![0u8; 0x400];
-    let lent = crate::pointers::Lent::new(&buffer);
+    let lent = crate::pointers::LentBytes::from_vec(vec![0u8; 0x400]);
     let end = make(lent.addr())?;
     let len = end.wrapping_sub(lent.addr()) as usize;
-    drop(lent);
+    let buffer = lent.to_vec();
     match len.checked_sub(1) {
         Some(n) if len <= buffer.len() => Ok(buffer[..n].to_vec()),
         _ => Err(BadInput("an installer name past its buffer").into()),

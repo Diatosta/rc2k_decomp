@@ -46,7 +46,6 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 pub(crate) struct Screen {
     /// The pixels a region while the screen lives (the game's code draws on them by
     /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
-    _lent: crate::pointers::Lent,
     pub(crate) window: usize,
     /// The window's renderer (`SDL_Renderer`, 2026-10-30: the frame goes up as a texture,
     /// the debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
@@ -55,7 +54,7 @@ pub(crate) struct Screen {
     width: usize,
     height: usize,
     bits: u32,
-    pixels: Vec<u8>,
+    pixels: crate::pointers::LentBytes,
 }
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -258,9 +257,8 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut() {
         gpu.set_size(width, height)?;
     }
-    let pixels = vec![0u8; (bytes * width * height) as usize];
-    let lent = crate::pointers::Lent::new(&pixels);
-    DRAW_SURFACE.present_pixels.set(lent.addr());
+    let pixels = crate::pointers::LentBytes::from_vec(vec![0u8; (bytes * width * height) as usize]);
+    DRAW_SURFACE.present_pixels.set(pixels.addr());
     DRAW_SURFACE.present_pitch.set(bytes * width);
     DRAW_SURFACE.present_gap.set(0u32);
     // "There are surfaces": what the game's own code asks.
@@ -273,7 +271,6 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         width: width as usize,
         height: height as usize,
         bits,
-        _lent: lent,
         pixels,
     });
     SCREEN_MODE.mode_set.set(mode);
@@ -412,11 +409,12 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
     let converted;
+    // SAFETY: the frame is drawn on this thread, which is here to show it.
+    let pixels = unsafe { screen.pixels.slice() };
     let frame: &[u8] = if bytes == 4 {
-        &screen.pixels
+        pixels
     } else {
-        converted = screen
-            .pixels
+        converted = pixels
             .as_chunks::<2>()
             .0
             .iter()
@@ -536,14 +534,18 @@ pub fn show_frame_now() -> bool {
                 .frames
                 .set(DRAW_SURFACE.frames.get().wrapping_add(1));
             #[cfg(feature = "remote")]
-            crate::remote::frame(&screen.pixels, screen.width as u32, screen.height as u32);
+            crate::remote::frame(
+                &screen.pixels.to_vec(),
+                screen.width as u32,
+                screen.height as u32,
+            );
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {
                 if let Some(target) = crate::platform_3d::screen() {
                     crate::render::bring_back(&target);
                 }
-                let _ = std::fs::write("rc2k_frame.raw", &screen.pixels);
+                let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());
                 log(&format!(
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits

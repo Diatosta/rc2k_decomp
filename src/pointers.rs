@@ -707,13 +707,88 @@ impl Window {
     }
 }
 
-/// A Rust buffer lent to code that takes the game's addresses (a file read into a `Vec`): a
-/// region while the guard lives. Take the guard before the address is handed on, and drop
+/// Bytes owned here and reached by game address, for reading and for writing: a region for as
+/// long as they live. They are held by a raw pointer, so a write by address is allowed
+/// (a `Vec` lent through `&[u8]` gives read permission only: Miri, 2026-10-31).
+pub struct LentBytes {
+    at: *mut u8,
+    len: usize,
+    game: u32,
+}
+
+// SAFETY: the bytes are owned by this value; other threads reach them only as shared memory
+// (`shared_memory`) or under `slice`'s promise.
+unsafe impl Send for LentBytes {}
+// SAFETY: as above.
+unsafe impl Sync for LentBytes {}
+
+impl LentBytes {
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        let len = bytes.len();
+        let at = Box::into_raw(bytes.into_boxed_slice()).cast::<u8>();
+        Self {
+            at,
+            len,
+            game: lend(at, len),
+        }
+    }
+
+    /// The bytes' game address.
+    pub fn addr(&self) -> u32 {
+        self.game
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// A copy of the bytes.
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(self.len);
+        // SAFETY: `bytes` has room for `len`, all set by `load`; `at` holds `len` bytes.
+        unsafe {
+            crate::shared_memory::load(self.at, bytes.as_mut_ptr(), self.len);
+            bytes.set_len(self.len);
+        }
+        bytes
+    }
+
+    /// The bytes in place.
+    ///
+    /// # Safety
+    /// Nothing may write them while the slice lives.
+    pub unsafe fn slice(&self) -> &[u8] {
+        // SAFETY: `at` holds `len` bytes; unwritten meanwhile (the caller's promise).
+        unsafe { std::slice::from_raw_parts(self.at, self.len) }
+    }
+
+    /// The bytes in place, to change.
+    ///
+    /// # Safety
+    /// Nothing else may reach them by address while the slice lives.
+    pub unsafe fn slice_mut(&mut self) -> &mut [u8] {
+        // SAFETY: as `slice`.
+        unsafe { std::slice::from_raw_parts_mut(self.at, self.len) }
+    }
+}
+
+impl Drop for LentBytes {
+    fn drop(&mut self) {
+        forget(self.game);
+        // SAFETY: `at` and `len` are `from_vec`'s box, freed once, its region gone.
+        drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.at, self.len)) });
+    }
+}
+
+/// A Rust buffer lent to code that reads by the game's addresses: a region while the guard
+/// lives; code that writes needs `LentBytes` or a pointer taken from `as_mut_ptr`. Take the guard before the address is handed on, and drop
 /// it before the buffer: a struct holding both declares the guard first (fields drop in
 /// order; freed memory still a region is memory the game may reach, and memory the heap
 /// hands out again inside a stale range: 2026-10-26, a flaky test).
+#[cfg(test)]
 pub struct Lent(u32);
 
+#[cfg(test)]
 impl Lent {
     pub fn new(bytes: &[u8]) -> Self {
         Self(lend(bytes.as_ptr(), bytes.len()))
@@ -725,6 +800,7 @@ impl Lent {
     }
 }
 
+#[cfg(test)]
 impl Drop for Lent {
     fn drop(&mut self) {
         forget(self.0);
@@ -768,14 +844,13 @@ mod tests {
 
     #[test]
     fn a_window_keeps_its_region() {
-        let block = Box::new([5u8; 32]);
-        let _lent = Lent::new(&block[..]);
-        let start = game_address(block.as_ptr());
+        let block = LentBytes::from_vec(vec![5u8; 32]);
+        let start = block.addr();
         let window = Window::new();
         assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
         assert_eq!(window.0.get(), (start, start + 32));
         window.write_or_end(start + 28, 0x0102_0304u32, "test");
-        assert_eq!(block[28], 4);
+        assert_eq!(block.to_vec()[28], 4);
         assert!(
             window.check(start + 29, 4, "test").is_err(),
             "runs past the end"

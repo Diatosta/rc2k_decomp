@@ -64,9 +64,7 @@ pub fn allocate_course_memory(list: u32) -> Result<(), Refused> {
 /// points then move out, `race::course_places`); given back with the list
 /// (`stage_free::COURSE`).
 struct CourseMemory {
-    // Declared first: the region goes before the bytes (`pointers::Lent`).
-    _lent: crate::pointers::Lent,
-    _bytes: Vec<u8>,
+    _bytes: crate::pointers::LentBytes,
 }
 
 static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
@@ -77,14 +75,11 @@ fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> 
     let mut memory = crate::memory::owned::counted(crate::pointers::GamePtr::new(list), bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
-    let lent = crate::pointers::Lent::new(&memory);
-    let at = lent.addr();
+    let memory = crate::pointers::LentBytes::from_vec(memory);
+    let at = memory.addr();
     *COURSE_MEMORY
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(CourseMemory {
-        _lent: lent,
-        _bytes: memory,
-    });
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(CourseMemory { _bytes: memory });
     Ok(at)
 }
 
