@@ -490,9 +490,9 @@ pub fn holds_keyboard_names(ida: usize) -> bool {
 }
 
 /// The table at `at` (0 .. 0x10) of the keyboard layout block at `layout`, as an address, 0
-/// for none. The built-in layout's tables are named by IDA's addresses, which are not
-/// addresses of the program's memory; a keyboard file's layout holds the real places
-/// (`strings::load_language`).
+/// for none. The built-in layouts' (this one's and the NEC's, `strings::keyboard_tables`)
+/// tables are named by IDA's addresses, which are not addresses of the program's memory; a
+/// keyboard file's layout holds the real places (`strings::load_language`).
 pub fn layout_table(layout: u32, at: u32) -> Result<u32, crate::errors::BadInput> {
     let p: u32 = crate::pointers::GamePtr::new(layout)
         .offset(at)
@@ -504,6 +504,11 @@ pub fn layout_table(layout: u32, at: u32) -> Result<u32, crate::errors::BadInput
             KEYBOARD_LEN,
             "a keyboard table off the built-in layout",
         );
+    }
+    let nec = crate::strings::keyboard_tables::KeyboardTables::START;
+    let nec_len = crate::strings::keyboard_tables::KeyboardTables::LEN;
+    if (nec..nec + nec_len).contains(&(p as usize)) {
+        return crate::moved::named_in(p, nec, nec_len, "a keyboard table off the NEC layout");
     }
     Ok(p)
 }

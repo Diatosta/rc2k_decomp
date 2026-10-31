@@ -27,6 +27,13 @@ pub static KEYBOARD_TABLES: KeyboardTables = KeyboardTables {
 };
 
 impl KeyboardTables {
+    /// Whether IDA's `ida` is one of the NEC layout's three table places (+4, +8, +0x10 of
+    /// `nec_layout`: kept as IDA's addresses, as names; `input::store::layout_table` makes
+    /// them real, and `moved::point_into_homes` passes them over).
+    pub fn holds_handle(ida: usize) -> bool {
+        [0x4F0E14, 0x4F0E18, 0x4F0E20].contains(&ida)
+    }
+
     pub const START: usize = 0x4F0DC8;
     pub const LEN: usize = 0x226C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -54,5 +61,22 @@ mod tests {
             )
         };
         assert_eq!(mine, &image[..]);
+    }
+
+    /// The NEC layout's tables are named by the image's addresses and resolve to them.
+    #[test]
+    fn the_nec_layouts_tables_resolve() {
+        let layout = KEYBOARD_TABLES.nec_layout.addr();
+        let image = crate::moved::image_bytes(0x4F0E10, 0x14);
+        for (at, ida) in [(4, 0x4F0E24), (8, 0x4F0EA4), (0x10, 0x4F0F24)] {
+            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            assert_eq!(name as usize, ida);
+            assert!(KeyboardTables::holds_handle(0x4F0E10 + at));
+            assert_eq!(
+                crate::input::store::layout_table(layout, at as u32),
+                Ok(KeyboardTables::home() as u32 + (ida - KeyboardTables::START) as u32)
+            );
+        }
+        assert_eq!(crate::input::store::layout_table(layout, 0xC), Ok(0));
     }
 }
