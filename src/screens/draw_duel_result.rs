@@ -34,12 +34,8 @@ fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> Result<(u32, u32), BadInput> {
-    let table =
-        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
-    if table == 0 {
-        return Ok((0, 0));
-    }
-    let base = get(table + 4 * EVENT_STATE.stage_sub.get())?;
+    let base = crate::records::stages_store::STAGE_TABLES
+        .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
     Ok((
         base,
         base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),

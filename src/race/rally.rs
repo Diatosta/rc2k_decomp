@@ -37,14 +37,8 @@ const WORDS: [&std::ffi::CStr; 14] = [
 pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
     {
         let kind = EVENT_STATE.stage_group.get();
-        let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
-        if rallies == 0 {
-            return Ok(None);
-        }
-        let stages = get(rallies.wrapping_add(4 * EVENT_STATE.stage_sub.get()))?;
-        if stages == 0 {
-            return Ok(None);
-        }
+        let stages = crate::records::stages_store::STAGE_TABLES
+            .group_event_table(kind, EVENT_STATE.stage_sub.get())?;
         let stage = stages.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4));
         let n = get(stage + 0x3C)? as usize;
         let table = if kind == 1 {

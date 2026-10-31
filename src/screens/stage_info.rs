@@ -13,12 +13,9 @@ fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
 }
 
 /// The page's stage record (none: 0).
-pub fn stage_record() -> u32 {
-    let base = crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get());
-    if base == 0 {
-        return 0;
-    }
-    base.wrapping_add(ARCADE_GAME.stage.get().wrapping_mul(0xA4))
+pub fn stage_record() -> Result<u32, BadInput> {
+    let base = crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())?;
+    Ok(base.wrapping_add(ARCADE_GAME.stage.get().wrapping_mul(0xA4)))
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
@@ -33,10 +30,7 @@ pub fn draw_stage_best_and_fastest(
 ) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
-        let record = stage_record();
-        if record == 0 {
-            return Err(BadInput("no stage record").into());
-        }
+        let record = stage_record()?;
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(get(record + 0x30)?, true, units)?;
         let name = times
@@ -77,11 +71,11 @@ pub fn draw_stage_best_and_fastest(
 /// stage record or times table.
 pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
-    let record = stage_record();
+    let record = stage_record()?;
     let course_times = &crate::saves::best_times::COURSE_TIMES;
-    let (false, true) = (record == 0, course_times.is_taken()) else {
+    if !course_times.is_taken() {
         return Err(BadInput("no stage record or times table").into());
-    };
+    }
     draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
     // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
     crate::screens::stage_panel::draw_stage_body_in(

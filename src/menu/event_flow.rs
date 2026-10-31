@@ -177,15 +177,8 @@ pub fn stage_record() -> Result<u32, BadInput> {
     if kind >= KINDS {
         return Err(BadInput("a stage kind past off_735512's four"));
     }
-    let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
-    let stages = if rallies == 0 {
-        0
-    } else {
-        dword(rallies.wrapping_add(get(STAGE_SUB).wrapping_mul(4)))?
-    };
-    if stages == 0 {
-        return Err(BadInput("a null pointer to the chosen stage's records"));
-    }
+    let stages =
+        crate::records::stages_store::STAGE_TABLES.group_event_table(kind, get(STAGE_SUB))?;
     Ok(stages.wrapping_add(get(STAGE_NUMBER).wrapping_mul(STAGE_RECORD)))
 }
 

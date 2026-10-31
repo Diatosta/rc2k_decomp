@@ -81,19 +81,13 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
 fn stage_record(a: u32, b: u32, c: u32) -> Result<(u32, u32), BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
-    let base = crate::pointers::GamePtr::new(table + 4 * b).read::<u32>("a stage record table")?;
+    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
     Ok((base, base.wrapping_add(c.wrapping_mul(0xA4))))
 }
 
 /// What both stage pages read through: refused before anything.
 fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
-    let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
-    if table == 0
-        || crate::pointers::GamePtr::new(table + 4 * b).read::<u32>("a stage record table")? == 0
-    {
-        return Err(BadInput("no stage records").into());
-    }
+    crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
     Ok(())
 }
 

@@ -143,7 +143,7 @@ impl arcade::Arcade for Game {
             Hand::Kept(v) => f.c.arg = v,
             Hand::StageRecord => {
                 f.c.palette = ARCADE_GAME.level.get();
-                f.record = crate::records::stages_store::STAGE_TABLES.level_table(f.c.palette);
+                f.record = crate::records::stages_store::STAGE_TABLES.level_table(f.c.palette)?;
                 f.c.arg = ARCADE_GAME.stage.get().wrapping_mul(0xA4);
                 f.record = f.record.wrapping_add(f.c.arg);
             }

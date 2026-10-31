@@ -18,11 +18,8 @@ fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
 fn records() -> Result<(u32, u32), BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.group_list(CHAMP_VIEW.switch_f8.get());
-    if table == 0 {
-        return Ok((0, 0));
-    }
-    let base = get(table + 4 * CAPTIONS.shown_group.get())?;
+    let base = crate::records::stages_store::STAGE_TABLES
+        .group_event_table(CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get())?;
     Ok((
         base,
         base.wrapping_add(CAPTIONS.shown_stage.get().wrapping_mul(0xA4)),
@@ -34,15 +31,11 @@ fn records() -> Result<(u32, u32), BadInput> {
 /// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
 fn times_table() -> Result<Option<&'static StageTable>, BadInput> {
-    let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
-        + 4 * CHAMP_VIEW.switch_f8.get();
+    let mut n = CHAMP_VIEW.switch_f8.get();
     if CHAMP_VIEW.switch_fc.get() == 1 {
-        at += 8;
+        n += 2;
     }
-    let p = get(at)?;
-    if p == 0 {
-        return Ok(None);
-    }
+    let p = crate::records::stages_store::STAGE_TABLES.result_table(n)?;
     use crate::saves::best_times as b;
     let v = &CHAMP_VIEW;
     let (_, table) = [

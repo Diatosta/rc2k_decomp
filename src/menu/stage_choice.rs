@@ -46,7 +46,7 @@ pub fn draw_stage_map() -> Result<(), Refused> {
             let table: u32 = ARCADE_GAME.level.get();
             let at = ARCADE_GAME.stage.get().wrapping_mul(RECORD_SIZE);
             crate::records::stages_store::STAGE_TABLES
-                .level_table(table)
+                .level_table(table)?
                 .wrapping_add(at)
         }
         3 => crate::records::find_record::find_record_in(

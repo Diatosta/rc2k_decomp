@@ -8,10 +8,12 @@
 //! Every address of the range is 2 past a multiple of 4: the cells are `Loose` (unaligned
 //! dwords) and a two-byte lead keeps each image address's alignment. `#[repr(C)]`, the
 //! image's layout; `moved::MOVED` points the range at it. The code walks the records by
-//! address (`championship()`, `event_table(k)`); the lists hold IDA addresses that
-//! `moved::point_into_homes` makes real. A list read past its end reads what follows, by
-//! IDA address, as the original (`listed`).
+//! address (`championship()`, `event_table(k)`); the lists keep IDA's addresses as names
+//! (phase 13; `moved::point_into_homes` passes them over) that `group_event_table`,
+//! `level_table` and `result_table` make real. A list read past its end reads on into the
+//! lists after it, as the original; past the last, or onto a -1, it is refused.
 
+use crate::errors::BadInput;
 use crate::session::{Bytes, Loose};
 
 /// A record (0xA4 bytes, IDA's `Record`): +0 the tag (0 a stage, 3 or 4 a rally's end, -1
@@ -77,14 +79,15 @@ pub struct StageTables {
     /// `g_trakPakHeader` (0x734BC6).
     pub trak_pak: TrakPak,
     /// `off_7354FE` (0x7354FE): the stage results' four tables and a -1
-    /// (`screens::stage_results`).
+    /// (`screens::stage_results`): names (`result_table`).
     pub result_tables: [Loose; 5],
-    /// `off_735512`: per stage group, its list of event tables.
+    /// `off_735512`: per stage group, its list of event tables (names: `group_event_table`).
     pub group_lists: [Loose; 4],
     /// `off_735522`, `off_73553E`: two of those lists (six event tables and a -1).
     pub group_list_a: [Loose; 7],
     pub group_list_b: [Loose; 7],
-    /// `off_73555A`: per arcade level (and the championship's stages), an event table.
+    /// `off_73555A`: per arcade level (and the championship's stages), an event table (names:
+    /// `level_table`).
     pub level_tables: [Loose; 7],
     /// `g_recordTable` (0x735576): the championship's records.
     pub championship: [Record; 66],
@@ -1144,29 +1147,79 @@ pub static STAGE_TABLES: StageTables = StageTables {
     ]),
 };
 
-/// A list's `n`th dword: the cell while inside the list, else what the original reads
-/// there, by IDA address (`ida` the list's).
-fn listed(cells: &[Loose], ida: usize, n: u32) -> u32 {
-    match cells.get(n as usize) {
-        Some(c) => c.get(),
-        None => crate::store::ida_read(ida.wrapping_add(4usize.wrapping_mul(n as usize))),
-    }
+/// Where a name of this piece lands (an event table).
+fn event_table_named(name: u32) -> Result<u32, BadInput> {
+    crate::moved::named_in(
+        name,
+        START,
+        END - START,
+        "a stage list's entry off the stage tables",
+    )
 }
 
 impl StageTables {
-    /// `off_735512[n]`: stage group `n`'s list of event tables.
-    pub fn group_list(&self, n: u32) -> u32 {
-        listed(&self.group_lists, 0x735512, n)
+    /// The lists after `off_735512`, one after the other as the image has them: the two
+    /// groups' (`off_735522`, `off_73553E`) and the arcade levels' (`off_73555A`), seven
+    /// dwords each.
+    fn lists(&self) -> impl Iterator<Item = &Loose> {
+        self.group_list_a
+            .iter()
+            .chain(&self.group_list_b)
+            .chain(&self.level_tables)
     }
 
-    /// `off_73555A[n]`: level `n`'s event table.
-    pub fn level_table(&self, n: u32) -> u32 {
-        listed(&self.level_tables, 0x73555A, n)
+    /// `off_735512[group][sub]`: the event table (a stage group's rally) `sub` of stage group
+    /// `group`: where its records begin. Refused for a group past the four, a list that is
+    /// not one of the lists, or an entry past a list's end (the -1).
+    pub fn group_event_table(&self, group: u32, sub: u32) -> Result<u32, BadInput> {
+        let list = self
+            .group_lists
+            .get(group as usize)
+            .ok_or(BadInput("a stage group past off_735512's four"))?
+            .get();
+        let lists_at = 0x735522;
+        let first = list
+            .checked_sub(lists_at)
+            .filter(|d| d % 4 == 0)
+            .ok_or(BadInput("a stage group's list off the lists"))?
+            / 4;
+        let entry = self
+            .lists()
+            .nth(first as usize + sub as usize)
+            .ok_or(BadInput("a stage list read past the lists"))?;
+        event_table_named(entry.get())
     }
 
-    /// `off_7354FE`'s address.
-    pub fn result_tables_addr(&self) -> u32 {
-        crate::pointers::game_address(self.result_tables.as_ptr())
+    /// `off_73555A[level]`: arcade level `level`'s event table; refused for a level past the
+    /// six (the -1 ends the list).
+    pub fn level_table(&self, level: u32) -> Result<u32, BadInput> {
+        let entry = self
+            .level_tables
+            .get(level as usize)
+            .ok_or(BadInput("an arcade level past off_73555A's list"))?;
+        event_table_named(entry.get())
+    }
+
+    /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four,
+    /// `menu::champ_store::ChampView`'s), its real address; refused for a place past the four.
+    pub fn result_table(&self, n: u32) -> Result<u32, BadInput> {
+        let entry = self
+            .result_tables
+            .get(n as usize)
+            .filter(|_| n < 4)
+            .ok_or(BadInput("a results table past off_7354FE's four"))?;
+        crate::moved::named_in(
+            entry.get(),
+            crate::menu::champ_store::START,
+            crate::menu::champ_store::END - crate::menu::champ_store::START,
+            "a results table's variable off the championship's",
+        )
+    }
+
+    /// Whether IDA's `ida` is one of the lists' dwords (`off_7354FE` to `off_73555A`'s end:
+    /// `moved::point_into_homes` passes them over).
+    pub fn holds_handle(ida: usize) -> bool {
+        (0x7354FE..0x735576).contains(&ida)
     }
 
     /// The championship's first record.
@@ -1221,5 +1274,55 @@ mod tests {
             )
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
+    }
+
+    /// The lists' names are the image's addresses and resolve to what the image's address
+    /// named: the groups' lists by two steps, the levels' tables, the results' variables.
+    #[test]
+    fn the_lists_resolve_to_what_the_image_named() {
+        let _g = crate::store::test_lock();
+        let image = image_bytes(0x7354FE, 0x735576 - 0x7354FE);
+        let word = |ida: usize| {
+            let at = ida - 0x7354FE;
+            u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
+        };
+        for ida in (0x7354FE..0x735576).step_by(4) {
+            assert!(StageTables::holds_handle(ida));
+        }
+        assert!(!StageTables::holds_handle(0x7354FA) && !StageTables::holds_handle(0x735576));
+        let table = |name: usize| stage_tables_addr() + (name - START) as u32;
+        let t = &STAGE_TABLES;
+        for group in 0..4 {
+            let list = word(0x735512 + 4 * group);
+            for sub in 0..6 {
+                let name = word(list + 4 * sub);
+                assert_eq!(
+                    t.group_event_table(group as u32, sub as u32),
+                    Ok(table(name)),
+                    "group {group} sub {sub}"
+                );
+            }
+            // The seventh is the -1 that ends the list.
+            assert!(t.group_event_table(group as u32, 6).is_err());
+        }
+        // The groups' lists, one after the other: a read past the first runs into the next.
+        assert_eq!(t.group_event_table(1, 7), Ok(table(word(0x73553E))));
+        assert!(t.group_event_table(4, 0).is_err());
+        for level in 0..6 {
+            assert_eq!(
+                t.level_table(level as u32),
+                Ok(table(word(0x73555A + 4 * level)))
+            );
+        }
+        assert!(t.level_table(6).is_err() && t.level_table(7).is_err());
+        for n in 0..4 {
+            let name = word(0x7354FE + 4 * n);
+            assert_eq!(
+                t.result_table(n as u32),
+                Ok(crate::menu::champ_store::champ_view_addr()
+                    + (name - crate::menu::champ_store::START) as u32)
+            );
+        }
+        assert!(t.result_table(4).is_err());
     }
 }

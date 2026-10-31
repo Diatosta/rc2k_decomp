@@ -245,13 +245,8 @@ pub struct StageTimes {
 }
 
 fn champ_records() -> Result<u32, BadInput> {
-    let table =
-        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
-    if table == 0 {
-        return Ok(0);
-    }
-    crate::pointers::GamePtr::new(table + 4 * EVENT_STATE.stage_sub.get())
-        .read::<u32>("a group\'s stage records")
+    crate::records::stages_store::STAGE_TABLES
+        .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())
 }
 
 fn champ_table() -> &'static StageTable {
@@ -263,7 +258,7 @@ fn champ_table() -> &'static StageTable {
 }
 
 fn rally_records() -> Result<u32, BadInput> {
-    Ok(crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get()))
+    crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())
 }
 
 fn rally_table() -> &'static StageTable {

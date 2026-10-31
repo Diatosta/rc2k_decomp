@@ -30,10 +30,6 @@ const RECORD_SIZE: u32 = 0xA4;
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 
-fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
 /// The game's selection: a group, a table in that group and a record in that table.
 #[derive(Clone, Copy, Debug)]
 pub struct Selection {
@@ -52,14 +48,7 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
     let group: u32 = EVENT_STATE.stage_group.get();
     let index: u32 = EVENT_STATE.stage_number.get();
     let sub: u32 = EVENT_STATE.stage_sub.get();
-    let tables = crate::records::stages_store::STAGE_TABLES.group_list(group);
-    if tables == 0 {
-        return Ok(None);
-    }
-    let table = dword(tables.wrapping_add(sub.wrapping_mul(4)))?;
-    if table == 0 {
-        return Ok(None);
-    }
+    let table = crate::records::stages_store::STAGE_TABLES.group_event_table(group, sub)?;
     Ok(Some(Selection {
         group,
         sub,

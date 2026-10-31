@@ -85,15 +85,8 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 
 /// The stage record's +0x34, the time the bonus is counted from.
 fn stage_time() -> Result<u32, Refused> {
-    let table =
-        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
-    if table == 0 {
-        return Err(BadInput("no stage records").into());
-    }
-    let records = get(table.wrapping_add(4 * EVENT_STATE.stage_sub.get()))?;
-    if records == 0 {
-        return Err(BadInput("no stage records").into());
-    }
+    let records = crate::records::stages_store::STAGE_TABLES
+        .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
     Ok(get(records.wrapping_add(
         EVENT_STATE.stage_number.get().wrapping_mul(0xA4),
     ) + 0x34)?)
