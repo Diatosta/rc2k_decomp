@@ -19,36 +19,29 @@
 
 use crate::logfile::log_float::log_float;
 use crate::math::x87_float::compare;
+use crate::math::x87_float::{ld, st};
 use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{fld, fstp};
+use crate::session::Cell32;
 use std::cmp::Ordering;
 
 /// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
 /// fcompp`, the limit negated in place for the second compare and put back.
-fn hold(v: u32, l: u32) {
-    hold_at(v as usize, l as usize);
-}
-
-/// `hold` over the dwords at `v` and `l`: `v` becomes the limit unless it is below it (or no
-/// number); the limit is stored negated, `v` becomes that unless it is not below it, and the
-/// limit is stored negated again.
-fn hold_at(v: usize, l: usize) {
-    let (v, l) = (crate::pointers::host_at(v), crate::pointers::host_at(l));
-    let limit = fld(l, 0);
-    if compare(fld(v, 0), limit) & 0x100 == 0 {
-        fstp(v, 0, limit);
+fn hold(v: &impl Cell32, l: &impl Cell32) {
+    let limit = ld(l.bits());
+    if compare(ld(v.bits()), limit) & 0x100 == 0 {
+        v.set_bits(st(limit));
     }
-    fstp(l, 0, -fld(l, 0));
-    let negated = fld(l, 0);
-    if compare(fld(v, 0), negated) & 0x100 != 0 {
-        fstp(v, 0, negated);
+    l.set_bits(st(-ld(l.bits())));
+    let negated = ld(l.bits());
+    if compare(ld(v.bits()), negated) & 0x100 != 0 {
+        v.set_bits(st(negated));
     }
-    fstp(l, 0, -fld(l, 0));
+    l.set_bits(st(-ld(l.bits())));
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
@@ -76,10 +69,10 @@ pub fn limit_motion() {
         }
     }
     for k in 0..3usize {
-        hold(CAR.spin[k].addr(), PHYSICS.spin_limit.addr());
+        hold(&CAR.spin[k], &PHYSICS.spin_limit);
     }
     for k in [0usize, 2, 1] {
-        hold(CAR.velocity[k].addr(), PHYSICS.velocity_limit.addr());
+        hold(&CAR.velocity[k], &PHYSICS.velocity_limit);
     }
     let length = rounded(vector_length(&CAR.velocity));
     DRAW.motion_length.set_bits(length);
@@ -145,7 +138,12 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| hold_at(a[0], a[1]),
+            plain: |a| {
+                hold(
+                    &crate::scene::x87_mem::HostCell(a[0]),
+                    &crate::scene::x87_mem::HostCell(a[1]),
+                );
+            },
         }];
         sparse(&blocks, 6000, 201);
     }

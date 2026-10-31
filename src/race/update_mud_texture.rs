@@ -21,6 +21,7 @@
 //! state were put back).
 
 use crate::errors::Refused;
+use crate::math::x87_float::{int, ld, st, to_int};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
 use crate::race::numbers_store::NUMBERS;
@@ -29,32 +30,22 @@ use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
-use crate::session::{Dword, Float};
+use crate::session::{Cell32, Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
-fn round_units(f: usize, t: usize) {
-    fistp(
-        crate::pointers::host_at(t),
-        0,
-        fld(crate::pointers::host_at(f).cast_const(), 0),
-    );
+fn round_units(f: &impl Cell32, t: &impl Cell32) {
+    t.set_bits(to_int(ld(f.bits())) as u32);
 }
 
 /// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
-fn subtract_units(a: usize, u: usize) {
-    fstp(
-        crate::pointers::host_at(a),
-        0,
-        fld(crate::pointers::host_at(a).cast_const(), 0)
-            - fild(crate::pointers::host_at(u).cast_const(), 0),
-    );
+fn subtract_units(a: &impl Cell32, u: &impl Cell32) {
+    a.set_bits(st(ld(a.bits()) - int(u.bits() as i32)));
 }
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: &Float, to: &Dword) -> i32 {
-    round_units(from.addr() as usize, to.addr() as usize);
+    round_units(from, to);
     let zero: u32 = NUMBERS.zero.bits();
     if c0(to.bits(), zero) {
         to.set_bits(zero);
@@ -64,7 +55,7 @@ fn whole_units(from: &Float, to: &Dword) -> i32 {
 
 /// `fld [at]; fisub [units]; fstp [at]`.
 fn take_units(at: &Float, units: &Dword) {
-    subtract_units(at.addr() as usize, units.addr() as usize);
+    subtract_units(at, units);
 }
 
 /// The Rust version (see the header).
@@ -163,7 +154,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_round(a[0], a[1]) },
-                plain: |a| round_units(a[0], a[1]),
+                plain: |a| {
+                    round_units(
+                        &crate::scene::x87_mem::HostCell(a[0]),
+                        &crate::scene::x87_mem::HostCell(a[1]),
+                    );
+                },
             },
             Block {
                 name: "take_units",
@@ -179,7 +175,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_subtract(a[0], a[1]) },
-                plain: |a| subtract_units(a[0], a[1]),
+                plain: |a| {
+                    subtract_units(
+                        &crate::scene::x87_mem::HostCell(a[0]),
+                        &crate::scene::x87_mem::HostCell(a[1]),
+                    );
+                },
             },
         ];
         sparse(&blocks, 5000, 207);
