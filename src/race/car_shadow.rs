@@ -112,8 +112,7 @@ pub fn shadow_hull() -> Result<(), Refused> {
         if !(2..=0x40).contains(&count) {
             return Err(BadInput("fewer than two shadow points or more than 0x40").into());
         }
-        let base = SHADOW_SKIDS.shadow_points.addr();
-        let at = |n: usize| GamePtr::new(base + 0x20 * n as u32);
+        let at = |n: usize| GamePtr::to(&SHADOW_SKIDS.shadow_points).offset(0x20 * n as u32);
         let mut records: Vec<Record> = Vec::new();
         for n in 0..hull_records(count) {
             records.push(at(n).read::<Record>("a shadow hull record")?);
@@ -165,11 +164,12 @@ pub fn shadow_polygon() -> Result<(), Refused> {
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits())
             + 0xC0;
-        let records = SHADOW_SKIDS.shadow_points.addr();
+        let records = GamePtr::to(&SHADOW_SKIDS.shadow_points);
         for k in 0..n {
-            let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
-            crate::race::scene_points::put(point, get(record)?)?;
-            crate::race::scene_points::put(point + 8, get(record + 8)?)?;
+            let (record, point) = (records.offset(0x20 * k), points.wrapping_add(0xC * k));
+            let field = |offset| record.offset(offset).read::<u32>("a shadow point");
+            crate::race::scene_points::put(point, field(0)?)?;
+            crate::race::scene_points::put(point + 8, field(8)?)?;
             crate::race::scene_points::put(point + 4, FRAME_WORK.shadow_ground.bits())?;
             let e = &POLYGON_WORK.entries[k as usize];
             e.point.set(scene.wrapping_add(0x10).wrapping_add(k));

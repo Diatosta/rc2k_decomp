@@ -146,10 +146,17 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
+/// The dword `offset` bytes from the first model's groups (the original does not bound it).
+fn model_field(offset: u32) -> Result<u32, BadInput> {
+    GamePtr::to(&LIGHT_RECORDS.records[0].groups)
+        .offset(offset)
+        .read("a model's record")
+}
+
 /// The model's bit at +`offset` of its 0x134-byte record (`dword_5C90C4` ..): 1 << it, 0 for
 /// -1.
 fn model_bit(record: u32, offset: u32) -> Result<u32, BadInput> {
-    let c = get(LIGHT_RECORDS.records[0].groups[0].addr() + record + offset)?;
+    let c = model_field(record + offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
 
@@ -242,7 +249,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         }
     }
     FRAME_SWITCHES.group_mask.set(shown);
-    let field = |offset: u32| get(LIGHT_RECORDS.records[0].groups[0].addr() + rec + offset);
+    let field = |offset: u32| model_field(rec + offset);
     CAMERA_WORK.faded_bits.set(field(0x10)?);
     COURSE.group_masks[4].set(
         u32::MAX
