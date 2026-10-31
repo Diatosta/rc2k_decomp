@@ -31,7 +31,9 @@ pub fn init_mark_step() -> Result<(), Refused> {
     {
         let count: u32 = RACE_VIEW.players.bits();
         let block = |n: u32| RACE_WORK.car_block(n as usize);
-        let record = |n: u32| RACE_WORK.car_record(n as usize);
+        let records = RACE_WORK.car_records_resolved()?;
+        // `check_cars` holds the count to 8 before `record` is asked.
+        let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
         VIEWER_PANEL.cars_copy.set_bits(RACE_VIEW.race_cars.bits());
         KIND_TABLES.mark_set_count.set_bits(0x50u32);

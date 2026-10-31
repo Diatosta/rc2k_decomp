@@ -6,6 +6,7 @@
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
 //! `physics::car_store::CAR`) until the code reaching them by RVA is typed.
 
+use crate::errors::BadInput;
 use crate::session::{Dword, Float};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
@@ -40,7 +41,8 @@ pub struct RaceWork {
     /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
     /// `blocks_store::block_ref`).
     pub car_blocks: [Dword; 8],
-    /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`).
+    /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`),
+    /// kept as IDA's addresses, as names (phase 13; `RaceWork::car_record` makes one real).
     pub car_records: [Dword; 8],
     /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
     pub current_car: Dword,
@@ -209,14 +211,40 @@ impl RaceWork {
         )
     }
 
-    /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word), read without a
-    /// check as the original reads it.
-    pub fn car_record(&self, n: usize) -> u32 {
-        crate::pointers::read_or_end(
-            crate::pointers::game_address(self.car_records.as_ptr()) + (4 * n) as u32,
-            "a car record's pointer",
+    /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word): the record's real
+    /// address. Refused past the eight (the original reads on into the next variables).
+    pub fn car_record(&self, n: usize) -> Result<u32, BadInput> {
+        let name = self
+            .car_records
+            .get(n)
+            .ok_or(BadInput("a car record past the eight"))?;
+        crate::moved::named_in(
+            name.get(),
+            CAR_RECORDS_IDA,
+            CAR_RECORDS_LEN,
+            "a car record off the view marks' records",
         )
     }
+
+    /// The eight car records' real addresses.
+    pub fn car_records_resolved(&self) -> Result<[u32; 8], BadInput> {
+        let mut out = [0; 8];
+        for (n, record) in out.iter_mut().enumerate() {
+            *record = self.car_record(n)?;
+        }
+        Ok(out)
+    }
+}
+
+/// IDA 0x5C2FE4, where the eight car records (0x4C8 bytes each, in
+/// `groups_store::ViewerAndKinds::between`) begin, and their length.
+pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
+pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
+
+/// Whether IDA's `ida` is one of `g_carRecords`' dwords (`moved::point_into_homes` passes
+/// them over).
+pub fn holds_handle(ida: usize) -> bool {
+    (0x71B3D8..0x71B3D8 + 32).contains(&ida)
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -260,6 +288,30 @@ mod tests {
                     .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
             }
         });
+    }
+
+    #[test]
+    fn car_records_resolve_to_what_the_image_named() {
+        let at = 0x71B3D8 - START;
+        let image = crate::moved::image_bytes(START, END - START);
+        for k in 0..8 {
+            let o = at + 4 * k;
+            let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
+            assert!(holds_handle(START + o));
+            assert_eq!(
+                RACE_WORK.car_record(k),
+                Ok(crate::framework::game_addr(crate::framework::rva(
+                    name as usize
+                )))
+            );
+            assert_eq!(
+                RACE_WORK.car_records_resolved().unwrap()[k],
+                RACE_WORK.car_record(k).unwrap()
+            );
+        }
+        assert!(RACE_WORK.car_record(8).is_err());
+        assert!(!holds_handle(0x71B3D8 + 32) && !holds_handle(0x71B3D4));
     }
 
     #[test]
