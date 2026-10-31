@@ -95,7 +95,10 @@ pub fn play_stage_speech() -> Result<(), Refused> {
         crate::sound::store::CAR_STREAM.on.set(1);
         crate::sound::store::CAR_STREAM.stream.set(at);
         crate::sound::store::CAR_STREAM.place.set(0);
-        crate::sound::start_stream::start_stream(get(at)?, OPTION_WORK.speech_level.get());
+        crate::sound::start_stream::start_stream(
+            crate::menu::texts_store::speech_entry(at, 0)?,
+            OPTION_WORK.speech_level.get(),
+        );
     }
     Ok(())
 }

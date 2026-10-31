@@ -3,9 +3,8 @@
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
 //! `menu::lists_store`'s tables name by handle, `text_key`), and two tables of speech samples' names
-//! (`car_speech`, `stage_speech`: addresses into `audio::names_store`). Nothing writes
-//! the texts. `moved::MOVED` points the range at it; `moved::point_into_homes` makes the
-//! tables' addresses real.
+//! (`car_speech`, `stage_speech`: handles of `audio::names_store`'s names, `speech_entry`). Nothing writes
+//! the texts. `moved::MOVED` points the range at it.
 //!
 //! Every address of the range is 2 past a multiple of 4: a two-byte lead and `align(4)`
 //! keep each image address's alignment; the dwords are `Loose`.
@@ -1760,342 +1759,342 @@ pub static MENU_TEXTS: MenuTexts = MenuTexts {
     rclsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\rclsl00.png")])),
     car_speech: [
         [
-            Loose::new(0x50a15d),
-            Loose::new(0x50a17e),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a15d)),
+            Loose::new(speech_key(0x50a17e)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a19f),
-            Loose::new(0x50a1bf),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a19f)),
+            Loose::new(speech_key(0x50a1bf)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a1df),
-            Loose::new(0x50a201),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a1df)),
+            Loose::new(speech_key(0x50a201)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a223),
-            Loose::new(0x50a243),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a223)),
+            Loose::new(speech_key(0x50a243)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a263),
-            Loose::new(0x50a285),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a263)),
+            Loose::new(speech_key(0x50a285)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a2a7),
-            Loose::new(0x50a2c5),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a2a7)),
+            Loose::new(speech_key(0x50a2c5)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a3e3),
-            Loose::new(0x50a402),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a3e3)),
+            Loose::new(speech_key(0x50a402)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a2e3),
-            Loose::new(0x50a304),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a2e3)),
+            Loose::new(speech_key(0x50a304)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a325),
-            Loose::new(0x50a344),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a325)),
+            Loose::new(speech_key(0x50a344)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a363),
-            Loose::new(0x50a384),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a363)),
+            Loose::new(speech_key(0x50a384)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a3a5),
-            Loose::new(0x50a3c4),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a3a5)),
+            Loose::new(speech_key(0x50a3c4)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a3e3),
-            Loose::new(0x50a402),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a3e3)),
+            Loose::new(speech_key(0x50a402)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a421),
-            Loose::new(0x50a441),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a421)),
+            Loose::new(speech_key(0x50a441)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a461),
-            Loose::new(0x50a481),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a461)),
+            Loose::new(speech_key(0x50a481)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a4a1),
-            Loose::new(0x50a4bf),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a4a1)),
+            Loose::new(speech_key(0x50a4bf)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a4dd),
-            Loose::new(0x50a4fe),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a4dd)),
+            Loose::new(speech_key(0x50a4fe)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a51f),
-            Loose::new(0x50a541),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a51f)),
+            Loose::new(speech_key(0x50a541)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a563),
-            Loose::new(0x50a583),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a563)),
+            Loose::new(speech_key(0x50a583)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a5a3),
-            Loose::new(0x50a5c5),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a5a3)),
+            Loose::new(speech_key(0x50a5c5)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a5e7),
-            Loose::new(0x50a609),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a5e7)),
+            Loose::new(speech_key(0x50a609)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a62b),
-            Loose::new(0x50a64c),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a62b)),
+            Loose::new(speech_key(0x50a64c)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a66d),
-            Loose::new(0x50a68c),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a66d)),
+            Loose::new(speech_key(0x50a68c)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a6ab),
-            Loose::new(0x50a6ca),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a6ab)),
+            Loose::new(speech_key(0x50a6ca)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50a6e9),
-            Loose::new(0x50a706),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50a6e9)),
+            Loose::new(speech_key(0x50a706)),
+            Loose::new(speech_key(0xffffffff)),
         ],
     ],
     stage_speech: [
         [
-            Loose::new(0x50962f),
-            Loose::new(0x509c71),
-            Loose::new(0x5097a9),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x509c71)),
+            Loose::new(speech_key(0x5097a9)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x509c94),
-            Loose::new(0x5097cb),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x509c94)),
+            Loose::new(speech_key(0x5097cb)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x509cb7),
-            Loose::new(0x5097ed),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x509cb7)),
+            Loose::new(speech_key(0x5097ed)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x509cda),
-            Loose::new(0x50980f),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x509cda)),
+            Loose::new(speech_key(0x50980f)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x509cfd),
-            Loose::new(0x509831),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x509cfd)),
+            Loose::new(speech_key(0x509831)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x509d20),
-            Loose::new(0x509853),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x509d20)),
+            Loose::new(speech_key(0x509853)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50962f),
-            Loose::new(0x509d43),
-            Loose::new(0x509875),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x509d43)),
+            Loose::new(speech_key(0x509875)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x509d66),
-            Loose::new(0x509897),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x509d66)),
+            Loose::new(speech_key(0x509897)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x509d89),
-            Loose::new(0x5098b9),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x509d89)),
+            Loose::new(speech_key(0x5098b9)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x509dac),
-            Loose::new(0x5098db),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x509dac)),
+            Loose::new(speech_key(0x5098db)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x509dcf),
-            Loose::new(0x5098fd),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x509dcf)),
+            Loose::new(speech_key(0x5098fd)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x509df2),
-            Loose::new(0x50991f),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x509df2)),
+            Loose::new(speech_key(0x50991f)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50962f),
-            Loose::new(0x509e15),
-            Loose::new(0x509941),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x509e15)),
+            Loose::new(speech_key(0x509941)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x509e38),
-            Loose::new(0x509963),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x509e38)),
+            Loose::new(speech_key(0x509963)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x509e5b),
-            Loose::new(0x509985),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x509e5b)),
+            Loose::new(speech_key(0x509985)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x509e7e),
-            Loose::new(0x5099a7),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x509e7e)),
+            Loose::new(speech_key(0x5099a7)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x509ea1),
-            Loose::new(0x5099c9),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x509ea1)),
+            Loose::new(speech_key(0x5099c9)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x509ec4),
-            Loose::new(0x5099eb),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x509ec4)),
+            Loose::new(speech_key(0x5099eb)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50962f),
-            Loose::new(0x509ee7),
-            Loose::new(0x509a0d),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x509ee7)),
+            Loose::new(speech_key(0x509a0d)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x509f0a),
-            Loose::new(0x509a2f),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x509f0a)),
+            Loose::new(speech_key(0x509a2f)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x509f2d),
-            Loose::new(0x509a51),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x509f2d)),
+            Loose::new(speech_key(0x509a51)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x509f50),
-            Loose::new(0x509a73),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x509f50)),
+            Loose::new(speech_key(0x509a73)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x509f73),
-            Loose::new(0x509a95),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x509f73)),
+            Loose::new(speech_key(0x509a95)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x509f96),
-            Loose::new(0x509ab7),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x509f96)),
+            Loose::new(speech_key(0x509ab7)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50962f),
-            Loose::new(0x509fb9),
-            Loose::new(0x509ad9),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x509fb9)),
+            Loose::new(speech_key(0x509ad9)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x509fdc),
-            Loose::new(0x509afb),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x509fdc)),
+            Loose::new(speech_key(0x509afb)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x509fff),
-            Loose::new(0x509b1d),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x509fff)),
+            Loose::new(speech_key(0x509b1d)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x50a022),
-            Loose::new(0x509b3f),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x50a022)),
+            Loose::new(speech_key(0x509b3f)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x50a045),
-            Loose::new(0x509b61),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x50a045)),
+            Loose::new(speech_key(0x509b61)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x50a068),
-            Loose::new(0x509b83),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x50a068)),
+            Loose::new(speech_key(0x509b83)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50962f),
-            Loose::new(0x50a08b),
-            Loose::new(0x509ba5),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50962f)),
+            Loose::new(speech_key(0x50a08b)),
+            Loose::new(speech_key(0x509ba5)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50964d),
-            Loose::new(0x50a0ae),
-            Loose::new(0x509bc7),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50964d)),
+            Loose::new(speech_key(0x50a0ae)),
+            Loose::new(speech_key(0x509bc7)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x50966b),
-            Loose::new(0x50a0d1),
-            Loose::new(0x509be9),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x50966b)),
+            Loose::new(speech_key(0x50a0d1)),
+            Loose::new(speech_key(0x509be9)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x509689),
-            Loose::new(0x50a0f4),
-            Loose::new(0x509c0b),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x509689)),
+            Loose::new(speech_key(0x50a0f4)),
+            Loose::new(speech_key(0x509c0b)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096a7),
-            Loose::new(0x50a117),
-            Loose::new(0x509c2d),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096a7)),
+            Loose::new(speech_key(0x50a117)),
+            Loose::new(speech_key(0x509c2d)),
+            Loose::new(speech_key(0xffffffff)),
         ],
         [
-            Loose::new(0x5096c5),
-            Loose::new(0x50a13a),
-            Loose::new(0x509c4f),
-            Loose::new(0xffffffff),
+            Loose::new(speech_key(0x5096c5)),
+            Loose::new(speech_key(0x50a13a)),
+            Loose::new(speech_key(0x509c4f)),
+            Loose::new(speech_key(0xffffffff)),
         ],
     ],
 };
@@ -2104,6 +2103,38 @@ pub static MENU_TEXTS: MenuTexts = MenuTexts {
 pub const START: usize = 0x731B82;
 /// The bytes `MenuTexts` has before IDA's `START` (its `_lead`).
 const LEAD: usize = 2;
+
+/// A speech table's entry (phase 13): a sample name's handle (`audio::store::name_key`; the
+/// original kept its address), or the row's end mark, -1.
+const fn speech_key(ida: u32) -> u32 {
+    if ida == SPEECH_END {
+        return ida;
+    }
+    crate::audio::store::name_key(ida)
+}
+
+/// A speech row's end mark.
+pub const SPEECH_END: u32 = 0xFFFF_FFFF;
+
+/// The entry at `place` of the speech row at `row`: the sample name's address, or `SPEECH_END`.
+pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput> {
+    let entry =
+        crate::pointers::GamePtr::new(row.wrapping_add(4 * place)).read::<u32>("a speech row")?;
+    // 0: none, as the original's null.
+    if entry == SPEECH_END || entry == 0 {
+        return Ok(entry);
+    }
+    Ok(crate::audio::store::name_at(entry)?.addr())
+}
+
+/// Whether the dword at IDA `ida` is kept as a handle (`moved::point_into_homes` passes it over).
+pub fn holds_handle(ida: usize) -> bool {
+    (CAR_SPEECH..SPEECH_TABLES_END).contains(&ida)
+}
+
+/// The speech tables in IDA's addresses.
+const CAR_SPEECH: usize = 0x734866;
+const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
 
 /// A text's handle (phase 13): its place in `MENU_TEXTS` (the original kept its address). 0
 /// (none) and -1 (an end mark) stay; another address outside fails to compile.
@@ -2142,6 +2173,26 @@ mod tests {
     use core::mem::{offset_of, size_of};
 
     #[test]
+    fn each_speech_entry_names_the_samples_it_named_in_the_image() {
+        let (mut names, base) = (0, menu_texts_addr());
+        for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
+            let image = image_bytes(at, 4);
+            let wanted = u32::from_le_bytes(image[..4].try_into().unwrap());
+            let found = speech_entry(base + (at - START) as u32, 0).unwrap();
+            if wanted == SPEECH_END || wanted == 0 {
+                assert_eq!(found, wanted);
+                continue;
+            }
+            names += 1;
+            let text = crate::pointers::GamePtr::new(found)
+                .read_bytes(16, "a name")
+                .unwrap();
+            assert_eq!(text, image_bytes(wanted as usize, 16), "{at:#x}");
+        }
+        assert_eq!(names, 156);
+    }
+
+    #[test]
     fn menu_texts_start_as_the_games() {
         assert_eq!(
             size_of::<MenuTexts>(),
@@ -2157,6 +2208,12 @@ mod tests {
                 END - START,
             )
         };
-        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        let mut image = image_bytes(START, END - START);
+        for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
+            let o = at - START;
+            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            image[o..o + 4].copy_from_slice(&speech_key(v).to_le_bytes());
+        }
+        assert_eq!(mine, &image[..]);
     }
 }

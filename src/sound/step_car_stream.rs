@@ -14,7 +14,6 @@ use crate::audio::store::AUDIO;
 use crate::errors::BadInput;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -38,12 +37,10 @@ pub fn step_car_stream(
         playing,
         crate::sound::store::CAR_STREAM.place.get(),
         |place| {
-            GamePtr::new(list.wrapping_add(place.wrapping_mul(4)))
-                .read::<u32>("a car's stream list")
-                .unwrap_or_else(|e| {
-                    failed.set(Some(e));
-                    0
-                })
+            crate::menu::texts_store::speech_entry(list, place).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
         },
     );
     if let Some(e) = failed.take() {

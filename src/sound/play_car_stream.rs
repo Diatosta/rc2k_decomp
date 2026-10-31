@@ -13,7 +13,6 @@ use crate::errors::Refused;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -36,12 +35,10 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
         )?)?
         .addr(),
         |list| {
-            GamePtr::new(list)
-                .read::<u32>("a car's stream list")
-                .unwrap_or_else(|e| {
-                    failed.set(Some(e));
-                    0
-                })
+            crate::menu::texts_store::speech_entry(list, 0).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
         },
         OPTION_WORK.speech_level.get(),
     );
