@@ -6,9 +6,9 @@
 //! name variables by IDA address: the settings table (`var\ral.cfg`'s key -> the address of
 //! its variable, `settings::read_settings`) and copy lists such as `race::replay`'s
 //! `HEADER_MOVES`. They go through `place` (an IDA address), which answers a moved
-//! variable's new home and anything else's place in the image. The game's own pointers (the
-//! image's relocations, `crate::relocations::PLACES`) are pointed at the new homes once at
-//! start (`point_into_homes`), so a pointer read from the game's data is a real address.
+//! variable's new home and anything else's place in the image. The game's own pointers stay
+//! as the image has them, IDA's addresses: each reader resolves its names or runs its code
+//! by them, and a table that needs real addresses has them set at start (`standalone::start`).
 //! `framework::game_addr` resolves a moved address through `home_of_rva`. The image itself
 //! is gone (2026-10-24): its addresses stay reserved without access, so a read of one that
 //! has no home ends the program naming it (`standalone`'s fault handler).
@@ -2367,92 +2367,13 @@ pub fn named_in(
         .ok_or(crate::errors::BadInput(what))
 }
 
-/// The moved ranges (by IDA address) whose readers take the image's pointers in them as IDA
-/// addresses on purpose: the thread slots (`threading::start_slot_thread`) and the marks'
-/// profile ramps (`effects::profiles::ProfileLists`).
-const RAW_KEPT: [usize; 2] = [0x5184F4, crate::effects::profiles::ProfileLists::START];
-
-fn moved_home(ida: usize) -> Option<(usize, usize)> {
-    MOVED
-        .iter()
-        .find(|m| ida.wrapping_sub(m.ida) < m.len)
-        .map(|m| ((m.home)() + (ida - m.ida), m.ida))
-}
-
-/// Relocated places `standalone::start` sets before any game code runs, so the image's values
-/// are never read: the surface's format, the race sounds' objects, the players' table and name
-/// pointers, font 56's palette.
-const SET_AT_START: [(usize, usize); 8] = [
-    (0x4F49B8, 0x4F49BC),
-    (0x512A10, 0x512A30),
-    (0x51EAB8, 0x51EABC),
-    (0x755A64, 0x755A68),
-    (0x755CF0, 0x755CF4),
-    (0x755F7C, 0x755F80),
-    (0x756208, 0x75620C),
-    (0x75647C, 0x75648C),
-];
-
-/// Points the game's pointers that moved with their blocks (`relocations::PLACES`, whose
-/// first values are the image's bytes before relocation, IDA addresses) at their targets,
-/// as the image's relocation pointed them: a moved target's home, or else its place in the
-/// reserved image (a code address: the menus' and the routes' tables run it by its value). The ranges of `RAW_KEPT` stay as
-/// they are. Run once at start (`base` the reserved image's address; `framework::BASE` is
-/// not set yet). Returns how many pointers it changed, or the first place outside every
-/// moved range.
-pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
-    let mut changed = 0;
-    for &ida in &crate::relocations::PLACES {
-        let ida = ida as usize;
-        match moved_home(ida) {
-            Some((_, block)) if RAW_KEPT.contains(&block) => {}
-            // Kept as handles, not addresses (phase 13).
-            Some(_) if crate::menu::menus_store::holds_handle(ida) => {}
-            Some(_) if crate::audio::store::holds_handle(ida) => {}
-            Some(_) if crate::menu::lists_store::holds_handle(ida) => {}
-            Some(_) if crate::menu::texts_store::holds_handle(ida) => {}
-            Some(_) if crate::records::stages_store::StageTables::holds_handle(ida) => {}
-            Some(_) if crate::menu::captions_store::CaptionTables::holds_handle(ida) => {}
-            Some(_) if crate::sound::sets_store::CueLists::holds_handle(ida) => {}
-            Some(_) if crate::sound::sets_store::SoundKinds::holds_handle(ida) => {}
-            Some(_) if crate::sound::sets_store::SurfaceSets::holds_handle(ida) => {}
-            Some(_) if crate::sound::sets_store::RaceSoundSets::holds_handle(ida) => {}
-            Some(_) if crate::install::vars::InstallerNames::holds_handle(ida) => {}
-            Some(_) if crate::install::vars::InstallerPages::holds_handle(ida) => {}
-            Some(_) if crate::gfx::fonts_store::Fonts::holds_handle(ida) => {}
-            Some(_) if crate::menu::cars_store::holds_handle(ida) => {}
-            Some(_) if crate::saves::best_times_store::RallyTimes::holds_handle(ida) => {}
-            Some(_) if crate::race::blocks_store::holds_handle(ida) => {}
-            Some(_) if crate::physics::tables_store::PhysicsTables::holds_handle(ida) => {}
-            Some(_) if crate::race::view_vars_store::ViewVars::holds_handle(ida) => {}
-            Some(_) if crate::race::viewer_state_store::ReplayViewBlock::holds_handle(ida) => {}
-            Some(_) if crate::race::viewer_screen_store::ViewerPanelBlock::holds_handle(ida) => {}
-            Some(_) if crate::race::work_store::holds_handle(ida) => {}
-            Some(_) if crate::race::panel_store::holds_handle(ida) => {}
-            Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}
-            Some(_) if crate::input::store::holds_handle(ida) => {}
-            Some(_) if crate::strings::keyboard_tables::KeyboardTables::holds_handle(ida) => {}
-            Some(_) if crate::strings::string_table::holds_handle(ida) => {}
-            Some(_) if crate::race::store::is_unread(ida) => {}
-            Some(_) if SET_AT_START.iter().any(|&(s, e)| (s..e).contains(&ida)) => {}
-            Some((home, _)) => unsafe {
-                let p = crate::pointers::host_at(home) as *mut u32;
-                let target = p.read_unaligned() as usize;
-                let now = match moved_home(target) {
-                    Some((h, _)) => h,
-                    None => base + rva(target),
-                };
-                p.write_unaligned(now as u32);
-                changed += 1;
-            },
-            None => return Err(ida),
-        }
-    }
-    Ok(changed)
-}
-
 /// RAL.EXE's data as `tools/extract_image` packed it (decoupling step B): only the tests
 /// read it now, to check the moved constants and first values.
+#[cfg(test)]
+pub fn image_relocations() -> Vec<u32> {
+    tests::image_relocations()
+}
+
 #[cfg(test)]
 static IMAGE_DATA: &[u8] =
     include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/data/ral_image.bin"));
@@ -2532,18 +2453,6 @@ mod tests {
         assert_eq!(home_of_rva(rva(0xA8C18C)), None);
     }
 
-    /// `point_into_homes` ends the start-up at a relocated pointer outside every moved
-    /// range: each piece split or dropped must keep those places homed.
-    #[test]
-    fn every_relocated_pointer_has_a_home() {
-        let lost: Vec<String> = crate::relocations::PLACES
-            .iter()
-            .filter(|&&ida| moved_home(ida as usize).is_none())
-            .map(|ida| format!("{ida:#x}"))
-            .collect();
-        assert!(lost.is_empty(), "relocated pointers with no home: {lost:?}");
-    }
-
     #[test]
     fn moved_ranges_are_apart() {
         for (n, a) in MOVED.iter().enumerate() {
@@ -2591,19 +2500,18 @@ mod tests {
     }
 
     /// The relocation places are the image's that lie in a moved range, all of them.
-    #[test]
-    fn relocations_are_the_images() {
+    /// The places of the image's relocated pointers, sorted.
+    pub fn image_relocations() -> Vec<u32> {
         let d = IMAGE_DATA;
         let word = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
         let (_, at) = image_sections();
         let count = word(at);
-        let mut wanted: Vec<u32> = (0..count)
-            .map(|k| (word(at + 4 + 4 * k) + IMAGE_BASE) as u32)
-            .filter(|&ida| moved_home(ida as usize).is_some())
-            .collect();
-        wanted.sort_unstable();
-        assert_eq!(&crate::relocations::PLACES[..], &wanted[..]);
         assert_eq!(&d[at + 4 + 4 * count..at + 8 + 4 * count], b"END!");
+        let mut places: Vec<u32> = (0..count)
+            .map(|k| (word(at + 4 + 4 * k) + IMAGE_BASE) as u32)
+            .collect();
+        places.sort_unstable();
+        places
     }
 
     /// `standalone`'s reserved image has the image's size and its code where the image had it.

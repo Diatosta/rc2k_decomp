@@ -116,7 +116,7 @@ mod id_tests {
     fn no_pointer_of_the_image_points_at_a_voice_or_a_channel() {
         let voices = 0x4F834C..0x4F834C + 0x200 * 0x70;
         let channels = 0x506354..0x506354 + 16 * 0x58;
-        for &place in crate::relocations::PLACES.iter() {
+        for place in crate::moved::image_relocations() {
             let target = u32::from_le_bytes(
                 crate::moved::image_bytes(place as usize, 4)
                     .try_into()

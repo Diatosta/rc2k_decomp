@@ -118,6 +118,7 @@ pub static VIEW_VARS: InGroup = InGroup;
 
 impl ViewVars {
     /// IDA's address of the table of view records (`off_606320`) and its length (52 dwords).
+    #[cfg(test)]
     const TABLE: usize = 0x606320;
     /// IDA's addresses of the first view record and the end of the last (52 of 0x5C).
     const RECORDS: usize = 0x606500;
@@ -138,11 +139,6 @@ impl ViewVars {
             ));
         }
         Ok(crate::moved::place(at) as u32)
-    }
-
-    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::TABLE..Self::TABLE + 4 * 52).contains(&ida)
     }
 }
 
@@ -173,7 +169,6 @@ mod tests {
     fn the_view_table_names_its_records_as_the_image_does() {
         for n in 0..52usize {
             let ida = ViewVars::TABLE + 4 * n;
-            assert!(ViewVars::holds_handle(ida));
             let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
             // Kept as the image's name; resolved to the same record's place.
             assert_eq!(VIEW_VARS.view_records[n].get(), image);
@@ -183,7 +178,6 @@ mod tests {
                 crate::moved::place(ViewVars::RECORDS) + 0x5C * n
             );
         }
-        assert!(!ViewVars::holds_handle(ViewVars::TABLE + 4 * 52));
         assert!(ViewVars::record_of(52).is_err());
     }
 

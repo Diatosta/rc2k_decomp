@@ -220,13 +220,6 @@ pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
 };
 
 impl InstallerNames {
-    /// Whether IDA's `ida` is a dword of the languages' keys table (`moved::point_into_homes`
-    /// passes it over). The table (0x51C378: `lang1` .. `lang9`, a slot's address each) is
-    /// read by nothing: `install::read_languages` has the keys and the slots as constants.
-    pub fn holds_handle(ida: usize) -> bool {
-        (0x51C378..0x51C378 + 127).contains(&ida)
-    }
-
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -406,12 +399,6 @@ impl InstallerPages {
             ))
     }
 
-    /// Whether IDA's `ida` is one of the fonts table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::FONTS_AT..Self::FONTS_AT + 25 * 4).contains(&ida)
-            || PAGE_LINKS.binary_search(&(ida as u32)).is_ok()
-    }
-
     /// What dword `value` read at game address `at` means: a slot of `PAGE_LINKS` keeps IDA's
     /// address as a name, resolved here to the place now (`installer::rd` reads them all).
     pub fn resolved(at: u32, value: u32) -> Result<u32, crate::errors::BadInput> {
@@ -431,6 +418,7 @@ impl InstallerPages {
     }
 
     /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
+    #[cfg(test)]
     const FONTS_AT: usize = 0x51D4C4;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
@@ -522,9 +510,8 @@ const PAGE_LINKS: [u32; 105] = [
 mod tests {
     #[test]
     fn page_links_are_the_images_data_pointers() {
-        let found: Vec<u32> = crate::relocations::PLACES
-            .iter()
-            .copied()
+        let found: Vec<u32> = crate::moved::image_relocations()
+            .into_iter()
             .filter(|&p| {
                 let at = p as usize;
                 let fonts =
@@ -563,8 +550,6 @@ mod tests {
     #[test]
     fn installer_languages_keys_are_the_images() {
         // Nine keys, a slot's address each (0x51BEEE + 0x80 n), kept as the image's numbers.
-        assert!(InstallerNames::holds_handle(0x51C37E) && InstallerNames::holds_handle(0x51C3EE));
-        assert!(!InstallerNames::holds_handle(0x51C377) && !InstallerNames::holds_handle(0x51C3F7));
         for n in 0..9 {
             let at = 0x51C378 + 0xE * n;
             let image = crate::moved::image_bytes(at, 0xE);

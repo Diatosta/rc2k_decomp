@@ -1216,12 +1216,6 @@ impl StageTables {
         )
     }
 
-    /// Whether IDA's `ida` is one of the lists' dwords (`off_7354FE` to `off_73555A`'s end:
-    /// `moved::point_into_homes` passes them over).
-    pub fn holds_handle(ida: usize) -> bool {
-        (0x7354FE..0x735576).contains(&ida)
-    }
-
     /// The championship's first record.
     pub fn championship(&self) -> u32 {
         crate::pointers::game_address(self.championship.as_ptr())
@@ -1286,10 +1280,6 @@ mod tests {
             let at = ida - 0x7354FE;
             u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
         };
-        for ida in (0x7354FE..0x735576).step_by(4) {
-            assert!(StageTables::holds_handle(ida));
-        }
-        assert!(!StageTables::holds_handle(0x7354FA) && !StageTables::holds_handle(0x735576));
         let table = |name: usize| stage_tables_addr() + (name - START) as u32;
         let t = &STAGE_TABLES;
         for group in 0..4 {

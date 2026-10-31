@@ -886,13 +886,6 @@ const KEY_AT: usize = core::mem::offset_of!(SampleRecord, data_key);
 const LEVEL_AT: usize = core::mem::offset_of!(SampleRecord, volume_factor);
 const _: () = assert!(RECORD_LEN == 0x40 && KEY_AT == 0xC && LEVEL_AT == 0x20);
 
-/// Whether IDA's `ida` is a record's name key or volume level: places the image relocated
-/// that hold a handle now (`moved::point_into_homes` passes them over).
-pub fn holds_handle(ida: usize) -> bool {
-    (SAMPLES_IDA..SAMPLES_END).contains(&ida)
-        && matches!((ida - SAMPLES_IDA) % RECORD_LEN, KEY_AT | LEVEL_AT)
-}
-
 /// The records as the image holds them: per record its group, data key (the sample's name,
 /// IDA's address of it), priority, voice kind, copies, scale, volume factor (IDA's address
 /// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
@@ -2428,7 +2421,6 @@ mod tests {
             mine[at + KEY_AT..at + KEY_AT + 4].copy_from_slice(&key.to_le_bytes());
             mine[at + LEVEL_AT..at + LEVEL_AT + 4]
                 .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
-            assert!(holds_handle(SAMPLES_IDA + at + KEY_AT));
         }
         assert_eq!(mine, image_bytes(SAMPLES_IDA, SAMPLES_END - SAMPLES_IDA));
     }

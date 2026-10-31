@@ -529,6 +529,7 @@ pub static PHYSICS: PhysicsTables =
 
 impl PhysicsTables {
     /// IDA's address of the first ground record (`off_613978`).
+    #[cfg(test)]
     const SURFACES: usize = 0x613978;
     /// IDA's address of the first surface table (`g_surfaceTables`) and its length.
     const TABLES: usize = 0x613C78;
@@ -550,11 +551,6 @@ impl PhysicsTables {
         }
         let home = crate::pointers::game_address(PHYSICS.surface_tables.as_ptr());
         Ok(home + (at - Self::TABLES) as u32)
-    }
-
-    /// Whether IDA's `ida` is one of the ground records' table names (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (0..16).any(|k| ida == Self::SURFACES + 0x30 * k)
     }
 }
 
@@ -599,7 +595,6 @@ mod tests {
         let home = crate::pointers::game_address(PHYSICS.surface_tables.as_ptr());
         for n in 0..16u32 {
             let ida = PhysicsTables::SURFACES + 0x30 * n as usize;
-            assert!(PhysicsTables::holds_handle(ida));
             let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
             // Kept as the image's name; resolved to the same table's place.
             assert_eq!(PHYSICS.surfaces[n as usize].table.get(), image);
@@ -611,7 +606,6 @@ mod tests {
             assert!(slot.is_multiple_of(13) && slot < 104);
             assert!(PhysicsTables::surface_table_of(n).unwrap() >= home);
         }
-        assert!(!PhysicsTables::holds_handle(PhysicsTables::SURFACES + 4));
         assert!(PhysicsTables::surface_table_of(16).is_err());
         assert_eq!(
             PHYSICS.contacts[0].force[0].addr(),

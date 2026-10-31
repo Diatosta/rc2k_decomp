@@ -241,12 +241,6 @@ impl RaceWork {
 pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
 pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 
-/// Whether IDA's `ida` is one of `g_carRecords`' dwords (`moved::point_into_homes` passes
-/// them over).
-pub fn holds_handle(ida: usize) -> bool {
-    (0x71B3D8..0x71B3D8 + 32).contains(&ida)
-}
-
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 unsafe impl crate::pointers::Cells for RaceWork {}
@@ -298,7 +292,6 @@ mod tests {
             let o = at + 4 * k;
             let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
-            assert!(holds_handle(START + o));
             assert_eq!(
                 RACE_WORK.car_record(k),
                 Ok(crate::framework::game_addr(crate::framework::rva(
@@ -311,7 +304,6 @@ mod tests {
             );
         }
         assert!(RACE_WORK.car_record(8).is_err());
-        assert!(!holds_handle(0x71B3D8 + 32) && !holds_handle(0x71B3D4));
     }
 
     #[test]

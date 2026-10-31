@@ -50,11 +50,6 @@ pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
     table_entry(PTRS_LOW_RVA, id)
 }
 
-/// Whether IDA's `ida` is a slot of `MADE_TEXT_IDS` (`moved::point_into_homes`).
-pub fn holds_handle(ida: usize) -> bool {
-    (0x529DE8..0x529EE8).contains(&ida)
-}
-
 /// Where `strings::compile_lexicon` puts the table, and its room: out of the image since
 /// 2026-10-24 (phase 5; it was `g_lexicon`, 0x4E07F8 .. the keyboard file at 0x4F07C8).
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;

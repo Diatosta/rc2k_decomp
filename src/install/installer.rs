@@ -16,7 +16,6 @@
 //! and `draw_action`, each knowing the functions the game's tables put in that place.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::game_addr;
 use crate::place::Place;
 use crate::session::FLAGS;
 
@@ -131,13 +130,6 @@ pub fn wd(at: impl Into<Place>, v: u32) {
 
 pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
-}
-
-/// The IDA address of a game address (for the dispatchers).
-pub fn ida_of(place: u32) -> usize {
-    (place as usize)
-        .wrapping_sub(game_addr(0) as usize)
-        .wrapping_add(0x40_0000)
 }
 
 // ---- pure text work ----
@@ -429,7 +421,7 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// disc's install) and the registration.
 pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
     use crate::install as i;
-    match ida_of(place) {
+    match place {
         0x414199 => i::language_page::language_page(state, list)?,
         0x4141EF => i::mark_main_page::mark_main_page(list),
         0x41422B => i::mode_page::mode_page(state),
@@ -451,7 +443,7 @@ pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
 /// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
 pub fn key_action(place: u32, key: u32, list: u32) -> Result<bool, Refused> {
-    match ida_of(place) {
+    match place {
         0x41534E => Ok(crate::install::folder_key::folder_key(key, list)),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),
     }
@@ -460,7 +452,7 @@ pub fn key_action(place: u32, key: u32, list: u32) -> Result<bool, Refused> {
 /// A link's or an action item's action (+8); the original's zero after it. The game's items
 /// hold only the not-enough-room page's "go on anyway".
 pub fn item_action_at(place: u32) -> Result<bool, Refused> {
-    match ida_of(place) {
+    match place {
         0x4142DA => {
             crate::install::ignore_room::ignore_room();
             Ok(true)
@@ -472,7 +464,7 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 /// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refused> {
-    match ida_of(place) {
+    match place {
         0x415304 => Ok(Place::At(crate::install::end_text_line::end_text_line(
             cursor.into().game(),
         ))),

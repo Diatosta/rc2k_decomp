@@ -891,31 +891,6 @@ pub fn menus_addr() -> u32 {
     crate::pointers::game_address(&MENUS as *const MenuTables)
 }
 
-/// Whether IDA's `ida` is a place the image relocated that holds a handle now: the items'
-/// fonts (+0x18, +0x4C, +0x50) and sprites (+0x20), the labels' fonts (`FontCell`,
-/// `SpriteCell`; `moved::point_into_homes` passes them over).
-pub fn holds_handle(ida: usize) -> bool {
-    static PLACES: std::sync::OnceLock<std::collections::HashSet<usize>> =
-        std::sync::OnceLock::new();
-    PLACES
-        .get_or_init(|| {
-            let base = menus_addr() as usize;
-            (0..MENU_COUNT)
-                .flat_map(|n| MenuId(n).items())
-                .flat_map(|item| {
-                    let at = START + item.addr() as usize - base;
-                    [at + 0x18, at + 0x20, at + 0x4C, at + 0x50]
-                })
-                .chain((0..MENU_COUNT).map(|n| {
-                    START + crate::pointers::game_address(MenuId(n).labels().as_ptr()) as usize
-                        - base
-                }))
-                .chain((0..LABEL_LISTS.len()).map(|n| START + n * LABEL_LIST_LEN + 8))
-                .collect()
-        })
-        .contains(&ida)
-}
-
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
 /// order. The current menu (`LOOP_FLAGS.menu`), the keys menu and the item calls hold
 /// one in place of the menu's address.
@@ -1308,9 +1283,6 @@ mod tests {
             mine[at..at + 4].copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
         }
         assert_eq!(mine, image_bytes(START, END - START));
-        assert!(holds_handle(
-            START + (MENUS.select_stage.items[0].addr() - menus_addr()) as usize + 0x18
-        ));
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(
             offset_of!(MenuTables, review_options_485f5e_labels),

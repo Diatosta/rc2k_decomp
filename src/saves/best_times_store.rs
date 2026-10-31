@@ -1250,11 +1250,6 @@ impl RallyTimes {
         )
     }
 
-    /// Whether IDA's `ida` is one of the six table names (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::START..Self::START + 24).contains(&ida)
-    }
-
     /// IDA 0x742C98, the first byte of the piece.
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.
@@ -1317,7 +1312,6 @@ mod tests {
         for n in 0..6 {
             let name = u32::from_le_bytes(image[4 * n..4 * n + 4].try_into().unwrap());
             assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
-            assert!(RallyTimes::holds_handle(RallyTimes::START + 4 * n));
             assert_eq!(
                 RallyTimes::table_of(n),
                 Ok(RallyTimes::home() as u32 + name - RallyTimes::START as u32)

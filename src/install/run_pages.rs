@@ -41,8 +41,8 @@ pub fn run_pages(first: u32) -> Result<(), Refused> {
 }
 
 /// Whether `list`'s action (+8) is the page at IDA `page`.
-fn is_page(list: u32, page: usize) -> bool {
-    list != 0 && crate::install::installer::ida_of(rd(list + 8)) == page
+fn is_page(list: u32, page: u32) -> bool {
+    list != 0 && rd(list + 8) == page
 }
 
 /// A page passed over: its entry, the entry it was come to from, the one it went on to.
@@ -63,9 +63,9 @@ struct Passed {
 /// None for a page that is shown.
 fn pass_over(entry: u32, prev: u32, passed: &mut Vec<Passed>) -> Option<u32> {
     use crate::install::folders::{Folders, Native};
-    const MODE_PAGE: usize = 0x41422B;
-    const DRIVE_PAGE: usize = 0x41425E;
-    const FOLDER_PAGE: usize = 0x4142F5;
+    const MODE_PAGE: u32 = 0x41422B;
+    const DRIVE_PAGE: u32 = 0x41425E;
+    const FOLDER_PAGE: u32 = 0x4142F5;
     const FULL: u32 = 3;
     let list = rd(entry);
     let on = if is_page(list, MODE_PAGE) {

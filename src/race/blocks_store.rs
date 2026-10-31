@@ -123,11 +123,6 @@ pub fn handle_of(addr: u32) -> u32 {
 pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
 pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 
-pub fn holds_handle(ida: usize) -> bool {
-    (VIEW_BLOCKS_IDA..VIEW_BLOCKS_IDA + 8).contains(&ida)
-        || (CAR_BLOCKS_IDA..CAR_BLOCKS_IDA + 0x20).contains(&ida)
-}
-
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
 /// only: reading it is the caller's business).
 pub fn block_addr(n: usize) -> u32 {

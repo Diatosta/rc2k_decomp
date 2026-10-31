@@ -1,6 +1,6 @@
 //! The calls the menus' items (their keys' and actions' functions) and the screens' draw
 //! lists make (typed tables, 2026-10-22): the function named by its RAL address, as the
-//! game's memory still holds it, run by its Rust version (`table_routes.rs`; `crate::routes`, for
+//! tables hold it, run by its Rust version (`table_routes.rs`; `crate::routes`, for
 //! the few others, went 2026-10-24: nothing could reach them by address). Callers: `menu::run_list` and the frame
 //! callbacks (`call_listed`: screen functions, no registers), `menu::run_item_action`
 //! (`call_action`: an `ItemCall`, the item's value, the item, the menu and the screen
@@ -12,25 +12,18 @@
 //! ported" (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{IMAGE_BASE, Regs, game_addr, log};
+use crate::framework::{Regs, log};
 use crate::menu::menus_store::{MenuId, MenuItem};
 use crate::menu::screen_loop::Carried;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
-
-/// The address as IDA shows it.
-fn ral(function: u32) -> u32 {
-    (function as usize)
-        .wrapping_sub(game_addr(0) as usize)
-        .wrapping_add(IMAGE_BASE) as u32
-}
 
 /// A function of a screen's function list (`menu::run_list`, the frame callbacks): a
 /// screen function of the typed tables, which takes no register. The lists the screens
 /// put in place are all the tables' (`rc2k_core::menu::tables::LISTS`, every one a list
 /// of screen functions); anything else in one is refused.
 pub fn call_listed(function: u32) -> Result<(), Refused> {
-    match ScreenFn::from_ral(ral(function)) {
+    match ScreenFn::from_ral(function) {
         Some(f) => screen_fn(f),
         None => Err(BadInput("a listed function that is none of the screens'").into()),
     }
@@ -41,7 +34,7 @@ pub fn call_listed(function: u32) -> Result<(), Refused> {
 /// `RaiseControllerSensitivity` reads a register: edi, which is the item here; the rest
 /// get none (2026-10-24, `tables_data.rs`' `on_key` against `item_fn`'s reads).
 pub fn call_key(function: u32, item: &MenuItem) -> Result<(), Refused> {
-    match ItemFn::from_ral(ral(function)) {
+    match ItemFn::from_ral(function) {
         // edi the item: its +0x2C, the left link.
         Some(ItemFn::RaiseControllerSensitivity) => {
             crate::menu::controller_items::raise_controller_sensitivity(item.links[2].get())
@@ -99,7 +92,7 @@ pub fn call_action(function: u32, value: u32, item: &MenuItem, menu: MenuId, car
         menu: Some(menu),
         carried: *carried,
     };
-    let ral = ral(function);
+    let ral = function;
     let result = if let Some(f) = ItemFn::from_ral(ral) {
         Some((Named::Item(f), item_fn(f, &given)))
     } else {

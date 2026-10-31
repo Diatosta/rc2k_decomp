@@ -45,7 +45,6 @@ mod rasteriser;
 mod rasteriser_neon;
 mod records;
 mod registry;
-mod relocations;
 mod render;
 mod saves;
 mod scene;

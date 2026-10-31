@@ -120,11 +120,7 @@ pub fn effect_change_at(
     a: u32,
     b: u32,
 ) -> Result<(), Refused> {
-    // As IDA shows it.
-    let at = ((function as usize)
-        .wrapping_sub(crate::framework::game_addr(0) as usize)
-        .wrapping_add(crate::framework::IMAGE_BASE)) as u32;
-    let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
+    let Some(number) = FUNCTIONS.iter().position(|&f| f == function) else {
         return Err(BadInput("an effect's function that is none of the six").into());
     };
     effect_change(number as u32, record, effect, what, a, b)

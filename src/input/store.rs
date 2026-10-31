@@ -282,17 +282,6 @@ const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
     record
 }
 
-/// Whether IDA's `ida` is one of the effects' `wanted` (`moved::point_into_homes` passes
-/// them over).
-pub fn holds_handle(ida: usize) -> bool {
-    if (INPUT_DEVICES_IDA..INPUT_DEVICES_IDA + 8).contains(&ida) || holds_keyboard_names(ida) {
-        return true;
-    }
-    let records = DEVICES_IDA + core::mem::offset_of!(Devices, records);
-    (0..2)
-        .any(|r| (0..EFFECTS).any(|k| ida == records + RECORD_LEN * r + WANTED_AT + EFFECT_LEN * k))
-}
-
 const fn controllers(runs: Runs, at: usize) -> [Bytes<CONTROLLER_LEN>; 16] {
     let mut out = [const { Bytes::new([0; CONTROLLER_LEN]) }; 16];
     let mut k = 0;
@@ -426,10 +415,6 @@ pub fn device_of(handle: u32) -> u32 {
     }
 }
 
-/// IDA's `g_inputDevices`: its two places hold handles (`moved::point_into_homes` passes
-/// them over).
-const INPUT_DEVICES_IDA: usize = 0x4F6EE8;
-
 // ---- the keyboard: 0x4F7FD8 .. 0x4F8294 ----
 
 /// The yes/no key, the built-in layout and the dead keys.
@@ -481,13 +466,6 @@ pub static KEYBOARD: Keyboard = {
 
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
-
-/// Whether IDA's `ida` is one of the built-in layout's tables' places (`plain`, `shifted`,
-/// `key_names`: kept as IDA's addresses, as names; `layout_table` makes them real, and
-/// `moved::point_into_homes` passes them over).
-pub fn holds_keyboard_names(ida: usize) -> bool {
-    [0x4F7FE0, 0x4F7FE4, 0x4F7FEC].contains(&ida)
-}
 
 /// The table at `at` (0 .. 0x10) of the keyboard layout block at `layout`, as an address, 0
 /// for none. The built-in layouts' (this one's and the NEC's, `strings::keyboard_tables`)
@@ -656,7 +634,6 @@ mod tests {
                     let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
                     assert_eq!(v as usize, 0x4F6EF0 + RECORD_LEN * r);
                     image[o..o + 4].copy_from_slice(&(DEVICE_TAG | r as u32).to_le_bytes());
-                    assert!(holds_handle(DEVICES_IDA + o));
                 }
                 let records = offset_of!(Devices, records);
                 for r in 0..2 {
@@ -665,7 +642,6 @@ mod tests {
                         let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
                         image[o..o + 4]
                             .copy_from_slice(&crate::input::guids::guid_ref(v).to_le_bytes());
-                        assert!(holds_handle(DEVICES_IDA + o));
                     }
                 }
             }
@@ -721,7 +697,6 @@ mod tests {
         for (at, ida) in [(4, 0x4F806C), (8, 0x4F80EC), (0x10, 0x4F816C)] {
             let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
             assert_eq!(name as usize, ida);
-            assert!(holds_keyboard_names(0x4F7FDC + at));
             assert_eq!(
                 layout_table(layout, at as u32),
                 Ok(keyboard_addr() + (ida - KEYBOARD_IDA) as u32)

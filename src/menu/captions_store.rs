@@ -81,14 +81,6 @@ impl CaptionTables {
             .ok_or(BadInput("a total pointer past the four"))?;
         Self::result_at(name)
     }
-
-    /// Whether IDA's `ida` is one of the three pointer tables' dwords (they stay IDA's
-    /// addresses: `moved::point_into_homes` passes them over).
-    pub fn holds_handle(ida: usize) -> bool {
-        [0x758982, 0x758992, 0x7589A6]
-            .iter()
-            .any(|&table| (table..table + 16).contains(&ida))
-    }
 }
 
 /// First values the image's (`tests::captions_starts_as_the_games`).
@@ -388,7 +380,6 @@ mod tests {
                 let at = table - 0x758982 + 4 * k;
                 let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
                 assert_eq!(name as usize, positions + 4 * k);
-                assert!(CaptionTables::holds_handle(table + 4 * k));
                 let resolved = [
                     CaptionTables::place_of,
                     CaptionTables::sum_of,

@@ -132,10 +132,6 @@ const fn pool() -> Pool {
 pub const FORMAT_TAG: u32 = 0xCC00_0000;
 /// IDA's address of `descriptions`.
 const DESCRIPTIONS_IDA: u32 = 0x5ABAD4;
-/// IDA's `off_5ABAC0`: its five places hold handles (`moved::point_into_homes` passes them
-/// over).
-const KINDS_IDA: usize = 0x5ABAC0;
-
 /// The handle for IDA's `ida` (a description's address or 0; anything else fails to
 /// compile).
 pub const fn format_ref(ida: u32) -> u32 {
@@ -145,11 +141,6 @@ pub const fn format_ref(ida: u32) -> u32 {
     assert!(ida >= DESCRIPTIONS_IDA && (ida - DESCRIPTIONS_IDA).is_multiple_of(0x40));
     assert!((ida - DESCRIPTIONS_IDA) / 0x40 < 5);
     FORMAT_TAG | ((ida - DESCRIPTIONS_IDA) / 0x40)
-}
-
-/// Whether IDA's `ida` is one of the kinds' places.
-pub fn holds_handle(ida: usize) -> bool {
-    (KINDS_IDA..KINDS_IDA + 0x14).contains(&ida)
 }
 
 /// The 3D card's tables; the first values are the image's (the kinds by handle).
@@ -350,6 +341,10 @@ pub fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refused> {
     Ok(())
 }
 
+/// IDA's `off_5ABAC0`.
+#[cfg(test)]
+const KINDS_IDA: usize = 0x5ABAC0;
+
 #[cfg(test)]
 mod block_tests {
     use super::*;
@@ -362,7 +357,6 @@ mod block_tests {
                 let o = KINDS_IDA - START + 4 * k;
                 let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
                 image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
-                assert!(holds_handle(KINDS_IDA + 4 * k));
             }
         });
     }

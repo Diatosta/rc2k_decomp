@@ -177,17 +177,6 @@ pub static FONTS: Fonts = Fonts {
 };
 
 impl Fonts {
-    /// Whether IDA's `ida` is a palette or glyph-table dword of the four menu fonts
-    /// (`moved::point_into_homes` passes them over). They name the jade font's colour (0x4F66C4)
-    /// and glyphs (0x4F52C4), kept as the image's numbers; `gfx::glyph_store` resolves them
-    /// (`jade_store::JadeFont`) where the fonts' palettes and glyph tables are read.
-    pub fn holds_handle(ida: usize) -> bool {
-        (0..4).any(|n| {
-            let font = Self::START + 0x20 * n;
-            (font + 0x14..font + 0x1C).contains(&ida)
-        })
-    }
-
     pub const START: usize = 0x51DE30;
     pub const LEN: usize = 0x554;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -219,8 +208,6 @@ mod tests {
         // The image's relocated dwords and the first values agree, and name the jade font's block.
         for n in 0..4 {
             let at = Fonts::START + 0x20 * n;
-            assert!(Fonts::holds_handle(at + 0x14) && Fonts::holds_handle(at + 0x18));
-            assert!(!Fonts::holds_handle(at + 0x10) && !Fonts::holds_handle(at + 0x1C));
             let image = crate::moved::image_bytes(at + 0x14, 8);
             let font = FONTS.menu_fonts[n].get();
             assert_eq!(

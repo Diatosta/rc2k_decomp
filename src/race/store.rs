@@ -696,7 +696,6 @@ mod tests {
         for (n, word) in image.chunks(4).enumerate() {
             let name = u32::from_le_bytes(word.try_into().unwrap()) as usize;
             assert!((end..end + 0x100).contains(&name), "entry {n}");
-            assert!(crate::relocations::PLACES.contains(&((start + 4 * n) as u32)));
             assert!(is_unread(start + 4 * n));
         }
     }

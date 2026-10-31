@@ -146,11 +146,6 @@ pub const END: usize = 0x6D150C;
 
 const _: () = assert!(END - START == core::mem::size_of::<Panel>());
 
-/// Whether IDA's `ida` is one of the three overlay places at +0x78 (`moved::point_into_homes`).
-pub fn holds_handle(ida: usize) -> bool {
-    (0x6D1476..0x6D1476 + 12).contains(&ida)
-}
-
 /// Where IDA 0x6D13FE is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
@@ -190,7 +185,6 @@ mod tests {
         for (k, miles) in [0x6D150C_usize, 0x6D160C, 0x6D170C].into_iter().enumerate() {
             let name = u32::from_le_bytes(image[4 * k..4 * k + 4].try_into().unwrap());
             assert_eq!(name as usize, miles);
-            assert!(holds_handle(0x6D1476 + 4 * k));
             assert_eq!(
                 crate::moved::named_in(
                     name,
@@ -202,6 +196,5 @@ mod tests {
                     + (miles - crate::race::overlay_store::START) as u32)
             );
         }
-        assert!(!holds_handle(0x6D1475) && !holds_handle(0x6D1482));
     }
 }

@@ -2127,15 +2127,6 @@ pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput
     Ok(crate::audio::store::name_at(entry)?.addr())
 }
 
-/// Whether the dword at IDA `ida` is kept as a handle (`moved::point_into_homes` passes it over).
-pub fn holds_handle(ida: usize) -> bool {
-    (CAR_SPEECH..SPEECH_TABLES_END).contains(&ida)
-}
-
-/// The speech tables in IDA's addresses.
-const CAR_SPEECH: usize = 0x734866;
-const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
-
 /// A text's handle (phase 13): its place in `MENU_TEXTS` (the original kept its address). 0
 /// (none) and -1 (an end mark) stay; another address outside fails to compile.
 pub const fn text_key(ida: u32) -> u32 {
@@ -2165,6 +2156,12 @@ pub const END: usize = 0x734BC6;
 pub fn menu_texts_addr() -> u32 {
     crate::pointers::game_address(&MENU_TEXTS as *const MenuTexts) + 2
 }
+
+#[cfg(test)]
+const CAR_SPEECH: usize = 0x734866;
+
+#[cfg(test)]
+const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
 
 #[cfg(test)]
 mod tests {

@@ -717,12 +717,8 @@ impl RaceSoundSets {
         )
     }
 
-    /// Whether IDA's `ida` is one of the kind table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::KINDS_AT..Self::KINDS_AT + Self::KIND_ENTRIES * 4).contains(&ida)
-    }
-
     /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
+    #[cfg(test)]
     const KINDS_AT: usize = 0x512360;
     const KIND_ENTRIES: usize = 72;
     pub const START: usize = 0x511B10;
@@ -781,11 +777,6 @@ impl CueLists {
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
         named(cell.get(), Self::START, Self::LEN, Self::home())
-    }
-
-    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::START..Self::START + 113 * 4).contains(&ida)
     }
 }
 
@@ -1269,11 +1260,6 @@ impl SoundKinds {
         named(cell.get(), Self::START, Self::LEN, Self::home())
     }
 
-    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::START..Self::START + 36 * 4).contains(&ida)
-    }
-
     pub const START: usize = 0x514F90;
     pub const LEN: usize = 0x13C8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -1306,11 +1292,6 @@ impl SurfaceSets {
             "a surface sound set past the table",
         ))?;
         named(cell.get(), Self::START, Self::LEN, Self::home())
-    }
-
-    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (Self::START..Self::START + 14 * 4).contains(&ida)
     }
 
     pub const START: usize = 0x51639C;

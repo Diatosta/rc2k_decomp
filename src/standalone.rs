@@ -57,8 +57,7 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// The game's image as places only (phase 5, 2026-10-24: every variable and constant the
 /// game reads has a home in Rust, `crate::moved`): the address range RAL.EXE would have,
 /// reserved without access. A call into it is a hook's address or a function not ported,
-/// and a read of it an address with no home: the fault handler names either. The game's
-/// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
+/// and a read of it an address with no home: the fault handler names either.
 fn build_image() -> Result<Image, String> {
     let base = match crate::os::reserve(IMAGE_SIZE) {
         None => 0,
@@ -67,13 +66,6 @@ fn build_image() -> Result<Image, String> {
     if base == 0 {
         return Err("no address range for the game's image".into());
     }
-    // SAFETY: once, at start, before any other thread reads the moved blocks.
-    let pointed = unsafe { crate::moved::point_into_homes(base as usize) }.map_err(|ida| {
-        format!("a relocated pointer of the game's at {ida:#x} lies in no moved range")
-    })?;
-    log(&format!(
-        "standalone: {pointed} of the game's pointers point at their targets' homes"
-    ));
     log(&format!(
         "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
     ));

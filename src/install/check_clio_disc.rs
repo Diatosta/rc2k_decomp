@@ -17,7 +17,6 @@
 //! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, rva};
 use crate::install::check_at_start::set_script_entry;
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::runs_from_source;
@@ -30,7 +29,7 @@ const CAR_NAME_LEN: usize = 0x1B;
 
 // ---- game data ----
 
-const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
+const CLIO_STEP: u32 = 0x41675B; // sub_41675B
 
 // ---- Rust version ----
 
@@ -86,6 +85,6 @@ pub fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     name[end] = b'\n';
     name[end + 1] = 0;
     install.clio_car_name.write(&name);
-    INSTALLER_PAGES.step.set_u32(0, game_addr(CLIO_STEP_RVA));
+    INSTALLER_PAGES.step.set_u32(0, CLIO_STEP);
     Ok(())
 }

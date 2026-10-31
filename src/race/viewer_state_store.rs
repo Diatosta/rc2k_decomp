@@ -47,6 +47,7 @@ pub static REPLAY_VIEW: ReplayViewBlock =
 
 impl ReplayViewBlock {
     /// IDA's address of the viewer's list and the count of its items (from 24 bytes in).
+    #[cfg(test)]
     const LIST: usize = 0x5C255C;
     const ITEMS: u32 = 26;
     /// IDA's ranges the list's names point into: the key table and place rectangles
@@ -100,16 +101,6 @@ impl ReplayViewBlock {
         }
         Ok(REPLAY_VIEW.viewer_list[6 + 4 * index as usize + field].get())
     }
-
-    /// Whether IDA's `ida` is one of the list's names (`moved::point_into_homes`): the key
-    /// table's and each item's +4 and +0xC.
-    pub fn holds_handle(ida: usize) -> bool {
-        ida == Self::LIST + 0x10
-            || (0..Self::ITEMS as usize).any(|k| {
-                let item = Self::LIST + 0x18 + 0x10 * k;
-                ida == item + 4 || ida == item + 0xC
-            })
-    }
 }
 
 /// IDA 0x5C2518, the first byte of the piece.
@@ -139,7 +130,6 @@ mod tests {
         let name =
             |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
         let key_table = ReplayViewBlock::LIST + 0x10;
-        assert!(ReplayViewBlock::holds_handle(key_table));
         assert_eq!(REPLAY_VIEW.viewer_list[4].get(), name(key_table));
         assert_eq!(
             ReplayViewBlock::key_table().unwrap() as usize,
@@ -147,9 +137,6 @@ mod tests {
         );
         for k in 0..26u32 {
             let item = ReplayViewBlock::LIST + 0x18 + 0x10 * k as usize;
-            assert!(ReplayViewBlock::holds_handle(item + 4));
-            assert!(ReplayViewBlock::holds_handle(item + 0xC));
-            assert!(!ReplayViewBlock::holds_handle(item + 8));
             // Kept as the image's names; resolved to the same places.
             assert_eq!(
                 REPLAY_VIEW.viewer_list[6 + 4 * k as usize + 1].get(),

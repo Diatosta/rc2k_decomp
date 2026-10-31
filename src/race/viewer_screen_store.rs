@@ -240,11 +240,6 @@ impl ViewerPanelBlock {
         Ok(crate::moved::place(ida) as u32)
     }
 
-    /// Whether IDA's `ida` is one of the switch tables' names (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (0x5C2C70..0x5C2C70 + 4 * 9).contains(&ida)
-    }
-
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
     fn tail_read(&self, ida: usize) -> u32 {
         let (n, shift) = Self::tail_cells(ida);
@@ -331,7 +326,6 @@ mod tests {
             |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
         for k in 0..9usize {
             let ida = 0x5C2C70 + 4 * k;
-            assert!(ViewerPanelBlock::holds_handle(ida));
             // The three tables hold two, four and three names, one run.
             let (table, n) = match k {
                 0..2 => (0, k),
@@ -349,7 +343,6 @@ mod tests {
                 crate::moved::place(name(ida) as usize)
             );
         }
-        assert!(!ViewerPanelBlock::holds_handle(0x5C2C70 + 4 * 9));
         assert!(v.switch_picture(0, 9).is_err());
         assert!(v.switch_picture(3, 0).is_err());
     }

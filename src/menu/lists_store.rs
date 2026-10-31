@@ -169,34 +169,6 @@ const fn repair_ref(ida: u32) -> Dword {
     Dword::new(repair_key(ida))
 }
 
-/// The tables of text handles (IDA start, entries).
-const TEXT_TABLES: [(usize, usize); 6] = [
-    (0x75987E, 12 + 36), // the welcome pictures, the map's overlays
-    (0x759942, 4 * 25),  // the car pages' pictures
-    (0x759B0E, 24),      // the slideshow's templates
-    (0x75A31E, 24),      // the car streams
-    (0x75A37E, 36),      // the stage speeches
-    (0x75A52E, 60),      // the service pictures
-];
-/// The rally speeches (IDA start, entries).
-const NAME_TABLE: (usize, usize) = (0x75A302, 6);
-/// The repair times' handles (IDA start, entries).
-const REPAIR_TABLE: (usize, usize) = (0x759C16, 24);
-
-fn in_table(ida: usize, (at, len): (usize, usize)) -> bool {
-    (at..at + 4 * len).contains(&ida)
-}
-
-/// Whether IDA's `ida` holds a handle, not an address (`moved::point_into_homes`), or an
-/// address nothing reads (`page_picture_lists`, `page_functions`).
-pub fn holds_handle(ida: usize) -> bool {
-    TEXT_TABLES.iter().any(|&t| in_table(ida, t))
-        || in_table(ida, NAME_TABLE)
-        || in_table(ida, REPAIR_TABLE)
-        || (0x759AD2..0x759AE2).contains(&ida)
-        || (0x759AE6..0x759AF6).contains(&ida)
-}
-
 /// The car pages' pictures by page (the original's `page_picture_lists`, in its order; a car
 /// past a list reads on into the next, as there).
 pub fn page_pictures(page: u32) -> Result<&'static [Dword], crate::errors::BadInput> {
@@ -1478,9 +1450,37 @@ pub static MENU_LISTS: MenuLists = MenuLists {
     )])),
 };
 
+/// IDA 0X7594AA, the first byte of the piece.
+pub const START: usize = 0x7594AA;
+/// IDA 0X75A658, the end of the piece.
+pub const END: usize = 0x75A658;
+
+/// Where IDA 0X7594AA is now (`moved::MOVED`'s home).
+pub fn menu_lists_addr() -> u32 {
+    crate::pointers::game_address(&MENU_LISTS as *const MenuLists)
+}
+
+/// The tables of text handles (IDA start, entries).
+#[cfg(test)]
+const TEXT_TABLES: [(usize, usize); 6] = [
+    (0x75987E, 12 + 36), // the welcome pictures, the map's overlays
+    (0x759942, 4 * 25),  // the car pages' pictures
+    (0x759B0E, 24),      // the slideshow's templates
+    (0x75A31E, 24),      // the car streams
+    (0x75A37E, 36),      // the stage speeches
+    (0x75A52E, 60),      // the service pictures
+];
+/// The rally speeches (IDA start, entries).
+#[cfg(test)]
+const NAME_TABLE: (usize, usize) = (0x75A302, 6);
+/// The repair times' handles (IDA start, entries).
+#[cfg(test)]
+const REPAIR_TABLE: (usize, usize) = (0x759C16, 24);
+
 /// The car lists (IDA's address, entries): their entries are car handles
 /// (`cars_store::car_ref`) where the original kept descriptions' addresses.
-pub const CAR_LISTS: [(usize, usize); 9] = {
+#[cfg(test)]
+const CAR_LISTS: [(usize, usize); 9] = {
     use core::mem::offset_of;
     [
         (START + offset_of!(MenuLists, cars_championship), 26),
@@ -1494,16 +1494,6 @@ pub const CAR_LISTS: [(usize, usize); 9] = {
         (START + offset_of!(MenuLists, cheat_cars), 22),
     ]
 };
-
-/// IDA 0X7594AA, the first byte of the piece.
-pub const START: usize = 0x7594AA;
-/// IDA 0X75A658, the end of the piece.
-pub const END: usize = 0x75A658;
-
-/// Where IDA 0X7594AA is now (`moved::MOVED`'s home).
-pub fn menu_lists_addr() -> u32 {
-    crate::pointers::game_address(&MENU_LISTS as *const MenuLists)
-}
 
 #[cfg(test)]
 mod tests {
