@@ -61,9 +61,9 @@ pub fn load_slideshow_picture(
             }
             let length =
                 crate::strings::text_length::nul_at(path.addr(), "a picture path")? as usize;
-            let mut text = GamePtr::new(path.addr()).read_bytes(length, "a picture path")?;
+            let mut text = path.read_bytes(length, "a picture path")?;
             slides::pcx(&mut text)?;
-            GamePtr::new(path.addr()).write_bytes(&text, "a picture path")?;
+            path.write_bytes(&text, "a picture path")?;
             Ok(file_exists_at(path)?)
         },
         |next| EVENT_STATE.picture.set(next),
