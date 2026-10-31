@@ -31,6 +31,14 @@ impl Trap {
         }
     }
 
+    /// A checked read's answer, or its zero when refused (kept for `finish`).
+    pub fn keep_read<T: Default>(&self, read: Result<T, BadInput>) -> T {
+        read.unwrap_or_else(|e| {
+            self.keep(e);
+            T::default()
+        })
+    }
+
     /// As `read`, at a course place or a game address (`race::course_places::read`).
     pub fn course<T: crate::race::course_places::Whole + Default>(&self, at: u32, what: &str) -> T {
         match crate::race::course_places::read::<T>(at, what) {

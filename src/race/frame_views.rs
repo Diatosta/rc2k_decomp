@@ -66,12 +66,7 @@ pub fn mirror_view_window() -> Result<(), Refused> {
     let at = |word: usize| {
         let k = (n as usize).wrapping_mul(2).wrapping_add(word);
         places.get(k).map_or_else(
-            || {
-                trap.read::<u32>(
-                    (places[0].addr().wrapping_add((4 * k) as u32)) as u32,
-                    "the mirror places",
-                )
-            },
+            || trap.keep_read(crate::session::read_on(places, k, "the mirror places")),
             super::super::session::Dword::get,
         )
     };

@@ -17,7 +17,6 @@
 use crate::errors::Refused;
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_random;
-use crate::pointers::GamePtr;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::put_mud_texel::put_mud_texel;
@@ -43,18 +42,19 @@ pub fn splash_mud() -> Result<(), Refused> {
     // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
     // when they skip a place.
     let mut eax = splash_pattern(next_random());
-    let mut colours = (RACE_VARS.mud_colours[0].addr()).wrapping_add(eax);
+    let mut colours = (eax >> 2) as usize; // the pattern's place: whole dwords
     RACE_VARS.mud_row.set_bits(0u32);
     for row in 0..SPLASH_SIDE {
         RACE_VARS.mud_column.set_bits(0u32);
         for column in 0..SPLASH_SIDE {
             eax = mud_texel(eax, x, y)?;
             if muddy(eax) {
-                let colour = GamePtr::new(colours).read::<u32>("the mud colours")?;
+                let colour =
+                    crate::session::read_on(&RACE_VARS.mud_colours, colours, "the mud colours")?;
                 let faded = fade_colour(eax, colour, colour >> 24);
                 eax = put_mud_texel(faded | MUD_TOP, x, y)?;
             }
-            colours = colours.wrapping_add(4);
+            colours += 1;
             x = x.wrapping_add(1);
             RACE_VARS.mud_column.set_bits(column + 1);
         }

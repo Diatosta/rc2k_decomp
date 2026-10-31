@@ -30,10 +30,6 @@ use crate::scene::draw_store::DRAW;
 
 const ONE: u32 = 0x3F80_0000;
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("an overlay variable")
-}
-
 fn put(at: u32, value: u32) -> Result<(), BadInput> {
     GamePtr::new(at).write(value, "an overlay variable")
 }
@@ -57,12 +53,21 @@ pub fn init_overlay() -> Result<(), Refused> {
                     (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
                 // By address: the list runs past its 0x101 entries, and a face number past
                 // the distances is the original's read.
-                let list = SPLIT_TABLES.checkpoints[0].addr();
-                let distances = crate::race::checkpoints_store::CHECKPOINTS.distances[0].addr();
-                let distance = |k: u32| get(distances.wrapping_add(k.wrapping_mul(4)));
+                let list = &SPLIT_TABLES.checkpoints;
+                let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
+                let distance =
+                    |k: u32| crate::session::read_on(distances, k as usize, "an overlay variable");
                 for n in 0..count {
-                    let end = distance(get(list + 4 * n + 4)?)?;
-                    let start = distance(get(list + 4 * n)?)?;
+                    let end = distance(crate::session::read_on(
+                        list,
+                        n as usize + 1,
+                        "an overlay variable",
+                    )?)?;
+                    let start = distance(crate::session::read_on(
+                        list,
+                        n as usize,
+                        "an overlay variable",
+                    )?)?;
                     let half = half_length(end, start);
                     DRAW.scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);

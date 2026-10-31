@@ -5,7 +5,6 @@
 //! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::matrices_store::MATRICES;
@@ -84,12 +83,19 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         if count == MOST_SPOTS {
             return Ok(());
         }
-        let spot = RACE_SOUND_SPOTS.sound_spots[0].addr() + count * 0x14;
+        let spot = count as usize * 5; // 0x14 bytes each, in dwords
         let sound = f.sound() as u32;
         if !takes_spot(count, sound) {
             return Ok(());
         }
-        let put = |o: u32, v: u32| GamePtr::new(spot + o).write(v, "a sound spot");
+        let put = |o: u32, v: u32| {
+            crate::session::write_on(
+                &RACE_SOUND_SPOTS.sound_spots,
+                spot + (o / 4) as usize,
+                v,
+                "a sound spot",
+            )
+        };
         put(0x10, sound)?;
         let point = get(face + 4)?;
         put(0, point)?;
