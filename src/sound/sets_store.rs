@@ -738,6 +738,27 @@ impl CueLists {
     }
 }
 
+impl CueLists {
+    /// Where cue `cue`'s list of sounds is. The table keeps IDA's addresses as the lists' names
+    /// (phase 13: `moved::point_into_homes` passes them over); a value off the lists is refused.
+    pub fn list_of(cue: u32) -> Result<u32, crate::errors::BadInput> {
+        let cell = CUE_LISTS
+            .table
+            .get(cue as usize)
+            .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
+        let ida = cell.get() as usize;
+        if !(Self::START..Self::START + Self::LEN).contains(&ida) {
+            return Err(crate::errors::BadInput("a cue's list off the lists"));
+        }
+        Ok((Self::home() + (ida - Self::START)) as u32)
+    }
+
+    /// Whether IDA's `ida` is one of the table's dwords (`moved::point_into_homes`).
+    pub fn holds_handle(ida: usize) -> bool {
+        (Self::START..Self::START + 113 * 4).contains(&ida)
+    }
+}
+
 /// The car sound kinds' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
 #[repr(C, align(16))]
 pub struct SoundKinds {
@@ -2882,6 +2903,12 @@ mod tests {
 
     #[test]
     fn cuelists_starts_as_the_games() {
+        // Every cue's list is one of the lists, and ends.
+        for cue in 0..113 {
+            let at = CueLists::list_of(cue).unwrap() as usize;
+            assert!(at >= CueLists::home() + 113 * 4);
+        }
+        assert!(CueLists::list_of(113).is_err());
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
