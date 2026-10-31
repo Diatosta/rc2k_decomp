@@ -310,3 +310,10 @@ block's +0xB0.
 - **In game**: choosing a car for a championship freezes the window for the length of the speech (about 25 seconds): a key does not skip it and closing the window does nothing until it ends.
 - **Seen**: yes, in the conversion, and reported in the original.
 - **Fix**: both waits pump the window's events, and the polling loop sleeps 10 ms a turn instead of spinning. A key now skips the speech and closing the window ends the wait (`system::wait_or_key`, `menu::flow_game`).
+
+## Closing the window loses the session's records
+
+- **What**: on the window's closing the game leaves without `saves::save_game_data` (0x411499), which runs only when the front end is left by its menu.
+- **In game**: best times and options changed since the start were gone if the game was closed with the window instead of "exit to Windows".
+- **Seen**: yes, in the conversion: a new best time was missing from `var\hst.dat` after a close.
+- **Fix**: `standalone::leave_from_race` saves first. Only a game stuck for 5 seconds after the close ends without saving.

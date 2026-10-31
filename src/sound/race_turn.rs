@@ -5,7 +5,7 @@
 //! Quitting (`g_quitting` 1, the game closing): the original's jump (chunk 0x4154B5:
 //! esp = `g_mainLoopStack` and on into `system::main_loop`, or to 0x401116 when that is
 //! 0) was run as it is; in the standalone the program
-//! is ended as `start` ends it (`standalone::leave_from_race`). Owner, 2026-10-18. Else, once the sounds are
+//! is ended as `start` ends it (`standalone::leave_on_close`). Owner, 2026-10-18. Else, once the sounds are
 //! started (`dword_5124E4` 1): `sound::step_race_clock`; with a turn due (carry clear)
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
 //! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
@@ -25,7 +25,7 @@ pub fn race_turn() -> Result<(), Refused> {
     if FLAGS.quitting.get() == 1 {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
-        crate::standalone::leave_from_race();
+        crate::standalone::leave_on_close();
     }
     if crate::sound::store::RACE_CLOCK.started.get() != 1 {
         return Ok(());

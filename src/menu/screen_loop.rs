@@ -660,8 +660,9 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                     why = "the Escape flag was set".into();
                     Next::Leave
                 } else if !screen.no_quit_check && quitting() {
-                    why = "the game is quitting".into();
-                    Next::Leave
+                    // At once: a screen left as if chosen lets the flow behind it go on with
+                    // what the screen never set (a championship's next stage: a fatal error).
+                    crate::standalone::leave_on_close();
                 } else if crate::debug::screens::serve()? {
                     Next::SetUp
                 } else {

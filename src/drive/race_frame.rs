@@ -34,7 +34,7 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
     if FLAGS.quitting.get() == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
-        crate::standalone::leave_from_race();
+        crate::standalone::leave_on_close();
     }
     if FLAGS.window_active.get() != 0 && FLAGS.lost.get() != 1 {
         // `scene::begin_scene` leaves the carry clear: the frame is never lost there.

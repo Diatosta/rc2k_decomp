@@ -134,18 +134,27 @@ fn stack_returns(esp: usize) -> String {
     out.join(" ")
 }
 
-/// The game closed during a race (`g_quitting`): what the original's way out does
+/// The game closed (`g_quitting`), in a race or on a menu: what the original's way out does
 /// (0x4154B5 back into the main loop, which asks for the shutdown, logs "Leaving main
-/// loop..." and returns to `start`), the program ended as `start` ends it.
-pub fn leave_from_race() -> ! {
+/// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
+/// first, once the front end has its tables: before that a save would write blanks.
+pub fn leave_on_close() -> ! {
+    let tables = &crate::saves::best_times_store::BEST_TIMES;
+    if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
+        && let Err(e) = crate::saves::save_game_data::save_in_game()
+    {
+        log(&format!(
+            "standalone: the game's data was not saved on closing: {e:?}"
+        ));
+    }
     if let Err(e) = crate::threading::request_quit::request_quit() {
         log(&format!(
             "standalone: the shutdown thread did not start ({:#x})",
             e.code
         ));
     }
-    log("system::main_loop: leaving (the game was closed during a race)");
-    finish("the game was closed during a race", 0)
+    log("system::main_loop: leaving (the game was closed)");
+    finish("the game was closed", 0)
 }
 
 /// A function of the game's with no Rust version, reached from Rust (`from`): the program

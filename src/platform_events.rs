@@ -132,8 +132,7 @@ pub fn hold_quit(on: bool) {
 /// (the original's window procedure only shut the screens down and posted `WM_QUIT`, which
 /// `system::pump_messages` swallowed: nothing stopped, IDA 2026-10-28). A safety net for a
 /// loop that still does not: if the program is running `LEAVING_GRACE` after the first
-/// close, it ends (the game's own way out with the switch set saves nothing either:
-/// `system::main_loop` leaves before `save_game_data`).
+/// close, it ends, saving nothing: the game's thread may be in the tables a save reads.
 fn end_if_not_left() {
     static WATCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if NO_CLOSE_WATCH.load(std::sync::atomic::Ordering::Relaxed)

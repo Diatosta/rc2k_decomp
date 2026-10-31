@@ -624,7 +624,7 @@ fn single_rally(
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
     if crate::session::FLAGS.quitting.get() == 1 {
-        crate::standalone::leave_from_race();
+        crate::standalone::leave_on_close();
     }
     if kind == 3 {
         step(1)?; // race::copy_rally_times
