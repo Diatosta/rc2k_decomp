@@ -1,6 +1,7 @@
 # The game's logic, platform-free (Linux and Windows tests): `rc2k_core/`.
 [workspace]
 members = ["rc2k_core"]
+exclude = ["fuzz"]
 
 [workspace.lints.clippy]
 borrow_as_ptr = "warn"

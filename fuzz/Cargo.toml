@@ -1,0 +1,70 @@
+[package]
+name = "rc2k_fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rc2k_core = { path = "../rc2k_core" }
+
+[workspace]
+
+[[bin]]
+name = "packed"
+path = "fuzz_targets/packed.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "png"
+path = "fuzz_targets/png.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rle"
+path = "fuzz_targets/rle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "string_table"
+path = "fuzz_targets/string_table.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lexicon"
+path = "fuzz_targets/lexicon.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "inbox"
+path = "fuzz_targets/inbox.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pcx"
+path = "fuzz_targets/pcx.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "language"
+path = "fuzz_targets/language.rs"
+test = false
+doc = false
+bench = false
