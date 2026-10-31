@@ -424,6 +424,10 @@ impl GamePtr {
         Self::new(game_address(std::ptr::from_ref::<T>(field).cast::<u8>()))
     }
 
+    pub const fn is_null(self) -> bool {
+        self.0 == 0
+    }
+
     pub const fn addr(self) -> u32 {
         self.0
     }
