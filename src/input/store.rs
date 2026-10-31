@@ -378,12 +378,10 @@ impl Devices {
         }
         let at = offset_of!(Devices, input_devices) + 4 * n;
         assert!(at + 4 <= core::mem::size_of::<Devices>());
-        unsafe {
-            (self as *const Self as *const u8)
-                .add(at)
-                .cast::<u32>()
-                .read_volatile()
-        }
+        crate::pointers::read_or_end(
+            crate::pointers::game_address(self as *const Self).wrapping_add(at as u32),
+            "an input device past the table",
+        )
     }
 
     /// Key `key`'s state in that table (the window's messages write it: 0xFF down).

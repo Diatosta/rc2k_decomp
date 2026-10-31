@@ -470,8 +470,21 @@ pub fn get_capabilities(this: u32, caps: u32) -> i32 {
         let room = (size as usize).min(size_of::<DiDevCaps>());
         if room > 4 {
             let mut bytes = [0u8; size_of::<DiDevCaps>()];
-            // Safety: `DiDevCaps` is plain `repr(C)` dwords, as many bytes as `bytes`.
-            unsafe { (bytes.as_mut_ptr() as *mut DiDevCaps).write_unaligned(full) };
+            for (place, value) in bytes.as_chunks_mut::<4>().0.iter_mut().zip([
+                full.size,
+                full.flags,
+                full.dev_type,
+                full.axes,
+                full.buttons,
+                full.hats,
+                full.ff_sample_period,
+                full.ff_min_time_resolution,
+                full.firmware_revision,
+                full.hardware_revision,
+                full.ff_driver_version,
+            ]) {
+                *place = value.to_le_bytes();
+            }
             if let Err(e) = crate::pointers::GamePtr::new(caps + 4)
                 .write_bytes(&bytes[4..room], "DirectInput's capabilities")
             {

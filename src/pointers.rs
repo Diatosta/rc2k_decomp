@@ -610,6 +610,21 @@ pub fn read_or_end<T: Copy>(addr: u32, what: &str) -> T {
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
 }
 
+/// The dword cell at the address, for a table the game's code indexes without a bound: outside
+/// its region the program ends naming it.
+#[track_caller]
+pub fn cell_or_end(addr: u32, what: &str) -> &'static crate::session::Dword {
+    check_or_end(addr, 4, what);
+    let cell = host(addr) as *const crate::session::Dword;
+    assert!(
+        cell.is_aligned(),
+        "{what}: {addr:#010x} is not a cell's place"
+    );
+    // SAFETY: the four bytes lie in a live region, aligned for the atomic (checked above);
+    // `Dword` is a cell over a plain integer, so shared references to it may overlap writes.
+    unsafe { &*cell }
+}
+
 /// A checked write, as `read_or_end`.
 #[track_caller]
 pub fn write_or_end<T: Copy>(addr: u32, value: T, what: &str) {

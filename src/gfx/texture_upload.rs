@@ -119,7 +119,16 @@ const FREE: TextureRecord = TextureRecord {
     material_handle: 0,
 };
 
-const NO_FORMAT: TextureFormat = unsafe { core::mem::zeroed() };
+const NO_FORMAT: TextureFormat = TextureFormat {
+    found: 0,
+    bytes_per_pixel: 0,
+    format: PixelFormat {
+        layout: 0,
+        masks: [0; 4],
+    },
+    number: 0,
+    dd: [0; 8],
+};
 
 const fn pool() -> Pool {
     Pool {
@@ -209,14 +218,16 @@ impl Textures {
 }
 
 /// A system texture's record where it lies.
-pub struct Record(*mut TextureRecord);
+pub struct Record(u32);
 
 impl Record {
     pub fn of(texture: u32) -> Result<Self, Refused> {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record = Record(TEXTURE_TABLES.system.records[texture as usize].as_ptr());
+        let record = Record(crate::pointers::game_address(
+            TEXTURE_TABLES.system.records[texture as usize].as_ptr(),
+        ));
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }
@@ -224,13 +235,13 @@ impl Record {
     }
 
     pub fn get(&self) -> TextureRecord {
-        unsafe { self.0.read_unaligned() }
+        crate::pointers::read_or_end(self.0, "a texture's record")
     }
 
     pub fn set_keeps_alpha(&self, keeps: u32) {
         let mut record = self.get();
         record.keeps_alpha = keeps;
-        unsafe { self.0.write_unaligned(record) }
+        crate::pointers::write_or_end(self.0, record, "a texture's record")
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {

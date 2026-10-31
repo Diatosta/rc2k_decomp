@@ -29,14 +29,10 @@ pub fn callback(object: u32, entry: u32) -> u32 {
 /// The Rust version: eax.
 pub fn axis_found(object: u32, entry: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::joystick::axis_bits`.
-    // SAFETY: `object` is the `DIDEVICEOBJECTINSTANCEA` the emulation lists (a local of its
-    // own, no allocation of the game's), alive for this call.
-    let object_type = unsafe {
-        (crate::pointers::host_at(
-            (object.wrapping_add(field!(DiDeviceObjectInstance, guid_type))) as usize,
-        ) as *const [u8; 16])
-            .read_unaligned()
-    };
+    let object_type: [u8; 16] = crate::pointers::GamePtr::new(
+        object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)),
+    )
+    .read("an axis object's type")?;
     let mut axes = [[0u8; 16]; 6];
     for (n, axis) in axes.iter_mut().enumerate() {
         axis.copy_from_slice(&INPUT_GUIDS.axes.read_at(16 * n, 16, "an axis GUID")?);

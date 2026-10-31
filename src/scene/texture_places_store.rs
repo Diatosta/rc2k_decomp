@@ -51,8 +51,7 @@ pub fn cell_at(first: &Dword, index: u32) -> &Dword {
     let at = first
         .addr()
         .wrapping_add(((index as usize).wrapping_mul(4)) as u32);
-    // SAFETY: as the game's own access, inside the race block; `Dword` is a 4-aligned cell.
-    unsafe { &*(crate::pointers::host_at(at as usize) as *const Dword) }
+    crate::pointers::cell_or_end(at, "a cell past a texture table")
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of

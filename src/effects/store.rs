@@ -295,21 +295,9 @@ impl Where for Slot {
     }
 }
 
-/// Pointer to the game's memory at `place`.
-pub fn game_ptr<T>(place: impl Where) -> *mut T {
-    crate::pointers::host_at(place.address()) as *mut T
-}
-
 /// Reads a variable (`framework::game_read`, over the block or the image).
 pub fn game_read<T: Copy>(place: impl Where) -> T {
-    let p = game_ptr::<T>(place);
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
+    crate::pointers::read_or_end(place.address() as u32, "a marks variable")
 }
 
 /// The block's address for the x87 blocks (`mk`): `mk + offset` with `offset` IDA's

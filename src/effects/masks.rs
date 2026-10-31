@@ -99,10 +99,7 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
 
 /// The mask at `at`, checked to lie in one region.
 fn mask(at: u32) -> Result<&'static mut [u8], BadInput> {
-    crate::race::trap::span(at, MASK_LEN as usize, "a mark mask")?;
-    // SAFETY: the span lies in one live region (checked above); nothing else holds it
-    // while the mask is drawn.
-    Ok(unsafe { std::slice::from_raw_parts_mut(crate::pointers::host(at), MASK_LEN as usize) })
+    crate::menu::event_flow::game_slice(at, MASK_LEN, "a mark mask")
 }
 
 /// `effects::draw_mask` (0x4BE6C2): the mask at `at` (into `g_marksMask`) all 0xFF, then

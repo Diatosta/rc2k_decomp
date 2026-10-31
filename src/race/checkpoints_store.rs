@@ -49,8 +49,10 @@ pub static CHECKPOINTS: InBuffers = InBuffers;
 /// tables by a checkpoint number it holds to the count, not to the table's room, and a reading
 /// past a field's end goes on into the next (as in the image).
 pub fn nth(first: &Dword, n: usize) -> &Dword {
-    // SAFETY: the piece is one block of cells; the address is the original's own.
-    unsafe { &*first.as_ptr().wrapping_add(n).cast::<Dword>() }
+    crate::pointers::cell_or_end(
+        first.addr().wrapping_add((n as u32).wrapping_mul(4)),
+        "a cell past a checkpoint table",
+    )
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).

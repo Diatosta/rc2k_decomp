@@ -197,12 +197,10 @@ impl ViewerPanelBlock {
     /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
-        // SAFETY: the table is in `unknown_0`; the read is unaligned and plain.
-        unsafe {
-            (crate::pointers::host_at((self.unknown_0[0].addr() + (2 * camera) as u32) as usize)
-                as *const u16)
-                .read_unaligned()
-        }
+        crate::pointers::read_or_end(
+            self.unknown_0[0].addr() + (2 * camera) as u32,
+            "a camera's name",
+        )
     }
 
     /// Where the picture `n` places on in switch table `table` (0 `off_5C2C70`, 1
