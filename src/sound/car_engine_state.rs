@@ -56,7 +56,7 @@ pub fn kind_of(o: u32) -> Result<u32, BadInput> {
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
-    Ok(crate::sound::sets_store::SOUND_KINDS.kinds[n as usize].get())
+    crate::sound::sets_store::SoundKinds::record_of(n)
 }
 
 // ---- Rust version ----

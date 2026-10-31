@@ -59,8 +59,6 @@ pub fn sound_row(row: u32) -> Result<(), BadInput> {
 pub struct TableVars {
     /// dword_516358: 1 once done.
     pub done: u32,
-    /// off_514F90: 0x22 record pointers.
-    pub records: u32,
     /// unk_516258: 0x40 floats.
     pub sines: u32,
     /// dword_5183CC: the scratch.
@@ -71,7 +69,6 @@ impl TableVars {
     pub fn game() -> Self {
         Self {
             done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr(),
-            records: crate::session::address_of(&SOUND_KINDS.kinds),
             sines: crate::session::address_of(&SOUND_KINDS.sines),
             scratch: crate::session::MACHINE.scratch.addr(),
         }
@@ -92,7 +89,7 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     }
     put(v.done, 1)?;
     for n in 0..RECORDS {
-        let record = get(v.records + 4 * n)?;
+        let record = crate::sound::sets_store::SoundKinds::record_of(n)?;
         sound_span(record + 4)?;
         put(
             record + 0xC,
