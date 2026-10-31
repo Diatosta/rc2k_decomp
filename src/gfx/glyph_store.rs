@@ -113,6 +113,19 @@ pub fn give_back(list: u32) {
     }
 }
 
+/// Where `place` is when it is an IDA address of the jade font's block (the four menu
+/// fonts name its glyphs and colour by the image's numbers, phase 13); else `place`. No game
+/// address lies there: the image's range is reserved.
+fn resolved(place: u32) -> u32 {
+    let ida = place as usize;
+    let jade = crate::gfx::jade_store::JadeFont::START;
+    if (jade..jade + crate::gfx::jade_store::JadeFont::LEN).contains(&ida) {
+        (crate::gfx::jade_store::JadeFont::home() + (ida - jade)) as u32
+    } else {
+        place
+    }
+}
+
 /// The bytes from a place or a game address on.
 #[derive(Clone, Debug)]
 pub enum Glyphs {
@@ -132,7 +145,7 @@ impl rc2k_core::strings::bytes::Bytes for Glyphs {
 /// The bytes from `place` on: a palette or table of the store, or game memory.
 pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
     if !is_place(place) {
-        return Ok(Glyphs::Game(GamePtr::new(place).bytes(what)?));
+        return Ok(Glyphs::Game(GamePtr::new(resolved(place)).bytes(what)?));
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -142,7 +155,7 @@ pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
 /// `len` bytes from `place` + `at`.
 pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
     if !is_place(place) {
-        return GamePtr::new(place.wrapping_add(at)).read_bytes(len, what);
+        return GamePtr::new(resolved(place).wrapping_add(at)).read_bytes(len, what);
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -156,7 +169,7 @@ pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>
 /// write past its end.
 pub fn write_bytes(place: u32, at: u32, bytes: &[u8], what: &str) -> Result<(), BadInput> {
     if !is_place(place) {
-        return GamePtr::new(place.wrapping_add(at)).write_bytes(bytes, what);
+        return GamePtr::new(resolved(place).wrapping_add(at)).write_bytes(bytes, what);
     }
     let table = place >= TABLE_FIRST;
     let mut s = store();
@@ -178,6 +191,21 @@ pub fn write_bytes(place: u32, at: u32, bytes: &[u8], what: &str) -> Result<(), 
 mod tests {
     use super::*;
     use rc2k_core::strings::bytes::Bytes as _;
+
+    #[test]
+    fn the_jade_fonts_image_numbers_resolve_to_its_block() {
+        use crate::gfx::jade_store::{JADE_FONT, JadeFont};
+        let _lock = crate::store::test_lock();
+        // The glyph table and the palette (the colour), as the menu fonts name them.
+        let table = bytes(0x4F52C4, "the jade glyphs").unwrap();
+        let colour = read_bytes(0x4F66C4, 0, 4, "the jade colour").unwrap();
+        assert_eq!(colour, JADE_FONT.colour.get().to_le_bytes());
+        assert_eq!(table.byte(0), Some(JADE_FONT.glyphs.get(0)));
+        assert_eq!(resolved(0x4F66C4) as usize, JadeFont::home() + 0x1400);
+        // Anything else is left as it was.
+        assert_eq!(resolved(0x4F66DD + 0x20), 0x4F66DD + 0x20);
+        assert_eq!(resolved(0x4F52C3), 0x4F52C3);
+    }
 
     #[test]
     fn places_are_kept_apart_and_given_back_by_list() {
