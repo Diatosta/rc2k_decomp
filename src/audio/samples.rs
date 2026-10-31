@@ -43,9 +43,9 @@ pub fn read_sample(
     out: &Shared<SampleFile>,
 ) -> Result<bool, Refused> {
     use crate::audio::sample_data as data;
-    // SAFETY: `out` is one of the audio thread's records, borrowed only here.
-    unsafe {
-        let f = out.borrow();
+    let mut file = out.get();
+    let f = &mut file;
+    let answer = (|| {
         f.channels = 1;
         f.rate = 0x5622;
         f.bits = 16;
@@ -91,7 +91,9 @@ pub fn read_sample(
             frames: core.frames,
         };
         Ok(found)
-    }
+    })();
+    out.set(file);
+    answer
 }
 
 /// A table of two {flag, value} entries, as the core takes it.

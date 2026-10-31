@@ -87,12 +87,13 @@ pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result
         .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
-        let c = channel(at(n as u32));
-        if c.used == 1 {
-            c.used = core.used;
-            c.position = core.position;
-            c.position_fraction = core.fraction;
-        }
+        update_channel(at(n as u32), |c| {
+            if c.used == 1 {
+                c.used = core.used;
+                c.position = core.position;
+                c.position_fraction = core.fraction;
+            }
+        });
     }
     Ok(())
 }

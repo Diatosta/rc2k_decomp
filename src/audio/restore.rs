@@ -76,7 +76,7 @@ pub fn replay_looping() -> Result<(), Refused> {
     };
     let mut pool = crate::audio::voices::GamePool;
     for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
-        crate::audio::buffer_play::play_buffer_in_game(crate::audio::voices::voice(v))?;
+        crate::audio::buffer_play::play_buffer_in_game(&crate::audio::voices::voice(v))?;
     }
     Ok(())
 }

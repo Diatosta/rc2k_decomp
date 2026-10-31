@@ -16,6 +16,7 @@
 //! never by an address.
 
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
+use crate::session::Shared;
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 
@@ -36,12 +37,52 @@ fn place_of(id: u32, len: usize, what: &'static str) -> usize {
     }
 }
 
-/// The voice of id `id` (its place in `g_voices` + 1).
-pub fn voice<'a>(id: u32) -> &'a mut Voice {
-    let n = place_of(id, AUDIO.voices.len(), "a voice id past the pool");
-    // SAFETY: the audio thread's records (its lock held), one borrowed at a time, as the
-    // original's are.
-    unsafe { AUDIO.voices[n].borrow() }
+/// The voice's place in the pool for id `id`.
+fn voice_place(id: u32) -> &'static Shared<Voice> {
+    &AUDIO.voices[place_of(id, AUDIO.voices.len(), "a voice id past the pool")]
+}
+
+/// The mixer channel's place for id `id` (its place in `g_channels` + 1).
+fn channel_place(id: u32) -> &'static Shared<MixerChannel> {
+    &AUDIO.channels[place_of(
+        id,
+        AUDIO.channels.len(),
+        "a mixer channel id past the channels",
+    )]
+}
+
+/// The sample record's place (the original indexes the table unchecked; a number past it ends
+/// the program).
+fn sample_place(number: u32) -> &'static Shared<SampleRecord> {
+    let Some(r) = SAMPLE_RECORDS.records.get(number as usize) else {
+        crate::fatal::raise::end(
+            "audio::voices",
+            crate::errors::BadInput("a sound number past the sample records"),
+        );
+    };
+    r
+}
+
+/// The voice of id `id` (its place in `g_voices` + 1), as it is now.
+pub fn voice(id: u32) -> Voice {
+    voice_place(id).get()
+}
+
+/// The voice of id `id` changed (read, changed, written back): `change` must not change it by
+/// another way.
+pub fn update_voice<R>(id: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
+    let place = voice_place(id);
+    let mut v = place.get();
+    let answer = change(&mut v);
+    place.set(v);
+    answer
+}
+
+/// The voice being changed stored now, for what reads it by address; its `buffer_3d`'s address.
+pub fn stored_buffer_3d(id: u32, v: &Voice) -> u32 {
+    let place = voice_place(id);
+    place.set(*v);
+    place.addr() + core::mem::offset_of!(Voice, buffer_3d) as u32
 }
 
 /// The id of the voice at place `n`.
@@ -49,28 +90,19 @@ pub fn voice_id(n: u32) -> u32 {
     n + 1
 }
 
-/// The mixer channel of id `id` (its place in `g_channels` + 1).
-pub fn channel<'a>(id: u32) -> &'a mut MixerChannel {
-    let n = place_of(
-        id,
-        AUDIO.channels.len(),
-        "a mixer channel id past the channels",
-    );
-    // SAFETY: as `voice`.
-    unsafe { AUDIO.channels[n].borrow() }
+/// The mixer channel of id `id`, as it is now.
+pub fn channel(id: u32) -> MixerChannel {
+    channel_place(id).get()
 }
 
-/// The sample record of sound `number` (the original indexes the table unchecked; a
-/// number past it ends the program).
-pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
-    let Some(r) = SAMPLE_RECORDS.records.get(number as usize) else {
-        crate::fatal::raise::end(
-            "audio::voices",
-            crate::errors::BadInput("a sound number past the sample records"),
-        );
-    };
-    // SAFETY: as `voice`.
-    unsafe { r.borrow() }
+/// The mixer channel of id `id` changed, as `update_voice`.
+pub fn update_channel(id: u32, change: impl FnOnce(&mut MixerChannel)) {
+    channel_place(id).update(change)
+}
+
+/// The sample record of sound `number`, as it is now.
+pub fn sample(number: u32) -> SampleRecord {
+    sample_place(number).get()
 }
 
 /// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
@@ -78,16 +110,22 @@ pub struct GamePool;
 
 impl rc2k_core::audio::voices::Pool for GamePool {
     fn voice(&mut self, at: u32) -> &mut Voice {
-        voice(at)
+        // SAFETY: as long as the answer lives this pool is borrowed, so the core holds one
+        // record at a time, and it holds none across a step's call (the steps copy records).
+        // The game's thread copies a voice's fixed figures while sounds are set up, as the
+        // original reads them with no lock.
+        unsafe { voice_place(at).borrow() }
     }
     fn channel(&mut self, at: u32) -> &mut MixerChannel {
-        channel(at)
+        // SAFETY: as `voice`.
+        unsafe { channel_place(at).borrow() }
     }
     fn channel_at(&self, n: u32) -> u32 {
         n + 1
     }
     fn record(&mut self, n: u32) -> &mut SampleRecord {
-        sample(n)
+        // SAFETY: as `voice`.
+        unsafe { sample_place(n).borrow() }
     }
 }
 

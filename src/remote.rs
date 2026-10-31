@@ -107,7 +107,7 @@ fn state() -> String {
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
     let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
     format!(
-        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} near={},{} heading={} matrix={}",
+        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} matrix={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         crate::race::numbers_store::NUMBERS.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
@@ -123,6 +123,8 @@ fn state() -> String {
         nth(&CHECKPOINTS.map_y[0], ahead).get() as i32,
         nth(&CHECKPOINTS.map_x[0], near).get() as i32,
         nth(&CHECKPOINTS.map_y[0], near).get() as i32,
+        crate::audio::store::AUDIO.channels_used.get(),
+        crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.crash_matrix[..12]
             .iter()

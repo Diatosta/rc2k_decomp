@@ -36,8 +36,11 @@ impl GameLoader {
 
 impl rc2k_core::audio::load::Loader for GameLoader {
     type Error = Refused;
-    fn record(&mut self, sound: u32) -> &mut SampleRecord {
-        unsafe { SAMPLE_RECORDS.records[sound as usize].borrow() }
+    fn record(&mut self, sound: u32) -> SampleRecord {
+        SAMPLE_RECORDS.records[sound as usize].get()
+    }
+    fn set_first_voice(&mut self, sound: u32, voice: u32) {
+        SAMPLE_RECORDS.records[sound as usize].update(|r| r.first_voice = voice);
     }
     fn full(&mut self) -> bool {
         AUDIO.voice_count.get() == VOICES
@@ -70,15 +73,15 @@ impl rc2k_core::audio::load::Loader for GameLoader {
         let record = self.record_at(at.sound);
         fill_voice::fill_voice_in_game(voice_at, record, shared)?;
         let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
-        samples::prepare_sample(voice(voice_at), mode)?;
-        keep_sample::keep_sample(voice(voice_at))?;
+        update_voice(voice_at, |v| samples::prepare_sample(v, mode))?;
+        update_voice(voice_at, keep_sample::keep_sample)?;
         make_buffer::make_buffer(voice_at, record)?;
-        fill_buffer::fill_buffer(voice(voice_at))?;
+        fill_buffer::fill_buffer(&voice(voice_at))?;
 
         Ok(())
     }
     fn mark_loaded(&mut self, voice: u32) {
-        crate::audio::voices::voice(voice).flags |= LOADED;
+        update_voice(voice, |v| v.flags |= LOADED);
     }
     fn quitting(&mut self) -> bool {
         FLAGS.quitting.get() == 1

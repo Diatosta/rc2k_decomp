@@ -74,7 +74,7 @@ pub fn update_voices() -> Result<(), Refused> {
         use crate::audio::{buffer_play as play, buffer_settings as set};
         match step {
             Step::IsPlaying(at) => {
-                return Ok(play::is_playing(voice(at))? & play::PLAYING != 0);
+                return Ok(play::is_playing(&voice(at))? & play::PLAYING != 0);
             }
             Step::Room => {
                 crate::audio::set_eax_room::in_game()?;
@@ -83,25 +83,25 @@ pub fn update_voices() -> Result<(), Refused> {
                 play::commit_3d()?;
             }
             Step::Frequency(at) => {
-                set::set_buffer_frequency(voice(at))?;
+                set::set_buffer_frequency(&voice(at))?;
             }
             Step::Volume(at) => {
-                set::set_buffer_volume(voice(at))?;
+                set::set_buffer_volume(&voice(at))?;
             }
             Step::Pan(at) => {
-                set::set_buffer_pan(voice(at))?;
+                set::set_buffer_pan(&voice(at))?;
             }
             Step::Place(at) => {
-                set::set_buffer_place(voice(at))?;
+                set::set_buffer_place(&voice(at))?;
             }
             Step::Rewind(at) => {
-                play::rewind_buffer(voice(at))?;
+                play::rewind_buffer(&voice(at))?;
             }
             Step::Play(at) => {
-                play::play_buffer_in_game(voice(at))?;
+                play::play_buffer_in_game(&voice(at))?;
             }
             Step::Stop(at) => {
-                play::stop_buffer(voice(at))?;
+                play::stop_buffer(&voice(at))?;
             }
         }
 

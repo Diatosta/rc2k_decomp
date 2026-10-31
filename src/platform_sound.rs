@@ -622,6 +622,10 @@ const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
 /// SDL's audio callback: the playing buffers mixed into what the stream wants.
+/// The loudest sample sent to the device since the remote control last asked.
+#[cfg(feature = "remote")]
+pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
 extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
     let frames = (wanted.max(0) / 4) as usize;
     if frames == 0 {
@@ -668,6 +672,10 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
         .iter()
         .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
         .collect();
+    #[cfg(feature = "remote")]
+    if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
+        LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
+    }
     // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
     unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
 }

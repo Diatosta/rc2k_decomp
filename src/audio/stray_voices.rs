@@ -58,7 +58,7 @@ pub fn check() {
         if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
             continue;
         }
-        if crate::audio::buffer_play::is_playing(v).is_ok_and(|s| s & 1 != 0) {
+        if crate::audio::buffer_play::is_playing(&v).is_ok_and(|s| s & 1 != 0) {
             strays.push(n);
             let mut logged = LOGGED.lock().unwrap();
             if !logged.contains(&n) {
