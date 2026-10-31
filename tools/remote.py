@@ -8,13 +8,14 @@
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py state                      frames, race flag, menu, item, speed, time, place
+    remote.py pilot seconds              drives along the stage line, printing a trace
     remote.py log [n]                    the game's log, last n lines
     remote.py stop                       quits, then ends it
 
 --handheld (or RC2K_REMOTE_HOST=root@address) drives the handheld over SSH. There var and
 savedata are put back on stop, as the folder is the real one.
 """
-import os, shutil, struct, subprocess, sys, time, zlib
+import math, os, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = os.path.expanduser('~/.cache/rc2k_remote')
@@ -179,6 +180,61 @@ def stop():
     print('stopped')
 
 
+def pilot(seconds):
+    """Holds the stage line: heading from the car's matrix, Right turns it up, Left down."""
+    held = set()
+
+    def hold(key, wanted):
+        if wanted != (key in held):
+            ask(('down ' if wanted else 'up ') + key)
+            (held.add if wanted else held.discard)(key)
+
+    end = time.time() + seconds
+    count = 0
+    still = time.time() + 5
+    backing = 0
+    try:
+        while time.time() < end:
+            fields = dict(f.split('=', 1) for f in ask('state').split() if '=' in f)
+            if 'race' not in fields:
+                continue
+            if fields['race'] != '1':
+                print('race over', fields)
+                break
+            speed = float(fields['speed'])
+            x, y = map(float, fields['map'].split(','))
+            tx, ty = map(float, fields['target' if speed > 10 else 'near'].split(','))
+            matrix = [float(v) for v in fields['matrix'].split(',')]
+            heading = math.atan2(-matrix[10], matrix[8])
+            error = math.atan2(ty - y, tx - x) - heading
+            error = (error + math.pi) % (2 * math.pi) - math.pi
+            # Stuck: back out, wheels the other way.
+            now = time.time()
+            if speed >= 3:
+                still = now
+            if now - still > 2.5:
+                backing = now + 2.5
+                still = backing + 2.5
+            if now < backing:
+                hold('Up', False)
+                hold('Down', True)
+                hold('Right', error < 0)
+                hold('Left', error > 0)
+                continue
+            hold('Right', error > 0.06)
+            hold('Left', error < -0.06)
+            braking = abs(error) > 0.35 and speed > 12
+            hold('Down', braking)
+            hold('Up', not braking)
+            count += 1
+            if count % 120 == 0:
+                print(fields['time'], 'cp', fields['checkpoint'], 'speed', speed,
+                      'splits', fields['splits'], 'error', round(error, 2), flush=True)
+    finally:
+        for key in list(held):
+            hold(key, False)
+
+
 def log(lines):
     if HOST:
         text = ssh(f'tail -n {lines} {DEVICE_GAME}/rc2k.log').stdout.decode(errors='replace')
@@ -200,6 +256,8 @@ def main():
         stop()
     elif command == 'shot':
         shot(rest[0])
+    elif command == 'pilot':
+        pilot(float(rest[0]))
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
     elif command in ('key', 'down', 'up', 'pad', 'state'):

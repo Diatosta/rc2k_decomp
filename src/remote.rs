@@ -105,8 +105,9 @@ fn state() -> String {
     let at = CAR.checkpoint.get() as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
+    let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
     format!(
-        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} heading={} matrix={}",
+        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} near={},{} heading={} matrix={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         crate::race::numbers_store::NUMBERS.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
@@ -120,6 +121,8 @@ fn state() -> String {
         CAR.map_place[1].get() as i32,
         nth(&CHECKPOINTS.map_x[0], ahead).get() as i32,
         nth(&CHECKPOINTS.map_y[0], ahead).get() as i32,
+        nth(&CHECKPOINTS.map_x[0], near).get() as i32,
+        nth(&CHECKPOINTS.map_y[0], near).get() as i32,
         CAR.car_heading.get() as i32,
         CAR.crash_matrix[..12]
             .iter()
@@ -131,6 +134,8 @@ fn state() -> String {
 
 /// How many checkpoints ahead `state`'s target is.
 const LOOK_AHEAD: usize = 12;
+/// And its near target, for a slow car in a sharp turn.
+const LOOK_NEAR: usize = 4;
 
 fn run(line: &str) {
     let words: Vec<&str> = line.split_whitespace().collect();
