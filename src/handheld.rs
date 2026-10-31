@@ -4,7 +4,7 @@
 
 use std::fs::File;
 use std::os::fd::AsRawFd;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
 const FBIOPUT_VSCREENINFO: libc::c_ulong = 0x4601;
@@ -174,6 +174,85 @@ pub fn pad_mapping(guid: &str) -> String {
          leftx:a0,lefty:a1,rightx:a2,righty:a3,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,\
          platform:Linux,"
     )
+}
+
+// ---- a race's 3D drawn smaller: the frame's dearest part, with the fewest pixels to give ----
+
+/// How many times smaller, each way.
+pub const SMALLER: usize = 2;
+
+/// A small frame while it is drawn.
+#[derive(Clone, Copy)]
+pub struct Small {
+    pub pixels: *mut u8,
+    pub width: usize,
+    pub height: usize,
+    pub depth: *mut f32,
+}
+
+struct SmallBuffers {
+    pixels: Vec<u32>,
+    depth: Vec<f32>,
+}
+
+static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
+    pixels: Vec::new(),
+    depth: Vec::new(),
+});
+
+/// Whether this flush goes through a small frame: in a race, unless `RC2K_FULL_RESOLUTION`.
+pub fn draws_small() -> bool {
+    static FULL: OnceLock<bool> = OnceLock::new();
+    !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some())
+        && crate::race::numbers_store::NUMBERS.in_race.bits() != 0
+}
+
+/// The small frame, holding the screen's picture made smaller (what was drawn before this
+/// flush, which the 3D may blend over).
+pub fn small_frame(screen: *const u8, pitch: usize, width: usize, height: usize) -> Small {
+    let (w, h) = (width / SMALLER, height / SMALLER);
+    let mut b = SMALL.lock().unwrap_or_else(|e| e.into_inner());
+    if b.pixels.len() != w * h {
+        b.pixels = vec![0; w * h];
+        b.depth = vec![1.0; w * h];
+    }
+    for y in 0..h {
+        // SAFETY: the caller's checked screen: `height` rows of `pitch` bytes of at least
+        // `width` 32-bit pixels; this row lies in them.
+        let from = unsafe { screen.add(y * SMALLER * pitch) }.cast::<u32>();
+        for (x, to) in b.pixels[y * w..][..w].iter_mut().enumerate() {
+            // SAFETY: as above, `x * SMALLER` is below `width`.
+            *to = unsafe { from.add(x * SMALLER).read_unaligned() };
+        }
+    }
+    // The buffers stay in the static, untouched until the next flush, which the caller's lock
+    // on the noted things keeps from starting first.
+    Small {
+        pixels: b.pixels.as_mut_ptr().cast(),
+        width: w,
+        height: h,
+        depth: b.depth.as_mut_ptr(),
+    }
+}
+
+/// The small frame back on the screen, each of its pixels made `SMALLER` wide and high.
+pub fn enlarge(small: Small, screen: *mut u8, pitch: usize, width: usize, height: usize) {
+    for y in 0..small.height {
+        // SAFETY: the small frame's own rows, as `small_frame` made them.
+        let from = unsafe {
+            std::slice::from_raw_parts(small.pixels.cast::<u32>().add(y * small.width), small.width)
+        };
+        for row in 0..SMALLER {
+            let at = (y * SMALLER + row).min(height - 1);
+            // SAFETY: as in `small_frame`: this row of the screen, `width` pixels.
+            let to = unsafe {
+                std::slice::from_raw_parts_mut(screen.add(at * pitch).cast::<u32>(), width)
+            };
+            for (pair, &p) in to.as_chunks_mut::<SMALLER>().0.iter_mut().zip(from) {
+                pair.fill(p);
+            }
+        }
+    }
 }
 
 // ---- a sampling profiler, while the handheld's speed is being worked out (the OS has no perf) ----

@@ -343,10 +343,50 @@ pub fn flush() {
     draw_noted(&mut pending);
 }
 
+/// The small frame draw_noted draws into, on systems that have one (`handheld::Small`).
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[derive(Clone, Copy)]
+struct Small {
+    pixels: *mut u8,
+    width: usize,
+    height: usize,
+    depth: *mut f32,
+}
+
+/// The noted things' screen places for the handheld's small frame.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+fn scale_noted(noted: &mut [Noted]) {
+    const BY: f32 = crate::handheld::SMALLER as f32;
+    let by = crate::handheld::SMALLER;
+    for what in noted {
+        match what {
+            Noted::Fan {
+                vertices, bounds, ..
+            } => {
+                for v in vertices.iter_mut() {
+                    v[0] = (f32::from_bits(v[0]) / BY).to_bits();
+                    v[1] = (f32::from_bits(v[1]) / BY).to_bits();
+                }
+                *bounds = (bounds.0 / BY, bounds.1 / BY, bounds.2 / BY, bounds.3 / BY);
+            }
+            Noted::Clear([left, top, right, bottom]) => {
+                *left /= by;
+                *top /= by;
+                *right = right.div_ceil(by);
+                *bottom = bottom.div_ceil(by);
+            }
+        }
+    }
+}
+
 fn draw_noted(pending: &mut Pending) {
     use crate::rasteriser::{Frame, States, Texture};
     use rayon::prelude::*;
-    let noted = std::mem::take(&mut pending.noted);
+    #[cfg_attr(
+        not(all(target_os = "linux", target_arch = "aarch64")),
+        allow(unused_mut) // only the handheld changes them
+    )]
+    let mut noted = std::mem::take(&mut pending.noted);
     pending.textures.clear();
     let Some(into) = pending.into.take() else {
         return;
@@ -361,8 +401,27 @@ fn draw_noted(pending: &mut Pending) {
         .iter()
         .filter(|n| matches!(n, Noted::Fan { .. }))
         .count() as u64;
+    // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
+    // frame, which takes the screen's picture so far and gives it back enlarged.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    let small = (into.bits == 32 && crate::handheld::draws_small()).then(|| {
+        crate::pointers::check_or_end(
+            into.pixels as u32,
+            into.pitch * into.height,
+            "the screen's pixels",
+        );
+        scale_noted(&mut noted);
+        crate::handheld::small_frame(
+            crate::pointers::host_at(into.pixels),
+            into.pitch,
+            into.width,
+            into.height,
+        )
+    });
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    let small: Option<Small> = None;
     with_depth(|depth| {
-        if depth.width != into.width || depth.height != into.height {
+        if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
         }
         // The screen's pixels are lent (a region the size of its rows), checked here; the
@@ -376,14 +435,17 @@ fn draw_noted(pending: &mut Pending) {
         // `width` x `height` floats (the sizes compared above), borrowed mutably here; the
         // game's code does not run while the frame is drawn (under `PENDING`'s lock).
         let mut frame = unsafe {
-            Frame::new(
-                crate::pointers::host_at(into.pixels),
-                into.pitch,
-                into.width,
-                into.height,
-                into.bits,
-                depth.values.as_mut_ptr(),
-            )
+            match small {
+                Some(s) => Frame::new(s.pixels, s.width * 4, s.width, s.height, 32, s.depth),
+                None => Frame::new(
+                    crate::pointers::host_at(into.pixels),
+                    into.pitch,
+                    into.width,
+                    into.height,
+                    into.bits,
+                    depth.values.as_mut_ptr(),
+                ),
+            }
         };
         let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
         let noted = &noted;
@@ -442,6 +504,16 @@ fn draw_noted(pending: &mut Pending) {
             std::sync::atomic::Ordering::Relaxed,
         );
     });
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    if let Some(s) = small {
+        crate::handheld::enlarge(
+            s,
+            crate::pointers::host_at(into.pixels),
+            into.pitch,
+            into.width,
+            into.height,
+        );
+    }
     use std::sync::atomic::Ordering::Relaxed;
     FANS.fetch_add(fans, Relaxed);
     RASTER_MICROS.fetch_add(started.elapsed().as_micros() as u64, Relaxed);
