@@ -14,7 +14,6 @@
 //! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::owned::Owned;
 use crate::race::course_lists_store::COURSE_LISTS;
 
 /// The records.
@@ -26,7 +25,9 @@ pub const HELD: u32 = 1;
 
 pub type Record = [u32; 8];
 
-pub static RECORDS: Owned<Vec<Record>> = Owned::new("no point records");
+crate::memory::owned::thread_owned!(
+    pub static RECORDS: Vec<Record> = "no point records";
+);
 
 /// The records made, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr) -> Result<(), Refused> {

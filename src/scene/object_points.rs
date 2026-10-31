@@ -9,13 +9,14 @@
 //! contact walks): the original's arithmetic is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::owned::Owned;
 use crate::race::course_lists_store::COURSE_LISTS;
 
 /// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
 
-pub static POINTS: Owned<Vec<u8>> = Owned::new("no objects' points");
+crate::memory::owned::thread_owned!(
+    pub static POINTS: Vec<u8> = "no objects' points";
+);
 
 /// `bytes` of points, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {

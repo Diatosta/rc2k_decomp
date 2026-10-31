@@ -13,7 +13,6 @@
 //! that read a face, a record, a scene point or a frame's word alike go through them.
 
 use crate::errors::BadInput;
-use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
 use rc2k_core::race::faces::{Face, Record};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -66,13 +65,19 @@ pub const fn room() -> u32 {
     ROOM
 }
 
-pub static FACES: Owned<Vec<u8>> = Owned::new("no course faces");
-pub static RECORDS: Owned<Vec<u8>> = Owned::new("no course records");
-/// The course info (`g_courseInfo`, 0x400000 bytes: the texture infos `files\a\textinfo`
-/// and `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000): taken with
-/// the course memory (`level_init::allocate_course_memory`), filled by
-/// `level_init::load_texture_info`.
-pub static INFO: Owned<Vec<u8>> = Owned::new("no course info");
+crate::memory::owned::thread_owned!(
+    pub static FACES: Vec<u8> = "no course faces";
+);
+crate::memory::owned::thread_owned!(
+    pub static RECORDS: Vec<u8> = "no course records";
+);
+crate::memory::owned::thread_owned!(
+    /// The course info (`g_courseInfo`, 0x400000 bytes: the texture infos `files\a\textinfo`
+    /// and `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000): taken with
+    /// the course memory (`level_init::allocate_course_memory`), filled by
+    /// `level_init::load_texture_info`.
+    pub static INFO: Vec<u8> = "no course info";
+);
 
 /// The course info taken (`len` bytes, zeroed): its place.
 pub fn take_info(len: u32) -> Result<u32, BadInput> {
@@ -134,7 +139,7 @@ pub fn is_place(at: u32) -> bool {
 }
 
 /// The store and offset of place `at`, if it is one of the faces' or records'.
-fn store(at: u32) -> Option<(&'static Owned<Vec<u8>>, usize)> {
+fn store(at: u32) -> Option<(&'static crate::memory::owned::ThreadOwned<Vec<u8>>, usize)> {
     let w = faces_base();
     if w == 0 {
         return None;

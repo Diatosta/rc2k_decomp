@@ -9,7 +9,6 @@
 //! and a place is read here.
 
 use crate::errors::BadInput;
-use crate::memory::owned::Owned;
 use crate::race::course_store::COURSE;
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
@@ -17,7 +16,9 @@ pub fn base() -> u32 {
     crate::race::course_places::points_base()
 }
 
-pub static POINTS: Owned<Vec<u8>> = Owned::new("no scene points");
+crate::memory::owned::thread_owned!(
+    pub static POINTS: Vec<u8> = "no scene points";
+);
 
 /// Whether the points are held.
 pub fn held() -> bool {

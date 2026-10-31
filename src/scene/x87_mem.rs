@@ -42,6 +42,7 @@ impl Base for *mut u8 {
 /// The operand's address, its `len` bytes checked to lie in one region (the program ends
 /// otherwise, `pointers::check_or_end`).
 #[track_caller]
+#[inline(always)]
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
     // A pointer to one of the program's statics or to this thread's stack needs no trip through
     // the address tables (these run many times a physics tick); the same bounds hold it.

@@ -10,13 +10,14 @@
 //! the cursor) is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::owned::Owned;
 use crate::race::course_lists_store::COURSE_LISTS;
 
 /// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
 
-pub static FACES: Owned<Vec<u8>> = Owned::new("no objects' faces");
+crate::memory::owned::thread_owned!(
+    pub static FACES: Vec<u8> = "no objects' faces";
+);
 
 /// `bytes` of faces, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
