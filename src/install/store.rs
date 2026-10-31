@@ -29,7 +29,7 @@ pub struct InstallVars {
     pub clio_file: Bytes<20>,
     /// 0x529DCC: `byte_529DCC`: the installer's script for the Clio (`install::install_clio`).
     pub clio_script: Bytes<28>,
-    /// 0x529DE8: `unk_529DE8` ..: 64 pointers into the texts below and elsewhere (the credits'; kept as the image's addresses, which `moved::point_into_homes` passes over: nothing in the ported code reads them).
+    /// 0x529DE8: `unk_529DE8` ..: 64 pointers into the texts below and elsewhere (the credits'; repointed at start-up; nothing in the ported code reads them).
     pub text_pointers: [Dword; 64],
     /// 0x529EE8: The credits' first texts (`aUmlaut`, `aCraigGriffiths`).
     pub credits_a: Bytes<27>,
@@ -58,12 +58,6 @@ impl InstallVars {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&INSTALL as *const InstallVars) + 1) as usize
-    }
-
-    /// Whether IDA's `ida` is one of the 64 credits' pointers (`unk_529DE8` ..), which nothing
-    /// reads and which stay as the image's addresses (`moved::point_into_homes`).
-    pub fn holds_handle(ida: usize) -> bool {
-        (0x529DE8..0x529DE8 + 4 * 64).contains(&ida)
     }
 }
 
@@ -207,15 +201,6 @@ mod tests {
             offset_of!(InstallVars, text_pointers),
             1 + 0x529DE8 - InstallVars::START
         );
-        // The credits' 64 pointers stay the image's addresses.
-        for (k, cell) in INSTALL.text_pointers.iter().enumerate() {
-            let ida = 0x529DE8 + 4 * k;
-            assert!(InstallVars::holds_handle(ida));
-            let image = crate::moved::image_bytes(ida, 4);
-            assert_eq!(cell.get().to_le_bytes(), image[..], "{ida:#x}");
-        }
-        assert!(!InstallVars::holds_handle(0x529DE8 - 4));
-        assert!(!InstallVars::holds_handle(0x529DE8 + 4 * 64));
         assert_eq!(
             offset_of!(InstallVars, credits_a),
             1 + 0x529EE8 - InstallVars::START
