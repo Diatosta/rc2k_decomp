@@ -100,6 +100,7 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
     if root.is_some_and(|r| r.get(1) == Some(&b':')) {
         return None;
     }
+    // SAFETY: all zeros is a valid value of this plain C struct.
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     // SAFETY: a NUL-ended path and an out-parameter of its type.
     if unsafe { libc::statvfs(c".".as_ptr(), &raw mut stat) } != 0 {
@@ -120,6 +121,7 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
 pub fn free_kb_at(at: &std::path::Path) -> Option<u32> {
     use std::os::unix::ffi::OsStrExt;
     let path = std::ffi::CString::new(at.as_os_str().as_bytes()).ok()?;
+    // SAFETY: all zeros is a valid value of this plain C struct.
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     // SAFETY: a NUL-ended path and an out-parameter of its type.
     if unsafe { libc::statvfs(path.as_ptr(), &raw mut stat) } != 0 {
@@ -132,6 +134,7 @@ pub fn free_kb_at(at: &std::path::Path) -> Option<u32> {
 /// Available and total physical memory, available and total swap (bytes, at most 32
 /// bits' worth, as `GlobalMemoryStatus` caps them).
 pub fn memory() -> [u32; 4] {
+    // SAFETY: all zeros is a valid value of this plain C struct.
     let mut info: libc::sysinfo = unsafe { std::mem::zeroed() };
     // SAFETY: an out-parameter of its type.
     if unsafe { libc::sysinfo(&raw mut info) } != 0 {

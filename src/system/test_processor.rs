@@ -77,6 +77,7 @@ fn fpu_words() -> (u16, u16) {
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn fpu_words() -> (u16, u16) {
     let (mut status, mut control) = (0x5A5Au16, 0u16);
+    // SAFETY: the instructions write only the two locals; the x87 state is not otherwise used.
     unsafe {
         core::arch::asm!(
             "fninit",

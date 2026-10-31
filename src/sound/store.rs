@@ -217,9 +217,13 @@ pub struct SoundObject {
 
 // SAFETY: each is made of `Dword`s and `Float`s (atomics) and arrays and records of them.
 unsafe impl crate::pointers::Cells for SoundSlot {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for EngineVoice {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for CueEntry {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for CueQueue {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for SoundObject {}
 
 impl SoundObject {

@@ -240,6 +240,7 @@ pub mod state {
 
     /// g_localeDirectory.
     pub fn locale_directory() -> *mut u8 {
+        // SAFETY: 0x100 lies inside the directories' block.
         unsafe { DIRECTORIES.ptr().cast::<u8>().add(0x100) }
     }
 }

@@ -557,10 +557,15 @@ pub unsafe trait Cells {}
 
 // SAFETY: atomics and cells over plain integers.
 unsafe impl Cells for crate::session::Dword {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl Cells for crate::session::Float {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl Cells for crate::session::Word {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl Cells for crate::session::Byte {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {}
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:

@@ -46,7 +46,7 @@ pub fn game_read<T: Copy>(rva: usize) -> T {
         size_of::<T>(),
         "a game global",
     );
-    // Some game tables sit on odd addresses.
+    // SAFETY: inside one live region (checked above). Some game tables sit on odd addresses.
     unsafe {
         if p.is_aligned() {
             p.read_volatile()
@@ -65,6 +65,7 @@ pub fn game_write<T: Copy>(rva: usize, value: T) {
         size_of::<T>(),
         "a game global",
     );
+    // SAFETY: as the read's.
     unsafe {
         if p.is_aligned() {
             p.write_volatile(value);

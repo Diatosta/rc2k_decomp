@@ -40,7 +40,7 @@ fn pending() -> std::sync::MutexGuard<'static, Pending> {
     PENDING
         .get_or_init(Default::default)
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 fn reply(id: &str, answer: &str) {
@@ -65,7 +65,7 @@ fn key(scancode: SDL_Scancode, down: bool) {
         };
         event.key.scancode = scancode;
         event.key.down = down;
-        SDL_PushEvent(&mut event);
+        SDL_PushEvent(&raw mut event);
     }
 }
 
@@ -80,7 +80,7 @@ fn pad(button: SDL_GamepadButton, down: bool) {
         };
         event.gbutton.button = button.0 as u8;
         event.gbutton.down = down;
-        SDL_PushEvent(&mut event);
+        SDL_PushEvent(&raw mut event);
     }
 }
 
@@ -175,7 +175,7 @@ fn run(line: &str) {
             unsafe {
                 let mut event: SDL_Event = std::mem::zeroed();
                 event.r#type = SDL_EVENT_QUIT.0;
-                SDL_PushEvent(&mut event);
+                SDL_PushEvent(&raw mut event);
             }
             Some("ok".to_string())
         }

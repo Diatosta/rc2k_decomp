@@ -136,10 +136,15 @@ const _: () = {
 
 // SAFETY (the three): every field is a cell over a plain integer (`session`'s cells and
 // records of them): any bit pattern is a valid value.
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for CarsAndReplay {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for ViewerAndKinds {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for LightsAndGear {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for PanelAndOverlay {}
+// SAFETY: every field is a cell over a plain integer.
 unsafe impl crate::pointers::Cells for ViewAndRecords {}
 
 /// The cars' blocks and the replay's work, with the image's first values.

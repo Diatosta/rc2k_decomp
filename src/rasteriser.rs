@@ -658,6 +658,7 @@ impl<'a> Texels<'a> {
                 for lane in 0..4 {
                     if live >> lane & 1 != 0 {
                         // Safety: `whole`, and the place wrapped or clamped into the texture.
+                        // SAFETY: as the other lanes' reads: the lane is live, so its place lies in the texture.
                         let raw = unsafe {
                             base.add(place(xs[lane], ys[lane]))
                                 .cast::<u32>()
@@ -670,6 +671,7 @@ impl<'a> Texels<'a> {
             (Kind::Table(table), true) => {
                 for lane in 0..4 {
                     if live >> lane & 1 != 0 {
+                        // SAFETY: as the other lanes' reads: the lane is live, so its place lies in the texture.
                         let raw = unsafe {
                             base.add(place(xs[lane], ys[lane]))
                                 .cast::<u16>()
@@ -852,6 +854,7 @@ impl Triangle<'_> {
             };
             // SAFETY: SSE2 is in both targets' baseline (i686 and x86_64 Windows).
             #[cfg_attr(target_arch = "aarch64", allow(unused_unsafe))] // NEON's are safe calls
+            // SAFETY: as just said.
             return unsafe { self.row4(y, first, last, &lines) };
         }
         for x in first..=last {
@@ -1355,8 +1358,8 @@ impl Texels<'_> {
                 out[corner][lane] = match &self.kind {
                     // SAFETY: as above.
                     Kind::Usual(full) => (unsafe { at.cast::<u32>().read_unaligned() }) | full,
-                    // SAFETY: as above.
                     Kind::Table(table) => {
+                        // SAFETY: as above.
                         table[unsafe { at.cast::<u16>().read_unaligned() } as usize]
                     }
                     Kind::Other => 0,

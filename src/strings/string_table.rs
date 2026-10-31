@@ -64,6 +64,7 @@ pub fn lexicon() -> *mut u8 {
 pub fn table() -> Option<StringTable<'static>> {
     let b = blob();
     std::ptr::eq(b, lexicon())
+        // SAFETY: `b` is the lexicon's static room, written only while the language loads, before any text is read.
         .then(|| StringTable::new(unsafe { std::slice::from_raw_parts(b, LEXICON_ROOM) }))
 }
 

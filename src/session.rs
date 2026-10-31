@@ -300,17 +300,20 @@ impl<const N: usize> Bytes<N> {
 
     pub fn get(&self, index: usize) -> u8 {
         assert!(index < N);
+        // SAFETY: `index` is under `N` (asserted).
         unsafe { self.as_ptr().add(index).read_volatile() }
     }
 
     pub fn set(&self, index: usize, value: u8) {
         assert!(index < N);
+        // SAFETY: as `get`.
         unsafe { self.as_ptr().add(index).write_volatile(value) }
     }
 
     /// The byte at `index` as an atomic (an `xchg` on a key).
     pub fn atomic(&self, index: usize) -> &AtomicU8 {
         assert!(index < N);
+        // SAFETY: as `get`; a byte is aligned for its atomic.
         unsafe { AtomicU8::from_ptr(self.as_ptr().add(index)) }
     }
 
@@ -318,11 +321,13 @@ impl<const N: usize> Bytes<N> {
     /// read).
     pub fn get_u32(&self, offset: usize) -> u32 {
         assert!(offset + 4 <= N);
+        // SAFETY: the four bytes are inside (asserted); unaligned read.
         unsafe { self.as_ptr().add(offset).cast::<u32>().read_unaligned() }
     }
 
     pub fn set_u32(&self, offset: usize, value: u32) {
         assert!(offset + 4 <= N);
+        // SAFETY: as `get_u32`.
         unsafe {
             self.as_ptr()
                 .add(offset)
@@ -401,10 +406,12 @@ impl Loose {
     }
 
     pub fn get(&self) -> u32 {
+        // SAFETY: the cell holds the four bytes; unaligned read.
         unsafe { self.0.get().cast::<u32>().read_unaligned() }
     }
 
     pub fn set(&self, value: u32) {
+        // SAFETY: as `get`.
         unsafe { self.0.get().cast::<u32>().write_unaligned(value) }
     }
 }
@@ -426,10 +433,12 @@ impl<T: Copy> Shared<T> {
 
     /// A copy of the record (a plain, possibly unaligned, volatile read).
     pub fn get(&self) -> T {
+        // SAFETY: a plain record read whole; a racing write is the original's own, kept until the state has one owner.
         unsafe { self.0.get().read_volatile() }
     }
 
     pub fn set(&self, value: T) {
+        // SAFETY: as `get`.
         unsafe { self.0.get().write_volatile(value) }
     }
 
@@ -454,6 +463,7 @@ impl<T> Shared<T> {
     /// discipline: no other borrow of it lives at the same time.
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn borrow(&self) -> &mut T {
+        // SAFETY: the caller's promise (see above).
         unsafe { &mut *self.0.get() }
     }
 }
