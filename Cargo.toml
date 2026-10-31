@@ -25,7 +25,7 @@ rayon = "1.10"
 # The debug UI (`src/debug/`): Dear ImGui (docking branch), its C++ built from source;
 # the SDL glue is ours (`debug::imgui_sdl`). Its crate has no 32-bit Windows target: the
 # 32-bit build has no debug UI.
-[target.'cfg(target_pointer_width = "64")'.dependencies]
+[target.'cfg(all(target_pointer_width = "64", not(all(target_os = "linux", target_arch = "aarch64"))))'.dependencies]
 dear-imgui-rs = { version = "0.21", default-features = false }
 dear-imgui-sys = { version = "0.21", default-features = false, features = ["build-from-source"] }
 
@@ -37,6 +37,11 @@ libc = "0.2"
 # `tools/build_ffmpeg.sh linux`): one program for every distribution, nothing to install.
 [target.'cfg(target_os = "linux")'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
+
+# The handheld has neither X11 nor Wayland: SDL for its audio and joystick, the frames go to
+# the framebuffer (`handheld`).
+[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
+sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-console-build"] }
 
 # Windows' own (`src/os/windows.rs`, the fault handler, the profiler, the shortcuts).
 [target.'cfg(windows)'.dependencies]

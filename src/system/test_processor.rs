@@ -26,7 +26,6 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::arch::__cpuid;
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::session::MACHINE;
@@ -38,7 +37,7 @@ use rc2k_core::system::processor::{Var, test};
 
 /// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
 /// flags are put back.
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "x86"))]
 fn flag_toggles(_bit: u32) -> bool {
     // Every 64-bit processor has CPUID and the alignment flag.
     true
@@ -68,7 +67,14 @@ fn flag_toggles(bit: u32) -> bool {
     changed != 0
 }
 
+/// The FPU test: what an x87 answers (the handheld has none; `math::x87_float` is the model).
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+fn fpu_words() -> (u16, u16) {
+    (0, 0x037F)
+}
+
 /// The FPU test: (the status word after `fninit`, the control word).
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn fpu_words() -> (u16, u16) {
     let (mut status, mut control) = (0x5A5Au16, 0u16);
     unsafe {
@@ -92,6 +98,28 @@ fn fpu_words() -> (u16, u16) {
     (status, control)
 }
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+    let r = crate::arch::__cpuid(leaf);
+    (r.eax, r.ebx, r.ecx, r.edx)
+}
+
+/// The handheld's answer: a processor with an FPU, a counter and `cmov`, no SIMD of any kind,
+/// so the game takes its plain paths (no x86 there).
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+fn cpuid(leaf: u32) -> (u32, u32, u32, u32) {
+    match leaf {
+        0 => (
+            1,
+            u32::from_le_bytes(*b"Genu"),
+            u32::from_le_bytes(*b"ntel"),
+            u32::from_le_bytes(*b"ineI"),
+        ),
+        1 => (0x680, 0, 0, 1 | 1 << 4 | 1 << 15),
+        _ => (0, 0, 0, 0),
+    }
+}
+
 pub use rc2k_core::system::processor::Processor;
 
 pub struct Real;
@@ -101,8 +129,7 @@ impl Processor for Real {
         flag_toggles(bit)
     }
     fn cpuid(&self, leaf: u32) -> (u32, u32, u32, u32) {
-        let r = __cpuid(leaf);
-        (r.eax, r.ebx, r.ecx, r.edx)
+        cpuid(leaf)
     }
     fn fpu_words(&self) -> (u16, u16) {
         fpu_words()

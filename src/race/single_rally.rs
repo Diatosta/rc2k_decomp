@@ -594,7 +594,7 @@ fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refuse
 
 /// The debug UI's test races: the players' records into the race's settings as a race does
 /// (the HUD, the keys, the set-up, ...), without their damage and wear.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn player_settings_in() -> Result<(), Refused> {
     // As `single_rally`'s start: the last race's outcome, else the car starts out of it.
     RESULT.set(0);
@@ -621,6 +621,11 @@ fn single_rally(
     kind: u32,
     step: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
+    // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
+    if crate::session::FLAGS.quitting.get() == 1 {
+        crate::standalone::leave_from_race();
+    }
     if kind == 3 {
         step(1)?; // race::copy_rally_times
     }

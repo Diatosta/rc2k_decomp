@@ -70,6 +70,7 @@ pub fn normalise_vector() -> Result<Option<u32>, BadInput> {
 
 /// The original's SSE instructions on `w`: the vector (four floats), its squares (four), the
 /// length's reciprocal (one).
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 fn sse_normalise(w: &mut [u32; 9]) {
     // SAFETY: the instructions read and write only `w`'s 36 bytes (unaligned moves) and
     // the three xmm registers named; SSE is on every x86 the game builds for.
@@ -93,6 +94,13 @@ fn sse_normalise(w: &mut [u32; 9]) {
             options(nostack),
         );
     }
+}
+
+/// `sse_normalise` on the handheld: no SSE, and the game's test said so (`test_processor`), so
+/// this is never reached there.
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+fn sse_normalise(_w: &mut [u32; 9]) {
+    unreachable!("no SSE here");
 }
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the

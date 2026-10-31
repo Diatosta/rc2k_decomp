@@ -73,7 +73,14 @@ fn quitting() -> bool {
 enum Event {
     Quit,
     Focus(bool),
-    Key { scancode: i32, down: bool },
+    Key {
+        scancode: i32,
+        down: bool,
+    },
+    Pad {
+        button: SDL_GamepadButton,
+        down: bool,
+    },
     Other,
 }
 
@@ -107,6 +114,14 @@ fn next_event() -> Option<Event> {
             Event::Focus(true)
         } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST.0 {
             Event::Focus(false)
+        } else if kind == SDL_EVENT_JOYSTICK_ADDED.0 {
+            crate::platform_input::pad_added(event.jdevice.which);
+            Event::Other
+        } else if kind == SDL_EVENT_GAMEPAD_BUTTON_DOWN.0 || kind == SDL_EVENT_GAMEPAD_BUTTON_UP.0 {
+            Event::Pad {
+                button: SDL_GamepadButton(event.gbutton.button as i32),
+                down: event.gbutton.down,
+            }
         } else if kind == SDL_EVENT_KEY_DOWN.0 || kind == SDL_EVENT_KEY_UP.0 {
             Event::Key {
                 scancode: event.key.scancode.0,
@@ -236,9 +251,90 @@ fn pump() {
                     DEVICES.set_key_state(key, 0);
                 }
             }
+            Event::Pad { button, down } => pad_button(button, down),
             Event::Other => {}
         }
     }
+    let now = u64::from(crate::os::ticks());
+    if let Some(action) = lock_menu_pad().tick(now) {
+        menu_action(action);
+    }
+}
+
+/// The menus' side of the gamepads.
+fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::MenuPad> {
+    static PAD: std::sync::OnceLock<std::sync::Mutex<crate::input::menu_pad::MenuPad>> =
+        std::sync::OnceLock::new();
+    PAD.get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+}
+
+/// A gamepad's button, for the menus.
+fn pad_button(button: SDL_GamepadButton, down: bool) {
+    use crate::input::menu_pad::PadButton as B;
+    // The handheld's way out: it has no window to close.
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+        static GUIDE: AtomicBool = AtomicBool::new(false);
+        if button == SDL_GAMEPAD_BUTTON_GUIDE {
+            GUIDE.store(down, Relaxed);
+        } else if button == SDL_GAMEPAD_BUTTON_START && down && GUIDE.load(Relaxed) {
+            log("platform: MENU + START: the quit switch is set");
+            FLAGS.quitting.set(1);
+            end_if_not_left();
+            return;
+        }
+    }
+    let button = match button {
+        SDL_GAMEPAD_BUTTON_DPAD_UP => B::DpadUp,
+        SDL_GAMEPAD_BUTTON_DPAD_DOWN => B::DpadDown,
+        SDL_GAMEPAD_BUTTON_DPAD_LEFT => B::DpadLeft,
+        SDL_GAMEPAD_BUTTON_DPAD_RIGHT => B::DpadRight,
+        SDL_GAMEPAD_BUTTON_SOUTH => B::South,
+        SDL_GAMEPAD_BUTTON_EAST => B::East,
+        SDL_GAMEPAD_BUTTON_WEST => B::West,
+        SDL_GAMEPAD_BUTTON_START => B::Start,
+        _ => return,
+    };
+    let in_race = crate::race::numbers_store::NUMBERS.in_race.get() != 0;
+    let now = u64::from(crate::os::ticks());
+    if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
+        menu_action(action);
+    }
+}
+
+/// What a menu takes: the key of the action, as the pending key (not the held-key table: the
+/// race's keyboard controls are not the pad's).
+fn menu_action(action: crate::input::menu_pad::MenuAction) {
+    use crate::input::menu_pad::{MenuAction as A, note_answer};
+    use crate::input::yes_no_key::{NO, THIRD, YES};
+    let scancode = match action {
+        A::Up => SDL_SCANCODE_UP,
+        A::Down => SDL_SCANCODE_DOWN,
+        A::Left => SDL_SCANCODE_LEFT,
+        A::Right => SDL_SCANCODE_RIGHT,
+        A::Enter => {
+            note_answer(YES);
+            SDL_SCANCODE_RETURN
+        }
+        A::Back => {
+            note_answer(NO);
+            SDL_SCANCODE_ESCAPE
+        }
+        A::Third => {
+            note_answer(THIRD);
+            return;
+        }
+        A::LeaveRace | A::LeaveRaceEnd => {
+            let state = if action == A::LeaveRace { 0xFF } else { 0 };
+            DEVICES.set_key_state(game_key(SDL_SCANCODE_ESCAPE.0), state);
+            return;
+        }
+    };
+    let key = game_key(scancode.0);
+    crate::input::take_key::pending_key().store(key, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// SDL's scan code (USB's numbering) as the game's key code: DirectInput's for
@@ -332,6 +428,8 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
             crate::system::find_entry_with_bits::find_entry_with_bits(bits, table, count).0
         };
         let (menu, race) = (SCREEN_MODE.menu_mode.get(), SCREEN_MODE.race_mode.get());
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let race = crate::handheld::race_mode(race);
         match choose(menu, race, works, listed) {
             Some((menu, race)) => {
                 SCREEN_MODE.race_mode.set(race);
@@ -436,6 +534,9 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
                 )
             }
             None => {
+                // The handheld's frames go to the framebuffer (`handheld`).
+                #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+                SDL_SetHint(SDL_HINT_VIDEO_DRIVER, c"dummy".as_ptr());
                 if !SDL_Init(SDL_INIT_VIDEO) {
                     return Err("SDL does not start".into());
                 }
@@ -793,6 +894,35 @@ fn report_timing() {
                 (micros - m0) as f64 / 10000.0 / seconds
             ));
             *last = Some((now, frames, fans, micros, flushes, pixels));
+            // The handheld's: where the time goes, and the samples so far.
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            {
+                use crate::debug::timing;
+                static WAS: std::sync::Mutex<([u64; timing::STAGES], [u64; timing::STAGES], u32)> =
+                    std::sync::Mutex::new(([0; timing::STAGES], [0; timing::STAGES], 0));
+                let (nanos, runs) = timing::counts();
+                let ticks = timing::ticks();
+                if let Ok(mut was) = WAS.lock() {
+                    let ms = |n: usize| (nanos[n] - was.0[n]) / 1_000_000;
+                    let times = |n: usize| runs[n] - was.1[n];
+                    log(&format!(
+                        "handheld: input {} ms / {}, physics {} ms / {} (ticks {}), scene {} ms / {}, sound tick {} ms / {}, audio {} ms / {}",
+                        ms(0),
+                        times(0),
+                        ms(1),
+                        times(1),
+                        ticks - was.2,
+                        ms(2),
+                        times(2),
+                        ms(3),
+                        times(3),
+                        ms(4),
+                        times(4)
+                    ));
+                    *was = (nanos, runs, ticks);
+                }
+                crate::handheld::write_profile();
+            }
             {
                 use crate::platform_3d::{PARALLEL_MICROS, TILE_MICROS};
                 static LAST_P: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -825,9 +955,6 @@ fn report_timing() {
 }
 
 fn show_frame(screen: &Screen) -> Result<(), &'static str> {
-    let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
-    let renderer = std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(screen.renderer);
-    let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(screen.texture);
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
     let converted;
@@ -854,31 +981,39 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     if frame.len() < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");
     }
-    // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
-    // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
-    unsafe {
-        if !SDL_UpdateTexture(
-            texture,
-            std::ptr::null(),
-            frame.as_ptr().cast(),
-            (screen.width * 4) as i32,
-        ) {
-            return Err("SDL cannot take the frame into its texture");
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    return crate::handheld::present(frame, screen.width, screen.height);
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    {
+        let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
+        let renderer = std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(screen.renderer);
+        let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(screen.texture);
+        // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
+        // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
+        unsafe {
+            if !SDL_UpdateTexture(
+                texture,
+                std::ptr::null(),
+                frame.as_ptr().cast(),
+                (screen.width * 4) as i32,
+            ) {
+                return Err("SDL cannot take the frame into its texture");
+            }
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            SDL_RenderTexture(renderer, texture, std::ptr::null(), std::ptr::null());
         }
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderTexture(renderer, texture, std::ptr::null(), std::ptr::null());
+        // Not the original's: the debug UI over the frame.
+        crate::debug::imgui_sdl::draw(renderer, window);
+        // SAFETY: as above.
+        unsafe { SDL_RenderPresent(renderer) };
+        Ok(())
     }
-    // Not the original's: the debug UI over the frame.
-    crate::debug::imgui_sdl::draw(renderer, window);
-    // SAFETY: as above.
-    unsafe { SDL_RenderPresent(renderer) };
-    Ok(())
 }
 
 /// The frames' running counters, for the debug UI's profiler: microseconds in the
 /// rasteriser, noting the triangles and showing the frame; triangle fans; pixels drawn.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn frame_counters() -> [u64; 5] {
     use std::sync::atomic::Ordering::Relaxed;
     [
@@ -891,13 +1026,13 @@ pub fn frame_counters() -> [u64; 5] {
 }
 
 /// The screen's width and height.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn screen_size() -> (u32, u32) {
     (GAME_SCREEN.width.get(), GAME_SCREEN.height.get())
 }
 
 /// The screen's pixels (its width times its height).
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn screen_pixels() -> u64 {
     u64::from(GAME_SCREEN.width.get()) * u64::from(GAME_SCREEN.height.get())
 }
@@ -986,6 +1121,7 @@ pub static HOOKS: &[&dyn GameHook] = &[
 ];
 
 /// A file of ours next to the log (the current folder can change: the installer).
+#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // used by the debug UI, and on Windows
 pub fn beside_log(name: &str) -> std::path::PathBuf {
     match crate::framework::LOG_PATH.get().and_then(|p| p.parent()) {
         Some(folder) => folder.join(name),

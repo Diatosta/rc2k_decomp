@@ -17,10 +17,16 @@ use crate::menu::leaving::{question, with_question};
 
 pub fn handle_yes_no(eax: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::leaving::Question::answer_key`.
+    // A gamepad's button (not the original's): the answer goes with the key it sent.
+    let pad = crate::input::menu_pad::take_answer();
     if !question().asks() {
         return Ok(());
     }
-    let said = match { yes_no_for_key(eax) }? {
+    let answer = match pad {
+        Some(answer) => answer,
+        None => { yes_no_for_key(eax) }?,
+    };
+    let said = match answer {
         YES => Some(true),
         NO => Some(false),
         _ => None,

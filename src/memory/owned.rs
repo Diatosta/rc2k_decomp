@@ -9,8 +9,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::{MemoryList, own_heap, with_figures};
-use std::cell::RefCell;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
@@ -48,21 +48,30 @@ pub fn block_len(bytes: u32) -> usize {
 
 pub struct Owned<T> {
     value: Mutex<Option<Box<T>>>,
+    /// The thread in a step on it (0: none). Only that thread's own check can match, so
+    /// relaxed is enough; a second step on the same thread would otherwise wait for itself.
+    holder: AtomicUsize,
     /// What it is, for the refusals.
     what: &'static str,
 }
 
 thread_local! {
-    /// The values this thread is in a step on (by their `Owned`'s address).
-    static HELD: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+    /// Only its address is used: what names this thread as a value's holder.
+    static THREAD_MARK: u8 = const { 0 };
+}
+
+/// This thread's name, never 0.
+#[inline]
+fn this_thread() -> usize {
+    THREAD_MARK.with(|m| m as *const u8 as usize)
 }
 
 /// A step ended (also when it unwinds).
-struct Held(usize);
+struct Held<'a>(&'a AtomicUsize);
 
-impl Drop for Held {
+impl Drop for Held<'_> {
     fn drop(&mut self) {
-        HELD.with(|h| h.borrow_mut().retain(|&b| b != self.0));
+        self.0.store(0, Relaxed);
     }
 }
 
@@ -70,6 +79,7 @@ impl<T> Owned<T> {
     pub const fn new(what: &'static str) -> Self {
         Self {
             value: Mutex::new(None),
+            holder: AtomicUsize::new(0),
             what,
         }
     }
@@ -107,14 +117,14 @@ impl<T> Owned<T> {
 
     /// `f` on the value. Refuses none taken and a step inside one on the same value.
     pub fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> Result<R, BadInput> {
-        let me = self as *const Self as usize;
-        if HELD.with(|h| h.borrow().contains(&me)) {
+        let me = this_thread();
+        if self.holder.load(Relaxed) == me {
             return Err(BadInput("a table reached again inside its own step"));
         }
         let mut value = self.lock();
         let value = value.as_mut().ok_or(BadInput(self.what))?;
-        HELD.with(|h| h.borrow_mut().push(me));
-        let _held = Held(me);
+        self.holder.store(me, Relaxed);
+        let _held = Held(&self.holder);
         Ok(f(value))
     }
 }

@@ -27,6 +27,36 @@ use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 
+/// A joystick has appeared (SDL's event, also for those there at the start): open as a gamepad
+/// if SDL knows it as one, so its buttons reach the menus (`input::menu_pad`) whether or not
+/// the game has asked for its devices yet.
+pub fn pad_added(id: SDL_JoystickID) {
+    // SAFETY: SDL's calls on the id its event gave; the name it returns (null checked) lives
+    // until the next call. A gamepad opened stays open for the program's life: SDL counts
+    // the opens, so the game's own open of it is another.
+    unsafe {
+        let name = SDL_GetJoystickNameForID(id);
+        let name = if name.is_null() {
+            "a joystick".into()
+        } else {
+            std::ffi::CStr::from_ptr(name).to_string_lossy()
+        };
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        if name == "ANBERNIC-keys" {
+            let mut text = [0 as std::ffi::c_char; 33];
+            SDL_GUIDToString(SDL_GetJoystickGUIDForID(id), text.as_mut_ptr(), 33);
+            let guid = std::ffi::CStr::from_ptr(text.as_ptr()).to_string_lossy();
+            if let Ok(mapping) = std::ffi::CString::new(crate::handheld::pad_mapping(&guid)) {
+                SDL_AddGamepadMapping(mapping.as_ptr());
+            }
+        }
+        let opened = SDL_IsGamepad(id) && !SDL_OpenGamepad(id).is_null();
+        log(&format!(
+            "platform: {name} appeared; a gamepad for the menus: {opened}"
+        ));
+    }
+}
+
 struct Device {
     sdl_id: SDL_JoystickID,
     joystick: *mut SDL_Joystick,
@@ -55,6 +85,13 @@ impl SdlBackend {
     pub fn start() {
         // SAFETY: plain flags; SDL is started by then (`platform::start`).
         unsafe {
+            // The handheld's dummy window never has the focus; its pad has no x and y axes, so
+            // SDL does not take its event device for a joystick: named, by its joystick node.
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            {
+                SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, c"1".as_ptr());
+                SDL_SetHint(SDL_HINT_JOYSTICK_DEVICE, c"/dev/input/js0".as_ptr());
+            }
             if !SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC) {
                 log("platform: SDL's joysticks do not start: no joysticks");
                 return;

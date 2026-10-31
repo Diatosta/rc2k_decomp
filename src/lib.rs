@@ -18,6 +18,8 @@ mod files;
 mod film;
 mod framework;
 mod gfx;
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+mod handheld;
 mod hud;
 mod input;
 mod install;

@@ -6,7 +6,8 @@
 # folder is STANDALONE_DIR if deploy.local sets it, else the folder above GAME_DIR.
 # Start it there: `wine rc2k.exe` (it writes rc2k.log next to itself).
 # `deploy_standalone.sh x64` deploys the 64-bit build instead (into an x64 folder), and
-# `deploy_standalone.sh linux` the native Linux one (into a linux folder).
+# `deploy_standalone.sh linux` the native Linux one (into a linux folder), and
+# `deploy_standalone.sh anbernic` the handheld's (over SSH).
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -14,6 +15,26 @@ cd "$(dirname "$0")"
 [ -f deploy.local ] && source deploy.local
 : "${GAME_DIR:?Set GAME_DIR, e.g. in deploy.local}"
 DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
+
+if [ "${1:-}" = anbernic ]; then
+    # The Anbernic RG34XXSP (`src/handheld.rs`), built in its own system's container and
+    # copied over SSH: ANBERNIC_HOST in deploy.local (root@address), the key in
+    # ANBERNIC_KEY. The game's files go there once, by hand: see tools/anbernic/README.md.
+    : "${ANBERNIC_HOST:?Set ANBERNIC_HOST in deploy.local}"
+    SSH=(ssh -i "${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}" -o BatchMode=yes "$ANBERNIC_HOST")
+    docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
+    tools/anbernic/run.sh tools/build_ffmpeg.sh a64
+    tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+    BIN=target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k
+    tools/anbernic/run.sh aarch64-linux-gnu-strip -o target/a64-linux/rc2k.stripped "$BIN"
+    "${SSH[@]}" "rm -f /mnt/mmc/Roms/APPS/rally/rc2k"
+    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/rally/rc2k; chmod +x /mnt/mmc/Roms/APPS/rally/rc2k" \
+        < target/a64-linux/rc2k.stripped
+    "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/Rally.sh; chmod +x /mnt/mmc/Roms/APPS/Rally.sh" \
+        < tools/anbernic/Rally.sh
+    echo "deployed rc2k to the handheld"
+    exit 0
+fi
 
 if [ "${1:-}" = linux ]; then
     # The native Linux build (phase 11) into a linux folder in the game's folder, started

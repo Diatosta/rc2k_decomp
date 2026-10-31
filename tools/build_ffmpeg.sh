@@ -27,7 +27,8 @@ case "$ARCH" in
     x86) TRIPLE=i686-pc-windows-msvc; FFARCH=x86; SUFFIX="" ;;
     x64) TRIPLE=x86_64-pc-windows-msvc; FFARCH=x86_64; SUFFIX="-x64" ;;
     linux) FFARCH=x86_64; SUFFIX="-linux" ;;
-    *) echo "usage: build_ffmpeg.sh [x86|x64|linux]" >&2; exit 1 ;;
+    a64) FFARCH=aarch64; SUFFIX="-a64" ;;
+    *) echo "usage: build_ffmpeg.sh [x86|x64|linux|a64]" >&2; exit 1 ;;
 esac
 
 cd "$(dirname "$0")/.."
@@ -39,7 +40,7 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
 fi
 
 XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
-[ "$ARCH" = linux ] || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
+[ "$ARCH" = linux ] || [ "$ARCH" = a64 ] || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -56,7 +57,7 @@ gpg --homedir "$TMP/gnupg" --status-fd 1 --verify "$TMP/ffmpeg.tar.xz.asc" "$TMP
 tar xf "$TMP/ffmpeg.tar.xz" -C "$TMP"
 SRC="$TMP/ffmpeg-$VERSION"
 
-if [ "$ARCH" = linux ]; then
+if [ "$ARCH" = linux ] || [ "$ARCH" = a64 ]; then
     # Static, position-independent libraries for the native Linux build: linked into the
     # program, so it needs no FFmpeg on the machine it runs on (build.rs links them).
     # glibc 2.44 gave sinh and cosh new symbol versions (libavutil's expression evaluator
@@ -66,7 +67,16 @@ if [ "$ARCH" = linux ]; then
         > "$TMP/glibc_floor.h"
     mkdir "$TMP/build"
     cd "$TMP/build"
-    "$SRC/configure" --cc="${CC:-gcc}" --arch=$FFARCH --disable-asm --enable-pic \
+    # The handheld's (tools/anbernic/Dockerfile): crossed, against its own old glibc, which
+    # needs no floor (and has no 2.2.5 on arm64).
+    if [ "$ARCH" = a64 ]; then
+        : > "$TMP/glibc_floor.h"
+        CROSS=(--enable-cross-compile --cross-prefix=aarch64-linux-gnu- --target-os=linux
+            --cc=aarch64-linux-gnu-gcc)
+    else
+        CROSS=(--cc="${CC:-gcc}")
+    fi
+    "$SRC/configure" "${CROSS[@]}" --arch=$FFARCH --disable-asm --enable-pic \
         --extra-cflags="-include $TMP/glibc_floor.h" \
         --disable-everything --enable-decoder=indeo4,mpeg1video,mp2 \
         --enable-parser=mpegvideo,mpegaudio --disable-programs --disable-doc \

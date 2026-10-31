@@ -183,9 +183,30 @@ pub fn write_bytes(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
 
 /// A `T` (a whole number) at `at`.
 pub fn read<T: Copy>(at: u32, what: &str) -> Result<T, BadInput> {
-    let b = bytes(at, size_of::<T>(), what)?;
-    // SAFETY: `b` holds `size_of::<T>()` bytes; `T` is a whole number (any bits).
-    Ok(unsafe { b.as_ptr().cast::<T>().read_unaligned() })
+    let mut v = std::mem::MaybeUninit::<T>::zeroed();
+    // SAFETY: the bytes of a zeroed `T`, a whole number: every byte is initialised.
+    let to = unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr().cast::<u8>(), size_of::<T>()) };
+    copy_into(at, to, what)?;
+    // SAFETY: as above; `T` is a whole number (any bits).
+    Ok(unsafe { v.assume_init() })
+}
+
+/// `to.len()` bytes at `at` (as `bytes` names it) into `to`, without a heap copy where the
+/// place is a store's: these reads are the physics' every tick.
+fn copy_into(at: u32, to: &mut [u8], what: &str) -> Result<(), BadInput> {
+    if let Some((s, off)) = store(at) {
+        return s
+            .with(|b| {
+                b.get(off..off.checked_add(to.len())?)
+                    .map(|from| to.copy_from_slice(from))
+            })?
+            .ok_or(BadInput("a read outside the course faces or records"));
+    }
+    if scene_point(at) {
+        return crate::race::scene_points::copy_into(at, to);
+    }
+    to.copy_from_slice(&GamePtr::new(at).read_bytes(to.len(), what)?);
+    Ok(())
 }
 
 /// As `read`; a refusal ends the game (for the readers that cannot carry one).
@@ -203,15 +224,7 @@ pub fn write<T: Copy>(at: u32, v: T, what: &str) -> Result<(), BadInput> {
 /// The `N` bytes at `at` (as `bytes` names it), a store's without a heap copy.
 fn array<const N: usize>(at: u32, what: &str) -> Result<[u8; N], BadInput> {
     let mut a = [0; N];
-    if let Some((s, off)) = store(at) {
-        s.with(|b| {
-            b.get(off..off.checked_add(N)?)
-                .map(|from| a.copy_from_slice(from))
-        })?
-        .ok_or(BadInput("a read outside the course faces or records"))?;
-        return Ok(a);
-    }
-    a.copy_from_slice(&bytes(at, N, what)?);
+    copy_into(at, &mut a, what)?;
     Ok(a)
 }
 

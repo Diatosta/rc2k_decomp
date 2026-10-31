@@ -548,6 +548,10 @@ struct Texels<'a> {
     /// Every place is within the bytes.
     whole: bool,
     /// The pitch's and a texel's bytes as shifts, when both are powers of two.
+    #[cfg_attr(
+        not(any(target_arch = "x86", target_arch = "x86_64")),
+        allow(dead_code)
+    )] // the SSE path's
     shifts: Option<(i32, i32)>,
 }
 
@@ -626,6 +630,10 @@ impl<'a> Texels<'a> {
     /// the usual cases (a whole texture, wrapped by powers of two or clamped, 32-bit
     /// A8R8G8B8 or a 16-bit table) chosen once for the four.
     #[inline(always)]
+    #[cfg_attr(
+        not(any(target_arch = "x86", target_arch = "x86_64")),
+        allow(dead_code)
+    )] // the SSE path's
     fn fetch4(&self, xs: &[i32; 4], ys: &[i32; 4], live: i32) -> [u32; 4] {
         let t = self.texture;
         let mut out = [0u32; 4];
@@ -909,6 +917,10 @@ impl Triangle<'_> {
 
 /// Draw every row one place at a time (the four-at-a-time path off): for comparing the
 /// two, which give the same pixels.
+#[cfg_attr(
+    not(any(target_arch = "x86", target_arch = "x86_64")),
+    allow(dead_code)
+)] // the SSE path's
 pub static SCALAR_ONLY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A row's values: each (at its first place, its change a pixel).

@@ -26,6 +26,7 @@ pub mod key_to_char;
 pub mod keys;
 pub mod list_joysticks;
 pub mod make_effect;
+pub mod menu_pad;
 pub mod poll_device;
 pub mod read_device;
 pub mod release_device;

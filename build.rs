@@ -8,12 +8,24 @@
 // (`third_party/ffmpeg-linux/lib`, static): one program runs on any distribution with
 // nothing else installed.
 fn main() {
+    // The debug UI: 64-bit builds with a window to draw it over (not 32-bit Windows, whose
+    // Dear ImGui crate has no target; not the handheld, whose frames go to the framebuffer).
+    println!("cargo:rustc-check-cfg=cfg(debug_ui)");
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
+    if bits == "64" && arch != "aarch64" {
+        println!("cargo:rustc-cfg=debug_ui");
+    }
     println!("cargo:rerun-if-changed=build.rs");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
         let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-        let lib = format!("{dir}/third_party/ffmpeg-linux/lib");
+        let folder = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
+            Ok("aarch64") => "ffmpeg-a64",
+            _ => "ffmpeg-linux",
+        };
+        let lib = format!("{dir}/third_party/{folder}/lib");
         if !std::path::Path::new(&format!("{lib}/libavcodec.a")).exists() {
-            panic!("no static FFmpeg in {lib}: run tools/build_ffmpeg.sh linux");
+            panic!("no static FFmpeg in {lib}: run tools/build_ffmpeg.sh (linux or a64)");
         }
         println!("cargo:rerun-if-changed={lib}");
         println!("cargo:rustc-link-search=native={lib}");

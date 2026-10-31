@@ -88,11 +88,26 @@ pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
         .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
 }
 
+/// `to.len()` bytes at place `at` into `to`, refused as `bytes`, without a heap copy.
+#[track_caller]
+pub fn copy_into(at: u32, to: &mut [u8]) -> Result<(), BadInput> {
+    let caller = std::panic::Location::caller();
+    let len = to.len();
+    if at < base() {
+        to.copy_from_slice(&bytes(at, len)?);
+        return Ok(());
+    }
+    POINTS
+        .with(|p| p.get(range(at, len)?).map(|from| to.copy_from_slice(from)))?
+        .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
+}
+
 /// The dword at place `at`.
 #[track_caller]
 pub fn word(at: u32) -> Result<u32, BadInput> {
-    let b = bytes(at, 4)?;
-    Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    let mut b = [0; 4];
+    copy_into(at, &mut b)?;
+    Ok(u32::from_le_bytes(b))
 }
 
 /// The dword at place `at`; outside the points the game ends (for the readers that
@@ -105,7 +120,8 @@ pub fn word_or_end(at: u32) -> u32 {
 /// The three dwords of the point at place `at`.
 #[track_caller]
 pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
-    let b = bytes(at, 12)?;
+    let mut b = [0; 12];
+    copy_into(at, &mut b)?;
     Ok(std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     }))

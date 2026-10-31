@@ -17,13 +17,13 @@ pub fn note_race() {
 }
 
 /// Whether a race has been played.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn raced() -> bool {
     RACED.load(Ordering::Relaxed)
 }
 
 /// Says whether free play starts at the start.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn place_free_play(on: bool) {
     PLACE_FREE_PLAY.store(on, Ordering::Relaxed);
 }
@@ -40,19 +40,19 @@ const CSPECS: u32 = 100;
 static WANTED: AtomicU32 = AtomicU32::new(0);
 
 /// The section best times of `section` (0 .. 5) at the menu's next frame.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn ask_section_times(section: u32) {
     WANTED.store(section + 1, Ordering::Relaxed);
 }
 
 /// The car specification screen at the menu's next frame.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn ask_cspecs() {
     WANTED.store(CSPECS, Ordering::Relaxed);
 }
 
 /// Whether the section has its table (the draw refuses one without).
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn section_has_times(section: usize) -> bool {
     crate::saves::best_times_store::RALLY_TIMES.tables[section].get() != 0
 }
@@ -60,7 +60,7 @@ pub fn section_has_times(section: usize) -> bool {
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets
 /// itself up again, its background having been replaced).
 pub fn serve() -> Result<bool, Refused> {
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(debug_ui)]
     if crate::debug::dev_front_end::serve()? {
         return Ok(true);
     }

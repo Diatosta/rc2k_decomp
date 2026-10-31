@@ -331,6 +331,7 @@ pub fn watch(name: &'static str, start: u32, end: u32) {
     let Some(k) = slot else { return };
     if start < end {
         names[k] = name;
+        ANY_WATCHED.store(true, std::sync::atomic::Ordering::Relaxed);
         WATCHED[k].store(start as u64 | (end as u64) << 32, Release);
     } else {
         names[k] = "";
@@ -343,8 +344,19 @@ pub fn unwatch(name: &'static str) {
     watch(name, 0, 0);
 }
 
+/// Whether any range has been watched: the check of every by-address access, kept cheap.
+static ANY_WATCHED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 #[track_caller]
+#[inline]
 fn watched(addr: u32, len: usize, what: &str) {
+    if ANY_WATCHED.load(std::sync::atomic::Ordering::Relaxed) {
+        watched_slowly(addr, len, what);
+    }
+}
+
+#[track_caller]
+fn watched_slowly(addr: u32, len: usize, what: &str) {
     let end = addr.saturating_add(len as u32);
     for (k, w) in WATCHED.iter().enumerate() {
         let w = w.load(std::sync::atomic::Ordering::Relaxed);

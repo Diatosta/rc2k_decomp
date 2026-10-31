@@ -408,13 +408,21 @@ unsafe extern "C" fn on_signal(
     // SAFETY: the records as the system hands them (the function's contract).
     unsafe {
         let data = (*info).si_addr().expose_provenance();
+        #[cfg(target_arch = "aarch64")]
+        {
+            let c = &(*context.cast::<libc::ucontext_t>()).uc_mcontext;
+            report_fault(c.pc as usize, data, false, c.sp as usize)
+        }
+        #[cfg(not(target_arch = "aarch64"))]
         let regs = &(*context.cast::<libc::ucontext_t>()).uc_mcontext.gregs;
         #[cfg(target_arch = "x86_64")]
         let (ip, sp) = (libc::REG_RIP, libc::REG_RSP);
         #[cfg(target_arch = "x86")]
         let (ip, sp) = (libc::REG_EIP, libc::REG_ESP);
         // The page fault's error code: bit 1 for a write.
+        #[cfg(not(target_arch = "aarch64"))]
         let write = regs[libc::REG_ERR as usize] & 2 != 0;
+        #[cfg(not(target_arch = "aarch64"))]
         report_fault(
             regs[ip as usize] as usize,
             data,

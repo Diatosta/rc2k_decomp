@@ -37,7 +37,7 @@ pub fn note_voices((playing, stopping): (u32, u32)) {
 }
 
 /// The voices playing and stopping as last noted.
-#[cfg(target_pointer_width = "64")]
+#[cfg(debug_ui)]
 pub fn voices() -> (u32, u32) {
     (VOICES[0].load(Relaxed), VOICES[1].load(Relaxed))
 }
@@ -52,7 +52,7 @@ pub fn note_tick() {
 }
 
 /// The race's ticks so far.
-#[cfg(target_pointer_width = "64")]
+#[cfg(any(debug_ui, all(target_os = "linux", target_arch = "aarch64")))]
 pub fn ticks() -> u32 {
     TICKS.load(Relaxed)
 }
@@ -60,6 +60,9 @@ pub fn ticks() -> u32 {
 /// A stage begins: the clock, only while the UI is open.
 #[inline]
 pub fn start() -> Option<Instant> {
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    return Some(Instant::now());
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     crate::debug::imgui_sdl::is_open().then(Instant::now)
 }
 
@@ -73,7 +76,7 @@ pub fn stop(stage: Stage, begun: Option<Instant>) {
 }
 
 /// Each stage's nanoseconds and runs so far.
-#[cfg(target_pointer_width = "64")]
+#[cfg(any(debug_ui, all(target_os = "linux", target_arch = "aarch64")))]
 pub fn counts() -> ([u64; STAGES], [u64; STAGES]) {
     (
         std::array::from_fn(|n| NANOS[n].load(Relaxed)),

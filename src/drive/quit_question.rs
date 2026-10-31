@@ -25,6 +25,8 @@ use rc2k_core::drive::race_ticks;
 /// (liveness: `race_loop` reads eax only).
 pub fn quit_question() -> Result<u32, Refused> {
     stop_race_sounds()?;
+    // A button from before the question answers nothing.
+    crate::input::menu_pad::take_answer();
     RACE_VARS.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).

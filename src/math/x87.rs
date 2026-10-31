@@ -99,10 +99,7 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 /// `rcpss xmm0, a; mulss xmm0, b` (an SSE approximation, kept as the instruction: its
 /// result differs between processors).
 pub fn rcpss_times(a: u32, b: u32) -> u32 {
-    use crate::arch::{_mm_cvtss_f32, _mm_mul_ss, _mm_rcp_ss, _mm_set_ss};
-    let (a, b) = (f32::from_bits(a), f32::from_bits(b));
-    // SSE is part of the i686 target's baseline.
-    unsafe { _mm_cvtss_f32(_mm_mul_ss(_mm_rcp_ss(_mm_set_ss(a)), _mm_set_ss(b))).to_bits() }
+    (crate::arch::rcpss(f32::from_bits(a)) * f32::from_bits(b)).to_bits()
 }
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
