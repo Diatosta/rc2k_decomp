@@ -22,13 +22,48 @@ use crate::math::x87::from_int;
 use crate::physics::car_store::CAR;
 use crate::physics::queue_notice::queue_notice;
 use crate::physics::store::DAMAGE;
+use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
-/// `unk_71A284` .. `unk_71A33C`: the gauges, dwords from `CAR.brake_heat` on (the store
-/// types only the first two).
-fn gauge(k: usize) -> u32 {
-    crate::session::read_on(&CAR.brake_heat, k, "physics::damage_notices's operand")
-        .unwrap_or_else(|e| crate::fatal::raise::end("physics::damage_notices", e))
+/// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
+fn gauge(mut k: usize) -> u32 {
+    use std::slice::from_ref as one;
+    let groups: [&[Float]; 24] = [
+        &CAR.brake_heat,
+        one(&CAR.engine_heat),
+        one(&CAR.engine_damage),
+        one(&CAR.exhaust_damage),
+        one(&CAR.turbo_damage),
+        one(&CAR.cooling_damage),
+        one(&CAR.clutch_damage),
+        one(&CAR.differential_damage),
+        &CAR.gear_wear,
+        one(&CAR.gearbox_damage),
+        &CAR.wheel_hit_damage,
+        one(&CAR.body_hit_damage),
+        one(&CAR.body_damage),
+        one(&CAR.electrics_damage),
+        &CAR.light_damage,
+        one(&CAR.lights_damage),
+        one(&CAR.steering_damage),
+        &CAR.suspension_damage,
+        one(&CAR.overall_suspension_damage),
+        one(&CAR.brake_wear_a),
+        one(&CAR.brake_wear_b),
+        one(&CAR.brake_damage),
+        &CAR.part_hit_damage,
+        one(&CAR.tyre_wear),
+    ];
+    for group in groups {
+        match group.get(k) {
+            Some(cell) => return cell.bits(),
+            None => k -= group.len(),
+        }
+    }
+    crate::fatal::raise::end(
+        "physics::damage_notices",
+        crate::errors::BadInput("a gauge past the car's gauges"),
+    )
 }
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
@@ -49,4 +84,16 @@ fn steps() -> Result<(), Refused> {
 /// The Rust version. The registers the original leaves are read by none of its callers.
 pub fn damage_notices() -> Result<(), Refused> {
     steps()
+}
+
+#[cfg(test)]
+mod gauge_tests {
+    use super::*;
+
+    /// Each gauge is the dword its number says, from `brake_heat` on.
+    #[test]
+    fn the_gauges_are_in_a_row() {
+        let first = (&raw const CAR.brake_heat) as usize;
+        assert_eq!((&raw const CAR.tyre_wear) as usize, first + 46 * 4);
+    }
 }

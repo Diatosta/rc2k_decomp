@@ -189,13 +189,13 @@ pub fn set_object_kinds() -> Result<(), Refused> {
     crate::scene::clear_slot_kinds::clear_slot_kinds();
     crate::session::write_bits(&STAGE_PREFS.fixed_kinds, FIXED_KINDS);
     for n in DEFAULT_SLOTS {
-        // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
-        // (the original's table is read on, a slip kept).
-        let default = crate::session::read_on(
-            &STAGE_PREFS.slot_kind_defaults,
-            n as usize,
-            "the slot kind defaults",
-        )?;
+        // Slots 56 .. 62 take `fixed_kinds`, just set above: the original's table runs on
+        // into it (a slip kept).
+        let n_defaults = STAGE_PREFS.slot_kind_defaults.len();
+        let default = match STAGE_PREFS.slot_kind_defaults.get(n as usize) {
+            Some(cell) => cell.get(),
+            None => STAGE_PREFS.fixed_kinds[n as usize - n_defaults].get(),
+        };
         OBJECT_TABLES.slot_kinds[n as usize].set(default);
     }
     // `dword_5CCF7C` = `dword_621844`.
