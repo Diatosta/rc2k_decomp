@@ -29,6 +29,11 @@ block!(pub mod vars {
 /// read only by `dev_front_end__draw`). Their addresses are not pointed anywhere and nothing
 /// may read them.
 pub const UNREAD: [(usize, usize); 8] = [
+/// overwritten at once by `pop ebx`), the texture kinds' names `off_64CD0C` (its one read,
+/// 0x459D6F in `sub_459CC2`, a stage-by-stage dump of the texture kinds to the log reached only
+/// from the `running sub program` chunk at 0x442BE3, no function of the Rust side). Their addresses are not pointed anywhere and nothing may
+/// read them.
+pub const UNREAD: [(usize, usize); 7] = [
     (0x5EBB5A, 0x5EE258),
     (0x5FFF12, 0x5FFF32),
     (0x5FFFCC, 0x60000C),
@@ -37,6 +42,7 @@ pub const UNREAD: [(usize, usize); 8] = [
     (0x621C68, 0x621E68),
     (0x622084, 0x622114),
     (0x622238, 0x6223C8),
+    (0x64CD0C, 0x64CDA8),
 ];
 /// Whether IDA's `ida` lies in a table of `UNREAD`.
 pub fn is_unread(ida: usize) -> bool {
@@ -674,6 +680,21 @@ mod tests {
             )));
         }
         assert!(!is_dead(home(0x5BEC48) as u32));
+    }
+
+    /// The texture kinds' names table (`off_64CD0C`, 39 dwords) is unread and holds the image's
+    /// addresses of its names, which lie just after it.
+    #[test]
+    fn the_texture_kinds_names_are_unread() {
+        let (start, end) = (0x64CD0C, 0x64CDA8);
+        assert!(UNREAD.contains(&(start, end)));
+        let image = crate::moved::image_bytes(start, end - start);
+        for (n, word) in image.chunks(4).enumerate() {
+            let name = u32::from_le_bytes(word.try_into().unwrap()) as usize;
+            assert!((end..end + 0x100).contains(&name), "entry {n}");
+            assert!(crate::relocations::PLACES.contains(&((start + 4 * n) as u32)));
+            assert!(is_unread(start + 4 * n));
+        }
     }
 
     #[test]
