@@ -1642,12 +1642,12 @@ impl SplineHead {
     /// cars (34 models, pairs 8 bytes apart) run two and three dwords past the table's end
     /// into `found`, `angle` and `wave` (`notes/bugs.md`).
     pub fn look(&self, i: usize) -> u32 {
-        assert!(i < 69, "the looks table is read at most up to `wave`");
-        unsafe {
-            let first = (self as *const Self as *const u8)
-                .add(core::mem::offset_of!(Self, looks))
-                .cast::<Dword>();
-            (*first.add(i)).get()
+        match i {
+            0..66 => self.looks[i].get(),
+            66 => self.found.get(),
+            67 => self.angle.bits(),
+            68 => self.wave.bits(),
+            _ => panic!("the looks table is read at most up to `wave`"),
         }
     }
 }

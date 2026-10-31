@@ -106,6 +106,92 @@ pub struct Player {
     pub gap_288: u32,
 }
 
+impl Player {
+    /// The record from its 0x28c bytes in the game's layout (little-endian dwords).
+    pub const fn from_le_bytes(b: [u8; 0x28c]) -> Self {
+        const fn word(b: &[u8; 0x28c], at: usize) -> u32 {
+            u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
+        }
+        const fn bytes<const N: usize>(b: &[u8; 0x28c], at: usize) -> [u8; N] {
+            let mut out = [0; N];
+            let mut n = 0;
+            while n < N {
+                out[n] = b[at + n];
+                n += 1;
+            }
+            out
+        }
+        const fn words<const N: usize>(b: &[u8; 0x28c], at: usize) -> [u32; N] {
+            let mut out = [0; N];
+            let mut n = 0;
+            while n < N {
+                out[n] = word(b, at + 4 * n);
+                n += 1;
+            }
+            out
+        }
+        Self {
+            gap_0: word(&b, 0x0),
+            nationality: word(&b, 0x4),
+            car_number: word(&b, 0x8),
+            view: word(&b, 0xc),
+            second_view: word(&b, 0x10),
+            field_14: word(&b, 0x14),
+            name: word(&b, 0x18),
+            keys: bytes::<0xc>(&b, 0x1c),
+            race_number: word(&b, 0x28),
+            gap_2c: word(&b, 0x2c),
+            gearing: word(&b, 0x30),
+            gap_34: bytes::<0x8>(&b, 0x34),
+            field_3c: word(&b, 0x3c),
+            field_40: word(&b, 0x40),
+            field_44: word(&b, 0x44),
+            field_48: word(&b, 0x48),
+            gap_4c: word(&b, 0x4c),
+            controls_50: bytes::<0x2c>(&b, 0x50),
+            gap_7c: bytes::<0x8>(&b, 0x7c),
+            field_84: word(&b, 0x84),
+            gap_88: word(&b, 0x88),
+            field_8c: word(&b, 0x8c),
+            no_turbo: word(&b, 0x90),
+            gap_94: bytes::<0x38>(&b, 0x94),
+            damage: words::<16>(&b, 0xcc),
+            tyre: word(&b, 0x10c),
+            brake_balance: word(&b, 0x110),
+            ride_height: word(&b, 0x114),
+            suspension_stiffness: word(&b, 0x118),
+            steering_sensitivity: word(&b, 0x11c),
+            gear_ratio: word(&b, 0x120),
+            name_copy: bytes::<0x20>(&b, 0x124),
+            field_144: word(&b, 0x144),
+            field_148: word(&b, 0x148),
+            field_14c: word(&b, 0x14c),
+            field_150: word(&b, 0x150),
+            codriver_sex: word(&b, 0x154),
+            map_area: word(&b, 0x158),
+            rear_mirror: word(&b, 0x15c),
+            rev_counter: word(&b, 0x160),
+            car_info: word(&b, 0x164),
+            message_display: word(&b, 0x168),
+            progress_bar: word(&b, 0x16c),
+            driver_info: word(&b, 0x170),
+            pace_notes: word(&b, 0x174),
+            metric_units: word(&b, 0x178),
+            wear_17c: words::<31>(&b, 0x17c),
+            tyre_wear: words::<5>(&b, 0x1f8),
+            gap_20c: bytes::<0x40>(&b, 0x20c),
+            field_24c: words::<8>(&b, 0x24c),
+            gap_26c: bytes::<0x8>(&b, 0x26c),
+            field_274: word(&b, 0x274),
+            flags_278: word(&b, 0x278),
+            gap_27c: word(&b, 0x27c),
+            controller_sensitivity: word(&b, 0x280),
+            field_284: word(&b, 0x284) as i32,
+            gap_288: word(&b, 0x288),
+        }
+    }
+}
+
 const _: () = assert!(std::mem::size_of::<Player>() == 0x28C);
 
 /// A setting the players' pages change.

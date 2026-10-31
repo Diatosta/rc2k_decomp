@@ -194,12 +194,10 @@ impl SurfaceTables {
     /// goes on into the struct's next fields, as the image's neighbours were read.
     pub fn word(&self, at: usize) -> u32 {
         assert!(at + 4 <= Self::LEN);
-        unsafe {
-            (self as *const Self as *const u8)
-                .add(at)
-                .cast::<u32>()
-                .read_unaligned()
-        }
+        crate::pointers::read_or_end(
+            crate::pointers::game_address(self as *const Self) + at as u32,
+            "a surface word",
+        )
     }
 }
 

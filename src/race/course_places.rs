@@ -187,13 +187,41 @@ pub fn write_bytes(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
 }
 
 /// A `T` (a whole number) at `at`.
-pub fn read<T: Copy>(at: u32, what: &str) -> Result<T, BadInput> {
-    let mut v = std::mem::MaybeUninit::<T>::zeroed();
-    // SAFETY: the bytes of a zeroed `T`, a whole number: every byte is initialised.
-    let to = unsafe { std::slice::from_raw_parts_mut(v.as_mut_ptr().cast::<u8>(), size_of::<T>()) };
-    copy_into(at, to, what)?;
-    // SAFETY: as above; `T` is a whole number (any bits).
-    Ok(unsafe { v.assume_init() })
+pub fn read<T: Whole>(at: u32, what: &str) -> Result<T, BadInput> {
+    let mut b = [0; 64];
+    copy_into(at, &mut b[..size_of::<T>()], what)?;
+    Ok(T::from_bytes(&b))
+}
+
+/// What `read` and `write` take: values of any bits, at most 64 bytes.
+pub trait Whole: Copy {
+    fn from_bytes(from: &[u8; 64]) -> Self;
+    fn to_bytes(self, to: &mut [u8; 64]);
+}
+
+macro_rules! whole {
+    ($($t:ty),*) => {$(
+        impl Whole for $t {
+            fn from_bytes(from: &[u8; 64]) -> Self {
+                let mut b = [0; size_of::<$t>()];
+                b.copy_from_slice(&from[..size_of::<$t>()]);
+                <$t>::from_le_bytes(b)
+            }
+            fn to_bytes(self, to: &mut [u8; 64]) {
+                to[..size_of::<$t>()].copy_from_slice(&self.to_le_bytes());
+            }
+        }
+    )*};
+}
+whole!(u8, u16, u32, i8, i16, i32, f32);
+
+impl<const N: usize> Whole for [u8; N] {
+    fn from_bytes(from: &[u8; 64]) -> Self {
+        std::array::from_fn(|n| from[n])
+    }
+    fn to_bytes(self, to: &mut [u8; 64]) {
+        to[..N].copy_from_slice(&self);
+    }
 }
 
 /// `to.len()` bytes at `at` (as `bytes` names it) into `to`, without a heap copy where the
@@ -215,15 +243,15 @@ fn copy_into(at: u32, to: &mut [u8], what: &str) -> Result<(), BadInput> {
 }
 
 /// As `read`; a refusal ends the game (for the readers that cannot carry one).
-pub fn read_or_end<T: Copy>(at: u32, what: &str) -> T {
+pub fn read_or_end<T: Whole>(at: u32, what: &str) -> T {
     read(at, what).unwrap_or_else(|e| crate::fatal::raise::end(what, e))
 }
 
 /// `v` (a whole number) written at `at`.
-pub fn write<T: Copy>(at: u32, v: T, what: &str) -> Result<(), BadInput> {
-    // SAFETY: `v` is a whole number: its bytes are all initialised.
-    let b = unsafe { std::slice::from_raw_parts((&raw const v).cast::<u8>(), size_of::<T>()) };
-    write_bytes(at, b, what)
+pub fn write<T: Whole>(at: u32, v: T, what: &str) -> Result<(), BadInput> {
+    let mut b = [0; 64];
+    v.to_bytes(&mut b);
+    write_bytes(at, &b[..size_of::<T>()], what)
 }
 
 /// The `N` bytes at `at` (as `bytes` names it), a store's without a heap copy.
