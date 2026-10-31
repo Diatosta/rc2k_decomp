@@ -18,6 +18,7 @@ pub fn reset_single_event() -> Result<(), Refused> {
         return Err(BadInput("a missing player").into());
     }
     let mut drivers = driver_table()?;
+    let mut drivers = drivers.entries();
 
     MENU_PAGES.services.set(0u32);
     EVENT_STATE.stages_done.set(0u32);

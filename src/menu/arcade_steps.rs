@@ -136,7 +136,7 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
             name: bytes(name)?,
         };
         let mut r = table(record, STAGE_RECORD_LEN, 1)?;
-        bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
+        bests::take_record(&mut r.entries(), 0, &bests::RECORD_HOLDER, &holder);
     }
     Ok(())
 }

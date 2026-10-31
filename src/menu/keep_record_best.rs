@@ -36,6 +36,7 @@ pub fn keep_record_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     use rc2k_core::menu::bests;
     let mut r = table(record, 0xA4, 1)?;
+    let mut r = r.entries();
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
         let figure = get(p + 0x94)?;

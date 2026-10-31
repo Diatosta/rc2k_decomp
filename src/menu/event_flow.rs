@@ -71,29 +71,6 @@ impl Fault {
     }
 }
 
-/// `len` bytes of the game's memory from `first` for a core function that walks a table in
-/// place; refused unless they all lie in one block (`pointers::region_of`). Keep it for
-/// one step: a block can be given back later.
-pub fn game_slice<'a>(first: u32, len: u32, what: &str) -> Result<&'a mut [u8], BadInput> {
-    match crate::pointers::region_of(first) {
-        Some((_, end)) if (end - first) >= len => {
-            // SAFETY: all `len` bytes lie in one live region (a registered block or a moved
-            // store); the caller is the only one using them for the step.
-            Ok(unsafe {
-                std::slice::from_raw_parts_mut(crate::pointers::host(first), len as usize)
-            })
-        }
-        _ => {
-            crate::framework::log(&format!(
-                "pointers: {what} at {first:#010x} ({len} bytes) is outside every allocation"
-            ));
-            Err(BadInput(
-                "a game pointer outside every allocation (rc2k.log names it)",
-            ))
-        }
-    }
-}
-
 /// A refusal where the caller's signature cannot carry one (a trait of the core's, an
 /// installer helper): the program ends naming it, as a refusal does at the top.
 pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {

@@ -49,7 +49,9 @@ pub fn begin_event() -> Result<(), Refused> {
     // `KEEPS_SETUP`, `setup_defaults`).
     use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
     let first = crate::menu::drivers_store::DRIVERS.first();
-    crate::menu::standings::table(first, DRIVER_LEN, count)?.store_all(&DRIVER_BEGIN);
+    crate::menu::standings::table(first, DRIVER_LEN, count)?
+        .entries()
+        .store_all(&DRIVER_BEGIN);
     EVENT_STATE.event_goes_on.set(1u32);
     EVENT_STATE.event_out.set(0u32);
     for n in 0..PLAYERS {

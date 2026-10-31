@@ -97,11 +97,6 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
     })
 }
 
-/// The mask at `at`, checked to lie in one region.
-fn mask(at: u32) -> Result<&'static mut [u8], BadInput> {
-    crate::menu::event_flow::game_slice(at, MASK_LEN, "a mark mask")
-}
-
 /// `effects::draw_mask` (0x4BE6C2): the mask at `at` (into `g_marksMask`) all 0xFF, then
 /// each of the +4 shapes at `shapes` (`g_marksMaskShapes`) drawn (`draw_mask_shape`).
 /// Refuses a count of 0 or less (the original's loop tests after counting and would run
@@ -120,7 +115,10 @@ pub fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
             r.fit()?;
             rows.push(r);
         }
-        rc2k_core::effects::masks::draw_mask(mask(at)?, &rows)?;
+        let place = GamePtr::new(at);
+        let mut mask = place.read_bytes(MASK_LEN as usize, "a mark mask")?;
+        rc2k_core::effects::masks::draw_mask(&mut mask, &rows)?;
+        place.write_bytes(&mask, "a mark mask")?;
         PICKS.mask.set(at);
         PICKS.shapes.set(shapes);
         MASKS.mask_value.set(count as u32 - 1);

@@ -13,9 +13,6 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::moved::Place;
-use std::ptr::copy_nonoverlapping;
-use std::slice::from_raw_parts;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
@@ -48,10 +45,6 @@ pub fn set_enabled(value: i32) {
     state::ENABLED.store(value, Ordering::Relaxed)
 }
 
-/// The line buffer (0x93E080 .. the text buffer at 0x93E430 in the image): a line is at
-/// most `LINE_LIMIT` + 3 bytes.
-pub const LINE_BUF_LEN: usize = 0x3B0;
-pub static LINE_BUF: Place<[u8; LINE_BUF_LEN]> = Place::new([0; LINE_BUF_LEN]);
 /// `dword_4E06EA` .. (`files`' table of file modes, 16 bytes each): mode 4's access,
 /// disposition and share, as the image holds them (`tests::modes_are_the_games`).
 const MODE_ACCESS: u32 = 0x4000_0000;
@@ -71,10 +64,6 @@ pub static LOG_PATH: &[u8] = b"var\\logfile.txt\0";
 
 pub fn lock() -> &'static AtomicU32 {
     &state::LOCK
-}
-
-fn line_buf() -> *mut u8 {
-    LINE_BUF.ptr().cast()
 }
 
 // ---- Rust version ----
@@ -132,13 +121,7 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
     let mut now = load_state();
     if let Logged::Line(line) = log_line(&mut now, text, newline, level) {
         state::LINE_START.store(now.line_start, Ordering::Relaxed);
-        // SAFETY: the line is at most `LINE_LIMIT` + 3 bytes, within the buffer; the lock
-        // is held.
-        unsafe {
-            let buf = line_buf();
-            copy_nonoverlapping(line.as_ptr(), buf, line.len());
-            append_to_file(LOG_PATH, from_raw_parts(buf, line.len()));
-        }
+        append_to_file(LOG_PATH, &line);
     }
     lock().store(0, Ordering::Release);
 }

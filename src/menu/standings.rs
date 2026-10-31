@@ -152,23 +152,45 @@ impl Found {
     }
 }
 
-/// A table's bytes, `len` from `first`: refused unless they all lie in one block of the
-/// game's memory (the table is used by this one caller meanwhile, as the original's code).
-pub fn table_bytes<'a>(first: u32, len: u32) -> Result<&'a mut [u8], BadInput> {
-    crate::menu::event_flow::game_slice(first, len, "a standings table")
+/// A table copied out of the game's memory for the core to work on, stored back when dropped
+/// (whatever the caller's way out: the original works in place, so its changes stay).
+pub struct GameTable {
+    first: u32,
+    size: usize,
+    bytes: Vec<u8>,
+}
+
+impl GameTable {
+    /// The core's view.
+    pub fn entries(&mut self) -> Entries<'_> {
+        Entries {
+            bytes: &mut self.bytes,
+            size: self.size,
+        }
+    }
+}
+
+impl Drop for GameTable {
+    fn drop(&mut self) {
+        crate::pointers::GamePtr::new(self.first)
+            .write_bytes(&self.bytes, "a standings table")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a standings table", e));
+    }
 }
 
 /// `count` entries of `size` bytes from `first`, for the core; refused when they do not lie
 /// in one block of the game's memory.
-pub fn table<'a>(first: u32, size: u32, count: u32) -> Result<Entries<'a>, BadInput> {
-    Ok(Entries {
-        bytes: table_bytes(first, count * size)?,
+pub fn table(first: u32, size: u32, count: u32) -> Result<GameTable, BadInput> {
+    Ok(GameTable {
+        first,
         size: size as usize,
+        bytes: crate::pointers::GamePtr::new(first)
+            .read_bytes((count * size) as usize, "a standings table")?,
     })
 }
 
 /// The drivers (`g_drivers`) as the core's table, as far as `entries` walks them.
-pub fn driver_table<'a>() -> Result<Entries<'a>, BadInput> {
+pub fn driver_table() -> Result<GameTable, BadInput> {
     let first = crate::menu::drivers_store::DRIVERS.first();
     let all = game_entries(first, DRIVER)?;
     table(first, DRIVER, all.len() as u32)

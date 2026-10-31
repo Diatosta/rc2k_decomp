@@ -12,6 +12,8 @@ use crate::menu::standings::*;
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_driver_condition() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::driver_condition`, stored in each driver.
-    driver_table()?.store_all(&rc2k_core::menu::event::driver_condition());
+    driver_table()?
+        .entries()
+        .store_all(&rc2k_core::menu::event::driver_condition());
     Ok(())
 }

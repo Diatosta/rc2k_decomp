@@ -34,6 +34,6 @@ pub fn keep_stage_best() -> Result<(), Refused> {
         name: crate::menu::standings::bytes(name)?,
     };
     let mut r = crate::menu::standings::table(record, STAGE_RECORD, 1)?;
-    bests::take_record(&mut r, 0, &bests::STAGE_HOLDER, &holder);
+    bests::take_record(&mut r.entries(), 0, &bests::STAGE_HOLDER, &holder);
     Ok(())
 }

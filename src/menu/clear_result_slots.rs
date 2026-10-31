@@ -16,6 +16,7 @@ pub fn clear_result_slots() -> Result<(), Refused> {
         return Err(BadInput("a missing player").into());
     }
     let mut drivers = driver_table()?;
+    let mut drivers = drivers.entries();
     // Converted: `rc2k_core::menu::event::result_slots`.
     use rc2k_core::menu::event::result_slots;
     for n in 0..4 {

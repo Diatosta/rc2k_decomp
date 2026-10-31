@@ -16,8 +16,8 @@ pub fn find_cpu_team(team: u32) -> Result<u32, Refused> {
     let first = crate::menu::drivers_store::DRIVERS.first();
     let all = game_entries(first, DRIVER)?;
     // Converted: `rc2k_core::menu::standings::find_team`.
-    let drivers = table(first, DRIVER, all.len() as u32)?;
-    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers, team) {
+    let mut drivers = table(first, DRIVER, all.len() as u32)?;
+    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers.entries(), team) {
         return Ok(all[n]);
     }
     Err(crate::errors::FatalError {

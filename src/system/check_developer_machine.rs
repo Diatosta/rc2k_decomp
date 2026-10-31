@@ -41,15 +41,16 @@ pub fn computer_name(to: u32) -> bool {
 
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
-    unsafe {
-        DEVELOPER.set(0);
-        computer_name(crate::pointers::game_address(text()));
-        // Converted: `rc2k_core::system::machine::developer`.
-        let (yes, _) =
-            rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
-        if yes {
-            DEVELOPER.set(1);
-        }
+    DEVELOPER.set(0);
+    let at = crate::pointers::game_address(text());
+    computer_name(at);
+    // Converted: `rc2k_core::system::machine::developer`.
+    let (yes, _) = rc2k_core::system::machine::developer(crate::pointers::read_or_end(
+        at,
+        "the computer's name",
+    ));
+    if yes {
+        DEVELOPER.set(1);
     }
 }
 

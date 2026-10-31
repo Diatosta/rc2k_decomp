@@ -98,11 +98,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: || crate::logfile::numeric::SCRATCH.addr() as usize,
     },
     Moved {
-        ida: 0x93E080, // the log's line buffer
-        len: crate::logfile::write_line::LINE_BUF_LEN,
-        home: || crate::logfile::write_line::LINE_BUF.addr() as usize,
-    },
-    Moved {
         ida: 0x4E073A, // g_freeSpaceKb
         len: 4,
         home: || {
