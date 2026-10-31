@@ -35,12 +35,7 @@ pub static ENGINE_TABLES: InBuffers = InBuffers;
 /// The sine table's cell `n`: the callers index with an angle's top bits (below 0x1000), and
 /// the cosine is the cell 0x400 on.
 pub fn sine(n: usize) -> &'static Float {
-    // SAFETY: the piece is one block of cells; the address is the original's own.
-    unsafe {
-        &*(crate::pointers::host_at(
-            (ENGINE_TABLES.sines[0].addr().wrapping_add((4 * n) as u32)) as usize,
-        ) as *const Float)
-    }
+    &ENGINE_TABLES.sines[n]
 }
 
 /// The cosine of table place `n` (`g_cosines[n]`, the sine table's cell `n + 0x400`).

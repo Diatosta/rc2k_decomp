@@ -19,10 +19,12 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
     let kept: u32 = PICTURE.name.get();
     let digits = digits_place();
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
-    unsafe {
-        let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
-        digits.cast::<[u8; 3]>().write(next);
-    }
+    let at = crate::pointers::game_address(digits);
+    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(crate::pointers::read_or_end(
+        at,
+        "the snapshot's digits",
+    ));
+    crate::pointers::write_or_end(at, next, "the snapshot's digits");
     PICTURE.name.set(SNAPSHOT.addr());
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {

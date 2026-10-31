@@ -532,8 +532,12 @@ impl NetVars {
     /// Player `n`'s block of `received`; 8 up to 15 are `sorted`'s (the original's blocks
     /// run on from one store into the other: `net::take_messages` allows 16 players).
     pub fn player_block(&self, n: u32) -> &PlayerBlock {
-        assert!(n < 16, "a player's block: the number is above 15");
-        unsafe { &*(self.received.as_ptr().add(n as usize)) }
+        let n = n as usize;
+        if n < 8 {
+            &self.received[n]
+        } else {
+            &self.sorted[n - 8]
+        }
     }
 
     /// Player `n`'s byte of `synced`, any number (the original's index has no bound; `synced`

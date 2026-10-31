@@ -6,7 +6,6 @@
 //! Character by character, each through `g_lowerCase`. Five callers.
 
 use crate::errors::BadInput;
-use crate::moved::Place;
 use crate::pointers::GamePtr;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
@@ -16,7 +15,7 @@ use std::cmp::Ordering;
 /// The language's lower-case table: out of the image since 2026-10-24 (phase 5; it was
 /// `g_lowerCase`, 0x4F0BC8). Until `strings::load_language` sets it up it is the image's:
 /// every character itself, but A .. Z and 0xC0 .. 0xDE (not 0xD7) in lower case.
-pub static LOWER: Place<[u8; 256]> = Place::new(first_lower());
+pub static LOWER: crate::session::Bytes<256> = crate::session::Bytes::new(first_lower());
 
 const fn first_lower() -> [u8; 256] {
     let mut table = [0u8; 256];
@@ -34,22 +33,21 @@ const fn first_lower() -> [u8; 256] {
 
 /// The language's lower-case table now.
 pub fn case_table() -> CaseTable {
-    // SAFETY: written only by `load_language` (`set_case_table`), as the image's was.
     CaseTable {
-        lower: unsafe { LOWER.ptr().read() },
+        lower: std::array::from_fn(|c| LOWER.get(c)),
     }
 }
 
 /// A character in lower case (`g_lowerCase[c]`).
 pub fn lower(c: u8) -> u8 {
-    // SAFETY: as `case_table`.
-    unsafe { (*LOWER.ptr())[c as usize] }
+    LOWER.get(c as usize)
 }
 
 /// `strings::load_language`'s new table.
 pub fn set_case_table(table: &[u8; 256]) {
-    // SAFETY: as `case_table`.
-    unsafe { LOWER.ptr().write(*table) }
+    for (c, &v) in table.iter().enumerate() {
+        LOWER.set(c, v);
+    }
 }
 
 /// How the first text's first differing character stands to the second's (converted:

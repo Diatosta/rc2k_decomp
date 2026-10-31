@@ -10,9 +10,6 @@
 /// `g_car + 0x140 + 4 split`: the splits run to 0x3F, past the sixteen figures of
 /// `split_times` (into the car's next fields), as the original writes them.
 pub fn put_split_time(split: usize, v: u32) {
-    unsafe {
-        (crate::physics::car_store::CAR.split_times.as_ptr() as *mut u32)
-            .add(split)
-            .write_unaligned(v)
-    }
+    let first = crate::physics::car_store::CAR.split_times[0].addr();
+    crate::pointers::write_or_end(first + 4 * split as u32, v, "a split's time");
 }

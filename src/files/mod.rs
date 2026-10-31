@@ -210,7 +210,7 @@ pub mod state {
     pub static FIND_HANDLE: AtomicU32 = AtomicU32::new(u32::MAX);
     /// FindFileData (0x4E05A8, `WIN32_FIND_DATAA`, 0x13E bytes; 0x140 here): the search's
     /// record (`files::search` fills its attributes and name).
-    pub static FIND_DATA: Place<[u32; 80]> = Place::new([0; 80]);
+    pub static FIND_DATA: crate::session::Bytes<0x140> = crate::session::Bytes::new([0; 0x140]);
     /// The attributes a search passes over (0x4E06E6, the dword after the record): the
     /// directory bit; the installer clears it for its walk of folders.
     pub static SKIPPED_ATTRIBUTES: AtomicU32 = AtomicU32::new(0x10);
@@ -260,7 +260,7 @@ mod tests {
         assert_eq!(word(0x5189A4), MEDIA_MODE.load(Relaxed));
         let bytes = |p: *const u8, n| unsafe { std::slice::from_raw_parts(p, n).to_vec() };
         assert_eq!(
-            bytes(FIND_DATA.ptr().cast(), 0x13E),
+            bytes(FIND_DATA.as_ptr(), 0x13E),
             image_bytes(0x4E05A8, 0x13E)
         );
         assert_eq!(

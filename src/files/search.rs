@@ -76,8 +76,9 @@ fn put((name, attributes): &(Vec<u8>, u32)) {
     record[..4].copy_from_slice(&attributes.to_le_bytes());
     let len = name.len().min(NAME_ROOM - 1);
     record[NAME_AT..NAME_AT + len].copy_from_slice(&name[..len]);
-    // SAFETY: the record's place is 0x140 bytes, written by this module only.
-    unsafe { FIND_DATA.ptr().cast::<[u8; RECORD_LEN]>().write(record) };
+    for (n, &b) in record.iter().enumerate() {
+        FIND_DATA.set(n, b);
+    }
 }
 
 /// The search's next name not of the `skipped` attributes, put in the record; false when
@@ -116,16 +117,15 @@ pub fn close() {
 
 /// The record's name (up to its NUL).
 pub fn found_name() -> Vec<u8> {
-    // SAFETY: the record's place, written by this module only.
-    let record = unsafe { FIND_DATA.ptr().cast::<[u8; RECORD_LEN]>().read() };
-    let name = &record[NAME_AT..NAME_AT + NAME_ROOM];
+    let name: Vec<u8> = (NAME_AT..NAME_AT + NAME_ROOM)
+        .map(|n| FIND_DATA.get(n))
+        .collect();
     name[..name.iter().position(|&b| b == 0).unwrap_or(NAME_ROOM)].to_vec()
 }
 
 /// The record's attributes.
 pub fn found_attributes() -> u32 {
-    // SAFETY: as `found_name`.
-    unsafe { FIND_DATA.ptr().cast::<u32>().read() }
+    FIND_DATA.get_u32(0)
 }
 
 /// Where the record's name is (a game address: the installer appends it by address).
@@ -138,8 +138,8 @@ mod tests {
     #[test]
     fn a_folder_is_searched_in_order_with_folders_passed_over() {
         let _lock = crate::store::test_lock();
-        // SAFETY: the record's place, written by this module only (put back at the end).
-        let kept = unsafe { super::FIND_DATA.ptr().read() };
+        // The record's place, put back at the end.
+        let kept: [u8; 0x140] = std::array::from_fn(|n| super::FIND_DATA.get(n));
         let dir = std::env::temp_dir().join(format!("rc2k_search_{}", std::process::id()));
         std::fs::create_dir_all(dir.join("sub.pcx")).unwrap();
         for name in ["b.PCX", "a.pcx", "c.txt", "7.pcx"] {
@@ -162,8 +162,9 @@ mod tests {
         none.extend(b"x");
         assert!(!super::first(&none, 0));
         super::close();
-        // SAFETY: as above.
-        unsafe { super::FIND_DATA.ptr().write(kept) };
+        for (n, &b) in kept.iter().enumerate() {
+            super::FIND_DATA.set(n, b);
+        }
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

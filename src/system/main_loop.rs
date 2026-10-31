@@ -112,9 +112,10 @@ pub enum Call {
 
 /// The base directory's first character (`g_baseDirectory`).
 fn base_drive() -> u8 {
-    // SAFETY: `DIRECTORIES` is a Rust static of 0x200 bytes; the main thread alone writes
-    // it, at start-up, as the original's did.
-    unsafe { *crate::files::state::base_directory() }
+    crate::pointers::read_or_end(
+        crate::pointers::game_address(crate::files::state::base_directory()),
+        "the base directory",
+    )
 }
 
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;

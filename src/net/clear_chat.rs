@@ -10,5 +10,9 @@ use crate::net::store::NET;
 /// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
-    unsafe { (NET.chat.as_ptr() as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY) };
+    crate::pointers::write_or_end(
+        NET.chat.addr(),
+        rc2k_core::net::chat::EMPTY,
+        "the chat line",
+    );
 }

@@ -58,8 +58,8 @@ fn rows(p: &Piece, to: &Target) -> Option<Vec<Region>> {
     if p.rectangle == 0 || p.pixels == 0 || to.pixels == 0 || to.format == 0 {
         return None;
     }
-    let [_, _, width, height] =
-        unsafe { (crate::pointers::host(p.rectangle) as *const [u32; 4]).read_unaligned() };
+    let [_, _, width, height]: [u32; 4] =
+        crate::pointers::read_or_end(p.rectangle, "a blit's rectangle");
     if width == 0 || height == 0 {
         return None;
     }

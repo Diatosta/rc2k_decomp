@@ -60,11 +60,22 @@ def replies():
         return ''
 
 
+def running():
+    if HOST:
+        return ssh('pgrep -x rc2k_remote').returncode == 0
+    try:
+        return open(f"/proc/{open(HOME + '/pid').read()}/stat").read().split(') ')[1][0] != 'Z'
+    except OSError:
+        return False
+
+
 def ask(command, timeout=20):
     number = str(int(time.time() * 1000) % 100000000)
     put_cmd(f'{number} {command}')
     end = time.time() + timeout
     while time.time() < end:
+        if not running():
+            sys.exit(f'the game has ended ("{command}" not run): remote.py log')
         for line in replies().splitlines():
             if line.startswith(number + ' '):
                 return line[len(number) + 1:]
