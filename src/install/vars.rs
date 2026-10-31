@@ -409,6 +409,25 @@ impl InstallerPages {
     /// Whether IDA's `ida` is one of the fonts table's dwords (`moved::point_into_homes`).
     pub fn holds_handle(ida: usize) -> bool {
         (Self::FONTS_AT..Self::FONTS_AT + 25 * 4).contains(&ida)
+            || PAGE_LINKS.binary_search(&(ida as u32)).is_ok()
+    }
+
+    /// What dword `value` read at game address `at` means: a slot of `PAGE_LINKS` keeps IDA's
+    /// address as a name, resolved here to the place now (`installer::rd` reads them all).
+    pub fn resolved(at: u32, value: u32) -> Result<u32, crate::errors::BadInput> {
+        let off = (at as usize).wrapping_sub(Self::home());
+        if value == 0 || off >= Self::LEN {
+            return Ok(value);
+        }
+        if PAGE_LINKS
+            .binary_search(&((Self::START + off) as u32))
+            .is_err()
+        {
+            return Ok(value);
+        }
+        crate::moved::home_of_rva((value as usize).wrapping_sub(crate::framework::IMAGE_BASE))
+            .map(|home| home as u32)
+            .ok_or(crate::errors::BadInput("an installer link at no place"))
     }
 
     /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
@@ -482,8 +501,49 @@ impl InstallerPalette {
     }
 }
 
+/// The installer pages' dwords that name data: the pages' links, their items' fonts and
+/// variables (IDA's addresses, sorted). The code pointers beside them stay addresses.
+const PAGE_LINKS: [u32; 105] = [
+    0x51D43B, 0x51D44B, 0x51D45B, 0x51D46B, 0x51D47B, 0x51D48F, 0x51D49F, 0x51D594, 0x51D59C,
+    0x51D5A0, 0x51D5A4, 0x51D5A8, 0x51D5AC, 0x51D5B0, 0x51D5B4, 0x51D5B8, 0x51D5BC, 0x51D5C0,
+    0x51D5C8, 0x51D5CC, 0x51D5D0, 0x51D5D4, 0x51D5D8, 0x51D5E0, 0x51D5E4, 0x51D5E8, 0x51D5EC,
+    0x51D5F0, 0x51D5F4, 0x51D5F8, 0x51D5FC, 0x51D600, 0x51D604, 0x51D608, 0x51D60C, 0x51D610,
+    0x51D614, 0x51D618, 0x51D61C, 0x51D620, 0x51D62C, 0x51D630, 0x51D634, 0x51D638, 0x51D63C,
+    0x51D648, 0x51D654, 0x51D660, 0x51D814, 0x51D824, 0x51D834, 0x51D844, 0x51D854, 0x51D864,
+    0x51D874, 0x51D884, 0x51D894, 0x51D8A4, 0x51D8CC, 0x51D8DC, 0x51D8EC, 0x51D8FC, 0x51D90C,
+    0x51D91C, 0x51D92C, 0x51D93C, 0x51D94C, 0x51D95C, 0x51D96C, 0x51D97C, 0x51D98C, 0x51D99C,
+    0x51D9AC, 0x51D9BC, 0x51D9CC, 0x51D9DC, 0x51DA04, 0x51DA14, 0x51DA24, 0x51DA34, 0x51DA44,
+    0x51DA54, 0x51DA64, 0x51DA74, 0x51DA84, 0x51DA94, 0x51DAA4, 0x51DAB4, 0x51DAC4, 0x51DAD4,
+    0x51DAE4, 0x51DAF4, 0x51DB04, 0x51DB14, 0x51DB24, 0x51DB34, 0x51DB44, 0x51DB54, 0x51DB64,
+    0x51DB74, 0x51DB84, 0x51DB94, 0x51DBD0, 0x51DBD4, 0x51DD7C,
+];
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn page_links_are_the_images_data_pointers() {
+        let found: Vec<u32> = crate::relocations::PLACES
+            .iter()
+            .copied()
+            .filter(|&p| {
+                let at = p as usize;
+                let fonts =
+                    (InstallerPages::FONTS_AT..InstallerPages::FONTS_AT + 100).contains(&at);
+                let value = crate::moved::image_bytes(at, 4);
+                let value = u32::from_le_bytes(value.try_into().unwrap());
+                (InstallerPages::START..InstallerPages::START + InstallerPages::LEN).contains(&at)
+                    && !fonts
+                    && value >= 0x4DA000
+            })
+            .collect();
+        assert_eq!(found, PAGE_LINKS);
+        for &p in &PAGE_LINKS {
+            let at = (InstallerPages::home() + p as usize - InstallerPages::START) as u32;
+            let value = crate::install::installer::rd(at);
+            assert_ne!(value, 0, "{p:#X}");
+        }
+    }
+
     use super::*;
 
     #[test]

@@ -115,11 +115,12 @@ pub fn ww(at: impl Into<Place>, v: u16) {
 }
 
 pub fn rd(at: impl Into<Place>) -> u32 {
+    let at = at.into();
     let b = at
-        .into()
         .read(4, "an installer dword")
         .unwrap_or_else(|e| refuse(e));
-    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
+    let value = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
+    crate::install::vars::InstallerPages::resolved(at.game(), value).unwrap_or_else(|e| refuse(e))
 }
 
 pub fn wd(at: impl Into<Place>, v: u32) {

@@ -69,12 +69,13 @@ pub fn list_drives() {
         ebx = row + 0x10;
     }
     let count = INSTALLER_RUN.drive_count.get();
-    let menu = (match drives::menu(count) {
-        DriveMenu::Eight => INSTALLER_PAGES.menu_8.addr(),
-        DriveMenu::Sixteen => INSTALLER_PAGES.menu_16.addr(),
-        DriveMenu::More => INSTALLER_PAGES.menu_more.addr(),
-    }) as u32;
-    INSTALLER_PAGES.chosen_menu.set_u32(0, menu);
+    let (menu, name) = match drives::menu(count) {
+        DriveMenu::Eight => (INSTALLER_PAGES.menu_8.addr(), 0x51D7F8),
+        DriveMenu::Sixteen => (INSTALLER_PAGES.menu_16.addr(), 0x51D8B0),
+        DriveMenu::More => (INSTALLER_PAGES.menu_more.addr(), 0x51D9E8),
+    };
+    // A link: the menu's IDA address, as the image's (`InstallerPages::resolved`).
+    INSTALLER_PAGES.chosen_menu.set_u32(0, name);
     wb(menu + 1, drives::items(count));
 }
 

@@ -41,7 +41,8 @@ pub fn run_installer() -> Result<(), Refused> {
     #[cfg(unix)]
     crate::install::installer::wd(
         crate::framework::game_addr(0x11DBD0),
-        INSTALLER_PATHS.typed.addr(),
+        // A link: `INSTALLER_PATHS.typed`'s IDA address (`InstallerPages::resolved`).
+        0x95EBF8,
     );
     crate::install::installer::wb(
         crate::pointers::game_address(crate::files::state::base_directory()),

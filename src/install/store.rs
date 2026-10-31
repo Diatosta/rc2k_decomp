@@ -29,7 +29,7 @@ pub struct InstallVars {
     pub clio_file: Bytes<20>,
     /// 0x529DCC: `byte_529DCC`: the installer's script for the Clio (`install::install_clio`).
     pub clio_script: Bytes<28>,
-    /// 0x529DE8: `unk_529DE8` ..: 64 pointers into the texts below and elsewhere (the credits'; repointed at start-up; nothing in the ported code reads them).
+    /// 0x529DE8: the texts of string ids 0x1000 .. 0x103F (`dword_525DE8[id]`, `strings::string_table::ptr_high`): the IDA address of each, a name.
     pub text_pointers: [Dword; 64],
     /// 0x529EE8: The credits' first texts (`aUmlaut`, `aCraigGriffiths`).
     pub credits_a: Bytes<27>,

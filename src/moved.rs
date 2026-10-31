@@ -2432,6 +2432,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
             Some(_) if crate::gfx::texture_upload::holds_handle(ida) => {}
             Some(_) if crate::input::store::holds_handle(ida) => {}
             Some(_) if crate::strings::keyboard_tables::KeyboardTables::holds_handle(ida) => {}
+            Some(_) if crate::strings::string_table::holds_handle(ida) => {}
             Some(_) if crate::race::store::is_unread(ida) => {}
             Some(_) if SET_AT_START.iter().any(|&(s, e)| (s..e).contains(&ida)) => {}
             Some((home, _)) => unsafe {
