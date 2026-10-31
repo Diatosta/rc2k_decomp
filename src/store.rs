@@ -113,13 +113,7 @@ pub fn game_read<T: Copy>(place: impl Where) -> T {
         "a game variable",
     );
     // SAFETY: inside one live region (checked above).
-    unsafe {
-        if p.is_aligned() {
-            p.read_volatile()
-        } else {
-            p.read_unaligned()
-        }
-    }
+    unsafe { crate::shared_memory::read(p) }
 }
 
 /// Writes a variable (`framework::game_write`, over a block or the image).
@@ -131,13 +125,7 @@ pub fn game_write<T: Copy>(place: impl Where, value: T) {
         "a game variable",
     );
     // SAFETY: inside one live region (checked above).
-    unsafe {
-        if p.is_aligned() {
-            p.write_volatile(value);
-        } else {
-            p.write_unaligned(value);
-        }
-    }
+    unsafe { crate::shared_memory::write(p, value) }
 }
 
 /// Declares a block: `block!(pub mod name { start: IDA, end: IDA, runs: PATH });` makes

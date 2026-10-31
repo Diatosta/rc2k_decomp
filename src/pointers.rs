@@ -471,7 +471,7 @@ impl GamePtr {
     pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
-        Ok(unsafe { (host(self.0) as *const T).read_unaligned() })
+        Ok(unsafe { crate::shared_memory::read(host(self.0) as *const T) })
     }
 
     /// The `T` written at the address, when all of it lies in one region.
@@ -479,7 +479,7 @@ impl GamePtr {
     pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: as `read`; the regions are the game's writable memory.
-        unsafe { host(self.0).cast::<T>().write_unaligned(value) };
+        unsafe { crate::shared_memory::write(host(self.0).cast::<T>(), value) };
         Ok(())
     }
 
@@ -488,7 +488,13 @@ impl GamePtr {
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         self.check(len, what)?;
         // SAFETY: the `len` bytes lie in one live region.
-        Ok(unsafe { std::slice::from_raw_parts(host(self.0), len) }.to_vec())
+        let mut bytes = Vec::with_capacity(len);
+        // SAFETY: `bytes` has room for `len`, all set by `load`.
+        unsafe {
+            crate::shared_memory::load(host(self.0), bytes.as_mut_ptr(), len);
+            bytes.set_len(len);
+        }
+        Ok(bytes)
     }
 
     /// `bytes` written from the address on.
@@ -498,7 +504,7 @@ impl GamePtr {
         // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
         // copied through a temporary by the caller.
         unsafe {
-            std::ptr::copy(bytes.as_ptr(), host(self.0), bytes.len());
+            crate::shared_memory::store(host(self.0), bytes.as_ptr(), bytes.len());
         }
         Ok(())
     }
@@ -511,7 +517,7 @@ impl GamePtr {
         to.check(len, what)?;
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
-            std::ptr::copy(host(self.0), host(to.0), len);
+            crate::shared_memory::copy(host(self.0), host(to.0), len);
         }
         Ok(())
     }
@@ -521,7 +527,7 @@ impl GamePtr {
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         // SAFETY: the run lies in one live region.
-        unsafe { std::ptr::write_bytes(host(self.0), value, len) };
+        unsafe { crate::shared_memory::fill(host(self.0), value, len) };
         Ok(())
     }
 
@@ -598,7 +604,7 @@ pub struct GameBytes {
 impl rc2k_core::strings::bytes::Bytes for GameBytes {
     fn byte(&self, at: usize) -> Option<u8> {
         // SAFETY: `at` is inside the region (checked against its length).
-        (at < self.len).then(|| unsafe { host(self.start).add(at).read_volatile() })
+        (at < self.len).then(|| unsafe { crate::shared_memory::read(host(self.start).add(at)) })
     }
 }
 
@@ -678,7 +684,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { (host(addr) as *const T).read_unaligned() }
+        unsafe { crate::shared_memory::read(host(addr) as *const T) }
     }
 
     /// A checked write, as `read_or_end`.
@@ -687,7 +693,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { host(addr).cast::<T>().write_unaligned(value) }
+        unsafe { crate::shared_memory::write(host(addr).cast::<T>(), value) }
     }
 
     /// Checked bytes written, as `write_or_end`.
@@ -697,7 +703,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), host(addr), bytes.len()) }
+        unsafe { crate::shared_memory::store(host(addr), bytes.as_ptr(), bytes.len()) }
     }
 }
 

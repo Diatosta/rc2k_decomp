@@ -277,8 +277,8 @@ impl Byte {
     }
 }
 
-/// A buffer of the game's bytes (a table, a record handed on by address): plain volatile
-/// loads and stores, as the image's bytes were shared between the game's threads.
+/// A buffer of the game's bytes (a table, a record handed on by address), shared between the
+/// game's threads as the image's bytes were (`shared_memory`).
 #[repr(transparent)]
 pub struct Bytes<const N: usize>(UnsafeCell<[u8; N]>);
 
@@ -301,13 +301,13 @@ impl<const N: usize> Bytes<N> {
     pub fn get(&self, index: usize) -> u8 {
         assert!(index < N);
         // SAFETY: `index` is under `N` (asserted).
-        unsafe { self.as_ptr().add(index).read_volatile() }
+        unsafe { crate::shared_memory::read(self.as_ptr().add(index)) }
     }
 
     pub fn set(&self, index: usize, value: u8) {
         assert!(index < N);
         // SAFETY: as `get`.
-        unsafe { self.as_ptr().add(index).write_volatile(value) }
+        unsafe { crate::shared_memory::write(self.as_ptr().add(index), value) }
     }
 
     /// The byte at `index` as an atomic (an `xchg` on a key).
@@ -322,18 +322,13 @@ impl<const N: usize> Bytes<N> {
     pub fn get_u32(&self, offset: usize) -> u32 {
         assert!(offset + 4 <= N);
         // SAFETY: the four bytes are inside (asserted); unaligned read.
-        unsafe { self.as_ptr().add(offset).cast::<u32>().read_unaligned() }
+        unsafe { crate::shared_memory::read(self.as_ptr().add(offset).cast::<u32>()) }
     }
 
     pub fn set_u32(&self, offset: usize, value: u32) {
         assert!(offset + 4 <= N);
         // SAFETY: as `get_u32`.
-        unsafe {
-            self.as_ptr()
-                .add(offset)
-                .cast::<u32>()
-                .write_unaligned(value);
-        }
+        unsafe { crate::shared_memory::write(self.as_ptr().add(offset).cast::<u32>(), value) }
     }
 
     /// All of it.
@@ -392,8 +387,7 @@ impl<const N: usize> Bytes<N> {
     }
 }
 
-/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): plain
-/// unaligned volatile loads and stores, as the image's were.
+/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`).
 #[repr(transparent)]
 pub struct Loose(UnsafeCell<[u8; 4]>);
 
@@ -407,12 +401,12 @@ impl Loose {
 
     pub fn get(&self) -> u32 {
         // SAFETY: the cell holds the four bytes; unaligned read.
-        unsafe { self.0.get().cast::<u32>().read_unaligned() }
+        unsafe { crate::shared_memory::read(self.0.get().cast::<u32>()) }
     }
 
     pub fn set(&self, value: u32) {
         // SAFETY: as `get`.
-        unsafe { self.0.get().cast::<u32>().write_unaligned(value) }
+        unsafe { crate::shared_memory::write(self.0.get().cast::<u32>(), value) }
     }
 }
 
@@ -431,15 +425,15 @@ impl<T: Copy> Shared<T> {
         Self(UnsafeCell::new(value))
     }
 
-    /// A copy of the record (a plain, possibly unaligned, volatile read).
+    /// A copy of the record (a record's fields may be read half changed, as the original's).
     pub fn get(&self) -> T {
-        // SAFETY: a plain record read whole; a racing write is the original's own, kept until the state has one owner.
-        unsafe { self.0.get().read_volatile() }
+        // SAFETY: a plain record read through atomics; a racing write is the original's own, kept until the state has one owner.
+        unsafe { crate::shared_memory::read(self.0.get()) }
     }
 
     pub fn set(&self, value: T) {
         // SAFETY: as `get`.
-        unsafe { self.0.get().write_volatile(value) }
+        unsafe { crate::shared_memory::write(self.0.get(), value) }
     }
 
     /// The record changed by `change` (read, changed, written back).

@@ -65,11 +65,7 @@ fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
 #[inline(always)]
 fn load<T: Copy>(base: impl Base, off: usize) -> T {
     // SAFETY: checked in one live region; any bits make a value of the plain types used here.
-    unsafe {
-        operand(base, off, size_of::<T>())
-            .cast::<T>()
-            .read_unaligned()
-    }
+    unsafe { crate::shared_memory::read(operand(base, off, size_of::<T>()).cast::<T>()) }
 }
 
 /// `value` written at the operand.
@@ -77,11 +73,7 @@ fn load<T: Copy>(base: impl Base, off: usize) -> T {
 #[inline(always)]
 fn store<T: Copy>(base: impl Base, off: usize, value: T) {
     // SAFETY: checked in one live region.
-    unsafe {
-        operand(base, off, size_of::<T>())
-            .cast::<T>()
-            .write_unaligned(value);
-    }
+    unsafe { crate::shared_memory::write(operand(base, off, size_of::<T>()).cast::<T>(), value) }
 }
 
 /// `fld dword ptr [base + off]`.

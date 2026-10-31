@@ -53,6 +53,7 @@ mod screens;
 mod service;
 mod session;
 mod settings;
+mod shared_memory;
 mod sound;
 pub mod standalone;
 mod store;
