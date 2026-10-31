@@ -64,7 +64,7 @@ fn build(
 /// message shown, then a wait for a key (`loc_4133AB`).
 fn message(count: u32, table: impl Into<crate::place::Place>, y: u32) -> Result<(), Refused> {
     let table: u32 = table.into().game();
-    crate::platform::hold_quit(false);
+    crate::platform_events::hold_quit(false);
     run_frame(None)?;
     if lock() {
         crate::install::draw_string_list::draw_string_list(count, table, 0, y)?;
@@ -144,7 +144,7 @@ pub fn install_files() -> Result<(), Refused> {
     // (owner, 2026-10-20).
     crate::files::is_cd_drive::is_cd_drive(rb(&INSTALLER_PATHS.game_dir));
     // A close during the copy waits for its end (the progress still shown).
-    crate::platform::hold_quit(true);
+    crate::platform_events::hold_quit(true);
     run_frame(Some(copying_frame))?;
     // the folders
     if INSTALLER_RUN.dir_count.get() != 0 {
@@ -206,7 +206,7 @@ pub fn install_files() -> Result<(), Refused> {
             i::copy_counted::copy_counted(&INSTALLER_PATHS.path_a, base)?;
         }
     }
-    crate::platform::hold_quit(false);
+    crate::platform_events::hold_quit(false);
     INSTALLER_PAGES.list_answer.set(2);
     sleep(1000);
     INSTALLER_NAMES.status.set(1);

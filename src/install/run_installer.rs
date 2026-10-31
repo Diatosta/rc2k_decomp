@@ -34,7 +34,7 @@ const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX
 
 pub fn run_installer() -> Result<(), Refused> {
     use crate::install as i;
-    crate::platform::keep_running_after_close();
+    crate::platform_events::keep_running_after_close();
     // The folder page's edit item (0x51DBC8) shows the folder from its third byte
     // (0x95EBFA, past the drive's `c:`); a Unix path has no drive, so the item shows it
     // whole (2026-10-28: it showed `ome/..`).

@@ -37,6 +37,7 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::render::{Command, STATES, Target, TextureNote};
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use crate::system::find_entry::find_entry;
@@ -82,27 +83,6 @@ pub fn guids_a_home() -> usize {
 /// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
 pub fn guids_b_home() -> usize {
     (crate::pointers::game_address(GUIDS_B.as_ptr())) as usize
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn the_interface_ids_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &GUIDS_A,
-            GUIDS_A_START,
-            GUIDS_A_START + GUIDS_A_LEN,
-        );
-        crate::gfx::first_values_are_the_games(
-            &GUIDS_B,
-            GUIDS_B_START,
-            GUIDS_B_START + GUIDS_B_LEN,
-        );
-        assert_eq!(crate::moved::place(GUIDS_A_START), guids_a_home());
-        assert_eq!(crate::moved::place(GUIDS_B_START), guids_b_home());
-    }
 }
 
 // ---- the texture formats ----
@@ -195,6 +175,9 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
     if pixels.is_none_or(reads_texture) {
         flush();
     }
+    if let Some(pixels) = pixels {
+        crate::render::texture_changed(pixels as usize);
+    }
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
         Some(level) => {
@@ -218,13 +201,6 @@ pub fn unlock_surface(_surface: u32) -> i32 {
 
 // ---- drawing ----
 
-const STATES: usize = 0x40;
-
-/// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
-/// spent drawing them (at the flushes).
-pub static FANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-pub static RASTER_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 // ---- the frame's drawing, in tiles ----
 //
 // The fans and the depth buffer's clears are noted as the game makes them and drawn when
@@ -235,46 +211,25 @@ pub static RASTER_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atom
 // operations in the same order as one by one. A texture is noted by where its memory is
 // (that does not change before the flush) and drawn from as it is then.
 
-/// A texture's first level as noted: its memory and how it is laid out.
-#[derive(Clone, Copy)]
-struct TextureNote {
-    /// The memory's address (a number: the tiles' threads read it).
-    pixels: usize,
-    len: usize,
-    width: usize,
-    height: usize,
-    pitch: usize,
-    bytes: usize,
-    masks: [u32; 4],
-}
-
-enum Noted {
-    Fan {
-        vertices: Vec<crate::rasteriser::Vertex>,
-        states: Box<[u32; STATES]>,
-        texture: Option<TextureNote>,
-        /// The vertices' bounds on the screen: (left, top, right, bottom).
-        bounds: (f32, f32, f32, f32),
-    },
-    /// The depth buffer back to 1.0 in a rectangle (left, top, right, bottom).
-    Clear([usize; 4]),
-}
-
-/// What the noted drawing draws into.
-#[derive(Clone, Copy, PartialEq)]
-struct Into {
-    pixels: usize,
-    pitch: usize,
-    width: usize,
-    height: usize,
-    bits: u32,
-}
-
 struct Pending {
-    into: Option<Into>,
-    noted: Vec<Noted>,
+    into: Option<Target>,
+    noted: Vec<Command>,
     /// The memory of each texture the noted fans read.
     textures: Vec<u32>,
+}
+
+/// The noted drawing's way to the backend: nothing noted is left behind.
+fn draw_noted(pending: &mut Pending) {
+    let commands = std::mem::take(&mut pending.noted);
+    pending.textures.clear();
+    let Some(target) = pending.into.take() else {
+        return;
+    };
+    if commands.is_empty() {
+        return;
+    }
+    crate::render::dump::dump_if_asked(&commands, &target);
+    crate::render::draw(&target, commands);
 }
 
 static PENDING: Mutex<Pending> = Mutex::new(Pending {
@@ -288,26 +243,14 @@ fn reads_texture(pixels: u32) -> bool {
     PENDING.lock().unwrap().textures.contains(&pixels)
 }
 
-/// The flushes that drew something and the pixels written (for `platform::report_timing`).
-/// The parallel drawing's wall time and the threads' time inside the tiles (summed), in
-/// microseconds: how well the tiles keep the threads busy.
-pub static PARALLEL_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-pub static TILE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-pub static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-/// Below this many noted fans a flush draws on its own thread, the screen one tile.
-const FEW: usize = 48;
 // Safety: the pointers in it are the game's memory and ours, used only by the game's
 // thread and, during a flush, by the tiles' threads it waits for.
 unsafe impl Send for Pending {}
 
-const TILE: usize = 64;
-
 /// The screen as the game has it now.
-fn screen() -> Option<Into> {
+pub fn screen() -> Option<Target> {
     let pixels: u32 = DRAW_SURFACE.present_pixels.get();
-    (pixels != 0).then(|| Into {
+    (pixels != 0).then(|| Target {
         pixels: pixels as usize,
         pitch: DRAW_SURFACE.present_pitch.get() as usize,
         width: SCREEN.width.get() as usize,
@@ -318,7 +261,7 @@ fn screen() -> Option<Into> {
 
 /// Notes `what` for the screen as it is now (the noted so far drawn first when that is
 /// another).
-fn note(what: Noted) {
+fn note(what: Command) {
     let Some(into) = screen() else {
         return;
     };
@@ -327,7 +270,7 @@ fn note(what: Noted) {
         draw_noted(&mut pending);
     }
     pending.into = Some(into);
-    if let Noted::Fan {
+    if let Command::Fan {
         texture: Some(t), ..
     } = &what
         && !pending.textures.contains(&(t.pixels as u32))
@@ -341,294 +284,6 @@ fn note(what: Noted) {
 pub fn flush() {
     let mut pending = PENDING.lock().unwrap();
     draw_noted(&mut pending);
-}
-
-/// The small frame draw_noted draws into: only the handheld has one.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-use crate::handheld::Small;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-enum Small {}
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-impl Small {
-    fn frame_parts(&mut self) -> (*mut u8, usize, usize, *mut f32) {
-        match *self {}
-    }
-}
-
-/// The noted things' screen places for the handheld's small frame.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-fn scale_noted(noted: &mut [Noted]) {
-    const BY: f32 = crate::handheld::SMALLER as f32;
-    let by = crate::handheld::SMALLER;
-    for what in noted {
-        match what {
-            Noted::Fan {
-                vertices, bounds, ..
-            } => {
-                for v in vertices.iter_mut() {
-                    v[0] = (f32::from_bits(v[0]) / BY).to_bits();
-                    v[1] = (f32::from_bits(v[1]) / BY).to_bits();
-                }
-                *bounds = (bounds.0 / BY, bounds.1 / BY, bounds.2 / BY, bounds.3 / BY);
-            }
-            Noted::Clear([left, top, right, bottom]) => {
-                *left /= by;
-                *top /= by;
-                *right = right.div_ceil(by);
-                *bottom = bottom.div_ceil(by);
-            }
-        }
-    }
-}
-
-/// The screen's rows as bytes.
-///
-/// # Safety
-/// Nothing else may touch them while the slice lives.
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-unsafe fn screen_bytes<'a>(into: &Into) -> &'a mut [u8] {
-    let len = into.pitch * into.height;
-    crate::pointers::check_or_end(into.pixels as u32, len, "the screen's pixels");
-    // SAFETY: the bytes checked above; the caller's promise.
-    unsafe { std::slice::from_raw_parts_mut(crate::pointers::host_at(into.pixels), len) }
-}
-
-fn draw_noted(pending: &mut Pending) {
-    use crate::rasteriser::{Frame, States, Texture};
-    use rayon::prelude::*;
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(unused_mut) // only the handheld changes them
-    )]
-    let mut noted = std::mem::take(&mut pending.noted);
-    pending.textures.clear();
-    let Some(into) = pending.into.take() else {
-        return;
-    };
-    if noted.is_empty() {
-        return;
-    }
-    FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    dump_if_asked(&noted, &into);
-    let started = std::time::Instant::now();
-    let fans = noted
-        .iter()
-        .filter(|n| matches!(n, Noted::Fan { .. }))
-        .count() as u64;
-    // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
-    // frame, which takes the screen's picture so far and gives it back enlarged.
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let mut small = (into.bits == 32 && crate::handheld::draws_small()).then(|| {
-        scale_noted(&mut noted);
-        // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
-        // while the game's code waits here.
-        let screen = unsafe { screen_bytes(&into) };
-        crate::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
-    });
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    let mut small: Option<Small> = None;
-    with_depth(|depth| {
-        if small.is_none() && (depth.width != into.width || depth.height != into.height) {
-            return;
-        }
-        // The screen's pixels are lent (a region the size of its rows), checked here; the
-        // depths are Rust's own, borrowed for the frame.
-        crate::pointers::check_or_end(
-            into.pixels as u32,
-            into.pitch * into.height,
-            "the screen's pixels",
-        );
-        // SAFETY: the pixels checked above, `height` rows of `pitch` bytes; the depths
-        // `width` x `height` floats (the sizes compared above), borrowed mutably here; the
-        // game's code does not run while the frame is drawn (under `PENDING`'s lock).
-        let mut frame = unsafe {
-            match small.as_mut().map(Small::frame_parts) {
-                Some((pixels, width, height, depth)) => {
-                    Frame::new(pixels, width * 4, width, height, 32, depth)
-                }
-                None => Frame::new(
-                    crate::pointers::host_at(into.pixels),
-                    into.pitch,
-                    into.width,
-                    into.height,
-                    into.bits,
-                    depth.values.as_mut_ptr(),
-                ),
-            }
-        };
-        let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
-        let noted = &noted;
-        let draw_tile = move |tile: &mut crate::rasteriser::Tile| {
-            let tile_started = std::time::Instant::now();
-            let clip = *tile.clip();
-            let mut written = 0u64;
-            for what in noted {
-                match what {
-                    Noted::Fan {
-                        vertices,
-                        states,
-                        texture,
-                        bounds: (left, top, right, bottom),
-                    } => {
-                        // Not this tile's (the bounds a pixel wider for the edges' rule).
-                        if *right < clip.left as f32 - 1.0
-                            || *left > clip.right as f32 + 1.0
-                            || *bottom < clip.top as f32 - 1.0
-                            || *top > clip.bottom as f32 + 1.0
-                        {
-                            continue;
-                        }
-                        let texture = texture.map(|t| Texture {
-                            // SAFETY: a noted texture is not written while it is drawn
-                            // from: locking it flushes the noted fans first (`lock`).
-                            pixels: unsafe {
-                                crate::pointers::GamePtr::new(t.pixels as u32)
-                                    .slice(t.len, "a texture's pixels")
-                            },
-                            width: t.width,
-                            height: t.height,
-                            pitch: t.pitch,
-                            bytes: t.bytes,
-                            masks: t.masks,
-                        });
-                        written += tile.draw_fan(vertices, &States(&states[..]), texture.as_ref());
-                    }
-                    Noted::Clear(rect) => tile.clear_depth(*rect),
-                }
-            }
-            PIXELS.fetch_add(written, std::sync::atomic::Ordering::Relaxed);
-            TILE_MICROS.fetch_add(
-                tile_started.elapsed().as_micros() as u64,
-                std::sync::atomic::Ordering::Relaxed,
-            );
-        };
-        let parallel_started = std::time::Instant::now();
-        if tiles.len() == 1 {
-            draw_tile(&mut tiles[0]);
-        } else {
-            tiles.par_iter_mut().for_each(draw_tile);
-        }
-        PARALLEL_MICROS.fetch_add(
-            parallel_started.elapsed().as_micros() as u64,
-            std::sync::atomic::Ordering::Relaxed,
-        );
-    });
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    if let Some(s) = small {
-        // SAFETY: as above.
-        s.enlarge_to(
-            unsafe { screen_bytes(&into) },
-            into.pitch,
-            into.width,
-            into.height,
-        );
-    }
-    use std::sync::atomic::Ordering::Relaxed;
-    FANS.fetch_add(fans, Relaxed);
-    RASTER_MICROS.fetch_add(started.elapsed().as_micros() as u64, Relaxed);
-}
-
-/// With `RC2K_DUMP=n` in the environment: the n-th flush of 1000 fans or more written to
-/// `rc2k_frame_dump.bin`, for replaying it outside the program (the benchmark): "RC2KDUMP",
-/// the screen's width, height, bits; the textures (each once: width, height, pitch, bytes,
-/// four masks, its bytes' length and bytes); then each noted thing in order: 1 a fan (its
-/// vertices' count and the vertices, 8 dwords each; the 0x40 states; its texture's number
-/// or -1), 2 a depth clear (left, top, right, bottom). All little-endian dwords.
-fn dump_if_asked(noted: &[Noted], into: &Into) {
-    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
-    static SEEN: AtomicU32 = AtomicU32::new(0);
-    let Some(wanted) = std::env::var("RC2K_DUMP")
-        .ok()
-        .and_then(|n| n.parse::<u32>().ok())
-    else {
-        return;
-    };
-    let fans = noted
-        .iter()
-        .filter(|n| matches!(n, Noted::Fan { .. }))
-        .count();
-    if fans < 1000 || SEEN.fetch_add(1, Relaxed) + 1 != wanted {
-        return;
-    }
-    let mut out: Vec<u8> = b"RC2KDUMP".to_vec();
-    let put = |out: &mut Vec<u8>, v: u32| out.extend(v.to_le_bytes());
-    for v in [into.width as u32, into.height as u32, into.bits] {
-        put(&mut out, v);
-    }
-    let mut textures: Vec<usize> = Vec::new();
-    for n in noted {
-        if let Noted::Fan {
-            texture: Some(t), ..
-        } = n
-            && !textures.contains(&t.pixels)
-        {
-            textures.push(t.pixels);
-        }
-    }
-    put(&mut out, textures.len() as u32);
-    for &at in &textures {
-        let t = noted
-            .iter()
-            .find_map(|n| match n {
-                Noted::Fan {
-                    texture: Some(t), ..
-                } if t.pixels == at => Some(t),
-                _ => None,
-            })
-            .unwrap();
-        for v in [t.width, t.height, t.pitch, t.bytes] {
-            put(&mut out, v as u32);
-        }
-        for m in t.masks {
-            put(&mut out, m);
-        }
-        put(&mut out, t.len as u32);
-        let what = "a noted texture's pixels";
-        out.extend(
-            crate::pointers::GamePtr::new(t.pixels as u32)
-                .read_bytes(t.len, what)
-                .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
-        );
-    }
-    put(&mut out, noted.len() as u32);
-    for n in noted {
-        match n {
-            Noted::Fan {
-                vertices,
-                states,
-                texture,
-                ..
-            } => {
-                put(&mut out, 1);
-                put(&mut out, vertices.len() as u32);
-                for v in vertices {
-                    for &d in v {
-                        put(&mut out, d);
-                    }
-                }
-                for &st in states.iter() {
-                    put(&mut out, st);
-                }
-                let number = texture
-                    .as_ref()
-                    .and_then(|t| textures.iter().position(|&p| p == t.pixels))
-                    .map_or(u32::MAX, |n| n as u32);
-                put(&mut out, number);
-            }
-            Noted::Clear(r) => {
-                put(&mut out, 2);
-                for &v in r {
-                    put(&mut out, v as u32);
-                }
-            }
-        }
-    }
-    let written = std::fs::write("rc2k_frame_dump.bin", &out);
-    crate::framework::log(&format!(
-        "platform_3d: flush {wanted} of {fans} fans dumped to rc2k_frame_dump.bin ({} bytes, {} textures): {written:?}",
-        out.len(),
-        textures.len()
-    ));
 }
 
 /// A fan into the screen, with the states and the current texture
@@ -705,7 +360,7 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     {
         bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
     }
-    note(Noted::Fan {
+    note(Command::Fan {
         vertices: vertices.to_vec(),
         states: Box::new(states),
         texture,
@@ -719,6 +374,9 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
 /// `d3d::copy_screen_to_texture` (the mirror's picture).
 pub fn copy_screen_to_system_texture(number: u32) {
     flush();
+    if let Some(screen) = screen() {
+        crate::render::bring_back(&screen);
+    }
     if number >= MOST {
         return;
     }
@@ -1006,6 +664,11 @@ fn release_pool(pool: usize) {
     for number in 0..count.min(MOST) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
+                if let Some(gone) = slot {
+                    crate::render::texture_changed(crate::pointers::game_address(
+                        gone.pixels.as_ptr(),
+                    ) as usize);
+                }
                 *slot = None;
             }
         }
@@ -1076,6 +739,9 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
             None => continue,
         };
         if let Some(Some(target)) = memory.get_mut(to) {
+            crate::render::texture_changed(
+                crate::pointers::game_address(target.pixels.as_ptr()) as usize
+            );
             let n = pixels.len().min(target.pixels.len());
             target.pixels[..n].copy_from_slice(&pixels[..n]);
         }
@@ -1138,32 +804,6 @@ pub fn end_layer() -> bool {
 
 static CLEAR: RawHook = RawHook::new("d3d::clear_viewport", rva(0x44E9D9));
 
-/// The depth buffer, a float a pixel of the screen: 1.0 is the farthest.
-pub struct Depth {
-    pub width: usize,
-    pub height: usize,
-    pub values: Vec<f32>,
-}
-
-pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
-
-/// The depth buffer at the screen's size, made or made again.
-pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
-    let (width, height) = (SCREEN.width.get() as usize, SCREEN.height.get() as usize);
-    let mut depth = DEPTH.lock().unwrap();
-    if depth
-        .as_ref()
-        .is_none_or(|d| d.width != width || d.height != height)
-    {
-        *depth = Some(Depth {
-            width,
-            height,
-            values: vec![1.0; width * height],
-        });
-    }
-    f(depth.as_mut().unwrap())
-}
-
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
 pub fn clear_viewport() {
@@ -1171,7 +811,28 @@ pub fn clear_viewport() {
     let [left, top, right, bottom] =
         crate::session::read_bits(&DRAW.cleared_rectangle).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
-    note(Noted::Clear([c(left), c(top), c(right), c(bottom)]));
+    note(Command::Clear([c(left), c(top), c(right), c(bottom)]));
 }
 
 pub static HOOKS: &[&dyn GameHook] = &[&ALLOCATE, &RELEASE, &LOAD, &BEGIN, &END, &CLEAR];
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn the_interface_ids_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &GUIDS_A,
+            GUIDS_A_START,
+            GUIDS_A_START + GUIDS_A_LEN,
+        );
+        crate::gfx::first_values_are_the_games(
+            &GUIDS_B,
+            GUIDS_B_START,
+            GUIDS_B_START + GUIDS_B_LEN,
+        );
+        assert_eq!(crate::moved::place(GUIDS_A_START), guids_a_home());
+        assert_eq!(crate::moved::place(GUIDS_B_START), guids_b_home());
+    }
+}

@@ -500,7 +500,7 @@ type Table = std::sync::Arc<Vec<u32>>;
 static TABLES: std::sync::Mutex<Vec<([u32; 4], Table)>> = std::sync::Mutex::new(Vec::new());
 
 /// A pixel of `masks` as 0xAARRGGBB (a channel without a mask: 0xFF).
-fn to_argb(pixel: u32, masks: &[u32; 4]) -> u32 {
+pub(crate) fn to_argb(pixel: u32, masks: &[u32; 4]) -> u32 {
     let mut out = 0;
     // masks: blue, green, red, alpha; out's bytes: blue, green, red, alpha
     for (n, &mask) in masks.iter().enumerate() {

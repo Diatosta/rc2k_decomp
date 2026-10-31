@@ -6,5 +6,5 @@
 //! nothing was restored.
 
 pub fn restore_window() {
-    crate::platform::restore_window();
+    crate::platform_events::restore_window();
 }
