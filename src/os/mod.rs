@@ -109,6 +109,20 @@ pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
     };
 }
 
+/// Whether `len` bytes from `at` lie in this thread's stack (its bounds asked once a thread).
+#[inline]
+pub fn in_thread_stack(at: usize, len: usize) -> bool {
+    thread_local! {
+        static BOUNDS: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+    }
+    let mut bounds = BOUNDS.get();
+    if bounds.1 == 0 {
+        bounds = thread_stack();
+        BOUNDS.set(bounds);
+    }
+    at >= bounds.0 && at.wrapping_add(len) <= bounds.1
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

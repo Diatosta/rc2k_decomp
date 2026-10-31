@@ -343,14 +343,16 @@ pub fn flush() {
     draw_noted(&mut pending);
 }
 
-/// The small frame draw_noted draws into, on systems that have one (`handheld::Small`).
+/// The small frame draw_noted draws into: only the handheld has one.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+use crate::handheld::Small;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-#[derive(Clone, Copy)]
-struct Small {
-    pixels: *mut u8,
-    width: usize,
-    height: usize,
-    depth: *mut f32,
+enum Small {}
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+impl Small {
+    fn frame_parts(&mut self) -> (*mut u8, usize, usize, *mut f32) {
+        match *self {}
+    }
 }
 
 /// The noted things' screen places for the handheld's small frame.
@@ -379,6 +381,18 @@ fn scale_noted(noted: &mut [Noted]) {
     }
 }
 
+/// The screen's rows as bytes.
+///
+/// # Safety
+/// Nothing else may touch them while the slice lives.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+unsafe fn screen_bytes<'a>(into: &Into) -> &'a mut [u8] {
+    let len = into.pitch * into.height;
+    crate::pointers::check_or_end(into.pixels as u32, len, "the screen's pixels");
+    // SAFETY: the bytes checked above; the caller's promise.
+    unsafe { std::slice::from_raw_parts_mut(crate::pointers::host_at(into.pixels), len) }
+}
+
 fn draw_noted(pending: &mut Pending) {
     use crate::rasteriser::{Frame, States, Texture};
     use rayon::prelude::*;
@@ -404,22 +418,15 @@ fn draw_noted(pending: &mut Pending) {
     // The handheld draws a race's 3D smaller (`handheld`): the noted things made to fit a small
     // frame, which takes the screen's picture so far and gives it back enlarged.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    let small = (into.bits == 32 && crate::handheld::draws_small()).then(|| {
-        crate::pointers::check_or_end(
-            into.pixels as u32,
-            into.pitch * into.height,
-            "the screen's pixels",
-        );
+    let mut small = (into.bits == 32 && crate::handheld::draws_small()).then(|| {
         scale_noted(&mut noted);
-        crate::handheld::small_frame(
-            crate::pointers::host_at(into.pixels),
-            into.pitch,
-            into.width,
-            into.height,
-        )
+        // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
+        // while the game's code waits here.
+        let screen = unsafe { screen_bytes(&into) };
+        crate::handheld::Small::from_screen(screen, into.pitch, into.width, into.height)
     });
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    let small: Option<Small> = None;
+    let mut small: Option<Small> = None;
     with_depth(|depth| {
         if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
@@ -435,8 +442,10 @@ fn draw_noted(pending: &mut Pending) {
         // `width` x `height` floats (the sizes compared above), borrowed mutably here; the
         // game's code does not run while the frame is drawn (under `PENDING`'s lock).
         let mut frame = unsafe {
-            match small {
-                Some(s) => Frame::new(s.pixels, s.width * 4, s.width, s.height, 32, s.depth),
+            match small.as_mut().map(Small::frame_parts) {
+                Some((pixels, width, height, depth)) => {
+                    Frame::new(pixels, width * 4, width, height, 32, depth)
+                }
                 None => Frame::new(
                     crate::pointers::host_at(into.pixels),
                     into.pitch,
@@ -506,9 +515,9 @@ fn draw_noted(pending: &mut Pending) {
     });
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     if let Some(s) = small {
-        crate::handheld::enlarge(
-            s,
-            crate::pointers::host_at(into.pixels),
+        // SAFETY: as above.
+        s.enlarge_to(
+            unsafe { screen_bytes(&into) },
             into.pitch,
             into.width,
             into.height,

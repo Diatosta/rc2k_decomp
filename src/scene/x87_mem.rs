@@ -43,16 +43,12 @@ impl Base for *mut u8 {
 /// otherwise, `pointers::check_or_end`).
 #[track_caller]
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
-    // A pointer to one of the program's statics or to this thread's stack (a local of the
-    // caller's, near this frame): released builds go straight there, as these run many times
-    // a physics tick; the check by region stays in debug builds and tests, and for everything
-    // else.
-    if !cfg!(debug_assertions)
-        && let Some(p) = base.direct()
-    {
+    // A pointer to one of the program's statics or to this thread's stack needs no trip through
+    // the address tables (these run many times a physics tick); the same bounds hold it.
+    if let Some(p) = base.direct() {
         let at = p.wrapping_add(off);
-        let here = (&raw const off) as usize;
-        if crate::address_map::in_image(at as usize, len) || (at as usize).abs_diff(here) < 0x1_0000
+        if crate::address_map::in_image(at as usize, len)
+            || crate::os::in_thread_stack(at as usize, len)
         {
             return at;
         }

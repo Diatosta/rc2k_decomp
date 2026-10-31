@@ -4,7 +4,7 @@
 
 use std::fs::File;
 use std::os::fd::AsRawFd;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
 const FBIOPUT_VSCREENINFO: libc::c_ulong = 0x4601;
@@ -44,6 +44,15 @@ struct Framebuffer {
 
 // SAFETY: only ever used under `FRAMEBUFFER`'s lock; the mapping is the program's for its life.
 unsafe impl Send for Framebuffer {}
+
+impl Framebuffer {
+    /// The two pages.
+    fn pages(&mut self) -> &mut [u8] {
+        // SAFETY: the mapping's whole length, the program's for its life; `&mut self` under
+        // `FRAMEBUFFER`'s lock is the only way to it.
+        unsafe { std::slice::from_raw_parts_mut(self.pixels, STRIDE * HEIGHT * 2) }
+    }
+}
 
 static FRAMEBUFFER: Mutex<Option<Framebuffer>> = Mutex::new(None);
 
@@ -119,8 +128,7 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
     // A new size leaves old pixels where the frame no longer reaches: both pages cleared.
     if fb.size != (width, height) {
         fb.size = (width, height);
-        // SAFETY: the two pages mapped.
-        unsafe { std::ptr::write_bytes(fb.pixels, 0, STRIDE * HEIGHT * 2) };
+        fb.pages().fill(0);
     }
     let (shown_w, shown_h) = if width > WIDTH || height > HEIGHT {
         let by_height = (width * HEIGHT / height, HEIGHT);
@@ -134,12 +142,11 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
     };
     let (left, top) = ((WIDTH - shown_w) / 2, (HEIGHT - shown_h) / 2);
     let page = fb.back * HEIGHT * STRIDE;
+    let pages = fb.pages();
     for row in 0..shown_h {
         let from = &frame[row * height / shown_h * width * 4..][..width * 4];
         let at = page + (top + row) * STRIDE + left * 4;
-        // SAFETY: `at` + the row's length lies in the page mapped: at most the panel's rows and
-        // columns.
-        let to = unsafe { std::slice::from_raw_parts_mut(fb.pixels.add(at), shown_w * 4) };
+        let to = &mut pages[at..at + shown_w * 4];
         if shown_w == width {
             to.copy_from_slice(from);
         } else {
@@ -181,23 +188,16 @@ pub fn pad_mapping(guid: &str) -> String {
 /// How many times smaller, each way.
 pub const SMALLER: usize = 2;
 
-/// A small frame while it is drawn.
-#[derive(Clone, Copy)]
-pub struct Small {
-    pub pixels: *mut u8,
-    pub width: usize,
-    pub height: usize,
-    pub depth: *mut f32,
-}
-
 struct SmallBuffers {
     pixels: Vec<u32>,
     depth: Vec<f32>,
+    width: usize,
 }
 
 static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
     pixels: Vec::new(),
     depth: Vec::new(),
+    width: 0,
 });
 
 /// Whether this flush goes through a small frame: in a race, unless `RC2K_FULL_RESOLUTION`.
@@ -207,49 +207,52 @@ pub fn draws_small() -> bool {
         && crate::race::numbers_store::NUMBERS.in_race.bits() != 0
 }
 
-/// The small frame, holding the screen's picture made smaller (what was drawn before this
-/// flush, which the 3D may blend over).
-pub fn small_frame(screen: *const u8, pitch: usize, width: usize, height: usize) -> Small {
-    let (w, h) = (width / SMALLER, height / SMALLER);
-    let mut b = SMALL.lock().unwrap_or_else(|e| e.into_inner());
-    if b.pixels.len() != w * h {
-        b.pixels = vec![0; w * h];
-        b.depth = vec![1.0; w * h];
-    }
-    for y in 0..h {
-        // SAFETY: the caller's checked screen: `height` rows of `pitch` bytes of at least
-        // `width` 32-bit pixels; this row lies in them.
-        let from = unsafe { screen.add(y * SMALLER * pitch) }.cast::<u32>();
-        for (x, to) in b.pixels[y * w..][..w].iter_mut().enumerate() {
-            // SAFETY: as above, `x * SMALLER` is below `width`.
-            *to = unsafe { from.add(x * SMALLER).read_unaligned() };
-        }
-    }
-    // The buffers stay in the static, untouched until the next flush, which the caller's lock
-    // on the noted things keeps from starting first.
-    Small {
-        pixels: b.pixels.as_mut_ptr().cast(),
-        width: w,
-        height: h,
-        depth: b.depth.as_mut_ptr(),
-    }
-}
+/// A small frame while it is drawn: its buffers held until it is enlarged.
+pub struct Small(MutexGuard<'static, SmallBuffers>);
 
-/// The small frame back on the screen, each of its pixels made `SMALLER` wide and high.
-pub fn enlarge(small: Small, screen: *mut u8, pitch: usize, width: usize, height: usize) {
-    for y in 0..small.height {
-        // SAFETY: the small frame's own rows, as `small_frame` made them.
-        let from = unsafe {
-            std::slice::from_raw_parts(small.pixels.cast::<u32>().add(y * small.width), small.width)
-        };
-        for row in 0..SMALLER {
-            let at = (y * SMALLER + row).min(height - 1);
-            // SAFETY: as in `small_frame`: this row of the screen, `width` pixels.
-            let to = unsafe {
-                std::slice::from_raw_parts_mut(screen.add(at * pitch).cast::<u32>(), width)
-            };
-            for (pair, &p) in to.as_chunks_mut::<SMALLER>().0.iter_mut().zip(from) {
-                pair.fill(p);
+impl Small {
+    /// The small frame, holding the screen's picture made smaller (what was drawn before this
+    /// flush, which the 3D may blend over).
+    pub fn from_screen(screen: &[u8], pitch: usize, width: usize, height: usize) -> Self {
+        let (w, h) = (width / SMALLER, height / SMALLER);
+        let mut b = SMALL.lock().unwrap_or_else(|e| e.into_inner());
+        if b.pixels.len() != w * h {
+            b.pixels = vec![0; w * h];
+            b.depth = vec![1.0; w * h];
+        }
+        b.width = w;
+        for (y, to) in b.pixels.chunks_exact_mut(w).enumerate() {
+            let from = screen[y * SMALLER * pitch..].as_chunks::<4>().0;
+            for (x, pixel) in to.iter_mut().enumerate() {
+                *pixel = u32::from_ne_bytes(from[x * SMALLER]);
+            }
+        }
+        Self(b)
+    }
+
+    /// For the rasteriser's `Frame`, which holds them no longer than this `Small` lives:
+    /// (pixels, width, height, depths).
+    pub fn frame_parts(&mut self) -> (*mut u8, usize, usize, *mut f32) {
+        let b = &mut *self.0;
+        let height = b.pixels.len() / b.width;
+        (
+            b.pixels.as_mut_ptr().cast(),
+            b.width,
+            height,
+            b.depth.as_mut_ptr(),
+        )
+    }
+
+    /// Back on the screen, each pixel made `SMALLER` wide and high.
+    pub fn enlarge_to(self, screen: &mut [u8], pitch: usize, width: usize, height: usize) {
+        let b = &*self.0;
+        for (y, row) in screen.chunks_exact_mut(pitch).take(height).enumerate() {
+            let from = &b.pixels[(y / SMALLER) * b.width..][..b.width];
+            let to = row[..width * 4].as_chunks_mut::<{ 4 * SMALLER }>().0;
+            for (wide, &p) in to.iter_mut().zip(from) {
+                for pixel in wide.as_chunks_mut::<4>().0 {
+                    *pixel = p.to_ne_bytes();
+                }
             }
         }
     }
