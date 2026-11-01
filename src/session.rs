@@ -151,6 +151,30 @@ pub fn read_on<C: Cell32>(
     }
 }
 
+/// `read_on` where the index comes from outside data: past the table's end it reads what
+/// follows only inside `holder`, the store or record holding the table. The original reads
+/// on anywhere; here the next thing in memory is another static, so that is refused.
+pub fn read_on_in<H: ?Sized, C: Cell32>(
+    holder: &H,
+    cells: &[C],
+    n: usize,
+    what: &str,
+) -> Result<u32, crate::errors::BadInput> {
+    match cells.get(n) {
+        Some(cell) => Ok(cell.bits()),
+        None => {
+            let place = crate::pointers::GamePtr::to(holder);
+            place
+                .offset(
+                    crate::pointers::game_address(cells.as_ptr())
+                        .wrapping_sub(place.addr())
+                        .wrapping_add(n.wrapping_mul(4) as u32),
+                )
+                .read(what)
+        }
+    }
+}
+
 /// `read_on`'s write: cell `n` of `cells`, or, past their end, the dword there by address.
 pub fn write_on<C: Cell32>(
     cells: &[C],

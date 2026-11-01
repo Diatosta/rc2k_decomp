@@ -33,9 +33,11 @@ fn head_byte(k: usize) -> Result<u32, BadInput> {
 }
 
 /// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
-/// variables after it, as the original does.
+/// variables after it, as the original does, and is refused past the replay's work (a
+/// damaged replay file gives any byte).
 fn wish_of(byte: usize) -> Result<u32, BadInput> {
-    crate::session::read_on(
+    crate::session::read_on_in(
+        &*REPLAY_WORK,
         &REPLAY_WORK.replay_camera_wishes,
         byte,
         "the replay camera wishes",
@@ -104,4 +106,17 @@ fn steps() -> Result<(), Refused> {
 /// The Rust version.
 pub fn replay_cameras() -> Result<(), Refused> {
     steps()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_wish_stays_inside_the_replay_work() {
+        assert!(wish_of(46).is_ok());
+        // The two dwords after the table are the replay work's own.
+        assert!(wish_of(48).is_ok());
+        assert!(wish_of(255).is_err());
+    }
 }

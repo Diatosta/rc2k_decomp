@@ -342,3 +342,9 @@ network mode and the data after it. The line is now cut to the buffer's room.
 Read in the code, not seen. The game copies the install folder and language folder from the install
 record without checking their length, so an over-long value overwrote the data after them.
 The game now stops with a message naming the path.
+
+## A damaged replay file picks a camera from outside its table
+
+Seen by damaging a saved replay on purpose, under a memory checker. A byte in each replay frame
+chooses the camera from a table of 47 entries, and the game does not check it, so a damaged file
+read memory well past the table. The game now stops with a message naming the table.
