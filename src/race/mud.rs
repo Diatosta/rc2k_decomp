@@ -123,7 +123,7 @@ pub fn init_mud() -> Result<(), Refused> {
         .course_bytes_total
         .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
     MUD.take(
-        crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list[0]),
+        crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list),
         MUD_LEN,
         vec![0; MUD_LEN as usize],
     )?;

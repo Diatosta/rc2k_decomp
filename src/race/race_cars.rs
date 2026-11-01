@@ -84,7 +84,7 @@ pub fn set_player_car_kinds() {
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
 fn text_data() -> Result<crate::pointers::GameBytes, BadInput> {
-    GamePtr::to(&RACE_TABLES.car_data_text[0]).bytes("the cars' data text")
+    GamePtr::to(&RACE_TABLES.car_data_text).bytes("the cars' data text")
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
@@ -186,7 +186,7 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         text(word(2), false);
         number(pick.index, false);
         let set_up =
-            GamePtr::to(&crate::race::league_store::LEAGUE.auto_setups[0]).offset(pick.index << 4);
+            GamePtr::to(&crate::race::league_store::LEAGUE.auto_setups).offset(pick.index << 4);
         let at = |k: u32| set_up.offset(k).read::<u32>("the auto set-ups");
         for (value, off, words) in [
             (at(0)?, 0x30, [3, 4]),

@@ -30,11 +30,13 @@ pub fn set_all_plates() -> Result<(), Refused> {
     };
     let cars: u32 = RACE_VIEW.race_cars.bits();
     check_picture_cars(cars)?;
-    let pictures = GamePtr::to(&TEXTURE_PLACES.kind_pictures[0]);
+    let pictures = GamePtr::to(&TEXTURE_PLACES.kind_pictures);
     for (kind, dwords) in PREF_PIECES {
         // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
         // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
-        let from = GamePtr::to(&STAGE_PREFS.picture_lists_a[0]).offset(4 * kind as u32);
+        let from = GamePtr::to(&STAGE_PREFS.picture_lists_a)
+            .unbounded()
+            .offset(4 * kind as u32);
         let to = pictures.offset(4 * kind as u32);
         from.copy_to(to, 4 * dwords, "the picture lists")?;
     }

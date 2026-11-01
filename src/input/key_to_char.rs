@@ -87,7 +87,7 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
             alt_gr: as_bytes(&tables[3]),
         },
         &GamePtr::to(&KEYBOARD.compose).bytes("the compose table")?,
-        &GamePtr::to(&KEYBOARD.silent_keys[0]).bytes("the silent keys")?,
+        &GamePtr::to(&KEYBOARD.silent_keys).bytes("the silent keys")?,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),
         DEVICES.dead_key.get(),

@@ -52,7 +52,9 @@ pub fn fog_polygon() -> Result<(), Refused> {
         } else {
             length.wrapping_sub(1)
         };
-        let fog = GamePtr::to(&LIGHT_STATE.fog_table[0])
+        // A length of 0 reads the byte before the table, as the original.
+        let fog = GamePtr::to(&LIGHT_STATE.fog_table)
+            .unbounded()
             .offset(place)
             .read::<u8>("the fog table")? as u32;
         entry.fog.set((fixed.unwrap_or(fog) ^ 0xFF) as u8);

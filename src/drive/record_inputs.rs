@@ -32,7 +32,7 @@ pub fn record_inputs() -> Result<(), BadInput> {
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     let esi = tape_offset(REPLAY_FRAMES.tenth.get(), car);
-    GamePtr::to(&REPLAY_WORK.replay_tape[0])
+    GamePtr::to(&REPLAY_WORK.replay_tape)
         .offset(esi)
         .write([ebx, packed], "the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);

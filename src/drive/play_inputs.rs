@@ -24,11 +24,7 @@ pub fn play_inputs() -> Result<(), BadInput> {
         return Ok(());
     }
     let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
-    let at = |o: u32| {
-        GamePtr::to(&REPLAY_WORK.replay_tape[0])
-            .offset(esi)
-            .offset(o)
-    };
+    let at = |o: u32| GamePtr::to(&REPLAY_WORK.replay_tape).offset(esi).offset(o);
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {

@@ -22,7 +22,7 @@ pub struct Freeing {
 /// `race::free_course_memory` (0x41F924).
 pub const COURSE: Freeing = Freeing {
     // g_courseMemoryList
-    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.course_memory_list[0]),
+    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.course_memory_list),
     counted: true,
     // g_courseMemory, g_courseInfo
     cleared: &[
@@ -46,7 +46,7 @@ pub const COURSE: Freeing = Freeing {
 /// `race::free_course_list_2` (0x41F94D).
 pub const COURSE_2: Freeing = Freeing {
     // stru_5C6D90
-    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.course_list_2[0]),
+    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.course_list_2),
     counted: true,
     // dword_5C6F98, dword_5C6F9C
     cleared: &[
@@ -58,7 +58,7 @@ pub const COURSE_2: Freeing = Freeing {
 /// `race::free_point_records` (0x41F992).
 pub const POINT_RECORDS: Freeing = Freeing {
     // stru_5C6E50
-    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.point_records_list[0]),
+    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.point_records_list),
     counted: true,
     // g_pointRecords
     cleared: &[|| COURSE_LISTS.point_records.set(0)],
@@ -67,7 +67,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
 /// `race::free_object_points` (0x41F89B).
 pub const OBJECT_POINTS: Freeing = Freeing {
     // stru_5C6DD0
-    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.object_points_list[0]),
+    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.object_points_list),
     counted: true,
     // g_objectPoints, g_faceMemory
     cleared: &[
@@ -82,7 +82,7 @@ pub const OBJECT_POINTS: Freeing = Freeing {
 /// `race::free_mud` (0x449ECA).
 pub const MUD: Freeing = Freeing {
     // stru_5C6F50
-    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list[0]),
+    list: || crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list),
     counted: true,
     // g_mud
     cleared: &[|| RACE_VARS.mud.set(0)],
@@ -104,7 +104,7 @@ pub const FONTS: Freeing = Freeing {
 /// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
 /// block while the game's own heap is in use (`free_list` refuses it).
 pub fn free(f: &Freeing) -> Result<(), Refused> {
-    let l = (f.list)();
+    let l = (f.list)().unbounded(); // As in `free_list`.
     let list = l.read::<MemoryList>("a memory list")?;
     if list.head != 0 && own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)").into());

@@ -18,7 +18,7 @@ pub fn load_replay_frame() -> Result<(), Refused> {
     let frame = REPLAY_FRAMES.step_block.get();
     { crate::drive::read_replay_frame_0::read_replay_frame_0(frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks()?;
-    GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0]).copy_to(
+    GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block).copy_to(
         GamePtr::new(crate::race::blocks_store::block_addr(8)),
         DWORDS * 4,
         "a car's block",

@@ -46,7 +46,7 @@ pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
     let device = DEVICES.records[0].get_u32(0).wrapping_mul(0x50);
-    let axes: u32 = GamePtr::to(&DEVICES.controllers[0])
+    let axes: u32 = GamePtr::to(&DEVICES.controllers)
         .offset(device)
         .offset(0x14)
         .read("a controller's axes")?;

@@ -50,7 +50,7 @@ pub fn poll_device(record: u32) -> Result<(), Refused> {
     if failed != 0 {
         crate::input::di_objects::acquire(device);
         GamePtr::new(record).copy_to(
-            GamePtr::to(&DEVICES.device_state[0]),
+            GamePtr::to(&DEVICES.device_state),
             STATE_LEN,
             "a device record read as its state",
         )?;

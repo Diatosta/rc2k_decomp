@@ -201,6 +201,9 @@ def pilot(seconds):
             if fields['race'] != '1':
                 print('race over', fields)
                 break
+            if 'speed' not in fields:  # a state read while the game was busy
+                time.sleep(0.1)
+                continue
             speed = float(fields['speed'])
             x, y = map(float, fields['map'].split(','))
             tx, ty = map(float, fields['target' if speed > 10 else 'near'].split(','))

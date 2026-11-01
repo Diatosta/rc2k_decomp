@@ -148,7 +148,8 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
 
 /// The dword `offset` bytes from the first model's groups (the original does not bound it).
 fn model_field(offset: u32) -> Result<u32, BadInput> {
-    GamePtr::to(&LIGHT_RECORDS.records[0].groups)
+    GamePtr::to(&LIGHT_RECORDS.records)
+        .offset(core::mem::offset_of!(crate::race::light_records_store::LightRecord, groups) as u32)
         .offset(offset)
         .read("a model's record")
 }

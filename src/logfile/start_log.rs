@@ -83,7 +83,8 @@ pub fn start_log() -> Result<(), BadInput> {
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
         cpu_family: M.cpu_family.get() as i32,
         cpu_flags: M.cpu_signature.get(),
-        cpu_name: c_text(crate::pointers::GamePtr::to(&M.cpu_vendor))?,
+        // Twelve characters; the end follows the field.
+        cpu_name: c_text(crate::pointers::GamePtr::to(&M.cpu_vendor).unbounded())?,
         clock: M.cpu_mhz.get() as i32,
         fpu: M.has_fpu.get() as i32,
         mmx: M.found_mmx.get() as i32,

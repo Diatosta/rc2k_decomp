@@ -359,7 +359,8 @@ pub fn open_replay() -> Result<(), Refused> {
         to.set(from.get());
     }
     seal_replay_header()?;
-    GamePtr::to(&REPLAY_WORK.header_stage).copy_to(
+    // The store types the stage's 0x400 bytes by their first dword.
+    GamePtr::to(&REPLAY_WORK.header_stage).unbounded().copy_to(
         GamePtr::new(REPLAYS.header.addr() + 0x30),
         0x400,
         "the replay header's stage",

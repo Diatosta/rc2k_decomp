@@ -26,7 +26,7 @@ use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
 fn head_byte(k: usize) -> Result<u32, BadInput> {
-    GamePtr::to(&CAR_BLOCKS.cars[0].unknown_0[0])
+    GamePtr::to(&CAR_BLOCKS.cars[0].unknown_0)
         .offset(k as u32)
         .read::<u8>("a car's block")
         .map(u32::from)

@@ -174,7 +174,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     if read_first_match(
         crate::pointers::GamePtr::to(KEYBOARD_FILES),
-        crate::pointers::GamePtr::to(&KEYBOARD_FILE.magic),
+        crate::pointers::GamePtr::to(&KEYBOARD_FILE),
         KEYBOARD_LEN as u32,
         0,
     )?
@@ -216,8 +216,8 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     // `sub_403462`
     if MACHINE.keyboard_type.get() == 2 {
-        GamePtr::to(&KEYBOARD_TABLES.nec_head).copy_to(
-            GamePtr::to(&KEYBOARD_FILE.magic),
+        GamePtr::to(&KEYBOARD_TABLES.nec_head).unbounded().copy_to(
+            GamePtr::to(&KEYBOARD_FILE),
             0x30,
             "the NEC keyboard head",
         )?;

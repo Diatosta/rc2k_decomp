@@ -68,7 +68,7 @@ pub fn bars(
             .iter()
             .map(|&k| {
                 let kind: u32 = k[n as usize].get();
-                GamePtr::to(&HUD.stage_colours[0])
+                GamePtr::to(&HUD.stage_colours)
                     .offset(kind)
                     .read("a stage bar's colour")
             })

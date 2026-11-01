@@ -411,30 +411,61 @@ fn outside(addr: u32, len: usize, what: &str) -> BadInput {
 }
 
 /// An address the game's data holds (a font's glyph table, a list's next record).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct GamePtr(u32);
+///
+/// One made from a field (`to`) also keeps that field's ends: going outside them is refused, so an
+/// overrun inside a store is seen, which a region's check is not (a chat message over the
+/// network's mode, 2026-11-01). `unbounded` marks the places the original reads on.
+#[derive(Clone, Copy, Debug)]
+pub struct GamePtr {
+    at: u32,
+    /// The field's first byte and the byte past it; both 0 for no field.
+    field: (u32, u32),
+}
+
+impl PartialEq for GamePtr {
+    fn eq(&self, other: &Self) -> bool {
+        self.at == other.at
+    }
+}
+
+impl Eq for GamePtr {}
 
 impl GamePtr {
     pub const fn new(addr: u32) -> Self {
-        Self(addr)
+        Self {
+            at: addr,
+            field: (0, 0),
+        }
+    }
+
+    /// The same address, free of its field's ends: where the original runs on past a field.
+    pub const fn unbounded(self) -> Self {
+        Self::new(self.at)
     }
 
     /// The game address of a field of Rust's game state (a store's cell, buffer or place).
     pub fn to<T: ?Sized>(field: &T) -> Self {
-        Self::new(game_address(std::ptr::from_ref::<T>(field).cast::<u8>()))
+        let at = game_address(std::ptr::from_ref::<T>(field).cast::<u8>());
+        Self {
+            at,
+            field: (at, at.wrapping_add(size_of_val(field) as u32)),
+        }
     }
 
     pub const fn is_null(self) -> bool {
-        self.0 == 0
+        self.at == 0
     }
 
     pub const fn addr(self) -> u32 {
-        self.0
+        self.at
     }
 
     /// The address `n` bytes on (no check until it is read).
     pub const fn offset(self, n: u32) -> Self {
-        Self(self.0.wrapping_add(n))
+        Self {
+            at: self.at.wrapping_add(n),
+            field: self.field,
+        }
     }
 
     /// The bytes from here to the end of the region, for a reader of an extent nobody knows
@@ -442,11 +473,17 @@ impl GamePtr {
     /// answers nothing, which the core refuses.
     #[track_caller]
     pub fn bytes(self, what: &str) -> Result<GameBytes, BadInput> {
-        watched(self.0, 1, what);
-        let (_, end) = region_of(self.0).ok_or_else(|| outside(self.0, 1, what))?;
+        watched(self.at, 1, what);
+        let (_, end) = region_of(self.at).ok_or_else(|| outside(self.at, 1, what))?;
+        // Inside its field, when it has one.
+        let end = if self.field.1 == 0 {
+            end
+        } else {
+            end.min(self.field.1)
+        };
         Ok(GameBytes {
-            start: self.0,
-            len: (end - self.0) as usize,
+            start: self.at,
+            len: end.saturating_sub(self.at) as usize,
         })
     }
 
@@ -462,7 +499,7 @@ impl GamePtr {
         }
         // SAFETY: the bytes lie in one live region (checked above); unwritten meanwhile
         // (the caller's promise).
-        unsafe { std::slice::from_raw_parts(host(self.0), len) }
+        unsafe { std::slice::from_raw_parts(host(self.at), len) }
     }
 
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
@@ -471,7 +508,7 @@ impl GamePtr {
     pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
-        Ok(unsafe { crate::shared_memory::read(host(self.0) as *const T) })
+        Ok(unsafe { crate::shared_memory::read(host(self.at) as *const T) })
     }
 
     /// The `T` written at the address, when all of it lies in one region.
@@ -479,7 +516,7 @@ impl GamePtr {
     pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: as `read`; the regions are the game's writable memory.
-        unsafe { crate::shared_memory::write(host(self.0).cast::<T>(), value) };
+        unsafe { crate::shared_memory::write(host(self.at).cast::<T>(), value) };
         Ok(())
     }
 
@@ -491,7 +528,7 @@ impl GamePtr {
         let mut bytes = Vec::with_capacity(len);
         // SAFETY: `bytes` has room for `len`, all set by `load`.
         unsafe {
-            crate::shared_memory::load(host(self.0), bytes.as_mut_ptr(), len);
+            crate::shared_memory::load(host(self.at), bytes.as_mut_ptr(), len);
             bytes.set_len(len);
         }
         Ok(bytes)
@@ -504,7 +541,7 @@ impl GamePtr {
         // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
         // copied through a temporary by the caller.
         unsafe {
-            crate::shared_memory::store(host(self.0), bytes.as_ptr(), bytes.len());
+            crate::shared_memory::store(host(self.at), bytes.as_ptr(), bytes.len());
         }
         Ok(())
     }
@@ -517,7 +554,7 @@ impl GamePtr {
         to.check(len, what)?;
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
-            crate::shared_memory::copy(host(self.0), host(to.0), len);
+            crate::shared_memory::copy(host(self.at), host(to.at), len);
         }
         Ok(())
     }
@@ -527,7 +564,7 @@ impl GamePtr {
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         // SAFETY: the run lies in one live region.
-        unsafe { crate::shared_memory::fill(host(self.0), value, len) };
+        unsafe { crate::shared_memory::fill(host(self.at), value, len) };
         Ok(())
     }
 
@@ -538,21 +575,29 @@ impl GamePtr {
     #[track_caller]
     pub fn record<T: Cells>(self, what: &str) -> Result<&'static T, BadInput> {
         self.check(size_of::<T>(), what)?;
-        if !(self.0 as usize).is_multiple_of(align_of::<T>()) {
-            return Err(outside(self.0, size_of::<T>(), what));
+        if !(self.at as usize).is_multiple_of(align_of::<T>()) {
+            return Err(outside(self.at, size_of::<T>(), what));
         }
         // SAFETY: inside a live region, aligned, and `T` is made of cells (`Cells`).
-        Ok(unsafe { &*(host(self.0) as *const T) })
+        Ok(unsafe { &*(host(self.at) as *const T) })
     }
 
     /// Whether `len` bytes from the address lie in one region.
     #[track_caller]
     fn check(self, len: usize, what: &str) -> Result<(), BadInput> {
-        watched(self.0, len, what);
-        if inside(self.0, len) {
+        watched(self.at, len, what);
+        let (first, end) = self.field;
+        if end != 0 && (self.at < first || u64::from(self.at) + len as u64 > u64::from(end)) {
+            log(&format!(
+                "pointers: {what}: {len} bytes at {:#x}, outside its field {first:#x} .. {end:#x}",
+                self.at
+            ));
+            return Err(BadInput("past the end of a field"));
+        }
+        if inside(self.at, len) {
             Ok(())
         } else {
-            Err(outside(self.0, len, what))
+            Err(outside(self.at, len, what))
         }
     }
 }

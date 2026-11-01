@@ -22,7 +22,8 @@ pub fn count_on(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refuse
     if list.is_null() || rc2k_core::memory::block_size(bytes).is_none() {
         return Err(BadInput("no list, or a size that wraps").into());
     }
-    let at = list;
+    // As in `free_list`.
+    let at = list.unbounded();
     let mut l = at.read::<MemoryList>("a memory list")?;
     l.total = l.total.wrapping_add(bytes);
     at.write(l, "a memory list")?;

@@ -85,7 +85,7 @@ pub fn allocate_ring() -> Result<(), Refused> {
         })
         .collect();
     PARTICLES.take(
-        crate::pointers::GamePtr::to(&RING_POOL.list[0]),
+        crate::pointers::GamePtr::to(&RING_POOL.list),
         RING_LEN,
         ring,
     )?;
