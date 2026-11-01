@@ -327,7 +327,8 @@ mod tests {
 
     #[test]
     fn equal_keys_deep() {
-        let mut list = vec![[3u32, 0]; 0x1000];
+        // Miri: this case is quadratic, and took hours at the full length
+        let mut list = vec![[3u32, 0]; if cfg!(miri) { 0x40 } else { 0x1000 }];
         for (n, r) in list.iter_mut().enumerate() {
             r[1] = n as u32;
         }
