@@ -19,7 +19,7 @@ savedata are put back on stop, as the folder is the real one.
 import math, os, shutil, struct, subprocess, sys, time, zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HOME = os.path.expanduser('~/.cache/rc2k_remote')
+HOME = os.path.expanduser(os.environ.get('RC2K_REMOTE_HOME', '~/.cache/rc2k_remote'))  # a second copy: another folder
 GAME = HOME + '/game'
 INSTALLED = os.path.expanduser('~/.local/share/rally-championship')
 SHOTS = HOME + '/shots'
