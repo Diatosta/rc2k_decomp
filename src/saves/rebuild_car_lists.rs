@@ -33,15 +33,20 @@ pub fn rebuild_car_lists() -> Result<(), BadInput> {
     let mut found = Vec::new();
     for (numbers, _, len) in LISTS {
         let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
+        // Saved before the front end first ended: the lists stay as they start.
+        if rc2k_core::saves::cars::never_listed(&list) {
+            found.push(None);
+            continue;
+        }
         let reads = CheckedReads::new();
         let answer = rc2k_core::saves::cars::pointers(&list, |id| {
             // Past the table's 34 the original reads on into the bytes after it: refused.
             reads.value(crate::menu::cars_store::car_entry(id))
         });
-        found.push(reads.finish(answer)??);
+        found.push(Some(reads.finish(answer)??));
     }
     for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
-        for (n, v) in list.into_iter().enumerate() {
+        for (n, v) in list.into_iter().flatten().enumerate() {
             pointers[n].set(v);
         }
     }

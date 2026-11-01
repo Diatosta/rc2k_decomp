@@ -56,7 +56,7 @@ fn clear(text: u32, most: u32) {
 pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
     let text = rd(item + 8);
     let record = rd(item + 0xC);
-    let most = rb(record + 1) as u32;
+    let most = crate::install::folders::field_most(text, rb(record + 1)) as u32;
     let with_bit_3 = (key | 0x800, false);
     let backspace = || {
         if rb(text) != 0 {

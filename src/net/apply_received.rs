@@ -29,13 +29,10 @@ pub fn apply_received() -> Result<(), Refused> {
         let block = NET.player_block(player);
         let mut left = block.copied_count.get();
         if left != 0 {
-            let mut record = block.copied.addr();
+            let mut record = crate::pointers::GamePtr::to(&block.copied);
             loop {
-                apply_message(
-                    player,
-                    crate::pointers::host_at((record + 2) as usize).cast_const(),
-                )?;
-                record += 0x100;
+                apply_message(player, record.offset(2).limited(0xFE))?;
+                record = record.offset(0x100);
                 left = left.wrapping_sub(1);
                 if left == 0 {
                     break;

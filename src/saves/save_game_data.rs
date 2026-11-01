@@ -15,6 +15,9 @@ pub fn save_game_data(
     save_options: &mut dyn FnMut() -> Result<bool, Refused>,
     save_best_times: &mut dyn FnMut() -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
+    // The front end fills these as it ends; closing the window before that saves too, and
+    // lists never filled in the file would refuse every later start.
+    crate::saves::list_car_numbers::list_car_numbers()?;
     save_options()?;
     save_best_times()
 }

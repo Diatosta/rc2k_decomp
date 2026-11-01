@@ -45,6 +45,10 @@ impl Folders for Windows {
         folder.to_vec()
     }
 
+    fn field_most(original: u8) -> u8 {
+        original
+    }
+
     fn field_width(original: u16) -> u16 {
         original
     }

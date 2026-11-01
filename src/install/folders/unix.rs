@@ -128,6 +128,11 @@ impl Folders for Unix {
         crate::files::ansi_bytes(if full.is_empty() { "/" } else { full })
     }
 
+    fn field_most(_original: u8) -> u8 {
+        // A whole path: the original's 124 cut a long home folder's without a word.
+        200
+    }
+
     fn field_width(_original: u16) -> u16 {
         // Whole paths (`/home/me/.local/share/..`): nearly the 800-pixel screen.
         760

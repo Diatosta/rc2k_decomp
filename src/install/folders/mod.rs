@@ -14,6 +14,16 @@ use crate::errors::{BadInput, Refused};
 
 #[cfg(unix)]
 mod unix;
+/// An edit field's most bytes: the folder field's by the system's rules, any other's its
+/// record's (`original`).
+pub fn field_most(text: u32, original: u8) -> u8 {
+    if text == crate::install::vars::INSTALLER_PATHS.typed.addr() {
+        <Native as Folders>::field_most(original)
+    } else {
+        original
+    }
+}
+
 #[cfg(windows)]
 mod windows;
 
@@ -57,6 +67,10 @@ pub trait Folders {
 
     /// The folder field's width in pixels, given the original's (its record's +6).
     fn field_width(original: u16) -> u16;
+
+    /// The folder field's most bytes, given the original's (its record's +1). The buffers
+    /// hold 256, with the game's folders still to go after it.
+    fn field_most(original: u8) -> u8;
 }
 
 /// An edit field's width: the folder field's by the system's rules, any other's its

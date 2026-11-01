@@ -30,17 +30,12 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
 /// The Rust version.
-pub fn apply_message(player: u32, message: *const u8) -> Result<(), BadInput> {
+pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
     let rd = |at: u32| GamePtr::new(at).read::<u32>("a received message or car block");
     let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "a car block's field");
-    let message = crate::pointers::game_address(message);
     log_int(NET.player.get() as i32, false, 1);
     log_int(RACE_VIEW.local_car.get() as i32, false, 1);
-    log_int(
-        GamePtr::new(message).read::<u8>("a received message")? as i32,
-        false,
-        1,
-    );
+    log_int(message.read::<u8>("a received message")? as i32, false, 1);
     crate::logfile::log_write::log_nul(&TEXT, false, 1);
     log_int(player as i32, true, 1);
     if player >= 8 {
@@ -49,13 +44,13 @@ pub fn apply_message(player: u32, message: *const u8) -> Result<(), BadInput> {
     let block = RACE_WORK.car_block(player as usize);
     // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
     // exact for the decision).
-    let Some(kind) = Kind::of(rd(message)?) else {
+    let Some(kind) = Kind::of(message.read("a received message")?) else {
         return Ok(());
     };
     for n in 0..kind.fields().len() as u32 {
         wr(
             block + kind.destination(n as usize),
-            rd(message + 4 + 4 * n)?,
+            message.offset(4 + 4 * n).read("a received message")?,
         )?;
     }
     if kind != Kind::Position {

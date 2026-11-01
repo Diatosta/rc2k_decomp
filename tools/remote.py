@@ -87,12 +87,18 @@ def ask(command, timeout=20):
 
 def png(raw, width, height, out):
     step = 2 if width > 1000 else 1
+    size = len(raw) // (width * height)
     rows = []
     for y in range(0, height, step):
         row = bytearray([0])
-        at = y * width * 4
-        line = raw[at:at + width * 4]
-        row += bytes(b for x in range(0, width, step) for b in (line[4*x+2], line[4*x+1], line[4*x]))
+        at = y * width * size
+        line = raw[at:at + width * size]
+        if size == 2:  # a 16-bit screen (the installer): 5, 6, 5
+            for x in range(0, width, step):
+                v = line[2*x] | line[2*x+1] << 8
+                row += bytes(((v >> 8) & 0xF8, (v >> 3) & 0xFC, (v << 3) & 0xF8))
+        else:
+            row += bytes(b for x in range(0, width, step) for b in (line[4*x+2], line[4*x+1], line[4*x]))
         rows.append(bytes(row))
     def chunk(kind, body):
         return struct.pack('>I', len(body)) + kind + body + struct.pack('>I', zlib.crc32(kind + body))

@@ -56,6 +56,12 @@ pub fn pointers(numbers: &[u32], car: impl Fn(u32) -> u32) -> Result<Vec<u32>, I
     Ok(out)
 }
 
+/// Whether a list of numbers in the options file was never filled: all 0 and no -1, as a file
+/// saved before the front end first ended has it (never a real list, which has its -1).
+pub fn never_listed(numbers: &[u32]) -> bool {
+    numbers.iter().all(|&id| id == 0)
+}
+
 /// A list of numbers from a list of pointers up to its -1 (`number` a record's first
 /// dword), the rest -1. Refused: no -1 within the list, a null pointer.
 pub fn numbers(pointers: &[u32], number: impl Fn(u32) -> u32) -> Result<Vec<u32>, Invalid> {
@@ -91,6 +97,8 @@ mod tests {
             Ok(vec![2, u32::MAX])
         );
         assert!(numbers(&[0, u32::MAX], |p| p).is_err());
+        assert!(never_listed(&[0, 0]));
+        assert!(!never_listed(&[0, u32::MAX]) && !never_listed(&[1, 0]));
     }
 
     #[test]

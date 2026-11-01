@@ -14,8 +14,8 @@ use crate::install::vars::INSTALLER_PATHS;
 
 pub fn start_edit(item: u32) {
     let record = rd(item + 0xC);
-    let most = rb(record + 1);
     let text = rd(item + 8);
+    let most = crate::install::folders::field_most(text, rb(record + 1));
     // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
     let at = crate::pointers::GamePtr::new(text);
     let mut words = at
