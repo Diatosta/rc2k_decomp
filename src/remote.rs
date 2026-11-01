@@ -98,15 +98,20 @@ fn button(name: &str) -> Option<SDL_GamepadButton> {
     (code != SDL_GAMEPAD_BUTTON_INVALID).then_some(code)
 }
 
-/// The car `state` reports. The arcade's cars run in their blocks: the work car holds none of
-/// them between frames.
+/// The car `state` reports. With several cars the work car holds the last one stepped between
+/// frames: in the arcade none of them, in split screen player 2's.
 fn driven_car() -> &'static crate::physics::car_store::Car {
     let viewed = crate::race::view_store::RACE_VIEW
         .view_block(0)
         .wrapping_sub(crate::race::blocks_store::blocks_addr()) as usize
         / size_of::<crate::physics::car_store::Car>();
     match crate::race::blocks_store::CAR_BLOCKS.cars.get(viewed) {
-        Some(car) if crate::race::vars_store::RACE_VARS.run_kind.bits() == 2 => car,
+        Some(car)
+            if crate::race::vars_store::RACE_VARS.run_kind.bits() == 2
+                || crate::menu::event_store::EVENT_STATE.player_count.get() > 1 =>
+        {
+            car
+        }
         _ => &crate::physics::car_store::CAR,
     }
 }
