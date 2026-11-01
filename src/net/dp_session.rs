@@ -22,7 +22,7 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs, UdpSocket};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -306,6 +306,22 @@ const BYE: u8 = 9;
 /// The protocol's mark at the start of a JOIN and of the discovery's packets.
 const MAGIC: &[u8; 8] = b"RC2KNET1";
 
+// What another machine can make this one hold (nothing the game needs comes near them).
+/// The longest message a program takes (the game's buffer, `net::receive_message::ROOM`): a
+/// longer one could never be taken and would hold up all behind it.
+pub const MESSAGE_MOST: usize = 0x100;
+/// The messages waiting for the program; others are dropped.
+const WAITING_MOST: usize = 0x1_0000;
+const PLAYERS_MOST: usize = 0x40;
+const GROUPS_MOST: usize = 0x40;
+const NAME_MOST: usize = 0x100;
+const DATA_MOST: usize = 0x80;
+/// The host's connections, those not yet joined among them.
+const CONNECTIONS_MOST: usize = 0x40;
+/// A machine that takes no more for this long has its connection ended (each has a thread
+/// that reads whatever comes, so a machine busy loading does not stop reading).
+const WRITE_WAIT: Duration = Duration::from_secs(5);
+
 fn write_frame(stream: &mut TcpStream, bytes: &[u8]) -> std::io::Result<()> {
     let mut frame = (bytes.len() as u32).to_le_bytes().to_vec();
     frame.extend(bytes);
@@ -336,11 +352,21 @@ fn system(words: &[u32], tail: &[u8]) -> Vec<u8> {
     v
 }
 
+/// A name and data within what a session holds.
+fn fits(name: &str, data: &[u8]) -> bool {
+    name.len() <= NAME_MOST && data.len() <= DATA_MOST
+}
+
 /// Applies a change; the system messages it makes for this machine's program (of what
 /// another machine did).
 fn apply(world: &mut World, change: &Change, me: u32) -> Vec<Vec<u8>> {
     let mut out = Vec::new();
     match change {
+        Change::PlayerAdded(_, p)
+            if world.players.len() >= PLAYERS_MOST || !fits(&p.name, &p.data) => {}
+        Change::GroupAdded(_, g)
+            if world.groups.len() >= GROUPS_MOST || !fits(&g.name, &g.data) => {}
+        Change::PlayerData(_, d) if d.len() > DATA_MOST => {}
         Change::PlayerAdded(id, p) => {
             world.players.insert(*id, p.clone());
             if p.machine != me {
@@ -418,6 +444,7 @@ fn apply(world: &mut World, change: &Change, me: u32) -> Vec<Vec<u8>> {
         Change::Joined(g, p) => {
             if let Some(group) = world.groups.get_mut(g)
                 && !group.members.contains(p)
+                && group.members.len() < PLAYERS_MOST
             {
                 group.members.push(*p);
             }
@@ -462,6 +489,24 @@ struct Shared {
     next_id: Id,
     next_machine: u32,
     lost: bool,
+    /// A message has been dropped (told once in the log).
+    dropped: bool,
+}
+
+impl Shared {
+    /// A message for the program, unless too long to take or too many wait.
+    fn wait(&mut self, m: Incoming) {
+        if m.data.len() <= MESSAGE_MOST && self.queue.len() < WAITING_MOST {
+            self.queue.push_back(m);
+        } else if !self.dropped {
+            self.dropped = true;
+            crate::framework::log(&format!(
+                "net: dropping messages from another machine ({} bytes, {} waiting)",
+                m.data.len(),
+                self.queue.len()
+            ));
+        }
+    }
 }
 
 pub struct Session {
@@ -473,6 +518,8 @@ pub struct Session {
     /// The host: each joined machine's connection. A joined machine: the host's (as 1).
     links: Mutex<HashMap<u32, TcpStream>>,
     port: u16,
+    /// The host's connections open.
+    connections: AtomicUsize,
 }
 
 impl Session {
@@ -488,11 +535,13 @@ impl Session {
                 next_id: 0x0010_0001,
                 next_machine: 2,
                 lost: false,
+                dropped: false,
             }),
             answered: Condvar::new(),
             signal,
             stop: AtomicBool::new(false),
             links: Mutex::new(HashMap::new()),
+            connections: AtomicUsize::new(0),
             port,
         })
     }
@@ -560,6 +609,7 @@ impl Session {
             let id = r.u32().ok_or(bad)?;
             world.groups.insert(id, r.group().ok_or(bad)?);
         }
+        let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let session = Session::new(me, world, signal, at.port());
         let reader = stream.try_clone().map_err(|_| bad)?;
         session
@@ -579,9 +629,16 @@ impl Session {
         while !self.stop.load(Ordering::SeqCst) {
             match listener.accept() {
                 Ok((stream, _)) => {
+                    if self.connections.fetch_add(1, Ordering::SeqCst) >= CONNECTIONS_MOST {
+                        self.connections.fetch_sub(1, Ordering::SeqCst);
+                        continue;
+                    }
                     let _ = stream.set_nonblocking(false);
                     let s = self.clone();
-                    std::thread::spawn(move || s.serve(stream));
+                    std::thread::spawn(move || {
+                        s.clone().serve(stream);
+                        s.connections.fetch_sub(1, Ordering::SeqCst);
+                    });
                 }
                 Err(_) => std::thread::sleep(Duration::from_millis(50)),
             }
@@ -609,6 +666,7 @@ impl Session {
     /// One joined machine's connection, until it ends.
     fn serve(self: Arc<Self>, mut stream: TcpStream) {
         let _ = stream.set_nodelay(true);
+        let _ = stream.set_write_timeout(Some(WRITE_WAIT));
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
         let Ok(first) = read_frame(&mut stream) else {
             return;
@@ -730,7 +788,7 @@ impl Session {
             };
             let to = s.events.keys().next().copied().unwrap_or(0);
             for m in &messages {
-                s.queue.push_back(Incoming {
+                s.wait(Incoming {
                     from: 0,
                     to,
                     data: m.clone(),
@@ -764,17 +822,25 @@ impl Session {
             let w = &s.world;
             let owned = |id: &Id| w.players.get(id).map(|p| p.machine == machine);
             let result = match &op {
-                Op::CreatePlayer(..) => {
+                Op::CreatePlayer(name, data) => {
                     let d = &w.desc;
                     if d.flags & DPSESSION_NEWPLAYERSDISABLED != 0
                         || (d.max_players != 0 && w.players.len() as u32 >= d.max_players)
+                        || w.players.len() >= PLAYERS_MOST
+                        || !fits(name, data)
                     {
                         Err(DPERR_CANTADDPLAYER)
                     } else {
                         Ok(())
                     }
                 }
-                Op::CreateGroup(..) => Ok(()),
+                Op::CreateGroup(name, data) => {
+                    if w.groups.len() < GROUPS_MOST && fits(name, data) {
+                        Ok(())
+                    } else {
+                        Err(DPERR_CANTADDPLAYER)
+                    }
+                }
                 Op::AddToGroup(g, p) | Op::RemoveFromGroup(g, p) => {
                     match (w.groups.get(g), w.players.contains_key(p)) {
                         (None, _) => Err(DPERR_INVALIDGROUP),
@@ -788,6 +854,7 @@ impl Session {
                         }
                     }
                 }
+                Op::SetPlayerData(_, d) if d.len() > DATA_MOST => Err(DPERR_ACCESSDENIED),
                 Op::DestroyPlayer(p) | Op::SetPlayerData(p, _) => match owned(p) {
                     None => Err(DPERR_INVALIDPLAYER),
                     Some(false) => Err(DPERR_ACCESSDENIED),
@@ -848,6 +915,9 @@ impl Session {
 
     /// A message handed to its addressees' machines.
     fn route(&self, from: Id, to: Id, data: Vec<u8>) {
+        if data.len() > MESSAGE_MOST {
+            return;
+        }
         let (local, remote, events) = {
             let s = self.lock();
             let w = &s.world;
@@ -878,7 +948,7 @@ impl Session {
         if !local.is_empty() {
             let mut s = self.lock();
             for &p in &local {
-                s.queue.push_back(Incoming {
+                s.wait(Incoming {
                     from,
                     to: p,
                     data: data.clone(),
@@ -911,7 +981,7 @@ impl Session {
                         let messages = apply(&mut s.world, &change, self.me);
                         let to = s.events.keys().next().copied().unwrap_or(0);
                         for m in &messages {
-                            s.queue.push_back(Incoming {
+                            s.wait(Incoming {
                                 from: 0,
                                 to,
                                 data: m.clone(),
@@ -933,7 +1003,7 @@ impl Session {
                     };
                     let event = {
                         let mut s = self.lock();
-                        s.queue.push_back(Incoming { from, to, data });
+                        s.wait(Incoming { from, to, data });
                         s.events.get(&to).copied()
                     };
                     if let Some(e) = event {
@@ -945,7 +1015,12 @@ impl Session {
                     else {
                         break;
                     };
-                    self.lock().replies.insert(request, (result, id));
+                    let mut s = self.lock();
+                    // only what was asked: a host cannot fill the map
+                    if request < s.next_request {
+                        s.replies.insert(request, (result, id));
+                    }
+                    drop(s);
                     self.answered.notify_all();
                 }
                 _ => break,
@@ -1212,4 +1287,98 @@ pub fn session_address(instance: &[u8; 16]) -> Option<SocketAddr> {
     list.iter()
         .find(|x| &x.desc.instance == instance)
         .map(|x| x.at)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn quiet(_: u32) {}
+
+    fn session() -> Arc<Session> {
+        Session::new(2, World::default(), Arc::new(quiet), 0)
+    }
+
+    fn message(len: usize) -> Incoming {
+        Incoming {
+            from: 7,
+            to: 8,
+            data: vec![0x55; len],
+        }
+    }
+
+    #[test]
+    fn a_message_too_long_to_take_holds_up_nothing() {
+        let s = session();
+        s.lock().wait(message(MESSAGE_MOST + 1));
+        s.lock().wait(message(MESSAGE_MOST));
+        let Some(Ok(taken)) = s.receive(MESSAGE_MOST) else {
+            panic!("the message that fits");
+        };
+        assert_eq!(taken.data.len(), MESSAGE_MOST);
+        assert!(s.receive(MESSAGE_MOST).is_none());
+    }
+
+    #[test]
+    fn the_waiting_messages_stop_at_their_limit() {
+        let s = session();
+        for _ in 0..WAITING_MOST + 10 {
+            s.lock().wait(message(1));
+        }
+        assert_eq!(s.lock().queue.len(), WAITING_MOST);
+    }
+
+    #[test]
+    fn the_session_lost_message_comes_with_the_queue_full() {
+        let s = session();
+        for _ in 0..WAITING_MOST {
+            s.lock().wait(message(1));
+        }
+        s.lose();
+        assert_eq!(s.lock().queue.len(), WAITING_MOST + 1);
+    }
+
+    #[test]
+    fn a_host_cannot_fill_the_lists() {
+        let mut world = World::default();
+        let player = |name: &str, data: &[u8]| Player {
+            name: name.into(),
+            data: data.to_vec(),
+            machine: 1,
+        };
+        for id in 0..PLAYERS_MOST as u32 + 5 {
+            apply(&mut world, &Change::PlayerAdded(id, player("p", &[])), 2);
+        }
+        assert_eq!(world.players.len(), PLAYERS_MOST);
+        world.players.clear();
+        let long = "n".repeat(NAME_MOST + 1);
+        apply(&mut world, &Change::PlayerAdded(1, player(&long, &[])), 2);
+        apply(
+            &mut world,
+            &Change::PlayerAdded(2, player("p", &[0; DATA_MOST + 1])),
+            2,
+        );
+        assert!(world.players.is_empty());
+        apply(&mut world, &Change::PlayerAdded(3, player("p", &[1])), 2);
+        apply(
+            &mut world,
+            &Change::PlayerData(3, vec![0; DATA_MOST + 1]),
+            2,
+        );
+        assert_eq!(world.players[&3].data, [1]);
+    }
+
+    #[test]
+    fn every_system_message_can_be_taken() {
+        let mut world = World::default();
+        let p = Player {
+            name: "n".repeat(NAME_MOST),
+            data: vec![0; DATA_MOST],
+            machine: 1,
+        };
+        let out = apply(&mut world, &Change::PlayerAdded(1, p), 2);
+        let data = apply(&mut world, &Change::PlayerData(1, vec![0; DATA_MOST]), 2);
+        assert!(out.iter().chain(&data).all(|m| m.len() <= MESSAGE_MOST));
+        assert!(!out.is_empty() && !data.is_empty());
+    }
 }

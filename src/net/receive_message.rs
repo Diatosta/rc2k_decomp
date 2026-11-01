@@ -16,6 +16,7 @@ use crate::net::store::NET;
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
+const _: () = assert!(ROOM as usize == crate::net::dp_session::MESSAGE_MOST);
 
 /// A message taken (`size` 0: none).
 #[derive(Clone, Copy, Debug)]
