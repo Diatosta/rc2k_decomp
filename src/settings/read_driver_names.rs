@@ -38,7 +38,7 @@ pub static NAMES: Place<[u8; NAMES_LEN + POOL_ROOM]> = Place::new([0; NAMES_LEN 
 
 /// The path of `var\name.cfg`.
 pub fn path() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&PATH)
+    crate::pointers::GamePtr::to(PATH)
 }
 
 // ---- Rust version ----
@@ -100,6 +100,12 @@ pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput>
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_path_is_the_text_not_the_pointer_to_it() {
+        let text = crate::files::cstring(super::path(), "a path").unwrap();
+        assert_eq!(text, b"var\\name.cfg");
+    }
+
     use crate::moved::image_bytes;
 
     #[test]
