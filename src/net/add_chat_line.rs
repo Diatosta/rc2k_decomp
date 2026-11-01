@@ -17,7 +17,6 @@ use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
-use crate::strings::str_append::str_append;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -44,19 +43,26 @@ fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
     }
 }
 
+/// "name> text" and its NUL, cut to `chat_text`'s room (the original runs on over what follows
+/// it, as far as a sender's long message takes it).
+fn said_text(name: &[u8], message: &[u8]) -> Vec<u8> {
+    let mut text = [name, b"> ", message].concat();
+    text.truncate(NET.chat_text.read().len() - 1);
+    text.push(0);
+    text
+}
+
 /// The Rust version.
 pub fn add_chat_line(player: u32, message: GamePtr) -> Result<(), Refused> {
     if message.read::<u8>("the chat's text")? == 0 {
         return Ok(());
     }
-    // "name> text"
-    let cursor = str_append(
-        GamePtr::to(&NET.player_block(player).name),
-        GamePtr::to(&NET.chat_text),
-    )?;
-    cursor.write(0x203Eu16, "the chat's text")?;
-    let cursor = str_append(message, cursor.offset(2))?;
-    cursor.write(0u8, "the chat's text")?;
+    let length = crate::strings::text_length::nul_at(message, "the chat's text")?;
+    let text = said_text(
+        &NET.player_block(player).name.text(),
+        &message.read_bytes(length as usize, "the chat's text")?,
+    );
+    NET.chat_text.write_at(0, &text, "the chat's text")?;
     let (line, chat, said) = (&NET.chat_line, &NET.chat, &NET.chat_text);
     let mut text = 0usize;
     loop {
@@ -127,5 +133,18 @@ pub fn add_chat_line(player: u32, message: GamePtr) -> Result<(), Refused> {
         if at(said, text)? == 0 {
             return Ok(());
         }
+    }
+}
+
+#[cfg(test)]
+mod said_tests {
+    use super::said_text;
+
+    #[test]
+    fn a_line_is_kept_and_a_long_one_cut_to_its_room() {
+        assert_eq!(said_text(b"Ana", b"hi"), b"Ana> hi\0");
+        let long = said_text(&[b'n'; 31], &[b'm'; 255]);
+        assert_eq!(long.len(), 128);
+        assert_eq!(long.last(), Some(&0));
     }
 }

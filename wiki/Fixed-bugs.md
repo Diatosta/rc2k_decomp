@@ -317,3 +317,22 @@ block's +0xB0.
 - **In game**: best times and options changed since the start were gone if the game was closed with the window instead of "exit to Windows".
 - **Seen**: yes, in the conversion: a new best time was missing from `var\hst.dat` after a close.
 - **Fix**: `standalone::leave_from_race` saves first. Only a game stuck for 5 seconds after the close ends without saving.
+
+## A saved game chooses where a name is written
+
+Read in the code, and tried with damaged files; not seen in normal play. A saved car holds the
+address of its player's name, and loading took that address from the file. The next load copied
+the name to it, so a damaged or hostile save could overwrite other data with 32 bytes. A
+loaded car now keeps the game's own address, which is the same one a sound save holds.
+
+## A full-length chat message writes past its buffer
+
+Read in the code, not seen. A chat message that fills the 256-byte receive buffer had its end
+marker written one byte past it, over the first byte of the message being sent. The last
+character of such a message is now given up to the marker instead.
+
+## A long chat message overruns the chat line
+
+Read in the code, not seen. The lobby builds "name> text" in a 128-byte buffer without looking at
+its length, while a received message can hold 255 bytes. Another player could overwrite the
+network mode and the data after it. The line is now cut to the buffer's room.

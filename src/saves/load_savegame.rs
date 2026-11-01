@@ -131,6 +131,9 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
     for car in cars {
         let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
         cursor.copy_to(GamePtr::new(car), CAR_LEN, "a saved car")?;
+        // The file's own pointer is not to be trusted: the game's stays (a save's holds the
+        // same place, unless the file was damaged).
+        GamePtr::new(car + NAME_PTR_OFFSET).write(name, "a player's record")?;
         GamePtr::new(car + NAME_OFFSET).copy_to(GamePtr::new(name), NAME_LEN, "a player's name")?;
         cursor = cursor.offset(CAR_LEN as u32);
         g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)

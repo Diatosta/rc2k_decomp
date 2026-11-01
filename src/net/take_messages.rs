@@ -26,6 +26,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::dplay_send::dplay_send;
+use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
 use crate::net::store::NET;
 use crate::net::store_received::store_received;
@@ -90,7 +91,10 @@ pub fn take_messages() -> Result<(), Refused> {
         };
         match Kind::of(first) {
             Kind::Chat => {
-                GamePtr::new(m.size.wrapping_add(m.bytes)).write(0u8, "a received message")?;
+                // A message that fills the buffer loses its last byte to the NUL (the original
+                // writes it over the send buffer's first).
+                NET.receive_data
+                    .set((m.size as usize).min(ROOM as usize - 1), 0);
                 chat_line_locked(
                     player,
                     crate::pointers::GamePtr::new(m.bytes.wrapping_add(1)),
