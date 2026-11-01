@@ -20,7 +20,6 @@ use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::mud::car_file_number;
 use crate::race::work_store::RACE_WORK;
@@ -66,12 +65,13 @@ pub fn share_all_cars() -> Result<(), Refused> {
         RACE_WORK.current_car.set(n as u32);
         share_car_state(block, record, sound)?;
     }
-    let first_record: u32 = RACE_WORK.car_record(0)?;
+    let first_record: u32 = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
     KIND_TABLES.sound_objects_shown.set_bits(0u32);
     let reading = crate::scene::reading::Reading::new();
-    let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
-        reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
-    });
+    let (shown, _) =
+        sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.bits(), || {
+            reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
+        });
     reading.finish()?;
     if shown {
         KIND_TABLES.sound_objects_shown.set_bits(1u32);

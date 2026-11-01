@@ -124,6 +124,23 @@ pub fn handle_of(addr: u32) -> u32 {
 pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
 pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 
+/// The car this machine plays: the first, but in a network race its own. The original has
+/// the first block's address wherever it means the player's car, so on a joined machine the
+/// cockpit's effects, the mud and the listener followed the host's car.
+pub fn own_car_number() -> usize {
+    if crate::net::store::NET.session.get() == 1 {
+        let local = crate::race::view_store::RACE_VIEW.local_car.get() as usize;
+        if local < 8 { local } else { 0 }
+    } else {
+        0
+    }
+}
+
+/// `own_car_number`'s block.
+pub fn own_car() -> &'static Car {
+    &CAR_BLOCKS.cars[own_car_number()]
+}
+
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
 /// only: reading it is the caller's business).
 pub fn block_addr(n: usize) -> u32 {

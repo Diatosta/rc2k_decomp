@@ -377,3 +377,11 @@ object slot that holds nothing. The original reads their material from the bytes
 gets a contact kind of 0 or 255 and does nothing, so the faces have no effect in play. That read triggered
 our check. The unloaded slot's value now reads the same bytes, and any other bad value still stops
 the game.
+
+## A network client's cockpit does not animate
+
+Seen in play, on the machine that joined: the driver's arms did not move and the windscreen glare was
+missing, while the host looked right. The same car in single player was also right. Many places in the
+game use the first car's block when they mean the player's car, and on a joining machine the first car
+is the host's. The cockpit effects, the mud and the sound listener now follow the local car. The original
+has the same fixed addresses, but its network mode could not be run here to see it.

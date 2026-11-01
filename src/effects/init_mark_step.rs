@@ -1,7 +1,7 @@
 //! `effects::init_mark_step` (0x456EA7): the stage loading's "init mark" step: the race's cars
-//! (`g_raceCars`) into `dword_5C2FE0`, `dword_5C5640` 0x50, `dword_5C563C` 1, the work car's
+//! (`g_raceCars`) into `dword_5C2FE0`, `dword_5C5640` the own car's object (0x50 but in a network race), `dword_5C563C` 1, the work car's
 //! file number (`race::car_file_number` of `g_carBlockStore`'s kind) into `dword_5C562C`;
-//! for each of the `dword_63DB94` cars its record's (`g_carRecords`) places +0x23C (0x50 +
+//! for each of the `dword_63DB94` cars (in a network race every car) its record's (`g_carRecords`) places +0x23C (0x50 +
 //! 0x14 a car) and +0x240 (0xA more), seven values from its kind's row of `dword_5C90D8`
 //! .. (the kind its block's +0x24 held to 0 .. 0x16, rows of 0x134) and the seventeen
 //! fixed numbers +0x36C .. +0x3AC; then `effects::init_marks` with the settings
@@ -18,7 +18,6 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::view_store::RACE_VIEW;
@@ -29,16 +28,26 @@ use crate::race::work_store::RACE_WORK;
 pub fn init_mark_step() -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
-        let count: u32 = RACE_VIEW.players.bits();
+        // In a network race `g_players` is 1 but this machine's car may be any: every car's
+        // record is needed, or a joined machine's own has no marks (the original's slip).
+        let count: u32 = if crate::net::store::NET.session.get() == 1 {
+            RACE_VIEW.race_cars.bits()
+        } else {
+            RACE_VIEW.players.bits()
+        };
         let block = |n: u32| RACE_WORK.car_block(n as usize);
         let records = RACE_WORK.car_records_resolved()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
         VIEWER_PANEL.cars_copy.set_bits(RACE_VIEW.race_cars.bits());
-        KIND_TABLES.mark_set_count.set_bits(0x50u32);
+        // The one object the effects' shapes are made from: the player's car (the original's
+        // fixed 0x50 is the first car, not a joined machine's).
+        let own = crate::race::blocks_store::own_car_number() as u32;
+        KIND_TABLES.mark_set_count.set_bits(0x50 + 0x14 * own);
         KIND_TABLES.mark_set_flag.set_bits(1u32);
-        let file = crate::race::mud::car_file_number(CAR_BLOCKS.cars[0].car_kind.bits());
+        let file =
+            crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
         KIND_TABLES.mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = GamePtr::new(block(n) + 0x24).read::<i32>("a mark's field")?;

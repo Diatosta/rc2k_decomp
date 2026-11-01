@@ -29,7 +29,6 @@ use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -50,7 +49,7 @@ use rc2k_core::drive::listener;
 fn figures() -> Result<[i32; 6], Refused> {
     let viewed = RACE_VIEW.drawn_view.get();
     listener::check_viewed(viewed, || RACE_WORK.car_block(viewed as usize) != 0)?;
-    let n = car_file_number(CAR_BLOCKS.cars[0].car_kind.get());
+    let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
@@ -65,7 +64,7 @@ fn figures() -> Result<[i32; 6], Refused> {
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub fn set_listener() -> Result<(), Refused> {
     let f = figures()?;
-    let car = &CAR_BLOCKS.cars[0];
+    let car = crate::race::blocks_store::own_car();
     let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
     let place: [u32; 3] = GamePtr::new(s.wrapping_add(0x134)).read("a car's block")?;
     let strength: u32 = GamePtr::new(s.wrapping_add(0xABC)).read("a car's block")?;

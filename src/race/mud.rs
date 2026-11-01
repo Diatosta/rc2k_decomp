@@ -68,7 +68,7 @@ pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 pub fn load_mud() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
-        crate::race::blocks_store::CAR_BLOCKS.cars[0].car_kind.get(),
+        crate::race::blocks_store::own_car().car_kind.get(),
     ));
     RACE_VARS.mud_path.set(0x11, tens as u8);
     RACE_VARS.mud_path.set(0x12, units as u8);
