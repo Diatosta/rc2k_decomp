@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): not named.
     pub unknown_0: Dword,
@@ -28,7 +29,6 @@ pub struct ObjectFileNumbers {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ObjectFileNumbers {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

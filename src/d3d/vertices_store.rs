@@ -7,6 +7,7 @@ use crate::session::{Dword, Float};
 
 /// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Vertex {
     /// +0x0: the screen x.
     pub x: Float,
@@ -28,6 +29,7 @@ pub struct Vertex {
 
 /// The vertices of the polygon being drawn.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
     /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).
     pub vertices: [Vertex; 64],

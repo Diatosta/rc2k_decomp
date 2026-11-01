@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GearFigures {
     /// +0x0 (0x5CB958): `flt_5CB958`: the engine figure above which the gearbox shifts up (`physics::auto_gearbox`, `physics::manual_gearbox`, `physics::pick_start_gear`).
     pub shift_up_point: Float,

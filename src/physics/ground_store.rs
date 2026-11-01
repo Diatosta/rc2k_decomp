@@ -8,6 +8,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GroundWork {
     /// +0x0 (0x63967C): `dword_63967C`: a count kept up by one for each frame drawn (`race::draw_race_scene`).
     pub frames_drawn: Dword,
@@ -113,7 +114,6 @@ pub struct GroundWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for GroundWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

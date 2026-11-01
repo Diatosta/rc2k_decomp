@@ -4,6 +4,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct StagePrefs {
     /// +0x0 (0x608CB4): the first 0x100 bytes of `g_stagePrefs`, the stage's `localdat` (0x206C bytes read in place; `race::stage_prefs`); not used by name.
     pub prefs_head: [Dword; 64],
@@ -133,7 +134,6 @@ pub struct StagePrefs {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for StagePrefs {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GroundProbe {
     /// +0x0 (0x620458): `dword_620458`: not used by the Rust side.
     pub unknown_0: Dword,
@@ -21,7 +22,6 @@ pub struct GroundProbe {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for GroundProbe {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

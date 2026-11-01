@@ -8,6 +8,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceVars {
     /// +0x0 (0x6235E8): a scene switch (`race::show_replay_still`; read by `physics::car_lighting`, `race::skid_laying`).
     pub scene_switch: Dword,
@@ -174,7 +175,6 @@ pub struct RaceVars {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for RaceVars {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

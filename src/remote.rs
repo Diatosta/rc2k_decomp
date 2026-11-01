@@ -98,6 +98,20 @@ fn button(name: &str) -> Option<SDL_GamepadButton> {
     (code != SDL_GAMEPAD_BUTTON_INVALID).then_some(code)
 }
 
+/// A file the game opens, listed in `opened` for tests that damage what is read.
+pub fn note_open(path: &[u8]) {
+    use std::io::Write;
+    if let Some(folder) = folder()
+        && let Ok(mut list) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(folder.join("opened"))
+    {
+        let _ = list.write_all(path);
+        let _ = list.write_all(b"\n");
+    }
+}
+
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
 fn driven_car() -> &'static crate::physics::car_store::Car {

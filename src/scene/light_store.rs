@@ -7,6 +7,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightState {
     /// +0x0 (0x636588): `g_litPlace`, `dword_63658C`, `dword_636590`: the place (x, y, z) being lit, a car or a point (`scene::add_point_lights`, `race::frame_draw`, `race::course_faces`).
     pub lit_place: [Dword; 3],
@@ -64,7 +65,6 @@ pub struct LightState {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for LightState {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

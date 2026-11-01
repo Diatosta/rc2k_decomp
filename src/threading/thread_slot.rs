@@ -6,10 +6,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::moved::Place;
-use crate::pointers::{Cells, GamePtr};
+use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ThreadSlot {
     /// The routine: its IDA address, as the image held it before relocation
     /// (`start_slot_thread` makes the running address of it).
@@ -23,9 +24,6 @@ pub struct ThreadSlot {
     /// +0x10: the buffer `files::resolve_path` uses for the thread.
     pub path: Bytes<0x100>,
 }
-
-// SAFETY: every field is a cell of plain integers.
-unsafe impl Cells for ThreadSlot {}
 
 impl ThreadSlot {
     const fn new(routine: u32) -> Self {

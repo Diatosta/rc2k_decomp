@@ -8,6 +8,7 @@
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ShadowSkids {
     /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, records of 0x20 bytes (x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`).
     pub shadow_points: Bytes<0x2000>,
@@ -57,7 +58,6 @@ pub struct ShadowSkids {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ShadowSkids {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

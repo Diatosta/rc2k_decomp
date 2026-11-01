@@ -9,6 +9,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FlareTables {
     /// +0x0 (0x63F58C): `dword_63F58C`: the flares' y (`race::frame_draw::add_flare`, `draw_flare`).
     pub place_y: [Dword; 256],
@@ -24,7 +25,6 @@ pub struct FlareTables {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for FlareTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

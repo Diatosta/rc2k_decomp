@@ -36,6 +36,7 @@ use core::mem::{offset_of, size_of};
 
 /// IDA 0x70F3EC .. 0x719FD8.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarsAndReplay {
     /// +0x0 (0x70F3EC): `race::blocks_store`.
     pub car_blocks: CarBlocks,
@@ -45,6 +46,7 @@ pub struct CarsAndReplay {
 
 /// IDA 0x5C291C .. 0x5C5CE0.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewerAndKinds {
     /// +0x0 (0x5C291C): `race::viewer_screen_store`.
     pub viewer_panel: ViewerPanelBlock,
@@ -56,6 +58,7 @@ pub struct ViewerAndKinds {
 
 /// IDA 0x5C906C .. 0x5CC198.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightsAndGear {
     /// +0x0 (0x5C906C): `race::light_records_store`.
     pub light_records: LightRecords,
@@ -67,6 +70,7 @@ pub struct LightsAndGear {
 
 /// IDA 0x6D13FE .. 0x6D1870, two bytes in.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PanelAndOverlay {
     /// Two lead bytes (not the game's) aligning the overlay.
     pub lead: Bytes<2>,
@@ -78,6 +82,7 @@ pub struct PanelAndOverlay {
 
 /// IDA 0x60626C .. 0x6077B0.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewAndRecords {
     /// +0x0 (0x60626C): `race::view_vars_store`.
     pub view_vars: ViewVars,
@@ -136,16 +141,6 @@ const _: () = {
 
 // SAFETY (the three): every field is a cell over a plain integer (`session`'s cells and
 // records of them): any bit pattern is a valid value.
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for CarsAndReplay {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for ViewerAndKinds {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for LightsAndGear {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for PanelAndOverlay {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for ViewAndRecords {}
 
 /// The cars' blocks and the replay's work, with the image's first values.
 pub static CARS_AND_REPLAY: CarsAndReplay =

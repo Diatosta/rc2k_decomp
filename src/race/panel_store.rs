@@ -5,6 +5,7 @@ use crate::session::Bytes;
 
 /// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
 #[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
 pub struct Loose32(Bytes<4>);
 
 impl Loose32 {
@@ -23,6 +24,7 @@ impl Loose32 {
 
 /// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewA {
     /// The speed shown, rounded (`flt_6D140E`; the car's +0x718).
     pub whole: Loose32,
@@ -48,6 +50,7 @@ pub struct ViewA {
 
 /// The second view's values for the panel (0x28 bytes from 0x6D143E).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewB {
     pub whole: Loose32,
     pub speed: Loose32,
@@ -64,6 +67,7 @@ pub struct ViewB {
 
 /// One view's start lights (0x10 bytes from 0x6D1482 and 0x6D1492; `race::countdown_lights`, `drive::countdown_beep`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Lights {
     /// The lit count (`unk_6D1482`; -1 before the race: no extra texture).
     pub lit: Loose32,
@@ -74,6 +78,7 @@ pub struct Lights {
 
 /// One view's marks (0x14 bytes from 0x6D14A2 and 0x6D14B6; `race::panel_marks`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Marks {
     /// The first (at most 4) marks, each + 1.
     pub marks: [Loose32; 4],
@@ -82,6 +87,7 @@ pub struct Marks {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Panel {
     /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6, `race::panel_values`); `hud::draw_hud` walks the record from here by address.
     pub split_6: Loose32,

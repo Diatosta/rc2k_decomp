@@ -5,6 +5,7 @@ use crate::race::panel_store::Loose32;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksWork {
     /// +0x0 (0x71C814): `g_fpuStatus`: the last compare's C0 .. C2 (`scene::vector3`, the marks' compares).
     pub fpu_status: Dword,
@@ -40,7 +41,6 @@ pub struct MarksWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for MarksWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

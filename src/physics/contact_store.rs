@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ContactWork {
     /// +0x0 (0x6D1DD8): `race::eax_face_weight`: the x of the middle of a face's second and third points, as a float.
     pub eax_mid_x: Float,
@@ -273,7 +274,6 @@ pub struct ContactWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ContactWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

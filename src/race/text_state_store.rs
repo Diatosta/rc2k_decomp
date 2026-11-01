@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TextState {
     /// +0x0 (0x5C6604): `dword_5C6604`: set to 2 by `race::draw_frame_rate` before the frame-rate text; the debug font's colour number (`debug::draw::COLOURS`).
     pub text_mode: Dword,
@@ -18,7 +19,6 @@ pub struct TextState {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for TextState {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

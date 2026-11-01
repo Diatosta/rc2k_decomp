@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SceneMatrices {
     /// +0x0 (0x5E9EC8): `dword_5E9EC8`: the model last set up for drawing (`scene::load_object`, `race::car_draw`).
     pub known_object: Dword,
@@ -65,7 +66,6 @@ pub struct SceneMatrices {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for SceneMatrices {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
     /// +0x0 (0x60626C): car +0x69C copied at the frame start (`race::frame_draw`; `car_draw` tests it against the drawn car) (a reading).
     pub view_car_flag_a: Dword,

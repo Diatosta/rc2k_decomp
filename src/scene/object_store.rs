@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectWork {
     /// +0x0 (0x634FA0): the bytes of face memory used (`scene::objects`).
     pub face_cursor: Dword,
@@ -82,7 +83,6 @@ pub struct ObjectWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ObjectWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -17,6 +17,7 @@ use core::mem::{offset_of, size_of};
 
 /// IDA 0x960000 .. 0xA8C180.
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct Buffers {
     /// +0x0 (0x960000): `unk_960000`, the room `hud::draw_view_strip`'s original passes in ecx
     /// (the Rust version reads none of it).
@@ -64,7 +65,6 @@ const _: () = {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for Buffers {}
 
 /// The bytes, zero as in the image.
 pub static BUFFERS: Buffers = crate::pointers::cells_of_bytes([0u8; END - START]);

@@ -8,6 +8,7 @@ use crate::session::{Byte, Bytes, Dword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
     /// +0x0: the scene point's number.
     pub point: Dword,
@@ -35,9 +36,6 @@ pub struct PolygonEntry {
     /// +0x24: work space of the clip (`scene::clip`).
     pub work: Bytes<32>,
 }
-
-// SAFETY: made of cells only (`#[repr(C)]`, no padding).
-unsafe impl crate::pointers::Cells for PolygonEntry {}
 
 impl PolygonEntry {
     /// An entry of zeros (the x86 tests' own).
@@ -135,17 +133,20 @@ impl PolygonEntry {
 
 /// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`, `race::level_init`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TextureInfo {
     pub words: [Dword; 16],
 }
 
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`, `physics::face_contact`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectMaterial {
     pub words: [Dword; 32],
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// +0x0 (0x975510): `g_polygonEntries`: `PolygonEntry[64]`, and from entry 64 (0x976610, `g_polygonKeptEntries`) the 64 entries kept for the fan: the table `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`, `race::car_shadow`, `race::skidmarks`).
     pub entries: [PolygonEntry; 0x80],

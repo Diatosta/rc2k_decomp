@@ -5,6 +5,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CourseLists {
     /// +0x0 (0x5C694C): the keys read for the car's controls (`drive::read_car_controls`, `dword_5C694C`; a reading).
     pub input_keys_mask: Dword,
@@ -132,7 +133,6 @@ pub struct CourseLists {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for CourseLists {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

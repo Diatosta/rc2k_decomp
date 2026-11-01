@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectTables {
     /// +0x0 (0x62DB5C): `g_listedFaces`: the faces listed for drawing, 0x10 bytes each (number, sort key, third word, see-through; `scene::list_object_face`, `scene::sort_listed_faces`, `scene::draw_object_faces`).
     pub listed_faces: [Dword; 4096],
@@ -49,7 +50,6 @@ impl ObjectTables {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ObjectTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

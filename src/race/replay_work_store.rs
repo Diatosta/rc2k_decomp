@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ReplayWork {
     /// +0x0 (0x7194BC): `dword_7194BC` / `dword_7194C0`: the replay's input tape, 16 bytes a tenth, 8 a car for cars 0 and 1, 100 tenths (`drive::record_inputs`, `drive::play_inputs`); extent to `unk_719AFC` (a reading).
     pub replay_tape: [Dword; 400],

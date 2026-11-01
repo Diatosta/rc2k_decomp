@@ -7,6 +7,7 @@
 use crate::session::Bytes;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {
     /// +0x0 (0x60AF0C): `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).
     pub picture_a: Bytes<0x13>,
@@ -50,7 +51,6 @@ pub struct LevelPaths {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for LevelPaths {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

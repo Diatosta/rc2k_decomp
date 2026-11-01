@@ -7,6 +7,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightWork {
     /// +0x0 (0x62DA44): `g_drawingObject`: the object being drawn (`scene::draw_shown_object`, `scene::log_bad_polygon`).
     pub drawing_object: Dword,
@@ -68,7 +69,6 @@ pub struct LightWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for LightWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

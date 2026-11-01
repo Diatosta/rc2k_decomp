@@ -4,6 +4,7 @@
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawBatches {
     /// +0x0 (0x6D3CF4): `unk_6D3CF4`: the scene batch's vertices (`race::flush_draw_batch`; a reading of its length).
     pub scene_vertices: Bytes<0x4000>,
@@ -33,7 +34,6 @@ pub struct DrawBatches {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for DrawBatches {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -31,6 +31,7 @@ pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
 
 /// One cue of a car's queue: eight dwords.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueEntry {
     /// The cue's first sound.
     pub first: Dword,
@@ -42,6 +43,7 @@ pub struct CueEntry {
 
 /// A car's queue of spoken cues, 0x210 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueQueue {
     /// The first cue queued.
     pub first: Dword,
@@ -57,6 +59,7 @@ pub struct CueQueue {
 
 /// One of a car's four wheel records in its sound object: five dwords.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EngineVoice {
     /// +0: a share the physics sets (`physics::car_sound_state`: +0x294 of the work car, or 0); the first wheel sum (`int` +0x284 of the object) scales these by 0.4.
     pub share_a: Float,
@@ -72,6 +75,7 @@ pub struct EngineVoice {
 
 /// A race sound object, 0x4A8 bytes: a car's sound state (the revs, the throttle, the place, the timed sound slots) as `sound::car_sounds` and the physics keep it. Offsets in the docs are the image's (+0x..); fields not worked out are gaps.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
     /// +0: added to a sound set's first sound to pick the car's sound; negative for a computer's car (a reading).
     pub sound_offset: Dword,
@@ -214,17 +218,6 @@ pub struct SoundObject {
     /// +0x298: the queue of spoken cues (`sound::play_cue_queue`; `physics::queue_sound_cue` fills it), 0x210 bytes.
     pub cue_queue: CueQueue,
 }
-
-// SAFETY: each is made of `Dword`s and `Float`s (atomics) and arrays and records of them.
-unsafe impl crate::pointers::Cells for SoundSlot {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for EngineVoice {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for CueEntry {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for CueQueue {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl crate::pointers::Cells for SoundObject {}
 
 impl SoundObject {
     /// The object at `address`, as the game's tables and the physics hold it (a number),
@@ -627,6 +620,7 @@ pub fn surface_sounds_addr() -> u32 {
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundSlot {
     /// The sound (a sample number); +0 of the slot `sound::play_timed_slot` takes.
     pub sound: Dword,

@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// One car kind's figures (IDA struct `CarSpec`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarSpec {
     /// +0x0: the car's title, padded with spaces, e.g. "00 renault maxi megane"
     /// (drawn by `sub_4426D4`).
@@ -56,13 +57,13 @@ const _: () = assert!(core::mem::size_of::<CarSpec>() == 0xB0);
 
 /// The car kinds' records.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarSpecs {
     pub cars: [CarSpec; 34],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for CarSpecs {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

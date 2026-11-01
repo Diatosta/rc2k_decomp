@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ClockTicks {
     /// +0x0 (0x5CC198): `aDemofBuild` ("demof\\build", 12 bytes) and the bytes after it up to 0x5CC1B0: not read by the game's code.
     pub unknown_text: [Dword; 6],
@@ -25,7 +26,6 @@ pub struct ClockTicks {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ClockTicks {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ObjectTables {
     /// +0x0 (0x5CCE7C): `g_slotKinds`: each object slot's kind (`scene::load_front_end_objects`, `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`). [64] is `dword_5CCF7C`, the kind kept by `race::objects` (`scene::draw_object_polygon`).
     pub slot_kinds: [Dword; 256],
@@ -56,7 +57,6 @@ impl ObjectTables {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for ObjectTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

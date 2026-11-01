@@ -11,6 +11,7 @@ use crate::session::{Dword, Float};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSlot {
     /// +0x0: the part (0 the slot empty).
     pub part: Dword,
@@ -35,6 +36,7 @@ pub struct RaceSlot {
 const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceWork {
     /// +0x0 (0x71AFB8): not named.
     pub unknown_0: [Dword; 256],
@@ -243,7 +245,6 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for RaceWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

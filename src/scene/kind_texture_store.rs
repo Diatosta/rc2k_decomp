@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindTextureTables {
     /// +0x0 (0x5D0AE0): `dword_5D0AE0`: a running total of the textures asked for (`scene::try_allocate_textures`).
     pub textures_asked: Dword,
@@ -19,7 +20,6 @@ pub struct KindTextureTables {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for KindTextureTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

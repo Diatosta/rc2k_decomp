@@ -8,6 +8,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Numbers {
     /// +0x0 (0x5C5CE0): `dword_5C5CE0`: the replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips the tyre screen while 2).
     pub replay_mode: Dword,
@@ -178,7 +179,6 @@ pub struct Numbers {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for Numbers {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

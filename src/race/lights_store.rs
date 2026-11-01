@@ -6,6 +6,7 @@
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightsData {
     /// +0x0 (0x6077B0): `unk_6077B0`: seven dwords of the camera's place (`physics::place_camera`, the usual mode).
     pub place_usual: [Dword; 7],
@@ -17,7 +18,6 @@ pub struct LightsData {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for LightsData {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceTables {
     /// +0x0 (0x60463C): `flt_60463C`: the factor by section for the last three record times (`menu::scale_stage_times`).
     pub stage_time_factors_last: [Float; 6],
@@ -84,7 +85,6 @@ pub struct RaceTables {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for RaceTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

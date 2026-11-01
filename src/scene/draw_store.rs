@@ -7,6 +7,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SceneDraw {
     /// +0x0 (0x623F80): `scene::clip`'s work (`flt_623F80` ..); `race::car_shadow` keeps a vertex's pieces in [2], [4], [10], [11].
     pub clip_work: [Float; 12],
@@ -162,7 +163,6 @@ pub struct SceneDraw {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for SceneDraw {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

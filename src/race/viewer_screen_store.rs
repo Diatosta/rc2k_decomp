@@ -3,6 +3,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewerPanelBlock {
     /// +0x0 (0x5C291C): not named.
     pub unknown_0: [Dword; 24],

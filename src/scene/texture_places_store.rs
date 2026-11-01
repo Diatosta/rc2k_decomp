@@ -6,6 +6,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TexturePlaces {
     /// +0x0 (0x5D2AE8): `dword_5D2AE8`: the texture of each slot (`scene::try_allocate_textures`).
     pub texture_of: [Dword; 1024],
@@ -56,7 +57,6 @@ pub fn cell_at(first: &Dword, index: u32) -> &Dword {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for TexturePlaces {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

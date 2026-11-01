@@ -10,6 +10,7 @@ use crate::physics::car_store::Car;
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
     pub cars: [Car; 10],

@@ -6,6 +6,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Finish {
     /// +0x0 (0x64BB18): `dword_64BB18`: set while the race has no place or panel to draw (`race::car_starts`, `race::draw_mirror_view`, `race::draw_race_scene`, `race::loadlevel`, `race::stage_loading`, `physics::passed_split_point`, `drive::finish_race`).
     pub no_place: Dword,
@@ -43,7 +44,6 @@ pub struct Finish {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for Finish {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

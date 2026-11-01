@@ -7,6 +7,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameWork {
     /// +0x0 (0x64158C): `g_flareCount`: the flares this frame.
     pub flare_count: Dword,
@@ -121,7 +122,6 @@ pub struct FrameWork {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for FrameWork {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -3,6 +3,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct OverlayBlock {
     /// +0x0 (0x6D150C): `g_overlayPartMiles`: the overlay parts' distances (`race::init_overlay`, `hud::draw_stage_bar`).
     pub overlay_part_miles: [Float; 64],

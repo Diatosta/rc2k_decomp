@@ -3,6 +3,7 @@
 use crate::session::{Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameSwitches {
     /// +0x0 (0x621480): `dword_621480`: nonzero in a race, 0 in the front end scene; 1 set by `race::stage_loading` (`scene::vertex_light`, `scene::draw_object_face`, `race::course_faces`) (a reading).
     pub other_way: Dword,
@@ -60,7 +61,6 @@ pub struct FrameSwitches {
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for FrameSwitches {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

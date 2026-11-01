@@ -7,6 +7,7 @@ use crate::session::Dword;
 
 /// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightRecord {
     /// +0x0: `field_0`: eleven dwords (read at +0xC, +0x10 .. +0x28 by `physics::update_camera`,
     /// `race::car_draw`, `drive::share_car_state`).
@@ -26,6 +27,7 @@ const _: () = assert!(core::mem::size_of::<LightRecord>() == 0x134);
 
 /// The models' records.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LightRecords {
     pub records: [LightRecord; 34],
 }

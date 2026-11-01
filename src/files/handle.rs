@@ -83,6 +83,8 @@ pub fn open_by_mode(path: &[u8], mode: u32) -> Result<Option<u32>, BadInput> {
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
+    #[cfg(feature = "remote")]
+    crate::remote::note_open(&resolved);
     let Ok(file) = options.open(crate::files::host_path(&resolved)) else {
         return Ok(None);
     };

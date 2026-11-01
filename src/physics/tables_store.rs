@@ -11,6 +11,7 @@ use crate::session::{Dword, Float};
 /// A kind of ground (0x30 bytes, `off_613978`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Surface {
     /// +0x0: its table in `surface_tables` (an address).
     pub table: Dword,
@@ -37,6 +38,7 @@ pub struct Surface {
 /// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its
 /// first six dwords (`physics::clear_records`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ForceRecord {
     /// +0x0: the force.
     pub force: [Float; 3],
@@ -47,6 +49,7 @@ pub struct ForceRecord {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PhysicsTables {
     /// +0x0 (0x613828): 5.0: a reset is allowed below this speed (`drive::reset_request`).
     pub reset_speed_limit: Float,
@@ -520,7 +523,6 @@ const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
-unsafe impl crate::pointers::Cells for PhysicsTables {}
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.

@@ -8,6 +8,7 @@
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Car {
     /// +0x0 (0x719FD8): not named.
     pub unknown_0: [Dword; 2],
@@ -546,9 +547,6 @@ pub struct Car {
 }
 
 const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
-
-// SAFETY: every field is a `Dword` or a `Float` (atomics), or an array of them.
-unsafe impl crate::pointers::Cells for Car {}
 
 impl Car {
     /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); an
