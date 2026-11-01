@@ -22,7 +22,8 @@
 //! Out: the registers as the steps and calls leave them (eax's low byte from the face's
 //!      bytes where the original loads `al`); no flags read (the caller goes on)
 //!
-//! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records,
+//! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records
+//! (but for an unloaded slot's, `contacts::UNSET_KIND`: stage 22 has such a face),
 //! and what its calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -101,9 +102,23 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     };
     CONTACT_WORK.face_object.set(object);
     let kind = OBJECT_TABLES.object_kind(object);
-    contacts::check_material(kind)?;
+    if let Err(e) = contacts::check_material(kind) {
+        crate::framework::log(&format!(
+            "physics::face_contact: face {:#x}: object {object}, kind {kind:#x}, car {} at {:?}",
+            face,
+            crate::race::work_store::RACE_WORK.current_car.get(),
+            CAR.position
+                .iter()
+                .map(|c| c.get() as i32)
+                .collect::<Vec<_>>(),
+        ));
+        return Err(e.into());
+    }
     CONTACT_WORK.contact_kind.set(byte(
-        crate::scene::polygon::materials_addr() + 0x80 * kind + 0x1C,
+        // An unset kind wraps to the record before the first, as the original reads it.
+        crate::scene::polygon::materials_addr()
+            .wrapping_add(kind.wrapping_mul(0x80))
+            .wrapping_add(0x1C),
     )?);
     if contacts::object_tried(byte(face + 0x25)?, RACE_WORK.stage_direction.get(), object).is_err()
     {

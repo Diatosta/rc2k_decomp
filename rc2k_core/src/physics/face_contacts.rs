@@ -33,9 +33,15 @@ pub fn face_object(first: u32, object: impl FnOnce() -> u32) -> FaceObject {
     }
 }
 
-/// The object's material record: its kind (`g_objectKinds[n]`) below `MATERIALS`.
+/// A kind no object was loaded with (`scene::reset_objects`). Course data names such slots:
+/// one face of stage 22 names slot 65. The original then reads the bytes before the
+/// material records and goes on, and `object_tried` leaves the face whenever the slot is
+/// past the objects.
+pub const UNSET_KIND: u32 = u32::MAX;
+
+/// The object's material record: its kind (`g_objectKinds[n]`) below `MATERIALS`, or unset.
 pub fn check_material(kind: u32) -> Result<(), Invalid> {
-    if kind >= MATERIALS {
+    if kind >= MATERIALS && kind != UNSET_KIND {
         return Err(Invalid("an object kind past the 0x4B0 material records"));
     }
     Ok(())
@@ -110,6 +116,17 @@ pub fn inside(kind: u32) -> Inside {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unloaded_slot_is_let_through_and_other_wild_kinds_are_not() {
+        assert!(check_material(0).is_ok());
+        assert!(check_material(MATERIALS - 1).is_ok());
+        assert!(check_material(UNSET_KIND).is_ok());
+        assert!(check_material(MATERIALS).is_err());
+        assert!(check_material(UNSET_KIND - 1).is_err());
+        // the slot stage 22's face names is left whatever its flags
+        assert!(object_tried(0, 0, 65).is_err());
+    }
 
     #[test]
     fn objects() {
