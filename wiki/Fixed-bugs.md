@@ -369,10 +369,11 @@ Read in the code, then fixed with the rest of the network limits. The game can o
 of up to 256 bytes, and a longer one stayed first in the queue for good, so nothing behind it was
 ever read. Our network layer now drops messages the game could not take.
 
-## One collision face on a stage names an object that was never loaded
+## Some collision faces name an object that was never loaded
 
-Seen in play: the game ended with "an object kind past the 0x4B0 material records" on stage 22, and
-a scan of the stage found the cause, one of its 51,965 faces. The face names object slot 65, which
-holds nothing, so the original read its material from the bytes before the table and then ignored
-the face anyway, with no effect in play. That read was our refusal's trigger. The unloaded slot's
-value is now let through as the original did, and any other bad value still stops the game.
+Seen in play: the game ended with "an object kind past the 0x4B0 material records" on stage 22. A
+scan of every stage found the cause on stages 22, 34, 52, 61, 63, 64, 65, 66, 67 and 68: faces naming an
+object slot that holds nothing. The original reads their material from the bytes before the table,
+gets a contact kind of 0 or 255 and does nothing, so the faces have no effect in play. That read triggered
+our check. The unloaded slot's value now reads the same bytes, and any other bad value still stops
+the game.
