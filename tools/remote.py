@@ -7,6 +7,7 @@
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py shot name                  the next frame to <folder>/shots/name.png
+    remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place
     remote.py pilot seconds              drives along the stage line, printing a trace
     remote.py log [n]                    the game's log, last n lines
@@ -195,6 +196,8 @@ def pilot(seconds):
     backing = 0
     try:
         while time.time() < end:
+            if os.environ.get('RC2K_PILOT_TIME'):  # keeps the arcade's countdown up
+                ask('time ' + os.environ['RC2K_PILOT_TIME'])
             fields = dict(f.split('=', 1) for f in ask('state').split() if '=' in f)
             if 'race' not in fields:
                 continue
@@ -263,7 +266,7 @@ def main():
         pilot(float(rest[0]))
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
-    elif command in ('key', 'down', 'up', 'pad', 'state'):
+    elif command in ('key', 'down', 'up', 'pad', 'state', 'time'):
         print(ask(' '.join([command] + rest)))
     else:
         sys.exit(__doc__)

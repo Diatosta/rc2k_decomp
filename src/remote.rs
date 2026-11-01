@@ -98,10 +98,24 @@ fn button(name: &str) -> Option<SDL_GamepadButton> {
     (code != SDL_GAMEPAD_BUTTON_INVALID).then_some(code)
 }
 
+/// The car `state` reports. The arcade's cars run in their blocks: the work car holds none of
+/// them between frames.
+fn driven_car() -> &'static crate::physics::car_store::Car {
+    let viewed = crate::race::view_store::RACE_VIEW
+        .view_block(0)
+        .wrapping_sub(crate::race::blocks_store::blocks_addr()) as usize
+        / size_of::<crate::physics::car_store::Car>();
+    match crate::race::blocks_store::CAR_BLOCKS.cars.get(viewed) {
+        Some(car) if crate::race::vars_store::RACE_VARS.run_kind.bits() == 2 => car,
+        _ => &crate::physics::car_store::CAR,
+    }
+}
+
 fn state() -> String {
     use crate::menu::loop_store::LOOP_FLAGS;
-    use crate::physics::car_store::CAR;
     use crate::race::checkpoints_store::{CHECKPOINTS, nth};
+    #[allow(non_snake_case)]
+    let CAR = driven_car();
     let at = CAR.checkpoint.get() as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
@@ -147,6 +161,11 @@ fn run(line: &str) {
     let ms =
         |w: Option<&&str>| Duration::from_millis(w.and_then(|m| m.parse().ok()).unwrap_or(100));
     let answer = match (*command, rest) {
+        // The arcade's countdown, so a test can reach a level's end whatever the pilot's pace.
+        ("time", [n]) => n.parse().ok().map(|n: u32| {
+            driven_car().time_left.set(n);
+            "ok".to_string()
+        }),
         ("key", [name, tail @ ..]) => scancode(name).map(|code| {
             key(code, true);
             pending()
