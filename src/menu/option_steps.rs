@@ -126,7 +126,8 @@ pub fn step_colour(c: Colour, up: bool) {
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
-    let pick = crate::session::read_on(
+    let pick = crate::session::read_on_in(
+        &CAPTIONS,
         &CAPTIONS.caption_lists,
         c.table_at.wrapping_add(n as usize),
         "a caption list",

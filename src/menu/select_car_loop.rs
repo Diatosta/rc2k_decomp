@@ -42,7 +42,8 @@ use crate::scene::draw_store::DRAW;
 fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
     let current: u32 = EVENT_STATE.current_player.get();
-    let player = crate::session::read_on(
+    let player = crate::session::read_on_in(
+        &PLAYER_TABLE,
         &PLAYER_TABLE.pointers,
         current as usize,
         "the players' table",

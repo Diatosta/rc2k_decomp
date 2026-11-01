@@ -28,7 +28,8 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     let s = rc2k_core::sound::set_up::car_stream(
         // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
         // car's, past them what the image has after (`read_on` goes on past them too).
-        crate::menu::texts_store::text_at(crate::session::read_on(
+        crate::menu::texts_store::text_at(crate::session::read_on_in(
+            &MENU_LISTS,
             &MENU_LISTS.car_streams,
             car as usize,
             "a car's stream",

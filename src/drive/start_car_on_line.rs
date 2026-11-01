@@ -29,7 +29,12 @@ use rc2k_core::drive::start_places;
 /// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
 /// check lets up to 0x400 through) reads on into the variables after it, as the original.
 pub fn car_number(start: usize) -> Result<u32, BadInput> {
-    crate::session::read_on(&RACE_TABLES.arcade_car_numbers, start, "the start tables")
+    crate::session::read_on_in(
+        &RACE_TABLES,
+        &RACE_TABLES.arcade_car_numbers,
+        start,
+        "the start tables",
+    )
 }
 
 /// The Rust version: `distance` (ebx) checkpoints on from the lead car. The registers it

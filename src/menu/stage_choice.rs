@@ -62,7 +62,8 @@ pub fn draw_stage_map() -> Result<(), Refused> {
                 .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
         }
     };
-    let overlay = crate::menu::texts_store::text_at(crate::session::read_on(
+    let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(
+        &MENU_LISTS,
         &MENU_LISTS.map_overlays,
         dword(record + 0x3C)? as usize,
         "a map overlay",

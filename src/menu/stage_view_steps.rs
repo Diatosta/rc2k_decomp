@@ -82,11 +82,16 @@ pub fn play_stage_speech() -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(get(record + 4)?, |n| {
-            crate::session::read_on(&MENU_LISTS.stage_speeches, n as usize, "a stage speech")
-                .unwrap_or_else(|e| {
-                    fault.set(Some(e));
-                    0
-                })
+            crate::session::read_on_in(
+                &MENU_LISTS,
+                &MENU_LISTS.stage_speeches,
+                n as usize,
+                "a stage speech",
+            )
+            .unwrap_or_else(|e| {
+                fault.set(Some(e));
+                0
+            })
         });
         if let Some(e) = fault.take() {
             return Err(e.into());
@@ -112,7 +117,8 @@ pub fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            crate::audio::store::name_at(crate::session::read_on(
+            crate::audio::store::name_at(crate::session::read_on_in(
+                &MENU_LISTS,
                 &MENU_LISTS.rally_speeches,
                 section as usize,
                 "a rally speech",

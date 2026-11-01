@@ -34,7 +34,7 @@ pub fn compare_split_times() -> Result<(), Refused> {
     let first = CAR.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
-        *part = crate::session::read_on(&LEAGUE.rows, first + k, "a kept split time")?;
+        *part = crate::session::read_on_in(&LEAGUE, &LEAGUE.rows, first + k, "a kept split time")?;
     }
     let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;

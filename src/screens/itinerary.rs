@@ -35,7 +35,8 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let first = record_at(0)?;
         let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            crate::session::read_on(
+            crate::session::read_on_in(
+                &MENU_LISTS,
                 &MENU_LISTS.section_titles,
                 EVENT_STATE.section.get() as usize,
                 "a section title",

@@ -487,7 +487,12 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
 
 /// `g_players`[n].
 pub fn player(n: u32) -> Result<u32, BadInput> {
-    crate::session::read_on(&PLAYER_TABLE.pointers, n as usize, "the players")
+    crate::session::read_on_in(
+        &PLAYER_TABLE,
+        &PLAYER_TABLE.pointers,
+        n as usize,
+        "the players",
+    )
 }
 
 /// Words of a record into game variables, in order.

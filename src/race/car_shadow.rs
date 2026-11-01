@@ -721,7 +721,13 @@ pub fn cast_car_shadow() -> Result<(), Refused> {
     let n: u32 = SHADOW_SKIDS.hull_count.get();
     FRAME_WORK.shadow_list_count.set(n);
     for k in hull_list(n) {
-        write_on(&FRAME_WORK.shadow_list, k as usize, k, "the shadow list")?;
+        crate::session::write_on_in(
+            &FRAME_WORK,
+            &FRAME_WORK.shadow_list,
+            k as usize,
+            k,
+            "the shadow list",
+        )?;
     }
     FRAME_WORK.shadow_texture.set(SHADOW_TEXTURE);
     shadow_faces()

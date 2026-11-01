@@ -323,7 +323,8 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
     VIEW_VARS.fade_alpha.set(ecx);
     car_at(car)?.group_mask.set(VIEW_VARS.group_mask.bits());
     // `view_cars[drawn_view]`: past the two, read on by address as the original does.
-    let view_car = crate::session::read_on(
+    let view_car = crate::session::read_on_in(
+        &RACE_VIEW,
         &RACE_VIEW.view_cars,
         RACE_VIEW.drawn_view.bits() as usize,
         "the view cars",

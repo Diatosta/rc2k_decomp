@@ -110,7 +110,8 @@ fn steps() -> Result<(), Refused> {
             CAR.wheel_surface_blend[cc].set_bits(0);
             let kind_index = byte(t2 + 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
-            let kind = crate::session::read_on(
+            let kind = crate::session::read_on_in(
+                &RACE_VIEW,
                 &RACE_VIEW.surface_kinds,
                 kind_index as usize,
                 "the surface kinds (a byte index past the table)",

@@ -16,16 +16,21 @@ pub fn current_player() -> Option<u32> {
     if index >= 64 {
         return None;
     }
-    let player =
-        crate::session::read_on(&PLAYER_TABLE.pointers, index as usize, "the players' table")
-            .unwrap_or_else(|e| refuse(e));
+    let player = crate::session::read_on_in(
+        &PLAYER_TABLE,
+        &PLAYER_TABLE.pointers,
+        index as usize,
+        "the players' table",
+    )
+    .unwrap_or_else(|e| refuse(e));
     (player != 0).then_some(player)
 }
 
 /// The flag of menu item `item` in the repair flag table (the item not checked against
 /// the table: a read past it reads on, as the original's).
 pub fn repair_flag(item: u32) -> u32 {
-    crate::session::read_on(
+    crate::session::read_on_in(
+        &MENU_LISTS,
         &MENU_LISTS.inspection_flags_a,
         item as usize,
         "a repair flag",
@@ -60,7 +65,8 @@ pub fn flagged_item() -> Result<u32, BadInput> {
 }
 
 pub fn set_repair_flag(item: u32, value: u32) {
-    crate::session::write_on(
+    crate::session::write_on_in(
+        &MENU_LISTS,
         &MENU_LISTS.inspection_flags_a,
         item as usize,
         value,

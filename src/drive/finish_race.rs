@@ -86,7 +86,8 @@ fn set_up() -> Result<(), BadInput> {
 /// no read point).
 pub fn finish_race() -> Result<(), Refused> {
     // The stage index is not checked against the seven (a read past them is the original's).
-    RACE_VARS.stage_number.set(crate::session::read_on(
+    RACE_VARS.stage_number.set(crate::session::read_on_in(
+        &FINISH,
         &FINISH.finish_stages,
         RACE_STATE.results.stage_index.get() as usize,
         "the finish stages",

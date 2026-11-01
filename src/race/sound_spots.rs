@@ -19,7 +19,8 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 /// `g_courseGrid`[c]. The grid is 32 x 32 cells (1024 dwords); the check below lets 1057
 /// through, and the original reads on into the variables after the grid (a slip kept).
 fn grid_cell(c: u32) -> Result<u32, BadInput> {
-    crate::session::read_on(
+    crate::session::read_on_in(
+        &LEVEL_GRID,
         &LEVEL_GRID.course_grid,
         c as usize,
         "the variables after the course grid",
@@ -89,7 +90,8 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             return Ok(());
         }
         let put = |o: u32, v: u32| {
-            crate::session::write_on(
+            crate::session::write_on_in(
+                &RACE_SOUND_SPOTS,
                 &RACE_SOUND_SPOTS.sound_spots,
                 spot + (o / 4) as usize,
                 v,

@@ -436,7 +436,8 @@ pub fn surface_shares() -> Result<(), Refused> {
             let second = byte(f + 0x21)?;
             // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
             // field's 4 dwords), so read by address.
-            let kind: u32 = crate::session::read_on(
+            let kind: u32 = crate::session::read_on_in(
+                &RACE_VIEW,
                 &RACE_VIEW.surface_kinds,
                 byte(infos + second * 0x40 + 0x2C)? as usize,
                 "the surface kinds table",

@@ -108,7 +108,8 @@ pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a.get(),
-            (None, None) => crate::session::read_on(
+            (None, None) => crate::session::read_on_in(
+                &MENU_LISTS,
                 &MENU_LISTS.page_titles_b,
                 PAGE.get() as usize,
                 "best scores: a game value",
@@ -203,7 +204,8 @@ pub fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 pub fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
-    let id = crate::session::read_on(
+    let id = crate::session::read_on_in(
+        &MENU_LISTS,
         &MENU_LISTS.page_titles_a,
         PAGE.get() as usize,
         "best scores: a game value",
@@ -417,7 +419,8 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let first = record_at(0)?;
         let id = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            crate::session::read_on(
+            crate::session::read_on_in(
+                &MENU_LISTS,
                 &MENU_LISTS.section_titles,
                 SECTION.get() as usize,
                 "best scores: a game value",
@@ -496,7 +499,8 @@ pub fn draw_scores_with_heading(
     // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (CHAMP_VIEW.event_mode.get() == 0x13)
         .then(|| {
-            crate::session::read_on(
+            crate::session::read_on_in(
+                &MENU_LISTS,
                 &MENU_LISTS.section_titles,
                 EVENT_STATE.section.get() as usize,
                 "a section title",

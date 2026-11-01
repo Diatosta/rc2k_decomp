@@ -768,8 +768,12 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     // dword_606478[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
     // (notes/bugs.md); 0x33 is still inside `VIEW_VARS`.
-    let shows: u32 =
-        crate::session::read_on(&VIEW_VARS.view_hides, view as usize, "the view hides")?;
+    let shows: u32 = crate::session::read_on_in(
+        &*VIEW_VARS,
+        &VIEW_VARS.view_hides,
+        view as usize,
+        "the view hides",
+    )?;
     let hiding = if shows == 0 {
         FRAME_SWITCHES.other_way.bits()
     } else {
@@ -1530,12 +1534,11 @@ fn car_lights_on_point() -> Result<(), BadInput> {
             || RACE_VARS.run_kind.bits(),
             || {
                 let n = RACE_VIEW.drawn_view.bits() as usize;
-                crate::session::read_on(&RACE_VIEW.view_cars, n, "the view cars").unwrap_or_else(
-                    |e| {
+                crate::session::read_on_in(&RACE_VIEW, &RACE_VIEW.view_cars, n, "the view cars")
+                    .unwrap_or_else(|e| {
                         trap.keep(e);
                         0
-                    },
-                )
+                    })
             },
         );
         trap.finish()?;

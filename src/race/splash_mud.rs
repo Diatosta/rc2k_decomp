@@ -49,8 +49,12 @@ pub fn splash_mud() -> Result<(), Refused> {
         for column in 0..SPLASH_SIDE {
             eax = mud_texel(eax, x, y)?;
             if muddy(eax) {
-                let colour =
-                    crate::session::read_on(&RACE_VARS.mud_colours, colours, "the mud colours")?;
+                let colour = crate::session::read_on_in(
+                    &RACE_VARS,
+                    &RACE_VARS.mud_colours,
+                    colours,
+                    "the mud colours",
+                )?;
                 let faded = fade_colour(eax, colour, colour >> 24);
                 eax = put_mud_texel(faded | MUD_TOP, x, y)?;
             }

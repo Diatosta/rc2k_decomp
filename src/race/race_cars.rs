@@ -359,7 +359,8 @@ pub fn set_car_times() -> Result<(), Refused> {
         number(count, false);
         text(w(1), false);
         number(level, false);
-        let percentage = crate::session::read_on(
+        let percentage = crate::session::read_on_in(
+            &RACE_TABLES,
             &RACE_TABLES.time_percentages,
             level as usize,
             "the time percentages",

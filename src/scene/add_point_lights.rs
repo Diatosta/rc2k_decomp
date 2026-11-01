@@ -49,7 +49,8 @@ pub fn add_point_lights() -> Result<(), Refused> {
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
         let [point, strength, colour] = [0, 1, 2].map(|k| {
-            reading.keep(crate::session::read_on(
+            reading.keep(crate::session::read_on_in(
+                &LEVEL_GRID,
                 &LEVEL_GRID.lamps,
                 4 * n + k,
                 "a lamp of the level",

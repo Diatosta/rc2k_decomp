@@ -150,7 +150,8 @@ impl FaceWorld for GameFace {
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
-        self.0.keep(crate::session::read_on(
+        self.0.keep(crate::session::read_on_in(
+            &OBJECT_TABLES,
             &OBJECT_TABLES.car_mark_textures,
             kind as usize,
             "the car marks' textures",
