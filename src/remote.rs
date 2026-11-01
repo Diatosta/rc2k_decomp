@@ -258,3 +258,48 @@ pub fn frame(pixels: &[u8], width: u32, height: u32) {
     };
     reply(&id, &answer);
 }
+
+/// A race message as it is to go out: with `RC2K_MANGLE` set (a seed), some of its dwords
+/// replaced, for trying what a hostile machine can do to the others' games.
+pub fn mangled(data: &[u8]) -> Vec<u8> {
+    use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+    static STATE: AtomicU64 = AtomicU64::new(0);
+    static SEED: OnceLock<Option<u64>> = OnceLock::new();
+    let mut out = data.to_vec();
+    let Some(seed) = *SEED.get_or_init(|| {
+        std::env::var("RC2K_MANGLE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+    }) else {
+        return out;
+    };
+    // a sequence byte, then the tag: 'PGSM' and its like
+    if !matches!(data.get(2..5), Some(b"GSM")) {
+        return out;
+    }
+    let next = || {
+        let mut x = STATE.load(Relaxed) ^ seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        STATE.store(x, Relaxed);
+        x
+    };
+    for dword in out[5..].as_chunks_mut::<4>().0 {
+        let r = next();
+        // a seed from 100: rarely, for single bad values that pass the receiver's checks
+        if r & (if seed < 100 { 7 } else { 0x7F }) == 0 {
+            let value: u32 = match (r >> 8) & 7 {
+                0 => 0,
+                1 => u32::MAX,
+                2 => 0x7FFF_FFFF,
+                3 => 0x8000_0000,
+                4 => 0x7FC0_0000,
+                5 => 0x7F80_0000,
+                _ => (r >> 16) as u32,
+            };
+            dword.copy_from_slice(&value.to_le_bytes());
+        }
+    }
+    out
+}

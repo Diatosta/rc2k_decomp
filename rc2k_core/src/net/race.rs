@@ -17,6 +17,9 @@ pub enum Kind {
     Extra,
 }
 
+/// The gear in a car's block (-1 reverse, 0 neutral, 1 .. 7).
+const GEAR: u32 = 0x1D4;
+
 /// The car block's dwords each kind carries, in order.
 const INPUTS: [u32; 4] = [0xFD0, 0xFD4, 0xFD8, 0xFDC];
 const POSITION: [u32; 40] = [
@@ -49,6 +52,27 @@ impl Kind {
         [Kind::Position, Kind::Inputs, Kind::Extra]
             .into_iter()
             .find(|k| k.tag() == tag)
+    }
+
+    /// Whether a car could hold what a message of this kind carries (`values`: its dwords
+    /// after the tag, in `fields`' order). Another machine's message is not to be believed
+    /// by a game that refuses such values and so ends: one that fails is not applied. The
+    /// original took any, and read its tables with them.
+    pub fn believable(self, values: &[u32]) -> bool {
+        let within = |value: u32, most: f32| f32::from_bits(value).abs() <= most; // NaN: false
+        self.fields()
+            .iter()
+            .zip(values)
+            .all(|(&field, &value)| match field {
+                GEAR => (-1..=7).contains(&(value as i32)),
+                // the gauges, the orientation, the springs: about 1 at most
+                0x64..=0x80 | 0xB4..=0xE0 | 0x600..=0x60C => within(value, 2.0),
+                // spin, velocities, driven wheels, revs
+                0x184..=0x18C | 0x198..=0x1AC | 0x1B8 | 0x1BC | 0x1D8 => within(value, 1e7),
+                // the pedals, the steering
+                0x638..=0x648 => (value as i32).unsigned_abs() <= 0x4000_0000,
+                _ => true,
+            })
     }
 
     /// The car block's dwords it carries, in order.
@@ -150,6 +174,44 @@ pub fn glide(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn what_no_car_could_hold_is_not_believed() {
+        let honest = |kind: Kind| -> Vec<u32> {
+            kind.fields()
+                .iter()
+                .map(|&f| match f {
+                    GEAR => 3,
+                    0x638..=0x648 => 0x100,
+                    _ => 0.5f32.to_bits(),
+                })
+                .collect()
+        };
+        for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
+            assert!(kind.believable(&honest(kind)));
+        }
+        let at = |field: u32| {
+            Kind::Position
+                .fields()
+                .iter()
+                .position(|&f| f == field)
+                .unwrap()
+        };
+        for (field, value) in [
+            (GEAR, 8),
+            (GEAR, (-2i32) as u32),
+            (0xB4, f32::NAN.to_bits()),
+            (0xB4, 3.0f32.to_bits()),
+            (0x198, f32::INFINITY.to_bits()),
+            (0x1D8, 1e8f32.to_bits()),
+            (0x644, 0x7FFF_FFFF),
+        ] {
+            let mut values = honest(Kind::Position);
+            values[at(field)] = value;
+            assert!(!Kind::Position.believable(&values), "{field:#x} {value:#x}");
+        }
+        assert!(!Kind::Extra.believable(&[f32::NAN.to_bits(); 9]));
+    }
 
     #[test]
     fn kinds() {

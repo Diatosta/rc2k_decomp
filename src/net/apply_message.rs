@@ -29,6 +29,16 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 /// g_carBlocks: the eight cars' blocks.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
+/// A message no car could send, told once in the log.
+fn note_unbelievable(player: u32) {
+    static TOLD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if !TOLD.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        crate::framework::log(&format!(
+            "net: player {player}'s message has values no car could hold: not applied"
+        ));
+    }
+}
+
 /// The Rust version.
 pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
     let rd = |at: u32| GamePtr::new(at).read::<u32>("a received message or car block");
@@ -47,11 +57,16 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
     let Some(kind) = Kind::of(message.read("a received message")?) else {
         return Ok(());
     };
+    let mut values = Vec::with_capacity(kind.fields().len());
     for n in 0..kind.fields().len() as u32 {
-        wr(
-            block + kind.destination(n as usize),
-            message.offset(4 + 4 * n).read("a received message")?,
-        )?;
+        values.push(message.offset(4 + 4 * n).read("a received message")?);
+    }
+    if !kind.believable(&values) {
+        note_unbelievable(player);
+        return Ok(());
+    }
+    for (n, &value) in values.iter().enumerate() {
+        wr(block + kind.destination(n), value)?;
     }
     if kind != Kind::Position {
         return Ok(());

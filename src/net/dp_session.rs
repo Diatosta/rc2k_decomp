@@ -1146,6 +1146,8 @@ impl Session {
                 return DPERR_INVALIDPLAYER;
             }
         }
+        #[cfg(feature = "remote")]
+        let data = &crate::remote::mangled(data);
         if self.is_host() {
             self.route(from, to, data.to_vec());
         } else {

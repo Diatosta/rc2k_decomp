@@ -354,3 +354,17 @@ read memory well past the table. The game now stops with a message naming the ta
 Read in the code, not seen. The game's six flare tables hold 256 entries each, but it counts up to
 1024 flares in a frame, so each table ran over the next and the last ran past its end. Flares past
 the tables' size are now left out.
+
+## A network message can end or stall another player's race
+
+Seen by sending damaged race messages on purpose. The game copies each message from another player
+straight into that player's car, with no checks, so a gear of 8 read past the gear table (now the
+game stopped instead), and values that are not numbers kept the car searching for a clear place on
+every step, dropping the frame rate to almost nothing. A race message holding values no car could
+have is now ignored, with one line in the log.
+
+## One long network message stops all network messages
+
+Read in the code, then fixed with the rest of the network limits. The game can only take messages
+of up to 256 bytes, and a longer one stayed first in the queue for good, so nothing behind it was
+ever read. Our network layer now drops messages the game could not take.
