@@ -55,15 +55,23 @@ pub fn init_overlay() -> Result<(), Refused> {
                 // the distances is the original's read.
                 let list = &SPLIT_TABLES.checkpoints;
                 let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
-                let distance =
-                    |k: u32| crate::session::read_on(distances, k as usize, "an overlay variable");
+                let distance = |k: u32| {
+                    crate::session::read_on_in(
+                        &crate::race::checkpoints_store::CHECKPOINTS,
+                        distances,
+                        k as usize,
+                        "an overlay variable",
+                    )
+                };
                 for n in 0..count {
-                    let end = distance(crate::session::read_on(
+                    let end = distance(crate::session::read_on_in(
+                        &SPLIT_TABLES,
                         list,
                         n as usize + 1,
                         "an overlay variable",
                     )?)?;
-                    let start = distance(crate::session::read_on(
+                    let start = distance(crate::session::read_on_in(
+                        &SPLIT_TABLES,
                         list,
                         n as usize,
                         "an overlay variable",

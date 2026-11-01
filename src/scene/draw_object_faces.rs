@@ -32,7 +32,8 @@ const FACES: u32 = 0xC000;
 
 /// Dword `n` of the list of faces (the original reads on past its end).
 fn listed_dword(n: usize) -> Result<u32, BadInput> {
-    crate::session::read_on(
+    crate::session::read_on_in(
+        &crate::scene::object_slots_store::OBJECT_SLOTS,
         &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
         n,
         "the list of faces",

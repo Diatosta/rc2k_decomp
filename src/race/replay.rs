@@ -212,7 +212,7 @@ pub fn write_replay_chunk(handle: u32) -> Result<(u32, bool), Refused> {
 /// count past the index's 1800 (a broken file) reads on past it, as the original does.
 pub fn block_place(k: usize) -> Result<u32, BadInput> {
     let places = &REPLAY_FILE.block_places;
-    crate::session::read_on(places, k, "the replay index")
+    crate::session::read_on_in(&REPLAY_FILE, places, k, "the replay index")
 }
 
 /// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written

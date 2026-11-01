@@ -348,3 +348,9 @@ The game now stops with a message naming the path.
 Seen by damaging a saved replay on purpose, under a memory checker. A byte in each replay frame
 chooses the camera from a table of 47 entries, and the game does not check it, so a damaged file
 read memory well past the table. The game now stops with a message naming the table.
+
+## More than 256 flares in a frame overwrite other data
+
+Read in the code, not seen. The game's six flare tables hold 256 entries each, but it counts up to
+1024 flares in a frame, so each table ran over the next and the last ran past its end. Flares past
+the tables' size are now left out.

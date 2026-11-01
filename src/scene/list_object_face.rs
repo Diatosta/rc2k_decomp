@@ -100,7 +100,8 @@ impl FaceWorld for GameFace {
     }
     fn group_table(&self, group: u32) -> u32 {
         // The table is typed by its first dword only.
-        self.0.keep(crate::session::read_on(
+        self.0.keep(crate::session::read_on_in(
+            &DRAW_SWITCHES,
             std::slice::from_ref(&DRAW_SWITCHES.group_table),
             group as usize,
             "the groups' table",
@@ -211,7 +212,8 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        crate::session::write_on(
+        crate::session::write_on_in(
+            &crate::scene::object_slots_store::OBJECT_SLOTS,
             &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
             entry + k,
             v,

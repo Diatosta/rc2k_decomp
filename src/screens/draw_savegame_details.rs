@@ -66,7 +66,7 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         let title = Title {
             mode_13,
             section: if mode_13 {
-                table_dword_at(&MENU_LISTS.section_titles, section)?
+                table_dword_at(&MENU_LISTS, &MENU_LISTS.section_titles, section)?
             } else {
                 dword(find_record_in(table, 0, section)? + 0x38)?
             },

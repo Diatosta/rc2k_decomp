@@ -103,7 +103,8 @@ pub fn load_texture_picture(
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
             let tyres = &RACE_VARS.car_tyres;
-            let gravel = crate::session::read_on(tyres, car as usize, "a car's tyre switch")?;
+            let gravel =
+                crate::session::read_on_in(&RACE_VARS, tyres, car as usize, "a car's tyre switch")?;
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
                 gravel_chosen = true;

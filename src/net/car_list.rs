@@ -24,10 +24,11 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {
-            crate::session::read_on(list, n as usize, "a car list's entry").unwrap_or_else(|e| {
-                refused.set(Some(e));
-                0
-            })
+            crate::session::read_on_in(&MENU_LISTS, list, n as usize, "a car list's entry")
+                .unwrap_or_else(|e| {
+                    refused.set(Some(e));
+                    0
+                })
         }
     }
     let answer = rc2k_core::net::cars::any_won(reader(secret, &refused), reader(won, &refused));

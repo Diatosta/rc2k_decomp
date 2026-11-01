@@ -140,7 +140,8 @@ pub fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Championship => &MENU_LISTS.welcome_championship,
         stage_screens::Welcome::Other => &MENU_LISTS.welcome_other,
     };
-    let path = crate::menu::texts_store::text_at(crate::session::read_on(
+    let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
+        &MENU_LISTS,
         table,
         section as usize,
         "a welcome picture",

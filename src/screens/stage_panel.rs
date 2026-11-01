@@ -28,12 +28,13 @@ pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
     crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
-/// The dword `index` of the table at `table` (an address; no bounds, as the original).
-pub fn table_dword_at(
+/// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
+pub fn table_dword_at<H: ?Sized>(
+    holder: &H,
     table: &[crate::session::Dword],
     index: u32,
 ) -> Result<u32, crate::errors::BadInput> {
-    crate::session::read_on(table, index as usize, "a table's dword")
+    crate::session::read_on_in(holder, table, index as usize, "a table's dword")
 }
 
 // ---- the shared parts ----

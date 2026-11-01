@@ -423,7 +423,12 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         // each place, is `unknown_88c` run on into `arcade_car_kinds`; the numbers'
         // `number_before_first` is the entry at place -1.
         let on = |first: &Dword, n: u32| {
-            crate::session::read_on(std::slice::from_ref(first), n as usize, "a place table")
+            crate::session::read_on_in(
+                &RACE_TABLES,
+                std::slice::from_ref(first),
+                n as usize,
+                "a place table",
+            )
         };
         let block_of = |car: u32| -> Result<_, Refused> {
             if car > 7 {
@@ -637,7 +642,7 @@ fn check_panel_neighbours() -> Result<(), Refused> {
         // `dword_604EC8[]` (see `panel_neighbours`) at the place and the one after.
         let first = std::slice::from_ref(&RACE_TABLES.unknown_88c);
         for n in [place, place.wrapping_add(1)] {
-            let car = crate::session::read_on(first, n as usize, "a place table")?;
+            let car = crate::session::read_on_in(&RACE_TABLES, first, n as usize, "a place table")?;
             if car > 7 || RACE_WORK.car_block(car as usize) == 0 {
                 return Err(BadInput("a neighbour's car past the eight or null").into());
             }
@@ -2362,12 +2367,14 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-pub const FLARES_MAX: u32 = 0x400;
+/// The tables' 256 entries. The original counts to 0x400, each table running over the next
+/// and the last past its end; flares past the tables are not added.
+pub const FLARES_MAX: u32 = 0x100;
 
 /// `sub_457332`: a flare at `dword_63501C` .. (object `g_objectNumber`, size
-/// `dword_635038`, colour `dword_635054`) into the six flare tables (0x400 each, from
+/// `dword_635038`, colour `dword_635054`) into the six flare tables (0x100 dwords each, from
 /// `dword_63F18C`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
-/// the key), a depth entry with the flare's number + 0x1000000; none past 0x400.
+/// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
 fn add_flare() -> Result<(), BadInput> {
     let n: u32 = FRAME_WORK.flare_count.bits();
     if n == FLARES_MAX {
@@ -2378,8 +2385,6 @@ fn add_flare() -> Result<(), BadInput> {
         OBJECT_WORK.place[1].bits(),
         OBJECT_WORK.place[2].bits(),
     ];
-    // `flare_place_x` is 0x100 dwords, but `n` runs to `FLARES_MAX`: the tables follow
-    // one another 0x400 bytes apart, so by address (a slip of the original's).
     for (table, v) in [
         (
             &FLARE_TABLES.object_number,
@@ -2391,7 +2396,7 @@ fn add_flare() -> Result<(), BadInput> {
         (&FLARE_TABLES.size, OBJECT_WORK.size.bits()),
         (&FLARE_TABLES.other_light, OBJECT_WORK.other_light.bits()),
     ] {
-        crate::session::write_on(table, n as usize, v, "a flare table")?;
+        table[n as usize].set(v);
     }
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
@@ -2699,7 +2704,6 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
 /// `esi` the esi at entry: the list entry's address). Every register kept.
 pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
-    // The tables are read unchecked by `flare` (see `add_flare`).
     for (table, to) in [
         (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
         (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
@@ -2708,11 +2712,12 @@ pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
         (&FLARE_TABLES.other_light, &OBJECT_WORK.other_light),
         (&FLARE_TABLES.object_number, &FRAME_SWITCHES.object_number),
     ] {
-        to.set_bits(crate::session::read_on(
-            table,
-            flare as usize,
-            "a flare table",
-        )?);
+        to.set_bits(
+            table
+                .get(flare as usize)
+                .ok_or(BadInput("a flare past the tables"))?
+                .bits(),
+        );
     }
     LIGHT_STATE.view_kind.set(2u32);
     place_object_matrix()?;

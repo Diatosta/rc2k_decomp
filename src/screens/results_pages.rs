@@ -153,6 +153,7 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
                 },
                 name: if CHAMP_VIEW.event_mode.get() == 0x13 {
                     crate::screens::stage_panel::table_dword_at(
+                        &MENU_LISTS,
                         &MENU_LISTS.section_titles,
                         EVENT_STATE.section.get(),
                     )?

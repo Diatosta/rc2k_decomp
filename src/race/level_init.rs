@@ -224,7 +224,8 @@ pub fn init_checkpoints() -> Result<(), Refused> {
         let table = &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            let face = trap.keep_read(crate::session::read_on(
+            let face = trap.keep_read(crate::session::read_on_in(
+                &crate::race::checkpoints_store::CHECKPOINTS,
                 table,
                 n as usize,
                 "the checkpoint table",
@@ -237,7 +238,7 @@ pub fn init_checkpoints() -> Result<(), Refused> {
         // By address: the list runs on past its 0x101 entries as the original's does.
         let list = &SPLIT_TABLES.checkpoints;
         for (k, &n) in listed.iter().enumerate() {
-            crate::session::write_on(list, k, n, "a course variable")?;
+            crate::session::write_on_in(&SPLIT_TABLES, list, k, n, "a course variable")?;
         }
         SPLIT_TABLES
             .split_colour_count

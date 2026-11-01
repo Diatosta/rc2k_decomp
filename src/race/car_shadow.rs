@@ -21,7 +21,7 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
-use crate::session::{Byte, Dword, copy_on, read_on, write_on};
+use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 
 // unk_641AA4: the points, 0x20 bytes each
 
@@ -323,18 +323,31 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         FRAME_WORK.shadow_corners[0].set(crate::race::scene_points::word(a)?);
         FRAME_WORK.shadow_corners[1].set(crate::race::scene_points::word(a + 8)?);
         let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
-        copy_on(list, old, count as usize, "the polygon list")?;
-        write_on(old, count as usize, list[0].get(), "the old polygon list")?;
+        copy_on_in(
+            (&POLYGON_WORK, list),
+            (&POLYGON_WORK, old),
+            count as usize,
+            "the polygon list",
+        )?;
+        write_on_in(
+            &POLYGON_WORK,
+            old,
+            count as usize,
+            list[0].get(),
+            "the old polygon list",
+        )?;
         // Converted: `rc2k_core::race::shadow::clip_by_edge`.
         let mut added = 0u32;
         let trap = Trap::new();
         rc2k_core::race::shadow::clip_by_edge(
             count,
             |k| {
-                read_on(old, k as usize, "the old polygon list").unwrap_or_else(|err| {
-                    trap.keep(err);
-                    0
-                })
+                read_on_in(&POLYGON_WORK, old, k as usize, "the old polygon list").unwrap_or_else(
+                    |err| {
+                        trap.keep(err);
+                        0
+                    },
+                )
             },
             |e| {
                 let entry = match work_entry(e) {
@@ -360,7 +373,9 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
                 next
             },
             |e| {
-                if let Err(err) = write_on(list, added as usize, e, "the polygon list") {
+                if let Err(err) =
+                    write_on_in(&POLYGON_WORK, list, added as usize, e, "the polygon list")
+                {
                     trap.keep(err);
                 }
                 added += 1;
@@ -461,14 +476,15 @@ pub fn shadow_on_face() -> Result<(), Refused> {
     }
     DRAW.polygon_drawn.set(0u32);
     let list = &POLYGON_WORK.list;
-    copy_on(
-        &FRAME_WORK.shadow_list,
-        list,
+    copy_on_in(
+        (&FRAME_WORK, &FRAME_WORK.shadow_list),
+        (&POLYGON_WORK, list),
         count as usize,
         "the shadow list",
     )?;
     DRAW.polygon_vertex_count.set_bits(count);
-    write_on(
+    write_on_in(
+        &POLYGON_WORK,
         list,
         count as usize,
         FRAME_WORK.shadow_list[0].get(),
@@ -494,7 +510,12 @@ pub fn shadow_on_face() -> Result<(), Refused> {
     }
     let n: u32 = DRAW.polygon_vertex_count.bits();
     for k in 0..n {
-        raise_onto_face(read_on(list, k as usize, "the polygon list")?)?;
+        raise_onto_face(read_on_in(
+            &POLYGON_WORK,
+            list,
+            k as usize,
+            "the polygon list",
+        )?)?;
     }
     crate::scene::project_polygon::project_polygon()?;
     crate::scene::fog_polygon::fog_polygon()?;

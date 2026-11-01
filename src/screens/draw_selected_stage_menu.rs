@@ -39,7 +39,11 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
         return Ok(None);
     };
     Ok(Some((
-        table_dword_at(GROUP_TITLES, sel.group)?,
+        table_dword_at(
+            &crate::menu::results_store::RESULT_FIGURES,
+            GROUP_TITLES,
+            sel.group,
+        )?,
         dword(sel.table.wrapping_add(0x38))?,
     )))
 }

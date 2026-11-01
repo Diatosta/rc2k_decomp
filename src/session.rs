@@ -134,24 +134,7 @@ impl Float {
     }
 }
 
-/// Cell `n` of `cells`, or, past their end, the dword the original reads there (by address:
-/// what follows in the image's layout; refused outside the region). The one place the
-/// tables' read-on slips go through.
-pub fn read_on<C: Cell32>(
-    cells: &[C],
-    n: usize,
-    what: &str,
-) -> Result<u32, crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => Ok(cell.bits()),
-        None => crate::pointers::GamePtr::new(
-            crate::pointers::game_address(cells.as_ptr()).wrapping_add(n.wrapping_mul(4) as u32),
-        )
-        .read(what),
-    }
-}
-
-/// `read_on` where the index comes from outside data: past the table's end it reads what
+/// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
 pub fn read_on_in<H: ?Sized, C: Cell32>(
@@ -175,26 +158,7 @@ pub fn read_on_in<H: ?Sized, C: Cell32>(
     }
 }
 
-/// `read_on`'s write: cell `n` of `cells`, or, past their end, the dword there by address.
-pub fn write_on<C: Cell32>(
-    cells: &[C],
-    n: usize,
-    v: u32,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    match cells.get(n) {
-        Some(cell) => {
-            cell.set_bits(v);
-            Ok(())
-        }
-        None => crate::pointers::GamePtr::new(
-            crate::pointers::game_address(cells.as_ptr()).wrapping_add(n.wrapping_mul(4) as u32),
-        )
-        .write(v, what),
-    }
-}
-
-/// `write_on` where the index comes from outside data, limited as `read_on_in`.
+/// `read_on_in`'s write.
 pub fn write_on_in<H: ?Sized, C: Cell32>(
     holder: &H,
     cells: &[C],
@@ -221,15 +185,21 @@ pub fn write_on_in<H: ?Sized, C: Cell32>(
 }
 
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
-/// what it has just written), each past its table's end as `read_on` / `write_on`.
-pub fn copy_on<A: Cell32, B: Cell32>(
-    from: &[A],
-    to: &[B],
+/// what it has just written), each past its table's end only inside its holder.
+pub fn copy_on_in<F: ?Sized, T: ?Sized, A: Cell32, B: Cell32>(
+    (from_holder, from): (&F, &[A]),
+    (to_holder, to): (&T, &[B]),
     n: usize,
     what: &str,
 ) -> Result<(), crate::errors::BadInput> {
     for k in 0..n {
-        write_on(to, k, read_on(from, k, what)?, what)?;
+        write_on_in(
+            to_holder,
+            to,
+            k,
+            read_on_in(from_holder, from, k, what)?,
+            what,
+        )?;
     }
     Ok(())
 }

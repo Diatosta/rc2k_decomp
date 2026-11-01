@@ -42,7 +42,11 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
     }
     build_second_heading(s.record)?;
     GamePtr::new(item_0).write(
-        table_dword_at(GROUP_TITLES, s.group)?,
+        table_dword_at(
+            &crate::menu::results_store::RESULT_FIGURES,
+            GROUP_TITLES,
+            s.group,
+        )?,
         "a menu item's string",
     )?;
     GamePtr::new(item_1).write(dword(s.table.wrapping_add(0x38))?, "a menu item's string")?;

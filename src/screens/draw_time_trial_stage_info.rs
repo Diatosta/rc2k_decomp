@@ -48,7 +48,7 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     };
     label(
         canvas,
-        table_dword_at(GROUP_TITLES, sel.group)?,
+        table_dword_at(&RESULT_FIGURES, GROUP_TITLES, sel.group)?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,
