@@ -117,15 +117,14 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
     }
     DRAW.polygon_textures[0].set(0xC0u32);
     DRAW.polygon_textures[1].set(0xC0u32);
-    let links = crate::race::shadow_skids_store::SHADOW_SKIDS
-        .skid_links
-        .addr();
+    let links = GamePtr::to(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links);
     for n in 0..0x400u32 {
-        let before = GamePtr::new(links + 8 * n).read::<i16>("a skidmark link")? as i32 as u32;
+        let before = links.offset(8 * n).read::<i16>("a skidmark link")? as i32 as u32;
         if before == u32::MAX {
             continue;
         }
-        let shown = GamePtr::new(links.wrapping_add(before.wrapping_mul(8)) + 6)
+        let shown = links
+            .offset(before.wrapping_mul(8).wrapping_add(6))
             .read::<u16>("a skidmark link")? as u32;
         if shown & views == 0 {
             continue;

@@ -52,11 +52,14 @@ pub fn compare_split_times() -> Result<(), Refused> {
     }
     let car = RACE_WORK.current_car.get();
     let times = match car {
-        0 => RACE_STATE.results.results[0].data.addr(),
-        1 => RACE_STATE.results.results[1].data.addr(),
+        0 => &RACE_STATE.results.results[0],
+        1 => &RACE_STATE.results.results[1],
         _ => return Ok(()),
     };
-    crate::pointers::GamePtr::new(times + 4 * CAR.splits_recorded.get())
+    // From the record's data on, and no further than the record.
+    let record = crate::pointers::GamePtr::to(times);
+    record
+        .offset(times.data.addr() - record.addr() + 4 * CAR.splits_recorded.get())
         .write(time, "a result's split times")?;
     Ok(())
 }
