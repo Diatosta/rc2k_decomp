@@ -336,3 +336,9 @@ character of such a message is now given up to the marker instead.
 Read in the code, not seen. The lobby builds "name> text" in a 128-byte buffer without looking at
 its length, while a received message can hold 255 bytes. Another player could overwrite the
 network mode and the data after it. The line is now cut to the buffer's room.
+
+## A long folder name in the install record overruns the game's paths
+
+Read in the code, not seen. The game copies the install folder and language folder from the install
+record without checking their length, so an over-long value overwrote the data after them.
+The game now stops with a message naming the path.

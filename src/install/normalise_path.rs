@@ -55,7 +55,9 @@ pub fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
     let Some(text) = normalised(path, &mut || current_directory())? else {
         return Ok(false);
     };
+    // An empty path takes the current directory, of any length; the places written hold 0x100.
     crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+        .limited(0x100)
         .write_bytes(&text, "a normalised path")?;
     Ok(true)
 }

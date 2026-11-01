@@ -460,6 +460,14 @@ impl GamePtr {
         self.at
     }
 
+    /// The same address, limited to `len` bytes from here: a buffer that is part of a field.
+    pub const fn limited(self, len: u32) -> Self {
+        Self {
+            at: self.at,
+            field: (self.at, self.at.wrapping_add(len)),
+        }
+    }
+
     /// The address `n` bytes on (no check until it is read).
     pub const fn offset(self, n: u32) -> Self {
         Self {

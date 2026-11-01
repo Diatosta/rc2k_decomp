@@ -66,14 +66,17 @@ pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput>
             return Err(BadInput("more driver names than their pool holds"));
         }
         let last = format_u32(DRIVERS as u32 - 1, 0x13);
-        GamePtr::new(KEY.addr() + 4).write_bytes(&last, "a driver name's key")?;
-        let mut pool = GamePtr::new(NAMES.addr() + NAMES_LEN as u32);
+        crate::pointers::GamePtr::to(&KEY)
+            .offset(4)
+            .write_bytes(&last, "a driver name's key")?;
+        let mut pool = crate::pointers::GamePtr::to(&NAMES).offset(NAMES_LEN as u32);
         for (driver, entry) in entries.iter().enumerate() {
             let Some(entry) = entry else {
                 continue;
             };
             if let Some(name) = &entry.name {
-                GamePtr::new(NAMES.addr() + (4 * driver) as u32)
+                crate::pointers::GamePtr::to(&NAMES)
+                    .offset((4 * driver) as u32)
                     .write(pool.addr(), "a driver name's pointer")?;
                 pool.write_bytes(name, "a driver name")?;
                 pool.offset(name.len() as u32)

@@ -233,6 +233,21 @@ pub mod state {
     pub const PATHS_LEN: usize = 0x200;
     pub static PATHS: Place<[u8; PATHS_LEN]> = Place::new([0; PATHS_LEN]);
 
+    /// A directory's room (`DIRECTORIES` holds the two).
+    pub const DIRECTORY_LEN: u32 = 0x100;
+
+    /// g_baseDirectory, as a place limited to its room.
+    pub fn base_directory_place() -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::new(crate::pointers::game_address(base_directory()))
+            .limited(DIRECTORY_LEN)
+    }
+
+    /// g_localeDirectory, as a place limited to its room.
+    pub fn locale_directory_place() -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::new(crate::pointers::game_address(locale_directory()))
+            .limited(DIRECTORY_LEN)
+    }
+
     /// g_baseDirectory.
     pub fn base_directory() -> *mut u8 {
         DIRECTORIES.ptr().cast()

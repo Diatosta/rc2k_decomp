@@ -294,10 +294,12 @@ pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = crate::files::state::PACKED_PATH.addr();
         let len = crate::strings::text_length::nul_at(GamePtr::new(picture), "a text to append")?;
-        GamePtr::new(picture).copy_to(GamePtr::new(path + 3), len as usize, "a text to append")?;
-        GamePtr::new((path + 3 + len).wrapping_sub(4))
+        let room = GamePtr::new(path).limited(crate::files::state::PACKED_PATH_LEN as u32);
+        GamePtr::new(picture).copy_to(room.offset(3), len as usize, "a text to append")?;
+        room.offset(3 + len)
+            .offset(4u32.wrapping_neg())
             .write(0x0071_732Eu32, "the packed map's path")?;
-        GamePtr::new(path).write_bytes(b"files\\", "the packed map's path")?;
+        room.write_bytes(b"files\\", "the packed map's path")?;
         load_packed_game_map(path)?;
         return Ok(());
     }

@@ -33,12 +33,11 @@ pub fn read_record(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
             &case_table(),
         )?;
         for (place, text) in [
-            (crate::files::state::base_directory(), record.base),
-            (crate::files::state::locale_directory(), record.locale),
+            (crate::files::state::base_directory_place(), record.base),
+            (crate::files::state::locale_directory_place(), record.locale),
         ] {
             if let Some(text) = text {
-                crate::pointers::GamePtr::new(crate::pointers::game_address(place))
-                    .write_bytes(&text, "an installer path")?;
+                place.write_bytes(&text, "an installer path")?;
             }
         }
         if let Some(mode) = record.mode {
