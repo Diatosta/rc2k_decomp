@@ -23,12 +23,7 @@ pub fn read_sku(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
         return Ok(());
     };
     // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
-    let Some(sku) = config::read_sku(
-        &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
-            .bytes("the install record")?,
-        &case_table(),
-    )?
-    else {
+    let Some(sku) = config::read_sku(&text.bytes("the install record")?, &case_table())? else {
         return Ok(());
     };
     if sku.oem {

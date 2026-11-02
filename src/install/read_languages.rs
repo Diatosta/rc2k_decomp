@@ -31,11 +31,7 @@ pub fn read_languages(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
         };
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
-        let found = config::find_languages(
-            &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
-                .bytes("the languages' text")?,
-            &case_table(),
-        )?;
+        let found = config::find_languages(&text.bytes("the languages' text")?, &case_table())?;
         let all = crate::pointers::GamePtr::to(&INSTALLER_NAMES.languages);
         let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {

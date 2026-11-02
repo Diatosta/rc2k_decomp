@@ -27,11 +27,7 @@ pub fn read_record(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
-        let record = config::read_record(
-            &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
-                .bytes("the install record")?,
-            &case_table(),
-        )?;
+        let record = config::read_record(&text.bytes("the install record")?, &case_table())?;
         for (place, text) in [
             (crate::files::state::base_directory_place(), record.base),
             (crate::files::state::locale_directory_place(), record.locale),

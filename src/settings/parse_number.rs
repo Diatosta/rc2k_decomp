@@ -10,12 +10,12 @@
 
 // ---- Rust version ----
 
-pub fn parse_number(text: *const u8) -> u32 {
+pub fn parse_number(text: crate::pointers::GamePtr) -> u32 {
     if text.is_null() {
         return 0;
     }
     // Converted: `rc2k_core::files::settings::number`.
-    let number = crate::pointers::GamePtr::new(crate::pointers::game_address(text))
+    let number = text
         .bytes("a settings number")
         .and_then(|words| Ok(rc2k_core::files::settings::number(&words, 0)?));
     number.unwrap_or_else(|e| crate::fatal::raise::end("settings::parse_number", e))

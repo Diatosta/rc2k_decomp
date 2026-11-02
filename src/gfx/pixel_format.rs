@@ -10,5 +10,5 @@ pub fn surface_format_addr() -> u32 {
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
 pub fn surface_format() -> Result<PixelFormat, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(surface_format_addr()).read("the surface's format")
+    crate::pointers::GamePtr::to(&crate::session::SCREEN.format).read("the surface's format")
 }

@@ -18,7 +18,6 @@
 
 use crate::errors::BadInput;
 use crate::moved::Place;
-use crate::pointers::GamePtr;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
 
@@ -52,7 +51,7 @@ pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput>
             return Ok(());
         };
         let entries = rc2k_core::files::settings::driver_names(
-            &GamePtr::new(crate::pointers::game_address(text)).bytes("the driver names' text")?,
+            &text.bytes("the driver names' text")?,
             &crate::strings::same_text::case_table(),
         )
         .map_err(|e| BadInput(e.0))?;

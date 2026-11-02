@@ -17,9 +17,9 @@ use crate::settings::TEXT_ROOM;
 
 /// The text (NUL-terminated) and its length, or None if the file was not read.
 /// Refuses what `read_file` refuses.
-pub fn read_text(path: GamePtr) -> Result<Option<(*const u8, u32)>, BadInput> {
+pub fn read_text(path: GamePtr) -> Result<Option<(GamePtr, u32)>, BadInput> {
     {
-        let text = crate::files::scratch::SCRATCH.buffer.as_ptr();
+        let text = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
         let read = read_file(
             path,
             GamePtr::to(&crate::files::scratch::SCRATCH.buffer),
@@ -30,9 +30,7 @@ pub fn read_text(path: GamePtr) -> Result<Option<(*const u8, u32)>, BadInput> {
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
-        GamePtr::new(crate::pointers::game_address(text))
-            .offset(bytes)
-            .write(0u8, "the settings text's end")?;
+        text.offset(bytes).write(0u8, "the settings text's end")?;
         Ok(Some((text, bytes)))
     }
 }

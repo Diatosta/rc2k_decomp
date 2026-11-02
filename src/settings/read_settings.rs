@@ -130,18 +130,15 @@ fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     )?)
 }
 
-pub fn apply_settings(text: *const u8) -> Result<(), BadInput> {
+pub fn apply_settings(text: GamePtr) -> Result<(), BadInput> {
     if text.is_null() {
         return Err(BadInput("no settings text or no key"));
     }
     let table = settings()?;
     let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
     // Found first, stored after: nothing is written if a key is refused.
-    let found = rc2k_core::files::settings::apply(
-        &GamePtr::new(crate::pointers::game_address(text)).bytes("a settings text")?,
-        &keys,
-        &case_table(),
-    )?;
+    let found =
+        rc2k_core::files::settings::apply(&text.bytes("a settings text")?, &keys, &case_table())?;
     for (n, number) in found {
         // The table's (IDA) address, or where its variable lives now (`crate::moved`).
         GamePtr::new((crate::moved::place(table[n].1 as usize)) as u32)

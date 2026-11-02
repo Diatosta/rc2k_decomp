@@ -28,7 +28,7 @@ use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::gfx::formats::FORMATS;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
+use crate::gfx::pixel_format::PixelFormat;
 use crate::session::SCREEN;
 
 // ---- game data ----
@@ -86,8 +86,7 @@ pub fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, Ba
         }
     } else {
         // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-        let format: PixelFormat = crate::pointers::GamePtr::new(surface_format_addr())
-            .read("the surface's pixel format")?;
+        let format: PixelFormat = crate::gfx::pixel_format::surface_format()?;
         let pixels = width as usize * height as usize;
         let converted = with_picture(|buffer| -> Result<_, BadInput> {
             let bytes = buffer
