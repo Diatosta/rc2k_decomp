@@ -69,9 +69,7 @@ const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const STAGE_RECORD_LEN: u32 = 0xA4;
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
 fn stage_record() -> Result<u32, Refused> {
     let (level, stage) = (ARCADE_GAME.level.get(), ARCADE_GAME.stage.get());

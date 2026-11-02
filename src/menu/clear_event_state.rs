@@ -8,22 +8,17 @@
 //! (`sub_482382` and four more).
 
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::results_store::RESULT_FIGURES;
-use crate::service::harness::Region;
+use crate::menu::results_store::{RESULT_FIGURES, Results};
+use crate::pointers::GamePtr;
 
 const RUN_DWORDS: usize = 28;
 
-fn regions() -> [Region; 3] {
-    [
-        (EVENT_STATE.stages_done.addr(), 4),
-        (RESULT_FIGURES.round.addr(), 4),
-        (RESULT_FIGURES.time_bonus[0].addr(), RUN_DWORDS * 4),
-    ]
-}
-
 pub fn clear_event_state() -> Result<(), crate::errors::BadInput> {
-    for (addr, len) in regions() {
-        crate::pointers::GamePtr::new(addr).fill(0, len, "the event\'s figures")?;
-    }
+    let what = "the event\'s figures";
+    GamePtr::to(&EVENT_STATE.stages_done).fill(0, 4, what)?;
+    GamePtr::to(&RESULT_FIGURES.round).fill(0, 4, what)?;
+    GamePtr::to(&RESULT_FIGURES)
+        .offset(std::mem::offset_of!(Results, time_bonus) as u32)
+        .fill(0, RUN_DWORDS * 4, what)?;
     Ok(())
 }

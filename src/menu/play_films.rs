@@ -68,11 +68,11 @@ struct Game {
     failed: Option<Refused>,
 }
 
-fn film(f: Film) -> u32 {
+fn film(f: Film) -> crate::pointers::GamePtr {
     match f {
-        Film::AlLogo => FILMS.allogo.addr(),
-        Film::MfLogo => FILMS.mflogo.addr(),
-        Film::Intro => FILMS.intro.addr(),
+        Film::AlLogo => crate::pointers::GamePtr::to(&FILMS.allogo),
+        Film::MfLogo => crate::pointers::GamePtr::to(&FILMS.mflogo),
+        Film::Intro => crate::pointers::GamePtr::to(&FILMS.intro),
     }
 }
 
@@ -92,12 +92,10 @@ impl Game {
                 flags.zero = crate::input::take_key::take_key() == 0;
             }
             Step::SwapMissingExtension(f) => {
-                crate::files::swap_missing_extension::swap_missing_extension(
-                    &crate::pointers::GamePtr::new(film(f)),
-                )?;
+                crate::files::swap_missing_extension::swap_missing_extension(&film(f))?;
             }
             Step::Player(f) => {
-                flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
+                flags.zero = play(film(f.unwrap_or(Film::AlLogo)).addr());
             }
             Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
             Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
@@ -106,9 +104,7 @@ impl Game {
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FileExists(f) => {
-                let there = crate::files::file_exists::file_exists_at(
-                    crate::pointers::GamePtr::new(film(f)),
-                )?;
+                let there = crate::files::file_exists::file_exists_at(film(f))?;
                 flags.carry = !there;
                 flags.zero = there;
             }

@@ -102,7 +102,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
     set_item(
         items,
         3,
-        crate::pointers::GamePtr::new(base + 0x38).read::<u32>("a stage record")?,
+        crate::menu::event_flow::dword_what(base + 0x38, "a stage record")?,
     )?;
     stage_line(0x481, record)?;
     let mut caption = Vec::new();
@@ -143,7 +143,7 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     crate::pointers::GamePtr::new(pointed + 4 + 0x5C + 0x14).write::<u32>(
-        crate::pointers::GamePtr::new(base + 0x38).read::<u32>("a stage record")?,
+        crate::menu::event_flow::dword_what(base + 0x38, "a stage record")?,
         "a menu item",
     )?;
     stage_line(0x482, record)

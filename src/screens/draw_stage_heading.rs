@@ -21,7 +21,7 @@ use rc2k_core::screens::stage_panel::stage_line;
 // ---- game data ----
 
 fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a stage record")
+    crate::menu::event_flow::dword_what(at, "a stage record")
 }
 
 // ---- Rust version ----

@@ -11,9 +11,7 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.

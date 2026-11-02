@@ -8,9 +8,7 @@ use crate::menu::arcade_store::ARCADE_GAME;
 use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 /// The page's stage record (none: 0).
 pub fn stage_record() -> Result<u32, BadInput> {

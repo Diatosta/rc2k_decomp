@@ -15,9 +15,7 @@ const LABEL_LEN: u32 = 0x10;
 const END: u32 = u32::MAX;
 const LABEL_LIMIT: u32 = 256;
 
-fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword;
 
 // ---- Rust version ----
 

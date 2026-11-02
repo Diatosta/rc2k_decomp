@@ -26,9 +26,7 @@ use crate::text::draw_text::Canvas;
 
 // dword_758720: byte offset in g_players
 // dword_758724
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.

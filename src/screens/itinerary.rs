@@ -42,11 +42,11 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 "a section title",
             )?
         } else {
-            crate::pointers::GamePtr::new(first + 0x38).read::<u32>("a stage record")?
+            crate::menu::event_flow::dword_what(first + 0x38, "a stage record")?
         };
         let base = record_at(1)?;
         let record = move |n: u32| base.wrapping_add((n - 1).wrapping_mul(0xA4));
-        let get = |a: u32| crate::pointers::GamePtr::new(a).read::<u32>("a stage record");
+        let get = |a: u32| crate::menu::event_flow::dword_what(a, "a stage record");
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n);
             match get(r)? {

@@ -25,7 +25,7 @@ const SECOND_HEADING_STRING: u32 = 0x482;
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
 pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
+    crate::menu::event_flow::dword(at)
 }
 
 /// The dword `index` of `table`, reading on only inside `holder`, the store holding it.

@@ -31,9 +31,7 @@ use crate::menu::results_store::RESULT_FIGURES;
 
 const POSITION_LIMIT: u32 = 16;
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
     (0..n)

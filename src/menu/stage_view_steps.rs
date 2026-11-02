@@ -38,9 +38,7 @@ use crate::records::find_record::{find_record_in, has_section};
 use rc2k_core::menu::stage_screens;
 
 const RECORD: u32 = 0xA4;
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 /// The record `index` / `section` pick.
 fn stage_record() -> Result<u32, Refused> {

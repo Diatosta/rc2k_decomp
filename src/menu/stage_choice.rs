@@ -25,9 +25,7 @@ const NO_MAP: FatalError = FatalError {
     message: "",
 };
 
-fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword;
 
 /// `menu::draw_stage_map`: the stage by `dword_755700` (2: `off_73555A[dword_7587EC]`'s
 /// `dword_7587F0`th; 3: `records::find_record` of `g_recordTable` with `section` and

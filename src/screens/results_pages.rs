@@ -54,9 +54,7 @@ use crate::text::draw_text::Canvas;
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 #[derive(Clone, Copy)]
 enum Heading {

@@ -23,7 +23,7 @@ const HIDDEN_NAME: u32 = 0x18F;
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
 fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
-    let list = CHEAT_VARS.cheat_names.addr();
+    let list = GamePtr::to(&CHEAT_VARS.cheat_names);
     let text = GamePtr::new(coded).bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))
@@ -31,11 +31,11 @@ fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
         .collect();
     // Converted: `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
-        &GamePtr::new(list).bytes("the cheat names")?,
+        &list.bytes("the cheat names")?,
         &coded,
         &crate::strings::same_text::case_table(),
     )?;
-    Ok(found.map(|f| (list + f.at as u32, f.bit as u32)))
+    Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the

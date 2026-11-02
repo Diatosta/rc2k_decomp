@@ -287,8 +287,7 @@ pub fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(),
         if base == 0 {
             return Err(BadInput("no stage records").into());
         }
-        let id =
-            crate::pointers::GamePtr::new(base + 0x38).read::<u32>("best scores: a game value")?;
+        let id = crate::menu::event_flow::dword_what(base + 0x38, "best scores: a game value")?;
         let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
@@ -320,8 +319,7 @@ pub fn draw_stage_times(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), R
     };
     draw_times_heading(p, canvas)?;
     let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
-    let group =
-        crate::pointers::GamePtr::new(record + 0x3C).read::<u32>("best scores: a game value")?;
+    let group = crate::menu::event_flow::dword_what(record + 0x3C, "best scores: a game value")?;
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
     draw_time_rows(table, group as usize, keep, canvas)?;
     Ok(())
@@ -420,7 +418,7 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 "best scores: a game value",
             )?
         } else {
-            crate::pointers::GamePtr::new(first + 0x38).read::<u32>("best scores: a game value")?
+            crate::menu::event_flow::dword_what(first + 0x38, "best scores: a game value")?
         };
         let record = record_at(INDEX.get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };

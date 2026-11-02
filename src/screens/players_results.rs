@@ -16,9 +16,7 @@ use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
+use crate::menu::event_flow::dword as get;
 
 fn rows(layout: &Layout) -> usize {
     rc2k_core::screens::players_results::rows(layout, EVENT_STATE.player_count.get())

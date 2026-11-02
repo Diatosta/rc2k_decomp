@@ -22,9 +22,7 @@ pub const MOST_ENTRIES: u32 = 0x400;
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
-pub fn get(p: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(p).read::<u32>("a game value")
-}
+pub use crate::menu::event_flow::dword as get;
 
 /// A player's record, typed.
 pub type PlayerCell = &'static crate::session::Shared<rc2k_core::menu::player::Player>;
@@ -34,9 +32,7 @@ pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInp
     Ok(players.iter().any(|p| p.get().name == 0))
 }
 
-pub fn put(p: u32, v: u32) -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(p).write(v, "a game value")
-}
+pub use crate::menu::event_flow::put;
 
 /// Player `n`'s record (`n` one of the four).
 pub fn player(n: u32) -> PlayerCell {
