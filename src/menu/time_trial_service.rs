@@ -59,11 +59,11 @@ pub fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             { crate::service::apply_repairs::apply_repairs_in_game() }?;
             crate::menu::set_player_entry_kind::set_player_entry_kind()?;
             let current = get(CURRENT);
-            if current >= 4 || player(current) == 0 {
-                return Err(BadInput("a current player past the four or missing").into());
+            if current >= 4 {
+                return Err(BadInput("a current player past the four").into());
             }
             let record = player(current);
-            if passes::is_out(dword(record + 0xD0)?) {
+            if passes::is_out(record.get().word(0xD0)) {
                 crate::menu::inspection_faults::inspection_faults()?;
                 { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
                 if yes() {

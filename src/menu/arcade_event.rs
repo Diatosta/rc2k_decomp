@@ -1,4 +1,4 @@
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
@@ -7,7 +7,6 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::player::player_at;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 use crate::race::state_store::RACE_STATE;
@@ -19,7 +18,7 @@ use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
 /// through).
 struct Game {
     f: Flow,
-    player0: u32,
+    player0: crate::menu::standings::PlayerCell,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -81,8 +80,8 @@ impl arcade::Arcade for Game {
     fn set(&mut self, v: Var, value: u32) {
         match v {
             Var::Player0Entry => {
-                self.f.record = self.player0;
-                self.fault.put(self.player0 + 0xD0, value);
+                self.f.record = self.player0.addr();
+                self.player0.update(|p| p.store(&[(0xD0, value)]));
             }
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
@@ -154,10 +153,7 @@ impl arcade::Arcade for Game {
 
 /// The Rust version. `c` the carried values the event is entered with.
 pub fn arcade_event(c: &Carried) -> Result<(), Refused> {
-    let player0 = player_at(0);
-    if player0 == 0 {
-        return Err(BadInput("no player 0").into());
-    }
+    let player0 = crate::menu::standings::player(0);
     let mut game = Game {
         f: Flow::new(c),
         player0,

@@ -14,7 +14,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::service::state::current_player;
 
 // ---- game data ----
@@ -33,9 +32,7 @@ pub fn load_setup_values() -> Result<(), BadInput> {
             ));
         };
         // Converted: `rc2k_core::service::setups` (`Player::setup_edit_values`).
-        let values = GamePtr::new(player)
-            .read::<rc2k_core::menu::player::Player>("a player's record")?
-            .setup_edit_values();
+        let values = player.get().setup_edit_values();
         let setups = &MENU_STATE.driver_stats.setups;
         for (value, item) in values.into_iter().zip([&setups[1], &setups[0], &setups[3]]) {
             item.installed.set(value);

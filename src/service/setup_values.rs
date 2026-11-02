@@ -2,7 +2,6 @@
 //! one up or down, and the four that select or deselect a change.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::service::state::current_player;
 use crate::session::Dword;
 
@@ -25,28 +24,26 @@ pub struct Stepper {
     pub up: bool,
 }
 
-fn target(stepper: Stepper) -> Result<u32, BadInput> {
+/// The stepped value, read and written where the target says.
+fn with_target(stepper: Stepper, f: impl FnOnce(u32) -> u32) -> Result<(), BadInput> {
     match stepper.target {
-        Target::Global(cell) => Ok(cell.addr()),
+        Target::Global(cell) => cell.set(f(cell.get())),
         Target::CarField(offset) => {
             let player = current_player().ok_or(BadInput(
                 "no current player object: the original reads through null",
             ))?;
-            Ok(player.wrapping_add(offset))
+            let next = f(player.get().word(offset as usize));
+            player.update(|q| q.store(&[(offset as usize, next)]));
         }
     }
+    Ok(())
 }
 
 pub fn step(stepper: Stepper) -> Result<(), Refused> {
-    let addr = target(stepper)?;
-    let value = GamePtr::new(addr);
     // Converted: `rc2k_core::service::repairs::step`.
-    let next = rc2k_core::service::repairs::step(
-        value.read::<i32>("a setup value")?,
-        stepper.max,
-        stepper.up,
-    );
-    value.write(next, "a setup value")?;
+    with_target(stepper, |value| {
+        rc2k_core::service::repairs::step(value as i32, stepper.max, stepper.up) as u32
+    })?;
     Ok(())
 }
 

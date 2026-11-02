@@ -22,7 +22,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let p = crate::menu::player_settings::current()?;
     let fault = crate::menu::event_flow::Fault::default();
-    let f = |o: u32| fault.get(p + o);
+    let f = |o: u32| p.get().word(o as usize);
     let name = crate::menu::player_name::name()?;
     if (RALLY_STAGE_TIMES.records)()? == 0 {
         return Err(crate::errors::BadInput("no rally stage records").into());

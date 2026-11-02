@@ -22,7 +22,7 @@ pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
     let player = crate::menu::player_settings::current()?;
     let p = player;
     let fault = crate::menu::event_flow::Fault::default();
-    let f = |o: u32| fault.get(p + o);
+    let f = |o: u32| p.get().word(o as usize);
     let name = crate::menu::player_name::name()?;
     let top_speed = f(0x94);
     fault.check()?;

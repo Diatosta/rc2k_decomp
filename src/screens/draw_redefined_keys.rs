@@ -29,10 +29,7 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry.
 pub fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let player = current()?;
-    let keys = crate::pointers::GamePtr::new(player)
-        .read::<rc2k_core::menu::player::Player>("the current player")?
-        .keys;
+    let keys = current()?.get().keys;
     let redefined: u32 = OPTION_WORK.redefined_key_place.get();
     // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
     // (none at the place being redefined, as the original).

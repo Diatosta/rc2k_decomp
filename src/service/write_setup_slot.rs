@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
-use crate::pointers::GamePtr;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
@@ -37,17 +36,16 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
     {
         let file = &SET_UPS.file;
         // Converted: `rc2k_core::saves::kept::setup_file`.
-        let in_car =
-            |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");
+        let in_car = |offset: u32| player.get().word(offset as usize);
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),
             &slot_name(slot).read_array::<NAME_LEN>("a setup's name")?,
             [
                 TYRE.change.chosen.get(),
-                in_car(BRAKE_BALANCE.car_offset)?,
+                in_car(BRAKE_BALANCE.car_offset),
                 RIDE_HEIGHT.change.chosen.get(),
                 SUSPENSION_STIFFNESS.change.chosen.get(),
-                in_car(STEERING_SENSITIVITY.car_offset)?,
+                in_car(STEERING_SENSITIVITY.car_offset),
                 GEAR_RATIO.change.chosen.get(),
             ],
         );

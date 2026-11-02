@@ -41,10 +41,9 @@ pub fn learn_axis() -> Result<(), Refused> {
     if C.learning.get() != 1 {
         return Ok(());
     }
-    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
-    if player == 0 {
+    let Some(player) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
         return Err(crate::errors::BadInput("no current player record").into());
-    }
+    };
     DRAW_WORK.figure.set(0);
     // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
@@ -67,20 +66,12 @@ pub fn learn_axis() -> Result<(), Refused> {
     }
     let mut take = true;
     let control = C.learned.get();
-    if l::by_axis(
-        crate::pointers::GamePtr::new(player + 0x34).read::<u32>("controller: a game value")?,
-        control,
-    ) {
+    if l::by_axis(player.get().word(0x34), control) {
         let m = crate::input::axes::axis_moved(1)?;
         if !m.carry {
             let (byte, found) = l::pedal(control);
-            crate::pointers::GamePtr::new(player + byte)
-                .write::<u8>(m.eax as u8, "a controller binding")?;
-            crate::input::store::DEVICES.records[0].set_u32(
-                0x18,
-                crate::pointers::GamePtr::new(player + 0x38)
-                    .read::<u32>("controller: a game value")?,
-            );
+            player.update(|p| p.store_byte(byte as usize, m.eax as u8));
+            crate::input::store::DEVICES.records[0].set_u32(0x18, player.get().word(0x38));
             DRAW_WORK.figure.set(found);
             C.learning.set(0);
             take = false;
@@ -97,20 +88,18 @@ pub fn learn_axis() -> Result<(), Refused> {
             return Ok(());
         }
     }
-    let slot = player.wrapping_add(l::binding(C.learned.get()));
-    crate::pointers::GamePtr::new(slot)
-        .write::<u32>(DRAW_WORK.figure.get(), "controller: a game value")?;
+    let slot = l::binding(C.learned.get()) as usize;
+    let figure = DRAW_WORK.figure.get();
+    player.update(|p| p.store(&[(slot, figure)]));
     Ok(())
 }
 
 /// What the controller page reads: refused before anything.
-pub fn controller_page_refuses() -> Result<u32, Refused> {
-    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
-    if player == 0 {
+pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, Refused> {
+    let Some(player) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
         return Err(crate::errors::BadInput("no current player record").into());
-    }
-    let device =
-        crate::pointers::GamePtr::new(player + 0x2C).read::<u32>("controller: a game value")?;
+    };
+    let device = player.get().word(0x2C);
     if device != 0 && crate::input::store::DEVICES.device(0) == 0 {
         return Err(crate::errors::BadInput("no input device").into());
     }
@@ -136,7 +125,7 @@ pub fn draw_controller_page(
     {
         let player = controller_page_refuses()?;
         let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| fault.get(player + o);
+        let f = |o: u32| player.get().word(o as usize);
         let device = f(0x2C);
         fault.check()?;
         let mut screen = crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas);

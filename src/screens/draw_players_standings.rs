@@ -28,19 +28,14 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     };
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
-        let p = PLAYER_TABLE.pointers[row].get();
-        if p == 0
-            || crate::pointers::GamePtr::new(p + 0x18)
-                .read::<u32>("draw players standings: a game value")?
-                == 0
-        {
-            return Err(BadInput("a standings row without its player or name").into());
+        if PLAYER_TABLE.players[row].get().name == 0 {
+            return Err(BadInput("a standings row without its name").into());
         }
         *total = CaptionTables::total_of(row)?;
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
     let fault = crate::menu::event_flow::Fault::default();
-    let field = |row: usize, o: u32| fault.get(PLAYER_TABLE.pointers[row].get() + o);
+    let field = |row: usize, o: u32| PLAYER_TABLE.players[row].get().word(o as usize);
     let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
         .map(|row| rc2k_core::screens::players_results::Standing {
             name: field(row, 0x18),

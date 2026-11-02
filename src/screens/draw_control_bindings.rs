@@ -18,16 +18,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::player::player_at;
 use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::screens::game_screen::ControlsScreen;
 use crate::text::draw_text::Canvas;
 
 // byte_A8BC54
-
-fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
-}
 
 /// The directions' names (`word_755200`, `word_755212`).
 fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
@@ -38,12 +33,15 @@ fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
 }
 
 /// Row n's text (without its NUL). Converted: `rc2k_core::screens::controls::binding_text`.
-pub fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
+pub fn binding_text(
+    player: crate::menu::standings::PlayerCell,
+    n: u32,
+) -> Result<Vec<u8>, Refused> {
     let b = rc2k_core::screens::controls::Binding {
-        binding: get(player + 0x50 + 4 * n)?,
-        kind: get(player + 0x34)?,
+        binding: player.get().word(0x50 + 4 * n as usize),
+        kind: player.get().word(0x34),
         axis: if n < 2 {
-            crate::pointers::GamePtr::new(player + 0x3B - n).read::<u8>("a controller axis")?
+            player.get().byte(0x3B - n as usize)
         } else {
             0
         },
@@ -60,10 +58,9 @@ pub fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
 
 /// Returns the carry.
 pub fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let player = player_at(EVENT_STATE.current_player.get());
-    if player == 0 {
+    let Some(player) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
         return Err(BadInput("no current player").into());
-    }
+    };
     let learning: u32 = CONTROLS_SCREEN.learning.get();
     let row: u32 = CONTROLS_SCREEN.learned.get();
     let mut texts: [Vec<u8>; 10] = Default::default();

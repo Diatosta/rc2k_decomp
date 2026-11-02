@@ -49,7 +49,7 @@ impl starters::Event for Game {
         match c {
             C::RepairCar { current } => {
                 if current {
-                    self.f.record = player(get(CURRENT));
+                    self.f.record = player(get(CURRENT)).addr();
                 }
                 crate::service::repair_parts::repair_car()?;
             }
@@ -96,7 +96,6 @@ fn var(v: starters::Var) -> &'static Dword {
 
 /// The Rust version of a starter. `c` the carried values the item gets.
 pub fn start_event(s: &Starter, c: &Carried) -> Result<(), Refused> {
-    players_there(s.kind.players())?;
     // Converted: `rc2k_core::menu::starters::start`.
     starters::start(s.kind, &mut Game { f: Flow::new(c) })
 }

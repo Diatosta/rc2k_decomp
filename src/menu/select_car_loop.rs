@@ -29,10 +29,9 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting, read_at,
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
@@ -42,13 +41,10 @@ use crate::scene::draw_store::DRAW;
 fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
     let current: u32 = EVENT_STATE.current_player.get();
-    let player = crate::session::read_on_in(
-        &PLAYER_TABLE,
-        &PLAYER_TABLE.pointers,
-        current as usize,
-        "the players' table",
-    )?;
-    c.arg = read_at(player.wrapping_add(0x30))?;
+    let Some(player) = crate::menu::player::player(current) else {
+        return Err(crate::errors::BadInput("a current player past the four").into());
+    };
+    c.arg = player.get().word(0x30);
     SCREEN_FLOW.shown_gearing.set(c.arg);
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0xDu32);

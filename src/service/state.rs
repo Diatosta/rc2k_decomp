@@ -5,25 +5,13 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
-/// The current player (`Player`), or None if the index or the pointer is not usable.
-pub fn current_player() -> Option<u32> {
-    let index: u32 = EVENT_STATE.current_player.get();
-    if index >= 64 {
-        return None;
-    }
-    let player = crate::session::read_on_in(
-        &PLAYER_TABLE,
-        &PLAYER_TABLE.pointers,
-        index as usize,
-        "the players' table",
-    )
-    .unwrap_or_else(|e| refuse(e));
-    (player != 0).then_some(player)
+/// The current player (`Player`), or None if the index is past the four.
+pub fn current_player() -> Option<crate::menu::standings::PlayerCell> {
+    crate::menu::player::player(EVENT_STATE.current_player.get())
 }
 
 /// The flag of menu item `item` in the repair flag table (the item not checked against

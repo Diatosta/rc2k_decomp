@@ -27,7 +27,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::{CAPTIONS, CaptionTables};
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::player::player_at;
 use crate::menu::results_store::RESULT_FIGURES;
 
 const POSITION_LIMIT: u32 = 16;
@@ -36,11 +35,10 @@ fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
     crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
-fn players(n: u32) -> Result<Vec<u32>, Refused> {
+fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
     (0..n)
-        .map(|k| match player_at(k) {
-            0 => Err(BadInput("a missing player record").into()),
-            r => Ok(r),
+        .map(|k| {
+            crate::menu::player::player(k).ok_or_else(|| BadInput("a player past the four").into())
         })
         .collect()
 }
@@ -57,10 +55,7 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
         (0..4).map(|k| RESULT_FIGURES.totals[k].get()).collect()
     } else {
-        players(4)?
-            .iter()
-            .map(|&r| get(r + 0x88))
-            .collect::<Result<_, _>>()?
+        players(4)?.iter().map(|&r| r.get().word(0x88)).collect()
     };
     // Converted: `rc2k_core::menu::results::rank`.
     let pairs =
@@ -103,10 +98,7 @@ fn points(position: u32) -> Result<u32, Refused> {
 pub fn score(n: usize) -> Result<(), Refused> {
     let records = players(n as u32)?;
     let target = stage_time()?;
-    let times: Vec<u32> = records
-        .iter()
-        .map(|&r| get(r + 0x88))
-        .collect::<Result<_, _>>()?;
+    let times: Vec<u32> = records.iter().map(|&r| r.get().word(0x88)).collect();
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
@@ -131,7 +123,7 @@ pub fn score(n: usize) -> Result<(), Refused> {
             earned[k],
             times[k],
             target,
-            get(records[k] + 0x94)?,
+            records[k].get().word(0x94),
         );
         RESULT_FIGURES.points[k].set(sc.points);
         RESULT_FIGURES.time_bonus[k].set(sc.bonus);

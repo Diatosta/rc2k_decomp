@@ -14,7 +14,6 @@ use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
 use crate::place::Place;
-use crate::pointers::GamePtr;
 
 pub fn kept() -> Place {
     Place::from(&NAME_BUFFERS.kept_name)
@@ -22,9 +21,7 @@ pub fn kept() -> Place {
 
 /// The current player's name.
 pub fn name() -> Result<u32, Refused> {
-    let name = GamePtr::new(current()?)
-        .read::<rc2k_core::menu::player::Player>("a player")?
-        .name;
+    let name = current()?.get().name;
     if name == 0 {
         return Err(BadInput("a player without a name").into());
     }

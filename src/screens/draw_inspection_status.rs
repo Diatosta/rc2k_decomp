@@ -32,16 +32,15 @@ const CAR_DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
-pub fn inspection_status(player: u32) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
+pub fn inspection_status(
+    player: crate::menu::standings::PlayerCell,
+) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
     let fault = crate::menu::event_flow::Fault::default();
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
         Part {
-            damage: fault.read::<i32>(
-                player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item),
-                "a car part\'s damage",
-            ),
+            damage: player.get().word((CAR_DAMAGE_OFFSET + 4 * item) as usize) as i32,
             threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
             weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
             repairing: repair_flag(item) != 0,

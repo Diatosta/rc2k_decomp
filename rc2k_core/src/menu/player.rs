@@ -185,6 +185,18 @@ impl Player {
         u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
     }
 
+    /// The byte at `at`.
+    pub fn byte(&self, at: usize) -> u8 {
+        self.to_le_bytes()[at]
+    }
+
+    /// One byte stored by offset.
+    pub fn store_byte(&mut self, at: usize, v: u8) {
+        let mut b = self.to_le_bytes();
+        b[at] = v;
+        *self = Self::from_le_bytes(b);
+    }
+
     /// Dwords stored by byte offset, as the event's tables list them.
     pub fn store(&mut self, stores: &[crate::menu::standings::Store]) {
         let mut b = self.to_le_bytes();

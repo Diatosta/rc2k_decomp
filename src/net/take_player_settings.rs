@@ -9,29 +9,31 @@
 //! A null `g_players[0]` (the original reads through it) is refused. Caller:
 //! `net::start_link`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::players_store::PLAYER_TABLE;
-use crate::net::lobby::movsb;
 use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::net::settings::{self, Copy};
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_player_settings() -> Result<(), Refused> {
-    let record = PLAYER_TABLE.pointers[0].get();
-    if record == 0 {
-        return Err(BadInput("no record for player 1").into());
-    }
+    let player = &PLAYER_TABLE.players[0];
     // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
-    GamePtr::new(record + settings::TAKEN_MARK).write(1u32, "a player's record")?;
+    player.update(|p| p.store(&[(settings::TAKEN_MARK as usize, 1)]));
     let to = RACE_STATE.settings.car_kind_current.addr();
     for copy in settings::copies() {
         match copy {
             Copy::Dword { to: at, from } => {
-                let v = GamePtr::new(record + from).read::<u32>("a player's record")?;
+                let v = player.get().word(from as usize);
                 GamePtr::new(to + at).write(v, "the race settings")?;
             }
-            Copy::Bytes { to: at, from, len } => movsb(to + at, record + from, len)?,
+            Copy::Bytes { to: at, from, len } => {
+                let bytes = player.get().to_le_bytes();
+                GamePtr::new(to + at).write_bytes(
+                    &bytes[from as usize..(from + len) as usize],
+                    "the race settings",
+                )?;
+            }
         }
     }
     Ok(())

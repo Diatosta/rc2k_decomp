@@ -34,7 +34,7 @@ use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::player::{Player, player_at};
+use crate::menu::player::Player;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
@@ -77,12 +77,10 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
 }
 
 pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let at = player_at(EVENT_STATE.current_player.get());
-    if at == 0 {
+    let Some(cell) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
-    }
-    let player =
-        crate::pointers::GamePtr::new(at).read::<Player>("draw player details: a game value")?;
+    };
+    let player: Player = cell.get();
     if player.name == 0 {
         return Err(BadInput("a player without its name").into());
     }
@@ -98,11 +96,7 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
         };
         let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
         if player.second_view == 5 {
-            let mut written = crate::pointers::GamePtr::new(at)
-                .read::<Player>("draw player details: a game value")?;
-            written.second_view = 0;
-            crate::pointers::GamePtr::new(at)
-                .write::<Player>(written, "draw player details: a game value")?;
+            cell.update(|p| p.second_view = 0);
         }
         Some(id)
     } else {

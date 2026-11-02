@@ -29,14 +29,14 @@ fn offset(row: usize) -> u32 {
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
-fn player(row: usize) -> Result<u32, Refused> {
+fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
     let o = offset(row);
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
-    let p = PLAYER_TABLE.pointers[(o / 4) as usize].get();
-    if p == 0 || get(p + 0x18)? == 0 {
-        return Err(BadInput("a row's player without its record or name").into());
+    let p = &PLAYER_TABLE.players[(o / 4) as usize];
+    if p.get().name == 0 {
+        return Err(BadInput("a row's player without its name").into());
     }
     Ok(p)
 }
@@ -59,7 +59,7 @@ fn records() -> Result<(u32, u32), BadInput> {
 
 /// The rows' players, the section's first record, the stage line and the speeds.
 struct Prepared {
-    players: Vec<u32>,
+    players: Vec<crate::menu::standings::PlayerCell>,
     base: u32,
     stage: Vec<u8>,
     speeds: Vec<Vec<u8>>,
@@ -86,7 +86,7 @@ fn prepare(layout: &Layout) -> Result<Prepared, Refused> {
     let units = crate::strings::units::units();
     let mut speeds = Vec::new();
     for p in &players {
-        let s = crate::strings::append_speed::append_speed(get(p + 0x94)?, false, units)?;
+        let s = crate::strings::append_speed::append_speed(p.get().word(0x94), false, units)?;
         if !(3..=0x80).contains(&s.len()) {
             return Err(BadInput("a speed draw_spaced_number refuses").into());
         }
@@ -114,10 +114,10 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
-                name: get(p + 0x18)?,
-                nation: get(p + 4)?,
-                car: get(p + 8)?,
-                time: get(p + 0x88)?,
+                name: p.get().word(0x18),
+                nation: p.get().word(4),
+                car: p.get().word(8),
+                time: p.get().word(0x88),
                 speed,
                 points: if layout.points {
                     get(points_at(row)?)?

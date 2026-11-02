@@ -20,13 +20,11 @@
 //! reached.
 
 use crate::errors::Refused;
-use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
 use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
 pub fn time_trial_one(c: &Carried) -> Result<(), Refused> {
-    players_there(1)?;
     // Converted: `rc2k_core::menu::rounds::time_trial_one`.
     Game::new(c).run(rounds::time_trial_one)
 }

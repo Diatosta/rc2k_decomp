@@ -28,16 +28,9 @@ use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::request_device_setup;
 use crate::input::store::DEVICES;
 use crate::menu::player_settings::current;
+use crate::menu::standings::PlayerCell;
 
-fn f(p: u32, o: u32) -> Result<u32, BadInput> {
-    crate::pointers::GamePtr::new(p.wrapping_add(o)).read::<u32>("a player field")
-}
-
-fn w(p: u32, o: u32, v: u32) -> Result<(), BadInput> {
-    crate::pointers::GamePtr::new(p.wrapping_add(o)).write::<u32>(v, "a player field")
-}
-
-fn player() -> Result<u32, Refused> {
+fn player() -> Result<PlayerCell, Refused> {
     current()
 }
 
@@ -57,9 +50,9 @@ fn would_apply(controller: u32) -> Result<bool, Refused> {
 /// `menu::apply_controller`.
 pub fn apply_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C)?;
+    let c = p.get().word(0x2C);
     if would_apply(c)? {
-        { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, p.get().word(0x34), p.get().word(0x38), 0, 0) }?;
     }
     Ok(())
 }
@@ -70,13 +63,13 @@ pub fn release_controller() {
 }
 
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
-fn choose(p: u32, c: u32) -> Result<(), Refused> {
+fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
     let applies = if c == 0 { false } else { would_apply(c)? };
-    w(p, 0x2C, c)?;
+    p.update(|q| q.store(&[(0x2C, c)]));
     if c == 0 {
         release_controller();
     } else if applies {
-        { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, p.get().word(0x34), p.get().word(0x38), 0, 0) }?;
     }
     Ok(())
 }
@@ -84,7 +77,7 @@ fn choose(p: u32, c: u32) -> Result<(), Refused> {
 /// `menu::next_controller`.
 pub fn next_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C)?;
+    let c = p.get().word(0x2C);
     let c = rc2k_core::menu::steps::next_controller(c, count());
     choose(p, c)
 }
@@ -92,18 +85,18 @@ pub fn next_controller() -> Result<(), Refused> {
 /// `menu::previous_controller`.
 pub fn previous_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C)?;
+    let c = p.get().word(0x2C);
     let c = rc2k_core::menu::steps::previous_controller(c, count());
     choose(p, c)
 }
 
 /// +0x34 to `value` and the set-up, refused (before anything) as the set-up is.
-fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
-    let c = f(p, 0x2C)?;
+fn set_sensitivity(p: PlayerCell, value: u32) -> Result<(), Refused> {
+    let c = p.get().word(0x2C);
     let applies = would_apply(c)?;
-    w(p, 0x34, value)?;
+    p.update(|q| q.store(&[(0x34, value)]));
     if applies {
-        { request_device_setup(c - 1, value, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, value, p.get().word(0x38), 0, 0) }?;
     }
     Ok(())
 }
@@ -112,7 +105,9 @@ fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
 pub fn lower_controller_sensitivity() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
-    if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C)?, f(p, 0x34)?) {
+    if let Some(s) =
+        rc2k_core::menu::steps::lower_sensitivity(p.get().word(0x2C), p.get().word(0x34))
+    {
         { set_sensitivity(p, s) }?;
     }
     Ok(())
@@ -127,7 +122,7 @@ pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
-    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)?) {
+    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().word(0x34)) {
         { set_sensitivity(p, s) }?;
     }
     Ok(())
@@ -136,10 +131,10 @@ pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
 /// A dead zone (`offset` 0x40 or 0x44) one more if the two leave more than 10.
 pub fn raise_dead_zone(offset: u32) -> Result<(), Refused> {
     let p = player()?;
-    let value = f(p, offset)?;
-    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40)?, f(p, 0x44)?);
+    let value = p.get().word(offset as usize);
+    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(p.get().word(0x40), p.get().word(0x44));
     if grows {
-        w(p, offset, value.wrapping_add(1))?;
+        p.update(|q| q.store(&[(offset as usize, value.wrapping_add(1))]));
     }
     Ok(())
 }

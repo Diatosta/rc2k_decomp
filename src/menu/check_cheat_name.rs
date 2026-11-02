@@ -11,9 +11,8 @@
 //! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::player::player_at;
 use crate::pointers::GamePtr;
 use crate::strings::rot13_into_text::rot13_into_text;
 use rc2k_core::strings::bytes::Bytes;
@@ -42,11 +41,7 @@ fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
 /// calls get theirs as noted, of which only the sound reads one (eax 8).
 pub fn check_cheat_name() -> Result<(), Refused> {
-    let player = player_at(3);
-    if player == 0 {
-        return Err(BadInput("no fourth player").into());
-    }
-    let name = GamePtr::new(player + 0x18).read::<u32>("a player\'s name pointer")?;
+    let name = crate::menu::standings::player(3).get().name;
     let coded = rot13_into_text(name)?;
     let Some((_found, bit)) = find(coded)? else {
         return Ok(());

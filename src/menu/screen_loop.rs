@@ -315,10 +315,6 @@ pub fn carousel(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn read_at(address: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(address).read::<u32>("a game value")
-}
-
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
 /// called between `pusha` and `popa`: no register changes).
 pub fn log_line(text: &std::ffi::CStr) {

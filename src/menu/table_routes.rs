@@ -739,11 +739,11 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::RedefinePlayer1Key => {
-            crate::menu::redefine_keys::redefine_key(crate::menu::player::player_at(0))
+            crate::menu::redefine_keys::redefine_key(crate::menu::player::player(0))
         }
-        ScreenFn::RedefineKey => crate::menu::redefine_keys::redefine_key(
-            crate::menu::player_settings::current().unwrap_or(0),
-        ),
+        ScreenFn::RedefineKey => {
+            crate::menu::redefine_keys::redefine_key(crate::menu::player_settings::current().ok())
+        }
         ScreenFn::DrawOptionsChecklist => {
             {
                 crate::screens::draw_options_checklist::draw_options_checklist(

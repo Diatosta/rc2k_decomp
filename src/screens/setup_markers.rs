@@ -12,7 +12,7 @@
 //! selected. The steering and brake values are changed in the player directly, so those bars have
 //! one marker.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::menu::state_store::MENU_STATE;
@@ -72,7 +72,7 @@ fn place(
 pub fn draw_marker(
     marker: Marker,
     palette: u32,
-    player: u32,
+    player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
@@ -92,17 +92,7 @@ pub fn draw_marker(
         match marker {
             Marker::Always { percent, .. } => read(percent),
             Marker::Lower { chosen, .. } => read(chosen),
-            Marker::Upper { car_offset, .. } => {
-                if player == 0 {
-                    return Err(
-                        BadInput("no player in edi: the original reads through null").into(),
-                    );
-                }
-                Ok(
-                    crate::pointers::GamePtr::new(player.wrapping_add(car_offset))
-                        .read::<i32>("a car setting")?,
-                )
-            }
+            Marker::Upper { car_offset, .. } => Ok(player.get().word(car_offset as usize) as i32),
         }
     };
     let installed = || match marker {

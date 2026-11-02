@@ -32,11 +32,9 @@ use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
 /// The current player's record.
-fn player() -> Result<u32, Refused> {
-    match crate::menu::player::player_at(EVENT_STATE.current_player.get()) {
-        0 => Err(BadInput("no current player (or one past the four)").into()),
-        p => Ok(p),
-    }
+fn player() -> Result<crate::menu::standings::PlayerCell, Refused> {
+    crate::menu::player::player(EVENT_STATE.current_player.get())
+        .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
 // ---- the Rust versions ----
@@ -47,13 +45,10 @@ fn player() -> Result<u32, Refused> {
 /// The current player's record changed by `f` (read, changed, written back whole).
 fn with_player<R>(f: impl FnOnce(&mut Player) -> R) -> Result<(u32, R), Refused> {
     let at = player()?;
-    {
-        let mut p =
-            crate::pointers::GamePtr::new(at).read::<Player>("player actions: a game value")?;
-        let r = f(&mut p);
-        crate::pointers::GamePtr::new(at).write::<Player>(p, "player actions: a game value")?;
-        Ok((at, r))
-    }
+    let mut p = at.get();
+    let r = f(&mut p);
+    at.set(p);
+    Ok((at.addr(), r))
 }
 
 pub fn keep_player_keys() -> Result<(), Refused> {

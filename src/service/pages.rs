@@ -21,7 +21,6 @@ use crate::input::take_key::take_key;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -105,7 +104,7 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     item: 0x13,
 };
 
-fn player() -> Result<u32, BadInput> {
+fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
     current_player().ok_or(BadInput(
         "no current player object: the original reads through null",
     ))
@@ -156,7 +155,7 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.car_offset {
-        Some(offset) => Some(GamePtr::new(player()?.wrapping_add(offset))),
+        Some(offset) => Some((player()?, offset as usize)),
         None => None,
     };
 
@@ -171,9 +170,7 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         chosen: page.change.chosen.get(),
         installed: page.change.installed.get(),
         entry: page.entry.get(),
-        in_car: installed_in_car
-            .map(|value| value.read::<u32>("the car's record"))
-            .transpose()?,
+        in_car: installed_in_car.map(|(p, at)| p.get().word(at)),
     };
     let c = rc2k_core::service::repairs::confirm_change(
         &mut f,

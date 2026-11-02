@@ -110,27 +110,19 @@ pub const ROUND: &Dword = &RESULT_FIGURES.round; // dword_758714: the rounds of 
 pub const CAR_LIST_KIND: &Dword = &SCREEN_FLOW.car_list_kind; // dword_7554D8: 1 picks the first list
 
 /// Player `n`'s record (`g_players`).
-pub fn player(n: u32) -> u32 {
-    PLAYER_TABLE.pointers[n as usize].get()
-}
-
-/// Refuses a missing one of the first `n` players (the originals read through them).
-pub fn players_there(n: u32) -> Result<(), BadInput> {
-    if (0..n).any(|k| player(k) == 0) {
-        return Err(BadInput("a player missing from g_players"));
-    }
-    Ok(())
+pub fn player(n: u32) -> crate::menu::standings::PlayerCell {
+    &PLAYER_TABLE.players[n as usize]
 }
 
 pub fn yes() -> bool {
     get(ANSWER) == 1
 }
 
-/// The current player's record, refused past the four or missing.
-pub fn current_player() -> Result<u32, BadInput> {
+/// The current player's record, refused past the four.
+pub fn current_player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
     let n = get(CURRENT);
     if n >= 4 {
-        return Err(BadInput("a current player past the four or missing"));
+        return Err(BadInput("a current player past the four"));
     }
     Ok(player(n))
 }

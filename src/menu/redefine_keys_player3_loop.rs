@@ -32,9 +32,7 @@ fn before(_c: &mut Carried) -> Result<(), Refused> {
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
     {
-        let player = PLAYER_TABLE.pointers[2].get();
-        let keys = crate::pointers::GamePtr::new(player.wrapping_add(0x1C))
-            .read_bytes(0xC, "a player's keys")?;
+        let keys = PLAYER_TABLE.players[2].get().keys;
         for (n, key) in keys.into_iter().enumerate() {
             KEY_TABLES.redefined_keys.set(n, key);
         }

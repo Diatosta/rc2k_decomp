@@ -12,11 +12,3 @@ pub use rc2k_core::menu::player::{PLAYERS, Player};
 pub fn player(index: u32) -> Option<&'static crate::session::Shared<Player>> {
     PLAYER_TABLE.players.get(index as usize)
 }
-
-/// Player `index`'s address, or 0.
-pub fn player_at(index: u32) -> u32 {
-    if index >= PLAYERS {
-        return 0;
-    }
-    PLAYER_TABLE.pointers[index as usize].get()
-}

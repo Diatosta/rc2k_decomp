@@ -101,8 +101,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let field =
-        |at: u32| crate::pointers::GamePtr::new(player.wrapping_add(at)).read::<i32>("a car field");
+    let field = |at: u32| player.get().word(at as usize) as i32;
     // ebx as the original has it: the sprites get it as their palette.
     let mut ebx = 0u32;
     let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
@@ -114,7 +113,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                     .addr();
             }
             AreaStep::LabelIf(car_offset, id, font, x, y) => {
-                if field(car_offset)? != 0 {
+                if field(car_offset) != 0 {
                     ebx = draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?
                         .text
                         .addr();
@@ -127,7 +126,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                     width,
                     fill_glyph,
                     end_glyph,
-                    percent: field(car_offset)?,
+                    percent: field(car_offset),
                 }
                 .write();
                 blit_bar(&mut |call| canvas.blit_glyph(call))?;

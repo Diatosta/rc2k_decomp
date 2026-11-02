@@ -151,7 +151,7 @@ impl flow::Game for Game {
     fn get(&mut self, v: Var) -> u32 {
         match place(v) {
             Place::Cell(cell) => cell.get(),
-            Place::Player(n, offset) => self.fault.get(player(n) + offset),
+            Place::Player(n, offset) => player(n).get().word(offset as usize),
             Place::Record(offset) => self.fault.get(self.f.record + offset),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
@@ -161,8 +161,8 @@ impl flow::Game for Game {
         match place(v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, offset) => {
-                self.f.record = player(n);
-                self.fault.put(self.f.record + offset, value);
+                self.f.record = player(n).addr();
+                player(n).update(|q| q.store(&[(offset as usize, value)]));
             }
             Place::Record(offset) => self.fault.put(self.f.record + offset, value),
             Place::Quitting => crate::session::FLAGS.quitting.set(value),

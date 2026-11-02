@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::pointers::GamePtr;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -69,16 +68,15 @@ pub fn load_setup_slot() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
     let v = SetupValues::from_file(&SET_UPS.file.read());
-    let in_car = |offset: u32| GamePtr::new(player.wrapping_add(offset));
+    let in_car = |offset: u32, v: u32| player.update(|q| q.store(&[(offset as usize, v)]));
     TYRE.change.chosen.set(v.tyre);
-    in_car(BRAKE_BALANCE.car_offset).write(v.brake_balance, "the car's brake balance")?;
+    in_car(BRAKE_BALANCE.car_offset, v.brake_balance);
     RIDE_HEIGHT.change.chosen.set(v.ride_height);
     SUSPENSION_STIFFNESS
         .change
         .chosen
         .set(v.suspension_stiffness);
-    in_car(STEERING_SENSITIVITY.car_offset)
-        .write(v.steering_sensitivity, "the car's steering sensitivity")?;
+    in_car(STEERING_SENSITIVITY.car_offset, v.steering_sensitivity);
     GEAR_RATIO.change.chosen.set(v.gear_ratio);
 
     // The original clears both tables again here, this time checking each entry for the

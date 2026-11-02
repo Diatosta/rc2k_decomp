@@ -21,7 +21,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::player::player_at;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::text::draw_text::Canvas;
 
@@ -51,9 +50,12 @@ fn label(v: u32) -> Result<u32, Refused> {
 }
 
 pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let (p1, p2) = (player_at(0), player_at(1));
-    if p1 == 0 || p2 == 0 || get(p1 + 0x18)? == 0 || get(p2 + 0x18)? == 0 {
-        return Err(BadInput("player 1 or 2 missing or without a name").into());
+    let (p1, p2) = (
+        crate::menu::standings::player(0),
+        crate::menu::standings::player(1),
+    );
+    if p1.get().name == 0 || p2.get().name == 0 {
+        return Err(BadInput("player 1 or 2 without a name").into());
     }
     let (base, record) = records()?;
     if base == 0 {
@@ -70,13 +72,14 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
     let units = crate::strings::units::units();
-    let player = |p: u32| -> Result<Player<u32>, Refused> {
+    let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<u32>, Refused> {
+        let p = p.get();
         Ok(Player {
-            name: get(p + 0x18)?,
-            nation: get(p + 4)?,
-            car: get(p + 8)?,
-            time: get(p + 0x88)?,
-            speed: crate::strings::append_speed::append_speed(get(p + 0x94)?, true, units)?,
+            name: p.name,
+            nation: p.nationality,
+            car: p.car_number,
+            time: p.word(0x88),
+            speed: crate::strings::append_speed::append_speed(p.word(0x94), true, units)?,
         })
     };
     let players = [player(p1)?, player(p2)?];
