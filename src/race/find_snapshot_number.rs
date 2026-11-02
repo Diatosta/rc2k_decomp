@@ -45,7 +45,12 @@ pub fn find_next_wanted() -> bool {
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
 /// becomes `g_lastFilePath`) not of the skipped attributes; false (carry) when none.
 pub fn find_first(pattern: u32) -> bool {
-    let Ok(text) = crate::files::cstring(GamePtr::new(pattern), "a search pattern") else {
+    find_first_at(GamePtr::new(pattern))
+}
+
+/// `find_first` for a pattern held in Rust's game state.
+pub fn find_first_at(pattern: GamePtr) -> bool {
+    let Ok(text) = crate::files::cstring(pattern, "a search pattern") else {
         set_last_file_path(None);
         crate::files::search::close();
         return false;
@@ -56,10 +61,11 @@ pub fn find_first(pattern: u32) -> bool {
 
 /// The Rust version.
 pub fn find_snapshot_number() -> Result<(), BadInput> {
-    GamePtr::new(crate::pointers::game_address(digits_place()))
+    GamePtr::to(&SNAPSHOT)
+        .offset(DIGITS_AT as u32)
         .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
     let mut highest = 0u32;
-    if find_first(SNAPSHOT.addr()) {
+    if find_first_at(GamePtr::to(&SNAPSHOT)) {
         loop {
             // Converted: `rc2k_core::race::viewer::snapshot_number`.
             let name = crate::files::search::found_name();
@@ -76,7 +82,8 @@ pub fn find_snapshot_number() -> Result<(), BadInput> {
     }
     crate::files::search::close();
     let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-    GamePtr::new(crate::pointers::game_address(digits_place()))
+    GamePtr::to(&SNAPSHOT)
+        .offset(DIGITS_AT as u32)
         .write_bytes(&digits, "the snapshot name")?;
     Ok(())
 }

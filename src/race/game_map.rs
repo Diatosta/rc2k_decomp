@@ -103,10 +103,6 @@ const NOT_8BIT: FatalError = FatalError {
     message: "Game mapkey file must be 8bit",
 };
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a map word")
-}
-
 fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(bytes)
 }
@@ -114,10 +110,13 @@ fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format() -> Result<(u32, PixelFormat), BadInput> {
     let kind: u32 = crate::gfx::texture_upload::TEXTURE_TABLES.kind(3);
-    let bytes = get(kind + 4)?;
+    let description = GamePtr::new(kind);
+    let bytes = description.offset(4).read::<u32>("a map word")?;
     MAP.pixel_bytes.set(bytes);
     MAP.format.set(kind + 8);
-    let format = GamePtr::new(kind + 8).read::<PixelFormat>("the map's pixel format")?;
+    let format = description
+        .offset(8)
+        .read::<PixelFormat>("the map's pixel format")?;
     Ok((bytes, format))
 }
 
@@ -210,7 +209,7 @@ pub fn free_game_map() -> Result<(), Refused> {
 /// count 0. Each read of the pixels is of 0x40 tiles at most. Every register preserved.
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
-pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
+pub fn load_packed_game_map(path: GamePtr) -> Result<(), Refused> {
     use crate::files::handle::{close, open_by_mode_at};
     let (bytes, format) = take_format()?;
     MAP.black
@@ -219,7 +218,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
         ));
     take_tiles()?;
     MAP.tile_count.set(0u32);
-    let Some(file) = open_by_mode_at(GamePtr::new(path), 0)? else {
+    let Some(file) = open_by_mode_at(path, 0)? else {
         return Ok(());
     };
     let result = (|| -> Result<(), Refused> {
@@ -292,9 +291,9 @@ pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
     {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
-        let path = crate::files::state::PACKED_PATH.addr();
+        let path = GamePtr::to(&crate::files::state::PACKED_PATH);
         let len = crate::strings::text_length::nul_at(GamePtr::new(picture), "a text to append")?;
-        let room = GamePtr::new(path).limited(crate::files::state::PACKED_PATH_LEN as u32);
+        let room = path.limited(crate::files::state::PACKED_PATH_LEN as u32);
         GamePtr::new(picture).copy_to(room.offset(3), len as usize, "a text to append")?;
         room.offset(3 + len)
             .offset(4u32.wrapping_neg())

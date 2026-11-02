@@ -118,7 +118,9 @@ pub fn game_read<T: Copy>(place: impl Where) -> T {
     unsafe { crate::shared_memory::read(p) }
 }
 
-/// Writes a variable (`framework::game_write`, over a block or the image).
+/// Writes a variable (`framework::game_write`, over a block or the image); only the x86
+/// reference tests use it.
+#[cfg(all(test, target_arch = "x86"))]
 pub fn game_write<T: Copy>(place: impl Where, value: T) {
     let p = game_ptr::<T>(place);
     crate::pointers::check_or_end(

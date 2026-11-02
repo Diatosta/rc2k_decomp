@@ -7,7 +7,6 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
@@ -17,7 +16,6 @@ use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::{Bytes, Dword};
-use crate::store::{game_addr, game_write};
 
 /// `dword_4F66F9`: the race record's seal key (the replay header's checksum,
 /// `race::seal_replay_header`; `race::seal_stage_time` turns the first car's time by it).
@@ -80,15 +78,6 @@ mod block_tests {
         );
     }
 }
-pub const SEALED_RVA: usize = rva(0x719B54); // dword_719B54: the sealed part, 0x100
-
-fn get(a: usize) -> Result<u32, BadInput> {
-    GamePtr::new(game_addr(a)).read("a replay header word")
-}
-
-fn set(a: impl crate::store::Where, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(crate::store::game_addr(a)).write(v, "a replay header word")
-}
 
 /// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`,
 /// 0x40 dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the
@@ -99,10 +88,13 @@ fn set(a: impl crate::store::Where, v: u32) -> Result<(), BadInput> {
 pub fn seal_replay_header() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
-    game_write::<u8>(rva(0x719B58), SEAL_VERSION);
+    let sealed = GamePtr::to(&REPLAY_WORK.sealed_header);
+    sealed
+        .offset(0x719B58 - 0x719B54)
+        .write::<u8>(SEAL_VERSION, "the replay header's version")?;
     crate::strings::copy_printable::copy_printable(
         crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names), // g_playerNames
-        crate::pointers::GamePtr::new(game_addr(rva(0x719B61))),
+        sealed.offset(0x719B61 - 0x719B54),
         0x20,
     )?;
     for &(size, to, from) in &HEADER_MOVES {
@@ -110,11 +102,10 @@ pub fn seal_replay_header() -> Result<(), Refused> {
         let (to, from) = (crate::moved::place(to), crate::moved::place(from));
         GamePtr::new(from as u32).copy_to(GamePtr::new(to as u32), size, "the replay header")?;
     }
-    let dwords: Vec<u32> = (1..0x40)
-        .map(|n| get(SEALED_RVA + 4 * n))
-        .collect::<Result<_, _>>()?;
+    let sealed_dwords = &REPLAY_WORK.sealed_header;
+    let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();
     let sum = seal_checksum(&dwords);
-    set(SEALED_RVA, sum)?;
+    sealed_dwords[0].set(sum);
     crate::race::replay::SEAL_KEY.set(sum);
     let w = &SEAL_WORK;
     let key = [w.key[0].get(), w.key[1].get()];
@@ -122,16 +113,19 @@ pub fn seal_replay_header() -> Result<(), Refused> {
     w.key[1].set(SEAL_KEY[1]);
     let (mut a, mut b) = (0u32, 0u32);
     for n in 0..0x20u32 {
-        let at = SEALED_RVA + 8 * n as usize;
-        let [x, y] = chained([get(at)?, get(at + 4)?], [a, b]);
+        let at = 2 * n as usize;
+        let [x, y] = chained(
+            [sealed_dwords[at].get(), sealed_dwords[at + 1].get()],
+            [a, b],
+        );
         w.block[0].set(x);
         w.block[1].set(y);
         // `seal_block` works on the dwords at 0x4E052C .. (no register read).
         crate::race::save_seal::seal_block();
         a = w.sealed[0].get();
-        set(at, a)?;
+        sealed_dwords[at].set(a);
         b = w.sealed[1].get();
-        set(at + 4, b)?;
+        sealed_dwords[at + 1].set(b);
     }
     w.key[1].set(key[1]);
     w.key[0].set(key[0]);
@@ -361,7 +355,7 @@ pub fn open_replay() -> Result<(), Refused> {
     seal_replay_header()?;
     // The store types the stage's 0x400 bytes by their first dword.
     GamePtr::to(&REPLAY_WORK.header_stage).unbounded().copy_to(
-        GamePtr::new(REPLAYS.header.addr() + 0x30),
+        GamePtr::to(&REPLAYS.header).offset(0x30),
         0x400,
         "the replay header's stage",
     )?;
@@ -400,5 +394,14 @@ mod seal_key_tests {
     fn seal_key_starts_as_the_games() {
         assert_eq!(crate::moved::image_bytes(0x4F66F9, 4), [0; 4]);
         assert_eq!(super::SEAL_KEY.get(), 0);
+    }
+
+    #[test]
+    fn sealed_header_sits_at_the_games_address() {
+        use crate::race::replay_work_store::{ReplayWork, START};
+        assert_eq!(
+            core::mem::offset_of!(ReplayWork, sealed_header),
+            0x719B54 - START
+        );
     }
 }
