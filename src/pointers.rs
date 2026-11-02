@@ -87,7 +87,8 @@ fn inside(addr: u32, len: usize) -> bool {
         let (start, top) = cache.regions[cache.last];
         addr >= start
             && end <= top
-            && cache.generation == GENERATION.load(std::sync::atomic::Ordering::Acquire)
+            // Compared only: a change sends the check to the lookups, which take the locks.
+            && cache.generation == GENERATION.load(std::sync::atomic::Ordering::Relaxed)
             && cache.map_generation == crate::address_map::generation()
     });
     same_region || inside_found(addr, end)

@@ -31,9 +31,10 @@ static DELTA: [AtomicUsize; GRANULES] = [const { AtomicUsize::new(0) }; GRANULES
 static GENERATION: AtomicU32 = AtomicU32::new(0);
 
 /// How many times a range was taken off: a cache of game ranges (`pointers`' stack) is
-/// stale when it changed, as a thread's stack may have been given a new range.
+/// stale when it changed, as a thread's stack may have been given a new range. Compared
+/// only (a change sends the caller to lookups that take the locks), so read relaxed.
 pub fn generation() -> u32 {
-    GENERATION.load(Ordering::Acquire)
+    GENERATION.load(Ordering::Relaxed)
 }
 
 /// A host range and its game range.

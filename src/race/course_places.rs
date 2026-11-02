@@ -42,7 +42,8 @@ pub fn reserve() -> Result<u32, BadInput> {
 
 /// Face 0's place (`COURSE.course_faces` while held).
 pub fn faces_base() -> u32 {
-    WINDOW.load(Ordering::Acquire)
+    // A number only: nothing is published through it.
+    WINDOW.load(Ordering::Relaxed)
 }
 
 /// Record 0's place (`COURSE.course_records` while held).

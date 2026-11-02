@@ -153,7 +153,12 @@ fn measure_held(
     let (x, z) = (GROUND_WORK.ground_x.bits(), GROUND_WORK.ground_z.bits());
     let dword =
         |bytes: &[u8], at: usize| Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?));
-    with_faces_and_points(|faces, points| {
+    // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,
+    // rising with the sum: a checkpoint whose sum is at least (nearest + 1)² cannot be kept,
+    // and its root is not taken (the bound is exact while the nearest is below 2^26).
+    let plain = crate::math::x87::rounds_to_nearest();
+    let mut last = None;
+    let measured = with_faces_and_points(|faces, points| {
         while *c < to && *c < MOST_CHECKS && rc2k_core::race::checkpoints::on_line(*c, count) {
             let face = crate::race::checkpoints_store::face(*c as usize).get();
             // As the original's u32 arithmetic on the places.
@@ -169,12 +174,23 @@ fn measure_held(
             };
             let dx = px.wrapping_sub(x) as i32;
             let dz = pz.wrapping_sub(z) as i32;
-            let distance = x87::int_hypot(dx, dz) as u32;
-            DRAW.scratch.set_bits(distance);
-            nearest.consider(*c, distance);
+            let (a, b) = (f64::from(dx), f64::from(dz));
+            let beyond = plain && nearest.distance < 1 << 26 && {
+                let bound = f64::from(nearest.distance + 1);
+                a * a + b * b >= bound * bound
+            };
+            if !beyond {
+                nearest.consider(*c, x87::int_hypot(dx, dz) as u32);
+            }
+            last = Some((dx, dz));
             *c += 1;
         }
-    })
+    });
+    // The last one measured leaves its distance, as `distance_to_checkpoint` does.
+    if let Some((dx, dz)) = last {
+        DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
+    }
+    measured
 }
 
 /// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `dword_639824` /

@@ -48,21 +48,17 @@ pub fn draw_object_faces(
         return Ok(());
     }
     let first: u32 = OBJECT_WORK.object_first_face.bits();
-    // Every face is looked up before anything is written.
-    let mut faces = Vec::with_capacity(listed as usize);
+    // A face not there ends the game (a refusal), as the original went wrong on it.
     for n in 0..listed as usize {
         let entry = n * LIST_ENTRY_LEN / 4;
         let number = listed_dword(entry)?.wrapping_add(first);
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
-        let face: u32 = crate::scene::objects::face_cell(number as usize).get();
+        let face = crate::scene::objects::face_cell(number as usize).get() as usize;
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }
-        faces.push((entry, number, face as usize));
-    }
-    for &(entry, _, face) in &faces {
         GROUND_WORK
             .object_see_through
             .set_bits(listed_dword(entry + 3)?);
