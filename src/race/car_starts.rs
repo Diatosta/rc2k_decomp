@@ -227,8 +227,8 @@ pub fn start_car() -> Result<(), Refused> {
         return Err(BadInput("a nearest checkpoint past the lists").into());
     }
     let checks = rc2k_core::race::start::start_checks(
-        crate::race::checkpoints_store::nth(
-            &crate::race::checkpoints_store::CHECKPOINTS.check_counts[0],
+        crate::race::checkpoints_store::cell_in(
+            &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
             nearest as usize,
         )
         .get(),

@@ -29,8 +29,8 @@ pub fn track_checkpoints() -> Result<(), Refused> {
     LIGHT_STATE.line_place.set(checkpoint);
     { crate::physics::checkpoint_offset::checkpoint_offset() }?;
     crate::physics::off_line_warnings::off_line_warnings()?;
-    let next = crate::race::checkpoints_store::nth(
-        &crate::race::checkpoints_store::CHECKPOINTS.check_counts[0],
+    let next = crate::race::checkpoints_store::cell_in(
+        &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
         CAR.checkpoint.get() as usize,
     )
     .get()

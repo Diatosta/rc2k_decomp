@@ -20,16 +20,12 @@ pub fn entry(n: usize) -> Result<&'static PolygonEntry, BadInput> {
 /// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
 /// field: the cell is reached by address).
 pub fn list_cell(n: usize) -> &'static Dword {
-    let list = &crate::scene::polygon_store::POLYGON_WORK.list;
-    list.get(n)
-        .unwrap_or_else(|| crate::race::checkpoints_store::nth(&list[0], n))
+    crate::race::checkpoints_store::cell_in(&crate::scene::polygon_store::POLYGON_WORK.list, n)
 }
 
 /// The list kept before a clip, cell `n` (as `list_cell`).
 pub fn old_list_cell(n: usize) -> &'static Dword {
-    let list = &crate::scene::polygon_store::POLYGON_WORK.old_list;
-    list.get(n)
-        .unwrap_or_else(|| crate::race::checkpoints_store::nth(&list[0], n))
+    crate::race::checkpoints_store::cell_in(&crate::scene::polygon_store::POLYGON_WORK.old_list, n)
 }
 
 /// The first record of the pool the clip makes its records in (`g_polygonNextRecord`

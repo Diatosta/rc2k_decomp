@@ -356,6 +356,25 @@ pub fn second_set() -> TextureSet {
     }
 }
 
+/// The `N` bytes (at most 4) at `offset` of texture `texture`'s info record: the records
+/// lie one after another, and the original's sums of addresses may leave the record, or
+/// the records (then read by address, checked).
+fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadInput> {
+    let infos = &POLYGON_WORK.texture_infos;
+    let at = (texture << 6).wrapping_add(offset) as usize;
+    let (dword, byte) = (at / 4, at % 4);
+    if let Some(info) = infos.get(dword / 16)
+        && let Some(bytes) = info.words[dword % 16]
+            .get()
+            .to_le_bytes()
+            .get(byte..byte + N)
+    {
+        return Ok(bytes.try_into().expect("N bytes"));
+    }
+    let base = infos[0].words[0].addr();
+    GamePtr::new(base.wrapping_add(at as u32)).read("a texture info's bytes")
+}
+
 /// `race::face_texture_coordinates` (0x453267) / `race::face_texture_coordinates_2`
 /// (0x45349F): the triangle's texture's size word (+0x20, bit 31 set) and mapping (+0x2D);
 /// the four corners' u, v from the texture's corner table for the order
@@ -369,21 +388,17 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     {
         let texture: u32 = set.texture.get();
-        let info = POLYGON_WORK.texture_infos[0].words[0]
-            .addr()
-            .wrapping_add(texture << 6);
         let texture_info = TextureInfo {
-            size: get(info + 0x20)?,
-            mapping: GamePtr::new(info + 0x2D).read::<i8>("a texture info's mapping")?,
+            size: u32::from_le_bytes(info_bytes(texture, 0x20)?),
+            mapping: i8::from_le_bytes(info_bytes(texture, 0x2D)?),
         };
         let order: u32 = set.order.get();
         let mut pairs = [(0u16, 0u16); 4];
         for (k, pair_out) in pairs.iter_mut().enumerate() {
             let table = RACE_VIEW.corner_uv_offsets[(order << 2) as usize + k].get();
-            let pair = table.wrapping_add(info);
             *pair_out = (
-                GamePtr::new(pair).read::<u16>("a texture info's corner table")?,
-                GamePtr::new(pair + 2).read::<u16>("a texture info's corner table")?,
+                u16::from_le_bytes(info_bytes(texture, table)?),
+                u16::from_le_bytes(info_bytes(texture, table.wrapping_add(2))?),
             );
         }
         let trap = Trap::new();
@@ -476,9 +491,9 @@ fn plain_list(count: u32, next: u32) {
     {
         DRAW.polygon_vertex_count.set(count);
         for k in 0..count {
-            crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], k as usize).set(k);
+            crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, k as usize).set(k);
         }
-        crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], count as usize).set(0);
+        crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, count as usize).set(0);
         DRAW.polygon_next_entry.set(next);
     }
 }
@@ -756,7 +771,7 @@ pub fn draw_lit_triangle() -> Result<(), Refused> {
     }
     for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
         for (k, n) in list.iter().enumerate() {
-            crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], k).set(*n);
+            crate::race::checkpoints_store::cell_in(&POLYGON_WORK.list, k).set(*n);
         }
         POLYGON_WORK.list[3].set(list[0]);
         DRAW.polygon_vertex_count.set(3u32);

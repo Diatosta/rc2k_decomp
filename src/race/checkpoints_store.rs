@@ -56,25 +56,26 @@ pub fn nth(first: &Dword, n: usize) -> &Dword {
     )
 }
 
-/// Cell `n` of `table`, or past its end as `nth`.
-fn cell_of(table: &[Dword], n: usize) -> &Dword {
-    table.get(n).unwrap_or_else(|| nth(&table[0], n))
+/// Cell `n` of `table`, or past its end as `nth` (by address, into what follows).
+#[inline]
+pub fn cell_in(table: &[Dword], n: usize) -> &Dword {
+    table.get(n).unwrap_or_else(|| cell_in(&table, n))
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
 pub fn face(n: usize) -> &'static Dword {
-    cell_of(&CHECKPOINTS.checkpoint_faces, n)
+    cell_in(&CHECKPOINTS.checkpoint_faces, n)
 }
 
 /// Checkpoint `n`'s angle cell, as the readers index it: `dword_9ED808[n]`, 8 bytes into
 /// `g_checkpointAngles`.
 pub fn angle(n: usize) -> &'static Dword {
-    cell_of(&CHECKPOINTS.angles[2..], n)
+    cell_in(&CHECKPOINTS.angles[2..], n)
 }
 
 /// Checkpoint `n`'s distance cell (`g_checkpointDistances[n]`).
 pub fn distance(n: usize) -> &'static Dword {
-    cell_of(&CHECKPOINTS.distances, n)
+    cell_in(&CHECKPOINTS.distances, n)
 }
 
 /// IDA 0x9E3738, the first byte of the piece.

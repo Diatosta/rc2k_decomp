@@ -129,7 +129,7 @@ fn driven_car() -> &'static crate::physics::car_store::Car {
 
 fn state() -> String {
     use crate::menu::loop_store::LOOP_FLAGS;
-    use crate::race::checkpoints_store::{CHECKPOINTS, nth};
+    use crate::race::checkpoints_store::{CHECKPOINTS, cell_in};
     #[allow(non_snake_case)]
     let CAR = driven_car();
     let at = CAR.checkpoint.get() as usize;
@@ -149,10 +149,10 @@ fn state() -> String {
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
-        nth(&CHECKPOINTS.map_x[0], ahead).get() as i32,
-        nth(&CHECKPOINTS.map_y[0], ahead).get() as i32,
-        nth(&CHECKPOINTS.map_x[0], near).get() as i32,
-        nth(&CHECKPOINTS.map_y[0], near).get() as i32,
+        cell_in(&CHECKPOINTS.map_x, ahead).get() as i32,
+        cell_in(&CHECKPOINTS.map_y, ahead).get() as i32,
+        cell_in(&CHECKPOINTS.map_x, near).get() as i32,
+        cell_in(&CHECKPOINTS.map_y, near).get() as i32,
         crate::audio::store::AUDIO.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,

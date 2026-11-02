@@ -130,8 +130,8 @@ fn save(slot: u32) -> Result<bool, Refused> {
             2 * block as usize,
             CAMERA_DWORDS,
         )?;
-        crate::race::checkpoints_store::nth(
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+        crate::race::checkpoints_store::cell_in(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
             2 * block as usize,
         )
         .set(REPLAY_VIEW.file_offset.get());
@@ -144,8 +144,8 @@ fn save(slot: u32) -> Result<bool, Refused> {
             close();
             return Ok(false);
         }
-        crate::race::checkpoints_store::nth(
-            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+        crate::race::checkpoints_store::cell_in(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
             2 * block as usize + 1,
         )
         .set(written);

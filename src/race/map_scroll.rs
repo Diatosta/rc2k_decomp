@@ -67,8 +67,8 @@ pub fn scroll_map() -> Result<(), Refused> {
     let [corner_x, corner_y] = &CAR.map_corner;
     let [map_x, map_y] = &CAR.map_place;
     let n = CAR.checkpoint.get();
-    map_x.set(crate::race::checkpoints_store::nth(&CHECKPOINTS.map_x[0], n as usize).get());
-    map_y.set(crate::race::checkpoints_store::nth(&CHECKPOINTS.map_y[0], n as usize).get());
+    map_x.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_x, n as usize).get());
+    map_y.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_y, n as usize).get());
     let face = COURSE
         .course_faces
         .get()

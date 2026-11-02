@@ -107,7 +107,7 @@ pub fn count_checks() -> Result<(), Refused> {
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
-        crate::race::checkpoints_store::nth(&CHECKPOINTS.check_counts[0], k).set(c);
+        crate::race::checkpoints_store::cell_in(&CHECKPOINTS.check_counts, k).set(c);
     }
     Ok(())
 }

@@ -309,7 +309,7 @@ fn panel_half(b: u32, first: bool) -> Result<(), BadInput> {
         cells[1].set(car_at(b)?.engine_sound_speed_int.bits());
         cells[2].set(car_at(b)?.gear.bits());
         let at = |n: u32| {
-            crate::race::checkpoints_store::nth(&CHECKPOINTS.distances[0], n as usize).get()
+            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get()
         };
         let from: u32 = SPLIT_TABLES.checkpoints[0].get();
         let d = travelled(at(car_at(b)?.checkpoint.bits()), at(from));
@@ -724,10 +724,12 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
     {
         let n: u32 = CAR.checkpoint.get();
         let face =
-            crate::race::checkpoints_store::nth(&CHECKPOINTS.checkpoint_faces[0], n as usize).get();
+            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
+                .get();
         let esi = (face << 6).wrapping_add(COURSE.course_faces.bits());
         let byte = crate::race::course_places::read::<u8>(esi + 0x10, "a face, record or matrix")?;
-        let along = crate::race::checkpoints_store::nth(&CHECKPOINTS.angles[2], n as usize).get();
+        let along =
+            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, CAR.car_heading.bits());
         PHYSICS.checkpoint_colours[0].set(c.near);
         PHYSICS.checkpoint_colours[1].set(c.far);

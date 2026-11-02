@@ -120,13 +120,21 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
     let links = GamePtr::to(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links);
     let matrix: [u32; 15] = crate::math::cells::load(&MATRICES.view_matrix);
     for n in 0..0x400u32 {
-        let before = links.offset(8 * n).read::<i16>("a skidmark link")? as i32 as u32;
+        let link = |at: u32| -> Result<u16, BadInput> {
+            let table = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links;
+            let at = at as usize;
+            if at + 2 <= size_of_val(table) {
+                Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
+            } else {
+                // past the table, by address, as the original reads on
+                links.offset(at as u32).read::<u16>("a skidmark link")
+            }
+        };
+        let before = link(8 * n)? as i16 as i32 as u32;
         if before == u32::MAX {
             continue;
         }
-        let shown = links
-            .offset(before.wrapping_mul(8).wrapping_add(6))
-            .read::<u16>("a skidmark link")? as u32;
+        let shown = link(before.wrapping_mul(8).wrapping_add(6))? as u32;
         if shown & views == 0 {
             continue;
         }
