@@ -303,12 +303,33 @@ pub fn draw_strip(vertices: &[crate::rasteriser::Vertex]) {
 pub static NOTE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
-    let noting = std::time::Instant::now();
-    note_fan(vertices);
-    NOTE_MICROS.fetch_add(
-        noting.elapsed().as_micros() as u64,
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    // Timed only where something shows it: a look at the clock for every fan shows in a profile.
+    if cfg!(debug_ui) {
+        let noting = std::time::Instant::now();
+        note_fan(vertices);
+        NOTE_MICROS.fetch_add(
+            noting.elapsed().as_micros() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    } else {
+        note_fan(vertices);
+    }
+}
+
+/// `states` shared with the last fan's when they are the same.
+fn shared_states(states: [u32; STATES]) -> std::sync::Arc<[u32; STATES]> {
+    static LAST: Mutex<Option<std::sync::Arc<[u32; STATES]>>> = Mutex::new(None);
+    let mut last = LAST
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &*last {
+        Some(kept) if **kept == states => std::sync::Arc::clone(kept),
+        _ => {
+            let new = std::sync::Arc::new(states);
+            *last = Some(std::sync::Arc::clone(&new));
+            new
+        }
+    }
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
@@ -358,8 +379,8 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
     }
     note(Command::Fan {
-        vertices: vertices.to_vec(),
-        states: Box::new(states),
+        vertices: vertices.into(),
+        states: shared_states(states),
         texture,
         bounds,
     });

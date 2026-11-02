@@ -48,7 +48,7 @@ pub enum Edge {
 }
 
 /// The polygon's entries, each with its record.
-pub fn listed_with_records() -> Result<Vec<&'static PolygonEntry>, BadInput> {
+pub fn listed_with_records() -> Result<crate::scene::polygon::Listed, BadInput> {
     let entries = { listed() }?;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices"));

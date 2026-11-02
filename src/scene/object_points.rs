@@ -35,22 +35,24 @@ fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
     Some(start..start.checked_add(len)?)
 }
 
-/// `len` bytes at place `at`; refused outside the points.
-pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+/// The `N` bytes at place `at`; refused outside the points.
+fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
     POINTS
-        .with(|p| p.get(range(at, len)?).map(<[u8]>::to_vec))?
+        .with(|p| {
+            let run = p.get(range(at, N)?)?;
+            <[u8; N]>::try_from(run).ok()
+        })?
         .ok_or(BadInput("a read outside the objects' points"))
 }
 
 /// The dword at place `at`.
 pub fn word(at: u32) -> Result<u32, BadInput> {
-    let b = bytes(at, 4)?;
-    Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    Ok(u32::from_le_bytes(array(at)?))
 }
 
 /// The three dwords of the point at place `at`.
 pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
-    let b = bytes(at, 12)?;
+    let b: [u8; 12] = array(at)?;
     Ok(std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     }))

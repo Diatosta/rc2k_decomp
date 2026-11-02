@@ -100,6 +100,8 @@ struct Runs<'a, B: Bytes + ?Sized> {
     src: usize,
     palette: &'a dyn Fn(u8) -> u32,
     put: &'a mut dyn FnMut(u32, &[u8]),
+    /// The colours of the run being drawn; kept for the next run's.
+    colours: Vec<u8>,
 }
 
 impl<B: Bytes + ?Sized> Runs<'_, B> {
@@ -127,7 +129,7 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
             return Ok(());
         }
         let n = count as usize;
-        let out = match self.format {
+        match self.format {
             Format::Raw8 | Format::Direct16 | Format::Direct32 => {
                 let bytes = n * self.format.src_unit();
                 let src = self.src;
@@ -136,13 +138,16 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
                     (self.put)(dst, run);
                     return Ok(());
                 }
-                (0..bytes)
+                let out = (0..bytes)
                     .map(|i| self.byte(src.wrapping_add(i)))
-                    .collect::<Result<Vec<u8>, _>>()?
+                    .collect::<Result<Vec<u8>, _>>()?;
+                (self.put)(dst, &out);
             }
             Format::Palette16 | Format::Palette32 => {
                 let d = self.format.dst_unit() as usize;
-                let mut out = vec![0u8; n * d];
+                let mut out = std::mem::take(&mut self.colours);
+                out.clear();
+                out.resize(n * d, 0);
                 if let Some(run) = self.record.run(self.src, n) {
                     for (place, &index) in out.chunks_exact_mut(d).zip(run) {
                         place.copy_from_slice(&(self.palette)(index).to_le_bytes()[..d]);
@@ -154,10 +159,10 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
                     }
                 }
                 self.src = self.src.wrapping_add(n);
-                out
+                (self.put)(dst, &out);
+                self.colours = out;
             }
-        };
-        (self.put)(dst, &out);
+        }
         Ok(())
     }
 }
@@ -289,6 +294,7 @@ pub fn blit_glyph(
         src: data,
         palette,
         put,
+        colours: Vec::new(),
     };
 
     // Step over the rows clipped off at the top.

@@ -43,15 +43,34 @@ pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
         .ok_or(BadInput("a read outside the objects' faces"))
 }
 
+/// The `N` bytes at place `at`; refused outside the faces.
+pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
+    FACES
+        .with(|f| {
+            let run = f.get(range(at, N)?)?;
+            <[u8; N]>::try_from(run).ok()
+        })?
+        .ok_or(BadInput("a read outside the objects' faces"))
+}
+
+/// `into`'s length of bytes at place `at`; refused outside the faces.
+pub fn read_into(at: u32, into: &mut [u8]) -> Result<(), BadInput> {
+    FACES
+        .with(|f| {
+            into.copy_from_slice(f.get(range(at, into.len())?)?);
+            Some(())
+        })?
+        .ok_or(BadInput("a read outside the objects' faces"))
+}
+
 /// The byte at place `at`.
 pub fn byte(at: u32) -> Result<u8, BadInput> {
-    Ok(bytes(at, 1)?[0])
+    Ok(array::<1>(at)?[0])
 }
 
 /// The dword at place `at`.
 pub fn word(at: u32) -> Result<u32, BadInput> {
-    let b = bytes(at, 4)?;
-    Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    Ok(u32::from_le_bytes(array(at)?))
 }
 
 /// `data` written at place `at`; refused outside the faces.

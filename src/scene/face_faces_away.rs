@@ -113,24 +113,26 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
     if count < 3 {
         return Ok(true);
     }
-    let len = (count as usize)
-        .checked_mul(0x10)
-        .and_then(|n| n.checked_add(0x10))
+    // Past the face's last vertex is refused up front, as a read of it all would be.
+    let last = (face as u32)
+        .checked_add(
+            count
+                .checked_mul(0x10)
+                .ok_or(BadInput("a face of too many vertices"))?,
+        )
         .ok_or(BadInput("a face of too many vertices"))?;
-    let words = crate::scene::object_faces::bytes(face as u32, len)?;
-    let point = |n: u32| {
-        let at = 0x10 + n as usize * 0x10;
-        u32::from_le_bytes(words[at..at + 4].try_into().unwrap())
-    };
+    crate::scene::object_faces::array::<0x10>(last)?;
+    let point = |n: u32| crate::scene::object_faces::word(face as u32 + 0x10 + n * 0x10);
     let table = crate::scene::reading::PointRecords::new()?;
     for n in 2..count {
         // The original looks at each triangle's numbers as it comes to it.
-        if [0, n - 1, n].into_iter().any(|k| (point(k) as i32) < 0) {
+        let points = [point(0)?, point(n - 1)?, point(n)?];
+        if points.iter().any(|&p| (p as i32) < 0) {
             return Err(BAD_POINT.into());
         }
         let mut w = [0u32; 19];
-        for (at, k) in [0, n - 1, n].into_iter().enumerate() {
-            let place = table.place(point(k))?;
+        for (at, p) in points.into_iter().enumerate() {
+            let place = table.place(p)?;
             w[at * 3..at * 3 + 3].copy_from_slice(&place);
         }
         triangle(&mut w);

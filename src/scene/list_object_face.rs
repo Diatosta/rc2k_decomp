@@ -162,7 +162,7 @@ impl FaceWorld for GameFace {
 
 /// The face's bytes the tests read.
 fn face_bytes(face: usize) -> Result<Face, BadInput> {
-    let b = crate::scene::object_faces::bytes(face as u32, 0xC)?;
+    let b: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
     Ok(Face {
         kind: b[6],
         group: b[7],

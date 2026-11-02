@@ -79,7 +79,16 @@ pub fn draw_object_face(
     if count == 0 || count > MOST || !crate::scene::point_records::held() {
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
-    let words = crate::scene::object_faces::bytes(face as u32, 0x10 + count as usize * 0x10)?;
+    // The whole face in one read: at most `MOST` vertices.
+    let whole: [u8; 0x10 + MOST as usize * 0x10] = {
+        let mut buffer = [0; 0x10 + MOST as usize * 0x10];
+        crate::scene::object_faces::read_into(
+            face as u32,
+            &mut buffer[..0x10 + count as usize * 0x10],
+        )?;
+        buffer
+    };
+    let words = &whole;
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));

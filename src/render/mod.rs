@@ -34,10 +34,13 @@ pub struct TextureNote {
     pub masks: [u32; 4],
 }
 
+// A fan is by far the common command and its vertices live inline to spare an allocation each.
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     Fan {
-        vertices: Vec<crate::rasteriser::Vertex>,
-        states: Box<[u32; STATES]>,
+        vertices: smallvec::SmallVec<[crate::rasteriser::Vertex; 6]>,
+        /// Shared between fans with the same states, which most of a frame's are.
+        states: std::sync::Arc<[u32; STATES]>,
         texture: Option<TextureNote>,
         /// The vertices' bounds on the screen: (left, top, right, bottom).
         bounds: (f32, f32, f32, f32),

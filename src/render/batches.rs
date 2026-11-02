@@ -234,8 +234,8 @@ mod tests {
 
     fn fan(corners: usize, states: [u32; STATES]) -> Command {
         Command::Fan {
-            vertices: vec![[0; 8]; corners],
-            states: Box::new(states),
+            vertices: smallvec::smallvec![[0; 8]; corners],
+            states: std::sync::Arc::new(states),
             texture: None,
             bounds: (0.0, 0.0, 0.0, 0.0),
         }

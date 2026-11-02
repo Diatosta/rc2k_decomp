@@ -20,7 +20,9 @@ pub fn entry(n: usize) -> Result<&'static PolygonEntry, BadInput> {
 /// The list's cell `n` (the original's list has room for `MOST` numbers, more than the
 /// field: the cell is reached by address).
 pub fn list_cell(n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::nth(&crate::scene::polygon_store::POLYGON_WORK.list[0], n)
+    let list = &crate::scene::polygon_store::POLYGON_WORK.list;
+    list.get(n)
+        .unwrap_or_else(|| crate::race::checkpoints_store::nth(&list[0], n))
 }
 
 /// The list kept before a clip, cell `n` (as `list_cell`).
@@ -44,9 +46,12 @@ pub fn materials_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
+/// A polygon's entries: on the stack for all but the largest polygons.
+pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
+
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
-pub fn listed() -> Result<Vec<&'static PolygonEntry>, BadInput> {
+pub fn listed() -> Result<Listed, BadInput> {
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));

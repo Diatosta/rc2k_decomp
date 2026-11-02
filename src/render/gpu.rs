@@ -890,8 +890,8 @@ mod comparison {
                     }
                     let number = r.dword();
                     commands.push(Command::Fan {
-                        vertices,
-                        states,
+                        vertices: vertices.into(),
+                        states: states.into(),
                         texture: (number != u32::MAX).then(|| note(number as usize)),
                         bounds: (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
                     });

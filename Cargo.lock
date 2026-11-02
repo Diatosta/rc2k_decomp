@@ -247,6 +247,7 @@ dependencies = [
  "rc2k_core",
  "rc2k_derive",
  "sdl3-sys",
+ "smallvec",
  "windows-sys",
 ]
 
