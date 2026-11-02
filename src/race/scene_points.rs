@@ -33,12 +33,14 @@ pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
     }
     let bytes = crate::pointers::GamePtr::new(from).read_bytes(len as usize, "the scene points")?;
     POINTS.set(bytes);
+    crate::race::course_places::first_points_changed();
     Ok(())
 }
 
 /// Given back with the course memory.
 pub fn give_back() {
     POINTS.give_back();
+    crate::race::course_places::first_points_changed();
 }
 
 fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
@@ -136,10 +138,19 @@ pub fn place(n: u32) -> u32 {
 #[track_caller]
 pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
+    // The points below the count are the course's own (the ones past it are copies made
+    // while drawing): a change to them is noted.
+    let counted = (COURSE.scene_point_count.get() as usize).saturating_mul(12);
     POINTS
         .with(|p| {
-            p.get_mut(range(at, data.len())?)
-                .map(|to| to.copy_from_slice(data))
+            let range = range(at, data.len())?;
+            let start = range.start;
+            let to = p.get_mut(range)?;
+            if start < counted && to != data {
+                crate::race::course_places::first_points_changed();
+            }
+            to.copy_from_slice(data);
+            Some(())
         })?
         .ok_or_else(|| outside("a write outside the scene points", at, data.len(), caller))
 }
@@ -159,12 +170,14 @@ pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let kept_at = COURSE.scene_points.get();
     crate::race::course_places::reserve().expect("the course's places");
     POINTS.set(words.iter().flat_map(|w| w.to_le_bytes()).collect());
+    crate::race::course_places::first_points_changed();
     COURSE.scene_points.set(base());
     let out = f();
     match kept {
         Some(p) => POINTS.set(p),
         None => POINTS.give_back(),
     }
+    crate::race::course_places::first_points_changed();
     COURSE.scene_points.set(kept_at);
     out
 }

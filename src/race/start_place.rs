@@ -140,6 +140,23 @@ pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
 
 /// Checkpoints from `c` up to `to` measured as `distance_to_checkpoint` does, until one is
 /// off the line or its reads leave the stores (`c` is then that one).
+/// The checkpoints' places as last read: for each, its face and its first point's x and z.
+/// Kept while the faces' first points and the course's scene points are unchanged
+/// (`course_places::first_points_changes`) and the scene point count is the same; each
+/// entry is used only for the face it was read for, and only points below the count are
+/// kept (the ones past it change while drawing).
+struct Places {
+    changes: u64,
+    point_count: u32,
+    places: Vec<Option<(u32, u32, u32)>>,
+}
+
+thread_local! {
+    static PLACES: std::cell::RefCell<Places> = const {
+        std::cell::RefCell::new(Places { changes: u64::MAX, point_count: 0, places: Vec::new() })
+    };
+}
+
 fn measure_held(
     c: &mut u32,
     to: u32,
@@ -158,33 +175,55 @@ fn measure_held(
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;
-    let measured = with_faces_and_points(|faces, points| {
-        while *c < to && *c < MOST_CHECKS && rc2k_core::race::checkpoints::on_line(*c, count) {
-            let face = crate::race::checkpoints_store::face(*c as usize).get();
-            // As the original's u32 arithmetic on the places.
-            let Some(point) = dword(faces, (face << 6).wrapping_add(4) as usize) else {
-                return;
-            };
-            let at = point.wrapping_mul(12);
-            let (Some(px), Some(pz)) = (
-                dword(points, at as usize),
-                dword(points, at.wrapping_add(8) as usize),
-            ) else {
-                return;
-            };
-            let dx = px.wrapping_sub(x) as i32;
-            let dz = pz.wrapping_sub(z) as i32;
-            let (a, b) = (f64::from(dx), f64::from(dz));
-            let beyond = plain && nearest.distance < 1 << 26 && {
-                let bound = f64::from(nearest.distance + 1);
-                a * a + b * b >= bound * bound
-            };
-            if !beyond {
-                nearest.consider(*c, x87::int_hypot(dx, dz) as u32);
-            }
-            last = Some((dx, dz));
-            *c += 1;
+    let point_count = COURSE.scene_point_count.get();
+    let changes = crate::race::course_places::first_points_changes();
+    let measured = PLACES.with_borrow_mut(|kept| {
+        if kept.changes != changes || kept.point_count != point_count {
+            kept.changes = changes;
+            kept.point_count = point_count;
+            kept.places.clear();
         }
+        with_faces_and_points(|faces, points| {
+            while *c < to && *c < MOST_CHECKS && rc2k_core::race::checkpoints::on_line(*c, count) {
+                let face = crate::race::checkpoints_store::face(*c as usize).get();
+                let slot = *c as usize;
+                let (px, pz) = match kept.places.get(slot).copied().flatten() {
+                    Some((f, px, pz)) if f == face => (px, pz),
+                    _ => {
+                        // As the original's u32 arithmetic on the places.
+                        let Some(point) = dword(faces, (face << 6).wrapping_add(4) as usize) else {
+                            return;
+                        };
+                        let at = point.wrapping_mul(12);
+                        let (Some(px), Some(pz)) = (
+                            dword(points, at as usize),
+                            dword(points, at.wrapping_add(8) as usize),
+                        ) else {
+                            return;
+                        };
+                        if point < point_count {
+                            if kept.places.len() <= slot {
+                                kept.places.resize(slot + 1, None);
+                            }
+                            kept.places[slot] = Some((face, px, pz));
+                        }
+                        (px, pz)
+                    }
+                };
+                let dx = px.wrapping_sub(x) as i32;
+                let dz = pz.wrapping_sub(z) as i32;
+                let (a, b) = (f64::from(dx), f64::from(dz));
+                let beyond = plain && nearest.distance < 1 << 26 && {
+                    let bound = f64::from(nearest.distance + 1);
+                    a * a + b * b >= bound * bound
+                };
+                if !beyond {
+                    nearest.consider(*c, x87::int_hypot(dx, dz) as u32);
+                }
+                last = Some((dx, dz));
+                *c += 1;
+            }
+        })
     });
     // The last one measured leaves its distance, as `distance_to_checkpoint` does.
     if let Some((dx, dz)) = last {

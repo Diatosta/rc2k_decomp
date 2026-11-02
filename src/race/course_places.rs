@@ -15,7 +15,7 @@
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use rc2k_core::race::faces::{Face, Record};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
 const ROOM: u32 = 0x100_0000;
@@ -104,6 +104,31 @@ pub fn read_file_into_info(path: u32, at: u32, count: u32) -> Result<(), BadInpu
     .ok_or(BadInput("a file read outside the course info"))?
 }
 
+/// Bumped when a face's first point (+4) or a scene point below the count may have
+/// changed, or the faces or points were taken or given back: what is worked out from them
+/// (`race::start_place`'s checkpoint places) is kept until then.
+static FIRST_POINTS_CHANGED: AtomicU64 = AtomicU64::new(0);
+
+/// How many times the faces' first points or the scene points have changed (see
+/// `FIRST_POINTS_CHANGED`).
+pub fn first_points_changes() -> u64 {
+    FIRST_POINTS_CHANGED.load(Ordering::Relaxed)
+}
+
+/// The faces' first points or the scene points have changed.
+pub fn first_points_changed() {
+    FIRST_POINTS_CHANGED.fetch_add(1, Ordering::Relaxed);
+}
+
+/// Whether writing `new` over `old` at byte `off` of the faces changes a face's first point
+/// (+4 .. +8).
+fn first_point_written(off: usize, old: &[u8], new: &[u8]) -> bool {
+    old.iter()
+        .zip(new)
+        .enumerate()
+        .any(|(k, (a, b))| a != b && (4..8).contains(&((off + k) % 0x40)))
+}
+
 /// Whether the faces and records are held.
 pub fn held() -> bool {
     FACES.is_taken()
@@ -122,6 +147,7 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
     let r = GamePtr::new(records_at).read_bytes(records as usize, "the course records")?;
     FACES.set(f);
     RECORDS.set(r);
+    first_points_changed();
     Ok(())
 }
 
@@ -129,6 +155,7 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
 pub fn give_back() {
     FACES.give_back();
     RECORDS.give_back();
+    first_points_changed();
     INFO.give_back();
 }
 
@@ -179,10 +206,15 @@ pub fn bytes(at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
 /// `data` written at `at` (as `bytes` names it).
 pub fn write_bytes(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
     if let Some((s, off)) = store(at) {
+        let faces = std::ptr::eq(s, std::ptr::from_ref(&FACES));
         return s
             .with(|b| {
-                b.get_mut(off..off.checked_add(data.len())?)
-                    .map(|to| to.copy_from_slice(data))
+                let to = b.get_mut(off..off.checked_add(data.len())?)?;
+                if faces && first_point_written(off, to, data) {
+                    first_points_changed();
+                }
+                to.copy_from_slice(data);
+                Some(())
             })?
             .ok_or(BadInput("a write outside the course faces or records"));
     }
