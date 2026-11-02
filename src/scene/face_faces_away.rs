@@ -21,7 +21,7 @@ use crate::math::x87_float::{X, compare};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fld, fnstsw, fstp};
+use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp};
 
 // ---- game data ----
 
@@ -35,7 +35,7 @@ const BAD_POINT: FatalError = FatalError {
 /// `sub_4520A5` from its first `fld`: the block is the three points (nine floats), the
 /// six differences, the cross product, and the x87's status after `fldz; fcompp` (only the
 /// condition bits are modelled).
-fn triangle_at(w: *mut u8) {
+fn triangle_at(w: impl Base) {
     let t0 = fld(w, 0xC);
     let t1 = fld(w, 0x0);
     let t2 = t0 - t1;
@@ -101,7 +101,7 @@ fn triangle_at(w: *mut u8) {
 }
 
 fn triangle(w: &mut [u32; 19]) {
-    triangle_at(w.as_mut_ptr().cast());
+    triangle_at(cells(w));
 }
 
 pub fn face_faces_away(face: usize) -> Result<bool, Refused> {

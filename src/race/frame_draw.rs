@@ -1095,8 +1095,8 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
     for cell in 0..0x400u32 {
         let x = (cell & 0x1F).wrapping_sub(half);
         let z = (cell >> 5).wrapping_sub(half);
-        let point = [x as i32, 0, z as i32];
-        crate::scene::project_point::rotate(point.as_ptr(), matrix.as_ptr(), out.as_mut_ptr());
+        let point = [x, 0, z];
+        crate::scene::project_point::rotate(&point, &matrix, &mut out);
         let (x, z) = (out[4], out[6]);
         LEVEL_GRID.turned_x.set_bits(x);
         LEVEL_GRID.turned_z.set_bits(z);

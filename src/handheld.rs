@@ -277,6 +277,11 @@ const SAMPLES: usize = 1 << 17;
 /// (Where the processor was, which thread) of each sample.
 static PLACES: [AtomicUsize; SAMPLES] = [const { AtomicUsize::new(0) }; SAMPLES];
 static THREADS: [AtomicU32; SAMPLES] = [const { AtomicU32::new(0) }; SAMPLES];
+/// How many callers each sample keeps.
+const CALLERS: usize = 5;
+/// Each sample's callers, nearest first (0: the chain ended).
+static CALLED_FROM: [[AtomicUsize; CALLERS]; SAMPLES] =
+    [const { [const { AtomicUsize::new(0) }; CALLERS] }; SAMPLES];
 static TAKEN: AtomicUsize = AtomicUsize::new(0);
 
 /// The timer's signal: only atomics and a system call, as a handler must.
@@ -286,10 +291,35 @@ unsafe extern "C" fn on_profile(
     context: *mut libc::c_void,
 ) {
     // SAFETY: the record the system hands the handler.
-    let pc = unsafe { (*context.cast::<libc::ucontext_t>()).uc_mcontext.pc } as usize;
+    let (pc, sp, mut frame, lr) = unsafe {
+        let m = &(*context.cast::<libc::ucontext_t>()).uc_mcontext;
+        (
+            m.pc as usize,
+            m.sp as usize,
+            m.regs[29] as usize,
+            m.regs[30] as usize,
+        )
+    };
     let n = TAKEN.fetch_add(1, Relaxed);
     if n < SAMPLES {
         PLACES[n].store(pc, Relaxed);
+        CALLED_FROM[n][0].store(lr, Relaxed);
+        // The frame records, each above the last and near the stack pointer: a function that
+        // keeps none leaves a value that fails these tests and the chain stops.
+        let mut low = sp;
+        for caller in &CALLED_FROM[n][1..] {
+            if frame < low || frame > sp + (1 << 16) || !frame.is_multiple_of(16) {
+                break;
+            }
+            // SAFETY: on this thread's stack, within the frames it has in use.
+            let (next, from) = unsafe {
+                let record = frame as *const usize;
+                (record.read_volatile(), record.add(1).read_volatile())
+            };
+            caller.store(from, Relaxed);
+            low = frame + 16;
+            frame = next;
+        }
         // SAFETY: `gettid` takes nothing and cannot fail.
         THREADS[n].store(unsafe { libc::syscall(libc::SYS_gettid) } as u32, Relaxed);
     }
@@ -331,11 +361,11 @@ pub fn write_profile() {
     }
     let mut text = format!("{:x}\n", start_profile as *const () as usize);
     for i in 0..n {
-        text += &format!(
-            "{:x} {}\n",
-            PLACES[i].load(Relaxed),
-            THREADS[i].load(Relaxed)
-        );
+        text += &format!("{:x} {}", PLACES[i].load(Relaxed), THREADS[i].load(Relaxed));
+        for caller in &CALLED_FROM[i] {
+            text += &format!(" {:x}", caller.load(Relaxed));
+        }
+        text.push('\n');
     }
     let _ = std::fs::write("profile.txt", text);
 }

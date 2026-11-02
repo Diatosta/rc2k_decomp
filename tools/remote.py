@@ -2,7 +2,7 @@
 """Drives a `remote` build of the game for automated tests (src/remote.rs).
 
     remote.py build [--handheld]         builds the binary with the `remote` feature
-    remote.py start [--gpu] [--fresh]    starts it (PC: on a copy of var and savedata)
+    remote.py start [--gpu] [--fresh] [--profile]    starts it (PC: on a copy of var and savedata)
     remote.py key Return [ms]            a key press (SDL's scancode names)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
@@ -139,8 +139,10 @@ def build():
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
-def start(gpu, fresh):
+def start(gpu, fresh, profile=False):
     renderer = 'RC2K_RENDERER=gpu ' if gpu else ''
+    if profile:
+        renderer += 'RC2K_PROFILE=1 '
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
@@ -263,7 +265,7 @@ def main():
     if command == 'build':
         build()
     elif command == 'start':
-        start('--gpu' in rest, '--fresh' in rest)
+        start('--gpu' in rest, '--fresh' in rest, '--profile' in rest)
     elif command == 'stop':
         stop()
     elif command == 'shot':

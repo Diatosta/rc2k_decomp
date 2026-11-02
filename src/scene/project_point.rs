@@ -36,7 +36,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::point_records;
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 
 // ---- game data ----
 
@@ -59,12 +59,12 @@ const TOO_HIGH: FatalError = FatalError {
 
 /// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
-pub(crate) fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
-    rotate_at(point.cast(), matrix.cast(), record.cast());
+pub(crate) fn rotate(point: &[u32], matrix: &[u32], record: &mut [u32]) {
+    rotate_at(point, matrix, cells(record));
 }
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
-fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
+fn rotate_at(p: impl Base, m: impl Base, o: impl Base) {
     let t0 = fild(p, 0x8);
     let t1 = fild(p, 0x4);
     let t2 = fild(p, 0x0);
@@ -105,17 +105,17 @@ fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
 /// centre's x and y, and the whole number the flat depth is made from.
-pub(crate) fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, checked: *mut u32) {
+pub(crate) fn to_screen(record: &mut [u32], v: &[u32; 4], flat: bool, checked: impl Base) {
     if flat {
-        screen_flat(record.cast(), v.as_ptr().cast(), checked.cast());
+        screen_flat(cells(record), &v[..], checked);
     } else {
-        screen_plain(record.cast(), v.as_ptr().cast());
+        screen_plain(cells(record), &v[..]);
     }
 }
 
 /// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
 /// number plus one.
-fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
+fn screen_flat(o: impl Base, v: impl Base, w: impl Base) {
     let t0 = fld(o, 0x10);
     let t1 = fld(o, 0x14);
     let t2 = fld(o, 0x18);
@@ -137,7 +137,7 @@ fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
 }
 
 /// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
-fn screen_plain(o: *mut u8, v: *const u8) {
+fn screen_plain(o: impl Base, v: impl Base) {
     let t0 = fld(o, 0x10);
     let t1 = fld(o, 0x14);
     let t2 = fld(o, 0x18);
@@ -193,13 +193,12 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
     r[0] = point;
     let place = crate::race::scene_points::point(from)?;
     rotate(
-        place.as_ptr().cast::<i32>(),
-        MATRICES
+        &place,
+        &MATRICES
             .view_matrix
             .each_ref()
-            .map(super::super::session::Float::bits)
-            .as_ptr(),
-        r.as_mut_ptr(),
+            .map(super::super::session::Float::bits),
+        &mut r,
     );
     r[3] = 0;
     r[7] = 0;
@@ -211,7 +210,7 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
             COURSE.flat_depth.bits(),
         ];
         let flat = STAGE_PREFS.flat_depth.bits() != 0;
-        to_screen(r.as_mut_ptr(), &v, flat, DRAW.scratch.as_ptr());
+        to_screen(&mut r, &v, flat, &DRAW.scratch);
     }
     if LIGHT_STATE.draw_mode.bits() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits());

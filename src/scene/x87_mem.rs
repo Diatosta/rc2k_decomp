@@ -15,6 +15,89 @@ pub(crate) trait Base: Copy {
     fn direct(self) -> Option<*mut u8> {
         None
     }
+    /// The dword at `off`.
+    #[track_caller]
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        load(self, off)
+    }
+    /// `value` as the dword at `off`.
+    #[track_caller]
+    #[inline(always)]
+    fn set_dword(self, off: usize, value: u32) {
+        store(self, off, value);
+    }
+    /// `value` as the 16 bits at `off`.
+    #[track_caller]
+    #[inline(always)]
+    fn set_word(self, off: usize, value: u16) {
+        store(self, off, value);
+    }
+}
+
+/// A block of dwords the caller holds: each operand a bounds check on the block, nothing more.
+/// What the arithmetic of the hot paths works on (a game address costs a look through the
+/// tables, a pointer a look at the thread's stack, for every operand).
+impl Base for &[std::cell::Cell<u32>] {
+    fn address(self) -> usize {
+        crate::pointers::game_address(self.as_ptr().cast::<u8>().cast_mut()) as usize
+    }
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        assert!(off.is_multiple_of(4));
+        self[off / 4].get()
+    }
+    #[inline(always)]
+    fn set_dword(self, off: usize, value: u32) {
+        assert!(off.is_multiple_of(4));
+        self[off / 4].set(value);
+    }
+    #[inline(always)]
+    fn set_word(self, off: usize, value: u16) {
+        assert!(off.is_multiple_of(4));
+        let cell = &self[off / 4];
+        cell.set(cell.get() & 0xFFFF_0000 | u32::from(value));
+    }
+}
+
+/// A block of dwords only read.
+impl Base for &[u32] {
+    fn address(self) -> usize {
+        crate::pointers::game_address(self.as_ptr().cast::<u8>().cast_mut()) as usize
+    }
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        assert!(off.is_multiple_of(4));
+        self[off / 4]
+    }
+    fn set_dword(self, _off: usize, _value: u32) {
+        unreachable!("a store to a block only read");
+    }
+    fn set_word(self, _off: usize, _value: u16) {
+        unreachable!("a store to a block only read");
+    }
+}
+
+/// A game variable as the one dword of an operand.
+impl Base for &crate::session::Dword {
+    fn address(self) -> usize {
+        self.addr() as usize
+    }
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        assert!(off == 0);
+        self.get()
+    }
+    #[inline(always)]
+    fn set_dword(self, off: usize, value: u32) {
+        assert!(off == 0);
+        self.set(value);
+    }
+}
+
+/// `block` as cells, for the arithmetic that writes it.
+pub(crate) fn cells(block: &mut [u32]) -> &[std::cell::Cell<u32>] {
+    std::cell::Cell::from_mut(block).as_slice_of_cells()
 }
 
 impl Base for usize {
@@ -81,7 +164,7 @@ fn store<T: Copy>(base: impl Base, off: usize, value: T) {
 /// `fld dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fld(base: impl Base, off: usize) -> X {
-    ld(load(base, off))
+    ld(base.dword(off))
 }
 
 /// A test buffer's dword as a cell (checked in one live region, as `fld`).
@@ -101,7 +184,7 @@ impl crate::session::Cell32 for HostCell {
 /// `fild dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fild(base: impl Base, off: usize) -> X {
-    int(load(base, off))
+    int(base.dword(off) as i32)
 }
 
 /// `fld tbyte ptr [base + off]`.
@@ -113,14 +196,14 @@ pub(crate) fn fld80(base: impl Base, off: usize) -> X {
 /// `fstp dword ptr [base + off]`: the value rounded to a float as the control word says.
 #[track_caller]
 pub(crate) fn fstp(base: impl Base, off: usize, x: X) {
-    store(base, off, st(x));
+    base.set_dword(off, st(x));
 }
 
 /// `fistp dword ptr [base + off]`: the value rounded to a whole number as the control word
 /// says.
 #[track_caller]
 pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
-    store(base, off, to_int(x));
+    base.set_dword(off, to_int(x) as u32);
 }
 
 /// `fstp tbyte ptr [base + off]`.
@@ -132,11 +215,38 @@ pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
 /// `fnstsw word ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fnstsw(base: impl Base, off: usize, status: u16) {
-    store(base, off, status);
+    base.set_word(off, status);
 }
 
 /// `mov dword ptr [base + off], value`.
 #[track_caller]
 pub(crate) fn mov(base: impl Base, off: usize, value: u32) {
-    store(base, off, value);
+    base.set_dword(off, value);
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    /// Each store and load on a block of cells does what it does through a pointer.
+    #[test]
+    fn a_block_of_cells_behaves_as_memory() {
+        let mut by_pointer = [0x4040_0000u32, 7, 0xAAAA_BBBB, 0];
+        let mut by_cells = by_pointer;
+        let p: *mut u8 = by_pointer.as_mut_ptr().cast();
+        let c = cells(&mut by_cells);
+        assert_eq!(fld(p, 0).0, fld(c, 0).0);
+        assert_eq!(fild(p, 4).0, fild(c, 4).0);
+        fstp(p, 0xC, X(1.5));
+        fstp(c, 0xC, X(1.5));
+        fistp(p, 4, X(-2.0));
+        fistp(c, 4, X(-2.0));
+        fnstsw(p, 8, 0x1234);
+        fnstsw(c, 8, 0x1234);
+        mov(p, 0, 9);
+        mov(c, 0, 9);
+        let in_cells: Vec<u32> = c.iter().map(std::cell::Cell::get).collect();
+        assert_eq!(by_pointer[..], in_cells[..]);
+        assert_eq!(by_pointer[2], 0xAAAA_1234);
+    }
 }

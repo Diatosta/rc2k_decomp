@@ -128,7 +128,12 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(point.as_mut_ptr(), &v, flat, &raw mut w[CHECKED / 4]);
+            to_screen(
+                &mut point,
+                &v,
+                flat,
+                &crate::scene::x87_mem::cells(&mut w)[CHECKED / 4..],
+            );
             (w[OUT_1 / 4], w[OUT_1 / 4 + 1]) = (point[3], point[7]);
         }
     }

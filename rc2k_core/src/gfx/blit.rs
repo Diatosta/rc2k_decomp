@@ -130,18 +130,28 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
         let out = match self.format {
             Format::Raw8 | Format::Direct16 | Format::Direct32 => {
                 let bytes = n * self.format.src_unit();
-                let out = (0..bytes)
-                    .map(|i| self.byte(self.src.wrapping_add(i)))
-                    .collect::<Result<Vec<u8>, _>>()?;
+                let src = self.src;
                 self.src = self.src.wrapping_add(bytes);
-                out
+                if let Some(run) = self.record.run(src, bytes) {
+                    (self.put)(dst, run);
+                    return Ok(());
+                }
+                (0..bytes)
+                    .map(|i| self.byte(src.wrapping_add(i)))
+                    .collect::<Result<Vec<u8>, _>>()?
             }
             Format::Palette16 | Format::Palette32 => {
                 let d = self.format.dst_unit() as usize;
                 let mut out = vec![0u8; n * d];
-                for i in 0..n {
-                    let colour = (self.palette)(self.byte(self.src.wrapping_add(i))?);
-                    out[i * d..(i + 1) * d].copy_from_slice(&colour.to_le_bytes()[..d]);
+                if let Some(run) = self.record.run(self.src, n) {
+                    for (place, &index) in out.chunks_exact_mut(d).zip(run) {
+                        place.copy_from_slice(&(self.palette)(index).to_le_bytes()[..d]);
+                    }
+                } else {
+                    for i in 0..n {
+                        let colour = (self.palette)(self.byte(self.src.wrapping_add(i))?);
+                        out[i * d..(i + 1) * d].copy_from_slice(&colour.to_le_bytes()[..d]);
+                    }
                 }
                 self.src = self.src.wrapping_add(n);
                 out

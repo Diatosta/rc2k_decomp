@@ -7,6 +7,12 @@ pub trait Bytes {
     /// The byte at `at`, `None` past the end.
     fn byte(&self, at: usize) -> Option<u8>;
 
+    /// The `len` bytes from `at` in one piece, when they are held that way: a faster way to
+    /// the same bytes, `None` meaning only that the caller goes byte by byte.
+    fn run(&self, _at: usize, _len: usize) -> Option<&[u8]> {
+        None
+    }
+
     fn u32_le(&self, at: usize) -> Option<u32> {
         Some(u32::from_le_bytes([
             self.byte(at)?,
@@ -20,6 +26,9 @@ pub trait Bytes {
 impl Bytes for [u8] {
     fn byte(&self, at: usize) -> Option<u8> {
         self.get(at).copied()
+    }
+    fn run(&self, at: usize, len: usize) -> Option<&[u8]> {
+        self.get(at..at.checked_add(len)?)
     }
 }
 

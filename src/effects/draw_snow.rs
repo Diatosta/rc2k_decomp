@@ -27,26 +27,14 @@ use crate::effects::snow::{
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_KIND_FLOATS, MarksFloats};
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
-use crate::service::harness::{Region, capture, restore};
 
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
 const FADES: u32 = 17;
 use crate::d3d::vertices_store::VERTICES;
-/// What the x87 blocks write: flt_8D22D4 .. flt_8D22DC, dword_8D21F4, flt_8DB448 ..
-/// dword_8DB460, flt_8DB4C8.
-fn scratch() -> Vec<Region> {
-    vec![
-        (SNOW.turned[0].addr(), 12),
-        (SNOW.depth.addr(), 4),
-        (SNOW_LIGHT.fade_delta[0].addr(), 0x1C),
-        (SNOW_LIGHT.dot.addr(), 4),
-    ]
-}
-
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
 fn turn(v: &[u32; 3]) {
-    turn_x87((crate::pointers::game_address(v.as_ptr())) as usize, &SNOW);
+    turn_x87(&v[..], &SNOW);
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
@@ -56,13 +44,20 @@ fn fade() {
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
 fn square(i: u32) {
+    let mut w = [0u32; 32];
     square_x87(
-        crate::d3d::vertices_store::piece_addr() as usize,
+        crate::scene::x87_mem::cells(&mut w),
         i as usize,
         &SNOW_TABLES,
         &SNOW,
         &SNOW_LIGHT,
     );
+    for (vertex, w) in VERTICES.vertices.iter().zip(w.as_chunks::<8>().0) {
+        vertex.x.set_bits(w[0]);
+        vertex.y.set_bits(w[1]);
+        vertex.z.set_bits(w[2]);
+        vertex.u.set_bits(w[6]);
+    }
 }
 
 /// Flake k's whole-number place and the two curve indices: (eax, ebx, ecx, x index, z
@@ -92,7 +87,7 @@ fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
     }
 }
 
-/// Why it refuses, if it does: a dry pass, its scratch put back.
+/// Why it refuses before anything is drawn, if it does.
 fn refusal() -> Option<&'static str> {
     let n = SNOW.flakes.get() as i32;
     if n > MOST {
@@ -101,27 +96,7 @@ fn refusal() -> Option<&'static str> {
     if n > 0 && SETTINGS.pointer.get() == 0 {
         return Some("no marks settings");
     }
-    let scratch = scratch();
-    let saved = capture(&scratch);
-    let mut why = None;
-    for k in 0..n.max(0) as u32 {
-        let ([eax, ebx, ecx], idx, _) = place(k);
-        if idx.iter().any(|&i| i >= CURVE) {
-            why = Some("a snow curve index past the table");
-            break;
-        }
-        turn(&[ebx, eax, ecx]);
-        if SNOW.depth.get() as i32 > 0x1_0000 && MARKS_KIND_FLOATS.fading.bits() != 0 {
-            fade();
-            let i = SNOW_LIGHT.fade_index.get();
-            if SNOW_LIGHT.dot.bits() as i32 >= 0 && i >= FADES {
-                why = Some("a snow fade index past the table");
-                break;
-            }
-        }
-    }
-    restore(&scratch, &saved);
-    why
+    None
 }
 
 /// The Rust version (see the header).
@@ -136,7 +111,10 @@ pub fn draw_snow() -> Result<(), Refused> {
         SNOW.drawn.set(0);
         SNOW_VARS.first.set(n as u32);
         for k in 0..n.max(0) as u32 {
-            let ([eax, ebx, ecx], _, _) = place(k);
+            let ([eax, ebx, ecx], curve_at, _) = place(k);
+            if curve_at.iter().any(|&i| i >= CURVE) {
+                return Err(BadInput("a snow curve index past the table").into());
+            }
             turn(&[ebx, eax, ecx]);
             if SNOW.depth.get() as i32 > 0x1_0000 {
                 if MARKS_KIND_FLOATS.fading.bits() != 0 {
@@ -144,6 +122,9 @@ pub fn draw_snow() -> Result<(), Refused> {
                     let mut index = SNOW_LIGHT.fade_index.get();
                     if (SNOW_LIGHT.dot.bits() as i32) < 0 {
                         index = 0;
+                    }
+                    if index >= FADES {
+                        return Err(BadInput("a snow fade index past the table").into());
                     }
                     let colour = SNOW_LIGHT.fade_colours[index as usize].get();
                     for n in 0..4 {
@@ -171,12 +152,12 @@ pub fn draw_snow() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, ldi, st};
 use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
 /// `turn`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
-fn turn_x87(v: usize, s: &SnowState) {
+fn turn_x87(v: impl Base, s: &SnowState) {
     let t0 = ldi(v, 0);
     let t1 = ldi(v, 0x4);
     let t2 = ldi(v, 0x8);
@@ -242,7 +223,7 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
-fn square_x87(vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
     let t0 = bh::ld(s.turned[2].bits());
     let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
     s.depth.set(bh::st(t1));

@@ -14,7 +14,7 @@
 
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----
 
@@ -30,13 +30,13 @@ pub fn reflect_vector() {
         .view_back_matrix
         .each_ref()
         .map(super::super::session::Float::bits);
-    reflect(w.as_mut_ptr().cast(), m.as_ptr().cast());
+    reflect(cells(&mut w), &m[..]);
     crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
     DRAW.scratch.set_bits(w[6]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.
-fn reflect(w: *mut u8, m: *const u8) {
+fn reflect(w: impl Base, m: impl Base) {
     let t0 = fld(w, 0x8);
     let t1 = fld(w, 0x14);
     let t2 = t0 * t1;

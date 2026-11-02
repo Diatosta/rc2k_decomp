@@ -116,16 +116,19 @@ pub fn set_light_direction() {
         &MATRICES.lit_matrix,
     );
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
-    let ahead = [0i32, 0, 1];
+    let ahead = [0, 0, 1];
+    let mut record = [0u32; 7];
     rotate(
-        ahead.as_ptr(),
-        MATRICES
+        &ahead,
+        &MATRICES
             .lit_matrix
             .each_ref()
-            .map(super::super::session::Float::bits)
-            .as_ptr(),
-        crate::pointers::host_at((DRAW.light_direction[0].addr() - 0x10) as usize).cast::<u32>(),
+            .map(super::super::session::Float::bits),
+        &mut record,
     );
+    for (cell, &bits) in DRAW.light_direction.iter().zip(&record[4..7]) {
+        cell.set_bits(bits);
+    }
 }
 
 /// `scene::make_object_matrix` (0x427812).

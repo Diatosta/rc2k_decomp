@@ -39,7 +39,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
@@ -66,7 +66,7 @@ fn moved(from: usize, by: u32) -> Result<(), BadInput> {
         0,
         0,
     ];
-    moved_at(w.as_mut_ptr().cast());
+    moved_at(cells(&mut w));
     // The original stores the three from `point_moved`, y and z on over the first two
     // group masks (`notes/bugs.md`).
     COURSE.point_moved.set(w[7]);
@@ -78,7 +78,7 @@ fn moved(from: usize, by: u32) -> Result<(), BadInput> {
 
 /// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
 /// fraction as it is stored.
-fn moved_at(w: *mut u8) {
+fn moved_at(w: impl Base) {
     let t0 = fld(w, 0x0);
     let t1 = fild(w, 0xC);
     let t2 = fild(w, 0x18);
@@ -103,11 +103,11 @@ fn moved_at(w: *mut u8) {
 
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
-    turn_normal(normal.cast(), matrix.cast(), record.cast());
+fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
+    turn_normal(normal, matrix, cells(record));
 }
 
-fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
+fn turn_normal(p: impl Base, m: impl Base, o: impl Base) {
     let t0 = fld(p, 0x8);
     let t1 = fld(p, 0x4);
     let t2 = fld(p, 0x0);
@@ -183,7 +183,6 @@ pub fn place_object_points() -> Result<(), Refused> {
     // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
     let matrix: [u32; 16] =
         crate::pointers::GamePtr::new(object.matrix).read("the object's matrix")?;
-    let matrix = matrix.as_ptr();
     let move_by: u32 = RACE_VARS.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
@@ -203,7 +202,7 @@ pub fn place_object_points() -> Result<(), Refused> {
         } else {
             crate::scene::object_points::point(from)?
         };
-        rotate(point.as_ptr().cast::<i32>(), matrix, r.as_mut_ptr());
+        rotate(&point, &matrix, &mut r);
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
@@ -214,7 +213,7 @@ pub fn place_object_points() -> Result<(), Refused> {
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(r.as_mut_ptr(), &v, flat, DRAW.scratch.as_ptr());
+            to_screen(&mut r, &v, flat, &DRAW.scratch);
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);
@@ -225,7 +224,7 @@ pub fn place_object_points() -> Result<(), Refused> {
         let mut r = point_records::get(record)?;
         r[0] = number;
         let normal = crate::scene::object_points::point(from)?;
-        turn(normal.as_ptr(), matrix, r.as_mut_ptr());
+        turn(&normal, &matrix, &mut r);
         point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
@@ -270,7 +269,7 @@ pub fn place_object_points_sse() -> Result<(), Refused> {
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(r.as_mut_ptr(), &v, flat, DRAW.scratch.as_ptr());
+            to_screen(&mut r, &v, flat, &DRAW.scratch);
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);

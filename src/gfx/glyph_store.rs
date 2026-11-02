@@ -142,6 +142,15 @@ impl rc2k_core::strings::bytes::Bytes for Glyphs {
             Glyphs::Held(b, from) => b.get(from.checked_add(at)?).copied(),
         }
     }
+    fn run(&self, at: usize, len: usize) -> Option<&[u8]> {
+        match self {
+            Glyphs::Game(_) => None,
+            Glyphs::Held(b, from) => {
+                let start = from.checked_add(at)?;
+                b.get(start..start.checked_add(len)?)
+            }
+        }
+    }
 }
 
 /// The bytes from `place` on: a palette or table of the store, or game memory.

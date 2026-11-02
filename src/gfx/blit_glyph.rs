@@ -142,16 +142,10 @@ pub fn blit_glyph(
             past_palette.set(true);
             return 0;
         };
-        match (0..4)
-            .map(|k| colours.byte(at + k))
-            .collect::<Option<Vec<u8>>>()
-        {
-            Some(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-            None => {
-                past_palette.set(true);
-                0
-            }
-        }
+        colours.u32_le(at).unwrap_or_else(|| {
+            past_palette.set(true);
+            0
+        })
     };
     let blitted = core::blit_glyph(
         record,

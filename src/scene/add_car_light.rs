@@ -29,7 +29,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::vertex_light::plus;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -43,13 +43,13 @@ const STRENGTH: usize = 0xABC;
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.
-fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
+fn turned(from: [u32; 3], matrix: &[u32]) -> [u32; 3] {
     let mut w = [from[0], from[1], from[2], 0, 0, 0];
-    turned_at(w.as_mut_ptr().cast(), matrix.cast());
+    turned_at(cells(&mut w), matrix);
     [w[3], w[4], w[5]]
 }
 
-fn turned_at(w: *mut u8, m: *const u8) {
+fn turned_at(w: impl Base, m: impl Base) {
     let t0 = fild(w, 0x8);
     let t1 = fild(w, 0x4);
     let t2 = fild(w, 0x0);
@@ -90,17 +90,17 @@ fn turned_at(w: *mut u8, m: *const u8) {
 
 /// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (once or twice) `; fistp`.
 fn squares(a: u32, b: u32, factor: u32, twice: bool) -> u32 {
-    let (v, mut out) = ([a, b, factor], 0u32);
+    let (v, mut out) = ([a, b, factor], [0u32]);
     if twice {
-        squares_twice(v.as_ptr().cast(), (&raw mut out).cast());
+        squares_twice(&v[..], cells(&mut out));
     } else {
-        squares_once(v.as_ptr().cast(), (&raw mut out).cast());
+        squares_once(&v[..], cells(&mut out));
     }
-    out
+    out[0]
 }
 
 /// Twice the factor.
-fn squares_twice(v: *const u8, o: *mut u8) {
+fn squares_twice(v: impl Base, o: impl Base) {
     let t0 = fild(v, 0x0);
     let t1 = t0 * t0;
     let t2 = fild(v, 0x4);
@@ -114,7 +114,7 @@ fn squares_twice(v: *const u8, o: *mut u8) {
 }
 
 /// Once the factor.
-fn squares_once(v: *const u8, o: *mut u8) {
+fn squares_once(v: impl Base, o: impl Base) {
     let t0 = fild(v, 0x0);
     let t1 = t0 * t0;
     let t2 = fild(v, 0x4);
@@ -149,7 +149,7 @@ pub fn add_car_light(car: usize) -> Result<(), BadInput> {
         from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
     }
     let matrix: [u32; 16] = GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
-    let seen = turned(from, matrix.as_ptr());
+    let seen = turned(from, &matrix);
     crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
     let [x, y, z] = seen;
     let factor: u32 = NUMBERS.one_over_65536.bits();
