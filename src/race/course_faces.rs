@@ -28,7 +28,7 @@ use rc2k_core::race::faces::Face;
 
 #[cfg(all(test, target_arch = "x86"))]
 fn get(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(a, "a course face, point or entry word")
+    crate::pointers::GamePtr::new(a).read("a test's face, point or entry word")
 }
 
 /// The byte `n` of a byte table held as dwords; past it refused.
@@ -85,10 +85,8 @@ pub fn face_corners(face: &Face) -> u32 {
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
 #[cfg(all(test, target_arch = "x86"))]
 fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
-    turned_to_view(
-        &crate::race::course_places::face(face, "a course face")?,
-        (half / 4) as usize,
-    )
+    let bytes = crate::pointers::GamePtr::new(face).read::<[u8; 64]>("a test's face")?;
+    turned_to_view(&Face(bytes), (half / 4) as usize)
 }
 
 /// `sub_4525F8` on a read face, its triangle 0 or 1.

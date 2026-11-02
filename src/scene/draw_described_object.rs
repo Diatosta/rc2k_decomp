@@ -47,7 +47,21 @@ fn check_object(object: u32) -> Result<(), Refused> {
 /// unreached `sub_49081A`), nor do its two calls read what it had in them: the matrix's
 /// placing reads no register, and the drawing only esi, which it is given.
 pub fn draw_described_object(d: u32) -> Result<(), Refused> {
-    let head = crate::race::course_places::bytes(d, 8, "a described object")?;
+    draw_description(&|len| GamePtr::new(d).read_bytes(len, "a described object"))
+}
+
+/// The same for course face `face` (kind 0xFF), its own description.
+pub fn draw_described_face(face: u32) -> Result<(), Refused> {
+    draw_description(&|len| {
+        let bytes: [u8; 0x40] =
+            crate::race::course_places::face_field(face, 0, "a described face")?;
+        Ok(bytes[..len].to_vec())
+    })
+}
+
+/// The drawing from a description's first `len` bytes as `read` gives them.
+fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result<(), Refused> {
+    let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
@@ -75,7 +89,7 @@ pub fn draw_described_object(d: u32) -> Result<(), Refused> {
         return Ok(());
     }
     // Everything the description gives from here on lies in its first 0x3C bytes.
-    let desc = crate::race::course_places::bytes(d, 0x3C, "a described object")?;
+    let desc = read(0x3C)?;
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
     let at: [u32; 3] = crate::race::scene_points::point_number(place)?;

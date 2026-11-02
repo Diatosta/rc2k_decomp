@@ -137,8 +137,14 @@ pub fn make_profiles(resume: u32) -> Result<(), Refused> {
             make_tables()?;
             DRAW_FRAME.profiles_done.set(resume);
         }
-        let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
-        let corners = crate::race::course_places::bytes(from, CORNERS_LEN, "the course corners")?;
+        if COURSE_LISTS.course_info.bits() == 0 {
+            return Err(BadInput("no course info (g_courseInfo 0)").into());
+        }
+        let corners = crate::race::course_places::info_bytes(
+            COURSE_CORNERS,
+            CORNERS_LEN,
+            "the course corners",
+        )?;
         GamePtr::to(&MARK_CORNERS.corners).write_bytes(&corners, "the course corners")?;
         crate::effects::blocks::allocate_links()?;
         crate::effects::blocks::reset_settings_blocks()?;

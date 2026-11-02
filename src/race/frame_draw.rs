@@ -2738,9 +2738,7 @@ pub fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
                 LEVEL_GRID.plain_second.set_bits(1);
                 if kind == 0xFF {
                     // The description is the face (esi in the original).
-                    crate::scene::draw_described_object::draw_described_object(
-                        crate::race::course_places::face_place(face),
-                    )?;
+                    crate::scene::draw_described_object::draw_described_face(face)?;
                 } else {
                     crate::race::course_faces::draw_tinted_face(face)?;
                 }

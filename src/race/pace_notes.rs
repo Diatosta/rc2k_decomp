@@ -27,73 +27,39 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
 
-const COURSE_MEMORY_LEN: u32 = 0x130_0000;
-
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
 pub type Course = rc2k_core::race::pace_notes::Course;
 
-/// A test stage's faces while one is up (start, end): the original's code
-/// reads them there.
-static TEST_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-/// The game's course: the faces (`g_courseFaces`), where they may be read (the course
-/// memory, or a test stage's faces), the checkpoints' count.
+/// The game's course: the faces' table (`race::course_places`: the walk's places are
+/// offsets into it, face n at 0x40 n, read by number in `face_byte`) and the checkpoints'
+/// count. Without the table (the walk runs only after `race::load_level` has taken it) the
+/// window is empty and a face read refused.
 pub fn game_course() -> Course {
-    {
-        let memory: u32 = COURSE_LISTS.course_memory.bits();
-        let faces: u32 = COURSE.course_faces.bits();
-        let test = TEST_WINDOW.load(std::sync::atomic::Ordering::SeqCst);
-        let (lo, hi) = (test as u32, (test >> 32) as u32);
-        let count = RACE_VARS.checkpoint_count.bits();
-        if test != 0 && faces >= lo && faces < hi {
-            return Course {
-                faces,
-                window: (lo, hi),
-                count,
-            };
-        }
-        if crate::race::course_places::held() && faces == crate::race::course_places::faces_base() {
-            // The faces are Rust's table (`race::course_places`): the walk's places are
-            // offsets into it (face n at 0x40 n), read by number in `face_byte`.
-            let len = crate::race::course_places::FACES
-                .with(|f| f.len() as u32)
-                .unwrap_or(0);
-            return Course {
-                faces: 0,
-                window: (0, len),
-                count,
-            };
-        }
-        Course {
-            faces,
-            window: if memory == 0 {
-                (0, 0)
-            } else {
-                (memory, memory.wrapping_add(COURSE_MEMORY_LEN))
-            },
-            count,
-        }
+    let len = if crate::race::course_places::held() {
+        crate::race::course_places::FACES
+            .with(|f| f.len() as u32)
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    Course {
+        faces: 0,
+        window: (0, len),
+        count: RACE_VARS.checkpoint_count.bits(),
     }
 }
 
 /// The first refusal of a face read, kept until the walk is done.
 static REFUSED: std::sync::Mutex<Option<BadInput>> = std::sync::Mutex::new(None);
 
-/// The game's stage, as the walk asks it.
-pub struct GameStage {
-    /// Whether the walk's places are offsets into the faces' table (`game_course`).
-    table: bool,
-}
+/// The game's stage, as the walk asks it: the faces by offset into their table.
+pub struct GameStage;
 
-/// The stage with the course in the faces' table, and with it at game addresses.
-static IN_TABLE: GameStage = GameStage { table: true };
-static AT_ADDRESSES: GameStage = GameStage { table: false };
+static STAGE: GameStage = GameStage;
 
 impl Stage for GameStage {
     fn checkpoint_face(&self, k: u32) -> u32 {
@@ -116,15 +82,11 @@ impl Stage for GameStage {
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
-        let read = if self.table {
-            crate::race::course_places::face_field::<u8>(
-                at / 0x40,
-                at % 0x40,
-                "a checkpoint face's byte",
-            )
-        } else {
-            crate::race::course_places::read::<u8>(at, "a checkpoint face's byte")
-        };
+        let read = crate::race::course_places::face_field::<u8>(
+            at / 0x40,
+            at % 0x40,
+            "a checkpoint face's byte",
+        );
         match read {
             Ok(b) => b,
             Err(e) => {
@@ -160,17 +122,12 @@ impl Machine {
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
         }
-        let stage = if course.faces == 0 && course.window.1 != 0 {
-            &IN_TABLE
-        } else {
-            &AT_ADDRESSES
-        };
         Ok(Self(Notes::new(
             Registers::default(),
             PHYSICS.pace_slot.bits(),
             GamePtr::new(at).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
-            stage,
+            &STAGE,
         )))
     }
 

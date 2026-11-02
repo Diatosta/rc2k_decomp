@@ -56,8 +56,7 @@ pub fn draw_frame() -> Result<(), Refused> {
         }
     }
     let what = "a stage record's corners";
-    let corners =
-        crate::race::course_places::bytes(info + CORNERS_FROM, CORNERS_LEN as usize, what)?;
+    let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
     GamePtr::to(&MARK_CORNERS.corners).write_bytes(&corners, what)?;
     let source: u32 = DRAW_SWITCHES.marks_source.bits();
     if source != DRAW_FRAME.last_source.get() {

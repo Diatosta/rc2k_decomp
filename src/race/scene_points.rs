@@ -4,9 +4,10 @@
 //! course info (where the game puts new points past the count: the face corners' copies,
 //! the shadow's), and `race::free_course_memory` gives them back.
 //!
-//! `COURSE.scene_points` is `base()` while they are held (0 otherwise; a place in the range
-//! `race::course_places` reserves), so a point is named by `base()` + 12 n where the original held its address: the original's arithmetic is kept,
-//! and a place is read here.
+//! A point is reached by its number (`point_number`, `point_word`, `put_point_word`,
+//! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a number
+//! in the range `race::course_places` reserves, which no host memory backs): the number's
+//! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
 
 use crate::errors::BadInput;
 use crate::race::course_store::COURSE;
@@ -72,7 +73,7 @@ fn outside(
 /// the faces right before the points (`CourseLayout`: records, faces, points), so those
 /// bytes are the last face's tail, read from the faces.
 #[track_caller]
-pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     let caller = std::panic::Location::caller();
     let before = base().wrapping_sub(at) as usize;
     if at < base() && len <= before && before <= 12 {
@@ -80,11 +81,9 @@ pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
         let from = faces_len
             .checked_sub(before)
             .ok_or_else(|| outside("a read before the scene points", at, len, caller))?;
-        return crate::race::course_places::bytes(
-            crate::race::course_places::faces_base() + from as u32,
-            len,
-            "the last face's tail, before the scene points",
-        );
+        return crate::race::course_places::FACES
+            .with(|f| f.get(from..from + len).map(<[u8]>::to_vec))?
+            .ok_or_else(|| outside("a read before the scene points", at, len, caller));
     }
     POINTS
         .with(|p| p.get(range(at, len)?).map(<[u8]>::to_vec))?
@@ -94,7 +93,7 @@ pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
 /// The `N` bytes at place `at`, refused as `bytes`, without a heap copy.
 #[track_caller]
 #[inline]
-pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
+fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
     let caller = std::panic::Location::caller();
     if at < base() {
         let mut to = [0; N];
@@ -109,13 +108,13 @@ pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
 
 /// The dword at place `at`.
 #[track_caller]
-pub fn word(at: u32) -> Result<u32, BadInput> {
+fn word(at: u32) -> Result<u32, BadInput> {
     array(at).map(u32::from_le_bytes)
 }
 
 /// The three dwords of the point at place `at`.
 #[track_caller]
-pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
+fn point(at: u32) -> Result<[u32; 3], BadInput> {
     let b: [u8; 12] = array(at)?;
     Ok(std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
@@ -123,7 +122,7 @@ pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
 }
 
 /// Point `n`'s place.
-pub fn place(n: u32) -> u32 {
+fn place(n: u32) -> u32 {
     n.wrapping_mul(12).wrapping_add(COURSE.scene_points.get())
 }
 
@@ -153,7 +152,7 @@ pub fn put_point_word(n: u32, k: u32, v: u32) -> Result<(), BadInput> {
 
 /// `data` written at place `at`; refused outside the points.
 #[track_caller]
-pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
+fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
@@ -174,7 +173,7 @@ pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
 
 /// The dword at place `at` set to `v`.
 #[track_caller]
-pub fn put(at: u32, v: u32) -> Result<(), BadInput> {
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
     write(at, &v.to_le_bytes())
 }
 
