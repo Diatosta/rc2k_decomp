@@ -29,7 +29,6 @@ use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 
 const MOST_DROPS: i32 = 0x100;
@@ -38,10 +37,6 @@ const ENTRIES: u32 = 5;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
 fn box_moved(i: usize) {
@@ -68,10 +63,6 @@ pub fn run_rain() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let r = &RAIN;
     {
-        let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
         let marks = crate::effects::setup::marks()?;
         if marks.marks_layout.get() >= ENTRIES {
             return Err(BadInput("a rain view entry past the five").into());
@@ -87,10 +78,10 @@ pub fn run_rain() -> Result<(), Refused> {
             r.drops.set(drops as u32);
         }
         for n in 0..9 {
-            r.view_matrix[n].set_bits(get(s + 0x28 + 4 * n as u32)?);
+            r.view_matrix[n].set_bits(marks.listener_turn[n].bits());
         }
         for n in 0..3 {
-            r.view_place[n].set(get(s + 0x1C + 4 * n as u32)?);
+            r.view_place[n].set(marks.listener_place[n].get());
         }
         crate::effects::place_view::place_view()?;
         crate::scene::depth_buffer_on::depth_buffer(false);

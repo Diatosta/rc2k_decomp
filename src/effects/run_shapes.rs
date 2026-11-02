@@ -22,7 +22,6 @@ use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::setup::CLOCK;
 use crate::effects::shape_points::turn_all_shapes;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -30,11 +29,7 @@ const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
 pub fn run_shapes() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if settings == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
-    let get = |o: u32| GamePtr::new(settings + o).read::<u32>("a mark's field");
+    let marks = crate::effects::setup::marks()?;
     {
         pick_shapes()?;
         turn_all_shapes()?;
@@ -44,7 +39,7 @@ pub fn run_shapes() -> Result<(), Refused> {
             PICKS
                 .next
                 .set((r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()));
-            let mask = get(0x2748)?;
+            let mask = marks.listener_switch_7.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());
             }
@@ -61,7 +56,7 @@ pub fn run_shapes() -> Result<(), Refused> {
         if PICKS.moving.get() == 0 {
             return Ok(());
         }
-        let rate = if get(0x274C)? == 1 {
+        let rate = if marks.listener_switch_5.get() == 1 {
             (PICKS.index.get() >> 3 != 0).then_some(&MASK_CONSTANTS.rates[0])
         } else {
             Some(&MASK_CONSTANTS.rates[1])

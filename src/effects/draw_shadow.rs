@@ -27,7 +27,6 @@ use crate::effects::kind_store::{
 use crate::effects::surface_store::SURFACE;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross;
@@ -46,7 +45,7 @@ pub struct Shadow<'a> {
     /// The quad is lifted along it (`flt_934B78`, set 1's `flt_933E70`).
     pub up: &'a Float,
     /// The settings' field the angle comes from.
-    pub field: u32,
+    pub field: fn(&MarksSettings) -> &Float,
 }
 
 /// `draw_shadow`'s.
@@ -54,7 +53,7 @@ pub static FIRST: Shadow<'static> = Shadow {
     quad: &QUAD_2,
     consts: &CONSTS_2,
     up: &EXTRA_2.extra,
-    field: 0x26A4,
+    field: |marks| &marks.listener_float_b,
 };
 
 /// `sub_4C74DA`'s.
@@ -62,7 +61,7 @@ pub static SECOND: Shadow<'static> = Shadow {
     quad: &QUAD_1,
     consts: &CONSTS_1,
     up: &EXTRAS_1.extra,
-    field: 0x26A0,
+    field: |marks| &marks.listener_float_a,
 };
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -72,9 +71,9 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The z turn's angle (see the header), 80 bits.
 fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
     Ok({
-        let settings: u32 = SETTINGS.pointer.get();
+        let marks = crate::effects::setup::marks()?;
         let split: u32 = sh.quad.low.bits();
-        let v = GamePtr::new(settings + sh.field).read::<u32>("a mark's field")?;
+        let v = (sh.field)(marks).bits();
         if (split as i32) <= v as i32 {
             x87::less_times_plus_negated_80(v, split, sh.quad.slope.bits(), sh.quad.middle.bits())
         } else {
@@ -114,9 +113,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if SETTINGS.pointer.get() == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
+    crate::effects::setup::marks()?;
     turnable(&angle(sh)?)?;
     let mut temps = [0u32; 2];
     let t = crate::pointers::game_address(temps.as_mut_ptr());
@@ -196,8 +193,8 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
 }
 
 use crate::effects::plain::{ld, st};
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
@@ -1153,7 +1150,11 @@ mod asm_differential {
                         quad,
                         consts,
                         up,
-                        field: l.3,
+                        field: if l.3 == 0x26A0 {
+                            |marks| &marks.listener_float_a
+                        } else {
+                            |marks| &marks.listener_float_b
+                        },
                     })
                 })
             })

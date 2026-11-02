@@ -75,7 +75,7 @@ fn sprite_project(e: u32, inverse_depth: bh::X) {
 /// Why it refuses, if it does.
 fn refusal() -> Result<Option<&'static str>, Refused> {
     Ok({
-        if SETTINGS.pointer.get() == 0 {
+        if crate::effects::setup::marks().is_err() {
             return Ok(Some("no marks settings"));
         }
         let items = &HEX.items;
@@ -162,7 +162,6 @@ pub fn windscreen_drops_frame() -> Result<(), Refused> {
 }
 
 use crate::effects::plain::{ld, st};
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 

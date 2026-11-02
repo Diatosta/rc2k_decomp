@@ -19,14 +19,16 @@
 //! game's variables; the vector helpers their Rust versions. Refuses null settings, before
 //! anything.
 
+use crate::effects::plain::ldi_cell;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK};
 use crate::effects::windscreen_drop_vars::HEX;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -35,27 +37,27 @@ use crate::scene::vector3::normalise;
 const POINTS: u32 = 0x30;
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
-fn frame_axes(s: u32) {
+fn frame_axes(m: &MarksSettings) {
     frame_axes_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
         &CLOCK,
     );
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
-fn frame_up(s: u32) {
+fn frame_up(m: &MarksSettings) {
     frame_up_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
     );
 }
 
 /// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
-fn frame_place(s: u32) {
+fn frame_place(m: &MarksSettings) {
     frame_place_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
     );
 }
 
@@ -71,21 +73,18 @@ fn point_turned(p: u32) {
 
 /// The Rust version (see the header).
 pub fn windscreen_drops_top() -> Result<(), Refused> {
-    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if s == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
+    let m = crate::effects::setup::marks()?;
     HEX.buffer.set(WINDSCREEN_DROP_BATCH.records.addr());
-    frame_axes(s);
+    frame_axes(m);
     let w = &WINDSCREEN_DROP_WORK.axes;
     let (a0, a1, a2) = (&w[0..3], &w[3..6], &w[6..9]);
     normalise(a0);
-    frame_up(s);
+    frame_up(m);
     normalise(a1);
     cross(a1, a0, a2);
     normalise(a2);
     cross(a0, a2, a1);
-    frame_place(s);
+    frame_place(m);
     normalise(&HEX.place);
     frame_facing();
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
@@ -133,30 +132,30 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, ldi, st};
+use crate::effects::plain::{ld, st};
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn frame_axes_x87(hx: usize, s: usize, c: &MarksClock) {
+fn frame_axes_x87(hx: usize, m: &MarksSettings, c: &MarksClock) {
     let t0 = ld(hx, 0xC932A);
     let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
     st(hx, 0xB12EA, t1);
-    let t2 = ldi(s, 0x2738);
+    let t2 = ldi_cell(&m.listener_switch_0);
     let t3 = t2 * ld(hx, 0xC932E);
     WINDSCREEN_DROP_STATE.rate.set_bits(bh::st(t3));
-    let t4 = ldi(s, 0x2720);
-    let t5 = ldi(s, 0x2724);
-    let t6 = ldi(s, 0x2728);
+    let t4 = ldi_cell(&m.listener_point_b_negated[0]);
+    let t5 = ldi_cell(&m.listener_point_b_negated[1]);
+    let t6 = ldi_cell(&m.listener_point_b_negated[2]);
     WINDSCREEN_DROP_WORK.place[2].set_bits(bh::st(t6));
     WINDSCREEN_DROP_WORK.place[1].set_bits(bh::st(t5));
     WINDSCREEN_DROP_WORK.place[0].set_bits(bh::st(t4));
-    let t7 = ldi(s, 0x272C);
-    let t8 = t7 - ldi(s, 0x2720);
+    let t7 = ldi_cell(&m.listener_point_b[0]);
+    let t8 = t7 - ldi_cell(&m.listener_point_b_negated[0]);
     WINDSCREEN_DROP_WORK.axes[0].set_bits(bh::st(t8));
-    let t9 = ldi(s, 0x2730);
-    let t10 = t9 - ldi(s, 0x2724);
+    let t9 = ldi_cell(&m.listener_point_b[1]);
+    let t10 = t9 - ldi_cell(&m.listener_point_b_negated[1]);
     WINDSCREEN_DROP_WORK.axes[1].set_bits(bh::st(t10));
-    let t11 = ldi(s, 0x2734);
-    let t12 = t11 - ldi(s, 0x2728);
+    let t11 = ldi_cell(&m.listener_point_b[2]);
+    let t12 = t11 - ldi_cell(&m.listener_point_b_negated[2]);
     WINDSCREEN_DROP_WORK.axes[2].set_bits(bh::st(t12));
     let t13 = bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
     let t14 = t13 * t13;
@@ -172,15 +171,15 @@ fn frame_axes_x87(hx: usize, s: usize, c: &MarksClock) {
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn frame_up_x87(hx: usize, s: usize) {
-    let t0 = ldi(s, 0x2708);
-    let t1 = t0 - ldi(s, 0x2720);
+fn frame_up_x87(hx: usize, m: &MarksSettings) {
+    let t0 = ldi_cell(&m.listener_point_a_negated[0]);
+    let t1 = t0 - ldi_cell(&m.listener_point_b_negated[0]);
     WINDSCREEN_DROP_WORK.axes[3].set_bits(bh::st(t1));
-    let t2 = ldi(s, 0x270C);
-    let t3 = t2 - ldi(s, 0x2724);
+    let t2 = ldi_cell(&m.listener_point_a_negated[1]);
+    let t3 = t2 - ldi_cell(&m.listener_point_b_negated[1]);
     WINDSCREEN_DROP_WORK.axes[4].set_bits(bh::st(t3));
-    let t4 = ldi(s, 0x2710);
-    let t5 = t4 - ldi(s, 0x2728);
+    let t4 = ldi_cell(&m.listener_point_a_negated[2]);
+    let t5 = t4 - ldi_cell(&m.listener_point_b_negated[2]);
     WINDSCREEN_DROP_WORK.axes[5].set_bits(bh::st(t5));
     let t6 = bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
     let t7 = t6 * t6;
@@ -196,12 +195,12 @@ fn frame_up_x87(hx: usize, s: usize) {
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn frame_place_x87(hx: usize, s: usize) {
-    let t0 = ldi(s, 0x2720);
+fn frame_place_x87(hx: usize, m: &MarksSettings) {
+    let t0 = ldi_cell(&m.listener_point_b_negated[0]);
     st(hx, 0xB1262, t0);
-    let t1 = ldi(s, 0x2724);
+    let t1 = ldi_cell(&m.listener_point_b_negated[1]);
     st(hx, 0xB1266, t1);
-    let t2 = ldi(s, 0x2728);
+    let t2 = ldi_cell(&m.listener_point_b_negated[2]);
     st(hx, 0xB126A, t2);
 }
 
@@ -390,6 +389,7 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
+    use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{
@@ -425,8 +425,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x2720,
-                    hi: 0x273C,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[
                         (0x2720, I32),
                         (0x2724, I32),
@@ -451,7 +451,11 @@ mod asm_differential {
                         overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
                         overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
                     ],
-                    || super::frame_axes_x87(b[0], b[1], crate::effects::setup::clock_at(b[0])),
+                    || {
+                        with_settings(b[1], |m| {
+                            super::frame_axes_x87(b[0], m, crate::effects::setup::clock_at(b[0]));
+                        });
+                    },
                 );
             },
         );
@@ -478,8 +482,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x2708,
-                    hi: 0x272C,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[
                         (0x2708, I32),
                         (0x270C, I32),
@@ -500,7 +504,7 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
-                    || super::frame_up_x87(b[0], b[1]),
+                    || with_settings(b[1], |m| super::frame_up_x87(b[0], m)),
                 );
             },
         );
@@ -517,8 +521,8 @@ mod asm_differential {
                     writes: &[(0xB1262, F32), (0xB1266, F32), (0xB126A, F32)],
                 },
                 Op::Base {
-                    lo: 0x2720,
-                    hi: 0x272C,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[(0x2720, I32), (0x2724, I32), (0x2728, I32)],
                     writes: &[],
                 },
@@ -528,7 +532,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::frame_place_x87(b[0], b[1]),
-            |b| super::frame_place_x87(b[0], b[1]),
+            |b| with_settings(b[1], |m| super::frame_place_x87(b[0], m)),
         );
     }
 

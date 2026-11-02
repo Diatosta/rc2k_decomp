@@ -16,16 +16,18 @@ use crate::effects::run_frame::FRAME_K;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
-use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::session::Dword;
-/// (the settings' field, the copy).
-static COPIES: [(u32, &Dword); 3] = [
-    (0x50, &MARKS_KIND_FLOATS.fading),
-    (0x4C, &MARKS_KIND_FLOATS.other),
-    (0x10, &MARKS_KIND_FLOATS.running),
-];
+/// (the settings' field, the copy): +0x50, +0x4C and +0x10.
+fn copies(marks: &MarksSettings) -> [(&Dword, &Dword); 3] {
+    [
+        (&marks.listener_near, &MARKS_KIND_FLOATS.fading),
+        (&marks.after_loading_copy, &MARKS_KIND_FLOATS.other),
+        (&marks.other_marks_shown, &MARKS_KIND_FLOATS.running),
+    ]
+}
 
 fn rdtsc() -> (u32, u32) {
     let t = crate::arch::rdtsc();
@@ -34,10 +36,6 @@ fn rdtsc() -> (u32, u32) {
 
 /// The Rust version (see the header).
 pub fn frame_marks() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if settings == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
     let marks = crate::effects::setup::marks()?;
     {
         let (start, _) = rdtsc();
@@ -45,8 +43,8 @@ pub fn frame_marks() -> Result<(), Refused> {
         let last: u32 = MARKS_FRAME.last_count.bits();
         MARKS_FRAME.last_count.set_bits(now);
         MARKS_FRAME.frame_cycles.set_bits(now.wrapping_sub(last));
-        for &(from, to) in &COPIES {
-            to.set(GamePtr::new(settings + from).read::<u32>("a mark's field")?);
+        for (from, to) in copies(marks) {
+            to.set(from.get());
         }
         CLOCK.settings_copies[0].set(marks.unknown_67c[1].get());
         scale_vectors_by::scale_vectors_by();

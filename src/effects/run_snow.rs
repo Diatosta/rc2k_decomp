@@ -21,10 +21,9 @@
 //! over the game's variables. Refuses null settings, before anything.
 
 use crate::effects::snow::{SNOW, SNOW_LIGHT, SnowLight};
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -33,10 +32,6 @@ const MOST: i32 = 0x800;
 use crate::d3d::vertices_store::VERTICES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
 fn turn_light() {
@@ -48,16 +43,10 @@ pub fn run_snow() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&SNOW, &SNOW_LIGHT);
     {
-        let settings: u32 = SETTINGS.pointer.get();
-        if settings == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
         turn_light();
         crate::effects::make_fade_colours::make_fade_colours();
-        let settings: u32 = SETTINGS.pointer.get();
-        let marks = crate::effects::setup::marks()?;
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -69,10 +58,10 @@ pub fn run_snow() -> Result<(), Refused> {
             s.flakes.set(flakes as u32);
         }
         for n in 0..9 {
-            s.view_matrix[n].set_bits(get(settings + 0x28 + 4 * n as u32)?);
+            s.view_matrix[n].set_bits(marks.listener_turn[n].bits());
         }
         for n in 0..3 {
-            s.view_place[n].set(get(settings + 0x1C + 4 * n as u32)?);
+            s.view_place[n].set(marks.listener_place[n].get());
         }
         crate::effects::place_view_2::place_view_2()?;
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
@@ -123,7 +112,6 @@ pub fn run_snow() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 use crate::race::matrices_store::MATRICES;

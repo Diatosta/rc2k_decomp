@@ -89,6 +89,15 @@ pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
     }
 }
 
+/// Runs `f` on the marks' settings record at the test address `base` (an operand with
+/// `lo: 0, hi: 0x2768`), as `with_copy`.
+pub fn with_settings<R>(
+    base: usize,
+    f: impl FnOnce(&crate::race::marks_settings_store::MarksSettings) -> R,
+) -> R {
+    with_copy(base, START, f)
+}
+
 struct Rng(u64);
 impl Rng {
     fn next(&mut self) -> u64 {

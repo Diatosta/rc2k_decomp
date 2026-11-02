@@ -21,6 +21,7 @@
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::kind_store::{QUAD_3, QuadWork};
+use crate::effects::plain::ldi_cell;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
 use crate::effects::windscreen_drop_vars::HEX;
@@ -28,6 +29,7 @@ use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_TABLES;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -77,9 +79,9 @@ impl PlaneTuning {
 }
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.
-fn plane_axes(s: u32) {
+fn plane_axes(m: &MarksSettings) {
     plane_axes_x87(
-        s as usize,
+        m,
         &WINDSCREEN_FLAKE_TIMING,
         &WINDSCREEN_FLAKE_TABLES,
         &PLANE_TUNING,
@@ -87,15 +89,15 @@ fn plane_axes(s: u32) {
 }
 
 /// The original's 0x4C900D .. 0x4C906D: the second axis (`flt_89CF26` ..), its length over `flt_934F38` into `flt_89CEF2`.
-fn plane_up(s: u32) {
-    plane_up_x87(s as usize, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING);
+fn plane_up(m: &MarksSettings) {
+    plane_up_x87(m, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING);
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
-fn plane_place(s: u32) {
+fn plane_place(m: &MarksSettings) {
     plane_place_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
     );
 }
 
@@ -120,21 +122,18 @@ fn plane_projected() {
 /// The Rust version (see the header).
 pub fn draw_plane() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    let s: u32 = SETTINGS.pointer.get();
-    if s == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
+    let m = crate::effects::setup::marks()?;
     let corner: u32 = QUAD_3.corner.get();
-    plane_axes(s);
+    plane_axes(m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &WINDSCREEN_FLAKE_TABLES.axes[n]);
     normalise(a0);
-    plane_up(s);
+    plane_up(m);
     normalise(a1);
     cross(a1, a0, a2);
     normalise(a2);
     cross(a0, a2, a1);
     crate::effects::scale_axes::scale_axes();
-    plane_place(s);
+    plane_place(m);
     normalise(&HEX.place);
     plane_facing();
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
@@ -204,8 +203,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, ldi, st};
-use crate::effects::setup::SETTINGS;
+use crate::effects::plain::{ld, st};
 use crate::effects::windscreen_flakes_store::{
     WINDSCREEN_FLAKE_TIMING, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
@@ -214,28 +212,28 @@ use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
 fn plane_axes_x87(
-    s: usize,
+    m: &MarksSettings,
     sti: &WindscreenFlakeTiming,
     sq: &WindscreenFlakeTables,
     pt: &PlaneTuning,
 ) {
-    let t0 = ldi(s, 0x2740);
+    let t0 = ldi_cell(&m.listener_switch_3);
     let t1 = t0 * bh::ld(pt.rate_k.bits());
     sti.rate.set_bits(bh::st(t1));
-    let t2 = ldi(s, 0x2720);
-    let t3 = ldi(s, 0x2724);
-    let t4 = ldi(s, 0x2728);
+    let t2 = ldi_cell(&m.listener_point_b_negated[0]);
+    let t3 = ldi_cell(&m.listener_point_b_negated[1]);
+    let t4 = ldi_cell(&m.listener_point_b_negated[2]);
     sq.place[2].set_bits(bh::st(t4));
     sq.place[1].set_bits(bh::st(t3));
     sq.place[0].set_bits(bh::st(t2));
-    let t5 = ldi(s, 0x272C);
-    let t6 = t5 - ldi(s, 0x2720);
+    let t5 = ldi_cell(&m.listener_point_b[0]);
+    let t6 = t5 - ldi_cell(&m.listener_point_b_negated[0]);
     sq.axes[0][0].set_bits(bh::st(t6));
-    let t7 = ldi(s, 0x2730);
-    let t8 = t7 - ldi(s, 0x2724);
+    let t7 = ldi_cell(&m.listener_point_b[1]);
+    let t8 = t7 - ldi_cell(&m.listener_point_b_negated[1]);
     sq.axes[0][1].set_bits(bh::st(t8));
-    let t9 = ldi(s, 0x2734);
-    let t10 = t9 - ldi(s, 0x2728);
+    let t9 = ldi_cell(&m.listener_point_b[2]);
+    let t10 = t9 - ldi_cell(&m.listener_point_b_negated[2]);
     sq.axes[0][2].set_bits(bh::st(t10));
     let t11 = bh::ld(sq.axes[0][0].bits());
     let t12 = t11 * t11;
@@ -251,15 +249,15 @@ fn plane_axes_x87(
 }
 
 /// `plane_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn plane_up_x87(s: usize, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
-    let t0 = ldi(s, 0x2708);
-    let t1 = t0 - ldi(s, 0x2720);
+fn plane_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
+    let t0 = ldi_cell(&m.listener_point_a_negated[0]);
+    let t1 = t0 - ldi_cell(&m.listener_point_b_negated[0]);
     sq.axes[1][0].set_bits(bh::st(t1));
-    let t2 = ldi(s, 0x270C);
-    let t3 = t2 - ldi(s, 0x2724);
+    let t2 = ldi_cell(&m.listener_point_a_negated[1]);
+    let t3 = t2 - ldi_cell(&m.listener_point_b_negated[1]);
     sq.axes[1][1].set_bits(bh::st(t3));
-    let t4 = ldi(s, 0x2710);
-    let t5 = t4 - ldi(s, 0x2728);
+    let t4 = ldi_cell(&m.listener_point_a_negated[2]);
+    let t5 = t4 - ldi_cell(&m.listener_point_b_negated[2]);
     sq.axes[1][2].set_bits(bh::st(t5));
     let t6 = bh::ld(sq.axes[1][0].bits());
     let t7 = t6 * t6;
@@ -275,12 +273,12 @@ fn plane_up_x87(s: usize, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
 }
 
 /// `plane_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn plane_place_x87(hx: usize, s: usize) {
-    let t0 = ldi(s, 0x2720);
+fn plane_place_x87(hx: usize, m: &MarksSettings) {
+    let t0 = ldi_cell(&m.listener_point_b_negated[0]);
     st(hx, 0xB1262, t0);
-    let t1 = ldi(s, 0x2724);
+    let t1 = ldi_cell(&m.listener_point_b_negated[1]);
     st(hx, 0xB1266, t1);
-    let t2 = ldi(s, 0x2728);
+    let t2 = ldi_cell(&m.listener_point_b_negated[2]);
     st(hx, 0xB126A, t2);
 }
 
@@ -613,6 +611,7 @@ mod asm_differential {
     use super::{PlaneTuning, QuadWork};
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
+    use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
@@ -644,8 +643,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x2720,
-                    hi: 0x2744,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[
                         (0x2720, I32),
                         (0x2724, I32),
@@ -670,7 +669,7 @@ mod asm_differential {
                         WindscreenFlakeTables::START,
                         |sq| {
                             with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                                super::plane_axes_x87(b[1], sti, sq, pt);
+                                with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
                             });
                         },
                     );
@@ -700,8 +699,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x2708,
-                    hi: 0x272C,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[
                         (0x2708, I32),
                         (0x270C, I32),
@@ -721,7 +720,7 @@ mod asm_differential {
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                     with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
-                        super::plane_up_x87(b[1], sq, pt);
+                        with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
                     });
                 });
             },
@@ -739,8 +738,8 @@ mod asm_differential {
                     writes: &[(0xB1262, F32), (0xB1266, F32), (0xB126A, F32)],
                 },
                 Op::Base {
-                    lo: 0x2720,
-                    hi: 0x272C,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[(0x2720, I32), (0x2724, I32), (0x2728, I32)],
                     writes: &[],
                 },
@@ -750,7 +749,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::plane_place_x87(b[0], b[1]),
-            |b| super::plane_place_x87(b[0], b[1]),
+            |b| with_settings(b[1], |m| super::plane_place_x87(b[0], m)),
         );
     }
 

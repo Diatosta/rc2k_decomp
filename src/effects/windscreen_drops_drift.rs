@@ -16,18 +16,20 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
+use crate::effects::plain::ld_cell;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::windscreen_drop_vars::HEX;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
-fn view_moved(s: u32) {
+fn view_moved(m: &MarksSettings) {
     view_moved_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
         &CLOCK,
     );
 }
@@ -53,20 +55,17 @@ fn drift_back(m: u32, t: u32, l: u32) {
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-fn move_kept(s: u32) {
+fn move_kept(m: &MarksSettings) {
     move_kept_x87(
         crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        s as usize,
+        m,
         &CLOCK,
     );
 }
 
 /// The Rust version (see the header).
 pub fn windscreen_drops_drift() -> Result<(), Refused> {
-    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if s == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
+    let m = crate::effects::setup::marks()?;
     let marks = crate::effects::setup::marks()?;
     for n in 0..3 {
         SHAPE_TILT.point[n].set_bits(0);
@@ -77,7 +76,7 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
         let second: u32 = HEX.moved.get();
         HEX.moved.set(1);
         if second != 0 {
-            view_moved(s);
+            view_moved(m);
             let view = &MATRICES.view_place;
             for col in 0..3usize {
                 let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
@@ -98,7 +97,7 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
             turn_matrix3(Axis::X, &HEX.turn, extended(HEX.angle.bits()))?;
             drift_back(turn, t, l);
         }
-        move_kept(s);
+        move_kept(m);
     }
     for (k, v) in [
         marks.listener_car_place[0].bits(),
@@ -117,14 +116,14 @@ use crate::effects::plain::{ld, ld80, st, st80};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn view_moved_x87(hx: usize, s: usize, c: &MarksClock) {
-    let t0 = ld(s, 0x26AC);
+fn view_moved_x87(hx: usize, m: &MarksSettings, c: &MarksClock) {
+    let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld(hx, 0xB1296);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
-    let t3 = ld(s, 0x26B0);
+    let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld(hx, 0xB129A);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
-    let t6 = ld(s, 0x26B4);
+    let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld(hx, 0xB129E);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
     st(hx, 0xB12B6, t8);
@@ -219,14 +218,14 @@ fn drift_back_x87(hx: usize, m: usize, t: usize, l: usize) {
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_kept_x87(hx: usize, s: usize, c: &MarksClock) {
-    let t0 = ld(s, 0x26AC);
+fn move_kept_x87(hx: usize, m: &MarksSettings, c: &MarksClock) {
+    let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld(hx, 0xB1296);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
-    let t3 = ld(s, 0x26B0);
+    let t3 = ld_cell(&m.listener_car_place[1]);
     let t4 = t3 - ld(hx, 0xB129A);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
-    let t6 = ld(s, 0x26B4);
+    let t6 = ld_cell(&m.listener_car_place[2]);
     let t7 = t6 - ld(hx, 0xB129E);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
     st(hx, 0xB12AA, t8);
@@ -413,6 +412,7 @@ mod asm_reference {
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
+    use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
     use crate::effects::typed_sync::{overlay, with_overlays};
@@ -452,8 +452,8 @@ mod asm_differential {
                     ],
                 },
                 Op::Base {
-                    lo: 0x26AC,
-                    hi: 0x26B8,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[(0x26AC, F32), (0x26B0, F32), (0x26B4, F32)],
                     writes: &[],
                 },
@@ -463,7 +463,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::view_moved_x87(b[0], b[1]),
-            |b| super::view_moved_x87(b[0], b[1], crate::effects::setup::clock_at(b[0])),
+            |b| {
+                with_settings(b[1], |m| {
+                    super::view_moved_x87(b[0], m, crate::effects::setup::clock_at(b[0]));
+                });
+            },
         );
     }
 
@@ -585,8 +589,8 @@ mod asm_differential {
                     writes: &[(0xB12A2, F32), (0xB12A6, F32), (0xB12AA, F32)],
                 },
                 Op::Base {
-                    lo: 0x26AC,
-                    hi: 0x26B8,
+                    lo: 0,
+                    hi: 0x2768,
                     reads: &[(0x26AC, F32), (0x26B0, F32), (0x26B4, F32)],
                     writes: &[],
                 },
@@ -596,7 +600,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::move_kept_x87(b[0], b[1]),
-            |b| super::move_kept_x87(b[0], b[1], crate::effects::setup::clock_at(b[0])),
+            |b| {
+                with_settings(b[1], |m| {
+                    super::move_kept_x87(b[0], m, crate::effects::setup::clock_at(b[0]));
+                });
+            },
         );
     }
 }

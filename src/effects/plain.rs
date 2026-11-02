@@ -12,6 +12,16 @@ pub(crate) fn ld(base: usize, off: usize) -> X {
     ))
 }
 
+/// `fld dword ptr` of a float cell (a typed record's field).
+pub(crate) fn ld_cell(cell: &crate::session::Float) -> X {
+    bh::ld(cell.bits())
+}
+
+/// `fild dword ptr` of a dword cell (a typed record's field).
+pub(crate) fn ldi_cell(cell: &crate::session::Dword) -> X {
+    bh::int(cell.get() as i32)
+}
+
 /// `fild dword ptr [base + off]`.
 pub(crate) fn ldi(base: usize, off: usize) -> X {
     bh::int(crate::pointers::read_or_end::<i32>(
