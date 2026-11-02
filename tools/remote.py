@@ -9,7 +9,8 @@
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place
-    remote.py pilot seconds              drives along the stage line, printing a trace
+    remote.py pilot seconds              the game's computer driver drives the player's car, with a trace
+    remote.py drive on|off               the game's computer driver at the player's wheel, or not
     remote.py log [n]                    the game's log, last n lines
     remote.py stop                       quits, then ends it
 
@@ -190,63 +191,26 @@ def stop():
 
 
 def pilot(seconds):
-    """Holds the stage line: heading from the car's matrix, Right turns it up, Left down."""
-    held = set()
-
-    def hold(key, wanted):
-        if wanted != (key in held):
-            ask(('down ' if wanted else 'up ') + key)
-            (held.add if wanted else held.discard)(key)
-
+    """The game's own computer driver at the player's car's wheel (`drive on`: the physics as
+    for the player, only the controls the computer's), a trace every two seconds."""
+    ask('drive on')
     end = time.time() + seconds
-    count = 0
-    still = time.time() + 5
-    backing = 0
+    raced = False  # a race seen: until then the stage may still be loading
     try:
         while time.time() < end:
             if os.environ.get('RC2K_PILOT_TIME'):  # keeps the arcade's countdown up
                 ask('time ' + os.environ['RC2K_PILOT_TIME'])
             fields = dict(f.split('=', 1) for f in ask('state').split() if '=' in f)
-            if 'race' not in fields:
-                continue
-            if fields['race'] != '1':
-                print('race over', fields)
+            raced = raced or fields.get('race') == '1'
+            if raced and fields.get('race') not in (None, '1'):
+                print('race over', fields.get('time'), 'splits', fields.get('splits'), flush=True)
                 break
-            if 'speed' not in fields:  # a state read while the game was busy
-                time.sleep(0.1)
-                continue
-            speed = float(fields['speed'])
-            x, y = map(float, fields['map'].split(','))
-            tx, ty = map(float, fields['target' if speed > 10 else 'near'].split(','))
-            matrix = [float(v) for v in fields['matrix'].split(',')]
-            heading = math.atan2(-matrix[10], matrix[8])
-            error = math.atan2(ty - y, tx - x) - heading
-            error = (error + math.pi) % (2 * math.pi) - math.pi
-            # Stuck: back out, wheels the other way.
-            now = time.time()
-            if speed >= 3:
-                still = now
-            if now - still > 2.5:
-                backing = now + 2.5
-                still = backing + 2.5
-            if now < backing:
-                hold('Up', False)
-                hold('Down', True)
-                hold('Right', error < 0)
-                hold('Left', error > 0)
-                continue
-            hold('Right', error > 0.06)
-            hold('Left', error < -0.06)
-            braking = abs(error) > 0.35 and speed > 12
-            hold('Down', braking)
-            hold('Up', not braking)
-            count += 1
-            if count % 120 == 0:
-                print(fields['time'], 'cp', fields['checkpoint'], 'speed', speed,
-                      'splits', fields['splits'], 'error', round(error, 2), flush=True)
+            if 'speed' in fields:
+                print(fields['time'], 'cp', fields['checkpoint'], 'of', fields.get('checkpoints'), 'speed', fields['speed'], 'finished', fields.get('finished'),
+                      'splits', fields['splits'], flush=True)
+            time.sleep(2)
     finally:
-        for key in list(held):
-            hold(key, False)
+        ask('drive off')
 
 
 def log(lines):
@@ -272,6 +236,8 @@ def main():
         shot(rest[0])
     elif command == 'pilot':
         pilot(float(rest[0]))
+    elif command == 'drive' and rest in (['on'], ['off']):
+        print(ask('drive ' + rest[0]))
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
     elif command in ('key', 'down', 'up', 'pad', 'state', 'time'):

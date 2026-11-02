@@ -34,6 +34,11 @@ use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, r
 
 /// Does a computer drive this step?
 fn computer() -> bool {
+    // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
+    #[cfg(feature = "remote")]
+    if crate::remote::autodrive() && RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
+        return true;
+    }
     computer_drives(
         RACE_WORK.in_credits.get(),
         || RACE_VARS.run_kind.get(),
@@ -94,6 +99,12 @@ pub fn read_car_controls() -> Result<(), Refused> {
     RACE_WORK
         .driver_start_blend
         .set_bits(x87::loaded(CAR.start_blend.bits()));
+    // A test's switch (`tools/remote.py pilot`): a player's car has no computer's skill
+    // (its blend near 0 holds the wanted speed down), so it drives at the full blend.
+    #[cfg(feature = "remote")]
+    if crate::remote::autodrive() && RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
+        RACE_WORK.driver_start_blend.set_bits(1.0f32.to_bits());
+    }
     drive_computer_car()?;
     let (ph, w) = (&PHYSICS, &RACE_WORK);
     for (to, from) in [
@@ -105,6 +116,20 @@ pub fn read_car_controls() -> Result<(), Refused> {
         (&ph.input_gear_down, &w.driver_flags[2]),
     ] {
         to.set(from.get());
+    }
+    // A test's switch (`tools/remote.py pilot`): a stalled car reset as a player would,
+    // with the reset key.
+    #[cfg(feature = "remote")]
+    if crate::remote::autodrive() && RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
+        let keys = crate::remote::autodrive_keys(CAR.checkpoint.get());
+        if keys != 0 {
+            // Off the throttle and on the brake while the key is held, as a player would:
+            // the reset needs the car slow throughout.
+            PHYSICS.input_throttle.set(0);
+            PHYSICS.input_brake.set(0x100);
+            PHYSICS.input_steer.set(0);
+        }
+        CAR.input_keys.set(CAR.input_keys.get() | keys);
     }
     Ok(())
 }

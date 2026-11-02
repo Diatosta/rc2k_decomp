@@ -7,17 +7,39 @@ cd "$(dirname "$0")/.." || exit 1
 rally=0 stage=0
 [[ $1 =~ ^[0-9]+$ ]] && rally=$1 && shift
 [[ $1 =~ ^[0-9]+$ ]] && stage=$1 && shift
+# Each step waits for the screen it needs (the handheld draws its menus slower than the PC).
 press() {
     for _ in $(seq "$2"); do
         python3 tools/remote.py key "$1" 100 >/dev/null
         sleep "$3"
     done
 }
+# Until `remote.py state` shows $1 (a pattern) on a screen that has drawn 20 frames (so it
+# takes keys), pressing $2 each $3 s until it is there; at most 40 tries.
+until_state() {
+    for _ in $(seq 40); do
+        state=$(python3 tools/remote.py state)
+        drawn=$(grep -o 'screen_frames=[0-9]*' <<<"$state" | cut -d= -f2)
+        if grep -q -- "$1" <<<"$state"; then
+            # There: no more keys, only until it has drawn enough.
+            [ "${drawn:-0}" -ge 20 ] && return 0
+            sleep 0.5
+            continue
+        fi
+        [ -n "$2" ] && python3 tools/remote.py key "$2" 100 >/dev/null
+        sleep "$3"
+    done
+    echo "remote_to_race: \"$1\" not reached" >&2
+    exit 1
+}
 python3 tools/remote.py start "$@"
-sleep 9
-press Return 6 3
-press Right "$rally" 1.2
-press Down 1 1
-press Right "$stage" 1.2
-press Return 1 16
+# Through the title, the main menu and the single rally's pages to the stage screen (menu 1,
+# the rally row item 2).
+until_state 'menu=None' '' 1
+until_state 'menu=Some(MenuId(1)) item=2' Return 3
+press Right "$rally" 1.5
+until_state 'item=3' Down 1.5
+press Right "$stage" 1.5
+python3 tools/remote.py key Return 100 >/dev/null
+until_state 'race=1' '' 2
 python3 tools/remote.py state

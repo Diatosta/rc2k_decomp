@@ -137,8 +137,9 @@ fn state() -> String {
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
     let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
     format!(
-        "frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} matrix={}",
+        "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
+        screen_frames(),
         crate::race::numbers_store::NUMBERS.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
         LOOP_FLAGS.item.get(),
@@ -146,6 +147,9 @@ fn state() -> String {
         CAR.speed.get(),
         CAR.stage_time.get(),
         CAR.splits_passed.get(),
+        CAR.finish_flag.get(),
+        CAR.stuck_count.get(),
+        crate::race::vars_store::RACE_VARS.checkpoint_count.get(),
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
@@ -156,12 +160,75 @@ fn state() -> String {
         crate::audio::store::AUDIO.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
+        CAR.gear.get() as i32,
+        CAR.gearbox_kind.get(),
+        CAR.driver_kind.get(),
+        crate::physics::tables_store::PHYSICS.input_steer.get() as i32,
+        crate::physics::tables_store::PHYSICS.input_throttle.get(),
+        crate::physics::tables_store::PHYSICS.input_brake.get(),
+        crate::physics::tables_store::PHYSICS.input_handbrake.get(),
+        crate::physics::tables_store::PHYSICS.input_gear_up.get(),
+        crate::physics::tables_store::PHYSICS.input_gear_down.get(),
         CAR.crash_matrix[..12]
             .iter()
             .map(|cell| format!("{:.2}", cell.get()))
             .collect::<Vec<_>>()
             .join(","),
     )
+}
+
+/// Whether the computer drives the players' cars (`drive on`).
+static AUTODRIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether the computer drives the players' cars, as it drives its own
+/// (`drive::read_car_controls`).
+pub fn autodrive() -> bool {
+    AUTODRIVE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The steps without a new checkpoint after which the computer at a player's wheel asks
+/// for the reset (about 10 s), and how long it holds the reset key (the game resets after
+/// 100 steps held while slow, `drive::reset_request`).
+const STALLED_STEPS: u32 = 1000;
+const RESET_HELD_STEPS: u32 = 150;
+
+/// The computer's progress at a player's wheel: the furthest checkpoint, the steps since
+/// it, the steps the reset key is still held.
+static PROGRESS: std::sync::Mutex<(u32, u32, u32)> = std::sync::Mutex::new((0, 0, 0));
+
+/// The keys the computer at a player's wheel adds this step, the car at `checkpoint`: the
+/// reset key (`RESET_KEY`) while it holds it, after `STALLED_STEPS` without progress (the
+/// computer's own reversing does not always free a car, and its fourth switch, which
+/// would ask for more, is read by nothing).
+pub fn autodrive_keys(checkpoint: u32) -> u32 {
+    let mut p = PROGRESS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (best, since, held) = &mut *p;
+    if checkpoint > *best || checkpoint + 50 < *best {
+        // On, or a new stage (the checkpoint far behind).
+        (*best, *since) = (checkpoint, 0);
+    } else {
+        *since += 1;
+    }
+    if *held > 0 {
+        *held -= 1;
+        if *held == 0 {
+            crate::framework::log(&format!(
+                "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
+                crate::physics::car_store::CAR.stage_time.get()
+            ));
+        }
+        return rc2k_core::drive::controls::RESET_KEY;
+    }
+    if *since >= STALLED_STEPS {
+        crate::framework::log(&format!(
+            "remote: stalled at checkpoint {checkpoint}: the reset key held"
+        ));
+        (*since, *held) = (0, RESET_HELD_STEPS);
+        return rc2k_core::drive::controls::RESET_KEY;
+    }
+    0
 }
 
 /// How many checkpoints ahead `state`'s target is.
@@ -205,6 +272,11 @@ fn run(line: &str) {
             return;
         }
         ("state", []) => Some(state()),
+        // The game's own computer driver at the player's car's wheel (`tools/remote.py pilot`).
+        ("drive", [switch @ ("on" | "off")]) => {
+            AUTODRIVE.store(*switch == "on", std::sync::atomic::Ordering::Relaxed);
+            Some("ok".to_string())
+        }
         ("quit", []) => {
             // SAFETY: as `key`.
             unsafe {
@@ -224,9 +296,44 @@ fn run(line: &str) {
     );
 }
 
+/// The screen now (the menu and the race flag) and the frame count when it began.
+static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, u32)> =
+    std::sync::Mutex::new((None, 0, 0));
+
+/// The screen's identity: its menu (none outside the menus) and the race flag.
+fn screen_now() -> (Option<crate::menu::menus_store::MenuId>, u32) {
+    let menu = crate::menu::loop_store::LOOP_FLAGS.menu.get().ok();
+    (menu, crate::race::numbers_store::NUMBERS.in_race.get())
+}
+
+/// A change of screen noted at its first frame.
+fn note_screen() {
+    let (menu, race) = screen_now();
+    let frames = crate::gfx::screen_state::DRAW_SURFACE.frames.get();
+    let mut s = SCREEN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if (s.0, s.1) != (menu, race) {
+        *s = (menu, race, frames);
+    }
+}
+
+/// The frames drawn since the screen (menu or race) changed: a test presses keys once its
+/// screen has drawn a few, not by waiting a fixed time.
+fn screen_frames() -> u32 {
+    let s = SCREEN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    crate::gfx::screen_state::DRAW_SURFACE
+        .frames
+        .get()
+        .wrapping_sub(s.2)
+}
+
 /// At each pump: the releases due, then the commands waiting.
 pub fn poll() {
     let Some(folder) = folder() else { return };
+    note_screen();
     let now = Instant::now();
     pending().releases.retain(|(when, release)| {
         if *when > now {
