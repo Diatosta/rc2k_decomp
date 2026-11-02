@@ -15,8 +15,6 @@
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
-#![allow(unsafe_code)]
-
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::session::Shared;
 
@@ -111,23 +109,23 @@ pub fn sample(number: u32) -> SampleRecord {
 pub struct GamePool;
 
 impl rc2k_core::audio::voices::Pool for GamePool {
-    fn voice(&mut self, at: u32) -> &mut Voice {
-        // SAFETY: as long as the answer lives this pool is borrowed, so the core holds one
-        // record at a time, and it holds none across a step's call (the steps copy records).
-        // The game's thread copies a voice's fixed figures while sounds are set up, as the
-        // original reads them with no lock.
-        unsafe { voice_place(at).borrow() }
+    fn voice(&self, at: u32) -> Voice {
+        voice_place(at).get()
     }
-    fn channel(&mut self, at: u32) -> &mut MixerChannel {
-        // SAFETY: as `voice`.
-        unsafe { channel_place(at).borrow() }
+    fn set_voice(&mut self, at: u32, v: Voice) {
+        voice_place(at).set(v);
+    }
+    fn channel(&self, at: u32) -> MixerChannel {
+        channel_place(at).get()
+    }
+    fn set_channel(&mut self, at: u32, c: MixerChannel) {
+        channel_place(at).set(c);
     }
     fn channel_at(&self, n: u32) -> u32 {
         n + 1
     }
-    fn record(&mut self, n: u32) -> &mut SampleRecord {
-        // SAFETY: as `voice`.
-        unsafe { sample_place(n).borrow() }
+    fn record(&self, n: u32) -> SampleRecord {
+        sample_place(n).get()
     }
 }
 

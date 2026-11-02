@@ -11,7 +11,8 @@
 
 use crate::Invalid;
 use crate::audio::voices::{
-    DIRTY_FREQUENCY, DIRTY_PAN, DIRTY_RESTART, DIRTY_VOLUME, Link, Lists, Pool, list,
+    DIRTY_FREQUENCY, DIRTY_PAN, DIRTY_RESTART, DIRTY_VOLUME, Link, Lists, MixerChannel, Pool,
+    Voice, list,
 };
 
 /// `g_soundMode`: the right channel's sign follows the voice's pan sign (surround).
@@ -20,8 +21,19 @@ pub const MODE_SURROUND: u32 = 0x200_0000;
 /// A voice's dirty bits carried out on its channel; `rate` the mixing rate (not 0 when the
 /// frequency is dirty).
 fn apply<P: Pool>(pool: &mut P, at: u32, rate: u32, mode: u32) {
-    let x = *pool.voice(at);
-    let c = pool.channel(x.channel);
+    let x = pool.voice(at);
+    let restart = x.dirty & DIRTY_RESTART != 0 || x.state != 2;
+    pool.update_channel(x.channel, |c| apply_to_channel(c, &x, rate, mode, restart));
+    pool.update_voice(at, |v| {
+        if restart {
+            v.state = 2;
+        }
+        v.dirty = 0;
+    });
+}
+
+/// `apply`'s changes to the voice's channel.
+fn apply_to_channel(c: &mut MixerChannel, x: &Voice, rate: u32, mode: u32, restart: bool) {
     if x.dirty & DIRTY_FREQUENCY != 0 {
         let f = x.frequency >> (x.format & 0xF);
         c.step = f / rate;
@@ -41,7 +53,6 @@ fn apply<P: Pool>(pool: &mut P, at: u32, rate: u32, mode: u32) {
         }
         c.right = right;
     }
-    let restart = x.dirty & DIRTY_RESTART != 0 || x.state != 2;
     if restart {
         c.position = 0;
         c.position_fraction = 0;
@@ -50,11 +61,6 @@ fn apply<P: Pool>(pool: &mut P, at: u32, rate: u32, mode: u32) {
         c.length = x.frames;
         c.kind = x.kind;
     }
-    let v = pool.voice(at);
-    if restart {
-        v.state = 2;
-    }
-    v.dirty = 0;
 }
 
 /// The playing list's voices that ended (not looping, channel no longer used) to the
@@ -73,16 +79,16 @@ fn playing_pass<P: Pool>(pool: &mut P, lists: &mut Lists, rate: u32, mode: u32, 
         if with_apply && pool.voice(at).dirty != 0 {
             apply(pool, at, rate, mode);
         }
-        let x = *pool.voice(at);
+        let x = pool.voice(at);
         if x.kind != 1 && pool.channel(x.channel).used != 1 {
-            pool.channel(x.channel).used = 0;
-            pool.voice(at).channel = 0;
+            pool.update_channel(x.channel, |c| c.used = 0);
+            pool.update_voice(at, |v| v.channel = 0);
             match link {
                 Link::Playing => lists.playing = x.next,
                 Link::Stopping => lists.stopping = x.next,
-                Link::After(v) => pool.voice(v).next = x.next,
+                Link::After(v) => pool.update_voice(v, |v| v.next = x.next),
             }
-            pool.voice(at).next = lists.stopping;
+            pool.update_voice(at, |v| v.next = lists.stopping);
             lists.stopping = at;
             lists.channels_used = lists.channels_used.wrapping_sub(1);
             continue;
@@ -102,7 +108,7 @@ pub fn before_mix<P: Pool>(
     mode: u32,
 ) -> Result<(), Invalid> {
     for at in list(pool, lists.playing)? {
-        let x = *pool.voice(at);
+        let x = pool.voice(at);
         if x.channel == 0 {
             return Err(Invalid("a playing voice without its channel"));
         }
@@ -123,16 +129,16 @@ pub fn before_mix<P: Pool>(
     let mut at = lists.stopping;
     lists.stopping = 0;
     while at != 0 {
-        let x = pool.voice(at);
-        x.dirty |= 0xF;
-        x.state = 0;
-        let channel = x.channel;
+        let channel = pool.update_voice(at, |x| {
+            x.dirty |= 0xF;
+            x.state = 0;
+            x.channel
+        });
         if channel != 0 {
-            pool.channel(channel).used = 0;
-            pool.voice(at).channel = 0;
+            pool.update_channel(channel, |c| c.used = 0);
+            pool.update_voice(at, |v| v.channel = 0);
         }
-        let next = pool.voice(at).next;
-        pool.voice(at).next = 0;
+        let next = pool.update_voice(at, |v| std::mem::replace(&mut v.next, 0));
         at = next;
     }
     Ok(())
@@ -161,17 +167,32 @@ mod tests {
         channels: Vec<MixerChannel>,
     }
 
-    impl Pool for Test {
-        fn voice(&mut self, at: u32) -> &mut Voice {
+    impl Test {
+        fn voice_mut(&mut self, at: u32) -> &mut Voice {
             &mut self.voices[((at - 0x1000) / 0x70) as usize]
         }
-        fn channel(&mut self, at: u32) -> &mut MixerChannel {
+        fn channel_mut(&mut self, at: u32) -> &mut MixerChannel {
             &mut self.channels[((at - 0x8000) / 0x58) as usize]
+        }
+    }
+
+    impl Pool for Test {
+        fn voice(&self, at: u32) -> Voice {
+            self.voices[((at - 0x1000) / 0x70) as usize]
+        }
+        fn set_voice(&mut self, at: u32, v: Voice) {
+            *self.voice_mut(at) = v;
+        }
+        fn channel(&self, at: u32) -> MixerChannel {
+            self.channels[((at - 0x8000) / 0x58) as usize]
+        }
+        fn set_channel(&mut self, at: u32, c: MixerChannel) {
+            *self.channel_mut(at) = c;
         }
         fn channel_at(&self, n: u32) -> u32 {
             0x8000 + 0x58 * n
         }
-        fn record(&mut self, _: u32) -> &mut SampleRecord {
+        fn record(&self, _: u32) -> SampleRecord {
             unreachable!()
         }
     }
@@ -190,7 +211,7 @@ mod tests {
             channels: vec![MixerChannel::default(); 4],
         };
         // 0 looping and dirty, 1 ended, 2 on the stopping list
-        *t.voice(v(0)) = Voice {
+        *t.voice_mut(v(0)) = Voice {
             kind: 1,
             channel: c(0),
             next: v(1),
@@ -203,18 +224,18 @@ mod tests {
             pan_sign: -1,
             ..Voice::default()
         };
-        t.channel(c(0)).used = 1;
-        *t.voice(v(1)) = Voice {
+        t.channel_mut(c(0)).used = 1;
+        *t.voice_mut(v(1)) = Voice {
             channel: c(1),
             state: 2,
             ..Voice::default()
         };
-        *t.voice(v(2)) = Voice {
+        *t.voice_mut(v(2)) = Voice {
             channel: c(2),
             state: 2,
             ..Voice::default()
         };
-        t.channel(c(2)).used = 1;
+        t.channel_mut(c(2)).used = 1;
         let mut l = Lists {
             playing: v(0),
             stopping: v(2),
@@ -223,7 +244,7 @@ mod tests {
         };
         before_mix(&mut t, &mut l, 22050, MODE_SURROUND).unwrap();
         assert_eq!((l.playing, l.stopping, l.channels_used), (v(0), 0, 1));
-        let ch = *t.channel(c(0));
+        let ch = t.channel(c(0));
         assert_eq!(
             (ch.step, ch.step_fraction, ch.left, ch.right),
             (1, 0, 0x1000, -0x800)
@@ -233,7 +254,7 @@ mod tests {
         assert_eq!((t.voice(v(2)).dirty, t.channel(c(2)).used), (0xF, 0));
         after_mix(&mut t, &mut l, 22050, 0).unwrap();
         assert_eq!(l.playing, v(0));
-        t.voice(v(0)).channel = 0;
+        t.voice_mut(v(0)).channel = 0;
         assert!(before_mix(&mut t, &mut l, 22050, 0).is_err());
     }
 }

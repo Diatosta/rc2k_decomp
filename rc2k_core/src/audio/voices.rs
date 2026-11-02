@@ -129,13 +129,36 @@ const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
 const _: () = assert!(std::mem::size_of::<Voice>() == 0x70);
 const _: () = assert!(std::mem::size_of::<MixerChannel>() == 0x58);
 
-/// Where voices, channels and records are, by handle.
+/// Where voices, channels and records are, by handle: read as copies, a change written back
+/// at once (`update_voice`, `update_channel`), so nothing holds a record between changes.
 pub trait Pool {
-    fn voice(&mut self, at: u32) -> &mut Voice;
-    fn channel(&mut self, at: u32) -> &mut MixerChannel;
+    /// Voice `at` as it is now.
+    fn voice(&self, at: u32) -> Voice;
+    /// Voice `at` replaced by `v`.
+    fn set_voice(&mut self, at: u32, v: Voice);
+    /// Channel `at` as it is now.
+    fn channel(&self, at: u32) -> MixerChannel;
+    /// Channel `at` replaced by `c`.
+    fn set_channel(&mut self, at: u32, c: MixerChannel);
     /// Channel `n`'s handle.
     fn channel_at(&self, n: u32) -> u32;
-    fn record(&mut self, n: u32) -> &mut SampleRecord;
+    /// Sample record `n` as it is now.
+    fn record(&self, n: u32) -> SampleRecord;
+
+    /// Voice `at` read, changed by `change` and written back; `change`'s answer.
+    fn update_voice<R>(&mut self, at: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
+        let mut v = self.voice(at);
+        let answer = change(&mut v);
+        self.set_voice(at, v);
+        answer
+    }
+
+    /// Channel `at` read, changed by `change` and written back.
+    fn update_channel(&mut self, at: u32, change: impl FnOnce(&mut MixerChannel)) {
+        let mut c = self.channel(at);
+        change(&mut c);
+        self.set_channel(at, c);
+    }
 }
 
 /// The lists' heads and the channels' counts (`g_playingVoices`, `g_stoppingVoices`,
@@ -168,7 +191,7 @@ fn set<P: Pool>(pool: &mut P, lists: &mut Lists, link: Link, value: u32) {
     match link {
         Link::Playing => lists.playing = value,
         Link::Stopping => lists.stopping = value,
-        Link::After(v) => pool.voice(v).next = value,
+        Link::After(v) => pool.update_voice(v, |v| v.next = value),
     }
 }
 
@@ -189,11 +212,11 @@ pub fn list<P: Pool>(pool: &mut P, head: u32) -> Result<Vec<u32>, Invalid> {
 /// The voice at `link` taken off its list to the stopping list's front, its channel freed.
 fn to_stopping<P: Pool>(pool: &mut P, lists: &mut Lists, link: Link, at: u32) {
     let channel = pool.voice(at).channel;
-    pool.channel(channel).used = 0;
-    pool.voice(at).channel = 0;
+    pool.update_channel(channel, |c| c.used = 0);
+    pool.update_voice(at, |v| v.channel = 0);
     let next = pool.voice(at).next;
     set(pool, lists, link, next);
-    pool.voice(at).next = lists.stopping;
+    pool.update_voice(at, |v| v.next = lists.stopping);
     lists.stopping = at;
 }
 
@@ -205,7 +228,7 @@ pub fn stop_all<P: Pool>(pool: &mut P, lists: &mut Lists) -> Result<(), Invalid>
     let Some(&last) = playing.last() else {
         return Ok(());
     };
-    pool.voice(last).next = lists.stopping;
+    pool.update_voice(last, |v| v.next = lists.stopping);
     lists.stopping = lists.playing;
     lists.playing = 0;
     lists.channels_used = 0;
@@ -216,10 +239,11 @@ pub fn stop_all<P: Pool>(pool: &mut P, lists: &mut Lists) -> Result<(), Invalid>
 pub fn clear_channels<P: Pool>(pool: &mut P) {
     for n in 0..CHANNELS_CLEARED {
         let at = pool.channel_at(n);
-        let c = pool.channel(at);
-        c.used = 0;
-        c.voice = 0;
-        c.gap_44 = [0; 5];
+        pool.update_channel(at, |c| {
+            c.used = 0;
+            c.voice = 0;
+            c.gap_44 = [0; 5];
+        });
     }
 }
 
@@ -366,8 +390,11 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Command) -> Resu
 /// play bit.
 fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Command, mode: u32) {
     let sound = pool.voice(at).sound;
-    let record = *pool.record(sound);
-    let v = pool.voice(at);
+    let record = pool.record(sound);
+    pool.update_voice(at, |v| change_voice(v, &record, cmd, mode));
+}
+
+fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Command, mode: u32) {
     let mut dirty = v.dirty;
     let or = |given: u32, default: u32| if given == DEFAULT { default } else { given };
     let volume = or(cmd[2], record.volume).min(0x40);
@@ -412,11 +439,11 @@ fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Command, mode: u32) {
 }
 
 fn start<P: Pool>(pool: &mut P, lists: &mut Lists, at: u32) {
-    pool.voice(at).next = lists.playing;
+    pool.update_voice(at, |v| v.next = lists.playing);
     lists.playing = at;
-    pool.voice(at).state = 1;
+    pool.update_voice(at, |v| v.state = 1);
     let channel = pool.voice(at).channel;
-    pool.channel(channel).voice = at;
+    pool.update_channel(channel, |c| c.voice = at);
 }
 
 /// Command 1: a sound started, changed or stopped. With a volume and a voice of kind 0
@@ -459,8 +486,8 @@ pub fn start_voice<P: Pool>(
             lists.channels_used = lists.channels_used.wrapping_sub(1);
         }
         Plan::FreeChannel { voice, channel } => {
-            pool.channel(channel).used = 1;
-            pool.voice(voice).channel = channel;
+            pool.update_channel(channel, |c| c.used = 1);
+            pool.update_voice(voice, |v| v.channel = channel);
             lists.channels_used = lists.channels_used.wrapping_add(1);
             start(pool, lists, voice);
             change(pool, voice, cmd, mode);
@@ -468,11 +495,11 @@ pub fn start_voice<P: Pool>(
         Plan::Steal { voice, victim } => {
             let v = get(pool, lists, victim);
             let channel = pool.voice(v).channel;
-            pool.voice(voice).channel = channel;
-            pool.voice(v).channel = 0;
+            pool.update_voice(voice, |x| x.channel = channel);
+            pool.update_voice(v, |x| x.channel = 0);
             let next = pool.voice(v).next;
             set(pool, lists, victim, next);
-            pool.voice(v).next = lists.stopping;
+            pool.update_voice(v, |x| x.next = lists.stopping);
             lists.stopping = v;
             start(pool, lists, voice);
             change(pool, voice, cmd, mode);
@@ -528,11 +555,11 @@ fn stopping_pass<P: Pool, E>(
         if pool.voice(at).state == 2 {
             step(Step::Stop(at))?;
         }
-        pool.voice(at).state = 0;
+        pool.update_voice(at, |v| v.state = 0);
         let channel = pool.voice(at).channel;
         if channel != 0 {
-            pool.channel(channel).used = 0;
-            pool.voice(at).channel = 0;
+            pool.update_channel(channel, |c| c.used = 0);
+            pool.update_voice(at, |v| v.channel = 0);
         }
         set(pool, lists, link, 0);
         link = Link::After(at);
@@ -546,7 +573,7 @@ fn apply<P: Pool, E>(
     room: &mut Room,
     step: &mut impl FnMut(Step) -> Result<bool, E>,
 ) -> Result<(), E> {
-    let x = *pool.voice(at);
+    let x = pool.voice(at);
     if x.buffer != 0 {
         if x.dirty & DIRTY_FREQUENCY != 0 {
             step(Step::Frequency(at))?;
@@ -565,11 +592,11 @@ fn apply<P: Pool, E>(
             step(Step::Rewind(at))?;
             if pool.voice(at).state != 2 {
                 step(Step::Play(at))?;
-                pool.voice(at).state = 2;
+                pool.update_voice(at, |v| v.state = 2);
             }
         }
     }
-    pool.voice(at).dirty = 0;
+    pool.update_voice(at, |v| v.dirty = 0);
     Ok(())
 }
 
@@ -592,7 +619,7 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     let playing = list(pool, lists.playing)?;
     let stopping = list(pool, lists.stopping)?;
     for &at in &playing {
-        let x = *pool.voice(at);
+        let x = pool.voice(at);
         if x.kind != 1 && (x.channel == 0 || x.buffer == 0) {
             return Err(Invalid("a playing voice without its channel or buffer").into());
         }
@@ -686,32 +713,48 @@ pub fn fill_voice<P: Pool>(
                 return Err(Invalid("a record's voices without their end"));
             }
         }
-        let s = *pool.voice(shared);
-        let v = pool.voice(at);
-        v.data = s.data;
-        v.length = s.length;
-        v.format = s.format;
-        v.frames = s.frames;
-        v.own_frequency = s.own_frequency;
-        v.source = shared;
+        let s = pool.voice(shared);
+        pool.update_voice(at, |v| {
+            v.data = s.data;
+            v.length = s.length;
+            v.format = s.format;
+            v.frames = s.frames;
+            v.own_frequency = s.own_frequency;
+            v.source = shared;
+        });
         if last != at {
-            pool.voice(last).next_copy = at;
+            pool.update_voice(last, |v| v.next_copy = at);
         }
-        let v = pool.voice(at);
-        v.next_copy = 0;
-        v.data_key = 0;
+        pool.update_voice(at, |v| {
+            v.next_copy = 0;
+            v.data_key = 0;
+        });
     } else {
-        let v = pool.voice(at);
-        v.data = file.data;
-        v.length = file.length;
-        v.format = file.format;
-        v.frames = file.frames;
-        v.own_frequency = file.rate;
-        v.source = 0;
-        v.next_copy = 0;
-        v.data_key = record.data_key;
+        pool.update_voice(at, |v| {
+            v.data = file.data;
+            v.length = file.length;
+            v.format = file.format;
+            v.frames = file.frames;
+            v.own_frequency = file.rate;
+            v.source = 0;
+            v.next_copy = 0;
+            v.data_key = record.data_key;
+        });
     }
-    let v = pool.voice(at);
+    // The record's level, asked only when it has one (it reads no voice).
+    let volume_factor = if record.volume_factor != 0 {
+        factor(record.volume_factor)
+    } else {
+        0x40
+    };
+    pool.update_voice(at, |v| {
+        set_from_record(v, record, own_buffers, volume_factor);
+    });
+    Ok(())
+}
+
+/// What `fill_voice` takes from the record, the voice made free.
+fn set_from_record(v: &mut Voice, record: &SampleRecord, own_buffers: bool, volume_factor: u32) {
     v.flags = if own_buffers { 1 } else { 2 };
     v.sound = record.number;
     v.kind = record.voice_kind;
@@ -727,16 +770,11 @@ pub fn fill_voice<P: Pool>(
     };
     v.place = record.place;
     v.min_distance = record.min_distance;
-    v.volume_factor = if record.volume_factor != 0 {
-        factor(record.volume_factor)
-    } else {
-        0x40
-    };
+    v.volume_factor = volume_factor;
     v.state = 0;
     v.dirty |= 0xF;
     v.channel = 0;
     v.next = 0;
-    Ok(())
 }
 
 /// `g_soundMode`'s bits a voice's own buffer is made by: 3D, 3D in hardware.
@@ -794,18 +832,33 @@ mod tests {
         records: Vec<SampleRecord>,
     }
 
-    impl Pool for Test {
-        fn voice(&mut self, at: u32) -> &mut Voice {
+    impl Test {
+        fn voice_mut(&mut self, at: u32) -> &mut Voice {
             &mut self.voices[((at - 0x1000) / 0x70) as usize]
         }
-        fn channel(&mut self, at: u32) -> &mut MixerChannel {
+        fn channel_mut(&mut self, at: u32) -> &mut MixerChannel {
             &mut self.channels[((at - 0x8000) / 0x58) as usize]
+        }
+    }
+
+    impl Pool for Test {
+        fn voice(&self, at: u32) -> Voice {
+            self.voices[((at - 0x1000) / 0x70) as usize]
+        }
+        fn set_voice(&mut self, at: u32, v: Voice) {
+            *self.voice_mut(at) = v;
+        }
+        fn channel(&self, at: u32) -> MixerChannel {
+            self.channels[((at - 0x8000) / 0x58) as usize]
+        }
+        fn set_channel(&mut self, at: u32, c: MixerChannel) {
+            *self.channel_mut(at) = c;
         }
         fn channel_at(&self, n: u32) -> u32 {
             0x8000 + 0x58 * n
         }
-        fn record(&mut self, n: u32) -> &mut SampleRecord {
-            &mut self.records[n as usize]
+        fn record(&self, n: u32) -> SampleRecord {
+            self.records[n as usize]
         }
     }
 
@@ -823,7 +876,7 @@ mod tests {
         for n in 0..4u32 {
             t.records[n as usize].first_voice = v(n);
             t.records[n as usize].volume = 0x20;
-            *t.voice(v(n)) = Voice {
+            *t.voice_mut(v(n)) = Voice {
                 flags: LOADED,
                 sound: n,
                 priority: n as i32,
@@ -854,8 +907,8 @@ mod tests {
         );
         assert!(start_voice(&mut t, &mut lists, 0, 0x1CD, &cmd(5)).is_err());
         // The turn: the stopping list emptied.
-        t.voice(v(3)).state = 2;
-        t.voice(v(3)).buffer = 9;
+        t.voice_mut(v(3)).state = 2;
+        t.voice_mut(v(3)).buffer = 9;
         let mut steps = Vec::new();
         update_buffers::<_, Invalid>(&mut t, &mut lists, 0, &mut Room::default(), |s| {
             steps.push(s);
@@ -866,7 +919,7 @@ mod tests {
         assert_eq!((lists.stopping, t.voice(v(3)).state), (0, 0));
         // stop_all.
         lists.playing = v(0);
-        t.voice(v(0)).next = v(2);
+        t.voice_mut(v(0)).next = v(2);
         lists.stopping = v(1);
         stop_all(&mut t, &mut lists).unwrap();
         assert_eq!(
@@ -907,7 +960,7 @@ mod tests {
             rate: 22050,
         };
         fill_voice(&mut t, v(0), &record, 0, &file, true, |_| 0x22).unwrap();
-        let first = *t.voice(v(0));
+        let first = t.voice(v(0));
         assert_eq!(
             (
                 first.data,
@@ -924,7 +977,7 @@ mod tests {
         );
         fill_voice(&mut t, v(1), &record, v(0), &file, false, |_| 0x22).unwrap();
         assert_eq!(t.voice(v(0)).next_copy, v(1));
-        let second = *t.voice(v(1));
+        let second = t.voice(v(1));
         assert_eq!((second.source, second.data_key, second.flags), (v(0), 0, 2));
         assert!(
             fill_voice(

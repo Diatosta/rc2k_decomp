@@ -474,14 +474,6 @@ impl<T> Shared<T> {
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.as_ptr())
     }
-
-    /// The record as the core's struct, to work on in place. The caller keeps the original's
-    /// discipline: no other borrow of it lives at the same time.
-    #[allow(clippy::mut_from_ref)]
-    pub unsafe fn borrow(&self) -> &mut T {
-        // SAFETY: the caller's promise (see above).
-        unsafe { &mut *self.0.get() }
-    }
 }
 
 const fn zeros<const N: usize>() -> [Dword; N] {

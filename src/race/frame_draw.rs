@@ -3,7 +3,6 @@
 
 use crate::audio::store::ENVIRONMENT;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::net::store::NET;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
@@ -52,7 +51,6 @@ use crate::session::MACHINE;
 use crate::session::SCREEN;
 use crate::sound::store::RACE_SOUNDS;
 use crate::sound::store::STAGE_SOUNDS;
-use crate::store::game_read;
 
 /// A dword at game address `a` (frame words and matrices).
 fn get(a: u32) -> Result<u32, BadInput> {
@@ -1681,7 +1679,6 @@ pub fn fog_table() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings();
     let noise = sample_noise(ENGINE_TABLES.noise_bytes.addr())?;
-    let _k = |a: usize| game_read::<u32>(rva(a));
     let fog = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -1879,7 +1876,6 @@ pub fn view_matrices() -> Result<(), BadInput> {
     }
     if view == 1 || view == 2 {
         use crate::math::x87_load::{below_or_unordered, eased_roll, product4_to_int};
-        let _k = |a: usize| game_read::<u32>(rva(a));
         let mut v = crate::math::x87::div(CAR.local_velocity[2].bits(), NUMBERS.ten.bits());
         if below_or_unordered(v, NUMBERS.zero.bits()) {
             v = NUMBERS.zero.bits();
@@ -2030,7 +2026,6 @@ pub fn draw_sky() -> Result<(), Refused> {
     {
         return Ok(());
     }
-    let _k = |a: usize| game_read::<u32>(rva(a));
     let angle = STAGE_PREFS
         .sun_turn
         .get()

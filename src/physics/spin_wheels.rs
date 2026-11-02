@@ -8,7 +8,6 @@
 //!
 //! Caller: `sub_43B635` (0x43B90A), every physics step.
 
-use crate::framework::{game_read, rva};
 use crate::math::x87_run::div_mul3_to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
@@ -26,7 +25,6 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 
 /// The Rust core on the variables' cells `v`: the last turn added.
 pub fn spin_at(v: &[&dyn Cell32]) -> u32 {
-    let _k = |x: usize| game_read::<u32>(rva(x));
     let (wheel, dt, k65536, scale) = (
         PHYSICS.wheel_spin_share.bits(),
         PHYSICS.step_time.bits(),
