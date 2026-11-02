@@ -1,8 +1,6 @@
 //! The stage's prefs buffer and the scene settings in it (IDA 0x608CB4 .. 0x60AD20): `g_stagePrefs`, the stage's `localdat` read in place (0x206C bytes): the texture kinds, slot kinds, the scene's colours and fog settings, the sun and sky, the face tables, lamp and picture lists, the grid reach, object tints, the draw-distance tables, the mud colour and the surface noise figures. `#[repr(C)]` with the image's layout, over the race block's bytes.
 //! Names are readings unless IDA's.
 
-#![allow(unsafe_code)]
-
 use crate::session::Dword;
 
 #[repr(C)]
@@ -145,9 +143,7 @@ pub static STAGE_PREFS: StagePrefs =
 impl StagePrefs {
     /// The piece as its dwords in order: the stage's `localdat` read in place.
     pub fn dwords(&self) -> &[Dword; (END - START) / 4] {
-        // SAFETY: `#[repr(C)]`, every field a `Dword` or an array of them (no padding:
-        // the size assert below), so the piece is that many `Dword`s in a row.
-        unsafe { &*std::ptr::from_ref::<Self>(self).cast() }
+        crate::pointers::dwords_in(self, 0)
     }
 }
 

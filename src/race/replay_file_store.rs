@@ -4,8 +4,6 @@
 //! ("RCIB", the seal, the block and frame counts, the (offset, size) per block). `#[repr(C)]` with
 //! the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
-#![allow(unsafe_code)]
-
 use crate::session::Dword;
 
 #[repr(C)]
@@ -78,14 +76,7 @@ impl ReplayFileBlock {
     /// The replay index ("RCIB", the seal, the counts, the places) as its dwords in order,
     /// read and written in place.
     pub fn index(&self) -> &[Dword; INDEX_DWORDS] {
-        // SAFETY: `#[repr(C)]` dwords from `index_magic` to the end of `block_places`, with
-        // no padding (all `Dword`s), inside `self`.
-        unsafe {
-            &*std::ptr::from_ref::<Self>(self)
-                .cast::<u8>()
-                .add(core::mem::offset_of!(Self, index_magic))
-                .cast()
-        }
+        crate::pointers::dwords_in(self, core::mem::offset_of!(Self, index_magic))
     }
 }
 

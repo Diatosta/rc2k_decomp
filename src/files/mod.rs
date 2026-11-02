@@ -1,4 +1,3 @@
-#![allow(unsafe_code)]
 pub mod append_directory;
 pub mod close_stream;
 pub mod copy_file;
@@ -256,8 +255,7 @@ pub mod state {
 
     /// g_localeDirectory.
     pub fn locale_directory() -> *mut u8 {
-        // SAFETY: 0x100 lies inside the directories' block.
-        unsafe { DIRECTORIES.ptr().cast::<u8>().add(0x100) }
+        DIRECTORIES.ptr().cast::<u8>().wrapping_add(0x100)
     }
 }
 

@@ -4,8 +4,6 @@
 //! The lists are the image's (`menu::draw_lists_store`, which share tails: a list may start
 //! inside another) and the menus' own (`dword_7594AA`, `menu::lists_store`).
 
-#![allow(unsafe_code)]
-
 use crate::errors::BadInput;
 use crate::menu::draw_lists_store::{DRAW_LISTS, DrawLists};
 use crate::menu::lists_store::MENU_LISTS;
@@ -24,9 +22,7 @@ pub enum FnList {
 fn draw_dwords() -> &'static [Dword] {
     const N: usize = size_of::<DrawLists>() / size_of::<Dword>();
     const _: () = assert!(size_of::<DrawLists>().is_multiple_of(size_of::<Dword>()));
-    // SAFETY: `DrawLists` is `#[repr(C)]` of `DrawList<N>`s, each `#[repr(C)]` of one
-    // `[Dword; N]`: dwords in a row, no padding (size checked above), a static.
-    unsafe { std::slice::from_raw_parts((&raw const DRAW_LISTS).cast::<Dword>(), N) }
+    crate::pointers::dwords_in::<_, N>(&DRAW_LISTS, 0)
 }
 
 impl FnList {

@@ -4,8 +4,6 @@
 //! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
 //! a pointer read from the game's data as its number. (The installer's first, 2026-10-28.)
 
-#![allow(unsafe_code)]
-
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
@@ -122,8 +120,7 @@ impl Place {
         match self {
             Place::In(b, at) => {
                 Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
-                // SAFETY: `at` is inside the buffer (checked above).
-                unsafe { b.as_ptr().add(at) }
+                b.as_ptr().wrapping_add(at)
             }
             Place::At(a) => crate::pointers::host(a),
         }

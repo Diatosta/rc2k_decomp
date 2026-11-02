@@ -620,6 +620,8 @@ impl GamePtr {
 /// valid value.
 pub unsafe trait Cells {}
 
+// SAFETY: `#[repr(C)]` lists of `Dword`s, no padding (`menu::fn_list` checks the size).
+unsafe impl Cells for crate::menu::draw_lists_store::DrawLists {}
 // SAFETY: atomics and cells over plain integers.
 unsafe impl Cells for crate::session::Dword {}
 // SAFETY: every field is a cell over a plain integer.
@@ -647,6 +649,20 @@ pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
     // SAFETY: `T` is made of cells over plain integers (`Cells`), so any bytes are a valid
     // value, and the sizes are equal (checked above).
     core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
+}
+
+/// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
+pub fn dwords_in<T: Cells, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
+    use crate::session::Dword;
+    assert!(
+        at + N * size_of::<Dword>() <= size_of::<T>(),
+        "dwords past the record"
+    );
+    let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
+    assert!(first.cast::<Dword>().is_aligned(), "dwords on an odd place");
+    // SAFETY: inside `cells`, whose every byte is a cell (`Cells`) for as long as the borrow,
+    // aligned (checked above), and any bits make a `Dword`.
+    unsafe { &*first.cast() }
 }
 
 /// The bytes of a region from a game pointer on (`GamePtr::bytes`).
