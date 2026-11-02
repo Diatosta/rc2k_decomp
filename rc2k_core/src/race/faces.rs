@@ -430,6 +430,11 @@ impl Face {
         self.dword(4 + 4 * (n & 3))
     }
 
+    /// Triangle `t`'s (0, 1) normal as stored (`NORMAL_TRIANGLES`): x, y, z, floats' bits.
+    pub fn normal(&self, t: usize) -> [u32; 3] {
+        NORMAL_TRIANGLES[t & 1].1.map(|at| self.dword(at as usize))
+    }
+
     /// A checkpoint face's +0xC: the next checkpoint face in its chain.
     pub fn next_link(&self) -> u32 {
         self.dword(0xC)

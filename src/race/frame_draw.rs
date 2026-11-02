@@ -761,13 +761,13 @@ pub fn points_there() -> Result<(), Refused> {
     }
 }
 
-/// `race::face_hidden` (0x454D92), face record `esi`: carry (hidden) when the shown
+/// `race::face_hidden` (0x454D92), face record `esi` (read): carry (hidden) when the shown
 /// view's `dword_606478` entry is 0, `dword_621480` is set and the face's +2 word has a
 /// bit of `dword_64167C` (eax left that); else, inside `pusha`, its first point's record
 /// (+4): `dword_635004` = |x| and `dword_635010` = depth + `flt_63F188` as whole numbers,
 /// carry when the depth is below |x| (the sign of the difference). Gives eax and the carry.
 /// Refuses (before anything) no point records or points.
-pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
+pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32, bool), Refused> {
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -787,11 +787,9 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     } else {
         0
     };
-    let trap = Trap::new();
     let (bits, hidden) = hidden_by_switches(shows, hiding, || {
-        trap.face(esi, "a course face").switches() as u32 & FRAME_WORK.face_hide_mask.bits()
+        face.switches() as u32 & FRAME_WORK.face_hide_mask.bits()
     });
-    trap.finish()?;
     if let Some(bits) = bits {
         eax = bits;
     }
@@ -799,7 +797,7 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
         return Ok((eax, true));
     }
     points_there()?;
-    let (record, _) = point_record(get(esi + 4)?)?;
+    let (record, _) = point_record(face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     OBJECT_WORK.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
@@ -965,65 +963,36 @@ fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> {
     Ok((first != u32::MAX && first <= last).then_some((first, last)))
 }
 
-/// What `gather_record_faces` of these records could refuse, checked before anything:
-/// a last face of -1 (the loop would not end), no points, or more faces than either
-/// table has room left for.
-pub fn check_gather(records: &[u32]) -> Result<(), Refused> {
-    {
-        let mut faces = 0u64;
-        for &r in records {
-            if let Some((first, last)) = record_faces(r)? {
-                if last == u32::MAX {
-                    return Err(BadInput("a course record's last face is -1").into());
-                }
-                faces += (last - first) as u64 + 1;
-            }
-        }
-        if faces == 0 {
-            return Ok(());
-        }
-        points_there()?;
-        let room = |count: u32| SORT_MAX as u64 - (count as u64).min(SORT_MAX as u64);
-        if faces > room(RACE_VIEW.sort_entry_count.bits())
-            || faces > room(RACE_VIEW.depth_entry_count.bits())
-        {
-            return Err(BadInput("more faces than the tables have room for").into());
-        }
-        Ok(())
-    }
-}
-
 /// `race::gather_record_faces` (0x454C99): each face of course record esi (+8 .. +0xC),
 /// `dword_5CCCD0` the face: a kind (+0) of 0xFF, or below 0x10, not `face_hidden`, goes to
 /// `add_depth_entry` when its object's flag says so (`byte_63DD5C` / `byte_63DC5C`), else
 /// to `add_sort_entry` with the object's kind byte (`byte_63DF5C` / `byte_63DE5C`). For
 /// kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
-/// Refuses (before anything) as `check_gather`.
+/// Refuses a last face of -1 (the loop would not end); the full tables and missing points
+/// are refused where they are met.
 pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
-    check_gather(&[record])?;
-    let Some((first, _)) = record_faces(record)? else {
+    let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };
+    if last == u32::MAX {
+        return Err(BadInput("a course record's last face is -1").into());
+    }
     let mut face = first;
     loop {
         COURSE.current_course_face.set_bits(face);
         let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let kind = byte1(at)?;
+        // The face read once for its kind, objects, switches and first point.
+        let read = crate::race::course_places::face(at, "a course face")?;
+        let kind = read.kind();
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
         let how = gathered(kind);
         if how != Gathered::No {
             // The kind in eax's low byte (`mov al, [esi]`): only the eax `face_hidden`
             // gives back keeps the rest, and nothing reads that.
-            let (_, hidden) = face_hidden(at, kind as u32)?;
+            let (_, hidden) = face_hidden(&read, kind as u32)?;
             if !hidden {
-                let byte = |o: u32| byte1(at + o);
-                let first_object = byte(1)?;
-                let trap = Trap::new();
-                let object = face_object(how, first_object, || {
-                    trap.face(at, "a course face").second_object()
-                });
-                trap.finish()?;
+                let object = face_object(how, read.object(), || read.second_object());
                 let tables = face_tables();
                 let (depth_table, kind_table) = if how == Gathered::Lit {
                     (tables[1], tables[3])
@@ -1048,10 +1017,9 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
 /// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its
 /// "already done" test sets ebp inside `pusha`, so it is lost: `notes/bugs.md`). Refuses
-/// (before anything) as `check_gather` would for all of them.
+/// as `gather_record_faces`.
 pub fn gather_visible_faces() -> Result<(), Refused> {
     let todo = visible_records()?;
-    check_gather(&todo)?;
     for &record in &todo {
         gather_record_faces(record)?;
     }
@@ -1401,7 +1369,9 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
     };
     {
         let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let kind = byte1(at)?;
+        // The face read once for its kind, objects, switches and first point.
+        let read = crate::race::course_places::face(at, "a course face")?;
+        let kind = read.kind();
         if kind == 0xFF {
             if byte1(at + 1)? >= 0x38 {
                 return Ok(());

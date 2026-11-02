@@ -97,21 +97,25 @@ fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
         if FRAME_SWITCHES.other_way.get() == 0 {
             return Ok(0);
         }
-        let e = face + half;
-        let p = get(e + 8)?
+        // The triangle's (half 0 or 4) second corner and its normal, from one read.
+        let triangle = (half / 4) as usize;
+        let f = crate::race::course_places::face(face, "a course face")?;
+        let p = f
+            .point(1 + triangle)
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
+        let normal = f.normal(triangle);
         let along = |at: u32, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok(
                 (int(crate::race::scene_points::word(at)? as i32) - ld(view_at.bits()))
-                    * ld(get(normal)?),
+                    * ld(normal),
             )
         };
         let place = &VIEW_VARS.view_place_f;
         let (x, y, z) = (
-            along(p, &place[0], e + 0x18)?,
-            along(p + 4, &place[1], e + 0x30)?,
-            along(p + 8, &place[2], e + 0x38)?,
+            along(p, &place[0], normal[0])?,
+            along(p + 4, &place[1], normal[1])?,
+            along(p + 8, &place[2], normal[2])?,
         );
         Ok(u32::from(compare(X(0.0), x + (y + z)) & 0x0100 != 0))
     }
