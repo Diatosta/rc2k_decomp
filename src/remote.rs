@@ -10,6 +10,8 @@
 //!     <id> state                         frames, race flag, menu, highlighted item
 //!     <id> quit                          as closing the window
 
+#![allow(unsafe_code)]
+
 use sdl3_sys::everything::*;
 use std::ffi::CString;
 use std::io::Write;
