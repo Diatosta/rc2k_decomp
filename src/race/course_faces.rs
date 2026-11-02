@@ -24,7 +24,9 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::byte_of;
 use crate::session::{Dword, Float};
+use rc2k_core::race::faces::Face;
 
+#[cfg(all(test, target_arch = "x86"))]
 fn get(a: u32) -> Result<u32, BadInput> {
     crate::race::course_places::read(a, "a course face, point or entry word")
 }
@@ -75,31 +77,31 @@ pub fn face_depth_test_on() {
 
 /// `race::face_corners` (0x452444): face esi's four points into `dword_63D9EC` ..
 /// `dword_63D9F8`, the fourth -1 when it is the third (a triangle). Leaves eax the fourth.
-pub fn face_corners(face: u32) -> Result<u32, BadInput> {
+pub fn face_corners(face: &Face) -> u32 {
     // Converted: `rc2k_core::race::faces::corners`.
-    let points = [
-        get(face + 4)?,
-        get(face + 8)?,
-        get(face + 0xC)?,
-        get(face + 0x10)?,
-    ];
-    let corners = rc2k_core::race::faces::corners(points);
+    let corners = rc2k_core::race::faces::corners(std::array::from_fn(|n| face.point(n)));
     crate::session::write_bits(&RACE_VIEW.corners, corners);
-    Ok(corners[3])
+    corners[3]
 }
 
 /// `sub_4525F8`: 1 when the face's triangle at `face + half` (half 0 or 4) faces the view
 /// (its point +8 less the view's place, `flt_6062A4` .., dotted with its normal +0x18,
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
+#[cfg(all(test, target_arch = "x86"))]
 fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
+    turned_to_view(
+        &crate::race::course_places::face(face, "a course face")?,
+        (half / 4) as usize,
+    )
+}
+
+/// `sub_4525F8` on a read face, its triangle 0 or 1.
+fn turned_to_view(f: &Face, triangle: usize) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
         if FRAME_SWITCHES.other_way.get() == 0 {
             return Ok(0);
         }
-        // The triangle's (half 0 or 4) second corner and its normal, from one read.
-        let triangle = (half / 4) as usize;
-        let f = crate::race::course_places::face(face, "a course face")?;
         let p = f
             .point(1 + triangle)
             .wrapping_mul(12)
@@ -126,12 +128,12 @@ fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
 /// has one (`dword_63D9F8` not -1). The registers the original leaves (eax the last
 /// answer, ebx the last triangle's point, ebp the face) are read by no one: its one
 /// caller's parts take only esi, the face.
-pub fn face_sides(face: u32) -> Result<(), BadInput> {
+pub fn face_sides(face: &Face) -> Result<(), BadInput> {
     {
-        RACE_VIEW.face_turned[0].set(face_turned_to_view(face, 0)?);
+        RACE_VIEW.face_turned[0].set(turned_to_view(face, 0)?);
         RACE_VIEW.face_turned[1].set(1u32);
         if RACE_VIEW.corners[3].get() != u32::MAX {
-            RACE_VIEW.face_turned[1].set(face_turned_to_view(face, 4)?);
+            RACE_VIEW.face_turned[1].set(turned_to_view(face, 1)?);
         }
     }
     Ok(())
@@ -150,9 +152,8 @@ fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
 /// `dword_63DA38`; the kind's low three bits and bit 3 (+0, +0x20) into `dword_63DA30` /
 /// `dword_63DA34` and `dword_63DA3C` / `dword_63DA40`. The registers it leaves are read
 /// by no one.
-pub fn face_materials(face: u32) -> Result<(), BadInput> {
+pub fn face_materials(face: &Face) -> Result<(), BadInput> {
     {
-        let byte = |a: u32| -> Result<u32, BadInput> { Ok(byte_at(a)? as u32) };
         let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
         let (k1, k2) = (NUMBERS.ten.bits(), NUMBERS.quarter.bits());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
@@ -176,12 +177,16 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
         use rc2k_core::race::faces::material_bits;
-        RACE_VIEW.texture_a.set(texture(byte(face + 1)?, true)?);
-        let (order, back) = material_bits(byte(face)? as u8);
+        RACE_VIEW
+            .texture_a
+            .set(texture(face.object() as u32, true)?);
+        let (order, back) = material_bits(face.kind());
         RACE_VIEW.order_a.set(order);
         RACE_VIEW.back_a.set(back);
-        RACE_VIEW.texture_b.set(texture(byte(face + 0x21)?, false)?);
-        let (order, back) = material_bits(byte(face + 0x20)? as u8);
+        RACE_VIEW
+            .texture_b
+            .set(texture(face.second_object() as u32, false)?);
+        let (order, back) = material_bits(face.second_kind());
         RACE_VIEW.order_b.set(order);
         RACE_VIEW.back_b.set(back);
     }
@@ -789,30 +794,26 @@ pub fn draw_lit_triangle() -> Result<(), Refused> {
 /// bytes +0x14 .. +0x17, with flag 4 of +2 plus `dword_635518[+0x28 ..]` and
 /// `dword_635918[+0x2C ..]` (`add_colours`, MMX or not as the original); the fog bytes
 /// +0x22 .. +0x25 into `dword_63DA64` ..; then the face drawn (`race::draw_face`).
-pub fn face_colours(face: u32) -> Result<(), Refused> {
+pub fn face_colours(face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::{corner_colour, EXTRA_LIGHTS}`.
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
-    let byte = |o: u32| -> Result<u32, BadInput> { Ok(byte_at(face + o)? as u32) };
+    let lit = face.switches() & EXTRA_LIGHTS != 0;
     for k in 0..4 {
-        let c = LIGHT_TABLES.light_table[byte(0x14 + k)? as usize].get();
-        RACE_VIEW.corner_colours[k as usize].set(c);
-        let lit =
-            crate::race::course_places::face(face, "a course face")?.switches() & EXTRA_LIGHTS != 0;
+        let c = LIGHT_TABLES.light_table[face.corner_light(k) as usize].get();
+        RACE_VIEW.corner_colours[k].set(c);
         if lit {
-            let trap = Trap::new();
             let extra = || {
-                let (a, b) = trap.face(face, "a course face").lamps(k as usize);
+                let (a, b) = face.lamps(k);
                 let a = LIGHT_TABLES.lamp_table_a[a as usize].get();
                 let b = LIGHT_TABLES.lamp_table_b[b as usize].get();
                 (a, b)
             };
             let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
-            trap.finish()?;
-            RACE_VIEW.corner_colours[k as usize].set(c);
+            RACE_VIEW.corner_colours[k].set(c);
         }
     }
     for k in 0..4 {
-        RACE_VIEW.corner_alphas[k as usize].set(byte(0x22 + k)?);
+        RACE_VIEW.corner_alphas[k].set(face.corner_fog(k) as u32);
     }
     draw_face()
 }
@@ -851,20 +852,19 @@ fn turn_over() -> Result<(), BadInput> {
 /// first kind's bit 3): the corners turned over, the colours from `g_lightTable` by
 /// +0x28 .. +0x2B and the fog bytes +0x2C .. +0x2F, drawn (`race::draw_face`), the
 /// corners turned back.
-pub fn draw_back_face(face: u32) -> Result<(), Refused> {
+pub fn draw_back_face(face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
     if !rc2k_core::race::face_drawing::has_back(RACE_VIEW.back_a.bits()) {
         return Ok(());
     }
-    let byte = |o: u32| -> Result<u32, BadInput> { Ok(byte_at(face + o)? as u32) };
     turn_over()?;
     for k in 0..4 {
-        RACE_VIEW.corner_colours[k as usize]
-            .set(LIGHT_TABLES.light_table[byte(0x28 + k)? as usize].get());
+        RACE_VIEW.corner_colours[k]
+            .set(LIGHT_TABLES.light_table[face.back_light(k) as usize].get());
     }
     for k in 0..4 {
-        RACE_VIEW.corner_alphas[k as usize].set(byte(0x2C + k)?);
+        RACE_VIEW.corner_alphas[k].set(face.back_fog(k) as u32);
     }
     draw_face()?;
     turn_over()?;
@@ -876,11 +876,10 @@ pub fn draw_back_face(face: u32) -> Result<(), Refused> {
 /// or +0x21): one-sided (kind bit 3 clear) its front unless both triangles face away;
 /// two-sided its front unless both face away, then the facings flipped and its back
 /// unless both (now) face away. Each after `race::face_materials`. `face` is esi.
-pub fn draw_face_sides(face: u32) -> Result<(), Refused> {
+pub fn draw_face_sides(face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_objects, two_sided, side_drawn,
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
-    let byte = |o: u32| -> Result<u32, BadInput> { Ok(byte_at(face + o)? as u32) };
     if FRAME_SWITCHES.other_way.get() == 0 {
         face_materials(face)?;
         RACE_VIEW.face_turned[0].set(0u32);
@@ -896,10 +895,10 @@ pub fn draw_face_sides(face: u32) -> Result<(), Refused> {
             RACE_VIEW.face_turned[1].bits(),
         )
     };
-    if !has_objects(byte(1)? as u8, byte(0x21)? as u8) {
+    if !has_objects(face.object(), face.second_object()) {
         return Ok(());
     }
-    if !two_sided(byte(0)? as u8) {
+    if !two_sided(face.kind()) {
         if !facings() {
             return Ok(());
         }
@@ -926,19 +925,19 @@ pub fn draw_face_sides(face: u32) -> Result<(), Refused> {
 /// records or points.
 pub fn draw_course_face(face: u32) -> Result<(), Refused> {
     crate::race::frame_draw::points_there()?;
-    face_corners(face)?;
-    if crate::race::course_places::face(face, "a course face")?.switches()
-        & rc2k_core::race::faces::REPEATED
-        != 0
-    {
+    // The face read once for its corners, normals, kinds, objects and colours: drawing it
+    // writes no face.
+    let face = crate::race::course_places::face(face, "a course face")?;
+    face_corners(&face);
+    if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points()?;
     }
     if face_out_of_view()? {
         return Ok(());
     }
-    face_sides(face)?;
+    face_sides(&face)?;
     face_depth_test_off();
-    draw_face_sides(face)?;
+    draw_face_sides(&face)?;
     face_depth_test_on();
     Ok(())
 }

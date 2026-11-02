@@ -480,6 +480,32 @@ impl Face {
         self.0[0x11] = mark;
     }
 
+    /// +0x14 + `k`: corner `k`'s (0 .. 3) colour, an index of the light table.
+    pub fn corner_light(&self, k: usize) -> u8 {
+        self.0[0x14 + (k & 3)]
+    }
+
+    /// +0x22 + `k`: corner `k`'s fog byte.
+    pub fn corner_fog(&self, k: usize) -> u8 {
+        self.0[0x22 + (k & 3)]
+    }
+
+    /// +0x28 + `k`: corner `k`'s colour on a two-sided face's back (the bytes `lamps` reads
+    /// for a face with extra lights).
+    pub fn back_light(&self, k: usize) -> u8 {
+        self.0[0x28 + (k & 3)]
+    }
+
+    /// +0x2C + `k`: corner `k`'s fog byte on the back.
+    pub fn back_fog(&self, k: usize) -> u8 {
+        self.0[0x2C + (k & 3)]
+    }
+
+    /// +0x20: the second triangle's kind and flags (as +0 for the first).
+    pub fn second_kind(&self) -> u8 {
+        self.0[0x20]
+    }
+
     /// +0x21: the second triangle's object.
     pub fn second_object(&self) -> u8 {
         self.0[0x21]
