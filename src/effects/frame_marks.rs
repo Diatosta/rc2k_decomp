@@ -38,6 +38,7 @@ pub fn frame_marks() -> Result<(), Refused> {
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
+    let marks = crate::effects::setup::marks()?;
     {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
@@ -47,11 +48,11 @@ pub fn frame_marks() -> Result<(), Refused> {
         for &(from, to) in &COPIES {
             to.set(GamePtr::new(settings + from).read::<u32>("a mark's field")?);
         }
-        CLOCK.settings_copies[0].set(GamePtr::new(settings + 0x18).read::<u32>("a mark's field")?);
+        CLOCK.settings_copies[0].set(marks.unknown_67c[1].get());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points()?;
         view_frame::view_frame()?;
-        GamePtr::new(settings + 0x18).write::<u32>(0, "a mark's field")?;
+        marks.unknown_67c[1].set(0);
         MARKS_FRAME
             .steps
             .set(MARKS_FRAME.steps.get().wrapping_add(1));

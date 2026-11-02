@@ -167,8 +167,8 @@ fn streak(e: u32) -> Result<bool, Refused> {
     DRAW_WORK.second[1].set_bits(eg(e, 0x20)?);
     DRAW_WORK.second[2].set_bits(eg(e, 0x24)?);
     turn_place(e);
-    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if get(s + 0xC)? != 0 || get(s + 0x10)? == 1 {
+    let marks = crate::effects::setup::marks()?;
+    if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
         ep(e, 0x1C, DRAW_WORK.turned[0].bits())?;
         ep(e, 0x20, DRAW_WORK.turned[1].bits())?;
         ep(e, 0x24, DRAW_WORK.turned[2].bits())?;

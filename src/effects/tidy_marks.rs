@@ -40,9 +40,8 @@ fn lists() -> [GamePtr; 6] {
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
 fn car_lists(settings: u32) -> Result<Vec<GamePtr>, BadInput> {
-    let count = GamePtr::new(settings + 0x5C)
-        .read::<i32>("the cars' count")?
-        .clamp(0, MOST_CARS) as u32;
+    let marks = crate::effects::setup::marks()?;
+    let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
         .map(|n| GamePtr::new(settings + n * CAR_LEN + CAR_PART + 0x4C))
         .collect())
@@ -61,7 +60,8 @@ pub fn tidy_marks() -> Result<(), Refused> {
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let count = GamePtr::new(settings + 0x5C).read::<i32>("the cars' count")?;
+    let marks = crate::effects::setup::marks()?;
+    let count = marks.cars_copy.get() as i32;
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());
     }

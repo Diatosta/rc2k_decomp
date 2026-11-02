@@ -75,30 +75,6 @@ pub struct ViewerPanelBlock {
     pub picture_name: [Dword; 3],
     /// +0x3cc (0x5C2CE8): not named.
     pub unknown_3cc: [Dword; 167],
-    /// +0x668 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (a reading).
-    pub settings_text: Dword,
-    /// +0x66c (0x5C2F88): `dword_5C2F88`: set by `drive::finish_timing`, cleared twice by `drive::finish_race` (a reading).
-    pub race_done: Dword,
-    /// +0x670 (0x5C2F8C): `dword_5C2F8C`: the view's marks layout (`race::frame_views`).
-    pub marks_layout: Dword,
-    /// +0x674 (0x5C2F90): `dword_5C2F90`: this view's marks show (`race::frame_views`).
-    pub own_marks_shown: Dword,
-    /// +0x678 (0x5C2F94): `dword_5C2F94`: the other view's marks show; `drive::race_init` sets it (`race::frame_views`).
-    pub other_marks_shown: Dword,
-    /// +0x67c (0x5C2F98): not named.
-    pub unknown_67c: [Dword; 2],
-    /// +0x684 (0x5C2FA0): `dword_5C2FA0` ..: the view's place negated, three whole numbers (`drive::set_listener`).
-    pub listener_place: [Dword; 3],
-    /// +0x690 (0x5C2FAC): `dword_5C2FAC` ..: the view's turn matrix, nine floats, popped from the x87 (image value identity) (`drive::set_listener`).
-    pub listener_turn: [Float; 9],
-    /// +0x6b4 (0x5C2FD0): `dword_5C2FD0`: `dword_7558DC` copied after the loading picture (`race::single_rally`).
-    pub after_loading_copy: Dword,
-    /// +0x6b8 (0x5C2FD4): `dword_5C2FD4`: the viewed car's +0xABC >= 0x10; image value 1 (`drive::set_listener`).
-    pub listener_near: Dword,
-    /// +0x6bc (0x5C2FD8): not named.
-    pub unknown_6bc: [Dword; 2],
-    /// +0x6c4 (0x5C2FE0): `dword_5C2FE0`: a copy of the race's cars (`effects::init_mark_step`).
-    pub cars_copy: Dword,
 }
 
 /// The piece: a field of `race::groups_store::VIEWER_AND_KINDS` since 2026-10-29 (it left the race
@@ -270,8 +246,8 @@ impl ViewerPanelBlock {
 
 /// IDA 0x5C291C, the first byte of the piece.
 pub const START: usize = 0x5C291C;
-/// IDA 0x5C2FE4, the end of the piece.
-pub const END: usize = 0x5C2FE4;
+/// IDA 0x5C2F84, the end of the piece (the marks' settings follow).
+pub const END: usize = 0x5C2F84;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
@@ -373,14 +349,6 @@ mod tests {
         assert_eq!(
             offset_of!(ViewerPanelBlock, kept_patch_switches),
             0x5C2C98 - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, settings_text),
-            0x5C2F84 - START
-        );
-        assert_eq!(
-            offset_of!(ViewerPanelBlock, listener_turn),
-            0x5C2FAC - START
         );
     }
 }

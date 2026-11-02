@@ -7,6 +7,7 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
@@ -17,7 +18,6 @@ use crate::race::trap::{Trap, car_at};
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -474,11 +474,11 @@ pub fn run_view_marks() -> Result<(), Refused> {
         RACE_VARS.scene_switch.get(),
         crate::physics::split_tables_store::SPLIT_TABLES.still.get(),
     );
-    VIEWER_PANEL.other_marks_shown.set(other);
-    VIEWER_PANEL.own_marks_shown.set(own);
+    MARKS_SETTINGS.other_marks_shown.set(other);
+    MARKS_SETTINGS.own_marks_shown.set(own);
     let layout_at = layout_index(view, RACE_VARS.split.get());
     let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
-    VIEWER_PANEL.marks_layout.set(layout);
+    MARKS_SETTINGS.marks_layout.set(layout);
     crate::math::cells::copy_cells(&car_at(block)?.whole_matrix, &MATRICES.view_place, 16);
     crate::drive::share_all_cars::share_all_cars()?;
     let first = first_word(RACE_VARS.run_kind.get());

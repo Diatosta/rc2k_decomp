@@ -22,7 +22,6 @@ use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::pointers::GamePtr;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
@@ -91,8 +90,8 @@ pub fn windscreen_flakes_frame() -> Result<(), Refused> {
         return Ok(());
     }
     crate::effects::run_windscreen_flakes::run_windscreen_flakes()?;
-    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if GamePtr::new(s + 0x2744).read::<u32>("a mark's field")? == 0 {
+    let marks = crate::effects::setup::marks()?;
+    if marks.listener_switch_6.get() == 0 {
         return Ok(());
     }
     if MARKS_KIND_FLOATS.running.bits() == 0 {

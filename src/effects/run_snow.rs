@@ -52,11 +52,13 @@ pub fn run_snow() -> Result<(), Refused> {
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        l.kept.set(get(settings + 0x58)?);
+        let marks = crate::effects::setup::marks()?;
+        l.kept.set(marks.unknown_6bc[1].get());
         turn_light();
         crate::effects::make_fade_colours::make_fade_colours();
         let settings: u32 = SETTINGS.pointer.get();
-        let mut flakes = get(settings + 0x2760)? as i32;
+        let marks = crate::effects::setup::marks()?;
+        let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
             s.flag.set(0);
@@ -97,8 +99,8 @@ pub fn run_snow() -> Result<(), Refused> {
             r.set_bits(inverse);
         }
         s.inverse.set_bits(inverse);
-        let settings: u32 = SETTINGS.pointer.get();
-        if get(settings + 0x10)? != 0 {
+        let marks = crate::effects::setup::marks()?;
+        if marks.other_marks_shown.get() != 0 {
             let ticks = PHYSICS.scene_clock.get().wrapping_sub(s.last_clock.get());
             let fall =
                 x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);

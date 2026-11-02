@@ -55,6 +55,7 @@ pub mod loading_bar_frame;
 pub mod loading_bar_quad;
 pub mod loadlevel;
 pub mod map_scroll;
+pub mod marks_settings_store;
 pub mod matrices_store;
 pub mod measure_frame_rate;
 pub mod mud;

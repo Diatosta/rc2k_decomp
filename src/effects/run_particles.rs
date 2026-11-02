@@ -34,17 +34,12 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::extended;
 use crate::session::{Bytes, Dword, Float};
 const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// A kind's colour index (life times +0x40, `fistp`) and whether it is in its table.
 fn colour_index(e: u32, life: u32) -> Result<(i32, bool), Refused> {
@@ -68,7 +63,8 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
-        if get(settings + 4)? == 0 {
+        let marks = crate::effects::setup::marks()?;
+        if marks.race_done.get() == 0 {
             return Ok(None);
         }
         let ticks: u32 = CLOCK.frame_ticks.get();
@@ -243,8 +239,8 @@ pub fn run_particles() -> Result<(), Refused> {
         return Err(BadInput(why).into());
     }
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if get(settings + 4)? == 0 {
+        let marks = crate::effects::setup::marks()?;
+        if marks.race_done.get() == 0 {
             return Ok(());
         }
         crate::effects::set_quad_uvs::set_quad_uvs();

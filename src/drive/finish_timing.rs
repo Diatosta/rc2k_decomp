@@ -17,9 +17,9 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::c0;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::scene::draw_store::DRAW;
 
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
@@ -73,7 +73,7 @@ pub fn timing_from(now: u32) {
         }
     }
     if late && RACE_STATE.results.finished.get() != 0 {
-        VIEWER_PANEL.race_done.set(1);
+        MARKS_SETTINGS.race_done.set(1);
     }
 }
 

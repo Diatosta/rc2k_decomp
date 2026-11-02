@@ -327,7 +327,7 @@ pub const fn first_values<const N: usize>(start: usize) -> [u8; N] {
 /// The typed pieces over the block (IDA start, end, the store's name), in order: for the
 /// census of accesses by address (2026-10-29, `notes/history.md`) and the moves out.
 #[cfg(test)]
-pub const PIECES: [(usize, usize, &str); 47] = [
+pub const PIECES: [(usize, usize, &str); 48] = [
     (
         crate::race::replay_file_store::START,
         crate::race::replay_file_store::END,
@@ -342,6 +342,11 @@ pub const PIECES: [(usize, usize, &str); 47] = [
         crate::race::viewer_screen_store::START,
         crate::race::viewer_screen_store::END,
         "VIEWER_PANEL",
+    ),
+    (
+        crate::race::marks_settings_store::START,
+        crate::race::marks_settings_store::END,
+        "MARKS_SETTINGS",
     ),
     (
         crate::race::kind_store::START,
@@ -650,7 +655,9 @@ mod tests {
         assert_eq!(piece_of(0x5CB958), "GEAR");
         assert_eq!(piece_of(0x5CC197), "GEAR");
         assert_eq!(piece_of(0x5CB954), "block");
-        assert_eq!(piece_of(0x5C2F84), "VIEWER_PANEL");
+        assert_eq!(piece_of(0x5C2F80), "VIEWER_PANEL");
+        assert_eq!(piece_of(0x5C2F84), "MARKS_SETTINGS");
+        assert_eq!(piece_of(0x5C56EC), "KIND_TABLES");
     }
 
     #[test]

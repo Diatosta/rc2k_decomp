@@ -150,9 +150,11 @@ pub fn windscreen_drops_frame() -> Result<(), Refused> {
                 draw_batch()?;
             }
         }
-        let settings: u32 = SETTINGS.pointer.get();
+        let marks = crate::effects::setup::marks()?;
         let live: u32 = WINDSCREEN_DROP_STATE.live.bits();
-        if (live as i32) < get(settings + 0x273C)? as i32 && MARKS_KIND_FLOATS.running.bits() != 0 {
+        if (live as i32) < marks.listener_switch_2.get() as i32
+            && MARKS_KIND_FLOATS.running.bits() != 0
+        {
             crate::effects::windscreen_drops_spawn::windscreen_drops_spawn()?;
         }
     }

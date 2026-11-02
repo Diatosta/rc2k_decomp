@@ -38,8 +38,9 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
 fn blocks(settings: u32) -> Result<Vec<u32>, Refused> {
+    let marks = crate::effects::setup::marks()?;
     Ok({
-        let count = get(settings + 0x5C)? as i32;
+        let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS) as u32)
             .rev()
             .map(|n| settings + n * CAR_LEN + BLOCK)
@@ -75,11 +76,12 @@ fn points(b: u32) -> Result<(u32, u32, i32), Refused> {
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
 fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+    let marks = crate::effects::setup::marks()?;
     Ok({
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
-        if get(settings + 0x5C)? as i32 > MOST_CARS {
+        if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
         let base: u32 = COURSE_LISTS.object_points.bits();

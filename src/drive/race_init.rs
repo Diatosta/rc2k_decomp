@@ -22,9 +22,9 @@
 //! as the original.
 
 use crate::errors::{FatalError, Refused};
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -95,9 +95,9 @@ pub fn race_init() -> Result<(), Refused> {
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
         { crate::drive::race_cars_step::race_cars_step() }?;
-        VIEWER_PANEL.other_marks_shown.set(1);
+        MARKS_SETTINGS.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
-        VIEWER_PANEL.other_marks_shown.set(0);
+        MARKS_SETTINGS.other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks()?;
         crate::effects::run_frame::run_frame()?;
     }

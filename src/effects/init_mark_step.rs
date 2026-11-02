@@ -18,10 +18,9 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
@@ -40,15 +39,17 @@ pub fn init_mark_step() -> Result<(), Refused> {
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
-        VIEWER_PANEL.cars_copy.set_bits(RACE_VIEW.race_cars.bits());
+        MARKS_SETTINGS
+            .cars_copy
+            .set_bits(RACE_VIEW.race_cars.bits());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = crate::race::blocks_store::own_car_number() as u32;
-        KIND_TABLES.mark_set_count.set_bits(0x50 + 0x14 * own);
-        KIND_TABLES.mark_set_flag.set_bits(1u32);
+        MARKS_SETTINGS.first_object.set_bits(0x50 + 0x14 * own);
+        MARKS_SETTINGS.object_count.set_bits(1u32);
         let file =
             crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
-        KIND_TABLES.mark_car_file_number.set_bits(file);
+        MARKS_SETTINGS.mark_car_file_number.set_bits(file);
         for n in 0..count {
             let kind = GamePtr::new(block(n) + 0x24).read::<i32>("a mark's field")?;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
@@ -63,7 +64,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(VIEWER_PANEL.settings_text.addr(), file)?;
+        crate::effects::init_marks::init_marks(MARKS_SETTINGS.settings_text.addr(), file)?;
     }
     Ok(())
 }

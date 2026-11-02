@@ -24,8 +24,8 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::option_work_store::OPTION_WORK;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::state_store::RACE_STATE;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Bytes, Dword, Float};
 
 /// A player's or a track's record: a game address.
@@ -635,7 +635,7 @@ fn single_rally(
     step(2)?; // sound::stop_music
     step(3)?; // race::set_race_screen_mode
     step(4)?; // menu::show_loading_picture
-    VIEWER_PANEL.after_loading_copy.set(AFTER_LOADING.get());
+    MARKS_SETTINGS.after_loading_copy.set(AFTER_LOADING.get());
 
     // The stage's entry in the track list.
     let stage = STAGE.get();

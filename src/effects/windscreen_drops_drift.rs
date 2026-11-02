@@ -20,13 +20,8 @@ use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::windscreen_drop_vars::HEX;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(s: u32) {
@@ -72,6 +67,7 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
+    let marks = crate::effects::setup::marks()?;
     for n in 0..3 {
         SHAPE_TILT.point[n].set_bits(0);
     }
@@ -104,9 +100,13 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
         }
         move_kept(s);
     }
-    for (k, v) in [get(s + 0x26AC)?, get(s + 0x26B0)?, get(s + 0x26B4)?]
-        .into_iter()
-        .enumerate()
+    for (k, v) in [
+        marks.listener_car_place[0].bits(),
+        marks.listener_car_place[1].bits(),
+        marks.listener_car_place[2].bits(),
+    ]
+    .into_iter()
+    .enumerate()
     {
         HEX.kept_place[k].set_bits(v);
     }

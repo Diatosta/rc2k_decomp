@@ -239,7 +239,7 @@ impl RaceWork {
 }
 
 /// IDA 0x5C2FE4, where the eight car records (0x4C8 bytes each, in
-/// `groups_store::ViewerAndKinds::between`) begin, and their length.
+/// `marks_settings_store::MarksSettings::cars`) begin, and their length.
 pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
 pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 

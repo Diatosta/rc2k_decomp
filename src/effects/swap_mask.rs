@@ -16,7 +16,6 @@
 
 use crate::effects::mask_store::{MASK_BLOCKS, Mask};
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
@@ -29,7 +28,8 @@ pub fn swap_mask() -> Result<(), Refused> {
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let switch = GamePtr::new(s + 0x2704).read::<u32>("a mark's field")?;
+    let marks = crate::effects::setup::marks()?;
+    let switch = marks.sound_objects_shown.get();
     let Some(second) = masks::swapped(switch, MASK_BLOCKS.seen.get()) else {
         return Ok(());
     };

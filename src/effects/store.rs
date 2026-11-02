@@ -65,7 +65,7 @@ pub const CARVED: &[(usize, usize)] = &[
     (0x765110, 0x765140), // `effects::tuning::MarksFrame`
     (0x765140, 0x765238), // `effects::tuning::MarksFloats`
     (0x765238, 0x7652A4), // `effects::tuning::MarksKindFloats`
-    (0x767A28, 0x767A2C), // `effects::setup::MarksSettings`
+    (0x767A28, 0x767A2C), // `effects::setup::SettingsPointer`
     (0x768658, 0x7687DC), // `effects::pong::PongState`
     (0x7687E4, 0x7688B4), // `effects::clip::ClipScreen`
     (0x769182, 0x769232), // `effects::pong::PongRules`

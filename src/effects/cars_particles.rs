@@ -47,11 +47,12 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
 
 /// The cars, worked out without writing: none when the settings' +0x10 is not 1.
 fn cars(settings: u32) -> Result<Vec<u32>, Refused> {
+    let marks = crate::effects::setup::marks()?;
     Ok({
-        if at(settings + 0x10)? != 1 {
+        if marks.other_marks_shown.get() != 1 {
             return Ok(Vec::new());
         }
-        let count = at(settings + 0x5C)? as i32;
+        let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS as i32 + 1) as u32)
             .rev()
             .map(|n| settings + 0x60 + n * CAR_LEN)
@@ -61,11 +62,12 @@ fn cars(settings: u32) -> Result<Vec<u32>, Refused> {
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
 fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+    let marks = crate::effects::setup::marks()?;
     Ok({
         if settings == 0 {
             return Ok(Some("null marks settings"));
         }
-        if at(settings + 0x10)? == 1 && at(settings + 0x5C)? as i32 > MOST_CARS as i32 {
+        if marks.other_marks_shown.get() == 1 && marks.cars_copy.get() as i32 > MOST_CARS as i32 {
             return Ok(Some("more than 8 cars"));
         }
         for car in cars(settings)? {

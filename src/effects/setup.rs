@@ -10,7 +10,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
@@ -155,8 +154,8 @@ pub fn tick_clock() -> Result<(), Refused> {
         let last = c.last.get();
         c.before.set(last);
         c.last.set(clock);
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        let ticks = if GamePtr::new(settings + 0x10).read::<u32>("a mark setting")? == 1 {
+        let marks = crate::effects::setup::marks()?;
+        let ticks = if marks.other_marks_shown.get() == 1 {
             clock.wrapping_sub(last)
         } else {
             0
@@ -298,16 +297,26 @@ pub fn make_noise_curve() -> Result<(), Refused> {
 /// address of the settings the game hands `effects::init_marks` (0 before; nothing runs
 /// without it).
 #[repr(C)]
-pub struct MarksSettings {
+pub struct SettingsPointer {
     /// 0x767A28: `g_marksSettings`.
     pub pointer: Dword,
 }
 
-pub static SETTINGS: MarksSettings = MarksSettings {
+pub static SETTINGS: SettingsPointer = SettingsPointer {
     pointer: Dword::new(0),
 };
 
-impl MarksSettings {
+/// The marks' settings the race handed `effects::init_marks` (`race::marks_settings_store`,
+/// the one record `g_marksSettings` points at); refused while it points at none, where the
+/// original's reads through it would fault.
+pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettings, BadInput> {
+    if SETTINGS.pointer.get() == 0 {
+        return Err(BadInput("no marks settings"));
+    }
+    Ok(&crate::race::marks_settings_store::MARKS_SETTINGS)
+}
+
+impl SettingsPointer {
     pub const START: usize = 0x767A28;
     pub const LEN: usize = 4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
@@ -390,9 +399,9 @@ mod clock_tests {
         assert_eq!(offset_of!(MarksClock, reciprocal), 0x764FE0 - s);
         assert_eq!(offset_of!(MarksClock, now), 0x764FE8 - s);
         assert_eq!(offset_of!(MarksClock, settings_copies), 0x764FF0 - s);
-        assert_eq!(size_of::<MarksSettings>(), MarksSettings::LEN);
+        assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
         assert_eq!(
-            crate::moved::place(MarksSettings::START),
+            crate::moved::place(SettingsPointer::START),
             SETTINGS.pointer.addr() as usize
         );
     }

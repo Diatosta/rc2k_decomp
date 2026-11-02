@@ -21,17 +21,12 @@ use crate::effects::splines::{
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 
 const SPLINES: u32 = 8;
 
 /// The four records of spline `n`: A, B, C, D.
 fn records(n: u32) -> [Spline; 4] {
     [0, 1, 2, 3].map(|t| Spline::record(t, n))
-}
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
 }
 
 /// `fld a; fmul k; fst` each of three (the first), `fmul k2; fstp` (the second).
@@ -47,6 +42,7 @@ pub fn place_spline(n: u32) -> Result<(), Refused> {
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
+    let marks = crate::effects::setup::marks()?;
     if n >= SPLINES {
         return Err(BadInput("a spline number of 8 or more").into());
     }
@@ -57,7 +53,7 @@ pub fn place_spline(n: u32) -> Result<(), Refused> {
             .map(super::super::session::Float::bits);
         SPLINE_WORK.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
-        let (abc, dsize) = sizes(get(settings + 0x26DC)?, k[0], k[1]);
+        let (abc, dsize) = sizes(marks.listener_scale.bits(), k[0], k[1]);
         for r in [a, b, c] {
             r.put(0x24, abc)?;
         }

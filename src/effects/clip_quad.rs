@@ -41,7 +41,8 @@ pub fn clip_quad(q: u32) -> Result<bool, Refused> {
         if settings == 0 || q == 0 {
             return Err(BadInput("null marks settings or quad").into());
         }
-        let mode = get(settings + 8)?;
+        let marks = crate::effects::setup::marks()?;
+        let mode = marks.marks_layout.get();
         if !(1..=4).contains(&mode) {
             return Ok(false);
         }

@@ -26,6 +26,7 @@ use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
+use crate::race::marks_settings_store::MarksSettings;
 use crate::race::overlay_store::OverlayBlock;
 use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
@@ -50,9 +51,9 @@ pub struct CarsAndReplay {
 pub struct ViewerAndKinds {
     /// +0x0 (0x5C291C): `race::viewer_screen_store`.
     pub viewer_panel: ViewerPanelBlock,
-    /// +0x6C8 (0x5C2FE4): the block's bytes between the two, by IDA address.
-    pub between: [Dword; (0x5C5624 - 0x5C2FE4) / 4],
-    /// +0x2D08 (0x5C5624): `race::kind_store`.
+    /// +0x668 (0x5C2F84): `race::marks_settings_store`.
+    pub marks_settings: MarksSettings,
+    /// +0x2DD0 (0x5C56EC): `race::kind_store`.
     pub kind_tables: KindTables,
 }
 
@@ -108,6 +109,12 @@ const _: () = {
     assert!(race::blocks_store::START == CARS_AND_REPLAY_RANGE.0);
     assert!(race::replay_work_store::END == CARS_AND_REPLAY_RANGE.1);
     assert!(size_of::<ViewerAndKinds>() == VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0);
+    assert!(
+        offset_of!(ViewerAndKinds, marks_settings)
+            == race::marks_settings_store::START - race::viewer_screen_store::START
+    );
+    assert!(race::viewer_screen_store::END == race::marks_settings_store::START);
+    assert!(race::marks_settings_store::END == race::kind_store::START);
     assert!(
         offset_of!(ViewerAndKinds, kind_tables)
             == race::kind_store::START - race::viewer_screen_store::START

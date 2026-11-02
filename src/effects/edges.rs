@@ -12,7 +12,6 @@ use crate::session::{Bytes, Dword, Float, Loose, read_bits};
 
 pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
-const SETTING: u32 = 0x2708;
 const SETTING_VALUE: u32 = 0xFFFF_7B2E;
 const DIGITS: u32 = 12; // the two digits' place in the path
 pub const EDGE_LEN: u32 = 0x8000;
@@ -52,8 +51,8 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         }
         EDGE_SETTINGS.done.set(resume);
     }
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
+    let marks = crate::effects::setup::marks()?;
+    marks.listener_point_a_negated[0].set(SETTING_VALUE);
     let kind = clamped(MARKS_KIND.kind.bits());
     EDGE_SETTINGS
         .path
@@ -94,15 +93,13 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-const KIND_AT: u32 = 0x26A8; // the settings' kind
-
 /// `effects::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
 pub fn load_kind_data() -> Result<(), Refused> {
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        let kind = GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")?;
+        let marks = crate::effects::setup::marks()?;
+        let kind = marks.mark_car_file_number.get();
         MARKS_KIND.kind.set_bits(kind);
         load_edges(RESUME)?;
         crate::effects::splines::load_splines(crate::effects::splines::RESUME)?;

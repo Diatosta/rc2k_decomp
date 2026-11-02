@@ -12,9 +12,6 @@ use crate::effects::edges::EDGE_SETTINGS;
 use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-
-const NUMBER_AT: u32 = 0x2750;
 
 /// The Rust version (see the header).
 pub fn scale_setting() -> Result<(), Refused> {
@@ -23,7 +20,8 @@ pub fn scale_setting() -> Result<(), Refused> {
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let n = GamePtr::new(settings + NUMBER_AT).read::<i32>("a mark's field")?;
+        let marks = crate::effects::setup::marks()?;
+        let n = marks.unknown_b0.get() as i32;
         WINDSCREEN_FLAKE_STATE
             .scaled_setting
             .set_bits(x87::int_times(n, EDGE_SETTINGS.factor.bits()));

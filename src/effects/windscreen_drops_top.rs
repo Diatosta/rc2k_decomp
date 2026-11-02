@@ -27,7 +27,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::pointers::GamePtr;
 use crate::scene::cross_product3::cross;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -124,10 +123,8 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
                 .set(quads.wrapping_mul(6));
             crate::effects::windscreen_drops_frame::draw_batch()?;
         }
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if GamePtr::new(settings + 0x2744).read::<u32>("a mark's field")? != 0
-            && MARKS_KIND_FLOATS.running.bits() != 0
-        {
+        let marks = crate::effects::setup::marks()?;
+        if marks.listener_switch_6.get() != 0 && MARKS_KIND_FLOATS.running.bits() != 0 {
             crate::effects::windscreen_drops_step::windscreen_drops_step()?;
         }
     }

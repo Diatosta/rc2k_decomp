@@ -1740,9 +1740,9 @@ pub(crate) const MOVED: &[Moved] = &[
         home: crate::effects::tuning::MarksKindFloats::home,
     },
     Moved {
-        ida: crate::effects::setup::MarksSettings::START,
-        len: crate::effects::setup::MarksSettings::LEN,
-        home: crate::effects::setup::MarksSettings::home,
+        ida: crate::effects::setup::SettingsPointer::START,
+        len: crate::effects::setup::SettingsPointer::LEN,
+        home: crate::effects::setup::SettingsPointer::home,
     },
     Moved {
         ida: crate::effects::pong::PongState::START,

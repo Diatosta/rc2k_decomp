@@ -130,7 +130,8 @@ impl core::Blocks for GameBlocks {
 /// The blocks `measure_lines` would measure (`core::measured`): (block, its first faces,
 /// its face count).
 fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
-    let count = get(settings + 0x5C)?;
+    let marks = crate::effects::setup::marks()?;
+    let count = marks.cars_copy.get();
     let game = GameBlocks(settings, Default::default());
     let blocks = core::measured(count, every, &game, FACES);
     game.1.done()?;
@@ -162,10 +163,11 @@ fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Ref
 pub fn measure_lines() -> Result<(), Refused> {
     {
         let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+        let marks = crate::effects::setup::marks()?;
         let every = LINES_WORK.every.get() == 1;
         let blocks = measured(settings, every)?;
         LINES_WORK.any.set(0u32);
-        let count = get(settings + 0x5C)? as i32;
+        let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
             let Some(&(block, first_a, first_b, faces)) = todo.peek() else {
@@ -243,7 +245,8 @@ pub fn measure_starting_sums() -> Result<(), Refused> {
     LINES_WORK.shares.set(0u32);
     measure_lines()?;
     let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    let count = get(settings + 0x5C)? as i32;
+    let marks = crate::effects::setup::marks()?;
+    let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = block_at(settings, k);
         for o in (0x1C..=0x30).step_by(4) {
@@ -320,7 +323,8 @@ pub fn set_up_blocks() -> Result<(), Refused> {
     measured(crate::effects::setup::SETTINGS.pointer.get(), true)?;
     measure_starting_sums()?;
     let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    let count = get(settings + 0x5C)? as i32;
+    let marks = crate::effects::setup::marks()?;
+    let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = block_at(settings, k);
         for o in (0x90..=0xCC).step_by(4) {

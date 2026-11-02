@@ -24,10 +24,6 @@ const GRADES: u32 = 0xC90;
 // dword_768700
 // dword_7687D0
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
-
 /// The bytes of one of the four tables (A .. D).
 const TABLE_LEN: u32 = 29824;
 /// The four tables' bytes, end to end as in the image.
@@ -610,14 +606,18 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    let count = get(settings + OBJECTS_AT)? as i32;
+    let marks = crate::effects::setup::marks()?;
+    let count = marks.object_count.get() as i32;
     if count > MOST_OBJECTS as i32 {
         return Err(BadInput("more than 19 spline objects").into());
     }
     let objects: Vec<u32> = (0..count.max(0) as u32)
         .rev()
-        .map(|k| get(settings + OBJECTS_AT + 4 + 4 * k))
+        .map(|k| {
+            marks
+                .at(OBJECTS_AT + 4 + 4 * k)
+                .read::<u32>("a spline object")
+        })
         .collect::<Result<_, _>>()?;
     // The place starts at 0: the first eight are made, the rest only noted.
     for &o in objects.iter().take(8) {

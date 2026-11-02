@@ -18,11 +18,8 @@ use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 
-const KIND_AT: u32 = 0x26A8; // the settings' kind
-const LIVE_AT: u32 = 0x18; // the settings' dword set to 1
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
@@ -37,7 +34,13 @@ pub fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        if GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")? >= KINDS {
+        // The race hands its one record (`race::marks_settings_store`); every read through
+        // `g_marksSettings` is a field of it.
+        let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
+        if settings != crate::pointers::GamePtr::to(marks).addr() {
+            return Err(BadInput("marks settings that are not the race's record").into());
+        }
+        if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         crate::effects::setup::SETTINGS.pointer.set(settings);
@@ -56,8 +59,7 @@ pub fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
         set_up_surface::set_up_surface()?;
         blocks::allocate_ring()?;
         lines::set_up_blocks()?;
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        GamePtr::new(settings + LIVE_AT).write::<u32>(1, "a mark's field")?;
+        marks.unknown_67c[1].set(1);
         for r in &CLOCK.settings_copies {
             r.set(1);
         }

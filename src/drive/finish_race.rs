@@ -16,6 +16,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
 use crate::race::state_store::RACE_STATE;
@@ -23,7 +24,6 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
-use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
@@ -54,7 +54,7 @@ fn var(v: Var) -> Place {
         Var::D6238CC => var!(RACE_VARS.race_level),
         Var::D6238D0 => var!(RACE_VARS.race_stage),
         Var::D64BB18 => var!(FINISH.no_place),
-        Var::D5C2F88 => var!(VIEWER_PANEL.race_done),
+        Var::D5C2F88 => var!(MARKS_SETTINGS.race_done),
         Var::D606744 => var!(VIEW_VARS.place_last_c),
         Var::D606748 => var!(VIEW_VARS.finish_value),
         Var::D63DB84 => var!(RACE_VIEW.after_credits),

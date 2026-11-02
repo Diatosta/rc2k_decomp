@@ -18,25 +18,17 @@ use crate::effects::splines::{SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_WORK};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 
 const MOST_SPLINES: i32 = 8;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
-}
-
 /// The made counter's step (see the header).
-fn step_made(settings: u32, half: u32) -> Result<(), Refused> {
+fn step_made(half: u32) -> Result<(), Refused> {
+    let marks = crate::effects::setup::marks()?;
     {
         let mut m = SPLINE_HEAD.made.get() as i32;
         let h = half as i32;
-        if get(settings + 0x2700)? != 0 {
-            put(settings + 0x26FC, 0)?;
+        if marks.listener_flag.get() != 0 {
+            marks.listener_gear_changed.set(0);
             if m < 0x80 {
                 m = m.wrapping_add(h);
                 if m > 0x80 {
@@ -48,10 +40,10 @@ fn step_made(settings: u32, half: u32) -> Result<(), Refused> {
                     m = 0x80;
                 }
             }
-        } else if get(settings + 0x26FC)? != 0 {
+        } else if marks.listener_gear_changed.get() != 0 {
             m = m.wrapping_add(h);
             if m > 0xFF {
-                put(settings + 0x26FC, 0)?;
+                marks.listener_gear_changed.set(0);
                 m = 0;
             }
         } else if m != 0 {
@@ -83,7 +75,7 @@ pub fn run_splines() -> Result<(), Refused> {
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(settings, CLOCK.frame_ticks.get() >> 1)?;
+        step_made(CLOCK.frame_ticks.get() >> 1)?;
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
         let k = SPLINE_CONSTANTS

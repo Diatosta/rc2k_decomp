@@ -11,7 +11,6 @@ use crate::effects::shape_work::{MarkShapes, SHAPE_WORK};
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
@@ -66,10 +65,6 @@ fn turn_z(n: usize) -> &'static [Float; 9] {
     [&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n]
 }
 pub const MOST_POINTS: u32 = 0x40;
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
 
 /// Point `k`'s part `c` of turned points `t` (12 bytes a point).
 fn part(t: &Bytes<0x300>, k: u32, c: u32) -> u32 {
@@ -200,8 +195,8 @@ static ALL_STEPS: [(&Dword, usize, &Dword, &Dword); 2] = [
 pub fn turn_all_shapes() -> Result<(), Refused> {
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        let count = get(settings + 0x26B8)? as i32;
+        let marks = crate::effects::setup::marks()?;
+        let count = marks.object_count.get() as i32;
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if ALL_STEPS[n].3.get() == 0 {
                 first
@@ -392,14 +387,14 @@ pub fn make_shape_sets() -> Result<(), Refused> {
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        let count = get(settings + 0x26B8)? as i32;
+        let marks = crate::effects::setup::marks()?;
+        let count = marks.object_count.get() as i32;
         if count > 19 {
             return Err(BadInput("more than 19 shape objects").into());
         }
         let objects: Vec<u32> = (0..count.max(0) as u32)
             .rev()
-            .map(|k| get(settings + 0x26BC + 4 * k))
+            .map(|k| marks.at(0x26BC + 4 * k).read::<u32>("a shape object"))
             .collect::<Result<_, _>>()?;
         let t = &SHAPE_SET_TUNING;
         let k = kind as usize; // under 0x22, checked above
