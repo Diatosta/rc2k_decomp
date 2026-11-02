@@ -166,31 +166,27 @@ pub fn append_string_by_id(id: u32, cursor: impl Into<Place>) -> Place {
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: impl Into<Place>) -> bool {
-    crate::files::directories::set_current_directory(crate::pointers::GamePtr::new(
-        path.into().game(),
-    ))
-    .unwrap_or_else(|e| refuse(e))
+    crate::files::directories::set_current_directory(path.into().game_ptr())
+        .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
 pub fn make_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::make_directory(crate::pointers::GamePtr::new(path.into().game()))
-        .unwrap_or_else(|e| refuse(e))
+    crate::files::directories::make_directory(path.into().game_ptr()).unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
 pub fn remove_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::remove_directory(crate::pointers::GamePtr::new(path.into().game()))
+    crate::files::directories::remove_directory(path.into().game_ptr())
         .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
 pub fn delete_file(path: impl Into<Place>) -> bool {
-    crate::files::directories::delete_file(crate::pointers::GamePtr::new(path.into().game()))
-        .unwrap_or_else(|e| refuse(e))
+    crate::files::directories::delete_file(path.into().game_ptr()).unwrap_or_else(|e| refuse(e))
         != 0
 }
 
@@ -212,12 +208,7 @@ pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
 
 /// `files::resolve_path` (0x403206): the path the game opens.
 pub fn resolve_path(path: impl Into<Place>) -> Result<u32, Refused> {
-    Ok(
-        crate::files::resolve_path::resolve_path_at(crate::pointers::GamePtr::new(
-            path.into().game(),
-        ))?
-        .addr(),
-    )
+    Ok(crate::files::resolve_path::resolve_path_at(path.into().game_ptr())?.addr())
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
@@ -311,18 +302,12 @@ pub fn draw_text(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    let text: u32 = text.into().game();
+    let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     let at = crate::pointers::GamePtr::new(font);
     let mut copy = at.read::<Font>("a font object")?;
-    crate::text::draw_text::draw_text(
-        &mut copy,
-        crate::pointers::GamePtr::new(text),
-        x as i32,
-        y as i32,
-        &mut GameCanvas,
-    )?;
+    crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
     if copy != at.read::<Font>("a font object")? {
         at.write(copy, "a font object")?;
     }
@@ -335,12 +320,12 @@ pub fn measure_text(
     text: impl Into<crate::place::Place>,
     x: u32,
 ) -> Result<(u32, u32), Refused> {
-    let text: u32 = text.into().game();
+    let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_text::measure_text_at(
             crate::pointers::GamePtr::new(font),
-            crate::pointers::GamePtr::new(text),
+            text,
             x as i32,
             &mut GameCanvas,
         )

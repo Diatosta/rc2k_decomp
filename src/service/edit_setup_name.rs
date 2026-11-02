@@ -30,7 +30,6 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
-use crate::pointers::GamePtr;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::state::current_player;
@@ -108,12 +107,8 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 put_char(name, len, c)?;
                 set_length(len.wrapping_add(1));
                 // x is whatever ecx held: the length before this character.
-                let measured = measure_text_at(
-                    MEASURING_FONT.game_ptr(),
-                    GamePtr::new(name.game()),
-                    len,
-                    canvas,
-                )?;
+                let measured =
+                    measure_text_at(MEASURING_FONT.game_ptr(), name.game_ptr(), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_setup_name()?;
                 }

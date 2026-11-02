@@ -38,7 +38,7 @@ fn chat_input_line_at(text: crate::place::Place, item: u32, y: u32) -> Result<u3
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.game_ptr(),
-            crate::pointers::GamePtr::new(shown.game()),
+            shown.game_ptr(),
             0xA,
             y as i32,
             &mut GameCanvas,

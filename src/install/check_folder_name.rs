@@ -12,11 +12,12 @@
 
 /// Whether `path` has a bad character or `\\` (the original's carry).
 pub fn check_folder_name(path: impl Into<crate::place::Place>) -> bool {
-    let path: u32 = path.into().game();
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::
     // bad_folder_name`, RAL.EXE's `unk_51DE18`).
     use crate::install::folders::{Folders, Native};
-    let answer = crate::files::cstring(crate::pointers::GamePtr::new(path), "a folder name")
+    let answer = path
+        .into()
+        .text("a folder name")
         .and_then(|text| <Native as Folders>::bad_name(&text));
     answer.unwrap_or_else(|e| crate::fatal::raise::end("install::check_folder_name", e))
 }

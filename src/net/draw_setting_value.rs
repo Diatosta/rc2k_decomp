@@ -58,7 +58,7 @@ pub fn draw_setting_value(
     {
         crate::text::draw_text::draw_text_at(
             FONT.game_ptr(),
-            crate::pointers::GamePtr::new(shown.game()),
+            shown.game_ptr(),
             0x190,
             y as i32,
             &mut GameCanvas,

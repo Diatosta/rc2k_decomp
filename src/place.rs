@@ -126,11 +126,20 @@ impl Place {
         }
     }
 
+    /// The place as a checked game pointer: bounded by its buffer (`In`, which must hold
+    /// at least its first byte), or a game address's region (`At`).
+    pub fn game_ptr(self) -> GamePtr {
+        match self {
+            Place::In(b, at) => {
+                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
+                GamePtr::to(b).offset(at as u32)
+            }
+            Place::At(a) => GamePtr::new(a),
+        }
+    }
+
     /// The game address, for the script's and the game's data (pointers they keep).
     pub fn game(self) -> u32 {
-        match self {
-            Place::In(..) => crate::pointers::game_address(self.ptr()),
-            Place::At(a) => a,
-        }
+        self.game_ptr().addr()
     }
 }
