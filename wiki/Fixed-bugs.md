@@ -395,3 +395,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen with two copies racing (a logged jump of 42 m, none before step 1000) and read in the disassembly at 0x4647A8. The original's own network could not be run for comparison.
 
 **Fix:** the limit is ten metres, and a snap ends any glide. Measured with two copies: largest gap from 13.5 m to 1.5 m, jumps over 3 m from 123 to 0.
+
+## A network client's dashboard is blurred
+
+**What it is:** the game loads car 0's second set of textures, the cockpit's, at full size and every other car's at half size. In a network race a client's own car is not car 0.
+
+**In game:** a client's dashboard and other cockpit textures were visibly blurred compared with the host's.
+
+**Seen or read:** seen in screenshots of two copies racing, and read in `scene::init_texture_levels` (0x424001).
+
+**Fix:** the car this machine drives gets the full size, whichever it is; away from a network race that is car 0, as before.

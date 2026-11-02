@@ -76,23 +76,29 @@ pub fn held_cars(cars: u32) -> u32 {
     cars
 }
 
-/// The cars' runs: the first car's two (slots 0x100, 0x104; the second's level 0 when
-/// `second_first` (`dword_63DB94` 1), else 1), and each further car's two (0x108 + 8 a
-/// car, tag 0x28 + the car).
-pub fn car_runs(cars: u32, second_first: bool) -> Vec<Run> {
-    let mut runs = vec![
-        run(4, 0x100, 0, 1, 0x29),
-        run(4, 0x104, if second_first { 0 } else { 1 }, 1, 0x29),
-    ];
-    for car in 2..=MOST_CARS {
-        if cars == car - 1 {
-            break;
-        }
-        let first = 0x108 + 8 * (car - 2);
-        runs.push(run(4, first, 0, 2, 0x28 + car));
-        runs.push(run(4, first + 4, 1, 2, 0x28 + car));
-    }
-    runs
+/// The cars' runs, two each: the own car's second at level 0 when `second_first`
+/// (`dword_63DB94` 1), else 1, each other car's second at level 1 (half the size); firsts
+/// at level 0; the other levels 1 for the own car, 2 for the others. Car 0's slots are 0x100 and 0x104, a further car's 0x108 + 8 a car; the tag
+/// 0x29 for car 0, else 0x29 + the car. `own` is the car this machine drives: the original
+/// has always car 0, which left a network client's cockpit at the lower levels.
+pub fn car_runs(cars: u32, second_first: bool, own: u32) -> Vec<Run> {
+    (0..MOST_CARS)
+        .take_while(|&car| car == 0 || cars != car)
+        .flat_map(|car| {
+            let first = if car == 0 {
+                0x100
+            } else {
+                0x108 + 8 * (car - 1)
+            };
+            let tag = if car == 0 { 0x29 } else { 0x29 + car };
+            if car == own {
+                let second = u32::from(!second_first);
+                [run(4, first, 0, 1, tag), run(4, first + 4, second, 1, tag)]
+            } else {
+                [run(4, first, 0, 2, tag), run(4, first + 4, 1, 2, tag)]
+            }
+        })
+        .collect()
 }
 
 /// A kind's block of slots: the first, its tag, levels, and what the kinds' slot count
@@ -157,8 +163,9 @@ pub fn set_levels(
     kinds: &[(KindSlots, Vec<u32>)],
     framed: bool,
     other: bool,
+    own: u32,
 ) -> Result<LevelsSet, Invalid> {
-    for r in car_runs(cars, second_first) {
+    for r in car_runs(cars, second_first, own) {
         t.apply(&r, other)?;
     }
     let mut added = 0u32;
@@ -191,14 +198,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_own_car_has_the_better_levels_whichever_it_is() {
+        // As the original with car 0 its own.
+        let first = car_runs(2, true, 0);
+        assert_eq!(first[0], run(4, 0x100, 0, 1, 0x29));
+        assert_eq!(first[1], run(4, 0x104, 0, 1, 0x29));
+        assert_eq!(first[2], run(4, 0x108, 0, 2, 0x2A));
+        assert_eq!(first[3], run(4, 0x10C, 1, 2, 0x2A));
+        // A network client's: the levels change places, the slots and tags stay.
+        let second = car_runs(2, true, 1);
+        assert_eq!(second[0], run(4, 0x100, 0, 2, 0x29));
+        assert_eq!(second[1], run(4, 0x104, 1, 2, 0x29));
+        assert_eq!(second[2], run(4, 0x108, 0, 1, 0x2A));
+        assert_eq!(second[3], run(4, 0x10C, 0, 1, 0x2A));
+    }
+
+    #[test]
     fn cars() {
         assert_eq!(
             [0, 1, 5, 8, 9, 0x8000_0000, 0x7FFF_FFFF].map(held_cars),
             [1, 1, 5, 8, 8, 8, 8]
         );
-        assert_eq!(car_runs(1, true).len(), 2);
-        assert_eq!(car_runs(1, true)[1].level, 0);
-        let r = car_runs(8, false);
+        assert_eq!(car_runs(1, true, 0).len(), 2);
+        assert_eq!(car_runs(1, true, 0)[1].level, 0);
+        let r = car_runs(8, false, 0);
         assert_eq!(r.len(), 16);
         assert_eq!(
             (r[15].first, r[15].tag, r[1].level),
@@ -229,6 +252,7 @@ mod tests {
             &[(kind, vec![0, 5, u32::MAX, 3])],
             true,
             false,
+            0,
         )
         .unwrap();
         assert_eq!(set.kind_slots_added, 2);
