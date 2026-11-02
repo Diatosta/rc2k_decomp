@@ -610,8 +610,7 @@ impl Gpu {
         for (note, bytes) in &uploads {
             self.bring_texture_up(note, bytes);
         }
-        let rows = written.as_ref().map(|w| (w.first, w.last));
-        if let Some(w) = &written {
+        for w in &written {
             self.upload_canvas_rows(&w.bytes, width, height, w.first, w.last);
         }
         self.plain_state();
@@ -629,12 +628,14 @@ impl Gpu {
             }
             // Up in clip space is the picture's top for the 2D as for the 3D; the object's
             // last row is that top, which `show_target` and `bring_back` turn over.
-            if let Some((first, last)) = rows {
-                (gl.glBindTexture)(TEXTURE_2D, self.canvas);
+            if !written.is_empty() {
                 (gl.glEnable)(SCISSOR_TEST);
-                let rows = (last - first + 1) as i32;
-                (gl.glScissor)(0, height - last as i32 - 1, width, rows);
-                self.draw_quad(&self.overlay, false);
+                for w in &written {
+                    (gl.glBindTexture)(TEXTURE_2D, self.canvas);
+                    let rows = (w.last - w.first + 1) as i32;
+                    (gl.glScissor)(0, height - w.last as i32 - 1, width, rows);
+                    self.draw_quad(&self.overlay, false);
+                }
                 (gl.glDisable)(SCISSOR_TEST);
             }
             if !batches.batches.is_empty() {
@@ -889,7 +890,7 @@ struct Written {
 struct Part {
     commands: Vec<Command>,
     uploads: Vec<(TextureNote, Vec<u8>)>,
-    written: Option<Written>,
+    written: Vec<Written>,
     size: (i32, i32),
 }
 
@@ -927,6 +928,8 @@ impl Front {
 
     /// Hands over the commands and the canvas's written rows, which it marks again.
     fn draw(&mut self, canvas: &mut [u8], commands: Vec<Command>) {
+        super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
+        super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         for pixels in super::take_changed_textures() {
             self.known.remove(&pixels);
         }
@@ -949,12 +952,15 @@ impl Front {
             }
         }
         let stride = width as usize * 4;
-        let written = written_rows(canvas, width as usize).map(|(first, last)| {
-            let rows = &mut canvas[first * stride..(last + 1) * stride];
-            let bytes = rows.to_vec();
-            mark_unwritten(rows);
-            Written { first, last, bytes }
-        });
+        let written = written_runs(canvas, width as usize)
+            .into_iter()
+            .map(|(first, last)| {
+                let rows = &mut canvas[first * stride..(last + 1) * stride];
+                let bytes = rows.to_vec();
+                mark_unwritten(rows);
+                Written { first, last, bytes }
+            })
+            .collect();
         self.send(Job::Draw(Part {
             commands,
             uploads,
@@ -1008,28 +1014,35 @@ impl Front {
     }
 }
 
-/// The first and last rows of the canvas holding a written pixel.
-fn written_rows(canvas: &[u8], width: usize) -> Option<(usize, usize)> {
+/// Unwritten rows that may lie inside a run: a run costs an upload and a quad.
+const RUN_GAP: usize = 16;
+
+/// The runs of the canvas's rows holding a written pixel, each its first and last row: the
+/// panels at the top and the bottom leave the rows between them to the 3D.
+fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usize); 4]> {
     const BLOCK: usize = 256;
     let unwritten = UNWRITTEN.to_le_bytes();
     let blank: [u8; BLOCK] = std::array::from_fn(|n| unwritten[n % 4]);
-    // By blocks, as the library compares memory: this looks at most of the screen's pixels
-    // every frame.
+    // By blocks, as the library compares memory: this looks at the screen's pixels every frame.
     let row_written = |row: &[u8]| {
         let (blocks, rest) = row.as_chunks::<BLOCK>();
         blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
     };
-    let stride = width * 4;
-    let first = canvas.chunks_exact(stride).position(row_written)?;
-    let last = canvas.chunks_exact(stride).rposition(row_written)?;
-    Some((first, last))
+    let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
+    for (y, row) in canvas.chunks_exact(width * 4).enumerate() {
+        if row_written(row) {
+            match runs.last_mut() {
+                Some((_, last)) if y - *last <= RUN_GAP => *last = y,
+                _ => runs.push((y, y)),
+            }
+        }
+    }
+    runs
 }
 
 /// Every pixel of the canvas marked as not written.
 fn mark_unwritten(canvas: &mut [u8]) {
-    for pixel in canvas.as_chunks_mut::<4>().0 {
-        *pixel = UNWRITTEN.to_le_bytes();
-    }
+    canvas.as_chunks_mut::<4>().0.fill(UNWRITTEN.to_le_bytes());
 }
 
 fn blend_factor(factor: u32) -> u32 {

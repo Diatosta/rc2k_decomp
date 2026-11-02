@@ -114,7 +114,7 @@ const fn pass(set: Set, states: &'static [(u32, u32)]) -> Pass {
 }
 
 /// The shading and the passes of a mode, once its fallbacks are taken.
-fn passes(mode: u32) -> Option<(Shade, Vec<Pass>)> {
+fn passes(mode: u32) -> Option<(Shade, smallvec::SmallVec<[Pass; 2]>)> {
     let first_of_two = |mode: u32| Pass {
         as_mode: Some(mode),
         ..pass(Set::A, BLENDED)
@@ -126,37 +126,43 @@ fn passes(mode: u32) -> Option<(Shade, Vec<Pass>)> {
     Some(match mode {
         0 => (
             Shade::Plain,
-            vec![Pass {
+            smallvec::smallvec![Pass {
                 states: &[(0x15, 2), (0x1B, 0), (0x1C, 0), (0x0F, 0)],
                 after: &[(0x0F, 1)],
                 ..pass(Set::A, &[])
             }],
         ),
-        2 => (Shade::Lit, vec![pass(Set::A, BLENDED)]),
+        2 => (Shade::Lit, smallvec::smallvec![pass(Set::A, BLENDED)]),
         3 => (
             Shade::LitAndSecond(true),
-            vec![first_of_two(2), second(BLENDED)],
+            smallvec::smallvec![first_of_two(2), second(BLENDED)],
         ),
         4 => (
             Shade::LitAndSecond(false),
-            vec![first_of_two(2), second(ADDED)],
+            smallvec::smallvec![first_of_two(2), second(ADDED)],
         ),
         5 => (
             Shade::LitAndGrey,
-            vec![first_of_two(2), pass(Set::B, GLOSS)],
+            smallvec::smallvec![first_of_two(2), pass(Set::B, GLOSS)],
         ),
         6 => (
             Shade::WithAlpha,
-            vec![pass(
+            smallvec::smallvec![pass(
                 Set::A,
                 &[(0x15, 4), (0x1B, 1), (0x13, 5), (0x14, 6), (0x1C, 0)],
             )],
         ),
-        8 => (Shade::LitAndSecond(true), vec![pass(Set::B, BLENDED)]),
-        9 => (Shade::LitAndSecond(false), vec![pass(Set::B, ADDED)]),
+        8 => (
+            Shade::LitAndSecond(true),
+            smallvec::smallvec![pass(Set::B, BLENDED)],
+        ),
+        9 => (
+            Shade::LitAndSecond(false),
+            smallvec::smallvec![pass(Set::B, ADDED)],
+        ),
         0xA => (
             Shade::LitAndGrey,
-            vec![Pass {
+            smallvec::smallvec![Pass {
                 after: BLENDED,
                 ..pass(Set::B, GLOSS)
             }],
@@ -199,7 +205,7 @@ fn faded(from: u32, to: u32, by: u32) -> u32 {
 }
 
 /// The polygon's entries, in the list's order.
-fn entries(count: u32) -> Result<Vec<Listed>, BadInput> {
+fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
     (0..count as usize)
         .map(|n| {
             let number: u32 = crate::scene::polygon::list_cell(n).get();
@@ -495,8 +501,8 @@ impl submit_polygon::Outside for Game {
     fn set_texture(&mut self, texture: u32) {
         submit_polygon::Game.set_texture(texture);
     }
-    fn draw_fan(&mut self) -> u32 {
-        submit_polygon::Game.draw_fan()
+    fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
+        submit_polygon::Game.draw_fan(vertices)
     }
     fn bad_vertex(&mut self) {
         submit_polygon::Game.bad_vertex();

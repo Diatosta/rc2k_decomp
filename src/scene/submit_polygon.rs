@@ -39,7 +39,7 @@ pub trait Outside {
     /// `d3d::set_texture`.
     fn set_texture(&mut self, texture: u32);
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
-    fn draw_fan(&mut self) -> u32;
+    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
     /// A vertex is off the screen: "Error" to the log and `sub_443AEC`.
     fn bad_vertex(&mut self);
     /// Direct3D did not draw: "drawtri" and its result to the log.
@@ -81,7 +81,7 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
         return;
     }
     if has_3d {
-        let result = outside.draw_fan();
+        let result = outside.draw_fan(&vertices);
         if result != 0 {
             outside.not_drawn(result);
         }
@@ -95,9 +95,9 @@ impl Outside for Game {
     fn set_texture(&mut self, texture: u32) {
         crate::d3d::set_texture::set_texture(texture);
     }
-    fn draw_fan(&mut self) -> u32 {
+    fn draw_fan(&mut self, vertices: &[Vertex]) -> u32 {
         // `d3d::draw_fan_unclipped`: its result is always 0.
-        crate::platform_3d::draw_fan(&polygon());
+        crate::platform_3d::draw_fan(vertices);
         0
     }
     fn bad_vertex(&mut self) {

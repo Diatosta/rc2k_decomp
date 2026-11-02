@@ -16,6 +16,7 @@ use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
+#[cfg(all(test, target_arch = "x86"))]
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
     f80(int(i as i32) + ld(f))
@@ -27,6 +28,7 @@ pub fn int_80(i: u32) -> [u8; 10] {
 }
 
 /// `fld tbyte; fstp dword`.
+#[cfg(all(test, target_arch = "x86"))]
 fn float_of_80(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
@@ -53,7 +55,7 @@ pub(crate) fn project_record(v: &mut crate::scene::point_records::Record) {
 /// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
 /// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
 /// projected when its depth is not below 4096.0.
-fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
+fn skid_vertex(matrix: &[u32; 15], n: u32, v: u32) -> Result<(), BadInput> {
     {
         let points = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_points;
         let at = n as usize * 0xC;
@@ -63,14 +65,15 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
         let lift: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_lift
             .bits();
+        use crate::math::x87_float::{int, ld, st};
         let point = [
-            int_80(points.get_u32(at)),
-            int_plus_float_80(points.get_u32(at + 4), lift),
-            int_80(points.get_u32(at + 8)),
+            int(points.get_u32(at) as i32),
+            int(points.get_u32(at + 4) as i32) + ld(lift),
+            int(points.get_u32(at + 8) as i32),
         ];
-        let t = crate::scene::rotate_point::rotate_point(&MATRICES.view_matrix, point);
+        let t = crate::scene::rotate_point::turned(&matrix[..], point);
         let mut made = crate::scene::point_records::get(v)?;
-        made[4..7].copy_from_slice(&t.map(float_of_80));
+        made[4..7].copy_from_slice(&t.map(st));
         (made[3], made[7]) = (0, 0);
         if !crate::math::x87_load::below_or_unordered(made[6], NUMBERS.k4096_a.bits()) {
             project_record(&mut made);
@@ -115,6 +118,7 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
     DRAW.polygon_textures[0].set(0xC0u32);
     DRAW.polygon_textures[1].set(0xC0u32);
     let links = GamePtr::to(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links);
+    let matrix: [u32; 15] = crate::math::cells::load(&MATRICES.view_matrix);
     for n in 0..0x400u32 {
         let before = links.offset(8 * n).read::<i16>("a skidmark link")? as i32 as u32;
         if before == u32::MAX {
@@ -127,10 +131,10 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
             continue;
         }
         use crate::scene::point_records::of_quad;
-        skid_vertex(2 * n, of_quad(3))?;
-        skid_vertex(2 * n + 1, of_quad(2))?;
-        skid_vertex(before.wrapping_mul(2), of_quad(0))?;
-        skid_vertex(before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
+        skid_vertex(&matrix, 2 * n, of_quad(3))?;
+        skid_vertex(&matrix, 2 * n + 1, of_quad(2))?;
+        skid_vertex(&matrix, before.wrapping_mul(2), of_quad(0))?;
+        skid_vertex(&matrix, before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
         DRAW.polygon_vertex_count.set(4u32);
         DRAW.polygon_next_record
             .set(crate::scene::polygon::pool_start());

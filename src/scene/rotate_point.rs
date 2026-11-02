@@ -9,6 +9,7 @@
 //! are `asm_reference` in the tests. Refuses a null matrix.
 
 use crate::math::cells::{Cells, load};
+use crate::math::x87_float::X;
 use crate::scene::x87_mem::{Base, fld, fld80, fstp80};
 
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
@@ -25,9 +26,14 @@ pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3
 
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
 fn rotate(p: impl Base, m: impl Base, o: impl Base) {
-    let t0 = fld80(p, 0x14);
-    let t1 = fld80(p, 0xA);
-    let t2 = fld80(p, 0x0);
+    let [t12, t22, t32] = turned(m, [fld80(p, 0x0), fld80(p, 0xA), fld80(p, 0x14)]);
+    fstp80(o, 0x0, t12);
+    fstp80(o, 0xA, t22);
+    fstp80(o, 0x14, t32);
+}
+
+/// The point's three rows' sums of products plus the place, each with the x87's order.
+pub(crate) fn turned(m: impl Base, [t2, t1, t0]: [X; 3]) -> [X; 3] {
     let t3 = fld(m, 0x0);
     let t4 = t3 * t2;
     let t5 = fld(m, 0x10);
@@ -58,9 +64,7 @@ fn rotate(p: impl Base, m: impl Base, o: impl Base) {
     let t30 = t24 + t29;
     let t31 = fld(m, 0x38);
     let t32 = t30 + t31;
-    fstp80(o, 0x0, t12);
-    fstp80(o, 0xA, t22);
-    fstp80(o, 0x14, t32);
+    [t12, t22, t32]
 }
 
 #[cfg(all(test, target_arch = "x86"))]

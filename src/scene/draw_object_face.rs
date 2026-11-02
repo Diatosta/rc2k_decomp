@@ -80,14 +80,9 @@ pub fn draw_object_face(
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
     // The whole face in one read: at most `MOST` vertices.
-    let whole: [u8; 0x10 + MOST as usize * 0x10] = {
-        let mut buffer = [0; 0x10 + MOST as usize * 0x10];
-        crate::scene::object_faces::read_into(
-            face as u32,
-            &mut buffer[..0x10 + count as usize * 0x10],
-        )?;
-        buffer
-    };
+    let mut whole: smallvec::SmallVec<[u8; 0x10 + 8 * 0x10]> =
+        smallvec::smallvec![0; 0x10 + count as usize * 0x10];
+    crate::scene::object_faces::read_into(face as u32, &mut whole[..])?;
     let words = &whole;
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;

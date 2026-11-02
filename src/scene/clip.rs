@@ -119,15 +119,15 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
         Edge::X(at) => {
             DRAW.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4] = at;
-            cut_at_x(&raw mut w);
+            cut_at_x(&mut w);
         }
         Edge::Y(at) => {
             DRAW.clip_kept_mask.set_bits(mask);
             w[OUT_1 / 4 + 1] = at;
-            cut_at_y(&raw mut w);
+            cut_at_y(&mut w);
         }
         Edge::Depth(_) => {
-            cut_at_depth(&raw mut w);
+            cut_at_depth(&mut w);
             // Onto the screen, as `scene::project_point` does it.
             let mut point = [0u32; 8];
             point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);

@@ -6,7 +6,7 @@
 //! left out). A byte the original loads through `dword_62400C` is in the block as a
 //! whole number already. The original's instructions are `asm_reference` in the tests.
 
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 /// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record,
 /// 0x20 the second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five
@@ -26,11 +26,11 @@ pub const CHECKED: usize = 0x13C;
 pub const PLANE: usize = 0x140;
 
 /// `sub_44D247` from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
-pub fn cut_at_x(w: *mut Work) {
-    cut_x(w.cast());
+pub fn cut_at_x(w: &mut Work) {
+    cut_x(cells(w));
 }
 
-fn cut_x(w: *mut u8) {
+fn cut_x(w: impl Base) {
     let t0 = fld(w, 0x38);
     let t1 = fld(w, 0x18);
     let t2 = t1 - t0;
@@ -158,11 +158,11 @@ fn cut_x(w: *mut u8) {
 }
 
 /// `sub_44D532`, likewise with `flt_623F84`.
-pub fn cut_at_y(w: *mut Work) {
-    cut_y(w.cast());
+pub fn cut_at_y(w: &mut Work) {
+    cut_y(cells(w));
 }
 
-fn cut_y(w: *mut u8) {
+fn cut_y(w: impl Base) {
     let t0 = fld(w, 0x38);
     let t1 = fld(w, 0x18);
     let t2 = t1 - t0;
@@ -290,11 +290,11 @@ fn cut_y(w: *mut u8) {
 }
 
 /// `sub_44DB93` from 0x44DC37 to 0x44DD9A (`sub_44DEAA` has the same there).
-pub fn cut_at_depth(w: *mut Work) {
-    cut_depth(w.cast());
+pub fn cut_at_depth(w: &mut Work) {
+    cut_depth(cells(w));
 }
 
-fn cut_depth(w: *mut u8) {
+fn cut_depth(w: impl Base) {
     let t0 = fild(w, 0x140);
     let t1 = fld(w, 0x18);
     let t2 = t0 - t1;

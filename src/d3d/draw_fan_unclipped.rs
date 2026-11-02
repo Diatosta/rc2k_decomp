@@ -16,7 +16,7 @@ use crate::scene::draw_store::DRAW;
 /// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
 /// the buffer holds is a count gone wrong (the original reads on past it, into other
 /// variables): a refusal.
-pub fn polygon() -> Vec<Vertex> {
+pub fn polygon() -> smallvec::SmallVec<[Vertex; 6]> {
     let count = DRAW.polygon_vertex_count.bits() as usize;
     let vertices = &VERTICES.vertices;
     if count > vertices.len() {
