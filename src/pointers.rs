@@ -620,8 +620,8 @@ impl GamePtr {
 /// valid value.
 pub unsafe trait Cells {}
 
-// SAFETY: `#[repr(C)]` lists of `Dword`s, no padding (`menu::fn_list` checks the size).
-unsafe impl Cells for crate::menu::draw_lists_store::DrawLists {}
+// SAFETY: `#[repr(C)]` over its one array of `Dword`s.
+unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N> {}
 // SAFETY: atomics and cells over plain integers.
 unsafe impl Cells for crate::session::Dword {}
 // SAFETY: every field is a cell over a plain integer.

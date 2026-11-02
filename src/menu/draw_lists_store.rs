@@ -39,6 +39,7 @@ impl<const N: usize> DrawList<N> {
 }
 
 /// The screens' draw lists.
+#[derive(rc2k_derive::Cells)]
 #[repr(C)]
 pub struct DrawLists {
     /// List at IDA 0x758B72 (screens: arcade_best_times, arcade_results, audio_setup, best_class_scores ..): 0 entries and the -1 that ends it.
