@@ -25,7 +25,7 @@ use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::session::Bytes;
 use crate::session::{Dword, Shared};
-use crate::strings::string_table::{lexicon, use_lexicon};
+use crate::strings::string_table::use_lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
@@ -201,7 +201,7 @@ pub fn compile_lexicon() -> Result<(), Refused> {
                 .wrapping_add(compiled.empty_messages),
         );
         EMPTY_MESSAGE.set_u32(12, compiled.index_size);
-        crate::pointers::GamePtr::new(crate::pointers::game_address(lexicon()))
+        crate::strings::string_table::lexicon_room()
             .write_bytes(&compiled.table, "the lexicon's memory")?;
         use_lexicon();
         crate::strings::string_table::publish()?;

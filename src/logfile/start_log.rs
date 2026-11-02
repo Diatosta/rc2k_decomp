@@ -19,7 +19,6 @@ use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
-use crate::logfile::numeric::scratch;
 use crate::logfile::write_line::{LOG_PATH, level};
 use crate::session::MACHINE as M;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -69,16 +68,14 @@ pub fn start_log() -> Result<(), BadInput> {
     let c_text = |p: crate::pointers::GamePtr| crate::files::cstring(p, "a start-up text");
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
-    let scratch = scratch();
+    let scratch = crate::pointers::GamePtr::to(&crate::logfile::numeric::SCRATCH);
     write_date_text(scratch)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();
     FREE_SPACE_KB.store(free, Ordering::Relaxed);
     let m = Machine {
-        date: c_text(crate::pointers::GamePtr::new(
-            crate::pointers::game_address(scratch),
-        ))?,
+        date: c_text(scratch)?,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
         cpu_family: M.cpu_family.get() as i32,

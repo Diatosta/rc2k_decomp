@@ -16,9 +16,6 @@ use crate::moved::Place;
 /// text is made, and `start_log`'s date. Written under the log's lock.
 pub const SCRATCH_LEN: usize = 0x50;
 pub static SCRATCH: Place<[u8; SCRATCH_LEN]> = Place::new([0; SCRATCH_LEN]);
-pub fn scratch() -> *mut u8 {
-    SCRATCH.ptr().cast()
-}
 
 /// The text of a number, as it is left in the scratch buffer.
 pub struct NumberText {

@@ -54,6 +54,11 @@ pub fn lexicon() -> *mut u8 {
     LEXICON.ptr().cast()
 }
 
+/// The lexicon's room as a place bounded by it.
+pub fn lexicon_room() -> GamePtr {
+    GamePtr::to(&LEXICON)
+}
+
 /// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes
 /// are written (`publish`). Readers never see the room itself, so a text being looked up cannot
 /// meet a language being loaded.
@@ -62,7 +67,7 @@ static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::
 /// Makes the room's bytes the table the game reads. Called at most twice, while the language
 /// loads (compiled, then corrected), so the copies kept for the program's life stay small.
 pub fn publish() -> Result<(), BadInput> {
-    let room = GamePtr::new(crate::pointers::game_address(lexicon()));
+    let room = lexicon_room();
     let copy = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
     *PUBLISHED
         .write()

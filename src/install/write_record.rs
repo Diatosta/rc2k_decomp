@@ -38,7 +38,7 @@ pub fn write_record() -> Result<bool, Refused> {
     // files::write_file
     let written = crate::files::write_file::write_file(
         crate::pointers::GamePtr::to(&crate::install::installer::INSTALL_TEXTS.record_path),
-        start.ptr(),
+        start.game_ptr(),
         text.len() as u32,
     )?;
     Ok(written.ok)

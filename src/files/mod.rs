@@ -238,13 +238,13 @@ pub mod state {
 
     /// g_baseDirectory, as a place limited to its room.
     pub fn base_directory_place() -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(base_directory()))
-            .limited(DIRECTORY_LEN)
+        crate::pointers::GamePtr::to(&DIRECTORIES).limited(DIRECTORY_LEN)
     }
 
     /// g_localeDirectory, as a place limited to its room.
     pub fn locale_directory_place() -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::new(crate::pointers::game_address(locale_directory()))
+        crate::pointers::GamePtr::to(&DIRECTORIES)
+            .offset(DIRECTORY_LEN)
             .limited(DIRECTORY_LEN)
     }
 

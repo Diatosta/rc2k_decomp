@@ -30,13 +30,10 @@ pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
 /// The path as it is written, with its NUL; None if it is not one that is taken.
 /// `current` is the current directory, asked for only if the path is empty.
 pub fn normalised(
-    path: *const u8,
+    path: crate::place::Place,
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    let path = crate::files::cstring(
-        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
-        "a path",
-    )?;
+    let path = path.text("a path")?;
     // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::normalise`).
     <Native as Folders>::normalised(&path, current)
 }
@@ -51,12 +48,16 @@ pub fn normalised_bytes(
 }
 
 /// For Rust callers: writes the path at `to`. Returns whether it was written.
-pub fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
+pub fn normalise_path(
+    path: crate::place::Place,
+    to: crate::place::Place,
+) -> Result<bool, BadInput> {
     let Some(text) = normalised(path, &mut || current_directory())? else {
         return Ok(false);
     };
     // An empty path takes the current directory, of any length; the places written hold 0x100.
-    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+    to.game_ptr()
+        .unbounded()
         .limited(0x100)
         .write_bytes(&text, "a normalised path")?;
     Ok(true)

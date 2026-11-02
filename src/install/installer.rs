@@ -193,8 +193,8 @@ pub fn delete_file(path: impl Into<Place>) -> bool {
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
 pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
-        path.into().ptr(),
-        to.into().ptr(),
+        path.into(),
+        to.into(),
     )?)
 }
 

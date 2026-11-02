@@ -49,11 +49,10 @@ pub fn date_text() -> Result<Vec<u8>, BadInput> {
 
 /// For Rust callers: the text at the cursor, and after it CR, LF and two NULs. Returns the
 /// cursor after the text.
-pub fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
+pub fn write_date_text(at: crate::pointers::GamePtr) -> Result<crate::pointers::GamePtr, BadInput> {
     let text = date_text()?;
-    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(cursor));
     at.write_bytes(&text, "the log's date text")?;
     at.offset(text.len() as u32)
         .write(0x0A0Du32, "the log's date text")?;
-    Ok(cursor.wrapping_add(text.len()))
+    Ok(at.offset(text.len() as u32))
 }

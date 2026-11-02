@@ -49,8 +49,7 @@ use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::keyboard_tables::KEYBOARD_TABLES;
 use crate::strings::same_text::set_case_table;
-use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
-use crate::strings::text_from_ids::text;
+use crate::strings::string_table::{LEXICON_ROOM, use_lexicon};
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
 
@@ -115,7 +114,7 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::new(crate::pointers::game_address(text()));
+    let at = GamePtr::to(&crate::strings::text_buffer::TEXT_BUFFER.text);
     at.write_bytes(&bytes, "the text buffer")?;
     if with_nul {
         at.offset(bytes.len() as u32)
@@ -135,7 +134,7 @@ fn make_case_tables() -> Result<(), BadInput> {
 
 /// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
 fn correct_lexicon() -> Result<(), BadInput> {
-    let room = GamePtr::new(crate::pointers::game_address(lexicon()));
+    let room = crate::strings::string_table::lexicon_room();
     let mut table = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
     rc2k_core::strings::lexicon::correct(&mut table)?;
     room.write_bytes(&table, "the lexicon's room")?;

@@ -82,13 +82,17 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
+fn default_name(
+    to: crate::pointers::GamePtr,
+    room: usize,
+    id: u32,
+    after: &[u8],
+) -> Result<(), BadInput> {
     let mut string = Vec::new();
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
-        .write_bytes(&name, "a default name")?;
+    to.write_bytes(&name, "a default name")?;
     Ok(())
 }
 
@@ -141,7 +145,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 continue;
             }
         }
-        default_name(crate::pointers::host_at(name as usize), NAME_LEN, id, &[])?;
+        default_name(crate::pointers::GamePtr::new(name), NAME_LEN, id, &[])?;
     }
 
     if NET.machine_name.get(0) == 0 {
@@ -150,7 +154,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
         if NET.machine_name.get(0) == 0 {
             default_name(
-                NET.machine_name.as_ptr(),
+                crate::pointers::GamePtr::to(&NET.machine_name),
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
                 &[],

@@ -13,7 +13,6 @@ pub trait Run: Sync {
     fn len(&self) -> usize;
     fn get(&self, n: usize) -> u8;
     fn set(&self, n: usize, v: u8);
-    fn as_ptr(&self) -> *mut u8;
 }
 
 impl<const N: usize> Run for Bytes<N> {
@@ -25,9 +24,6 @@ impl<const N: usize> Run for Bytes<N> {
     }
     fn set(&self, n: usize, v: u8) {
         Bytes::set(self, n, v);
-    }
-    fn as_ptr(&self) -> *mut u8 {
-        Bytes::as_ptr(self)
     }
 }
 
@@ -112,17 +108,6 @@ impl Place {
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
             Place::At(a) => crate::files::cstring(GamePtr::new(a), what),
-        }
-    }
-
-    /// The host pointer for the file calls (checked to lie in its buffer or region).
-    pub fn ptr(self) -> *mut u8 {
-        match self {
-            Place::In(b, at) => {
-                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
-                b.as_ptr().wrapping_add(at)
-            }
-            Place::At(a) => crate::pointers::host(a),
         }
     }
 
