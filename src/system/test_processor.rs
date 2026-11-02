@@ -26,8 +26,6 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-#![allow(unsafe_code)]
-
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::session::MACHINE;
@@ -37,68 +35,17 @@ use rc2k_core::system::processor::{Var, test};
 
 // ---- Rust version ----
 
-/// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
-/// flags are put back.
-#[cfg(not(target_arch = "x86"))]
+/// Whether toggling `bit` in the flags changes them (the original's `pushf` .. `popf` test
+/// for the alignment flag and CPUID): yes on every processor these builds can run on, which
+/// all have SSE2.
 fn flag_toggles(_bit: u32) -> bool {
-    // Every 64-bit processor has CPUID and the alignment flag.
     true
 }
 
-#[cfg(target_arch = "x86")]
-fn flag_toggles(bit: u32) -> bool {
-    let changed: u32;
-    unsafe {
-        core::arch::asm!(
-            "pushfd",
-            "pop {was}",
-            "mov {now}, {was}",
-            "xor {now}, {bit}",
-            "push {now}",
-            "popfd",
-            "pushfd",
-            "pop {now}",
-            "xor {now}, {was}",
-            "push {was}",
-            "popfd",
-            was = out(reg) _,
-            now = out(reg) changed,
-            bit = in(reg) bit,
-        );
-    }
-    changed != 0
-}
-
-/// The FPU test: what an x87 answers (the handheld has none; `math::x87_float` is the model).
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+/// The FPU test, as an x87 answers it after `fninit`: (the status word, the control word).
+/// There is always one: `math::x87_float` is the game's x87.
 fn fpu_words() -> (u16, u16) {
     (0, 0x037F)
-}
-
-/// The FPU test: (the status word after `fninit`, the control word).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn fpu_words() -> (u16, u16) {
-    let (mut status, mut control) = (0x5A5Au16, 0u16);
-    // SAFETY: the instructions write only the two locals; the x87 state is not otherwise used.
-    unsafe {
-        core::arch::asm!(
-            "fninit",
-            "fnstsw word ptr [{s}]",
-            "fnstcw word ptr [{c}]",
-            s = in(reg) &raw mut status,
-            c = in(reg) &raw mut control,
-            // `fninit` empties the x87 stack.
-            out("st(0)") _,
-            out("st(1)") _,
-            out("st(2)") _,
-            out("st(3)") _,
-            out("st(4)") _,
-            out("st(5)") _,
-            out("st(6)") _,
-            out("st(7)") _,
-        );
-    }
-    (status, control)
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

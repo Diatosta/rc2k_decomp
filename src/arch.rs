@@ -4,9 +4,11 @@
 #![allow(unsafe_code)]
 
 #[cfg(target_arch = "x86")]
-pub use core::arch::x86::{__cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_set_ss, _rdtsc};
+pub use core::arch::x86::{__cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss, _rdtsc};
 #[cfg(target_arch = "x86_64")]
-pub use core::arch::x86_64::{__cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_set_ss, _rdtsc};
+pub use core::arch::x86_64::{
+    __cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_rsqrt_ss, _mm_set_ss, _rdtsc,
+};
 
 /// The processor's time-stamp counter.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -36,6 +38,18 @@ pub fn rcpss(a: f32) -> f32 {
 #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
 pub fn rcpss(a: f32) -> f32 {
     1.0 / a
+}
+
+/// `rsqrtss`: an approximation on x86, whose result differs between processors; exact
+/// elsewhere.
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub fn rsqrtss(a: f32) -> f32 {
+    // SAFETY: SSE is part of every x86 target's baseline.
+    unsafe { _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(a))) }
+}
+#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+pub fn rsqrtss(a: f32) -> f32 {
+    1.0 / a.sqrt()
 }
 
 #[cfg(windows)]

@@ -204,6 +204,7 @@ pub fn compile_lexicon() -> Result<(), Refused> {
         crate::pointers::GamePtr::new(crate::pointers::game_address(lexicon()))
             .write_bytes(&compiled.table, "the lexicon's memory")?;
         use_lexicon();
+        crate::strings::string_table::publish()?;
 
         if level() as i32 >= 3 {
             let number = |text: &[u8], value: u32| {

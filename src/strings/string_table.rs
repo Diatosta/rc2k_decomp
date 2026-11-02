@@ -1,7 +1,5 @@
 //! The packed string table and the two string-pointer tables the string hooks read.
 
-#![allow(unsafe_code)]
-
 use crate::errors::BadInput;
 use crate::framework::{game_addr, rva};
 use crate::moved::Place;
@@ -17,11 +15,6 @@ pub static STRING_TABLE: AtomicU32 = AtomicU32::new(0);
 // variables' pointers (made texts), set by other modules by address.
 const PTRS_HIGH_RVA: usize = rva(0x525DE8); // dword_525DE8[id], ids with bit 0x1000
 const PTRS_LOW_RVA: usize = rva(0x95D664); // src[id], ids 0x5A5..=0x658
-
-/// The table's address now.
-pub fn blob() -> *const u8 {
-    crate::pointers::host(STRING_TABLE.load(Ordering::Relaxed)).cast_const()
-}
 
 /// Points the string table at the lexicon (`g_stringTable` = `g_lexicon`).
 pub fn use_lexicon() {
@@ -61,13 +54,29 @@ pub fn lexicon() -> *mut u8 {
     LEXICON.ptr().cast()
 }
 
+/// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes
+/// are written (`publish`). Readers never see the room itself, so a text being looked up cannot
+/// meet a language being loaded.
+static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::new(None);
+
+/// Makes the room's bytes the table the game reads. Called at most twice, while the language
+/// loads (compiled, then corrected), so the copies kept for the program's life stay small.
+pub fn publish() -> Result<(), BadInput> {
+    let room = GamePtr::new(crate::pointers::game_address(lexicon()));
+    let copy = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
+    *PUBLISHED
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Vec::leak(copy));
+    Ok(())
+}
+
 /// The table `g_stringTable` points at, as the core reads it: `None` before the language is
-/// loaded, or if it points anywhere but the lexicon's room.
+/// loaded.
 pub fn table() -> Option<StringTable<'static>> {
-    let b = blob();
-    std::ptr::eq(b, lexicon())
-        // SAFETY: `b` is the lexicon's static room, written only while the language loads, before any text is read.
-        .then(|| StringTable::new(unsafe { std::slice::from_raw_parts(b, LEXICON_ROOM) }))
+    PUBLISHED
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .map(StringTable::new)
 }
 
 #[cfg(test)]

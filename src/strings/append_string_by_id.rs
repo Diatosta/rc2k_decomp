@@ -8,7 +8,7 @@
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::strings::expand_entry::expand_entry;
-use crate::strings::string_table::{blob, ptr_high, ptr_low};
+use crate::strings::string_table::{ptr_high, ptr_low};
 use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::table::Source;
 
@@ -36,8 +36,7 @@ pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32,
             Ok(p)
         }
         None => {
-            // SAFETY: the table pointer is the lexicon's (`string_table::table`).
-            expand_entry(blob(), id, emit);
+            expand_entry(id, emit);
             Ok(id)
         }
     }

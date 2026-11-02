@@ -23,8 +23,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-#![allow(unsafe_code)]
-
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -70,39 +68,13 @@ pub fn normalise_vector() -> Result<Option<u32>, BadInput> {
     normalise(DRAW_SWITCHES.use_sse.bits() != 0)
 }
 
-/// The original's SSE instructions on `w`: the vector (four floats), its squares (four), the
-/// length's reciprocal (one).
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-fn sse_normalise(w: &mut [u32; 9]) {
-    // SAFETY: the instructions read and write only `w`'s 36 bytes (unaligned moves) and
-    // the three xmm registers named; SSE is on every x86 the game builds for.
-    unsafe {
-        core::arch::asm!(
-            "movups xmm0, [{w}]",
-            "mulps xmm0, xmm0",
-            "movups [{w} + 16], xmm0",
-            "addss xmm0, dword ptr [{w} + 20]",
-            "addss xmm0, dword ptr [{w} + 24]",
-            "rsqrtss xmm0, xmm0",
-            "movaps xmm1, xmm0",
-            "rcpss xmm1, xmm1",
-            "shufps xmm0, xmm0, 0",
-            "movss dword ptr [{w} + 32], xmm1",
-            "movups xmm2, [{w}]",
-            "mulps xmm0, xmm2",
-            "movups [{w}], xmm0",
-            w = in(reg) w.as_mut_ptr(),
-            out("xmm0") _, out("xmm1") _, out("xmm2") _,
-            options(nostack),
-        );
-    }
-}
-
-/// `sse_normalise` on the handheld: no SSE, and the game's test said so (`test_processor`), so
-/// this is never reached there.
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
-fn sse_normalise(_w: &mut [u32; 9]) {
-    unreachable!("no SSE here");
+/// The original's SSE path: each component times the approximate reciprocal root of the
+/// squares' sum, in single precision. The fourth component is scaled too, as `mulps` does.
+fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
+    let v = v.map(f32::from_bits);
+    let sum = (v[0] * v[0] + v[1] * v[1]) + v[2] * v[2];
+    let root = crate::arch::rsqrtss(sum);
+    v.map(|k| (root * k).to_bits())
 }
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
@@ -110,10 +82,7 @@ fn sse_normalise(_w: &mut [u32; 9]) {
 pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     let v: [u32; 4] = crate::session::read_bits(&FRAME_SCRATCH.work_vector);
     if sse {
-        // The vector, the squares, the length.
-        let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
-        sse_normalise(&mut w);
-        crate::session::write_bits(&FRAME_SCRATCH.work_vector, [w[0], w[1], w[2], w[3]]);
+        crate::session::write_bits(&FRAME_SCRATCH.work_vector, sse_normalise(v));
         return Ok(None);
     }
     let sum = squares_sum([v[0], v[1], v[2]]);
@@ -134,6 +103,48 @@ pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[test]
+    fn the_sse_path_equals_the_instructions() {
+        fn by_instructions(w: &mut [u32; 9]) {
+            // SAFETY: reads and writes only `w`'s 36 bytes and the three xmm registers named.
+            unsafe {
+                core::arch::asm!(
+                    "movups xmm0, [{w}]",
+                    "mulps xmm0, xmm0",
+                    "movups [{w} + 16], xmm0",
+                    "addss xmm0, dword ptr [{w} + 20]",
+                    "addss xmm0, dword ptr [{w} + 24]",
+                    "rsqrtss xmm0, xmm0",
+                    "movaps xmm1, xmm0",
+                    "rcpss xmm1, xmm1",
+                    "shufps xmm0, xmm0, 0",
+                    "movss dword ptr [{w} + 32], xmm1",
+                    "movups xmm2, [{w}]",
+                    "mulps xmm0, xmm2",
+                    "movups [{w}], xmm0",
+                    w = in(reg) w.as_mut_ptr(),
+                    out("xmm0") _, out("xmm1") _, out("xmm2") _,
+                    options(nostack),
+                );
+            }
+        }
+        let mut x = 0x9E37_79B9u32;
+        for _ in 0..200_000 {
+            let mut next = || {
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                x
+            };
+            let scale = |r: u32| (r as i32 as f32 / 2.0f32.powi(31) * 500.0).to_bits();
+            let v = [scale(next()), scale(next()), scale(next()), next()];
+            let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
+            by_instructions(&mut w);
+            assert_eq!(super::sse_normalise(v), [w[0], w[1], w[2], w[3]], "{v:x?}");
+        }
+    }
+
     #[test]
     fn nothing_is_the_games() {
         let d = crate::moved::image_bytes(0x5C5D90, 4);

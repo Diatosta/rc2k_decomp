@@ -138,7 +138,8 @@ fn correct_lexicon() -> Result<(), BadInput> {
     let room = GamePtr::new(crate::pointers::game_address(lexicon()));
     let mut table = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
     rc2k_core::strings::lexicon::correct(&mut table)?;
-    room.write_bytes(&table, "the lexicon's room")
+    room.write_bytes(&table, "the lexicon's room")?;
+    crate::strings::string_table::publish()
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
