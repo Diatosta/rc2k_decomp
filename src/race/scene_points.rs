@@ -145,6 +145,12 @@ pub fn point_word(n: u32, k: u32) -> Result<u32, BadInput> {
     word(place(n).wrapping_add(4 * k))
 }
 
+/// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
+#[track_caller]
+pub fn put_point_word(n: u32, k: u32, v: u32) -> Result<(), BadInput> {
+    put(place(n).wrapping_add(4 * k), v)
+}
+
 /// `data` written at place `at`; refused outside the points.
 #[track_caller]
 pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {

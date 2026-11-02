@@ -62,11 +62,7 @@ pub fn add_point_lights() -> Result<(), Refused> {
             colour,
         }
     });
-    let at = |point: u32| {
-        reading.keep(crate::race::scene_points::point(
-            points.wrapping_add(point.wrapping_mul(12)),
-        ))
-    };
+    let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
     let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
     reading.finish()?;
     for (to, value) in [

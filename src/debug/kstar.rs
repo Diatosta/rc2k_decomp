@@ -37,8 +37,6 @@ const VIEW_NAMES: usize = 0x5EE2D5;
 const ERROR_LIST: usize = 0x637660;
 const LIGHTS: usize = 0x6077E8;
 const CHECKPOINT_FACES: usize = 0x9E3738;
-const COURSE_FACES: usize = 0x5CCCBC;
-const SCENE_POINTS: usize = 0x5CCCC0;
 
 /// `off_5EE228`: the lights' names (the rest are "null"; the left ones mirror the right).
 const LIGHT_NAMES: [&str; 12] = [
@@ -303,11 +301,9 @@ fn lights(ui: &Ui) {
 /// A checkpoint's place: the first point of its face (`sub_42985B`).
 fn checkpoint_place(n: usize) -> Option<[i32; 3]> {
     let face = value_at(CHECKPOINT_FACES + 4 * n)?;
-    let at = value_at(COURSE_FACES)?.wrapping_add(face << 6);
-    let face = crate::race::course_places::face(at, "a checkpoint's face").ok()?;
-    let point = u32::from_le_bytes(face.0[4..8].try_into().ok()?);
-    let at = value_at(SCENE_POINTS)?.wrapping_add(point.wrapping_mul(12));
-    let place = crate::race::scene_points::point(at).ok()?;
+    let point =
+        crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint's face").ok()?;
+    let place = crate::race::scene_points::point_number(point).ok()?;
     Some(place.map(|v| v as i32))
 }
 
@@ -412,8 +408,6 @@ mod tests {
             ERROR_LIST,
             LIGHTS,
             CHECKPOINT_FACES,
-            COURSE_FACES,
-            SCENE_POINTS,
         ] {
             assert!(value_at(at).is_some(), "{at:#x}");
         }

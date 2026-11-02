@@ -297,7 +297,7 @@ pub fn face_out_of_view() -> Result<bool, Refused> {
         if k == 3 && n == u32::MAX {
             break;
         }
-        let (record, _) = crate::race::frame_draw::point_record(n)?;
+        let record = crate::race::frame_draw::point_record(n)?;
         let depth = crate::scene::point_records::field(record, 0x18)?;
         if depth & 0x8000_0000 != 0 {
             continue;

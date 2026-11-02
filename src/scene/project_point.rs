@@ -5,6 +5,7 @@
 //! Out: edx = its record (Rust: `scene::point_records`' number, phase 13); a point of the scene: eax unchanged, ecx = the point's address
 //!      (or the number of points + 0x40 if the record was already made); a point of an
 //!      object (a negative number): eax = the record's offset; everything else preserved
+//!      (Rust: the record only; no caller reads the original's eax and ecx)
 //!
 //! The records are 0x20 bytes each at `dword_5C6FB8`: +0 the point's number, +0xC the
 //! x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
@@ -174,24 +175,19 @@ pub fn record_offset(point: u32) -> Result<u32, FatalError> {
 pub struct Projected {
     /// The record (`scene::point_records`: its number + 1).
     pub record: u32,
-    pub eax: u32,
-    /// None: unchanged.
-    pub ecx: Option<u32>,
 }
 
 /// A scene point's record made anew (`sub_44CF4E`, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
-/// Returns the point's address.
-pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
+pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput> {
     let points: u32 = COURSE.scene_points.bits();
     if points == 0 {
         return Err(BadInput("no points"));
     }
-    let from = points.wrapping_add(point.wrapping_mul(12));
     // Made on a copy of the record (`scene::point_records`), then stored.
     let mut r = point_records::get(record)?;
     r[0] = point;
-    let place = crate::race::scene_points::point(from)?;
+    let place = crate::race::scene_points::point_number(point)?;
     rotate(
         &place,
         &MATRICES
@@ -217,7 +213,7 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
         DRAW.scratch.set_bits(LOWERED_BY.to_bits());
     }
     point_records::set(record, r)?;
-    Ok(from)
+    Ok(())
 }
 
 pub fn project_point(point: u32) -> Result<Projected, Refused> {
@@ -226,26 +222,10 @@ pub fn project_point(point: u32) -> Result<Projected, Refused> {
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);
-    if (point as i32) < 0 {
-        return Ok(Projected {
-            record,
-            eax: offset,
-            ecx: None,
-        });
+    if (point as i32) >= 0 && point_records::field(record, 0)? != point {
+        make_scene_record(point, record)?;
     }
-    if point_records::field(record, 0)? == point {
-        return Ok(Projected {
-            record,
-            eax: point,
-            ecx: Some(COURSE.scene_point_count.bits().wrapping_add(0x40)),
-        });
-    }
-    let from = make_scene_record(point, record)?;
-    Ok(Projected {
-        record,
-        eax: point,
-        ecx: Some(from),
-    })
+    Ok(Projected { record })
 }
 
 #[cfg(all(test, target_arch = "x86"))]

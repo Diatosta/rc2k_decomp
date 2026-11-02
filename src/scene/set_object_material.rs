@@ -50,19 +50,22 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 // ---- Rust version ----
 
-/// The state's address, or None without one.
-fn state() -> Option<usize> {
-    {
-        let states: u32 = COURSE.course_faces.bits();
-        (states != 0)
-            .then(|| states.wrapping_add(COURSE.current_course_face.bits() << 6) as usize + 0x30)
-    }
+/// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`), or None without
+/// the course faces.
+fn state() -> Option<u32> {
+    (COURSE.course_faces.bits() != 0).then(|| COURSE.current_course_face.bits())
 }
 
-/// `sub_45079A`.
-fn step_shape(state: usize) -> Result<(), BadInput> {
-    let at = GamePtr::new(state as u32);
-    let [last, mut time, mut length, mut phase]: [u32; 4] = at.read("an object's state")?;
+/// The state's four dwords from +0x30 of the face.
+const STATE: u32 = 0x30;
+
+/// `sub_45079A`, on the state of face `face`.
+fn step_shape(face: u32) -> Result<(), BadInput> {
+    use crate::race::course_places::{face_field, write_face_field};
+    let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
+    let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
+        u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
+    });
     crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
     let clock: u32 = PHYSICS.scene_clock.bits();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
@@ -84,7 +87,11 @@ fn step_shape(state: usize) -> Result<(), BadInput> {
         &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
         &[length, time, phase],
     );
-    at.write([clock, time, length, phase], "an object's state")?;
+    let mut b = [0u8; 16];
+    for (k, v) in [clock, time, length, phase].into_iter().enumerate() {
+        b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+    write_face_field(face, STATE, b, "an object's state")?;
     Ok(())
 }
 

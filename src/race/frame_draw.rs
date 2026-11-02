@@ -747,14 +747,13 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
 
 /// A scene point's record (`sub_44CF33`, inline in the callers): the record at
 /// `g_pointRecords` + (point & 0xFFF) x 0x20, made anew (`scene::make_scene_record`) when
-/// its +0 is not the point. Gives the record and, when made, ecx (the point's address).
-pub fn point_record(point: u32) -> Result<(u32, Option<u32>), Refused> {
+/// its +0 is not the point.
+pub fn point_record(point: u32) -> Result<u32, Refused> {
     let record = crate::scene::point_records::of_scene_point(point);
-    if crate::scene::point_records::field(record, 0)? == point {
-        return Ok((record, None));
+    if crate::scene::point_records::field(record, 0)? != point {
+        crate::scene::project_point::make_scene_record(point, record)?;
     }
-    let from = crate::scene::project_point::make_scene_record(point, record)?;
-    Ok((record, Some(from)))
+    Ok(record)
 }
 
 /// What `point_record` needs to make a record: the records and the points.
@@ -803,7 +802,7 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32
         return Ok((eax, true));
     }
     points_there()?;
-    let (record, _) = point_record(face.point(0))?;
+    let record = point_record(face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     OBJECT_WORK.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
@@ -826,7 +825,7 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     points_there()?;
     let face = ebx;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let (record, _) = point_record(face_field(face, 4 + 4 * k)?)?;
+        let record = point_record(face_field(face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
@@ -844,7 +843,7 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let (record, _) = point_record(face_field(face, 4)?)?;
+            let record = point_record(face_field(face, 4)?)?;
             let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
             RACE_VIEW.face_depth_key.set_bits(key);
             RACE_VIEW

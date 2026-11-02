@@ -14,6 +14,7 @@ use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::scene_points::{point_word, put_point_word};
 use crate::race::shadow_skids_store::SHADOW_SKIDS;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
@@ -160,19 +161,19 @@ pub fn shadow_polygon() -> Result<(), Refused> {
             return Err(BadInput("a shadow hull of no points or more than 0x40").into());
         }
         let scene: u32 = COURSE.scene_point_count.get();
-        let points = scene
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.bits())
-            + 0xC0;
         let records = GamePtr::to(&SHADOW_SKIDS.shadow_points);
         for k in 0..n {
-            let (record, point) = (records.offset(0x20 * k), points.wrapping_add(0xC * k));
+            // The hull's points follow the course's points and 16 more.
+            let (record, point) = (
+                records.offset(0x20 * k),
+                scene.wrapping_add(0x10).wrapping_add(k),
+            );
             let field = |offset| record.offset(offset).read::<u32>("a shadow point");
-            crate::race::scene_points::put(point, field(0)?)?;
-            crate::race::scene_points::put(point + 8, field(8)?)?;
-            crate::race::scene_points::put(point + 4, FRAME_WORK.shadow_ground.bits())?;
+            put_point_word(point, 0, field(0)?)?;
+            put_point_word(point, 2, field(8)?)?;
+            put_point_word(point, 1, FRAME_WORK.shadow_ground.bits())?;
             let e = &POLYGON_WORK.entries[k as usize];
-            e.point.set(scene.wrapping_add(0x10).wrapping_add(k));
+            e.point.set(point);
             e.light.set(0x00FF_FFFFu32);
             e.amount.set((STAGE_PREFS.shadow_alpha.get() >> 1) as u8);
             DRAW.scratch.set_bits(k);
@@ -186,11 +187,6 @@ pub fn shadow_polygon() -> Result<(), Refused> {
         }
         Ok(())
     }
-}
-
-/// A scene point's address (`g_scenePoints` + 12 x n).
-fn scene_point(n: u32) -> u32 {
-    n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits())
 }
 
 /// A polygon work entry's address (`dword_975510` + 0x44 x n).
@@ -207,13 +203,8 @@ fn work_entry(n: u32) -> Result<&'static PolygonEntry, BadInput> {
 /// (`fldz; fcompp`, C0). The point's x and z into `dword_639824` / `dword_63982C`.
 fn inside_edge(n: u32) -> Result<bool, BadInput> {
     {
-        let p = scene_point(n);
-        GROUND_WORK
-            .ground_x
-            .set(crate::race::scene_points::word(p)?);
-        GROUND_WORK
-            .ground_z
-            .set(crate::race::scene_points::word(p + 8)?);
+        GROUND_WORK.ground_x.set(point_word(n, 0)?);
+        GROUND_WORK.ground_z.set(point_word(n, 2)?);
         use crate::math::x87_float::{X, compare, int};
         let word = |d: &crate::session::Dword| int(d.bits() as i32);
         let (x, z) = (&GROUND_WORK.ground_x, &GROUND_WORK.ground_z);
@@ -230,7 +221,7 @@ fn inside_edge(n: u32) -> Result<bool, BadInput> {
 /// products, rounded to a float into `flt_639810` and used as read back), the crossing's
 /// place (x and z whole numbers into `dword_623F88` / `dword_623F90`) and the entry's
 /// texture floats (`flt_623FA8`, `flt_623FAC`) and two bytes (`dword_62419C`, `dword_6241AC`)
-/// shared the same way between the scene points `pa`, `pb` and the entries `ea`, `eb`;
+/// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
 /// `dword_62400C` is left with the share's bits.
 fn crossing_block(pa: u32, pb: u32, ea: &PolygonEntry, eb: &PolygonEntry) -> Result<(), BadInput> {
     use crate::math::x87_float::{int, ld, st, to_int};
@@ -242,16 +233,14 @@ fn crossing_block(pa: u32, pb: u32, ea: &PolygonEntry, eb: &PolygonEntry) -> Res
         GROUND_WORK.plane_f.set_bits(share);
         let share = ld(share);
         // a + (b - a) x share
-        let whole = |a: u32, b: u32| -> Result<i32, BadInput> {
+        let whole = |k: u32| -> Result<i32, BadInput> {
+            let (a, b) = (point_word(pa, k)?, point_word(pb, k)?);
             Ok(to_int(
-                int(crate::race::scene_points::word(a)? as i32)
-                    + (int(crate::race::scene_points::word(b)? as i32)
-                        - int(crate::race::scene_points::word(a)? as i32))
-                        * share,
+                int(a as i32) + (int(b as i32) - int(a as i32)) * share,
             ))
         };
-        DRAW.clip_work[2].set_bits(whole(pa, pb)? as u32);
-        DRAW.clip_work[4].set_bits(whole(pa + 8, pb + 8)? as u32);
+        DRAW.clip_work[2].set_bits(whole(0)? as u32);
+        DRAW.clip_work[4].set_bits(whole(2)? as u32);
         let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
         DRAW.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
         DRAW.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
@@ -273,15 +262,14 @@ fn crossing_block(pa: u32, pb: u32, ea: &PolygonEntry, eb: &PolygonEntry) -> Res
 /// `flt_623F88` ..) kept as it leaves them.
 fn edge_crossing(ea: &PolygonEntry, eb: &PolygonEntry, ed: &PolygonEntry) -> Result<(), BadInput> {
     {
-        let pa = scene_point(ea.point.get());
-        let pb = scene_point(eb.point.get());
+        let (pa, pb) = (ea.point.get(), eb.point.get());
         let c = &FRAME_WORK.shadow_corners;
         let w = &FRAME_WORK.shadow_work;
         let rd = |d: &crate::session::Dword| d.bits();
-        w[1].set(crate::race::scene_points::word(pb)?);
-        w[5].set(crate::race::scene_points::word(pb + 8)?);
-        w[0].set(crate::race::scene_points::word(pa)?);
-        w[4].set(crate::race::scene_points::word(pa + 8)?);
+        w[1].set(point_word(pb, 0)?);
+        w[5].set(point_word(pb, 2)?);
+        w[0].set(point_word(pa, 0)?);
+        w[4].set(point_word(pa, 2)?);
         w[2].set(rd(&c[0]));
         w[3].set(rd(&c[2]));
         w[6].set(rd(&c[1]));
@@ -294,10 +282,9 @@ fn edge_crossing(ea: &PolygonEntry, eb: &PolygonEntry, ed: &PolygonEntry) -> Res
         w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
         crossing_block(pa, pb, ea, eb)?;
         let n = rd(&FRAME_WORK.shadow_scene);
-        let p = scene_point(n);
-        crate::race::scene_points::put(p, DRAW.clip_work[2].bits())?;
-        crate::race::scene_points::put(p + 4, 0)?;
-        crate::race::scene_points::put(p + 8, DRAW.clip_work[4].bits())?;
+        put_point_word(n, 0, DRAW.clip_work[2].bits())?;
+        put_point_word(n, 1, 0)?;
+        put_point_word(n, 2, DRAW.clip_work[4].bits())?;
         ed.point.set(n);
         FRAME_WORK.shadow_scene.set(n.wrapping_add(1));
         ed.u2.set(DRAW.clip_work[10].bits());
@@ -317,11 +304,10 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         if count < 3 {
             return Ok(());
         }
-        let (a, b) = (scene_point(from), scene_point(to));
-        FRAME_WORK.shadow_corners[2].set(crate::race::scene_points::word(b)?);
-        FRAME_WORK.shadow_corners[3].set(crate::race::scene_points::word(b + 8)?);
-        FRAME_WORK.shadow_corners[0].set(crate::race::scene_points::word(a)?);
-        FRAME_WORK.shadow_corners[1].set(crate::race::scene_points::word(a + 8)?);
+        FRAME_WORK.shadow_corners[2].set(point_word(to, 0)?);
+        FRAME_WORK.shadow_corners[3].set(point_word(to, 2)?);
+        FRAME_WORK.shadow_corners[0].set(point_word(from, 0)?);
+        FRAME_WORK.shadow_corners[1].set(point_word(from, 2)?);
         let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
         copy_on_in(
             (&POLYGON_WORK, list),
@@ -405,15 +391,14 @@ pub fn clip_shadow_to_face() -> Result<(), BadInput> {
         let found = rc2k_core::race::shadow::face_near(
             (CAR.position[0].bits(), CAR.position[2].bits()),
             |n| {
-                let p = scene_point(corners[n]);
-                let w = |a: u32| match crate::race::scene_points::word(a) {
+                let w = |k: u32| match point_word(corners[n], k) {
                     Ok(v) => v,
                     Err(e) => {
                         trap.keep(e);
                         0
                     }
                 };
-                (w(p), w(p + 8))
+                (w(0), w(2))
             },
         );
         trap.finish()?;
@@ -437,20 +422,17 @@ pub fn clip_shadow_to_face() -> Result<(), BadInput> {
 /// height (`dword_639828`) plus `dword_641928`. Every register kept.
 fn raise_onto_face(index: u32) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
-    let p = scene_point(work_entry(index)?.point.get());
+    let p = work_entry(index)?.point.get();
     for k in 0..3 {
         GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
     }
-    GROUND_WORK
-        .ground_x
-        .set(crate::race::scene_points::word(p)?);
-    GROUND_WORK
-        .ground_z
-        .set(crate::race::scene_points::word(p + 8)?);
+    GROUND_WORK.ground_x.set(point_word(p, 0)?);
+    GROUND_WORK.ground_z.set(point_word(p, 2)?);
     face_shares_at()?;
     crate::physics::plane_height::plane_height();
-    crate::race::scene_points::put(
-        p + 4,
+    put_point_word(
+        p,
+        1,
         GROUND_WORK
             .ground_height
             .get()
@@ -545,27 +527,29 @@ pub fn shadow_on_face() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `sub_4576C9`: each face of course record esi (+8 .. +0xC) with a kind below 0x10 and
+/// `sub_4576C9`: each face of course record number `record` (esi in the original, its
+/// address; +8 .. +0xC) with a kind below 0x10 and
 /// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
 /// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
 fn shadow_on_record(record: u32) -> Result<(), Refused> {
+    use crate::race::course_places::{face_number, record_field};
     // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
     // `rc2k_core::race::view::record_faces`.
     use rc2k_core::race::shadow::{SHADOW_TRIANGLES, takes_shadow};
-    let Some((first, last)) =
-        rc2k_core::race::view::record_faces(get(record + 8)?, get(record + 0xC)?)
-    else {
+    let Some((first, last)) = rc2k_core::race::view::record_faces(
+        record_field(record, 8, "a course record")?,
+        record_field(record, 0xC, "a course record")?,
+    ) else {
         return Ok(());
     };
     for face in first..=last {
         COURSE.current_course_face.set(face);
-        let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let f = crate::race::course_places::face(at, "a course face")?;
+        let f = face_number(face, "a course face")?;
         let takes = takes_shadow(f.kind(), || f.switches());
         if takes {
             for corners in SHADOW_TRIANGLES {
                 for (k, &o) in corners.iter().enumerate() {
-                    FRAME_WORK.shadow_light[k].set_bits(get(at + o)?);
+                    FRAME_WORK.shadow_light[k].set_bits(f.dword_at(o));
                 }
                 shadow_on_face()?;
             }
@@ -580,18 +564,15 @@ fn shadow_on_record(record: u32) -> Result<(), Refused> {
 /// which its one caller does not read.
 pub fn shadow_faces() -> Result<(), Refused> {
     let count: u32 = COURSE.course_record_count.get();
-    let records: u32 = COURSE.course_records.get();
-    shadow_on_record((count.wrapping_sub(1) << 5).wrapping_add(records))?;
+    shadow_on_record(count.wrapping_sub(1))?;
     if count == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
     use rc2k_core::race::shadow::{cell_near_car, record_cell};
     // Every record of the course is looked at each frame: the run is resolved once.
-    let all =
-        crate::race::course_places::bytes(records, (count as usize) << 5, "the course records")?;
+    let all = crate::race::course_places::records_table(count, "the course records")?;
     for n in 0..count {
-        let at = (n << 5).wrapping_add(records);
         let o = (n as usize) << 5;
         let Some((x, z)) = record_cell(u32::from_le_bytes([
             all[o],
@@ -604,7 +585,7 @@ pub fn shadow_faces() -> Result<(), Refused> {
         COURSE.record_place[0].set(x);
         COURSE.record_place[1].set(z);
         if cell_near_car((CAR.position[0].bits(), CAR.position[2].bits()), (x, z)) {
-            shadow_on_record(at)?;
+            shadow_on_record(n)?;
         }
     }
     Ok(())
@@ -796,11 +777,6 @@ pub fn cast_car_shadows() -> Result<(), Refused> {
 mod asm_reference {
     use super::*;
 
-    // The reference blocks read and write the test's own memory plainly.
-    fn get(a: u32) -> u32 {
-        super::get(a).expect("the test's memory is registered")
-    }
-
     // The original blocks, verbatim.
     pub(super) fn two_pi_plus_asm(v: u32) -> u32 {
         let (x, mut out) = ([v], 0u32);
@@ -887,11 +863,10 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn inside_edge_asm(n: u32) -> bool {
+    pub(super) unsafe fn inside_edge_asm(n: u32, points: &[u32]) -> bool {
         unsafe {
-            let p = scene_point(n);
-            GROUND_WORK.ground_x.set(get(p));
-            GROUND_WORK.ground_z.set(get(p + 8));
+            GROUND_WORK.ground_x.set(points[3 * n as usize]);
+            GROUND_WORK.ground_z.set(points[3 * n as usize + 2]);
             let status: u16;
             let old = crate::race::store::OldPlaces::lay(&[
                 0x639824, 0x63982c, 0x641948, 0x64194c, 0x641950, 0x641954,
@@ -1183,7 +1158,7 @@ mod asm_reference {
                 GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
                 GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
                 let n = r.below(4);
-                let want = unsafe { inside_edge_asm(n) };
+                let want = unsafe { inside_edge_asm(n, &points) };
                 let seen = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
                 {
                     GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
@@ -1260,13 +1235,12 @@ mod asm_reference {
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 let both = [pa, pb].concat();
                 crate::race::scene_points::with_test_points(&both, || {
-                    let base = crate::race::scene_points::base();
                     let entry = |a: u32| {
                         GamePtr::new(a)
                             .record::<PolygonEntry>("the test's entry")
                             .expect("the test's memory is registered")
                     };
-                    crossing_block(base, base + 12, entry(args.2), entry(args.3))
+                    crossing_block(0, 1, entry(args.2), entry(args.3))
                 })
                 .expect("the test's memory is registered");
                 let got = read();

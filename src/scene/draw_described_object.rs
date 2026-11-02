@@ -78,10 +78,7 @@ pub fn draw_described_object(d: u32) -> Result<(), Refused> {
     let desc = crate::race::course_places::bytes(d, 0x3C, "a described object")?;
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
-    let p = place
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.bits());
-    let at: [u32; 3] = crate::race::scene_points::point(p)?;
+    let at: [u32; 3] = crate::race::scene_points::point_number(place)?;
     OBJECT_WORK.place[0].set(at[0].wrapping_add(get(0x30)));
     OBJECT_WORK.place[1].set(at[1].wrapping_add(get(0x34)));
     OBJECT_WORK.place[2].set(at[2].wrapping_add(get(0x38)));
