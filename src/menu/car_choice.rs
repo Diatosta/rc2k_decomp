@@ -5,7 +5,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::player::{PLAYERS, player_at};
+use crate::menu::player::player;
 use crate::menu::state_store::MENU_STATE;
 
 const MOST_ENTRIES: u32 = 0x100;
@@ -16,12 +16,9 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car() -> Result<(), Refused> {
     let current: u32 = EVENT_STATE.current_player.get();
-    let p = player_at(current);
-    if current >= PLAYERS || p == 0 {
-        return Err(BadInput("a current player past the four").into());
-    }
-    let car = crate::pointers::GamePtr::new(p)
-        .read::<crate::menu::player::Player>("a player")?
+    let car = player(current)
+        .ok_or(BadInput("a current player past the four"))?
+        .get()
         .car_number;
     let list: u32 = MENU_STATE.carousel.entries.get();
     let entry =

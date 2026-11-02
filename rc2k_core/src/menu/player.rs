@@ -107,6 +107,93 @@ pub struct Player {
 }
 
 impl Player {
+    /// The record as its 0x28c bytes in the game's layout.
+    pub fn to_le_bytes(&self) -> [u8; 0x28c] {
+        let mut b = [0; 0x28c];
+        let mut word = |at: usize, v: u32| b[at..at + 4].copy_from_slice(&v.to_le_bytes());
+        word(0x0, self.gap_0);
+        word(0x4, self.nationality);
+        word(0x8, self.car_number);
+        word(0xc, self.view);
+        word(0x10, self.second_view);
+        word(0x14, self.field_14);
+        word(0x18, self.name);
+        word(0x28, self.race_number);
+        word(0x2c, self.gap_2c);
+        word(0x30, self.gearing);
+        word(0x3c, self.field_3c);
+        word(0x40, self.field_40);
+        word(0x44, self.field_44);
+        word(0x48, self.field_48);
+        word(0x4c, self.gap_4c);
+        word(0x84, self.field_84);
+        word(0x88, self.gap_88);
+        word(0x8c, self.field_8c);
+        word(0x90, self.no_turbo);
+        for (k, &v) in self.damage.iter().enumerate() {
+            word(0xcc + 4 * k, v);
+        }
+        word(0x10c, self.tyre);
+        word(0x110, self.brake_balance);
+        word(0x114, self.ride_height);
+        word(0x118, self.suspension_stiffness);
+        word(0x11c, self.steering_sensitivity);
+        word(0x120, self.gear_ratio);
+        word(0x144, self.field_144);
+        word(0x148, self.field_148);
+        word(0x14c, self.field_14c);
+        word(0x150, self.field_150);
+        word(0x154, self.codriver_sex);
+        word(0x158, self.map_area);
+        word(0x15c, self.rear_mirror);
+        word(0x160, self.rev_counter);
+        word(0x164, self.car_info);
+        word(0x168, self.message_display);
+        word(0x16c, self.progress_bar);
+        word(0x170, self.driver_info);
+        word(0x174, self.pace_notes);
+        word(0x178, self.metric_units);
+        for (k, &v) in self.wear_17c.iter().enumerate() {
+            word(0x17c + 4 * k, v);
+        }
+        for (k, &v) in self.tyre_wear.iter().enumerate() {
+            word(0x1f8 + 4 * k, v);
+        }
+        for (k, &v) in self.field_24c.iter().enumerate() {
+            word(0x24c + 4 * k, v);
+        }
+        word(0x274, self.field_274);
+        word(0x278, self.flags_278);
+        word(0x27c, self.gap_27c);
+        word(0x280, self.controller_sensitivity);
+        word(0x284, self.field_284 as u32);
+        word(0x288, self.gap_288);
+        b[0x1c..0x1c + self.keys.len()].copy_from_slice(&self.keys);
+        b[0x34..0x34 + self.gap_34.len()].copy_from_slice(&self.gap_34);
+        b[0x50..0x50 + self.controls_50.len()].copy_from_slice(&self.controls_50);
+        b[0x7c..0x7c + self.gap_7c.len()].copy_from_slice(&self.gap_7c);
+        b[0x94..0x94 + self.gap_94.len()].copy_from_slice(&self.gap_94);
+        b[0x124..0x124 + self.name_copy.len()].copy_from_slice(&self.name_copy);
+        b[0x20c..0x20c + self.gap_20c.len()].copy_from_slice(&self.gap_20c);
+        b[0x26c..0x26c + self.gap_26c.len()].copy_from_slice(&self.gap_26c);
+        b
+    }
+
+    /// The dword at byte `at`.
+    pub fn word(&self, at: usize) -> u32 {
+        let b = self.to_le_bytes();
+        u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
+    }
+
+    /// Dwords stored by byte offset, as the event's tables list them.
+    pub fn store(&mut self, stores: &[(u32, u32)]) {
+        let mut b = self.to_le_bytes();
+        for &(at, v) in stores {
+            b[at as usize..at as usize + 4].copy_from_slice(&v.to_le_bytes());
+        }
+        *self = Self::from_le_bytes(b);
+    }
+
     /// The record from its 0x28c bytes in the game's layout (little-endian dwords).
     pub const fn from_le_bytes(b: [u8; 0x28c]) -> Self {
         const fn word(b: &[u8; 0x28c], at: usize) -> u32 {
@@ -457,6 +544,21 @@ mod tests {
             (100, 0)
         );
         assert_eq!(stepped(Setting::PaceNotes, 1, true), 0);
+    }
+
+    #[test]
+    fn bytes_there_and_back() {
+        let mut bytes = [0u8; 0x28c];
+        for (n, b) in bytes.iter_mut().enumerate() {
+            *b = (n * 7) as u8;
+        }
+        let p = Player::from_le_bytes(bytes);
+        assert_eq!(p.to_le_bytes(), bytes);
+        let mut q = p;
+        q.store(&[(0x8C, 5), (0xD0, 1)]);
+        assert_eq!(q.field_8c, 5);
+        assert_eq!(q.word(0xD0), 1);
+        assert_eq!(q.word(4), p.nationality);
     }
 
     #[test]

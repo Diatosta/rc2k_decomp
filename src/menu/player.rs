@@ -8,6 +8,11 @@ use crate::menu::players_store::PLAYER_TABLE;
 
 pub use rc2k_core::menu::player::{PLAYERS, Player};
 
+/// Player `index`, none past the four.
+pub fn player(index: u32) -> Option<&'static crate::session::Shared<Player>> {
+    PLAYER_TABLE.players.get(index as usize)
+}
+
 /// Player `index`'s address, or 0.
 pub fn player_at(index: u32) -> u32 {
     if index >= PLAYERS {

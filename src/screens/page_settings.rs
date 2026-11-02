@@ -16,13 +16,10 @@ use crate::menu::state_store::MENU_STATE;
 /// +0x50 into the page's copy (`unk_7555B1`). Every register kept. Refuses (before
 /// anything) a player without its record.
 pub fn pick_player(n: u32) -> Result<(), Refused> {
-    let p = crate::menu::player::player_at(n);
-    if p == 0 {
-        return Err(BadInput("a player without its record").into());
-    }
     // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
-    let (value, copy) = crate::pointers::GamePtr::new(p)
-        .read::<rc2k_core::menu::player::Player>("page settings: a game value")?
+    let (value, copy) = crate::menu::player::player(n)
+        .ok_or(BadInput("a player without its record"))?
+        .get()
         .picked();
     EVENT_STATE.current_player.set(n);
     EVENT_STATE.dword_7558c4.set(value);

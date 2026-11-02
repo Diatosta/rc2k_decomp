@@ -12,8 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::player::{Player, player_at};
-use crate::pointers::GamePtr;
+use crate::menu::player::{Player, player};
 use crate::screens::car_caption::put_string;
 
 pub const TEXT_LEN: usize = 0x100;
@@ -21,19 +20,13 @@ const FIRST_STRING: u32 = 0x21F;
 
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
-pub fn current() -> Result<u32, Refused> {
-    let n: u32 = EVENT_STATE.current_player.get();
-    let p = player_at(n);
-    if n >= 4 || p == 0 {
-        return Err(BadInput("a current player past the four").into());
-    }
-    Ok(p)
+pub fn current() -> Result<&'static crate::session::Shared<Player>, Refused> {
+    Ok(player(EVENT_STATE.current_player.get())
+        .ok_or(BadInput("a current player past the four"))?)
 }
 
 pub fn gearing_text() -> Result<(), Refused> {
-    let value = GamePtr::new(current()?)
-        .read::<Player>("the current player")?
-        .gearing;
+    let value = current()?.get().gearing;
     put_string(
         FIRST_STRING.wrapping_add(value),
         (crate::screens::text_buffers_store::TEXT_BUFFERS
@@ -60,9 +53,6 @@ pub fn step_gearing(on: bool) -> Result<(), Refused> {
         TEXT_LEN,
     )?;
     SCREEN_FLOW.shown_gearing.set(value);
-    let at = GamePtr::new(p);
-    let mut player = at.read::<Player>("the current player")?;
-    player.gearing = value;
-    at.write(player, "the current player")?;
+    p.update(|p| p.gearing = value);
     Ok(())
 }

@@ -11,7 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::player::{PLAYERS, Player, player_at};
+use crate::menu::player::{PLAYERS, Player, player};
 use crate::session::Dword;
 
 pub const CURRENT_PLAYER_RVA: &Dword = &EVENT_STATE.current_player; // dword_75598C
@@ -34,10 +34,9 @@ pub fn take_shown_car(list: u32) -> Result<(), Refused> {
         let no_turbo = description
             .offset(8)
             .read::<u32>("a car description's turbo switch")?;
-        let at = crate::pointers::GamePtr::new(player_at(current));
-        let mut p = at.read::<Player>("the current player")?;
-        p.take_car(number, no_turbo);
-        at.write(p, "the current player")?;
+        player(current)
+            .ok_or(crate::errors::BadInput("a current player past the four"))?
+            .update(|p| p.take_car(number, no_turbo));
     }
     Ok(())
 }

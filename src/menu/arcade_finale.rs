@@ -13,21 +13,17 @@
 //! The callees get eax 5 - level, ebx the level and edi player 0's record at first, then what the
 //! one before left. Refuses (before anything) a missing player 0.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::player::player_at;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::RACE_STATE;
 
 /// The Rust version. The original keeps every register of its caller.
 pub fn arcade_finale() -> Result<(), Refused> {
-    let player0 = player_at(0);
-    if player0 == 0 {
-        return Err(BadInput("no player 0").into());
-    }
-    let f = |o: u32| crate::pointers::GamePtr::new(player0 + o).read::<u32>("a player field");
-    RACE_STATE.results.finish_player.set(f(0x28)?);
-    RACE_STATE.results.finish_kind.set(f(8)?);
-    RACE_STATE.settings.car_kind_current.set(f(8)?);
+    let first = PLAYER_TABLE.players[0].get();
+    RACE_STATE.results.finish_player.set(first.race_number);
+    RACE_STATE.results.finish_kind.set(first.car_number);
+    RACE_STATE.settings.car_kind_current.set(first.car_number);
     RACE_STATE.settings.kept.set(0);
     let level = ARCADE_GAME.level.get();
     // Converted: `rc2k_core::menu::arcade::levels_left`.
