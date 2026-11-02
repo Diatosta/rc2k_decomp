@@ -18,7 +18,7 @@ use crate::menu::state_store::MENU_STATE;
 /// The Rust version (see the header): the registers it leaves.
 pub fn inspection_verdict() -> Result<(), Refused> {
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::inspection::verdict`.
@@ -33,7 +33,7 @@ pub fn inspection_verdict() -> Result<(), Refused> {
     fault.check()?;
     DRAW_WORK.figure.set(v.penalties);
     MENU_STATE.driver_stats.score.set(v.score);
-    put(p + 0xD0, v.kind)?;
+    p.update(|q| q.store(&[(0xD0, v.kind)]));
 
     Ok(())
 }

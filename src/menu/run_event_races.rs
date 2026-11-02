@@ -163,12 +163,12 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        self.g.record = player(i);
+        self.g.record = player(i).addr();
         self.fault.get(self.g.record + 0xD0) == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
-        self.g.record = player(3);
+        self.g.record = player(3).addr();
         self.fault.put(self.g.record + 0x88, races::FOURTH_TIME);
         self.fault.put(self.g.record + 0xD0, races::FOURTH_ENTRY);
     }
@@ -199,7 +199,7 @@ pub fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
     }
     let mode: u32 = EVENT_STATE.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
-        && (0..n).any(|i| player(i) == 0)
+        && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }

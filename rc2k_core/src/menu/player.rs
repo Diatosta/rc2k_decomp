@@ -186,10 +186,10 @@ impl Player {
     }
 
     /// Dwords stored by byte offset, as the event's tables list them.
-    pub fn store(&mut self, stores: &[(u32, u32)]) {
+    pub fn store(&mut self, stores: &[crate::menu::standings::Store]) {
         let mut b = self.to_le_bytes();
         for &(at, v) in stores {
-            b[at as usize..at as usize + 4].copy_from_slice(&v.to_le_bytes());
+            b[at..at + 4].copy_from_slice(&v.to_le_bytes());
         }
         *self = Self::from_le_bytes(b);
     }

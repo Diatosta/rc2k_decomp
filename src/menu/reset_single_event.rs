@@ -7,16 +7,13 @@
 //!
 //! Caller: `sub_4AA4D7` (twice). Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_single_event() -> Result<(), Refused> {
-    if (0..4).any(|n| player(n) == 0) {
-        return Err(BadInput("a missing player").into());
-    }
     let mut drivers = driver_table()?;
     let mut drivers = drivers.entries();
 

@@ -17,7 +17,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::player::{PLAYERS, player_at};
+use crate::menu::player::PLAYERS;
 use crate::menu::standings::put_all;
 use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
@@ -40,9 +40,6 @@ pub fn drivers() -> Result<Option<u32>, BadInput> {
 
 pub fn begin_event() -> Result<(), Refused> {
     let count = drivers()?.ok_or(BadInput("the drivers do not end within 0x400"))?;
-    if (0..PLAYERS).any(|n| player_at(n) == 0) {
-        return Err(BadInput("a player missing from g_players").into());
-    }
     MENU_PAGES.services.set(0u32);
     EVENT_STATE.stages_done.set(0u32);
     // Converted: `rc2k_core::menu::event` (`DRIVER_BEGIN`, `PLAYER_BEGIN`,
@@ -56,12 +53,11 @@ pub fn begin_event() -> Result<(), Refused> {
     EVENT_STATE.event_out.set(0u32);
     for n in 0..PLAYERS {
         CURRENT_PLAYER.set(n);
-        let p = player_at(n);
+        let p = crate::menu::standings::player(n);
         put_all(p, &PLAYER_BEGIN)?;
         crate::service::repair_parts::repair_car()?;
         if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
-            let sensitivity = crate::pointers::GamePtr::new(p + 0x280)
-                .read::<u32>("begin event: a game value")?;
+            let sensitivity = p.get().controller_sensitivity;
             put_all(p, &setup_defaults(sensitivity))?;
         }
     }

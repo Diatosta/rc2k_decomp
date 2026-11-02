@@ -129,7 +129,7 @@ pub fn yes() -> bool {
 /// The current player's record, refused past the four or missing.
 pub fn current_player() -> Result<u32, BadInput> {
     let n = get(CURRENT);
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past the four or missing"));
     }
     Ok(player(n))

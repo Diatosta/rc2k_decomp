@@ -5,41 +5,28 @@
 //! In:  nothing (`section`)
 //! Out: eax the section, ecx the player (or -1), edi the last player looked at
 //!
-//! Callers: `sub_4A14CB`, `sub_4A9439`. Refuses a missing player, before anything.
+//! Callers: `sub_4A14CB`, `sub_4A9439`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
-/// What `find_section_player` finds, as the original leaves it in the registers: eax the
-/// section, ecx the player's index (`u32::MAX` for none), edi its record (player 4's for
+/// What `find_section_player` finds, as the original leaves it in the registers: ecx the player's index (`u32::MAX` for none), edi its record (player 4's for
 /// none).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub struct SectionPlayer {
-    pub section: u32,
     pub index: u32,
-    pub record: u32,
+    pub record: PlayerCell,
 }
 
 /// The Rust version (see the header).
 pub fn find_section_player() -> Result<SectionPlayer, Refused> {
-    if (0..4).any(|n| player(n) == 0) {
-        return Err(BadInput("a missing player").into());
-    }
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = EVENT_STATE.section.get();
-    let fault = crate::menu::event_flow::Fault::default();
-    let done: [u32; 4] = std::array::from_fn(|n| {
-        fault.get(
-            player(n as u32)
-                .wrapping_add(section.wrapping_mul(4))
-                .wrapping_add(0xB4),
-        )
-    });
-    fault.check()?;
+    let done: [u32; 4] =
+        std::array::from_fn(|n| player(n as u32).get().word(0xB4 + 4 * section as usize));
     let found = rc2k_core::menu::points::section_player(done);
     Ok(SectionPlayer {
-        section,
         index: found.unwrap_or(u32::MAX),
         record: player(found.unwrap_or(3)),
     })

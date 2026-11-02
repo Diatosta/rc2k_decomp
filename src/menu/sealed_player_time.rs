@@ -17,15 +17,15 @@ use crate::race::state_store::RACE_STATE;
 /// the sealed block's two dwords (its eax, ebx) out.
 pub fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     let p = player(n);
     let sealed = {
         crate::records::seal_time::seal_time(
-            get(p + 0x88)?,
+            p.get().word(0x88),
             [
-                get(p + 8)? as u8,
+                p.get().word(8) as u8,
                 RACE_STATE.settings.run_kind.get() as u8,
                 byte as u8,
             ],

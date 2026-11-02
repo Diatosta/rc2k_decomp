@@ -26,23 +26,21 @@ pub fn get(p: u32) -> Result<u32, crate::errors::BadInput> {
     crate::pointers::GamePtr::new(p).read::<u32>("a game value")
 }
 
-/// Whether any of the players has no name (null +0x18); the first one found ends the look.
-pub fn any_unnamed(players: &[u32]) -> Result<bool, crate::errors::BadInput> {
-    for &p in players {
-        if get(p + 0x18)? == 0 {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+/// A player's record, typed.
+pub type PlayerCell = &'static crate::session::Shared<rc2k_core::menu::player::Player>;
+
+/// Whether any of the players has no name (a null name place).
+pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {
+    Ok(players.iter().any(|p| p.get().name == 0))
 }
 
 pub fn put(p: u32, v: u32) -> Result<(), crate::errors::BadInput> {
     crate::pointers::GamePtr::new(p).write(v, "a game value")
 }
 
-/// Player `n`'s record.
-pub fn player(n: u32) -> u32 {
-    PLAYER_TABLE.pointers[n as usize].get()
+/// Player `n`'s record (`n` one of the four).
+pub fn player(n: u32) -> PlayerCell {
+    &PLAYER_TABLE.players[n as usize]
 }
 
 /// A table of the game's memory (the drivers) walked as the original's `do .. while`
@@ -219,10 +217,8 @@ pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadIn
 }
 
 /// A record's stores (the core's) made at `p`.
-pub fn put_all(p: u32, stores: &[standings::Store]) -> Result<(), BadInput> {
-    for &(at, v) in stores {
-        put(p + at as u32, v)?;
-    }
+pub fn put_all(p: PlayerCell, stores: &[standings::Store]) -> Result<(), BadInput> {
+    p.update(|p| p.store(stores));
     Ok(())
 }
 
@@ -246,12 +242,10 @@ pub const INDEX_RVA: &Dword = &EVENT_STATE.index; // index
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
-pub fn counted_players() -> Result<Vec<u32>, BadInput> {
+pub fn counted_players() -> Result<Vec<PlayerCell>, BadInput> {
     let n: u32 = EVENT_STATE.player_count.get();
-    if n == 0 || n > 4 || (0..n).any(|k| player(k) == 0) {
-        return Err(BadInput(
-            "a player count of 0 or past 4, or a player missing",
-        ));
+    if n == 0 || n > 4 {
+        return Err(BadInput("a player count of 0 or past 4"));
     }
     Ok((0..n).map(player).collect())
 }
@@ -318,24 +312,24 @@ pub fn sort_table_a(key: rc2k_core::saves::entries::Field) -> Result<(), BadInpu
 /// 3 or missing, no name, no table or a group past 4.
 pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
-    let group = group.unwrap_or(get(p + 0x90)?);
+    let group = group.unwrap_or(p.get().word(0x90));
     let scores = &crate::saves::best_times::SCORES;
-    let (true, true, false) = (scores.is_taken(), group < 5, get(p + 0x18)? == 0) else {
+    let (true, true, false) = (scores.is_taken(), group < 5, p.get().word(0x18) == 0) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
     // Converted: `rc2k_core::saves::scores::enter_best`.
     use rc2k_core::saves::scores as s;
-    let name_ref = get(p + 0x18)?;
+    let name_ref = p.get().word(0x18);
     let best = s::Best {
         player: n + 1,
-        score: get(p + score_at)?,
-        nation: get(p + 4)?,
-        car: get(p + 8)?,
-        group: get(p + 0x90)?,
+        score: p.get().word(score_at as usize),
+        nation: p.get().word(4),
+        car: p.get().word(8),
+        group: p.get().word(0x90),
         name_ref,
         name: bytes(name_ref)?,
     };
@@ -363,9 +357,9 @@ pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
 }
 
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
-pub fn past_limit(p: u32, k: u32) -> Result<bool, BadInput> {
+pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
     let limit = MENU_STATE.driver_stats.limits[k as usize].get() as i32;
-    Ok(get(p + 0xD4 + 4 * k)? as i32 >= limit)
+    Ok(p.get().word(0xD4 + 4 * k as usize) as i32 >= limit)
 }
 
 /// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,
@@ -373,10 +367,10 @@ pub fn past_limit(p: u32, k: u32) -> Result<bool, BadInput> {
 /// the last number given (ecx), the last numbered player as (index, record) when there was
 /// one (eax, esi; else they are kept). (The original's edi, the table's end, is read by no
 /// later call: not kept since the tables are blocks, phase 12.)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub struct Numbered {
     pub last_number: u32,
-    pub last_player: Option<(u32, u32)>,
+    pub last_player: Option<(u32, PlayerCell)>,
 }
 
 /// The numbering of a standings table (`number_all_*`, `number_standings_*`): each entry
@@ -399,8 +393,8 @@ pub fn number_table(
             .collect(),
     };
     for &(group, p) in &walked {
-        if which.counts(group) && p != 0 && (p > 4 || player(p - 1) == 0) {
-            return Err(BadInput("a standings player past 4 or missing").into());
+        if which.counts(group) && p > 4 {
+            return Err(BadInput("a standings player past 4").into());
         }
     }
     let groups: Vec<u32> = walked.iter().map(|&(g, _)| g).collect();
@@ -414,7 +408,7 @@ pub fn number_table(
         last_number = n;
         if p != 0 {
             let record = player(p - 1);
-            put(record + record_at, n)?;
+            record.update(|q| q.store(&[(record_at as usize, n)]));
             last_player = Some((p - 1, record));
         }
     }
@@ -448,7 +442,7 @@ impl Numbered {
         c.measure_x = self.last_number;
         if let Some((index, record)) = self.last_player {
             c.arg = index;
-            c.cars = record;
+            c.cars = record.addr();
         }
     }
 }

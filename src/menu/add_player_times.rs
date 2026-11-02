@@ -13,10 +13,10 @@ use crate::menu::standings::*;
 pub fn add_player_times() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::added_time`.
     for p in counted_players()? {
-        let entered = get(p + 0xD0)?;
+        let entered = p.get().word(0xD0);
         // The times are read only for a player that took part, as the original.
         let (time, total) = if entered == 1 {
-            (get(p + 0x88)?, get(p + 0x8C)?)
+            (p.get().word(0x88), p.get().word(0x8C))
         } else {
             (0, 0)
         };

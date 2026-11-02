@@ -25,7 +25,7 @@ const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
 /// stage points go to, and whether it keeps them.
 enum Owner {
     Driver(u32),
-    Player(u32),
+    Player(PlayerCell),
 }
 
 fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
@@ -34,7 +34,7 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
             let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
             Ok(Owner::Driver(driver))
         }
-        n if n <= 4 && player(n - 1) != 0 => Ok(Owner::Player(player(n - 1))),
+        n if n <= 4 => Ok(Owner::Player(player(n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
@@ -66,12 +66,17 @@ pub fn award_stage_points() -> Result<(), Refused> {
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
             DRAW_WORK.seconds.set(points.0);
-            let (keeps, field) = match *o {
-                Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
-                Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
+            let keeps = match *o {
+                Owner::Driver(d) => get(d + 0x24)? == 1,
+                Owner::Player(p) => p.get().word(0xD0) == 1,
             };
             e.stage[section as usize] = kept(given, keeps);
-            put(field, kept(given, keeps))?;
+            match *o {
+                Owner::Driver(d) => put(d + 0x78 + at, kept(given, keeps))?,
+                Owner::Player(p) => {
+                    p.update(|q| q.store(&[(0x98 + at as usize, kept(given, keeps))]));
+                }
+            }
         }
     }
     for (e, o) in all.iter_mut().zip(&owners) {
@@ -79,7 +84,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
         e.stage[6] = total;
         match *o {
             Owner::Driver(d) => put(d + 0x90, total)?,
-            Owner::Player(p) => put(p + 0xB0, total)?,
+            Owner::Player(p) => p.update(|q| q.store(&[(0xB0, total)])),
         }
     }
     with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;

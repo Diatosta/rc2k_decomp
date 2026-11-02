@@ -53,9 +53,9 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table() -> Result<(u32, u32), BadInput> {
+pub fn player_and_table() -> Result<(PlayerCell, u32), BadInput> {
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
@@ -63,8 +63,8 @@ pub fn player_and_table() -> Result<(u32, u32), BadInput> {
 }
 
 /// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
-pub fn car_table(p: u32) -> Result<u32, BadInput> {
-    let car = match get(p + 8)? {
+pub fn car_table(p: PlayerCell) -> Result<u32, BadInput> {
+    let car = match p.get().car_number {
         0x21 => 0x17,
         c => c,
     };
@@ -81,9 +81,9 @@ pub fn driver_stats() -> Result<(), Refused> {
     let fault = Fault::default();
     let table = Table::read(|o| fault.get(t + o as u32));
     let car = Car {
-        wear: std::array::from_fn(|k| fault.get(p + 0xD4 + 4 * k as u32)),
-        fitted: fault.get(p + 0x278),
-        setup: [fault.get(p + 0x114), fault.get(p + 0x118)],
+        wear: std::array::from_fn(|k| p.get().word(0xD4 + 4 * k)),
+        fitted: p.get().flags_278,
+        setup: [p.get().ride_height, p.get().suspension_stiffness],
     };
     fault.check()?;
     let c = Constants {

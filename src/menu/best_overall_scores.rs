@@ -22,7 +22,7 @@ pub fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
     EVENT_STATE.any_time_qualified.set(0u32);
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
-        g.arg = get(p + 0xCC)?;
+        g.arg = p.get().word(0xCC);
         g.palette = 4 * 0x258 + 0x21C;
         // The tenth entry's offset (the original leaves its address in esi, which the
         // screen's lists set before anything reads it).

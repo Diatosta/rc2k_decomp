@@ -15,12 +15,12 @@ use crate::menu::standings::*;
 pub fn beat_target_time() -> Result<(), Refused> {
     let event = current_event()?;
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 {
+    if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::bests::makes_time`.
     let target = with_event(event, |ten| ten[9].head.key)?;
-    let beaten = rc2k_core::menu::bests::makes_time(get(player(n) + 0x88)?, target);
+    let beaten = rc2k_core::menu::bests::makes_time(player(n).get().word(0x88), target);
     EVENT_STATE.time_qualifies.set(u32::from(beaten));
     Ok(())
 }

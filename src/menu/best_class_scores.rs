@@ -29,8 +29,8 @@ pub fn best_class_scores(c: &Carried) -> Result<(), Refused> {
         EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
-            g.arg = get(p + 0xB0)?;
-            g.palette = get(p + 0x90)?;
+            g.arg = p.get().word(0xB0);
+            g.palette = p.get().word(0x90);
             if g.palette == class {
                 g.palette = class * 0x258 + 0x21C;
                 // The group's tenth entry's offset (the original leaves its address in

@@ -39,15 +39,15 @@ pub fn keep_record_best() -> Result<(), Refused> {
     let mut r = r.entries();
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
-        let figure = get(p + 0x94)?;
+        let figure = p.get().word(0x94);
         if !bests::takes_record(figure, r.get(0, bests::RECORD_HOLDER.figure)) {
             break;
         }
         let holder = bests::Holder {
             figure,
-            nationality: get(p + 4)?,
-            car: get(p + 8)?,
-            name: bytes(get(p + 0x18)?)?,
+            nationality: p.get().word(4),
+            car: p.get().word(8),
+            name: bytes(p.get().name)?,
         };
         bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
     }

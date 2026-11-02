@@ -21,7 +21,7 @@ use crate::menu::standings::*;
 pub fn enter_record_entry() -> Result<(), Refused> {
     let event = current_event()?;
     let n: u32 = EVENT_STATE.current_player.get();
-    if n >= 4 || player(n) == 0 || get(player(n) + 0x18)? == 0 {
+    if n >= 4 || player(n).get().name == 0 {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
@@ -32,16 +32,16 @@ pub fn enter_record_entry() -> Result<(), Refused> {
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = get(p + 0x18)?;
+    let name_at = p.get().word(0x18);
     let best = bests::NewBest {
-        key: get(p + 0x88)?,
+        key: p.get().word(0x88),
         player: n + 1,
-        nationality: get(p + 4)?,
+        nationality: p.get().word(4),
         name_at,
-        car: get(p + 8)?,
-        group: get(p + 0x90)?,
+        car: p.get().word(8),
+        group: p.get().word(0x90),
         name: bytes(name_at)?,
-        entered: Some(get(p + 0xD0)?),
+        entered: Some(p.get().word(0xD0)),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };

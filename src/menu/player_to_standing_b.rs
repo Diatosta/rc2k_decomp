@@ -13,22 +13,22 @@ use crate::menu::standings::*;
 
 /// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
-pub fn player_to_standing_b(e: usize, p: u32, index: u32) -> Result<(), Refused> {
-    if p == 0 || get(p + 0x18)? == 0 {
-        return Err(BadInput("a null record or name").into());
+pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
+    if p.get().word(0x18) == 0 {
+        return Err(BadInput("a null name").into());
     }
     // Converted: `rc2k_core::saves::rankings::fill_b`.
     use rc2k_core::menu::standings::PlayerB;
     let fault = Fault::default();
     let source = PlayerB {
         index,
-        name: bytes(get(p + 0x18)?)?,
-        nationality: get(p + 4)?,
-        car: get(p + 8)?,
-        group: get(p + 0x90)?,
-        total: get(p + 0x8C)?,
-        b4: std::array::from_fn(|k| fault.get(p + 0xB4 + 4 * k as u32)),
-        slots: std::array::from_fn(|k| fault.get(p + 0x98 + 4 * k as u32)),
+        name: bytes(p.get().word(0x18))?,
+        nationality: p.get().word(4),
+        car: p.get().word(8),
+        group: p.get().word(0x90),
+        total: p.get().word(0x8C),
+        b4: std::array::from_fn(|k| p.get().word(0xB4 + 4 * k)),
+        slots: std::array::from_fn(|k| p.get().word(0x98 + 4 * k)),
     };
     fault.check()?;
     with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;

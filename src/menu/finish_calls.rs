@@ -18,7 +18,7 @@ impl Game {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
     pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
         let mut game = Game {
-            racer: RacerAt::Game(0),
+            racer: RacerAt::None,
             fault: Fault::default(),
         };
         let done = flow(&mut game);
@@ -27,20 +27,26 @@ impl Game {
     }
 }
 
-/// Where the racer's fields are: a record of the game's memory (a player's) or an entry of
+/// Where the racer's fields are: a player's record or an entry of
 /// the championship history (table B).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub enum RacerAt {
-    Game(u32),
+    None,
+    Player(crate::menu::standings::PlayerCell),
     History(usize),
 }
 
+const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no racer chosen");
 const PAST_ENTRY: crate::errors::BadInput = BadInput("a racer's field past its entry");
 
 impl Game {
     fn racer_get(&self, offset: u32) -> u32 {
         match self.racer {
-            RacerAt::Game(p) => self.fault.get(p.wrapping_add(offset)),
+            RacerAt::None => {
+                self.fault.ok::<u32>(Err(NO_RACER));
+                0
+            }
+            RacerAt::Player(p) => p.get().word(offset as usize),
             RacerAt::History(n) => {
                 self.fault.ok(
                     crate::menu::standings::with_b(|t| t.entries[n].dword_at(offset))
@@ -52,7 +58,8 @@ impl Game {
 
     fn racer_set(&self, offset: u32, value: u32) {
         match self.racer {
-            RacerAt::Game(p) => self.fault.put(p.wrapping_add(offset), value),
+            RacerAt::None => self.fault.ok(Err(NO_RACER)),
+            RacerAt::Player(p) => p.update(|q| q.store(&[(offset as usize, value)])),
             RacerAt::History(n) => self.fault.ok(crate::menu::standings::with_b(|t| {
                 t.entries[n].set_dword_at(offset, value)
             })
@@ -112,7 +119,7 @@ impl finish::Finish for Game {
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
         let found = crate::menu::find_section_player::find_section_player()?;
-        self.racer = RacerAt::Game(found.record);
+        self.racer = RacerAt::Player(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }
 
@@ -120,12 +127,12 @@ impl finish::Finish for Game {
         use crate::menu::standings::player;
         match r {
             Racer::Leader(n) => {
-                if player(n) == 0 {
+                if n >= 4 {
                     return Err(BadInput("the leader's ecx past the players").into());
                 }
-                self.racer = RacerAt::Game(player(n));
+                self.racer = RacerAt::Player(player(n));
             }
-            Racer::Done(n) => self.racer = RacerAt::Game(player(n)),
+            Racer::Done(n) => self.racer = RacerAt::Player(player(n)),
         }
         Ok(())
     }

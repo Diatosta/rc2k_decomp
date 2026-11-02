@@ -27,7 +27,7 @@ pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
     use rc2k_core::menu::passes;
     let players = counted_players()?;
     for &p in &players {
-        if passes::takes_part(get(p + 0xD0)?) {
+        if passes::takes_part(p.get().word(0xD0)) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
@@ -36,13 +36,13 @@ pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
     for (n, &p) in players.iter().enumerate() {
         g.measure_x = n as u32;
         EVENT_STATE.current_player.set(g.measure_x);
-        if !passes::takes_part(get(p + 0xD0)?) {
+        if !passes::takes_part(p.get().word(0xD0)) {
             continue;
         }
         crate::menu::driver_stats::driver_stats()?;
         crate::menu::inspection_verdict::inspection_verdict()?;
         crate::menu::inspection_faults::inspection_faults()?;
-        if !passes::is_out(get(p + 0xD0)?) {
+        if !passes::is_out(p.get().word(0xD0)) {
             continue;
         }
         EVENT_STATE

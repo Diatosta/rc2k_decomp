@@ -24,7 +24,7 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<(u32, u32, bool
             let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
             Ok((driver, e.first, true))
         }
-        n if n <= 4 && player(n - 1) != 0 => Ok((player(n - 1), n - 1, false)),
+        n if n <= 4 => Ok((player(n - 1).addr(), n - 1, false)),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
