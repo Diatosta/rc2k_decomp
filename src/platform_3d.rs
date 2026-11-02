@@ -153,6 +153,13 @@ fn surface_number(pool: usize, texture: u32, level: u32) -> usize {
 const SURFACES: usize = 2 * MOST as usize * LEVELS as usize;
 
 static LEVELS_MEMORY: Mutex<Vec<Option<Level>>> = Mutex::new(Vec::new());
+/// Bumped (under `LEVELS_MEMORY`'s lock) when a level is made or let go: a fan's level as
+/// noted (`Pending.level`) is kept until then.
+static LEVELS_CHANGED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn levels_changed() {
+    LEVELS_CHANGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
 /// A level's surface as the game holds it: its number and 1 (phase 11, 2026-10-26: before,
 /// an object whose first dword was a method table with `Lock` at +0x64 and `Unlock` at
 /// +0x80, which the game's code called).
@@ -215,6 +222,18 @@ struct Pending {
     textures: Vec<u32>,
     /// The states as the last fan had them, until one changes (`forget_states`).
     states: Option<std::sync::Arc<[u32; STATES]>>,
+    /// The last fan's texture level, the lock of the levels spared while it holds.
+    level: Option<NotedLevel>,
+}
+
+/// A surface's level as a fan read it.
+#[derive(Clone, Copy)]
+struct NotedLevel {
+    surface: usize,
+    /// `LEVELS_CHANGED` when it was read.
+    changes: u64,
+    /// Its pixels' address and length and its pitch; `None` for no level.
+    level: Option<(usize, usize, u32)>,
 }
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
@@ -238,6 +257,7 @@ static PENDING: Mutex<Pending> = Mutex::new(Pending {
     noted: Vec::new(),
     textures: Vec::new(),
     states: None,
+    level: None,
 });
 
 /// Whether a noted fan reads the texture whose memory is at `pixels`.
@@ -332,28 +352,9 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         return;
     }
     let current: u32 = CARDS_3D.current_texture.get();
-    let memory = LEVELS_MEMORY.lock().unwrap();
-    let texture = (current < MOST)
-        .then(|| {
-            let record = record_at(1, current).get();
-            let level = memory.get(surface_number(1, current, 0))?.as_ref()?;
-            if record.format == 0 {
-                return None;
-            }
-            let format =
-                crate::pointers::read_or_end::<TextureFormat>(record.format, "a texture format");
-            Some(TextureNote {
-                pixels: level.pixels.addr() as usize,
-                len: level.pixels.len(),
-                width: record.width as usize,
-                height: record.height as usize,
-                pitch: level.pitch as usize,
-                bytes: format.bytes_per_pixel as usize,
-                masks: format.format.masks,
-            })
-        })
-        .flatten();
-    drop(memory);
+    let record = (current < MOST)
+        .then(|| record_at(1, current).get())
+        .filter(|r| r.format != 0);
     let f = |v: &crate::rasteriser::Vertex, n: usize| f32::from_bits(v[n]);
     let mut bounds = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for v in vertices {
@@ -373,13 +374,63 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
     }
     note(|pending| Command::Fan {
+        texture: record.and_then(|record| {
+            let level = level_of(pending, surface_number(1, current, 0))?;
+            let format = format_at(record.format);
+            Some(TextureNote {
+                pixels: level.0,
+                len: level.1,
+                width: record.width as usize,
+                height: record.height as usize,
+                pitch: level.2 as usize,
+                bytes: format.bytes_per_pixel as usize,
+                masks: format.format.masks,
+            })
+        }),
         vertices: vertices.into(),
         states: std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
             std::sync::Arc::new(std::array::from_fn(|n| CARDS_3D.kept_states[n].get()))
         })),
-        texture,
         bounds,
     });
+}
+
+/// Surface `surface`'s level (its pixels' address and length, its pitch), as the last fan
+/// with it read it while no level has been made or let go since.
+fn level_of(pending: &mut Pending, surface: usize) -> Option<(usize, usize, u32)> {
+    let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
+    if let Some(noted) = pending.level
+        && noted.surface == surface
+        && noted.changes == changes
+    {
+        return noted.level;
+    }
+    let memory = LEVELS_MEMORY.lock().unwrap();
+    let level = memory
+        .get(surface)
+        .and_then(|l| l.as_ref())
+        .map(|l| (l.pixels.addr() as usize, l.pixels.len(), l.pitch));
+    // Read under the lock: a level made or let go meanwhile has bumped it.
+    let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
+    pending.level = Some(NotedLevel {
+        surface,
+        changes,
+        level,
+    });
+    level
+}
+
+/// The texture format at `format`: one of the card's descriptions read in place, else
+/// through the game's memory.
+fn format_at(format: u32) -> TextureFormat {
+    match TEXTURE_TABLES
+        .descriptions
+        .iter()
+        .find(|d| d.addr() == format)
+    {
+        Some(d) => d.get(),
+        None => crate::pointers::read_or_end::<TextureFormat>(format, "a texture format"),
+    }
 }
 
 /// The screen into system texture `number`'s first level, as DirectDraw's `Blt` without
@@ -549,6 +600,7 @@ fn make_texture(
         let bytes = crate::pointers::read_or_end::<TextureFormat>(description, "a texture format")
             .bytes_per_pixel;
         let mut memory = LEVELS_MEMORY.lock().unwrap();
+        levels_changed();
         if memory.is_empty() {
             memory.resize_with(SURFACES, || None);
         }
@@ -669,6 +721,7 @@ fn release_pool(pool: usize) {
     let pool_vars = TEXTURE_TABLES.pool(pool);
     let count: u32 = pool_vars.count.get();
     let mut memory = LEVELS_MEMORY.lock().unwrap();
+    levels_changed();
     for number in 0..count.min(MOST) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
