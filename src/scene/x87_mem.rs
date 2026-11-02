@@ -33,6 +33,18 @@ pub(crate) trait Base: Copy {
     fn set_word(self, off: usize, value: u16) {
         store(self, off, value);
     }
+    /// The ten bytes at `off`.
+    #[track_caller]
+    #[inline(always)]
+    fn tbyte(self, off: usize) -> [u8; 10] {
+        load(self, off)
+    }
+    /// `value` as the ten bytes at `off`.
+    #[track_caller]
+    #[inline(always)]
+    fn set_tbyte(self, off: usize, value: [u8; 10]) {
+        store(self, off, value);
+    }
 }
 
 /// A block of dwords the caller holds: each operand a bounds check on the block, nothing more.
@@ -92,6 +104,30 @@ impl Base for &crate::session::Dword {
     fn set_dword(self, off: usize, value: u32) {
         assert!(off == 0);
         self.set(value);
+    }
+}
+
+/// Ten-byte values only read, the operands of `fld tbyte`.
+impl Base for &[[u8; 10]] {
+    fn address(self) -> usize {
+        crate::pointers::game_address(self.as_ptr().cast::<u8>().cast_mut()) as usize
+    }
+    #[inline(always)]
+    fn tbyte(self, off: usize) -> [u8; 10] {
+        assert!(off.is_multiple_of(10));
+        self[off / 10]
+    }
+}
+
+/// Ten-byte values written, the results of `fstp tbyte`.
+impl Base for &[std::cell::Cell<[u8; 10]>] {
+    fn address(self) -> usize {
+        crate::pointers::game_address(self.as_ptr().cast::<u8>().cast_mut()) as usize
+    }
+    #[inline(always)]
+    fn set_tbyte(self, off: usize, value: [u8; 10]) {
+        assert!(off.is_multiple_of(10));
+        self[off / 10].set(value);
     }
 }
 
@@ -190,7 +226,7 @@ pub(crate) fn fild(base: impl Base, off: usize) -> X {
 /// `fld tbyte ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fld80(base: impl Base, off: usize) -> X {
-    from_f80(load(base, off))
+    from_f80(base.tbyte(off))
 }
 
 /// `fstp dword ptr [base + off]`: the value rounded to a float as the control word says.
@@ -209,7 +245,7 @@ pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
 /// `fstp tbyte ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
-    store(base, off, f80(x));
+    base.set_tbyte(off, f80(x));
 }
 
 /// `fnstsw word ptr [base + off]`.

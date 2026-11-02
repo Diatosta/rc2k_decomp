@@ -9,22 +9,22 @@
 //! are `asm_reference` in the tests. Refuses a null matrix.
 
 use crate::math::cells::{Cells, load};
-use crate::scene::x87_mem::{fld, fld80, fstp80};
+use crate::scene::x87_mem::{Base, fld, fld80, fstp80};
 
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
 pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
     let m: [u32; 15] = load(m);
     rotate(
-        p.as_ptr().cast(),
-        m.as_ptr().cast(),
-        out.as_mut_ptr().cast(),
+        &p[..],
+        &m[..],
+        std::cell::Cell::from_mut(&mut out[..]).as_slice_of_cells(),
     );
     out
 }
 
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
-fn rotate(p: *const u8, m: *const u8, o: *mut u8) {
+fn rotate(p: impl Base, m: impl Base, o: impl Base) {
     let t0 = fld80(p, 0x14);
     let t1 = fld80(p, 0xA);
     let t2 = fld80(p, 0x0);

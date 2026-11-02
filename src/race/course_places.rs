@@ -188,24 +188,23 @@ pub fn write_bytes(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
 
 /// A `T` (a whole number) at `at`.
 pub fn read<T: Whole>(at: u32, what: &str) -> Result<T, BadInput> {
-    let mut b = [0; 64];
-    copy_into(at, &mut b[..size_of::<T>()], what)?;
-    Ok(T::from_bytes(&b))
+    T::read_from(at, what)
 }
 
 /// What `read` and `write` take: values of any bits, at most 64 bytes.
 pub trait Whole: Copy {
-    fn from_bytes(from: &[u8; 64]) -> Self;
+    /// Read at `at`, through a buffer of just its size: these reads are the physics' every tick.
+    fn read_from(at: u32, what: &str) -> Result<Self, BadInput>;
     fn to_bytes(self, to: &mut [u8; 64]);
 }
 
 macro_rules! whole {
     ($($t:ty),*) => {$(
         impl Whole for $t {
-            fn from_bytes(from: &[u8; 64]) -> Self {
+            fn read_from(at: u32, what: &str) -> Result<Self, BadInput> {
                 let mut b = [0; size_of::<$t>()];
-                b.copy_from_slice(&from[..size_of::<$t>()]);
-                <$t>::from_le_bytes(b)
+                copy_into(at, &mut b, what)?;
+                Ok(<$t>::from_le_bytes(b))
             }
             fn to_bytes(self, to: &mut [u8; 64]) {
                 to[..size_of::<$t>()].copy_from_slice(&self.to_le_bytes());
@@ -216,8 +215,10 @@ macro_rules! whole {
 whole!(u8, u16, u32, i8, i16, i32, f32);
 
 impl<const N: usize> Whole for [u8; N] {
-    fn from_bytes(from: &[u8; 64]) -> Self {
-        std::array::from_fn(|n| from[n])
+    fn read_from(at: u32, what: &str) -> Result<Self, BadInput> {
+        let mut b = [0; N];
+        copy_into(at, &mut b, what)?;
+        Ok(b)
     }
     fn to_bytes(self, to: &mut [u8; 64]) {
         to[..N].copy_from_slice(&self);

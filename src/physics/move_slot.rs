@@ -43,7 +43,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
-use crate::session::{Cell32, Dword, Float};
+use crate::session::Cell32;
 
 /// `from`'s first cells into `to`'s.
 fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
@@ -52,34 +52,9 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
     }
 }
 
-/// `find_ground`'s refusal at the place the slot at `s` will move to (worked out without
-/// writing: the point is put back).
-pub fn slot_refusal(s: &RaceSlot) -> Option<&'static str> {
-    let dt = PHYSICS.step_time.bits();
-    let k65536 = NUMBERS.k65536.bits();
-    let moved = |c: &Dword, v: &Float| {
-        c.get()
-            .wrapping_add(mul2_to_int(v.bits(), dt, k65536) as u32)
-    };
-    let (x, z) = (
-        moved(&s.place[0], &s.motion[0]),
-        moved(&s.place[2], &s.motion[2]),
-    );
-    let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
-    GROUND_WORK.ground_x.set(x);
-    GROUND_WORK.ground_z.set(z);
-    let why = crate::physics::ground::ground_refusal();
-    GROUND_WORK.ground_x.set(keep.0);
-    GROUND_WORK.ground_z.set(keep.1);
-    why
-}
-
 /// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
 pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
-    if let Some(why) = slot_refusal(s) {
-        return Err(crate::errors::BadInput(why).into());
-    }
     let dt = PHYSICS.step_time.bits();
     let k65536 = NUMBERS.k65536.bits();
     copy(&s.place, &RACE_WORK.slot_place);

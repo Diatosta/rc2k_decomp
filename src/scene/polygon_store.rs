@@ -116,11 +116,8 @@ impl PolygonEntry {
     }
 
     /// The whole entry's bytes.
-    pub fn bytes(&self) -> Vec<u8> {
-        (0..0x44)
-            .step_by(4)
-            .flat_map(|o| self.word(o).to_le_bytes())
-            .collect()
+    pub fn bytes(&self) -> [u8; 0x44] {
+        std::array::from_fn(|n| self.word(n & !3).to_le_bytes()[n & 3])
     }
 
     /// Another entry's contents copied here.

@@ -1001,7 +1001,23 @@ impl Front {
 /// The first and last rows of the canvas holding a written pixel.
 fn written_rows(canvas: &[u8], width: usize) -> Option<(usize, usize)> {
     let unwritten = UNWRITTEN.to_le_bytes();
-    let row_written = |row: &[u8]| row.as_chunks::<4>().0.iter().any(|p| *p != unwritten);
+    // Blocks of pixels compared with no way out inside one, which the compiler can vectorise:
+    // this looks at most of the screen's pixels every frame.
+    let row_written = |row: &[u8]| {
+        row.as_chunks::<256>().0.iter().any(|block| {
+            block
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .fold(false, |seen, pixel| seen | (*pixel != unwritten))
+        }) || row
+            .as_chunks::<256>()
+            .1
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .any(|p| *p != unwritten)
+    };
     let stride = width * 4;
     let first = canvas.chunks_exact(stride).position(row_written)?;
     let last = canvas.chunks_exact(stride).rposition(row_written)?;

@@ -215,9 +215,6 @@ pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
     let Some(record) = find_course_record(key)? else {
         return Ok(false);
     };
-    if let Some(why) = record_refusal(record) {
-        return Err(BadInput(why).into());
-    }
     search_record_faces_at(record)
 }
 
@@ -232,16 +229,11 @@ pub fn try_last_face_at() -> Result<bool, Refused> {
     face_under_point_at(last)
 }
 
-pub use rc2k_core::physics::ground_search::CELLS;
-
 /// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
 /// `dword_5CCC74` = -1 and `search_cell` on the point plus each of `CELLS` until one
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
 pub fn ground_search_at() -> Result<bool, Refused> {
-    if let Some(why) = ground_refusal() {
-        return Err(BadInput(why).into());
-    }
     let found = ground_search::ground_search(
         try_last_face_at,
         || COURSE.ground_slot.set(ground_search::NO_FACE),
@@ -250,23 +242,4 @@ pub fn ground_search_at() -> Result<bool, Refused> {
     )?;
     GROUND_WORK.ground_found.set(u32::from(found));
     Ok(found)
-}
-
-/// `ground_search`'s refusals, worked out without writing: those of the cells' records it
-/// would come to (all nine are looked at; a refusal past the face found is refused too).
-pub fn ground_refusal() -> Option<&'static str> {
-    for (dx, dz) in CELLS {
-        let x = GROUND_WORK.ground_x.get().wrapping_add(dx);
-        let z = GROUND_WORK.ground_z.get().wrapping_add(dz);
-        match find_course_record(ground_search::cell_key(x, z).0) {
-            Err(_) => return Some("a cell's kind runs past g_courseRecordCount"),
-            Ok(Some(record)) => {
-                if let Some(why) = record_refusal(record) {
-                    return Some(why);
-                }
-            }
-            Ok(None) => {}
-        }
-    }
-    None
 }

@@ -15,10 +15,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a skidmark vertex or point")
-}
-
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
@@ -59,17 +55,18 @@ pub(crate) fn project_record(v: &mut crate::scene::point_records::Record) {
 /// projected when its depth is not below 4096.0.
 fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
     {
-        let p = (crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_points
-            .addr())
-        .wrapping_add(n.wrapping_mul(0xC));
+        let points = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_points;
+        let at = n as usize * 0xC;
+        if at + 0xC > 0x6000 {
+            return Err(BadInput("a skidmark point past the table"));
+        }
         let lift: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_lift
             .bits();
         let point = [
-            int_80(get(p)?),
-            int_plus_float_80(get(p + 4)?, lift),
-            int_80(get(p + 8)?),
+            int_80(points.get_u32(at)),
+            int_plus_float_80(points.get_u32(at + 4), lift),
+            int_80(points.get_u32(at + 8)),
         ];
         let t = crate::scene::rotate_point::rotate_point(&MATRICES.view_matrix, point);
         let mut made = crate::scene::point_records::get(v)?;

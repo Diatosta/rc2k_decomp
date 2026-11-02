@@ -66,7 +66,17 @@ pub fn below(a: f64, b: f64) -> bool {
 
 /// `bytes` into the work's dwords from byte `at` (little-endian, as the work is laid out).
 fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
-    for (k, &b) in bytes.iter().enumerate() {
+    // Whole dwords at once: the records and entries lie on dwords, and every cut comes here.
+    let (whole, rest) = if at.is_multiple_of(4) {
+        bytes.as_chunks::<4>()
+    } else {
+        (&[][..], bytes)
+    };
+    for (cell, dword) in w[at / 4..].iter_mut().zip(whole) {
+        *cell = u32::from_le_bytes(*dword);
+    }
+    let at = at + whole.len() * 4;
+    for (k, &b) in rest.iter().enumerate() {
         let (cell, shift) = ((at + k) / 4, 8 * ((at + k) % 4));
         w[cell] = (w[cell] & !(0xFF << shift)) | (u32::from(b) << shift);
     }
@@ -169,7 +179,7 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
 pub fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), BadInput> {
     let entries = listed_with_records()?;
     let count = entries.len();
-    let numbers: Vec<u32> = (0..count)
+    let numbers: smallvec::SmallVec<[u32; 32]> = (0..count)
         .map(|n| crate::scene::polygon::list_cell(n).get())
         .collect();
     for (n, &number) in numbers.iter().chain([&numbers[0]]).enumerate() {

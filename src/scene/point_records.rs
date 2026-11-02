@@ -98,11 +98,11 @@ fn cells(r: u32) -> Option<&'static [crate::session::Dword]> {
 
 /// Record `r`; refused for none or one past the records.
 pub fn get(r: u32) -> Result<Record, BadInput> {
-    if let Some(cells) = cells(r) {
-        return Ok(std::array::from_fn(|k| cells[k].get()));
-    }
     if r > COUNT {
-        return Err(BadInput("a point record past the records"));
+        return match cells(r) {
+            Some(cells) => Ok(std::array::from_fn(|k| cells[k].get())),
+            None => Err(BadInput("a point record past the records")),
+        };
     }
     RECORDS
         .with(|all| all.get((r as usize).checked_sub(1)?).copied())?
@@ -111,14 +111,14 @@ pub fn get(r: u32) -> Result<Record, BadInput> {
 
 /// Record `r` set to `record`; refused as `get`.
 pub fn set(r: u32, record: Record) -> Result<(), BadInput> {
-    if let Some(cells) = cells(r) {
+    if r > COUNT {
+        let Some(cells) = cells(r) else {
+            return Err(BadInput("a point record past the records"));
+        };
         for (cell, v) in cells.iter().zip(record) {
             cell.set(v);
         }
         return Ok(());
-    }
-    if r > COUNT {
-        return Err(BadInput("a point record past the records"));
     }
     RECORDS
         .with(|all| {
@@ -130,6 +130,16 @@ pub fn set(r: u32, record: Record) -> Result<(), BadInput> {
 
 /// The dword at `offset` of record `r`; refused for an offset past the record.
 pub fn field(r: u32, offset: u32) -> Result<u32, BadInput> {
+    // Only the one dword: these are read many times a polygon.
+    if (1..=COUNT).contains(&r) && offset.is_multiple_of(4) {
+        let found = RECORDS.with(|all| {
+            all.get(r as usize - 1)
+                .map(|record| record.get(offset as usize / 4).copied())
+        })?;
+        return found
+            .ok_or(BadInput("a point record past the block"))?
+            .ok_or(BadInput("a field past a point record"));
+    }
     let record = get(r)?;
     offset
         .is_multiple_of(4)
@@ -163,8 +173,9 @@ pub fn vertex(v: u32, offset: u32) -> u32 {
 }
 
 /// A polygon vertex's whole record (as `vertex`), its bytes.
-pub fn vertex_bytes(v: u32) -> Result<Vec<u8>, BadInput> {
-    Ok(get(v)?.iter().flat_map(|d| d.to_le_bytes()).collect())
+pub fn vertex_bytes(v: u32) -> Result<[u8; 32], BadInput> {
+    let record = get(v)?;
+    Ok(std::array::from_fn(|n| record[n / 4].to_le_bytes()[n % 4]))
 }
 
 #[cfg(test)]

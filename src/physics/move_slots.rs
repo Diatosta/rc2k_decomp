@@ -13,20 +13,12 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::move_slot::{move_slot, slot_refusal};
+use crate::physics::move_slot::move_slot;
 use crate::race::work_store::RACE_WORK;
 
-/// The Rust version: the eight slots, those in use moved (refused before any moves when
-/// one would be), `slot_count` the number done so far.
+/// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
 pub fn move_slots() -> Result<(), Refused> {
     let slots = &RACE_WORK.race_slots;
-    for slot in slots {
-        if slot.part.get() != 0
-            && let Some(why) = slot_refusal(slot)
-        {
-            return Err(crate::errors::BadInput(why).into());
-        }
-    }
     let mut n = 0u32;
     for slot in slots {
         if slot.part.get() != 0 {
