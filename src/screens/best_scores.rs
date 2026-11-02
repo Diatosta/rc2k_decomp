@@ -212,9 +212,7 @@ pub fn best_scores_caption() -> Result<(), Refused> {
     )?;
     crate::screens::car_caption::put_string(
         id,
-        (crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr()) as usize,
+        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption),
         0x100,
     )
 }
@@ -225,12 +223,8 @@ pub fn replay_range_caption() -> Result<(), BadInput> {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
     let mut bytes = rc2k_core::screens::best_scores::range_caption(MENU_PAGES.replay_page.get());
     bytes.push(0);
-    crate::pointers::GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr(),
-    )
-    .write_bytes(&bytes, "the caption")
+    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
+        .write_bytes(&bytes, "the caption")
 }
 
 /// A stage times page: where its stage record is and which table holds its times.

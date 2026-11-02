@@ -112,8 +112,7 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
         return Ok(());
     }
 
-    let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
-    let mut cursor = GamePtr::new(payload);
+    let mut cursor = GamePtr::to(&SAVE_GAMES.file).offset(PAYLOAD_OFFSET as u32);
     for at in head() {
         g.arg = cursor.read::<u32>("the savegame's head")?;
         at.set(g.arg);

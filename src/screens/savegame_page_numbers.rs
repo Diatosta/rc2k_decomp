@@ -23,19 +23,13 @@ pub fn savegame_page_numbers() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.
     let page = MENU_PAGES.save_page.get();
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
-    crate::pointers::GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr(),
-    )
-    .write_bytes(&caption, "the caption")?;
+    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
+        .write_bytes(&caption, "the caption")?;
     for (n, text) in numbers.iter().enumerate() {
-        let place = crate::pointers::GamePtr::new(
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .page_numbers
-                .addr())
-                + 4 * n as u32,
-        );
+        let place = crate::pointers::GamePtr::to(
+            &crate::screens::text_buffers_store::TEXT_BUFFERS.page_numbers,
+        )
+        .offset(4 * n as u32);
         place.write_bytes(text, "a page number")?;
         place
             .offset(text.len() as u32)

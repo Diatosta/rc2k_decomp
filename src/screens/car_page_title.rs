@@ -27,9 +27,7 @@ pub fn car_page_title() -> Result<(), Refused> {
     }
     put_string(
         MENU_LISTS.car_page_titles[page as usize].get(),
-        (crate::screens::text_buffers_store::TEXT_BUFFERS
-            .title
-            .addr()) as usize,
+        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TITLE_LEN,
     )
 }

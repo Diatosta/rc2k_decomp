@@ -81,7 +81,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
     {
         let file = &SAVE_GAMES.file;
         // First, because it is what can be refused: nothing else is written before it.
-        gather_savegame(GamePtr::new(file.addr()).offset(0x30))?;
+        gather_savegame(GamePtr::to(file).offset(0x30))?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
         use rc2k_core::saves::kept;
         let head = kept::slot_head(

@@ -28,11 +28,10 @@ pub fn yes_no_caption() -> Result<(u32, u32), Refused> {
     let eax = append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
-    let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
-        .caption
-        .addr();
-    crate::pointers::GamePtr::new(caption).write_bytes(&text, "the caption")?;
-    Ok((eax, caption + text.len() as u32))
+    let caption =
+        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
+    caption.write_bytes(&text, "the caption")?;
+    Ok((eax, caption.addr() + text.len() as u32))
 }
 
 /// The Rust version the typed tables run (what it leaves in registers is read by

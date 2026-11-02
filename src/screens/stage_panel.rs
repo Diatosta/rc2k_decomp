@@ -54,12 +54,8 @@ pub fn label(
 /// four panels build it; only `draw_time_trial_stage_info` also draws it.
 pub fn build_second_heading(record: u32) -> Result<(), Refused> {
     let bytes = heading_text(record, SECOND_HEADING_STRING)?;
-    GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .stage_heading
-            .addr(),
-    )
-    .write_bytes(&bytes, "the second stage heading")?;
+    GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
+        .write_bytes(&bytes, "the second stage heading")?;
     Ok(())
 }
 

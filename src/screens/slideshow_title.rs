@@ -18,9 +18,7 @@ const TITLE: u32 = 0x33D;
 pub fn slideshow_title() -> Result<(), Refused> {
     put_string(
         TITLE,
-        (crate::screens::text_buffers_store::TEXT_BUFFERS
-            .title
-            .addr()) as usize,
+        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TITLE_LEN,
     )
 }

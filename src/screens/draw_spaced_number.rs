@@ -31,23 +31,15 @@ pub fn draw_spaced_number(
     let n = end.addr().wrapping_sub(text.addr());
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
     DRAW_WORK.work_b8.set(n);
-    let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
-        .cells
-        .addr();
+    let cells = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.cells);
     let digits = text.read_bytes(n as usize, "the digits")?;
     let mut spaced = Vec::with_capacity(2 * digits.len());
     for &digit in &digits {
         spaced.extend([digit, 0]);
     }
-    GamePtr::new(cells).write_bytes(&spaced, "the spaced digits")?;
+    cells.write_bytes(&spaced, "the spaced digits")?;
     for (i, x) in places {
-        draw_text_at(
-            font,
-            crate::pointers::GamePtr::new((cells as usize + 2 * i) as u32),
-            x,
-            y,
-            canvas,
-        )?;
+        draw_text_at(font, cells.offset(2 * i as u32), x, y, canvas)?;
     }
     Ok(())
 }

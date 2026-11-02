@@ -219,7 +219,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-fn tables(palettes: u32) -> Result<(), Refused> {
+fn tables(palettes: &Dword) -> Result<(), Refused> {
     let list = crate::pointers::GamePtr::to(&TABLES.memory);
     let bytes = TABLES
         .units
@@ -230,14 +230,14 @@ fn tables(palettes: u32) -> Result<(), Refused> {
     rewind_list(list)?;
     begin_glyph_tables()?;
     DECODER.builder_flags.set(RUN_LENGTHS);
-    GamePtr::new(palettes).write(palette_place(list)?, "the fonts' palettes' place")?;
+    palettes.set(palette_place(list)?);
     begin_glyph_table(list)?;
     build_glyphs(
         crate::pointers::GamePtr::to(&crate::gfx::texts::PAL_00),
         list,
     )?;
     MENU_FONTS.font27_glyphs.set(SHEET.table.get());
-    palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
+    palette_to_pixels(palettes.get())?;
     GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
         GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
         PALETTE_BYTES,
@@ -274,7 +274,7 @@ pub fn build_fonts() -> Result<(), Refused> {
         }
         .into());
     }
-    tables(MENU_FONTS.palettes.addr())?;
+    tables(&MENU_FONTS.palettes)?;
     for (font, field, variable, plus) in HUNG {
         let object = &FONTS.objects[font];
         let value = hung_value(variable, plus);

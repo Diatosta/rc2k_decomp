@@ -23,15 +23,18 @@ use crate::text::draw_text::Canvas;
 pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     {
-        let mut at = MENU_LISTS.inspection_faults[0].addr();
         let mut ticks = Vec::new();
         loop {
-            let tick = crate::pointers::GamePtr::new(at).read::<u32>("a checklist tick")?;
+            let tick = crate::session::read_on_in(
+                &MENU_LISTS,
+                &MENU_LISTS.inspection_faults,
+                ticks.len(),
+                "a checklist tick",
+            )?;
             if tick == u32::MAX {
                 break;
             }
             ticks.push(tick);
-            at += 4;
         }
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),

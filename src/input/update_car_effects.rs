@@ -34,7 +34,6 @@ use crate::errors::{BadInput, Refused};
 use crate::input::devices::at;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
-use crate::pointers::GamePtr;
 
 /// dword_51809C: a surface's effect kind, 16 entries.
 const KIND_COUNT: u32 = 16;
@@ -59,14 +58,14 @@ struct Last {
     edx: u32,
 }
 
-/// Exactly as the original (the x87 at its precision), the angle written to `scratch` (an
-/// address). `view` the view block, `object` the car's sound object, `device` the device's
-/// record; the requests through `input::set_effect`.
+/// Exactly as the original (the x87 at its precision), the angle written to `scratch`.
+/// `view` the view block, `object` the car's sound object, `device` the device's record;
+/// the requests through `input::set_effect`.
 fn update_car_effects_with(
     view: u32,
     object: u32,
     device: u32,
-    scratch: u32,
+    scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let r = &mut Last::default();
     let o = crate::sound::store::SoundObject::at(object)?;
@@ -90,7 +89,7 @@ fn update_car_effects_with(
             o.knock_in[3].get(),
             effects.effect_tenth.bits(),
         );
-        GamePtr::new(scratch).write(angle, "the angle's scratch")?;
+        scratch.set(angle);
         o.knock.set(force as u32);
     } else {
         o.knock.set(0);
@@ -199,7 +198,7 @@ fn update_car_effects_with(
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
 pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
-    update_car_effects_with(view, object, device, crate::session::MACHINE.scratch.addr())
+    update_car_effects_with(view, object, device, &crate::session::MACHINE.scratch)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

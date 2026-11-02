@@ -21,12 +21,12 @@ const CAPTION_LEN: usize = 0x100;
 // ---- Rust version ----
 
 /// A string and its NUL into a place of the game's, if it fits.
-pub fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refused> {
+pub fn put_string(id: u32, place: crate::pointers::GamePtr, room: usize) -> Result<(), Refused> {
     let mut text = Vec::new();
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, room)?;
-    crate::pointers::GamePtr::new(place as u32).write_bytes(&text, "a caption")?;
+    place.write_bytes(&text, "a caption")?;
     Ok(())
 }
 
@@ -34,9 +34,7 @@ pub fn car_caption() -> Result<(), Refused> {
     let id = read(shown_description()?)?.name;
     put_string(
         id,
-        (crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr()) as usize,
+        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption),
         CAPTION_LEN,
     )
 }

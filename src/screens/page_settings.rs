@@ -56,12 +56,8 @@ fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
     if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
         return Err(BadInput("a stage line past its buffer").into());
     }
-    crate::pointers::GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .stage_heading
-            .addr(),
-    )
-    .write_bytes(&line, "the stage line")?;
+    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
+        .write_bytes(&line, "the stage line")?;
     Ok(())
 }
 
@@ -115,12 +111,8 @@ pub fn stage_options_texts() -> Result<(), Refused> {
         stage_options_caption(MENU_STATE.menus.caption_choice.get()),
     )?;
     caption.push(0);
-    crate::pointers::GamePtr::new(
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr(),
-    )
-    .write_bytes(&caption, "the caption")?;
+    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
+        .write_bytes(&caption, "the caption")?;
     Ok(())
 }
 
