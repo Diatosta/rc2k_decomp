@@ -20,7 +20,7 @@ use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::polygon::listed;
+use crate::scene::polygon::{Listed, listed};
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x1000;
@@ -28,7 +28,11 @@ const TABLE_LEN: u32 = 0x1000;
 // ---- Rust version ----
 
 pub fn fog_polygon() -> Result<(), Refused> {
-    let entries = listed()?;
+    fog_entries(&listed()?)
+}
+
+/// `fog_polygon` on the polygon's entries as listed.
+pub fn fog_entries(entries: &Listed) -> Result<(), Refused> {
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -40,7 +44,7 @@ pub fn fog_polygon() -> Result<(), Refused> {
         return Err(BadInput("a fog table longer than its room").into());
     }
     let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
-    for entry in &entries {
+    for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
         DRAW.scratch.set_bits(depth as u32);

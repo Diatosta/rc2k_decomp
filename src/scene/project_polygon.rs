@@ -19,7 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::listed;
+use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
 
 // ---- game data ----
@@ -27,7 +27,11 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- Rust version ----
 
 pub fn project_polygon() -> Result<(), Refused> {
-    let entries = listed()?;
+    project_entries(&listed()?)
+}
+
+/// `project_polygon` on the polygon's entries as listed.
+pub fn project_entries(entries: &Listed) -> Result<(), Refused> {
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -39,7 +43,7 @@ pub fn project_polygon() -> Result<(), Refused> {
     }
     let far = f32::from_bits(DRAW.farthest.bits());
     let mut outside = 0u32;
-    for entry in &entries {
+    for entry in entries {
         let point = project_point(entry.point.get())?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);

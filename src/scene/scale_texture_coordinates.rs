@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::listed;
+use crate::scene::polygon::{Listed, listed};
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -23,13 +23,17 @@ use crate::session::MACHINE;
 
 // Converted: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates() -> Result<(), Refused> {
-    use rc2k_core::scene::texture_coordinates as coordinates;
     if (DRAW.polygon_vertex_count.bits() as i32) <= 0 {
         return Ok(());
     }
-    let entries = listed()?;
+    scale_entries(&listed()?)
+}
+
+/// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
+pub fn scale_entries(entries: &Listed) -> Result<(), Refused> {
+    use rc2k_core::scene::texture_coordinates as coordinates;
     let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), DRAW.polygon_sides[1].bits()];
-    for entry in &entries {
+    for entry in entries {
         for (pair, switch) in switches.into_iter().enumerate() {
             if switch == 0 {
                 continue;

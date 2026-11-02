@@ -21,10 +21,10 @@ use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
 use crate::scene::draw_store::DRAW;
-use crate::scene::fog_polygon::fog_polygon;
+use crate::scene::fog_polygon::{fog_entries, fog_polygon};
 use crate::scene::polygon::MOST;
-use crate::scene::project_polygon::project_polygon;
-use crate::scene::scale_texture_coordinates::scale_texture_coordinates;
+use crate::scene::project_polygon::project_entries;
+use crate::scene::scale_texture_coordinates::{scale_entries, scale_texture_coordinates};
 
 // ---- game data ----
 
@@ -84,11 +84,22 @@ pub fn draw_clipped_polygon(
 
 /// The function with its parts' Rust versions, drawing for real.
 pub fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
+    // The list stays as it is from the projection to the fog: listed once for the three.
+    let mut entries = None;
     draw_clipped_polygon(&mut |step| {
         match step {
-            Step::Project => project_polygon()?,
-            Step::ScaleTextureCoordinates => scale_texture_coordinates()?,
-            Step::Fog => fog_polygon()?,
+            Step::Project => {
+                let listed = entries.insert(crate::scene::polygon::listed()?);
+                project_entries(listed)?;
+            }
+            Step::ScaleTextureCoordinates => match &entries {
+                Some(listed) if !listed.is_empty() => scale_entries(listed)?,
+                _ => scale_texture_coordinates()?,
+            },
+            Step::Fog => match entries.take() {
+                Some(listed) => fog_entries(&listed)?,
+                None => fog_polygon()?,
+            },
             Step::ClipByDepth => clip_polygon_by_depth()?,
             Step::ClipToScreen => clip_polygon_to_screen()?,
             Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,

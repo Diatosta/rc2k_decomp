@@ -136,13 +136,13 @@ impl<T> Owned<T> {
 /// and the objects, many times a physics tick): the value in that thread's storage, so a step
 /// is a borrow flag and no lock. Another thread sees none taken, and is refused for it.
 pub struct ThreadOwned<T: 'static> {
-    value: &'static std::thread::LocalKey<std::cell::RefCell<Option<Box<T>>>>,
+    value: &'static std::thread::LocalKey<std::cell::RefCell<Option<T>>>,
     what: &'static str,
 }
 
 impl<T> ThreadOwned<T> {
     pub const fn new(
-        value: &'static std::thread::LocalKey<std::cell::RefCell<Option<Box<T>>>>,
+        value: &'static std::thread::LocalKey<std::cell::RefCell<Option<T>>>,
         what: &'static str,
     ) -> Self {
         Self { value, what }
@@ -168,7 +168,7 @@ impl<T> ThreadOwned<T> {
     /// The value set without counting it: tests of code that reads it, or a part moved out
     /// of a block that stays counted (`race::scene_points`).
     pub fn set(&self, value: T) {
-        self.value.with(|v| *v.borrow_mut() = Some(Box::new(value)));
+        self.value.with(|v| *v.borrow_mut() = Some(value));
     }
 
     pub fn is_taken(&self) -> bool {
@@ -196,7 +196,7 @@ macro_rules! thread_owned {
         $(#[$doc])*
         $vis static $name: $crate::memory::owned::ThreadOwned<$t> = {
             thread_local! {
-                static VALUE: std::cell::RefCell<Option<Box<$t>>> =
+                static VALUE: std::cell::RefCell<Option<$t>> =
                     const { std::cell::RefCell::new(None) };
             }
             $crate::memory::owned::ThreadOwned::new(&VALUE, $what)
