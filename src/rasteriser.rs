@@ -24,95 +24,156 @@
 
 #![allow(unsafe_code)]
 
+use std::cell::Cell;
+
 /// A vertex: x, y, z, 1/w, colour, specular, u, v (floats as their bits but the two
 /// colours).
 pub type Vertex = [u32; 8];
 
-/// Where it draws: the colours, rows `pitch` bytes apart, 16 (5-6-5) or 32 bits (XRGB) a
-/// pixel, and the depths, a float a pixel. Drawn into through its tiles (`tiles`), which
-/// share no pixel: a tile reaches only its own rectangle, so tiles can be drawn at once.
-pub struct Frame {
-    pixels: *mut u8,
+/// A frame's colours: 16 (5-6-5) or 32 bits (XRGB) a pixel.
+pub enum Pixels<'a> {
+    Bits16(&'a mut [u16]),
+    Bits32(&'a mut [u32]),
+}
+
+impl Pixels<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Pixels::Bits16(p) => p.len(),
+            Pixels::Bits32(p) => p.len(),
+        }
+    }
+}
+
+/// Where it draws: the colours, rows `pitch` pixels apart, and the depths, a float a pixel.
+/// Drawn into through its tiles (`tiles`), bands of whole rows, each holding its own rows
+/// of both, so tiles can be drawn at once.
+pub struct Frame<'a> {
+    pixels: Pixels<'a>,
     pitch: usize,
     width: usize,
     height: usize,
-    bits: u32,
-    depth: *mut f32,
+    depth: &'a mut [f32],
 }
 
-// SAFETY: the frame's memory is reached only through its tiles, which `tiles` makes
-// disjoint, each a `&mut` borrow of the frame's.
-unsafe impl Sync for Frame {}
-
-impl Frame {
-    /// # Safety
-    /// `pixels` holds `height` rows of `pitch` bytes (`pitch` at least `width` pixels of
-    /// `bits`), `depth` `width` x `height` floats; both live, and touched by nothing else,
-    /// while the frame does.
-    pub unsafe fn new(
-        pixels: *mut u8,
+impl<'a> Frame<'a> {
+    /// The frame on `pixels` (`height` rows `pitch` pixels apart, `width` of them drawn) and
+    /// `depth` (`width` x `height`). Too small a buffer for those ends the program.
+    pub fn new(
+        pixels: Pixels<'a>,
         pitch: usize,
         width: usize,
         height: usize,
-        bits: u32,
-        depth: *mut f32,
+        depth: &'a mut [f32],
     ) -> Self {
+        let rows = if height == 0 {
+            0
+        } else {
+            pitch * (height - 1) + width
+        };
+        assert!(
+            pitch >= width && pixels.len() >= rows && depth.len() >= width * height,
+            "rasteriser: a frame larger than its buffers"
+        );
         Self {
             pixels,
             pitch,
             width,
             height,
-            bits,
             depth,
         }
     }
 
-    /// The frame cut into tiles of `size` pixels square (one tile when `size` is 0).
-    pub fn tiles(&mut self, size: usize) -> Vec<Tile<'_>> {
-        let (width, height) = (self.width, self.height);
-        let clips: Vec<Clip> = if size == 0 {
-            vec![Clip {
-                left: 0,
-                top: 0,
-                right: width,
-                bottom: height,
-            }]
-        } else {
-            (0..height.div_ceil(size))
-                .flat_map(|ty| {
-                    (0..width.div_ceil(size)).map(move |tx| Clip {
-                        left: tx * size,
-                        top: ty * size,
-                        right: ((tx + 1) * size).min(width),
-                        bottom: ((ty + 1) * size).min(height),
-                    })
-                })
-                .collect()
+    /// The frame cut into bands of `rows` rows (one tile when `rows` is 0).
+    pub fn tiles(&mut self, rows: usize) -> Vec<Tile<'_>> {
+        let (pitch, width, height) = (self.pitch, self.width, self.height);
+        let rows = if rows == 0 { height.max(1) } else { rows };
+        let mut tiles = Vec::with_capacity(height.div_ceil(rows));
+        let mut depth: &mut [f32] = &mut self.depth[..width * height];
+        let mut pixels = match &mut self.pixels {
+            Pixels::Bits16(p) => Pixels::Bits16(&mut p[..]),
+            Pixels::Bits32(p) => Pixels::Bits32(&mut p[..]),
         };
-        let frame = &*self;
-        clips
-            .into_iter()
-            .map(|clip| Tile {
-                frame,
-                clip,
-                _one_thread: std::marker::PhantomData,
-            })
-            .collect()
+        let mut top = 0;
+        while top < height {
+            let bottom = (top + rows).min(height);
+            // The band's rows: the last only as far as its drawn pixels go.
+            let len = pitch * (bottom - top - 1) + width;
+            let take = if bottom == height {
+                len
+            } else {
+                pitch * (bottom - top)
+            };
+            let (band, rest) = match pixels {
+                Pixels::Bits16(p) => {
+                    let (a, b) = p.split_at_mut(take);
+                    (Pixels::Bits16(a), Pixels::Bits16(b))
+                }
+                Pixels::Bits32(p) => {
+                    let (a, b) = p.split_at_mut(take);
+                    (Pixels::Bits32(a), Pixels::Bits32(b))
+                }
+            };
+            pixels = rest;
+            let (d, rest) = std::mem::take(&mut depth).split_at_mut(width * (bottom - top));
+            depth = rest;
+            tiles.push(Tile {
+                pixels: band,
+                depth: d,
+                pitch,
+                width,
+                height,
+                clip: Clip {
+                    left: 0,
+                    top,
+                    right: width,
+                    bottom,
+                },
+            });
+            top = bottom;
+        }
+        tiles
     }
 }
 
-/// A rectangle of a frame no other tile has: every pixel and depth it reads or writes is
-/// checked to lie in it.
+/// A band of a frame's rows, its colours and depths its own.
 pub struct Tile<'a> {
-    frame: &'a Frame,
+    pixels: Pixels<'a>,
+    depth: &'a mut [f32],
+    pitch: usize,
+    width: usize,
+    height: usize,
     clip: Clip,
-    /// Drawn on one thread at a time (moved between threads, never shared).
-    _one_thread: std::marker::PhantomData<std::cell::Cell<()>>,
 }
 
 impl Tile<'_> {
     pub fn clip(&self) -> &Clip {
         &self.clip
+    }
+
+    /// The tile's places as cells, for the drawing (which reads and writes them through
+    /// shared references).
+    fn cells(&mut self) -> Cells<'_> {
+        let bits = match self.pixels {
+            Pixels::Bits16(_) => 16,
+            Pixels::Bits32(_) => 32,
+        };
+        Cells {
+            pixels: match &mut self.pixels {
+                Pixels::Bits16(p) => {
+                    CellPixels::Bits16(Cell::from_mut(&mut p[..]).as_slice_of_cells())
+                }
+                Pixels::Bits32(p) => {
+                    CellPixels::Bits32(Cell::from_mut(&mut p[..]).as_slice_of_cells())
+                }
+            },
+            depth: Cell::from_mut(&mut self.depth[..]).as_slice_of_cells(),
+            pitch: self.pitch,
+            width: self.width,
+            height: self.height,
+            bits,
+            clip: self.clip,
+        }
     }
 
     /// `draw_fan` within the tile only (tiles drawn at once give the same pixels as the
@@ -123,19 +184,40 @@ impl Tile<'_> {
         states: &States,
         texture: Option<&Texture>,
     ) -> u64 {
-        draw_fan_in(vertices, self, states, texture)
+        draw_fan_in(vertices, &self.cells(), states, texture)
     }
 
     /// The depths of `[left, top, right, bottom)` within the tile set to 1 (far).
     pub fn clear_depth(&mut self, [left, top, right, bottom]: [usize; 4]) {
-        let c = self.clip;
+        let cells = self.cells();
+        let c = cells.clip;
         for y in top.max(c.top)..bottom.min(c.bottom) {
             for x in left.max(c.left)..right.min(c.right) {
-                self.set_depth(x, y, 1.0);
+                cells.set_depth(x, y, 1.0);
             }
         }
     }
+}
 
+/// A tile's colours as cells.
+enum CellPixels<'a> {
+    Bits16(&'a [Cell<u16>]),
+    Bits32(&'a [Cell<u32>]),
+}
+
+/// A tile's places while it is drawn: its colours and depths as cells (from the tile's own
+/// `&mut`), every place checked to lie in its band.
+struct Cells<'a> {
+    pixels: CellPixels<'a>,
+    depth: &'a [Cell<f32>],
+    pitch: usize,
+    width: usize,
+    height: usize,
+    bits: u32,
+    clip: Clip,
+}
+
+impl Cells<'_> {
     /// Whether `n` places from (x, y) on its row lie in the tile; a place outside is a slip
     /// of the drawing code, which ends the program.
     #[inline(always)]
@@ -150,54 +232,40 @@ impl Tile<'_> {
     #[inline(always)]
     fn depth(&self, x: usize, y: usize) -> f32 {
         self.check(x, y, 1);
-        // SAFETY: inside the tile, so inside the frame's depths (`Frame::new`), and no
-        // other tile reaches it.
-        unsafe { *self.frame.depth.add(y * self.frame.width + x) }
+        self.depth[(y - self.clip.top) * self.width + x].get()
     }
 
     #[inline(always)]
     fn set_depth(&self, x: usize, y: usize, z: f32) {
         self.check(x, y, 1);
-        // SAFETY: as `depth`.
-        unsafe { *self.frame.depth.add(y * self.frame.width + x) = z }
+        self.depth[(y - self.clip.top) * self.width + x].set(z);
     }
 
     /// The raw pixel at (x, y): 16 or 32 bits.
     #[inline(always)]
     fn pixel(&self, x: usize, y: usize) -> u32 {
         self.check(x, y, 1);
-        let f = self.frame;
-        // SAFETY: inside the tile, so inside the frame's rows (`Frame::new`), and no other
-        // tile reaches it.
-        unsafe {
-            let row = f.pixels.add(y * f.pitch);
-            if f.bits == 16 {
-                (row.add(x * 2) as *const u16).read_unaligned() as u32
-            } else {
-                (row.add(x * 4) as *const u32).read_unaligned()
-            }
+        let at = (y - self.clip.top) * self.pitch + x;
+        match self.pixels {
+            CellPixels::Bits16(p) => u32::from(p[at].get()),
+            CellPixels::Bits32(p) => p[at].get(),
         }
     }
 
     /// The raw pixel at (x, y) written: 16 or 32 bits.
     #[inline(always)]
-    fn put_pixel(&self, x: usize, y: usize, p: u32) {
+    fn put_pixel(&self, x: usize, y: usize, v: u32) {
         self.check(x, y, 1);
-        let f = self.frame;
-        // SAFETY: as `pixel`.
-        unsafe {
-            let row = f.pixels.add(y * f.pitch);
-            if f.bits == 16 {
-                row.add(x * 2).cast::<u16>().write_unaligned(p as u16);
-            } else {
-                row.add(x * 4).cast::<u32>().write_unaligned(p);
-            }
+        let at = (y - self.clip.top) * self.pitch + x;
+        match self.pixels {
+            CellPixels::Bits16(p) => p[at].set(v as u16),
+            CellPixels::Bits32(p) => p[at].set(v),
         }
     }
 
     fn read(&self, x: usize, y: usize) -> Colour {
         let p = self.pixel(x, y);
-        if self.frame.bits == 16 {
+        if self.bits == 16 {
             [part(p, 0x001F), part(p, 0x07E0), part(p, 0xF800), 1.0]
         } else {
             let mut colour = unpack(p);
@@ -208,13 +276,33 @@ impl Tile<'_> {
 
     fn write(&self, x: usize, y: usize, colour: &Colour) {
         let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as i32 as u32;
-        let p = if self.frame.bits == 16 {
+        let p = if self.bits == 16 {
             to(colour[2], 31.0) << 11 | to(colour[1], 63.0) << 5 | to(colour[0], 31.0)
         } else {
             to(colour[2], 255.0) << 16 | to(colour[1], 255.0) << 8 | to(colour[0], 255.0)
         };
         self.put_pixel(x, y, p);
     }
+}
+
+/// The 16-bit texel at byte `at` of a texture's bytes (a place past them ends the program).
+#[inline(always)]
+fn texel16(pixels: &[u8], at: usize) -> u32 {
+    u32::from(u16::from_ne_bytes(
+        *pixels[at..]
+            .first_chunk()
+            .expect("rasteriser: a texel past its texture"),
+    ))
+}
+
+/// The 32-bit texel at byte `at` of a texture's bytes.
+#[inline(always)]
+fn texel32(pixels: &[u8], at: usize) -> u32 {
+    u32::from_ne_bytes(
+        *pixels[at..]
+            .first_chunk()
+            .expect("rasteriser: a texel past its texture"),
+    )
 }
 
 /// A texture's first level: rows `pitch` bytes apart, `bytes` a pixel, the four masks
@@ -375,7 +463,7 @@ pub struct Clip {
 /// `Tile::draw_fan`.
 fn draw_fan_in(
     vertices: &[Vertex],
-    tile: &Tile,
+    tile: &Cells,
     states: &States,
     texture: Option<&Texture>,
 ) -> u64 {
@@ -408,11 +496,11 @@ fn draw_fan_in(
 
 fn draw_triangle(
     [a, b, c]: [&Point; 3],
-    tile: &Tile,
+    tile: &Cells,
     states: &States,
     texture: Option<&Texture>,
 ) -> u64 {
-    let (clip, width, height) = (&tile.clip, tile.frame.width, tile.frame.height);
+    let (clip, width, height) = (&tile.clip, tile.width, tile.height);
     // Positive: clockwise on the screen (y goes down).
     let area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
     if area == 0.0 || !area.is_finite() {
@@ -611,14 +699,11 @@ impl<'a> Texels<'a> {
         };
         let place = y * t.pitch + x * t.bytes;
         let raw = if self.whole {
-            // Safety: `whole` says the bytes hold every place (checked in `of`).
-            unsafe {
-                let at = t.pixels.as_ptr().add(place);
-                if t.bytes == 2 {
-                    at.cast::<u16>().read_unaligned() as u32
-                } else {
-                    at.cast::<u32>().read_unaligned()
-                }
+            // `whole`: the bytes hold every place (checked in `of`), so the reads are inside.
+            if t.bytes == 2 {
+                texel16(t.pixels, place)
+            } else {
+                texel32(t.pixels, place)
             }
         } else {
             t.texel(x as i32, y as i32, true)
@@ -654,32 +739,19 @@ impl<'a> Texels<'a> {
             }
         };
         let fast = self.whole && (self.clamp || self.masks.is_some());
-        let base = t.pixels.as_ptr();
         match (&self.kind, fast) {
             (Kind::Usual(full), true) => {
                 for lane in 0..4 {
                     if live >> lane & 1 != 0 {
-                        // Safety: `whole`, and the place wrapped or clamped into the texture.
-                        // SAFETY: as the other lanes' reads: the lane is live, so its place lies in the texture.
-                        let raw = unsafe {
-                            base.add(place(xs[lane], ys[lane]))
-                                .cast::<u32>()
-                                .read_unaligned()
-                        };
-                        out[lane] = raw | full;
+                        // `whole`, and the place wrapped or clamped into the texture.
+                        out[lane] = texel32(t.pixels, place(xs[lane], ys[lane])) | full;
                     }
                 }
             }
             (Kind::Table(table), true) => {
                 for lane in 0..4 {
                     if live >> lane & 1 != 0 {
-                        // SAFETY: as the other lanes' reads: the lane is live, so its place lies in the texture.
-                        let raw = unsafe {
-                            base.add(place(xs[lane], ys[lane]))
-                                .cast::<u16>()
-                                .read_unaligned()
-                        };
-                        out[lane] = table[raw as usize];
+                        out[lane] = table[texel16(t.pixels, place(xs[lane], ys[lane])) as usize];
                     }
                 }
             }
@@ -757,7 +829,7 @@ struct Triangle<'a> {
     fog_colour: Colour,
     mixing: u32,
     texture: Option<Texels<'a>>,
-    tile: &'a Tile<'a>,
+    tile: &'a Cells<'a>,
 }
 
 impl Triangle<'_> {
@@ -854,9 +926,9 @@ impl Triangle<'_> {
                 u,
                 v,
             };
-            // SAFETY: SSE2 is in both targets' baseline (i686 and x86_64 Windows).
-            #[cfg_attr(target_arch = "aarch64", allow(unused_unsafe))] // NEON's are safe calls
-            // SAFETY: as just said.
+            // NEON's are safe calls; SSE2's `target_feature` asks for `unsafe`.
+            #[cfg_attr(target_arch = "aarch64", allow(unused_unsafe))]
+            // SAFETY: SSE2 is in both x86 targets' baseline (i686 and x86_64).
             return unsafe { self.row4(y, first, last, &lines) };
         }
         for x in first..=last {
@@ -955,38 +1027,68 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-// A vector's lanes as an array and back: both 16 bytes, every bit pattern a value of
-// either, so the transmutes are sound.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+// A vector's lanes as an array and back, lane by lane (the compilers make these the one
+// move they were as transmutes).
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline]
-#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
+#[target_feature(enable = "sse2")]
 fn i32s(v: __m128i) -> [i32; 4] {
-    // SAFETY: see above.
-    unsafe { core::mem::transmute(v) }
+    [
+        _mm_cvtsi128_si32(v),
+        _mm_cvtsi128_si32(_mm_srli_si128::<4>(v)),
+        _mm_cvtsi128_si32(_mm_srli_si128::<8>(v)),
+        _mm_cvtsi128_si32(_mm_srli_si128::<12>(v)),
+    ]
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline]
-#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
+#[target_feature(enable = "sse2")]
 fn from_u32s(a: [u32; 4]) -> __m128i {
-    // SAFETY: see above.
-    unsafe { core::mem::transmute(a) }
+    _mm_set_epi32(a[3] as i32, a[2] as i32, a[1] as i32, a[0] as i32)
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline]
-#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
+#[target_feature(enable = "sse2")]
 fn f32s(v: __m128) -> [f32; 4] {
-    // SAFETY: see above.
-    unsafe { core::mem::transmute(v) }
+    [
+        _mm_cvtss_f32(v),
+        _mm_cvtss_f32(_mm_shuffle_ps::<0x55>(v, v)),
+        _mm_cvtss_f32(_mm_shuffle_ps::<0xAA>(v, v)),
+        _mm_cvtss_f32(_mm_shuffle_ps::<0xFF>(v, v)),
+    ]
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[inline]
-#[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
+#[target_feature(enable = "sse2")]
 fn from_f32s(a: [f32; 4]) -> __m128 {
-    // SAFETY: see above.
-    unsafe { core::mem::transmute(a) }
+    _mm_set_ps(a[3], a[2], a[1], a[0])
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+fn i32s(v: __m128i) -> [i32; 4] {
+    lanes_i32(v)
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+fn from_u32s(a: [u32; 4]) -> __m128i {
+    from_lanes_i32(a.map(|x| x as i32))
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+fn f32s(v: __m128) -> [f32; 4] {
+    lanes_f32(v)
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline]
+fn from_f32s(a: [f32; 4]) -> __m128 {
+    from_lanes_f32(a)
 }
 
 /// `compare` on four lanes: their mask (all ones where it holds).
@@ -1093,7 +1195,7 @@ fn factor4(blend: u32, source: &[__m128; 4], target: &[__m128; 4]) -> [__m128; 4
 /// `read` on four places from x (lanes past `n` read as 0): the channels as 0 .. 1,
 /// alpha 1, each by the same multiplication as the scalar one.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
-impl Tile<'_> {
+impl Cells<'_> {
     #[inline]
     #[cfg_attr(not(target_arch = "aarch64"), target_feature(enable = "sse2"))]
     fn read4(&self, x: usize, y: usize, n: usize) -> [__m128; 4] {
@@ -1114,7 +1216,7 @@ impl Tile<'_> {
             _mm_mul_ps(_mm_cvtepi32_ps(v), _mm_set1_ps(1.0 / most))
         };
         let one = _mm_set1_ps(1.0);
-        if self.frame.bits == 16 {
+        if self.bits == 16 {
             [
                 part(0x1F, 0, 31.0),
                 part(0x07E0, 5, 63.0),
@@ -1263,7 +1365,7 @@ impl Triangle<'_> {
                     _mm_set1_ps(0.5),
                 ))
             };
-            let packed = if tile.frame.bits == 16 {
+            let packed = if tile.bits == 16 {
                 _mm_or_si128(
                     _mm_or_si128(
                         _mm_slli_epi32(to(out[2], 31.0), 11),
@@ -1349,21 +1451,16 @@ impl Texels<'_> {
             _mm_add_epi32(r1, c0),
             _mm_add_epi32(r1, c1),
         ];
-        let base = t.pixels.as_ptr();
         let mut out = [[0u32; 4]; 4];
         for (corner, p) in places.iter().enumerate() {
             let at = i32s(*p);
             for lane in 0..4 {
-                // SAFETY: `whole` (every place of the texture within its bytes, `of`), and
-                // the places wrapped by the masks or clamped into the texture above.
-                let at = unsafe { base.add(at[lane] as u32 as usize) };
+                // `whole` (every place of the texture within its bytes, `of`), and the places
+                // wrapped by the masks or clamped into the texture above.
+                let at = at[lane] as u32 as usize;
                 out[corner][lane] = match &self.kind {
-                    // SAFETY: as above.
-                    Kind::Usual(full) => (unsafe { at.cast::<u32>().read_unaligned() }) | full,
-                    Kind::Table(table) => {
-                        // SAFETY: as above.
-                        table[unsafe { at.cast::<u16>().read_unaligned() } as usize]
-                    }
+                    Kind::Usual(full) => texel32(t.pixels, at) | full,
+                    Kind::Table(table) => table[texel16(t.pixels, at) as usize],
                     Kind::Other => 0,
                 };
             }
@@ -1409,20 +1506,12 @@ mod tests {
         states[0x14] = 6;
         states[0x16] = 1;
         SCALAR_ONLY.store(scalar, std::sync::atomic::Ordering::SeqCst);
-        // SAFETY: both buffers are the sizes given, and live and untouched meanwhile.
-        let mut frame = unsafe {
-            Frame::new(
-                pixels.as_mut_ptr().cast::<u8>(),
-                w * 4,
-                w,
-                h,
-                32,
-                depth.as_mut_ptr(),
-            )
-        };
-        for tile in frame.tiles(size).iter_mut() {
-            tile.draw_fan(&fan, &States(&states), None);
-            tile.clear_depth([0, 0, 5, 5]);
+        {
+            let mut frame = Frame::new(Pixels::Bits32(&mut pixels), w, w, h, &mut depth);
+            for tile in frame.tiles(size).iter_mut() {
+                tile.draw_fan(&fan, &States(&states), None);
+                tile.clear_depth([0, 0, 5, 5]);
+            }
         }
         SCALAR_ONLY.store(false, std::sync::atomic::Ordering::SeqCst);
         (pixels, depth)

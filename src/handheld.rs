@@ -243,15 +243,10 @@ impl Small {
 
     /// For the rasteriser's `Frame`, which holds them no longer than this `Small` lives:
     /// (pixels, width, height, depths).
-    pub fn frame_parts(&mut self) -> (*mut u8, usize, usize, *mut f32) {
+    pub fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
         let b = &mut *self.0;
         let height = b.pixels.len() / b.width;
-        (
-            b.pixels.as_mut_ptr().cast(),
-            b.width,
-            height,
-            b.depth.as_mut_ptr(),
-        )
+        (&mut b.pixels, b.width, height, &mut b.depth)
     }
 
     /// Back on the screen, each pixel made `SMALLER` wide and high.

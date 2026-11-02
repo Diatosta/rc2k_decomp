@@ -15,7 +15,8 @@ impl Backend for Software {
     }
 }
 
-const TILE: usize = 64;
+/// Rows in each band of the frame the threads draw (16 drew faster than 64 on the PC replays).
+const TILE: usize = 16;
 
 /// Below this many commands a flush draws on its own thread, the screen one tile.
 const FEW: usize = 48;
@@ -56,7 +57,7 @@ use crate::handheld::Small;
 enum Small {}
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 impl Small {
-    fn frame_parts(&mut self) -> (*mut u8, usize, usize, *mut f32) {
+    fn frame_parts(&mut self) -> (&mut [u32], usize, usize, &mut [f32]) {
         match *self {}
     }
 }
@@ -88,7 +89,7 @@ fn scale_noted(noted: &mut [Command]) {
 }
 
 fn draw(into: &Target, noted: Vec<Command>) {
-    use crate::rasteriser::{Frame, States, Texture};
+    use crate::rasteriser::{Frame, Pixels, States, Texture};
     use rayon::prelude::*;
     #[cfg_attr(
         not(all(target_os = "linux", target_arch = "aarch64")),
@@ -127,23 +128,19 @@ fn draw(into: &Target, noted: Vec<Command>) {
             into.pitch * into.height,
             "the screen's pixels",
         );
-        // SAFETY: the pixels checked above, `height` rows of `pitch` bytes; the depths
-        // `width` x `height` floats (the sizes compared above), borrowed mutably here; the
-        // game's code does not run while the frame is drawn (it waits for `Backend::draw`).
-        let mut frame = unsafe {
-            match small.as_mut().map(Small::frame_parts) {
-                Some((pixels, width, height, depth)) => {
-                    Frame::new(pixels, width * 4, width, height, 32, depth)
-                }
-                None => Frame::new(
-                    crate::pointers::host_at(into.pixels),
-                    into.pitch,
-                    into.width,
-                    into.height,
-                    into.bits,
-                    depth.values.as_mut_ptr(),
-                ),
+        let mut frame = match small.as_mut().map(Small::frame_parts) {
+            Some((pixels, width, height, depth)) => {
+                Frame::new(Pixels::Bits32(pixels), width, width, height, depth)
             }
+            None => Frame::new(
+                // SAFETY: the screen's rows, checked by `pixels`; the game's code does not
+                // run while the frame is drawn (it waits for `Backend::draw`).
+                unsafe { into.pixels() },
+                into.pitch / (into.bits / 8) as usize,
+                into.width,
+                into.height,
+                &mut depth.values,
+            ),
         };
         let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
         let noted = &noted;

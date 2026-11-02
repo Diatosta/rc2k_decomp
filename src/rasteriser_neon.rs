@@ -105,4 +105,20 @@ neon! {
     fn _mm_srli_epi16(a: __m128i, n: i32) -> __m128i {
         vreinterpretq_s32_u16(vshlq_u16(vreinterpretq_u16_s32(a), vdupq_n_s16(-(n as i16))))
     }
+
+    // The lanes as arrays and back, lane 0 first (the rasteriser's `i32s` and the like).
+    fn lanes_i32(v: __m128i) -> [i32; 4] {
+        [vgetq_lane_s32::<0>(v), vgetq_lane_s32::<1>(v), vgetq_lane_s32::<2>(v), vgetq_lane_s32::<3>(v)]
+    }
+    fn from_lanes_i32(a: [i32; 4]) -> __m128i {
+        let v = vdupq_n_s32(a[0]);
+        vsetq_lane_s32::<3>(a[3], vsetq_lane_s32::<2>(a[2], vsetq_lane_s32::<1>(a[1], v)))
+    }
+    fn lanes_f32(v: __m128) -> [f32; 4] {
+        [vgetq_lane_f32::<0>(v), vgetq_lane_f32::<1>(v), vgetq_lane_f32::<2>(v), vgetq_lane_f32::<3>(v)]
+    }
+    fn from_lanes_f32(a: [f32; 4]) -> __m128 {
+        let v = vdupq_n_f32(a[0]);
+        vsetq_lane_f32::<3>(a[3], vsetq_lane_f32::<2>(a[2], vsetq_lane_f32::<1>(a[1], v)))
+    }
 }

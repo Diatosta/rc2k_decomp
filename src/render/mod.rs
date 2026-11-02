@@ -198,6 +198,35 @@ impl Target {
         // SAFETY: the bytes checked above; the caller's promise.
         unsafe { std::slice::from_raw_parts_mut(crate::pointers::host_at(self.pixels), len) }
     }
+
+    /// The screen's pixels for the rasteriser, rows `pitch / (bits / 8)` pixels apart: its
+    /// bytes (`bytes`) as 16- or 32-bit pixels. A screen not aligned to its pixels, or whose
+    /// pitch is not whole pixels, ends the program.
+    ///
+    /// # Safety
+    /// As `bytes`.
+    pub unsafe fn pixels<'a>(&self) -> crate::rasteriser::Pixels<'a> {
+        let size = (self.bits / 8) as usize;
+        // SAFETY: the caller's promise.
+        let bytes = unsafe { self.bytes() };
+        let at = bytes.as_mut_ptr();
+        assert!(
+            (size == 2 || size == 4)
+                && (at as usize).is_multiple_of(size)
+                && self.pitch.is_multiple_of(size),
+            "the screen's pixels not whole aligned pixels"
+        );
+        let len = bytes.len() / size;
+        // SAFETY: the same bytes (borrowed for 'a with them), aligned and whole pixels (checked
+        // above); every bit pattern is a pixel.
+        unsafe {
+            if size == 2 {
+                crate::rasteriser::Pixels::Bits16(std::slice::from_raw_parts_mut(at.cast(), len))
+            } else {
+                crate::rasteriser::Pixels::Bits32(std::slice::from_raw_parts_mut(at.cast(), len))
+            }
+        }
+    }
 }
 
 /// For the standalone's timing line (`platform::show`): fans drawn and the microseconds
