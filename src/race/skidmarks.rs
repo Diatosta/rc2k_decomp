@@ -52,10 +52,35 @@ pub(crate) fn project_record(v: &mut crate::scene::point_records::Record) {
     v[7] = st(-(y * scale) + ld(DRAW.view_centre[1].bits()));
 }
 
+/// A skidmark point turned and projected: its vertex record's +0xC .. +0x20, and what the
+/// projection left in `dword_62400C` (flat projections only).
+#[derive(Clone, Copy)]
+struct Turned {
+    words: [u32; 5],
+    scratch: Option<u32>,
+}
+
 /// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
 /// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
 /// projected when its depth is not below 4096.0.
-fn skid_vertex(matrix: &[u32; 15], n: u32, v: u32) -> Result<(), BadInput> {
+fn skid_vertex(matrix: &[u32; 15], n: u32, v: u32) -> Result<Turned, BadInput> {
+    let turned = turn_skid_point(matrix, n)?;
+    put_turned(v, turned)?;
+    Ok(turned)
+}
+
+/// A point as `skid_vertex` turns it, put into the vertex record `v` again.
+fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
+    if let Some(z) = turned.scratch {
+        DRAW.scratch.set_bits(z);
+    }
+    let mut made = crate::scene::point_records::get(v)?;
+    made[3..8].copy_from_slice(&turned.words);
+    crate::scene::point_records::set(v, made)
+}
+
+/// Skidmark point `n` turned and projected, as `skid_vertex` does it.
+fn turn_skid_point(matrix: &[u32; 15], n: u32) -> Result<Turned, BadInput> {
     {
         let points = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_points;
         let at = n as usize * 0xC;
@@ -72,15 +97,21 @@ fn skid_vertex(matrix: &[u32; 15], n: u32, v: u32) -> Result<(), BadInput> {
             int(points.get_u32(at + 8) as i32),
         ];
         let t = crate::scene::rotate_point::turned(&matrix[..], point);
-        let mut made = crate::scene::point_records::get(v)?;
+        // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
+        let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
-        (made[3], made[7]) = (0, 0);
+        let mut scratch = None;
         if !crate::math::x87_load::below_or_unordered(made[6], NUMBERS.k4096_a.bits()) {
             project_record(&mut made);
+            if STAGE_PREFS.flat_depth.get() != 0 {
+                scratch = Some(DRAW.scratch.bits());
+            }
         }
-        crate::scene::point_records::set(v, made)?;
+        Ok(Turned {
+            words: made[3..8].try_into().expect("5 dwords"),
+            scratch,
+        })
     }
-    Ok(())
 }
 
 /// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes
@@ -119,6 +150,10 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
     DRAW.polygon_textures[1].set(0xC0u32);
     let links = GamePtr::to(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links);
     let matrix: [u32; 15] = crate::math::cells::load(&MATRICES.view_matrix);
+    // The last quad's two points (its link's number and the points as turned): a skidmark's
+    // next quad has them as its two before, and nothing it is drawn with changes what they
+    // are turned from.
+    let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
             let table = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links;
@@ -139,10 +174,19 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
             continue;
         }
         use crate::scene::point_records::of_quad;
-        skid_vertex(&matrix, 2 * n, of_quad(3))?;
-        skid_vertex(&matrix, 2 * n + 1, of_quad(2))?;
-        skid_vertex(&matrix, before.wrapping_mul(2), of_quad(0))?;
-        skid_vertex(&matrix, before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
+        let first = skid_vertex(&matrix, 2 * n, of_quad(3))?;
+        let second = skid_vertex(&matrix, 2 * n + 1, of_quad(2))?;
+        match last {
+            Some((m, a, b)) if m == before => {
+                put_turned(of_quad(0), a)?;
+                put_turned(of_quad(1), b)?;
+            }
+            _ => {
+                skid_vertex(&matrix, before.wrapping_mul(2), of_quad(0))?;
+                skid_vertex(&matrix, before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
+            }
+        }
+        last = Some((n, first, second));
         DRAW.polygon_vertex_count.set(4u32);
         DRAW.polygon_next_record
             .set(crate::scene::polygon::pool_start());
