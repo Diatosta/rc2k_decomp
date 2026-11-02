@@ -131,6 +131,11 @@ pub fn give_back() {
     INFO.give_back();
 }
 
+/// `f` on the faces' and the scene points' bytes.
+pub fn with_faces_and_points<R>(f: impl FnOnce(&[u8], &[u8]) -> R) -> Result<R, BadInput> {
+    FACES.with(|faces| crate::race::scene_points::POINTS.with(|points| f(faces, points)))?
+}
+
 /// Whether `at` is one of the course's places (faces, records, scene points).
 #[inline]
 pub fn is_place(at: u32) -> bool {

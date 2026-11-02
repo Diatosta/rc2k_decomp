@@ -121,9 +121,14 @@ pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
     let mut nearest = rc2k_core::race::checkpoints::Nearest::default();
     let mut c = from;
     loop {
-        distance_to_checkpoint(c)?;
-        nearest.consider(c, DRAW.scratch.bits());
-        c = c.wrapping_add(1);
+        // Every checkpoint, every physics tick: read straight from the stores while nothing
+        // needs looking at more closely, by `distance_to_checkpoint` otherwise.
+        let measured = measure_held(&mut c, to, &mut nearest);
+        if measured.is_err() || c < to {
+            distance_to_checkpoint(c)?;
+            nearest.consider(c, DRAW.scratch.bits());
+            c = c.wrapping_add(1);
+        }
         if c >= to {
             return Ok(Nearest {
                 checkpoint: nearest.checkpoint,
@@ -131,6 +136,45 @@ pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
             });
         }
     }
+}
+
+/// Checkpoints from `c` up to `to` measured as `distance_to_checkpoint` does, until one is
+/// off the line or its reads leave the stores (`c` is then that one).
+fn measure_held(
+    c: &mut u32,
+    to: u32,
+    nearest: &mut rc2k_core::race::checkpoints::Nearest,
+) -> Result<(), BadInput> {
+    use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
+    if COURSE.course_faces.bits() != faces_base() || COURSE.scene_points.bits() != points_base() {
+        return Ok(());
+    }
+    let count: u32 = RACE_VARS.checkpoint_count.bits();
+    let (x, z) = (GROUND_WORK.ground_x.bits(), GROUND_WORK.ground_z.bits());
+    let dword =
+        |bytes: &[u8], at: usize| Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?));
+    with_faces_and_points(|faces, points| {
+        while *c < to && *c < MOST_CHECKS && rc2k_core::race::checkpoints::on_line(*c, count) {
+            let face = crate::race::checkpoints_store::face(*c as usize).get();
+            // As the original's u32 arithmetic on the places.
+            let Some(point) = dword(faces, (face << 6).wrapping_add(4) as usize) else {
+                return;
+            };
+            let at = point.wrapping_mul(12);
+            let (Some(px), Some(pz)) = (
+                dword(points, at as usize),
+                dword(points, at.wrapping_add(8) as usize),
+            ) else {
+                return;
+            };
+            let dx = px.wrapping_sub(x) as i32;
+            let dz = pz.wrapping_sub(z) as i32;
+            let distance = x87::int_hypot(dx, dz) as u32;
+            DRAW.scratch.set_bits(distance);
+            nearest.consider(*c, distance);
+            *c += 1;
+        }
+    })
 }
 
 /// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `dword_639824` /

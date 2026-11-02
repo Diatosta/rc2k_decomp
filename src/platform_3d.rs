@@ -213,12 +213,14 @@ struct Pending {
     noted: Vec<Command>,
     /// The memory of each texture the noted fans read.
     textures: Vec<u32>,
+    /// The states as the last fan had them, until one changes (`forget_states`).
+    states: Option<std::sync::Arc<[u32; STATES]>>,
 }
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
 fn draw_noted(pending: &mut Pending) {
-    // The next ones about as many: growing to them shows in a profile.
-    let room = pending.noted.len();
+    // Room for as many as there has been: growing to them shows in a profile.
+    let room = pending.noted.capacity();
     let commands = std::mem::replace(&mut pending.noted, Vec::with_capacity(room));
     pending.textures.clear();
     let Some(target) = pending.into.take() else {
@@ -235,6 +237,7 @@ static PENDING: Mutex<Pending> = Mutex::new(Pending {
     into: None,
     noted: Vec::new(),
     textures: Vec::new(),
+    states: None,
 });
 
 /// Whether a noted fan reads the texture whose memory is at `pixels`.
@@ -260,7 +263,7 @@ pub fn screen() -> Option<Target> {
 
 /// Notes `what` for the screen as it is now (the noted so far drawn first when that is
 /// another).
-fn note(what: Command) {
+fn note(what: impl FnOnce(&mut Pending) -> Command) {
     let Some(into) = screen() else {
         return;
     };
@@ -269,6 +272,7 @@ fn note(what: Command) {
         draw_noted(&mut pending);
     }
     pending.into = Some(into);
+    let what = what(&mut pending);
     if let Command::Fan {
         texture: Some(t), ..
     } = &what
@@ -318,24 +322,9 @@ pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
     }
 }
 
-/// The states as the last fan had them, until one changes (`forget_states`).
-static SHARED_STATES: Mutex<Option<std::sync::Arc<[u32; STATES]>>> = Mutex::new(None);
-
 /// A render state has changed: the next fan's are read again.
 pub fn forget_states() {
-    *SHARED_STATES
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-}
-
-/// The states as they are now, shared with the fans noted since one last changed.
-fn shared_states() -> std::sync::Arc<[u32; STATES]> {
-    let mut shared = SHARED_STATES
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    std::sync::Arc::clone(shared.get_or_insert_with(|| {
-        std::sync::Arc::new(std::array::from_fn(|n| CARDS_3D.kept_states[n].get()))
-    }))
+    PENDING.lock().unwrap().states = None;
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
@@ -383,9 +372,11 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     {
         bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
     }
-    note(Command::Fan {
+    note(|pending| Command::Fan {
         vertices: vertices.into(),
-        states: shared_states(),
+        states: std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
+            std::sync::Arc::new(std::array::from_fn(|n| CARDS_3D.kept_states[n].get()))
+        })),
         texture,
         bounds,
     });
@@ -813,7 +804,7 @@ pub fn clear_viewport() {
     let [left, top, right, bottom] =
         crate::session::read_bits(&DRAW.cleared_rectangle).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
-    note(Command::Clear([c(left), c(top), c(right), c(bottom)]));
+    note(|_| Command::Clear([c(left), c(top), c(right), c(bottom)]));
 }
 
 #[cfg(test)]
