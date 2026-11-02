@@ -53,13 +53,6 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
-fn byte(x: u32) -> Result<u32, Refused> {
-    Ok(u32::from(crate::race::course_places::read::<u8>(
-        x,
-        "a material's byte",
-    )?))
-}
-
 fn touch() -> Result<(), Refused> {
     { touch_face() }?;
     Ok(())
@@ -120,12 +113,10 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         ));
         return Err(e.into());
     }
-    CONTACT_WORK.contact_kind.set(byte(
-        // An unset kind wraps to the record before the first, as the original reads it.
-        crate::scene::polygon::materials_addr()
-            .wrapping_add(kind.wrapping_mul(0x80))
-            .wrapping_add(0x1C),
-    )?);
+    // An unset kind wraps to the record before the first, as the original reads it.
+    CONTACT_WORK
+        .contact_kind
+        .set(crate::scene::polygon::material_byte(kind, 0x1C)?.into());
     if contacts::object_tried(face_byte(0x25)?, RACE_WORK.stage_direction.get(), object).is_err() {
         return Ok(());
     }

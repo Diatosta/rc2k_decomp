@@ -56,7 +56,7 @@ use crate::store::game_read;
 
 /// A dword at game address `a` (frame words and matrices).
 fn get(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(a, "a frame word")
+    GamePtr::new(a).read("a frame word")
 }
 
 /// Field `offset` of course face `face`.

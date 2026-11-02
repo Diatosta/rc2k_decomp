@@ -44,6 +44,24 @@ pub fn materials_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
+/// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
+/// record reads on into the next, as the original's arithmetic does.
+#[track_caller]
+pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
+    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.texture_infos)
+        .offset(n.wrapping_mul(0x40).wrapping_add(offset))
+        .read("a texture info's byte")
+}
+
+/// Byte `offset` of object kind `kind`'s material record (`g_objectMaterials` + 0x80 kind;
+/// kind -1 the record before the first, as the original reads it).
+#[track_caller]
+pub fn material_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
+    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.object_materials)
+        .offset(kind.wrapping_mul(0x80).wrapping_add(offset))
+        .read("an object's material byte")
+}
+
 /// A polygon's entries: on the stack for all but the largest polygons.
 pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
 

@@ -39,19 +39,6 @@ impl Trap {
         })
     }
 
-    /// As `read`, at a course place or a game address (`race::course_places::read`).
-    pub fn course<T: crate::race::course_places::Whole + Default>(&self, at: u32, what: &str) -> T {
-        match crate::race::course_places::read::<T>(at, what) {
-            Ok(v) => v,
-            Err(e) => {
-                if self.refused.get().is_none() {
-                    self.refused.set(Some(e));
-                }
-                T::default()
-            }
-        }
-    }
-
     /// Keeps a refusal met elsewhere in the closure.
     pub fn keep(&self, e: BadInput) {
         if self.refused.get().is_none() {

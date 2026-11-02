@@ -50,10 +50,10 @@ use crate::scene::x87_mem::{fild, fld};
 use crate::session::Dword;
 use std::cmp::Ordering;
 
-fn byte(a: u32) -> Result<u32, Refused> {
-    Ok(u32::from(crate::race::course_places::read::<u8>(
-        a,
-        "a face's or texture record's byte",
+/// Byte `offset` of texture info `n`.
+fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
+    Ok(u32::from(crate::scene::polygon::texture_info_byte(
+        n, offset,
     )?))
 }
 
@@ -79,7 +79,6 @@ fn check() -> Result<(), Refused> {
 /// back).
 fn steps() -> Result<(), Refused> {
     check()?;
-    let infos = crate::scene::polygon::texture_infos_addr();
     let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
@@ -91,7 +90,7 @@ fn steps() -> Result<(), Refused> {
                 "a wheel's face",
             )?))
         };
-        let t1 = infos + (face_byte(1)? << 6);
+        let t1 = face_byte(1)?;
         let mut edx = share_bit(&CONTACT_WORK.probe_share_v, c);
         let mut ebx = share_bit(&CONTACT_WORK.probe_share_u, c);
         edx = (edx >> 15) & 1;
@@ -106,16 +105,16 @@ fn steps() -> Result<(), Refused> {
         PHYSICS.surface_seconds[cc].set(d2);
         {
             let e = PHYSICS.surface_firsts[cc].get();
-            CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10)?);
-            CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18)?);
-            CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14)?);
-            let t2 = infos + (face_byte(0x21)? << 6);
+            CAR.wheel_surface_a[cc].set(info_byte(t1, e.wrapping_add(0x10))?);
+            CAR.wheel_cell_a_byte18[cc].set(info_byte(t1, e.wrapping_add(0x18))?);
+            CAR.wheel_cell_a_byte14[cc].set(info_byte(t1, e.wrapping_add(0x14))?);
+            let t2 = face_byte(0x21)?;
             let e2 = PHYSICS.surface_seconds[cc].get();
-            CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10)?);
-            CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18)?);
-            CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14)?);
+            CAR.wheel_surface_b[cc].set(info_byte(t2, e2.wrapping_add(0x10))?);
+            CAR.wheel_cell_b_byte18[cc].set(info_byte(t2, e2.wrapping_add(0x18))?);
+            CAR.wheel_cell_b_byte14[cc].set(info_byte(t2, e2.wrapping_add(0x14))?);
             CAR.wheel_surface_blend[cc].set_bits(0);
-            let kind_index = byte(t2 + 0x2C)?;
+            let kind_index = info_byte(t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(
                 &RACE_VIEW,

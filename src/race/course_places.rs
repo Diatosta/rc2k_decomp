@@ -90,18 +90,46 @@ pub fn take_info(len: u32) -> Result<u32, BadInput> {
     Ok(info_base())
 }
 
-/// The file at game address `path` read whole into the course info from `at` (`count`
-/// bytes at most).
-pub fn read_file_into_info(path: u32, at: u32, count: u32) -> Result<(), BadInput> {
+/// The file at game address `path` read whole into the course info from byte `offset`
+/// (`count` bytes at most).
+pub fn read_file_into_info(path: u32, offset: u32, count: u32) -> Result<(), BadInput> {
     let path = crate::pointers::GamePtr::new(path);
     INFO.with(|b| {
-        let start = at.checked_sub(info_base())? as usize;
+        let start = offset as usize;
         let into = b.get_mut(start..start.checked_add(count as usize)?)?;
         Some(crate::files::read_whole_file::read_whole_file_into(
             path, into,
         ))
     })?
     .ok_or(BadInput("a file read outside the course info"))?
+}
+
+/// `len` bytes of the course info from byte `offset`.
+pub fn info_bytes(offset: u32, len: usize, _what: &str) -> Result<Vec<u8>, BadInput> {
+    INFO.with(|b| {
+        let start = offset as usize;
+        b.get(start..start.checked_add(len)?).map(<[u8]>::to_vec)
+    })?
+    .ok_or(BadInput("a read outside the course info"))
+}
+
+/// `data` written into the course info from byte `offset`.
+pub fn write_info(offset: u32, data: &[u8], _what: &str) -> Result<(), BadInput> {
+    INFO.with(|b| {
+        let start = offset as usize;
+        b.get_mut(start..start.checked_add(data.len())?)?
+            .copy_from_slice(data);
+        Some(())
+    })?
+    .ok_or(BadInput("a write outside the course info"))
+}
+
+/// The whole number at byte `offset` of the course info.
+pub fn info_field<T: Whole>(offset: u32, what: &str) -> Result<T, BadInput> {
+    let mut bytes = [0u8; 64];
+    let len = size_of::<T>();
+    bytes[..len].copy_from_slice(&info_bytes(offset, len, what)?);
+    Ok(T::from_bytes(&bytes))
 }
 
 /// Bumped when a face's first point (+4) or a scene point below the count may have
@@ -269,11 +297,6 @@ impl<const N: usize> Whole for [u8; N] {
     fn from_bytes(from: &[u8; 64]) -> Self {
         *from.first_chunk().expect("at most 64 bytes")
     }
-}
-
-/// As `read`; a refusal ends the game (for the readers that cannot carry one).
-pub fn read_or_end<T: Whole>(at: u32, what: &str) -> T {
-    read(at, what).unwrap_or_else(|e| crate::fatal::raise::end(what, e))
 }
 
 /// `v` (a whole number) written at `at`.

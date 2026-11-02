@@ -416,13 +416,12 @@ pub fn surface_shares() -> Result<(), Refused> {
             share.set_bits(0u32);
         }
         let faces: u32 = COURSE.course_face_count.bits();
-        let infos = crate::scene::polygon::texture_infos_addr();
-        let byte = |at: u32| -> Result<u32, BadInput> {
-            Ok(crate::race::course_places::read::<u8>(at, "a texture info or face byte")? as u32)
+        let byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
+            Ok(crate::scene::polygon::texture_info_byte(info, offset)?.into())
         };
         let four = |info: u32| -> Result<(), BadInput> {
             for k in 0..4 {
-                add_surface_share(byte(info + 0x10 + k)?);
+                add_surface_share(byte(info, 0x10 + k)?);
             }
             Ok(())
         };
@@ -448,20 +447,20 @@ pub fn surface_shares() -> Result<(), Refused> {
             let kind: u32 = crate::session::read_on_in(
                 &RACE_VIEW,
                 &RACE_VIEW.surface_kinds,
-                byte(infos + second * 0x40 + 0x2C)? as usize,
+                byte(second, 0x2C)? as usize,
                 "the surface kinds table",
             )?;
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
             RACE_VARS
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(weight));
-            four(infos + face_byte(1)? * 0x40)?;
+            four(face_byte(1)?)?;
             RACE_VARS
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(
                     RACE_VARS.surface_weight.bits(),
                 ));
-            four(infos + second * 0x40)?;
+            four(second)?;
         }
         for c in 0..16 {
             let share = &RACE_VARS.surface_shares[c];

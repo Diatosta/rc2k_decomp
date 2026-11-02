@@ -29,10 +29,6 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
-fn byte(a: u32) -> u32 {
-    crate::race::course_places::read_or_end::<u8>(a, "a course face or material byte") as u32
-}
-
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
 fn corners() -> u32 {
@@ -77,9 +73,7 @@ pub fn car_lighting() -> Result<(), Refused> {
     for k in 0..4u32 {
         COURSE.face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
     }
-    let material =
-        (crate::scene::polygon::texture_infos_addr()).wrapping_add(face_byte(0x21)? << 6);
-    if byte(material + 0x2C) == 1 {
+    if crate::scene::polygon::texture_info_byte(face_byte(0x21)?, 0x2C)? == 1 {
         for k in 0..4u32 {
             let at = &COURSE.face_light_bytes[k as usize];
             let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);

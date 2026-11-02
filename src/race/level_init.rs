@@ -92,10 +92,9 @@ pub fn give_back_course_memory() {
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from
 /// +0x17E800 to +0x17F000.
 pub fn copy_texture_info_tail() -> Result<(), BadInput> {
-    let info = COURSE_LISTS.course_info.get();
+    use crate::race::course_places::{info_bytes, write_info};
     let what = "the course info's texture tail";
-    let tail = crate::race::course_places::bytes(info.wrapping_add(0x17_E800), 0x800, what)?;
-    crate::race::course_places::write_bytes(info.wrapping_add(0x17_F000), &tail, what)
+    write_info(0x17_F000, &info_bytes(0x17_E800, 0x800, what)?, what)
 }
 
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into
@@ -108,26 +107,14 @@ pub fn load_texture_info() -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = crate::race::course_places::read_file_into_info;
-    read(
-        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A),
-        info,
-        0x1F_4000,
-    )?;
-    read(
-        FILE_NUMBERS.text_addr(texts::MARK_INFO),
-        info + 0x1C_2000,
-        0x8000,
-    )?;
+    read(FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
+    read(FILE_NUMBERS.text_addr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
     read(
         FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B),
-        info + 0x1F_4000,
+        0x1F_4000,
         0x1F_4000,
     )?;
-    crate::race::course_places::write_bytes(
-        info + 0x5_BD21,
-        &[0x0A; 3],
-        "the course info's line feeds",
-    )?;
+    crate::race::course_places::write_info(0x5_BD21, &[0x0A; 3], "the course info's line feeds")?;
     copy_texture_info_tail()?;
     Ok(())
 }
@@ -174,12 +161,13 @@ pub fn build_texture_infos() -> Result<(), Refused> {
         for n in 0..TEXTURES {
             let out = crate::scene::polygon::texture_infos_addr() + n * 0x40;
             let kind = STAGE_PREFS.texture_kinds[n as usize].get();
-            let rec = info + kind * 0x80;
+            let rec = kind * 0x80;
             let trap = Trap::new();
+            use crate::race::course_places::info_field as field;
             let t = rc2k_core::race::stage::texture_info(
                 kind,
-                |o| trap.course::<u32>(rec + o, "a course info record"),
-                |o| trap.course::<u8>(rec + o, "a course info record"),
+                |o| trap.keep_read(field::<u32>(rec + o, "a course info record")),
+                |o| trap.keep_read(field::<u8>(rec + o, "a course info record")),
             );
             trap.finish()?;
             put(out + 0x24, t.row)?;

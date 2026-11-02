@@ -44,7 +44,7 @@ impl Trap {
 
     /// The dword at `a`.
     pub fn dword(&self, a: u32, what: &str) -> u32 {
-        self.keep(crate::race::course_places::read::<u32>(a, what))
+        self.keep(crate::pointers::GamePtr::new(a).read::<u32>(what))
     }
 
     /// The byte at `a`.

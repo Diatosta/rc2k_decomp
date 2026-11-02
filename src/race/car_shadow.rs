@@ -27,11 +27,11 @@ use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 // unk_641AA4: the points, 0x20 bytes each
 
 fn get(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(a, "a shadow point or entry")
+    GamePtr::new(a).read("a shadow point or entry")
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    crate::race::course_places::write(a, v, "a shadow point or entry")
+    GamePtr::new(a).write(v, "a shadow point or entry")
 }
 
 /// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
