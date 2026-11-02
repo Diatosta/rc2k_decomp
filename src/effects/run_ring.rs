@@ -30,6 +30,7 @@ use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::{MarkCar, car_or_none};
 use crate::scene::matrix3::extended;
 use crate::session::Float;
 
@@ -42,6 +43,11 @@ fn k(cell: &Float) -> u32 {
 }
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
+/// The car a ring entry is on (its +0x68, a `marks_settings_store::car_handle`).
+fn entry_car(e: u32) -> Result<&'static MarkCar, Refused> {
+    car_or_none(eg(e, 0x68)?).ok_or_else(|| BadInput("a ring entry without its car").into())
+}
+
 fn box_(e: u32, p: u32, m: u32) {
     box_x87(&RING_WORK, e, p as usize, m as usize);
 }
@@ -179,10 +185,10 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
             }
             let kind = eg(e, 0xC)?;
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
-                let obj = eg(e, 0x68)?;
+                let obj = car_or_none(eg(e, 0x68)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || get(s.wrapping_add(eg(e, 8)?).wrapping_add(0x60))? != 0;
-                if needs && (obj == 0 || get(obj + 0x24)? == 0) {
+                if needs && obj.map_or(Ok(0), |o| o.word(0x24))? == 0 {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -222,7 +228,7 @@ fn aged(e: u32, ground: bool) -> Result<bool, Refused> {
 /// The place on the object's (unrounded sums), st(0) first.
 fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = get(eg(e, 0x68)? + 0x24)?;
+        let m = entry_car(e)?.word(0x24)?;
         [
             x87::add_80(eg(e, 0x10)?, get(m + 0x30)?),
             x87::add_80(eg(e, 0x14)?, get(m + 0x34)?),
@@ -329,8 +335,9 @@ fn fade(e: u32) -> Result<(), Refused> {
 /// The box test of kinds 6 and 0x15: whether the size is pulled.
 fn outside_and_away(e: u32) -> Result<bool, Refused> {
     Ok({
-        let obj = eg(e, 0x68)?;
-        box_(e, get(obj + 0x24)?, obj + 0x94);
+        let car = entry_car(e)?;
+        let obj = GamePtr::to(car).addr();
+        box_(e, car.word(0x24)?, car.at(0x94).addr());
         let outside = (eg(e, 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32)
             || (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
         if !outside {
@@ -449,10 +456,11 @@ fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
 /// Kind 1's pull of its +0x64 when near and facing.
 fn pull_toward(e: u32) -> Result<(), Refused> {
     {
-        let obj = eg(e, 0x68)?;
+        let car = entry_car(e)?;
+        let obj = GamePtr::to(car).addr();
         let mut length = [0u8; 10];
         let l = crate::pointers::game_address(length.as_mut_ptr());
-        pull_length(e, get(obj + 0x24)?, l);
+        pull_length(e, car.word(0x24)?, l);
         if (RING_WORK.near.bits() as i32) < 0 {
             return Ok(());
         }
@@ -487,7 +495,7 @@ fn boxed_kind(e: u32, gain: &Float, both: bool) -> Result<bool, Refused> {
         let subcell = ((f as u32) & 3).wrapping_add(eg(e, 0x58)?);
         draw(3, subcell, 0, 0, size, e, p)?;
     }
-    box_place(e, eg(e, 0x68)? + 0x94);
+    box_place(e, entry_car(e)?.at(0x94).addr());
     let mut outside = (eg(e, 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32);
     if !outside && both {
         outside = (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);

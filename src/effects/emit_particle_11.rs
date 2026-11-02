@@ -11,6 +11,8 @@
 
 use crate::effects::emit_particle_5::{JitterSet, emit_particle_5_with};
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::session::{Bytes, Dword, Float};
 
 /// Kind 0xB's variables.
@@ -35,7 +37,7 @@ pub static ELEVENTH: JitterSet = JitterSet {
 };
 
 /// The Rust version (see the header).
-pub fn emit_particle_11(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_particle_11(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     emit_particle_5_with(&ELEVENTH, wheel, object)
 }
 

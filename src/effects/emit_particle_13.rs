@@ -17,12 +17,15 @@
 //! object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
 //! when an entry is made.
 
+use crate::effects::emitters::car_with_matrix;
+use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::setup::CLOCK;
 use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::marks_settings_store::MarkCar;
 use crate::session::{Dword, Float, read_first};
 
 const MODELS: u32 = 34;
@@ -30,18 +33,14 @@ const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-fn refusal(object: u32) -> Result<Option<&'static str>, Refused> {
+fn refusal(object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if object == 0 {
-            return Ok(Some("a null object"));
-        }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24)? == 0 {
+        if !car_with_matrix()? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
-        if at(object + 4)? >= MODELS {
+        if object.word(4)? >= MODELS {
             return Ok(Some("a car model past flt_769312's 34 entries"));
         }
         None
@@ -49,18 +48,18 @@ fn refusal(object: u32) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
+pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
     if let Some(why) = refusal(object)? {
         return Err(BadInput(why).into());
     }
     if next_entry()?.is_none() {
         return Ok(());
     }
-    let model = at(object + 4)? as usize;
-    let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 0xD)?;
+    let model = object.word(4)? as usize;
+    let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
-    let car: u32 = EMITTER.car.get();
-    let m = at(car + 0x24)?;
+    let car = emitting_car()?;
+    let m = car.word(0x24)?;
     let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,
@@ -74,7 +73,7 @@ pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
     put(0x28, y_less)?;
     put(0x18, z)?;
     let one: u32 = MARKS_FLOATS.one.bits();
-    let s = x87::one_less_inverse(at(object + 8)?, KIND13_SET.strength_k.bits(), one);
+    let s = x87::one_less_inverse(object.word(8)?, KIND13_SET.strength_k.bits(), one);
     RING_WORK.whole.set(s);
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
@@ -109,10 +108,10 @@ pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
         x87::times_over_int(s, MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
     )?;
     put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
-    put(0x68, car)?;
+    put(0x68, EMITTER.car.get())?;
     let size = x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
     put(0x70, size as u32)?;
-    put(0x6C, at(car + 0x88)?)?;
+    put(0x6C, car.word(0x88)?)?;
     put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()))?;
     Ok(())
 }

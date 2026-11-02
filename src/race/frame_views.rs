@@ -466,7 +466,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
     let records = RACE_WORK.car_records_resolved()?;
     check_view_marks(
         block,
-        |b| records[b as usize],
+        |b| GamePtr::to(records[b as usize]).addr(),
         || crate::effects::setup::SETTINGS.pointer.get(),
     )?;
     let (other, own) = marks_shown(
@@ -483,10 +483,15 @@ pub fn run_view_marks() -> Result<(), Refused> {
     crate::drive::share_all_cars::share_all_cars()?;
     let first = first_word(RACE_VARS.run_kind.get());
     for b in 0..CAR_RECORDS {
-        GamePtr::new(RACE_WORK.car_record(b as usize)?)
+        RACE_WORK
+            .car_record(b as usize)?
+            .at(0)
             .write(first, "a car record's first word")?;
     }
-    GamePtr::new(RACE_WORK.car_record(view as usize)?).write(1u32, "a car record's first word")?;
+    RACE_WORK
+        .car_record(view as usize)?
+        .at(0)
+        .write(1u32, "a car record's first word")?;
     let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
     let n = FRAME_WORK.view_layouts[layout_at as usize].get() as usize;
     DRAW.view_centre[0].set_bits(int_over_times(

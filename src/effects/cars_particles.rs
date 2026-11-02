@@ -29,11 +29,10 @@ use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::car_handle;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::session::{read_bits, write_bits};
 
-const CAR_LEN: u32 = 0x4C8;
 const MOST_CARS: u32 = 8;
 // The looks by the car's model are `SPLINE_HEAD.looks` (dword_7694AA, dword_7694B2: 8 bytes
 // apart, 33 pairs to 0x7695B2). The cars have 34 models: model 32's second dword is
@@ -41,12 +40,9 @@ const MOST_CARS: u32 = 8;
 // as the original does (`notes/bugs.md`): `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
-}
-
-/// The cars, worked out without writing: none when the settings' +0x10 is not 1.
-fn cars(settings: u32) -> Result<Vec<u32>, Refused> {
+/// The cars' numbers, last first, worked out without writing: none when the settings' +0x10
+/// is not 1.
+fn cars() -> Result<Vec<usize>, Refused> {
     let marks = crate::effects::setup::marks()?;
     Ok({
         if marks.other_marks_shown.get() != 1 {
@@ -55,7 +51,7 @@ fn cars(settings: u32) -> Result<Vec<u32>, Refused> {
         let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS as i32 + 1) as u32)
             .rev()
-            .map(|n| settings + 0x60 + n * CAR_LEN)
+            .map(|n| n as usize)
             .collect()
     })
 }
@@ -70,11 +66,12 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
         if marks.other_marks_shown.get() == 1 && marks.cars_copy.get() as i32 > MOST_CARS as i32 {
             return Ok(Some("more than 8 cars"));
         }
-        for car in cars(settings)? {
-            if at(car + 0x24)? == 0 || at(car + 0x28)? == 0 {
+        for n in cars()? {
+            let car = &marks.cars[n];
+            if car.word(0x24)? == 0 || car.word(0x28)? == 0 {
                 return Ok(Some("a car's null matrix or vector"));
             }
-            if at(car + 4)? >= MODELS {
+            if car.word(4)? >= MODELS {
                 return Ok(Some("a car model past the cars' 34"));
             }
         }
@@ -88,62 +85,62 @@ pub fn cars_particles() -> Result<(), Refused> {
     if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
-    let count = cars(settings)?.len() as u32;
+    let count = cars()?.len() as u32;
     for n in (0..count).rev() {
         EMITTER
             .tag
             .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
-        let car = settings + 0x60 + n * CAR_LEN;
-        EMITTER.car.set(car);
-        let m = at(car + 0x24)?;
-        adjugate_matrix(m, car + 0x94);
+        let car = &crate::effects::setup::marks()?.cars[n as usize];
+        EMITTER.car.set(car_handle(n as usize));
+        let m = car.word(0x24)?;
+        adjugate_matrix(m, car.at(0x94).addr());
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
-            let v = [at(car + from)?, at(car + from + 4)?, at(car + from + 8)?];
+            let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
             for (k, x) in v.iter().enumerate() {
-                put(car + to + 4 * k as u32, *x)?;
+                car.put(to + 4 * k as u32, *x)?;
             }
         }
         for k in 0..3 {
             let k4 = 4 * k;
-            put(
-                car + 0x58 + k4,
-                x87::sub(at(m + 0x30 + k4)?, at(car + 0x40 + k4)?),
+            car.put(
+                0x58 + k4,
+                x87::sub(at(m + 0x30 + k4)?, car.word(0x40 + k4)?),
             )?;
         }
         let mean_k: u32 = MARKS_FLOATS.quarter.bits();
         for k in 0..3 {
             let k4 = 4 * k;
-            put(
-                car + 0x4C + k4,
+            car.put(
+                0x4C + k4,
                 x87::sum4_times(
-                    at(car + 0x58 + k4)?,
-                    at(car + 0x64 + k4)?,
-                    at(car + 0x70 + k4)?,
-                    at(car + 0x7C + k4)?,
+                    car.word(0x58 + k4)?,
+                    car.word(0x64 + k4)?,
+                    car.word(0x70 + k4)?,
+                    car.word(0x7C + k4)?,
                     mean_k,
                 ),
             )?;
         }
-        put(car + 0x40, at(m + 0x30)?)?;
-        put(car + 0x44, at(m + 0x34)?)?;
-        put(car + 0x48, at(m + 0x38)?)?;
+        car.put(0x40, at(m + 0x30)?)?;
+        car.put(0x44, at(m + 0x34)?)?;
+        car.put(0x48, at(m + 0x38)?)?;
         let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
         let one: u32 = MARKS_FLOATS.one.bits();
         let (length, rate) = x87::length_and_rate(
-            [at(car + 0x4C)?, at(car + 0x50)?, at(car + 0x54)?],
+            [car.word(0x4C)?, car.word(0x50)?, car.word(0x54)?],
             k1,
             k2,
             one,
             k3,
         );
-        put(car + 0x88, length as u32)?;
-        put(car + 0x90, rate as u32)?;
-        if at(car + 0x30)? != 0 {
+        car.put(0x88, length as u32)?;
+        car.put(0x90, rate as u32)?;
+        if car.word(0x30)? != 0 {
             for o in [0x4C, 0x50, 0x54, 0x88] {
-                put(car + o, 0)?;
+                car.put(o, 0)?;
             }
         }
-        let w = at(car + 0x28)?;
+        let w = car.word(0x28)?;
         let up = read_bits(&EMITTER.up);
         let across = [
             x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),
@@ -160,11 +157,11 @@ pub fn cars_particles() -> Result<(), Refused> {
             x87::product_difference(b[0], across[1], b[1], across[0]),
         ];
         write_bits(&EMITTER.side_a, a);
-        let model = at(car + 4)?;
+        let model = car.word(4)?;
         EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
         EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
-        if at(car + 0x30)? != 0 {
-            put(car + 0x30, at(car + 0x30)?.wrapping_sub(1))?;
+        if car.word(0x30)? != 0 {
+            car.put(0x30, car.word(0x30)?.wrapping_sub(1))?;
         } else {
             emit_car_particles(car)?;
         }

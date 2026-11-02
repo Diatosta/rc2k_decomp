@@ -38,7 +38,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
         let records = RACE_WORK.car_records_resolved()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
-        race::check_cars(count, |n| block(n) != 0 && record(n) != 0)?;
+        race::check_cars(count, |n| block(n) != 0)?;
         MARKS_SETTINGS
             .cars_copy
             .set_bits(RACE_VIEW.race_cars.bits());
@@ -60,7 +60,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             });
             bad.done()?;
             for (field, v) in fields {
-                GamePtr::new(record(n) + field).write::<u32>(v, "a mark's field")?;
+                record(n).at(field).write::<u32>(v, "a mark's field")?;
             }
         }
         // The file number is left in eax: `init_marks`' seed.

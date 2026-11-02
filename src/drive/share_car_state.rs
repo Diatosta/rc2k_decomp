@@ -26,6 +26,7 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
+use crate::race::marks_settings_store::MarkCar;
 use crate::race::mud::car_file_number;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
@@ -47,88 +48,93 @@ fn light_record(s: u32) -> Result<u32, Refused> {
     Ok(n)
 }
 
-/// The Rust core: block `s`, record `o`, sound object `p`, the scratch at `scratch`.
+/// The Rust core: block `s`, record `o` (the marks' car record), sound object `p`, the
+/// scratch at `scratch`.
 // Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
-pub fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<(), Refused> {
+pub fn share_car_state_at(s: u32, o: &MarkCar, p: u32, scratch: u32) -> Result<(), Refused> {
     let n = light_record(s)?;
     if let Some(count) = sharing::count_down(at(s + 0xFAC)?) {
-        put(o + 0x30, 1)?;
+        o.at(0x30).write(1u32, "a car record's field")?;
         put(s + 0xFAC, count)?;
     }
-    put(o + 0x2C, at(p + 0xF0)?)?;
+    o.at(0x2C).write(at(p + 0xF0)?, "a car record's field")?;
     put(p + 0xF0, 0)?;
     let from = RACE_VIEW.level_from.bits();
     let step = NUMBERS.four.bits();
     for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
-        put(o + out, 0)?;
+        o.at(out).write(0u32, "a car record's field")?;
         if compare_full(at(s + field)?, from) & 0x100 == 0 {
             let v = sub_div_to_int(at(s + field)?, from, step);
             put(scratch, v as u32)?;
-            put(o + out, sharing::level(v))?;
+            o.at(out).write(sharing::level(v), "a car record's field")?;
         }
     }
-    put(o + 0x1C, at(s + 0x240)?)?;
+    o.at(0x1C).write(at(s + 0x240)?, "a car record's field")?;
     let light = LIGHT_RECORDS.record_addr(n);
     for (r, l) in sharing::LIGHT_MOVES {
-        put(o + r, at(light + l)?)?;
+        o.at(r).write(at(light + l)?, "a car record's field")?;
     }
-    put(o + 0x24, s + 0x8C0)?;
-    put(o + 0x28, s + 0x740)?;
-    put(o + 8, x87::loaded(at(s + 0x1D8)?))?;
-    put(o + 4, n)?;
+    o.at(0x24).write(s + 0x8C0, "a car record's field")?;
+    o.at(0x28).write(s + 0x740, "a car record's field")?;
+    o.at(8)
+        .write(x87::loaded(at(s + 0x1D8)?), "a car record's field")?;
+    o.at(4).write(n, "a car record's field")?;
     for (r, b) in sharing::MOVES_A {
-        put(o + r, at(s + b)?)?;
+        o.at(r).write(at(s + b)?, "a car record's field")?;
     }
     for (offsets, first) in sharing::QUADS {
         let (a, bb, c) = (at(s + first)?, at(s + 0x1A4)?, at(s + 0x1AC)?);
         for base in [offsets[0], offsets[0] + 0x48] {
-            put(o + base, a)?;
-            put(o + base + 4, bb)?;
-            put(o + base + 8, 0)?;
-            put(o + base + 0xC, c)?;
+            o.at(base).write(a, "a car record's field")?;
+            o.at(base + 4).write(bb, "a car record's field")?;
+            o.at(base + 8).write(0u32, "a car record's field")?;
+            o.at(base + 0xC).write(c, "a car record's field")?;
         }
     }
     for (k, r) in sharing::WHEELS.into_iter().enumerate() {
-        put(o + r, at(s + 0x920 + 4 * k as u32)?)?;
+        o.at(r)
+            .write(at(s + 0x920 + 4 * k as u32)?, "a car record's field")?;
     }
     for (k, r) in sharing::WHEELS.into_iter().enumerate() {
         let k = k as u32;
         if sharing::wheel_cleared(at(s + 0x600 + 4 * k)?, at(s + 0x298)?, k) {
-            put(o + r, 0)?;
+            o.at(r).write(0u32, "a car record's field")?;
         }
     }
-    put(o + 0x210, 0)?;
-    put(o + 0x21C, 0)?;
+    o.at(0x210).write(0u32, "a car record's field")?;
+    o.at(0x21C).write(0u32, "a car record's field")?;
     let zero = x87::loaded(0);
     for r in [0x24C, 0x250, 0x254, 0x244] {
-        put(o + r, zero)?;
+        o.at(r).write(zero, "a car record's field")?;
     }
     let switched = at(s + 0xA34)? != 0;
     if switched {
         for (r, b) in sharing::MOVES_B {
-            put(o + r, at(s + b)?)?;
+            o.at(r).write(at(s + b)?, "a car record's field")?;
         }
         for (r, b) in [(0x230, 0xA28), (0x234, 0xA2C), (0x238, 0xA30)] {
-            put(o + r, x87::from_int(at(s + b)? as i32))?;
+            o.at(r)
+                .write(x87::from_int(at(s + b)? as i32), "a car record's field")?;
         }
-        put(o + 0x22C, at(s + 0xA38)?)?;
+        o.at(0x22C).write(at(s + 0xA38)?, "a car record's field")?;
     }
     for k in 0..8 {
-        put(o + 0x2CC + 4 * k, at(s + 0x64 + 4 * k)?)?;
+        o.at(0x2CC + 4 * k)
+            .write(at(s + 0x64 + 4 * k)?, "a car record's field")?;
     }
     let mut kept = [0u32; 6];
     for (k, v) in kept.iter_mut().enumerate() {
-        *v = at(o + 0x258 + 4 * k as u32)?;
+        *v = o.word(0x258 + 4 * k as u32)?;
     }
     sharing::fill_holes(&mut kept);
     for (k, v) in kept.into_iter().enumerate() {
         put(s + 0x700 + 4 * k as u32, v)?;
     }
     for k in 0..8 {
-        put(s + 0xA3C + 4 * k, at(o + 0x32C + 4 * k)?)?;
+        put(s + 0xA3C + 4 * k, o.word(0x32C + 4 * k)?)?;
     }
     for k in 0..0x11 {
-        put(s + 0xA5C + 4 * k, at(o + 0x3F4 + 4 * k)?)?;
+        put(s + 0xA5C + 4 * k, o.word(0x3F4 + 4 * k)?)?;
     }
     Ok(())
 }
@@ -137,7 +143,7 @@ pub fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<(), Re
 /// The Rust version: the car block `block` (esi), its record `record` (edi), its sound
 /// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
 /// DF after `share_all_cars`' call).
-pub fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refused> {
+pub fn share_car_state(block: u32, record: &MarkCar, sound: u32) -> Result<(), Refused> {
     share_car_state_at(
         block,
         record,

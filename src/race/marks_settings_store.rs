@@ -123,6 +123,51 @@ impl core::ops::Deref for InGroup {
 
 pub static MARKS_SETTINGS: InGroup = InGroup;
 
+/// A car record by handle, where the original kept its address (`effects::emitters`'
+/// `EMITTER.car`, a ring entry's +0x68): `CAR_TAG | n` for car `n`; 0 is none.
+pub const CAR_TAG: u32 = 0xCC00_0000;
+
+/// Car `n`'s handle.
+pub const fn car_handle(n: usize) -> u32 {
+    assert!(n < CARS);
+    CAR_TAG | n as u32
+}
+
+/// The car a handle names. A value that names no car ends the program (as an address off
+/// the records would have read elsewhere in the original).
+pub fn car(handle: u32) -> &'static MarkCar {
+    let n = (handle ^ CAR_TAG) as usize;
+    match MARKS_SETTINGS.cars.get(n) {
+        Some(car) if handle & !0xFF == CAR_TAG => car,
+        _ => crate::fatal::raise::end(
+            "race::marks_settings_store::car",
+            crate::errors::BadInput("a car record's handle that names none"),
+        ),
+    }
+}
+
+/// The car a handle names, none for 0 (see `car`).
+pub fn car_or_none(handle: u32) -> Option<&'static MarkCar> {
+    (handle != 0).then(|| car(handle))
+}
+
+impl MarkCar {
+    /// The record's place `offset` bytes in, bounded by the record.
+    pub fn at(&self, offset: u32) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(self).offset(offset)
+    }
+
+    /// The dword at `offset`.
+    pub fn word(&self, offset: u32) -> Result<u32, crate::errors::BadInput> {
+        self.at(offset).read("a car record's field")
+    }
+
+    /// Writes the dword at `offset`.
+    pub fn put(&self, offset: u32, value: u32) -> Result<(), crate::errors::BadInput> {
+        self.at(offset).write(value, "a car record's field")
+    }
+}
+
 impl MarksSettings {
     /// The record's place `offset` bytes in, bounded by the record: for the reads the
     /// original makes by offset (a list as long as a count, a field picked by a table).

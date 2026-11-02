@@ -14,6 +14,7 @@
 //! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and the
 //! emitters' refusals; on a refusal nothing stays written (all it may write is put back).
 
+use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::ring_store::RING_WORK;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -21,14 +22,15 @@ use crate::effects::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
 };
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 
 /// The chance and the random it would be met by, worked out without writing.
-fn chance(wheel: u32) -> Result<(i32, u32), Refused> {
+fn chance(wheel: GamePtr) -> Result<(i32, u32), Refused> {
     Ok({
-        let chance = x87::mul_to_int(at(wheel + 0x34)?, MARKS_FLOATS.two_pow_16.bits());
+        let chance = x87::mul_to_int(field(wheel, 0x34)?, MARKS_FLOATS.two_pow_16.bits());
         let r = EMITTER
             .wheel_random
             .get()
@@ -52,7 +54,12 @@ pub enum Table {
 }
 
 /// The emitters for a kind.
-pub fn emit(table: Table, kind: u32, wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit(
+    table: Table,
+    kind: u32,
+    wheel: GamePtr,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     match kind {
         1 if table == Table::Body => emit_particle_18::emit_particle_18(wheel, object),
         1 => emit_kind_1::emit_kind_1(wheel, object),
@@ -72,20 +79,23 @@ pub fn emit(table: Table, kind: u32, wheel: u32, object: u32) -> Result<(), Refu
 
 /// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
-pub fn emit_wheel_particles(wheel: u32, object: u32) -> Result<(), Refused> {
-    if wheel == 0 {
-        return Err(BadInput("a null wheel").into());
-    }
+pub fn emit_wheel_particles(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     {
         let (chance, _) = chance(wheel)?;
         RING_WORK.whole.set(chance as u32);
         let r = next_c5(&EMITTER.wheel_random);
         if copies(chance, r) {
-            let surface = [at(wheel + 0x28)?, at(wheel + 0x2C)?, at(wheel + 0x30)?];
+            let surface = [
+                field(wheel, 0x28)?,
+                field(wheel, 0x2C)?,
+                field(wheel, 0x30)?,
+            ];
             for (n, v) in surface.iter().enumerate() {
-                GamePtr::new(wheel + 0x1C + 4 * n as u32).write::<u32>(*v, "a mark's field")?;
+                wheel
+                    .offset(0x1C + 4 * n as u32)
+                    .write::<u32>(*v, "a mark's field")?;
             }
         }
-        emit(Table::Wheel, at(wheel + 0x1C)?, wheel, object)
+        emit(Table::Wheel, field(wheel, 0x1C)?, wheel, object)
     }
 }

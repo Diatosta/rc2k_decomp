@@ -18,11 +18,16 @@
 //! here (2026-10-23): the bursts end at a full ring, as the exit with `lea esp, [esp+8]`
 //! does. Refuses (before anything) a null wheel, a null object, car or matrix where read.
 
+use crate::effects::emitters::car_with_matrix;
+use crate::effects::emitters::emitting_car;
+use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float, read_bits, write_bits};
 
@@ -80,15 +85,15 @@ impl BurstTuning {
 }
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
-fn strength(set: &BurstSet, n: usize, wheel: u32) -> Result<(u32, i32), Refused> {
+fn strength(set: &BurstSet, n: usize, wheel: GamePtr) -> Result<(u32, i32), Refused> {
     Ok({
         let scale: u32 = MARKS_FLOATS.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(at(wheel + 0x10)?, set.tuning.strength_k.bits(), scale)
+            x87::times_kept_abs_to_int(field(wheel, 0x10)?, set.tuning.strength_k.bits(), scale)
         } else {
             x87::blend_kept_abs_to_int(
-                at(wheel + 0xC)?,
-                at(wheel + 0x18)?,
+                field(wheel, 0xC)?,
+                field(wheel, 0x18)?,
                 set.tuning.blend_k[0].bits(),
                 set.tuning.blend_k[1].bits(),
                 scale,
@@ -98,9 +103,9 @@ fn strength(set: &BurstSet, n: usize, wheel: u32) -> Result<(u32, i32), Refused>
 }
 
 /// The entries each half would make, worked out without writing.
-fn counts(set: &BurstSet, wheel: u32) -> Result<[u32; 2], Refused> {
+fn counts(set: &BurstSet, wheel: GamePtr) -> Result<[u32; 2], Refused> {
     Ok({
-        let flags2 = at(wheel + 0x24)?;
+        let flags2 = field(wheel, 0x24)?;
         if flags2 >> 6 == 0 {
             return Ok([0; 2]);
         }
@@ -123,17 +128,13 @@ fn counts(set: &BurstSet, wheel: u32) -> Result<[u32; 2], Refused> {
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(set: &BurstSet, wheel: GamePtr) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if wheel == 0 {
-            return Ok(Some("a null wheel"));
-        }
-        if at(wheel + 0x24)? >> 6 == 0 {
+        if field(wheel, 0x24)? >> 6 == 0 {
             return Ok(None);
         }
         let [a, b] = counts(set, wheel)?;
-        let car: u32 = EMITTER.car.get();
-        if a + b > 0 && (object == 0 || car == 0 || at(car + 0x24)? == 0) {
+        if a + b > 0 && !car_with_matrix()? {
             return Ok(Some("a null object, car or matrix"));
         }
         None
@@ -141,17 +142,21 @@ pub fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Result<Option<&'stati
 }
 
 /// The Rust version (see the header).
-pub fn emit_bursts(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_bursts(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     emit_bursts_with(&FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_bursts_with(
+    set: &BurstSet,
+    wheel: GamePtr,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(set, wheel, object)? {
+        if let Some(why) = refusal(set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let flags2 = at(wheel + 0x24)?;
+        let flags2 = field(wheel, 0x24)?;
         SURFACE.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
@@ -164,7 +169,7 @@ pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), R
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
-            let car: u32 = EMITTER.car.get();
+            let car = emitting_car()?;
             let k: u32 = MARKS_FLOATS.minus_65_536.bits();
             let s: u32 = h.strength.bits();
             let scale = h.scaled.then(|| MARKS_FLOATS.half.bits());
@@ -183,7 +188,7 @@ pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), R
                 if RING_WORK.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
-                let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, h.kind)?;
+                let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
                 let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
                 let d = read_bits(&RING_WORK.direction);
                 let (out, _) = crate::effects::spread_point::spread_point([
@@ -201,19 +206,19 @@ pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), R
                 put(0x60, x87::from_int(size as i32))?;
                 put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3))?;
                 let tk: u32 = MARKS_FLOATS.minus_eighth.bits();
-                put(0x40, x87::mul(at(car + 0x54)?, tk))?;
-                put(0x3C, x87::mul(at(car + 0x50)?, tk))?;
-                put(0x38, x87::mul(at(car + 0x4C)?, tk))?;
+                put(0x40, x87::mul(car.word(0x54)?, tk))?;
+                put(0x3C, x87::mul(car.word(0x50)?, tk))?;
+                put(0x38, x87::mul(car.word(0x4C)?, tk))?;
                 for o in [0x44, 0x48, 0x4C] {
                     put(o, 0)?;
                 }
-                let m = at(car + 0x24)?;
+                let m = car.word(0x24)?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 MARKS_FRAME.emit_side.set_bits(side);
                 let place: [u32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
-                        at(wheel + 0x3C + k4)?,
+                        field(wheel, 0x3C + k4)?,
                         at(m + 0x30 + k4)?,
                         h.sides[k].bits(),
                         side as i32,
@@ -236,7 +241,7 @@ pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), R
                 put(0x84, LIFE)?;
                 put(0x7C, EMITTER.looks[0].get())?;
                 put(0x80, EMITTER.looks[1].get())?;
-                put(0x68, car)?;
+                put(0x68, EMITTER.car.get())?;
             }
         }
     }

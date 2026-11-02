@@ -18,10 +18,15 @@
 //! read. The body is shared with kind 0xB's (`JitterSet`, `emit_particle_5_with`,
 //! `test_with`).
 
+use crate::effects::emitters::car_with_matrix;
+use crate::effects::emitters::emitting_car;
+use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -63,21 +68,14 @@ pub static FIFTH: JitterSet = JitterSet {
 };
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-pub fn refusal(set: &JitterSet, wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(set: &JitterSet, wheel: GamePtr) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if wheel == 0 {
-            return Ok(Some("a null wheel"));
-        }
         if !emits(set, wheel)? {
             return Ok(None);
         }
-        if object == 0 {
-            return Ok(Some("a null object"));
-        }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24)? == 0 {
+        if !car_with_matrix()? {
             return Ok(Some("a null car object or matrix"));
         }
         None
@@ -85,9 +83,9 @@ pub fn refusal(set: &JitterSet, wheel: u32, object: u32) -> Result<Option<&'stat
 }
 
 /// Whether the wheel's +0x18 passes the set's test.
-fn emits(set: &JitterSet, wheel: u32) -> Result<bool, Refused> {
+fn emits(set: &JitterSet, wheel: GamePtr) -> Result<bool, Refused> {
     Ok({
-        let speed = at(wheel + 0x18)? & 0x7FFF_FFFF;
+        let speed = field(wheel, 0x18)? & 0x7FFF_FFFF;
         if set.over_one {
             x87::to_int(speed) > 1
         } else {
@@ -97,32 +95,36 @@ fn emits(set: &JitterSet, wheel: u32) -> Result<bool, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_5(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_particle_5(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     emit_particle_5_with(&FIFTH, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_particle_5_with(
+    set: &JitterSet,
+    wheel: GamePtr,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(set, wheel, object)? {
+        if let Some(why) = refusal(set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(at(wheel + 0x18)?) & 0x7FFF_FFFF;
+        let strength = x87::loaded(field(wheel, 0x18)?) & 0x7FFF_FFFF;
         EMITTER.strength.set_bits(strength);
         if !emits(set, wheel)? || next_entry()?.is_none() {
             return Ok(());
         }
-        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
+        let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, at(wheel + 0x10)?))
+            (-1i32, x87::sub(strength, field(wheel, 0x10)?))
         } else {
-            (1, x87::add(strength, at(wheel + 0x10)?))
+            (1, x87::add(strength, field(wheel, 0x10)?))
         };
         EMITTER.sign.set(sign as u32);
         EMITTER.strength.set_bits(strength);
-        let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24)?;
+        let car = emitting_car()?;
+        let m = car.word(0x24)?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         EMITTER.sides[0].set(a as u32);
@@ -135,7 +137,7 @@ pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<
                     at(m + k)?,
                     b,
                     at(m + 0x20 + k)?,
-                    at(wheel + 0x3C + k)?,
+                    field(wheel, 0x3C + k)?,
                     at(m + 0x30 + k)?,
                 )
             })
@@ -158,7 +160,7 @@ pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<
         })?;
         let (moved, last) =
             jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
-        let speed = at(wheel + 0x18)?;
+        let speed = field(wheel, 0x18)?;
         for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
             let row = at(m + 0x28 - 4 * n as u32)?;
             put(
@@ -170,11 +172,11 @@ pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<
             0x54,
             x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
         )?;
-        put(0x58, at(wheel + 0x20)? & 0x3F)?;
+        put(0x58, field(wheel, 0x20)? & 0x3F)?;
         put(0x60, ((last >> 2) & 0xFFF) + 0x7800)?;
         put(0x74, 0xFF00_0000)?;
         put(0x84, set.life)?;
-        put(0x68, car)?;
+        put(0x68, EMITTER.car.get())?;
     }
     Ok(())
 }

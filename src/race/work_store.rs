@@ -213,24 +213,33 @@ impl RaceWork {
         )
     }
 
-    /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word): the record's real
-    /// address. Refused past the eight (the original reads on into the next variables).
-    pub fn car_record(&self, n: usize) -> Result<u32, BadInput> {
+    /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,
+    /// `race::marks_settings_store`). Refused past the eight (the original reads on into
+    /// the next variables) and for a name that is not a record's start.
+    pub fn car_record(
+        &self,
+        n: usize,
+    ) -> Result<&'static crate::race::marks_settings_store::MarkCar, BadInput> {
         let name = self
             .car_records
             .get(n)
-            .ok_or(BadInput("a car record past the eight"))?;
-        crate::moved::named_in(
-            name.get(),
-            CAR_RECORDS_IDA,
-            CAR_RECORDS_LEN,
-            "a car record off the view marks' records",
-        )
+            .ok_or(BadInput("a car record past the eight"))?
+            .get() as usize;
+        let off = name.wrapping_sub(CAR_RECORDS_IDA);
+        if off >= CAR_RECORDS_LEN || !off.is_multiple_of(crate::race::marks_settings_store::CAR_LEN)
+        {
+            return Err(BadInput("a car record off the view marks' records"));
+        }
+        Ok(&crate::race::marks_settings_store::MARKS_SETTINGS.cars
+            [off / crate::race::marks_settings_store::CAR_LEN])
     }
 
-    /// The eight car records' real addresses.
-    pub fn car_records_resolved(&self) -> Result<[u32; 8], BadInput> {
-        let mut out = [0; 8];
+    /// The eight car records.
+    pub fn car_records_resolved(
+        &self,
+    ) -> Result<[&'static crate::race::marks_settings_store::MarkCar; 8], BadInput> {
+        let first = self.car_record(0)?;
+        let mut out = [first; 8];
         for (n, record) in out.iter_mut().enumerate() {
             *record = self.car_record(n)?;
         }
@@ -294,15 +303,17 @@ mod tests {
             let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert_eq!(
-                RACE_WORK.car_record(k),
+                RACE_WORK
+                    .car_record(k)
+                    .map(|r| crate::pointers::GamePtr::to(r).addr()),
                 Ok(crate::framework::game_addr(crate::framework::rva(
                     name as usize
                 )))
             );
-            assert_eq!(
+            assert!(std::ptr::eq(
                 RACE_WORK.car_records_resolved().unwrap()[k],
                 RACE_WORK.car_record(k).unwrap()
-            );
+            ));
         }
         assert!(RACE_WORK.car_record(8).is_err());
     }

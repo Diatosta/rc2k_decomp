@@ -20,12 +20,12 @@ use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::marks_settings_store::{MARKS_SETTINGS, MarkCar};
 use crate::race::mud::car_file_number;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::sharing;
 
-fn cars() -> Result<[(u32, u32, u32); 8], BadInput> {
+fn cars() -> Result<[(u32, &'static MarkCar, u32); 8], BadInput> {
     let records = RACE_WORK.car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
         (
@@ -38,8 +38,8 @@ fn cars() -> Result<[(u32, u32, u32); 8], BadInput> {
 
 /// The refusals, worked out before anything is written.
 fn refusal() -> Result<Option<&'static str>, BadInput> {
-    for (block, record, sound) in cars()? {
-        if block == 0 || record == 0 || sound == 0 {
+    for (block, _, sound) in cars()? {
+        if block == 0 || sound == 0 {
             return Ok(Some("a null car block, record or sound object"));
         }
         let n = car_file_number(GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?);
@@ -65,12 +65,12 @@ pub fn share_all_cars() -> Result<(), Refused> {
         RACE_WORK.current_car.set(n as u32);
         share_car_state(block, record, sound)?;
     }
-    let first_record: u32 = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
+    let first_record = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
     MARKS_SETTINGS.sound_objects_shown.set_bits(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) =
         sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.bits(), || {
-            reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
+            reading.keep(first_record.word(0x258))
         });
     reading.finish()?;
     if shown {

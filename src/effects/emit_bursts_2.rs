@@ -12,6 +12,8 @@
 use crate::effects::emit_bursts::BurstTuning;
 use crate::effects::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::session::{Dword, Float};
 
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
@@ -21,7 +23,7 @@ pub static SECOND: BurstSet = BurstSet {
 };
 
 /// The Rust version (see the header).
-pub fn emit_bursts_2(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_bursts_2(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     emit_bursts_with(&SECOND, wheel, object)
 }
 

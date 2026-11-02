@@ -17,6 +17,8 @@
 //! (before anything) a null object, and when an entry is made a null `g_marksCar` or matrix
 //! and a level past `dword_939B86`'s 9 entries (the original reads on).
 
+use crate::effects::emitters::car_with_matrix;
+use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::setup::CLOCK;
@@ -24,6 +26,7 @@ use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, Float};
 
@@ -48,9 +51,9 @@ pub static NINETEENTH: TwinSet = TwinSet {
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-fn makes(set: &TwinSet, object: u32) -> Result<bool, Refused> {
+fn makes(set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
     Ok({
-        let level = at(object + set.level_at)? as i32;
+        let level = object.word(set.level_at)? as i32;
         let r = set
             .tuning
             .chance_random
@@ -62,19 +65,15 @@ fn makes(set: &TwinSet, object: u32) -> Result<bool, Refused> {
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub fn refusal(set: &TwinSet, object: u32) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(set: &TwinSet, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if object == 0 {
-            return Ok(Some("a null object"));
-        }
         if !makes(set, object)? {
             return Ok(None);
         }
-        let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24)? == 0 {
+        if !car_with_matrix()? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
-        if at(object + set.level_at)? >= LEVELS {
+        if object.word(set.level_at)? >= LEVELS {
             return Ok(Some("a level past dword_939B86's 9 entries"));
         }
         None
@@ -82,31 +81,31 @@ pub fn refusal(set: &TwinSet, object: u32) -> Result<Option<&'static str>, Refus
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_19(object: u32) -> Result<(), Refused> {
+pub fn emit_particle_19(object: &'static MarkCar) -> Result<(), Refused> {
     emit_twin(&NINETEENTH, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
+pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused> {
     if let Some(why) = refusal(set, object)? {
         return Err(BadInput(why).into());
     }
-    let level = at(object + set.level_at)?;
+    let level = object.word(set.level_at)?;
     TWIN_STATE.level.set(level);
     let r = next_c5(&set.tuning.chance_random);
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
     SURFACE.wheel_flags.set(set.flags);
-    let motion = [at(object + 0x4C)?, at(object + 0x50)?, at(object + 0x54)?];
+    let motion = [object.word(0x4C)?, object.word(0x50)?, object.word(0x54)?];
     crate::session::write_bits(&TWIN_STATE.motion, motion);
     if next_entry()?.is_none() {
         return Ok(());
     }
-    let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
+    let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
-    let car: u32 = EMITTER.car.get();
-    let m = at(car + 0x24)?;
+    let car = emitting_car()?;
+    let m = car.word(0x24)?;
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&TWIN_STATE.point),
         set.tuning.lift.bits(),
@@ -148,7 +147,7 @@ pub fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
         x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
     )?;
     put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
-    put(0x68, car)?;
+    put(0x68, EMITTER.car.get())?;
     Ok(())
 }
 

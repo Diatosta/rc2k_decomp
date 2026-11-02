@@ -16,12 +16,16 @@
 //! random, which still steps). Refuses (before anything) a null wheel, a null object, and a
 //! null car or matrix when an entry is made.
 
+use crate::effects::emitters::car_with_matrix;
+use crate::effects::emitters::emitting_car;
+use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::rounded;
 use crate::session::{Bytes, Dword, Float};
 
@@ -29,32 +33,25 @@ const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 
 /// The rate, from the wheel's +0xC.
-fn rate(wheel: u32) -> Result<i32, Refused> {
+fn rate(wheel: GamePtr) -> Result<i32, Refused> {
     Ok({
         let [k1, k2, k3, k4] = KIND21_SET
             .rate_k
             .each_ref()
             .map(super::super::session::Float::bits);
-        x87::speed_rate_to_int(at(wheel + 0xC)?, k1, k2, k3, MARKS_FLOATS.one.bits(), k4)
+        x87::speed_rate_to_int(field(wheel, 0xC)?, k1, k2, k3, MARKS_FLOATS.one.bits(), k4)
     })
 }
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-fn refusal(wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+fn refusal(wheel: GamePtr, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if wheel == 0 {
-            return Ok(Some("a null wheel"));
-        }
-        if object == 0 {
-            return Ok(Some("a null object"));
-        }
         if !gate_with(wheel, object, rate(wheel)?)?.passes {
             return Ok(None);
         }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24)? == 0 {
+        if !car_with_matrix()? {
             return Ok(Some("a null car object or matrix"));
         }
         None
@@ -62,7 +59,7 @@ fn refusal(wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(wheel, object)? {
             return Err(BadInput(why).into());
@@ -70,15 +67,15 @@ pub fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
         let g = gate_with(wheel, object, rate(wheel)?)?;
         RING_WORK.rate.set(g.rate as u32);
         if let Some(count) = g.count {
-            GamePtr::new(wheel + 4).write::<u32>(count, "a mark's field")?;
+            wheel.offset(4).write::<u32>(count, "a mark's field")?;
         }
         if !g.passes || next_entry()?.is_none() {
             return Ok(());
         }
-        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 0x15)?;
+        let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
-        let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24)?;
+        let car = emitting_car()?;
+        let m = car.word(0x24)?;
         let r = next_c5(&KIND21_SET.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);
@@ -90,7 +87,7 @@ pub fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
                 at(m + k)?,
                 b,
                 at(m + 0x20 + k)?,
-                at(wheel + 0x3C + k)?,
+                field(wheel, 0x3C + k)?,
             ))
         })?;
         put(0x18, rounded(place[2]))?;
@@ -101,9 +98,9 @@ pub fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
             let (first, third) = (at(m + 4 * k as u32)?, at(m + 0x20 + 4 * k as u32)?);
             let f = [0, 1, 2].map(|i| KIND21_SET.motion_k[3 * k + i].bits());
             Ok(x87::three_products([
-                [first, at(wheel + 0x10)?, f[0]],
-                [third, at(wheel + 0x18)?, f[1]],
-                [third, at(wheel + 0xC)?, f[2]],
+                [first, field(wheel, 0x10)?, f[0]],
+                [third, field(wheel, 0x18)?, f[1]],
+                [third, field(wheel, 0xC)?, f[2]],
             ]))
         })?;
         put(0x34, motion[2])?;
@@ -122,10 +119,10 @@ pub fn emit_particle_21(wheel: u32, object: u32) -> Result<(), Refused> {
             x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
         )?;
         put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
-        put(0x68, car)?;
-        let size = at(car + 0x90)?.wrapping_add(g.rate as u32);
+        put(0x68, EMITTER.car.get())?;
+        let size = car.word(0x90)?.wrapping_add(g.rate as u32);
         put(0x70, size)?;
-        put(0x6C, at(car + 0x88)?)?;
+        put(0x6C, car.word(0x88)?)?;
         put(0x60, x87::int_times(size as i32, KIND21_SET.size_k.bits()))?;
     }
     Ok(())

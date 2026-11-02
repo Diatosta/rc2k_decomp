@@ -15,22 +15,25 @@
 //! section 16). Refuses (before anything) a null record, and a null object when an entry is
 //! made.
 
+use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
+use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
 
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1
 
 /// The count (and the flags' part it is scaled by), worked out without writing.
-fn count(record: u32) -> Result<(i32, i32), Refused> {
+fn count(record: GamePtr) -> Result<(i32, i32), Refused> {
     Ok({
-        let n = ((at(record + 0x20)? >> 6) << 2) as i32;
-        let (size, k) = (at(record + 0x38)?, MARKS_FLOATS.over_32.bits());
+        let n = ((field(record, 0x20)? >> 6) << 2) as i32;
+        let (size, k) = (field(record, 0x38)?, MARKS_FLOATS.over_32.bits());
         let under = x87::times_compare(size, k, MARKS_FLOATS.one.bits()) & 0x700 == 0x100;
         let count = if under {
             x87::times_int_to_int(size, k, n)
@@ -41,29 +44,10 @@ fn count(record: u32) -> Result<(i32, i32), Refused> {
     })
 }
 
-/// How many entries are made, worked out without writing.
-fn made(record: u32) -> Result<u32, Refused> {
-    Ok({
-        let (count, _) = count(record)?;
-        let wanted = if count == i32::MIN {
-            1 << 31
-        } else {
-            count.max(0) as u32
-        };
-        wanted.min(MOST_TAKEN.saturating_sub(RING_WORK.count.get()))
-    })
-}
-
 /// The Rust version (see the header).
-pub fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_particle_18(record: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
     {
-        if record == 0 {
-            return Err(BadInput("a null record").into());
-        }
-        if object == 0 && made(record)? > 0 {
-            return Err(BadInput("a null object").into());
-        }
-        let flags = at(record + 0x20)?;
+        let flags = field(record, 0x20)?;
         SURFACE.wheel_flags.set(flags);
         let (count, n) = count(record)?;
         RING_WORK.whole.set(n as u32);
@@ -77,7 +61,7 @@ pub fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> {
                 break;
             }
             let tag = match before {
-                None => at(object + 0x1C)?,
+                None => object.word(0x1C)?,
                 Some(b) => crate::effects::ring_entries::get(b, 0x1C)?,
             };
             let e = take_entry(tag & 0xFF_FFFF, 0x12)?;
@@ -93,13 +77,13 @@ pub fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> {
             put(0x34, rounded(moved[0]))?;
             put(0x30, rounded(moved[1]) & 0x7FFF_FFFF)?;
             put(0x2C, rounded(moved[2]))?;
-            put(0x10, x87::loaded(at(record + 0x3C)?))?;
-            put(0x14, x87::loaded(at(record + 0x40)?))?;
+            put(0x10, x87::loaded(field(record, 0x3C)?))?;
+            put(0x14, x87::loaded(field(record, 0x40)?))?;
             put(
                 0x28,
-                x87::sub(at(record + 0x40)?, MARKS_FLOATS.two_pow_16.bits()),
+                x87::sub(field(record, 0x40)?, MARKS_FLOATS.two_pow_16.bits()),
             )?;
-            put(0x18, x87::loaded(at(record + 0x44)?))?;
+            put(0x18, x87::loaded(field(record, 0x44)?))?;
             for o in [0x1C, 0x20, 0x24] {
                 put(o, 0)?;
             }

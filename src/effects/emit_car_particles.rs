@@ -24,57 +24,52 @@ use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::At;
 use crate::math::x87;
-use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
 /// The wheel records, then the body's.
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
-/// Writes a float at an address.
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
-}
-
 /// The Rust version (see the header): `o` the car's object (the original's esi).
-pub fn emit_car_particles(o: u32) -> Result<(), Refused> {
-    if o == 0 || { at(o + 0x24)? } == 0 {
-        return Err(BadInput("a null car object or matrix").into());
+pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
+    if o.word(0x24)? == 0 {
+        return Err(BadInput("a null car matrix").into());
     }
     let k = read_bits(&EMITTER.place_k);
-    let z1 = x87::int_times(at(o + 0xC)? as i32, k[0]);
-    put(o + 0x118, z1)?;
-    put(o + 0x160, z1)?;
-    let z2 = x87::int_times(at(o + 0x10)? as i32, k[1]);
-    put(o + 0x1A8, z2)?;
-    put(o + 0x1F0, z2)?;
-    let (x, left) = x87::int_times_plus_and_negated(at(o + 0x14)? as i32, k[2], k[3]);
-    put(o + 0x158, x)?;
-    put(o + 0x1E8, x)?;
-    put(o + 0x110, left)?;
-    put(o + 0x1A0, left)?;
-    let y = x87::int_times_less_less(at(o + 0x18)? as i32, k[4], k[5], k[6]);
+    let z1 = x87::int_times(o.word(0xC)? as i32, k[0]);
+    o.put(0x118, z1)?;
+    o.put(0x160, z1)?;
+    let z2 = x87::int_times(o.word(0x10)? as i32, k[1]);
+    o.put(0x1A8, z2)?;
+    o.put(0x1F0, z2)?;
+    let (x, left) = x87::int_times_plus_and_negated(o.word(0x14)? as i32, k[2], k[3]);
+    o.put(0x158, x)?;
+    o.put(0x1E8, x)?;
+    o.put(0x110, left)?;
+    o.put(0x1A0, left)?;
+    let y = x87::int_times_less_less(o.word(0x18)? as i32, k[4], k[5], k[6]);
     for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
-        put(o + a, y)?;
+        o.put(a, y)?;
     }
-    EMITTER.looks[0].set(x87::to_int(at(o + 0x110)? & 0x7FFF_FFFF) as u32);
+    EMITTER.looks[0].set(x87::to_int(o.word(0x110)? & 0x7FFF_FFFF) as u32);
     EMITTER.looks[1].set(x87::abs_sum_times_to_int(
-        at(o + 0x118)?,
-        at(o + 0x1A8)?,
+        o.word(0x118)?,
+        o.word(0x1A8)?,
         MARKS_FLOATS.half.bits(),
     ) as u32);
-    let m = at(o + 0x24)?;
+    let m = o.word(0x24)?;
     for p in [0x110, 0x158, 0x1A0, 0x1E8] {
         let turned = rotate_point(
             &At(m),
             [
-                extended(at(o + p)?),
-                extended(at(o + p + 4)?),
-                extended(at(o + p + 8)?),
+                extended(o.word(p)?),
+                extended(o.word(p + 4)?),
+                extended(o.word(p + 8)?),
             ],
         );
         for (n, v) in turned.iter().enumerate() {
-            put(o + p + 4 * n as u32, rounded(*v))?;
+            o.put(p + 4 * n as u32, rounded(*v))?;
         }
     }
     for (n, &r) in RECORDS[..4].iter().enumerate() {
@@ -89,11 +84,11 @@ pub fn emit_car_particles(o: u32) -> Result<(), Refused> {
             );
         }
         EMITTER.record.set(n as u32);
-        emit_wheel_particles(o + r, o)?;
+        emit_wheel_particles(o.at(r), o)?;
     }
     let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
     write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
     write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
-    emit_body_particles(o + RECORDS[4], o)?;
+    emit_body_particles(o.at(RECORDS[4]), o)?;
     Ok(())
 }
