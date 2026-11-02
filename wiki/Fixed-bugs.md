@@ -385,3 +385,13 @@ missing, while the host looked right. The same car in single player was also rig
 game use the first car's block when they mean the player's car, and on a joining machine the first car
 is the host's. The cockpit effects, the mud and the sound listener now follow the local car. The original
 has the same fixed addresses, but its network mode could not be run here to see it.
+
+## Cars warp and jerk in network races
+
+**What it is:** a position message snaps a remote car to the place received when it is too far from where the car is. The limit compared with is 10.0, but places are in 1/65536 of a metre, so the limit was 0.00015 m: after a car's first 1000 steps (ten seconds) every message, about three a second, snapped it instead of gliding it. A snap also left a glide under way running on a field that then held a place.
+
+**In game:** the other player's car jerked, and now and then jumped tens of metres back along the road for a third of a second. Moved from outside the physics, the car's probe points crossed face edges; the contact rounds ran out and the car was reset to the line, on that machine only, until the next message.
+
+**Seen or read:** seen with two copies racing (a logged jump of 42 m, none before step 1000) and read in the disassembly at 0x4647A8. The original's own network could not be run for comparison.
+
+**Fix:** the limit is ten metres, and a snap ends any glide. Measured with two copies: largest gap from 13.5 m to 1.5 m, jumps over 3 m from 123 to 0.

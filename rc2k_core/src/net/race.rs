@@ -152,6 +152,12 @@ pub fn arrival(wanted: [u32; 3], now: [u32; 3], steps: u32, near: f32) -> Arriva
     }
 }
 
+/// How far off a car's place received is snapped to rather than glided to: ten metres. The
+/// original compares with 10.0 (`g_ten`) in the place's own units, 1/65536 of a metre, so
+/// past a car's first 1000 steps every message snapped it; moved from outside the physics
+/// that way, a remote car crossed face edges and was reset to the line.
+pub const SNAP_FROM: f32 = 10.0 * 65536.0;
+
 /// The steps of a glide.
 pub const GLIDE: u32 = 0x20;
 
@@ -174,6 +180,19 @@ pub fn glide(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_car_glides_to_a_place_metres_off_and_snaps_to_one_far_off() {
+        let metre = 65536u32;
+        let at = [1000 * metre, 0, 1000 * metre];
+        let near = [at[0] + 3 * metre, 0, at[2]];
+        assert!(matches!(
+            arrival(near, at, 5000, SNAP_FROM),
+            Arrival::Glide(_)
+        ));
+        let far = [at[0] + 11 * metre, 0, at[2]];
+        assert!(matches!(arrival(far, at, 5000, SNAP_FROM), Arrival::Jump));
+    }
 
     #[test]
     fn what_no_car_could_hold_is_not_believed() {

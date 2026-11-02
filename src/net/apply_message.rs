@@ -15,8 +15,7 @@
 //! Out: nothing (the original leaves eax, ecx, edi as it goes; its one caller has it inside
 //!      `pusha` .. `popa`)
 //!
-//! See `net/mod.rs`. One caller, `net::apply_received`. The distance with the original's
-//! x87 instructions.
+//! See `net/mod.rs`. One caller, `net::apply_received`.
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
@@ -75,12 +74,13 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
         |at: u32| Ok::<_, BadInput>([rd(block + at)?, rd(block + at + 4)?, rd(block + at + 8)?]);
     let (wanted, now) = (three(race::WANTED)?, three(race::PLACE)?);
     let steps = rd(block + race::STEPS)?;
-    let near = crate::race::numbers_store::NUMBERS.ten.get();
-    match race::arrival(wanted, now, steps, near) {
+    match race::arrival(wanted, now, steps, race::SNAP_FROM) {
         Arrival::Jump => {
             for (k, v) in (0..).zip(wanted) {
                 wr(block + race::PLACE + 4 * k, v)?;
             }
+            // +0xFC0 now holds a place, not a step: a glide under way ends.
+            wr(block + race::GLIDE_STEPS, 0)?;
         }
         Arrival::Glide(step) => {
             for (k, v) in (0..).zip(step) {
