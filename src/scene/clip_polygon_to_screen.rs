@@ -24,7 +24,7 @@ use crate::session::Float;
 // ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
-fn outside_mask() -> Result<u32, BadInput> {
+fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
     let entries = listed_with_records()?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
@@ -49,17 +49,18 @@ fn outside_mask() -> Result<u32, BadInput> {
             mask |= 4;
         }
     }
-    Ok(mask)
+    Ok((entries, mask))
 }
 
 pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
-    let mask = outside_mask()?;
+    let (entries, mask) = outside_mask()?;
     DRAW.screen_clipped.set_bits(1u32);
     if mask == 0 {
         return Ok(());
     }
     DRAW.polygon_clip_mask.set_bits(mask);
     or_undone(|| {
+        let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
             (1, Edge::X(DRAW.clip_screen[2].bits()), true),
             (2, Edge::X(DRAW.clip_screen[3].bits()), false),
@@ -67,7 +68,7 @@ pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
             (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
-                clip_pass(edge, inside_past, mask)?;
+                listed = clip_pass(listed, edge, inside_past, mask)?;
                 if DRAW.polygon_vertex_count.bits() < 3 {
                     break;
                 }

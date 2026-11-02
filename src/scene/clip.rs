@@ -175,9 +175,19 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
 }
 
 /// One pass. `inside_past`: a vertex is inside when the edge is below its coordinate
-/// (true) or when it is not (false).
-pub fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), BadInput> {
-    let entries = listed_with_records()?;
+/// (true) or when it is not (false). `listed`: the polygon's entries as
+/// `listed_with_records` gives them, when the caller has them already. Returns them again
+/// when the pass kept every vertex (the list is as it was), else `None`.
+pub fn clip_pass(
+    listed: Option<crate::scene::polygon::Listed>,
+    edge: Edge,
+    inside_past: bool,
+    mask: u32,
+) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
+    let entries = match listed {
+        Some(entries) => entries,
+        None => listed_with_records()?,
+    };
     let count = entries.len();
     let numbers: smallvec::SmallVec<[u32; 32]> = (0..count)
         .map(|n| crate::scene::polygon::list_cell(n).get())
@@ -197,10 +207,15 @@ pub fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), BadInpu
         ));
         below(bound, value as f64) == inside_past
     };
+    let insides: smallvec::SmallVec<[bool; 32]> = entries.iter().map(|e| inside(e)).collect();
+    if insides.iter().all(|&i| i) {
+        // Every vertex kept, none made: the list and its count stay as they are.
+        return Ok(Some(entries));
+    }
     let mut out = 0;
     for n in 0..count {
         let (a, b) = (entries[n], entries[(n + 1) % count]);
-        let (a_inside, b_inside) = (inside(a), inside(b));
+        let (a_inside, b_inside) = (insides[n], insides[(n + 1) % count]);
         if a_inside {
             crate::scene::polygon::list_cell(out).set(numbers[n]);
             out += 1;
@@ -213,7 +228,7 @@ pub fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), BadInpu
         }
     }
     DRAW.polygon_vertex_count.set_bits(out as u32);
-    Ok(())
+    Ok(None)
 }
 
 // ---- helpers ----
