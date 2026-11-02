@@ -7,7 +7,8 @@
 # Start it there: `wine rc2k.exe` (it writes rc2k.log next to itself).
 # `deploy_standalone.sh x64` deploys the 64-bit build instead (into an x64 folder), and
 # `deploy_standalone.sh linux` the native Linux one (into a linux folder), and
-# `deploy_standalone.sh anbernic` the handheld's (over SSH).
+# `deploy_standalone.sh anbernic` the handheld's (over SSH); `anbernic pgo` profile-guided, with
+# the profile of tools/anbernic/pgo.sh.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -24,8 +25,18 @@ if [ "${1:-}" = anbernic ]; then
     SSH=(ssh -i "${ANBERNIC_KEY:-$HOME/.ssh/rg34xxsp}" -o BatchMode=yes "$ANBERNIC_HOST")
     docker build -q -t rc2k-anbernic tools/anbernic >/dev/null
     tools/anbernic/run.sh tools/build_ffmpeg.sh a64
-    tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
-    BIN=target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k
+    if [ "${2:-}" = pgo ]; then
+        # Profile-guided: with the profile tools/anbernic/pgo.sh made (in its own target folder).
+        PROFILE="$PWD/target/a64-pgo/rc2k.profdata"
+        [ -f "$PROFILE" ] || { echo "no $PROFILE: run tools/anbernic/pgo.sh first" >&2; exit 1; }
+        tools/anbernic/run.sh env CARGO_TARGET_DIR=target/a64-linux-pgo \
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-cpu=cortex-a53 -C profile-use=$PROFILE -C llvm-args=-pgo-warn-missing-function=false" \
+            cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+        BIN=target/a64-linux-pgo/aarch64-unknown-linux-gnu/release/rc2k
+    else
+        tools/anbernic/run.sh cargo build --release --target aarch64-unknown-linux-gnu --bin rc2k
+        BIN=target/a64-linux/aarch64-unknown-linux-gnu/release/rc2k
+    fi
     tools/anbernic/run.sh aarch64-linux-gnu-strip -o target/a64-linux/rc2k.stripped "$BIN"
     "${SSH[@]}" "rm -f /mnt/mmc/Roms/APPS/rally/rc2k"
     "${SSH[@]}" "cat > /mnt/mmc/Roms/APPS/rally/rc2k; chmod +x /mnt/mmc/Roms/APPS/rally/rc2k" \

@@ -167,6 +167,18 @@ pub fn not_ported(at: usize, from: &str) -> ! {
 
 pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
+    #[cfg(rc2k_pgo)]
+    {
+        unsafe extern "C" {
+            fn __llvm_profile_write_file() -> i32;
+        }
+        // SAFETY: the profiler runtime's own call (linked in by `-C profile-generate`); it
+        // writes its counters' file and touches nothing of ours. `terminate` skips the
+        // `atexit` that would call it.
+        unsafe {
+            __llvm_profile_write_file();
+        }
+    }
     // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
     crate::os::terminate(code)

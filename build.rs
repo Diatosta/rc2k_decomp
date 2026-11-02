@@ -11,6 +11,9 @@ fn main() {
     // The debug UI: 64-bit builds with a window to draw it over (not 32-bit Windows, whose
     // Dear ImGui crate has no target; not the handheld, whose frames go to the framebuffer).
     println!("cargo:rustc-check-cfg=cfg(debug_ui)");
+    // A build instrumented for profile-guided optimisation (`tools/anbernic/pgo.sh` passes it
+    // with `-C profile-generate`): the counts are written as the program ends.
+    println!("cargo:rustc-check-cfg=cfg(rc2k_pgo)");
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
     let bits = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     if bits == "64" && arch != "aarch64" {
