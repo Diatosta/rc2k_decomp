@@ -18,3 +18,8 @@ Stock OS with the community mod: Ubuntu 22.04 arm64, glibc 2.35, kernel 4.9, no 
 - Testing over SSH: stop `loadapp.sh` and `dmenu_ln` (SIGSTOP), kill `dmenu.bin`; SIGCONT brings
   the launcher back. Writing `input_event`s to `/dev/input/event1` presses buttons.
 - Automated runs: `tools/remote.py build --handheld`, then `start`, `pad`, `key`, `shot`, `state`, `stop` with `--handheld`.
+- Profile-guided build (2 fps more, about 6 %): `tools/anbernic/pgo.sh` builds the game instrumented,
+  drives it on the handheld (`pgo_train.py`: menus, then the first stage by the pilot) and writes
+  `target/a64-pgo/rc2k.profdata`; `./deploy_standalone.sh anbernic pgo` builds with it. Train
+  again after larger changes (changed functions are built as without a profile). Needs
+  `llvm-profdata` of rustc's LLVM major version.
