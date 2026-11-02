@@ -59,7 +59,7 @@ pub fn nth(first: &Dword, n: usize) -> &Dword {
 /// Cell `n` of `table`, or past its end as `nth` (by address, into what follows).
 #[inline]
 pub fn cell_in(table: &[Dword], n: usize) -> &Dword {
-    table.get(n).unwrap_or_else(|| cell_in(&table, n))
+    table.get(n).unwrap_or_else(|| nth(&table[0], n))
 }
 
 /// Checkpoint `n`'s face cell (`g_checkpointFaces[n]`).
@@ -95,6 +95,17 @@ pub fn piece_addr() -> u32 {
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    #[test]
+    fn a_cell_past_a_table_is_the_next_by_address() {
+        let table = &CHECKPOINTS.distances;
+        let past = cell_in(table, table.len());
+        assert!(std::ptr::eq(past, nth(&table[0], table.len())));
+        assert!(std::ptr::eq(
+            cell_in(table, 3),
+            std::ptr::from_ref(&table[3])
+        ));
+    }
 
     #[test]
     fn piece_sits_on_the_buffers() {

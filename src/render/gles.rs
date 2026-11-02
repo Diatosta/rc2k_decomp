@@ -1028,13 +1028,32 @@ fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usiz
         let (blocks, rest) = row.as_chunks::<BLOCK>();
         blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
     };
+    // Each row looked at once, the screen in bands side by side (the game's thread takes
+    // the last): the scan is the most of what the game's thread spends here.
+    const BANDS: usize = 2;
+    let stride = width * 4;
+    let mut written = vec![false; canvas.len() / stride.max(1)];
+    let band = written.len().div_ceil(BANDS).max(1);
+    let look = |rows: &[u8], into: &mut [bool]| {
+        for (row, seen) in rows.chunks_exact(stride).zip(into) {
+            *seen = row_written(row);
+        }
+    };
+    std::thread::scope(|scope| {
+        let mut parts = canvas.chunks(band * stride).zip(written.chunks_mut(band));
+        let last = parts.next_back();
+        for (rows, into) in parts {
+            scope.spawn(move || look(rows, into));
+        }
+        if let Some((rows, into)) = last {
+            look(rows, into);
+        }
+    });
     let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
-    for (y, row) in canvas.chunks_exact(width * 4).enumerate() {
-        if row_written(row) {
-            match runs.last_mut() {
-                Some((_, last)) if y - *last <= RUN_GAP => *last = y,
-                _ => runs.push((y, y)),
-            }
+    for y in (0..written.len()).filter(|&y| written[y]) {
+        match runs.last_mut() {
+            Some((_, last)) if y - *last <= RUN_GAP => *last = y,
+            _ => runs.push((y, y)),
         }
     }
     runs
