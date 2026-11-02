@@ -13,13 +13,12 @@ use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
-use crate::session::{Dword, read_bits, read_first, write_bits};
+use crate::session::{Bytes, Dword, read_bits, read_first, write_bits};
 
-/// The two corner tables' addresses (`g_marksCornersA`, `_B`).
-pub fn tables() -> [u32; 2] {
-    [MASKS.corners_a.addr(), MASKS.corners_b.addr()]
+/// The two corner tables (`g_marksCornersA`, `_B`).
+pub fn tables() -> [&'static Bytes<3096>; 2] {
+    [&MASKS.corners_a, &MASKS.corners_b]
 }
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
@@ -39,12 +38,21 @@ fn offsets(n: usize) -> [u32; 2] {
     read_first(low)
 }
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
+fn get<const N: usize>(table: &Bytes<N>, at: u32) -> Result<u32, BadInput> {
+    let at = at as usize;
+    if at.checked_add(4).is_none_or(|end| end > N) {
+        return Err(BadInput("a read past a marks' table"));
+    }
+    Ok(table.get_u32(at))
 }
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
+fn put<const N: usize>(table: &Bytes<N>, at: u32, v: u32) -> Result<(), BadInput> {
+    let at = at as usize;
+    if at.checked_add(4).is_none_or(|end| end > N) {
+        return Err(BadInput("a write past a marks' table"));
+    }
+    table.set_u32(at, v);
+    Ok(())
 }
 
 /// The two turns step k gives table n: the second result of each of its two steps.
@@ -91,30 +99,31 @@ pub fn make_corners() -> Result<(), Refused> {
                 let second =
                     smooth_steps(k, MASK_CONSTANTS.corner_angles[starts[1]].bits(), end.get()).1;
                 turn_shape_points(first, second)?;
-                let mut to = tables()[n] + k * ENTRY;
+                let table = tables()[n];
+                let mut to = k * ENTRY;
                 let pair: [u32; 2] = read_bits(farthest_pair(n));
-                let turned = turned(n).addr();
+                let turned = turned(n);
                 for p in pair {
-                    let from = turned + p * 12;
+                    let from = p * 12;
                     for c in 0..3 {
-                        put(to + 4 * c, get(from + 4 * c)?)?;
+                        put(table, to + 4 * c, get(turned, from + 4 * c)?)?;
                     }
-                    put(to + 4, get(to + 4)?.wrapping_add(LIFT))?;
+                    put(table, to + 4, get(table, to + 4)?.wrapping_add(LIFT))?;
                     to += 12;
                 }
             }
         }
         for k in 0..ENTRIES {
             for table in tables() {
-                let e = table + k * ENTRY;
-                let c = |o: u32| -> Result<_, Refused> { Ok(get(e + o)? as i32) };
+                let e = k * ENTRY;
+                let c = |o: u32| -> Result<_, Refused> { Ok(get(table, e + o)? as i32) };
                 let status = x87::compare_squares(c(0)?, c(4)?, c(0xC)?, c(0x10)?);
                 MARKS_WORK.fpu_status.set(status as u32);
                 if status != 0 {
                     for (a, b) in [(0, 0xC), (4, 0x10)] {
-                        let (x, y) = (get(e + a)?, get(e + b)?);
-                        put(e + a, y)?;
-                        put(e + b, x)?;
+                        let (x, y) = (get(table, e + a)?, get(table, e + b)?);
+                        put(table, e + a, y)?;
+                        put(table, e + b, x)?;
                     }
                 }
             }
@@ -131,31 +140,33 @@ pub fn make_corners() -> Result<(), Refused> {
         let corners = 2 * ENTRIES;
         for k in 0..corners {
             for n in 0..2 {
-                let e = tables()[n] + 12 * k;
+                let table = tables()[n];
+                let e = 12 * k;
                 let offset: [u32; 2] = offsets(n);
-                let x = get(e)?
+                let x = get(table, e)?
                     .wrapping_add(offset[0])
                     .wrapping_sub(bx(0x18)? as u32);
-                let y = get(e + 4)?
+                let y = get(table, e + 4)?
                     .wrapping_add(offset[1])
                     .wrapping_sub(bx(0x1C)? as u32);
-                put(e + 4, x87::int_over(y as i32, scales[1]))?;
-                put(e, x87::int_over(x as i32, scales[0]))?;
+                put(table, e + 4, x87::int_over(y as i32, scales[1]))?;
+                put(table, e, x87::int_over(x as i32, scales[0]))?;
             }
         }
         let flips: [i32; 2] = MASK_CONSTANTS.flips.each_ref().map(|c| c.get() as i32);
         for k in 0..corners {
             for (n, &flip) in flips.iter().enumerate() {
-                let e = tables()[n] + 12 * k;
-                put(e + 4, x87::int_less(flip, get(e + 4)?))?;
+                let table = tables()[n];
+                let e = 12 * k;
+                put(table, e + 4, x87::int_less(flip, get(table, e + 4)?))?;
             }
         }
         for k in 0..corners {
             for table in tables() {
-                let e = table + 12 * k;
-                let out = clamp_pair([extended(get(e + 4)?), extended(get(e)?)]);
-                put(e + 4, rounded(out[0]))?;
-                put(e, rounded(out[1]))?;
+                let e = 12 * k;
+                let out = clamp_pair([extended(get(table, e + 4)?), extended(get(table, e)?)]);
+                put(table, e + 4, rounded(out[0]))?;
+                put(table, e, rounded(out[1]))?;
             }
         }
     }

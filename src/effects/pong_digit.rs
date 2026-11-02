@@ -15,10 +15,9 @@ use crate::errors::Refused;
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
 pub fn pong_digit(digit: u32) -> Result<(), Refused> {
     use rc2k_core::effects::pong as core;
-    let mut pattern = PONG.digit_patterns.addr() + core::pattern(digit)?;
-    for (col, row) in core::cells() {
-        crate::effects::pong_cell::pong_cell(pattern, col, row)?;
-        pattern = pattern.wrapping_add(1);
+    let first = core::pattern(digit)? as usize;
+    for (n, (col, row)) in core::cells().enumerate() {
+        crate::effects::pong_cell::pong_cell(PONG.digit_patterns.get(first + n), col, row)?;
     }
     PONG.digit_at[0].set(PONG.digit_at[0].get().wrapping_add(core::DIGIT_STEP));
     Ok(())

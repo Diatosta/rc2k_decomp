@@ -242,11 +242,10 @@ pub fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Refused> 
                 x87::loaded(get(shapes + 0x10)?),
             ],
         );
-        let lines = crate::pointers::game_address(MASKS.lines.as_ptr());
         for k in 0..count as u32 {
             let e = corners.wrapping_add(k * 0x18);
             for (to, from) in LINE_FROM {
-                GamePtr::new(lines + to).write::<u32>(get(e + from)?, "a mark's field")?;
+                MASKS.lines[to as usize / 4].set(get(e + from)?);
             }
             map_shape(shapes, k)?;
         }

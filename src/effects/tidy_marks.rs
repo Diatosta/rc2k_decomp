@@ -28,28 +28,28 @@ const CAR_LEN: u32 = 0x4C8;
 const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists() -> [u32; 6] {
+fn lists() -> [GamePtr; 6] {
     [
-        RING_POOL.list[0].addr(),                          // g_marksRingList
-        crate::effects::ring_store::RING_WORK.list.addr(), // stru_935620
-        MASK_BLOCKS.list_b.addr(),                         // g_marksBMaskList
-        MASK_BLOCKS.list_a.addr(),                         // stru_934D76
-        PLACES_BLOCK.list.addr(),                          // g_marksPlacesList
-        MARK_LINKS.list.addr(),                            // g_marksLinksList
+        GamePtr::to(&RING_POOL.list), // g_marksRingList
+        GamePtr::to(&crate::effects::ring_store::RING_WORK.list), // stru_935620
+        GamePtr::to(&MASK_BLOCKS.list_b), // g_marksBMaskList
+        GamePtr::to(&MASK_BLOCKS.list_a), // stru_934D76
+        GamePtr::to(&PLACES_BLOCK.list), // g_marksPlacesList
+        GamePtr::to(&MARK_LINKS.list), // g_marksLinksList
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-fn car_lists(settings: u32) -> Result<Vec<u32>, BadInput> {
+fn car_lists(settings: u32) -> Result<Vec<GamePtr>, BadInput> {
     let count = GamePtr::new(settings + 0x5C)
         .read::<i32>("the cars' count")?
         .clamp(0, MOST_CARS) as u32;
     Ok((0..count)
-        .map(|n| settings + n * CAR_LEN + CAR_PART + 0x4C)
+        .map(|n| GamePtr::new(settings + n * CAR_LEN + CAR_PART + 0x4C))
         .collect())
 }
 
 /// Every list it frees, the cars' first.
-fn all_lists(settings: u32) -> Result<Vec<u32>, BadInput> {
+fn all_lists(settings: u32) -> Result<Vec<GamePtr>, BadInput> {
     let mut r = car_lists(settings)?;
     r.extend(lists());
     Ok(r)
@@ -67,10 +67,7 @@ pub fn tidy_marks() -> Result<(), Refused> {
     }
     if own_heap() == 1
         && crate::effects::try_any(all_lists(settings)?.iter(), |&l| {
-            Ok(GamePtr::new(l)
-                .read::<MemoryList>("a car's block list")?
-                .head
-                != 0)
+            Ok(l.read::<MemoryList>("a car's block list")?.head != 0)
         })?
     {
         return Err(BadInput("the game's own heap is in use with a list holding blocks").into());
@@ -83,8 +80,8 @@ pub fn tidy_marks() -> Result<(), Refused> {
         }
         GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
     }
-    for a in lists() {
-        free_list(crate::pointers::GamePtr::new(a))?;
+    for list in lists() {
+        free_list(list)?;
     }
     // The particles and the masks went with their lists.
     crate::effects::blocks::PARTICLES.give_back();

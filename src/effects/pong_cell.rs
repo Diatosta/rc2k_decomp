@@ -14,16 +14,15 @@
 use crate::effects::pong;
 use crate::effects::pong::PONG_RULES;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
 
-/// The Rust version (see the header): `pattern` the pattern byte's address (eax),
+/// The Rust version (see the header): `pattern` the pattern byte (eax),
 /// `column` (ebx), `row` (ecx).
 // Converted: `rc2k_core::effects::pong::cell_place`
-pub fn pong_cell(pattern: u32, column: u32, row: u32) -> Result<(), Refused> {
+pub fn pong_cell(pattern: u8, column: u32, row: u32) -> Result<(), Refused> {
     {
-        if GamePtr::new(pattern).read::<u8>("a pong pattern byte")? != 0 {
+        if pattern != 0 {
             let step = PONG_RULES
                 .cell_step
                 .each_ref()

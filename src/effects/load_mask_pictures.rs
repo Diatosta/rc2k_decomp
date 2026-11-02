@@ -38,10 +38,10 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
-fn read(path: u32) -> Result<(), Refused> {
+fn read(path: crate::pointers::GamePtr) -> Result<(), Refused> {
     {
         use rc2k_core::strings::bytes::Bytes as _;
-        let text = crate::pointers::GamePtr::new(path).bytes("a mask picture's path")?;
+        let text = path.bytes("a mask picture's path")?;
         let mut k = 0;
         loop {
             match text.byte(k) {
@@ -60,8 +60,7 @@ fn read(path: u32) -> Result<(), Refused> {
     PICTURE.width.set(0x100u32);
     PICTURE.height.set(0x80u32);
     PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-    let read =
-        crate::gfx::read_picture_file::read_picture_file(&crate::pointers::GamePtr::new(path));
+    let read = crate::gfx::read_picture_file::read_picture_file(&path);
     PICTURE.width.set(sizes[0]);
     PICTURE.height.set(sizes[1]);
     PICTURE.row_bytes.set(sizes[2]);
@@ -92,13 +91,13 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 /// made and drawn at rows 0x80 .. 0xFD.
 fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
     {
-        read(PICTURE_COPY.paths.addr() + path as u32)?;
+        read(crate::pointers::GamePtr::to(&PICTURE_COPY.paths).offset(path as u32))?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             PICTURE.buffer.get(),
             0,
             4 * COPIED as usize,
         )?);
-        read(GROUND_NAMES.ground_path.get())?;
+        read(GamePtr::new(GROUND_NAMES.ground_path.get()))?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
                 let n = ((y << 8).wrapping_add(x) * 4) as usize;
@@ -123,14 +122,22 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
     if ground >= NAMES {
         return Err(BadInput("a ground past the six names").into());
     }
-    let mut name = GROUND_NAMES.names.addr();
+    let mut name = 0usize;
     for _ in 0..ground.max(0) {
-        while GamePtr::new(name).read::<u8>("the ground names")? != 0 {
+        while *GROUND_NAMES
+            .names
+            .read_at(name, 1, "the ground names")?
+            .first()
+            .unwrap_or(&0)
+            != 0
+        {
             name += 1;
         }
         name += 1;
     }
-    GROUND_NAMES.ground_path.set(name);
+    GROUND_NAMES
+        .ground_path
+        .set(GROUND_NAMES.names.addr() + name as u32);
     // The masks and the picture copy are Rust's (phase 12), counted on their lists
     // as the game's blocks were.
     for (mask, list) in [

@@ -18,7 +18,6 @@ use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::{Bytes, Dword};
 
@@ -100,9 +99,22 @@ pub fn set_up_surface() -> Result<(), Refused> {
         MARKS_FLOATS.over_256.bits(),
         MARKS_FLOATS.over_32.bits(),
     ];
-    let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
-    let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
-    let cells = SURFACE.places.addr();
+    let places = &SURFACE.places;
+    let end = size_of_val(places);
+    let put = |at: u32, v: u32| {
+        if at as usize + 4 > end {
+            return Err(BadInput("a write past the surface places"));
+        }
+        places.set_u32(at as usize, v);
+        Ok(())
+    };
+    let get = |at: u32| {
+        if at as usize + 4 > end {
+            return Err(BadInput("a read past the surface places"));
+        }
+        Ok(places.get_u32(at as usize))
+    };
+    let cells = 0u32;
     for k in (0..CELLS).rev() {
         let at = cells + k * 0x10;
         let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);

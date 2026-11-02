@@ -55,7 +55,6 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
     GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
     let kind = clamped(MARKS_KIND.kind.bits());
-    let path = EDGE_SETTINGS.path.addr();
     EDGE_SETTINGS
         .path
         .set(DIGITS as usize, (kind / 10) as u8 + b'0');
@@ -70,8 +69,7 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
     PICTURE.width.set(0x100u32);
     PICTURE.height.set(0x80u32);
     PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-    let read =
-        crate::gfx::read_picture_file::read_picture_file(&crate::pointers::GamePtr::new(path));
+    let read = crate::gfx::read_picture_file::read_picture_file(&GamePtr::to(&EDGE_SETTINGS.path));
     PICTURE.width.set(sizes[0]);
     PICTURE.height.set(sizes[1]);
     PICTURE.row_bytes.set(sizes[2]);
