@@ -11,7 +11,7 @@
 //! the volume, +4 the rate, +0x20 / +0x24 the factors (+0x48 / +0x4C), the place, and
 //! `sound::play_placed_sound`; once the clock is at or past the end (`js`), the sound
 //! stopped (`sound::stop_sound`) and playing 0. One caller, `sound::spot_sounds`.
-//! Refuses a null request (before anything); a sound past the sample records and the
+//! A sound past the sample records and the
 //! two leaves' refusals put back what was written (sounds already sent stay sent).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -19,20 +19,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, sample_settings};
+use crate::sound::sets_store::SoundRequest;
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
 
 // ---- Rust version ----
 
 /// The spots' voices played through `request`.
-pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
-    if request == 0 {
-        return Err(BadInput("no request").into());
-    }
-    let put = |n: usize, v: u32| crate::sound::turn_parts::put(request, n, v);
+pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n);
@@ -41,7 +37,7 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
         }
         set(v, 4, 0)?;
         let sound = vw(v, 0x14)?;
-        put(0, sound)?;
+        request.sound.set(sound);
         // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
         // `going_on`, `REQUEST_FROM`, `time_up`).
         let failed = std::cell::Cell::new(None);
@@ -75,18 +71,18 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
                 let looping = crate::audio::store::SAMPLE_RECORDS.records[sound as usize]
                     .get()
                     .voice_kind;
-                put(
-                    0,
-                    going_on(GamePtr::new(request).read("a sound request")?, looping),
-                )?;
+                request.sound.set(going_on(request.sound.get(), looping));
             }
         }
         for (to, from) in REQUEST_FROM {
-            put(to, vw(v, from)?)?;
+            request
+                .word(to)
+                .ok_or(BadInput("a request word past its ten"))?
+                .set(vw(v, from)?);
         }
         crate::sound::turn_parts::placed(request)?;
         if time_up(clock, vw(v, 0x34)?) {
-            put(0, vw(v, 0x14)?)?;
+            request.sound.set(vw(v, 0x14)?);
             crate::sound::turn_parts::stop(request)?;
             set(v, 0x28, 0)?;
         }

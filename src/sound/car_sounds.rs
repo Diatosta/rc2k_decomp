@@ -32,8 +32,8 @@ pub fn car_sounds(n: u32) -> Result<(), Refused> {
     let request = crate::sound::turn_parts::request();
     let kind = crate::sound::car_engine_state::car_engine_state(object)?;
     let so = crate::sound::store::SoundObject::at(object)?;
-    crate::sound::turn_parts::put(request, 8, so.pitch_factor.bits())?;
-    crate::sound::turn_parts::put(request, 9, so.volume_factor.bits())?;
+    request.pitch_factor.set(so.pitch_factor.bits());
+    request.volume_factor.set(so.volume_factor.bits());
     use crate::sound::*;
     revs_sound::revs_sound(object, kind, request)?;
     throttle_sound::throttle_sound(object, kind, request)?;

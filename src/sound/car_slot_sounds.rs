@@ -7,37 +7,37 @@
 //! the slots at +0x164, +0x14C, +0x17C, +0x194 (only with +0xC 0), +0x260 and +0x1AC;
 //! then the place = +0x214 .. +0x21C and the slot at +0x220. Each call gets the
 //! registers the one before left. One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object or request; what the slots refuse puts back
+//! Refuses (before anything) a null object; what the slots refuse puts back
 //! what was written (sounds already sent stay sent).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::engine::{computers, placed_slots};
 
 // ---- Rust version ----
 
 /// The timed slots of object `o`, through `request`.
-pub fn car_slot_sounds(o: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
+pub fn car_slot_sounds(o: u32, request: &SoundRequest) -> Result<(), Refused> {
+    if o == 0 {
+        return Err(BadInput("no object").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let place = |from: &[crate::session::Float; 3]| -> Result<(), BadInput> {
-        for (k, f) in from.iter().enumerate() {
-            crate::sound::turn_parts::put(request, 3 + k, f.bits())?;
+    let place = |from: &[crate::session::Float; 3]| {
+        for (cell, f) in request.place.iter().zip(from) {
+            cell.set(f.bits());
         }
-        Ok(())
     };
-    place(&so.place)?;
+    place(&so.place);
     for at in placed_slots(so.view_flag.get() == 0) {
         crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at), request)?;
     }
-    place(&so.place_b)?;
+    place(&so.place_b);
     crate::sound::play_timed_slot::play_timed_slot(&so.slot_b, request)
 }

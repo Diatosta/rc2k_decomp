@@ -19,12 +19,12 @@
 //! The x87's arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding as the control
 //! word says; the original's instructions are `asm_reference` in the tests.
 //! Eight callers (the race's sounds).
-//! Refuses a null request and, without 3D, a sound past the 0x1CD sample records.
+//! Refuses, without 3D, a sound past the 0x1CD sample records.
 
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
-use crate::scene::x87_mem::{fistp, fld, fstp};
+use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
+use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::placed::{self, MODE_3D};
 
 // ---- game data ----
@@ -33,42 +33,30 @@ use rc2k_core::sound::placed::{self, MODE_3D};
 
 /// `fld a; fmul b; fmul c; fistp`.
 fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], 0u32);
-    x87_1(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut out) as usize,
-    );
-    out
+    let (v, mut out) = ([a, b, c], [0u32]);
+    x87_1(&v[..], cells(&mut out));
+    out[0]
 }
 
 /// `fld a; fmul b; fistp`.
 pub fn product_to_int(a: u32, b: u32) -> u32 {
-    let (v, mut out) = ([a, b], 0u32);
-    x87_2(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut out) as usize,
-    );
-    out
+    let (v, mut out) = ([a, b], [0u32]);
+    x87_2(&v[..], cells(&mut out));
+    out[0]
 }
 
 /// `fld a; fistp`.
 fn to_int(a: u32) -> u32 {
-    let mut out = 0u32;
-    x87_3(
-        crate::pointers::game_address(&raw const a) as usize,
-        crate::pointers::game_address(&raw mut out) as usize,
-    );
-    out
+    let (v, mut out) = ([a], [0u32]);
+    x87_3(&v[..], cells(&mut out));
+    out[0]
 }
 
 /// `fld y; fld x; fpatan; fst angle; fabs; fmul per_angle; fsubr centre; fistp`: the
 /// angle's bits and the whole number.
 fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     let (v, mut out) = ([y, x, per_angle, centre], [0u32; 2]);
-    x87_4(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
+    x87_4(&v[..], cells(&mut out));
     (out[0], out[1])
 }
 
@@ -76,19 +64,10 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
 
 /// `mode` is the sound mode. Outside the
 /// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
-pub fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
-    if request == 0 {
-        return Err(BadInput("no request"));
-    }
-    let get = |n: usize| {
-        GamePtr::new(request)
-            .offset(4 * n as u32)
-            .read::<u32>("a sound request")
-    };
-    let put = |n: usize, value: u32| crate::sound::turn_parts::put(request, n, value);
+pub fn play_placed_sound(request: &SoundRequest, mode: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
     // `place`); the products and the angle are the original's x87.
-    let sound = get(0)?;
+    let sound = request.sound.get();
     if !placed::played(sound) {
         return Ok(());
     }
@@ -97,29 +76,38 @@ pub fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
         let number = placed::sample_of(sound)?;
         let record = &SAMPLE_RECORDS.records[number as usize];
         let factor = record.get().min_distance;
-        let volume = placed::volume(product3_to_int(get(2)?, factor, get(9)?));
-        put(2, volume)?;
+        let volume = placed::volume(product3_to_int(
+            request.volume.get(),
+            factor,
+            request.volume_factor.get(),
+        ));
+        request.volume.set(volume);
         let (angle, place) = angle_and_place(
-            get(5)?,
-            get(3)?,
+            request.place[2].get(),
+            request.place[0].get(),
             crate::sound::store::RACE_CLOCK.pan_per_radian.bits(),
             crate::sound::store::RACE_CLOCK.pan_centre.bits(),
         );
-        put(6, angle)?;
-        put(7, place)?;
-        let place = placed::place(place, get(3)?, angle, mode);
+        request.angle.set(angle);
+        request.pan.set(place);
+        let place = placed::place(place, request.place[0].get(), angle, mode);
         (ebx, ecx, edi, ebp) = (volume, place, record.addr(), 0);
     } else {
-        (ebx, ecx, edi, ebp) = (to_int(get(2)?), get(3)?, get(4)?, get(5)?);
+        (ebx, ecx, edi, ebp) = (
+            to_int(request.volume.get()),
+            request.place[0].get(),
+            request.place[1].get(),
+            request.place[2].get(),
+        );
     }
-    let edx = product_to_int(get(1)?, get(8)?);
-    put(1, edx)?;
+    let edx = product_to_int(request.pitch.get(), request.pitch_factor.get());
+    request.pitch.set(edx);
     crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
     Ok(())
 }
 
 /// In the game.
-pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
+pub fn play_placed_sound_in_game(request: &SoundRequest) -> Result<(), BadInput> {
     play_placed_sound(request, AUDIO.sound_mode.get())
 }
 
@@ -128,7 +116,7 @@ pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = ([v + 0] * [v + 4]) * [v + 8]`
-fn x87_1(v: usize, o: usize) {
+fn x87_1(v: impl Base, o: impl Base) {
     let t0 = fld(v, 0);
     let t1 = fld(v, 4);
     let t2 = t0 * t1;
@@ -140,7 +128,7 @@ fn x87_1(v: usize, o: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = [v + 0] * [v + 4]`
-fn x87_2(v: usize, o: usize) {
+fn x87_2(v: impl Base, o: impl Base) {
     let t0 = fld(v, 0);
     let t1 = fld(v, 4);
     let t2 = t0 * t1;
@@ -150,7 +138,7 @@ fn x87_2(v: usize, o: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [o + 0] = [a + 0]`
-fn x87_3(a: usize, o: usize) {
+fn x87_3(a: impl Base, o: impl Base) {
     let t0 = fld(a, 0);
     fistp(o, 0, t0);
 }
@@ -159,7 +147,7 @@ fn x87_3(a: usize, o: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = atan2([v + 0], [v + 4])`
 /// `int [o + 4] = [v + 0xC] - (|atan2([v + 0], [v + 4])| * [v + 8])`
-fn x87_4(v: usize, o: usize) {
+fn x87_4(v: impl Base, o: impl Base) {
     let t0 = fld(v, 0);
     let t1 = fld(v, 4);
     let t2 = t0.atan2(t1);

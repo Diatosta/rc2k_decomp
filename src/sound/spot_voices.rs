@@ -11,8 +11,7 @@
 //! pitch and volume factors.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
-use crate::session::MACHINE;
+use crate::session::{Dword, MACHINE};
 use crate::sound::sets_store::SPOT_VOICES;
 
 pub const VOICE_LEN: u32 = 0x50;
@@ -20,20 +19,36 @@ pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
-/// The address of voice `n`.
-pub fn voice(n: u32) -> u32 {
+/// A voice's twenty dwords.
+pub type VoiceWords = [Dword; 20];
+
+/// Voice `n` (under `VOICE_COUNT`).
+pub fn voice(n: u32) -> &'static VoiceWords {
+    &SPOT_VOICES.voices[n as usize]
+}
+
+/// The address of voice `n` (the pickers' work holds addresses).
+fn voice_address(n: u32) -> u32 {
     crate::session::address_of(&SPOT_VOICES.voices) + n * VOICE_LEN
 }
 
-/// The dword at `at` of the voice at `v`.
-pub fn vw(v: u32, at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(v).offset(at).read("a spot voice's dword")
+/// The dword at byte `at` of voice `v`.
+fn word(v: &VoiceWords, at: u32) -> Result<&Dword, BadInput> {
+    if !at.is_multiple_of(4) {
+        return Err(BadInput("a spot voice's dword out of line"));
+    }
+    v.get((at / 4) as usize)
+        .ok_or(BadInput("a dword past a spot voice"))
 }
 
-pub fn set(v: u32, at: u32, value: u32) -> Result<(), BadInput> {
-    GamePtr::new(v)
-        .offset(at)
-        .write(value, "a spot voice's dword")
+/// The dword at byte `at` of voice `v`.
+pub fn vw(v: &VoiceWords, at: u32) -> Result<u32, BadInput> {
+    word(v, at).map(Dword::get)
+}
+
+/// The dword at byte `at` of voice `v` set to `value`.
+pub fn set(v: &VoiceWords, at: u32, value: u32) -> Result<(), BadInput> {
+    word(v, at).map(|w| w.set(value))
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
@@ -55,7 +70,7 @@ pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT 
 
 /// A voice's address, or 0 for none (the pickers' work holds addresses).
 pub fn voice_or_0(n: Option<usize>) -> u32 {
-    n.map_or(0, |n| voice(n as u32))
+    n.map_or(0, |n| voice_address(n as u32))
 }
 
 /// The pickers' work stored as the original leaves it, and the scratch dword (1000.0,

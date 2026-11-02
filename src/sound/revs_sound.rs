@@ -10,24 +10,26 @@
 //! +8 (volume) = +0x100 x set +0x24 + set +0x1C (x `flt_516380` when +0xC is 0), the
 //! place = +0x2C .. +0x34 plus +0x38 .. +0x40, and `sound::play_placed_sound`. Both
 //! are tail jumps. One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object or request, and a kind wanted but null.
+//! Refuses (before anything) a null object, and a kind wanted but null.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_float::ld;
+use crate::math::x87_float::{ld, st};
 use crate::pointers::GamePtr;
-use crate::scene::x87_mem::{fld, fstp};
+use crate::scene::x87_mem::fld;
+use crate::session::Cell32;
 use crate::sound::sets_store::SOUND_KINDS;
+use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 // ---- Rust version ----
 
 /// The engine's sound for object `o` of sound kind `kind`, through `request`.
-pub fn revs_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
+pub fn revs_sound(o: u32, kind: u32, request: &SoundRequest) -> Result<(), Refused> {
+    if o == 0 {
+        return Err(BadInput("no object").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
     // Converted: `rc2k_core::sound::engine` (`computers`, `revs_sound_number`,
@@ -42,22 +44,22 @@ pub fn revs_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
         kind + 0x10
     };
     let sound = revs_sound_number(object, GamePtr::new(set).read::<u32>("a sound set")?);
-    crate::sound::turn_parts::put(request, 0, sound)?;
+    request.sound.set(sound);
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    x87_1(so, set as usize, request as usize, 0x18, 0x10, 4);
+    x87_1(so, set as usize, &request.pitch, 0x18, 0x10);
     if so.view_flag.get() == 0 {
         x87_2(
             so,
             set as usize,
             &crate::sound::store::SURFACE_SOUNDS,
-            request as usize,
+            &request.volume,
         );
     } else {
-        x87_1(so, set as usize, request as usize, 0x24, 0x1C, 8);
+        x87_1(so, set as usize, &request.volume, 0x24, 0x1C);
     }
-    x87_3(so, request as usize);
+    x87_3(so, &request.place);
     crate::sound::turn_parts::placed(request)
 }
 
@@ -65,31 +67,30 @@ pub fn revs_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[si + o3] = ([bx + 0x100] * [bp + o1]) + [bp + o2]`
+/// `out = ([bx + 0x100] * [bp + o1]) + [bp + o2]` (`out` the request's +4 or +8)
 fn x87_1(
     bx: &crate::sound::store::SoundObject,
     bp: usize,
-    si: usize,
+    out: &impl Cell32,
     o1: usize,
     o2: usize,
-    o3: usize,
 ) {
     let t0 = ld(bx.revs_input.bits());
     let t1 = fld(bp, o1);
     let t2 = t0 * t1;
     let t3 = fld(bp, o2);
     let t4 = t2 + t3;
-    fstp(si, o3, t4);
+    out.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[si + 8] = (([bx + 0x100] * [bp + 0x24]) + [bp + 0x1C]) * [sf + 0x28]`
+/// `volume = (([bx + 0x100] * [bp + 0x24]) + [bp + 0x1C]) * [sf + 0x28]` (the request's +8)
 fn x87_2(
     bx: &crate::sound::store::SoundObject,
     bp: usize,
     sf: &crate::sound::store::SurfaceSounds,
-    si: usize,
+    volume: &impl Cell32,
 ) {
     let t0 = ld(bx.revs_input.bits());
     let t1 = fld(bp, 0x24);
@@ -98,33 +99,34 @@ fn x87_2(
     let t4 = t2 + t3;
     let t5 = ld(sf.revs_gain.bits());
     let t6 = t4 * t5;
-    fstp(si, 8, t6);
+    volume.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[si + 0xC] = [bx + 0x2C] + [bx + 0x38]`
-/// `[si + 0x10] = [bx + 0x30] + [bx + 0x3C]`
-/// `[si + 0x14] = [bx + 0x34] + [bx + 0x40]`
-fn x87_3(bx: &crate::sound::store::SoundObject, si: usize) {
+/// `place[0] = [bx + 0x2C] + [bx + 0x38]`
+/// `place[1] = [bx + 0x30] + [bx + 0x3C]`
+/// `place[2] = [bx + 0x34] + [bx + 0x40]` (the request's +0xC .. +0x14)
+fn x87_3(bx: &crate::sound::store::SoundObject, place: &[impl Cell32; 3]) {
     let t0 = ld(bx.place[0].bits());
     let t1 = ld(bx.motion[0].bits());
     let t2 = t0 + t1;
-    fstp(si, 0xC, t2);
+    place[0].set_bits(st(t2));
     let t3 = ld(bx.place[1].bits());
     let t4 = ld(bx.motion[1].bits());
     let t5 = t3 + t4;
-    fstp(si, 0x10, t5);
+    place[1].set_bits(st(t5));
     let t6 = ld(bx.place[2].bits());
     let t7 = ld(bx.motion[2].bits());
     let t8 = t6 + t7;
-    fstp(si, 0x14, t8);
+    place[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::HostCell;
 
     // The original's instructions, one function per run.
     reference!(ref_0(bx, bp, si) "fld dword ptr [{bx} + 0x100]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]");
@@ -159,10 +161,9 @@ mod asm_reference {
                                 as *const crate::sound::store::SoundObject)
                         },
                         a[1],
-                        a[2],
+                        &HostCell(a[2] + 4),
                         0x18,
                         0x10,
-                        4,
                     );
                 },
             },
@@ -199,7 +200,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[2])
                                 as *const crate::sound::store::SurfaceSounds)
                         },
-                        a[3],
+                        &HostCell(a[3] + 8),
                     );
                 },
             },
@@ -228,10 +229,9 @@ mod asm_reference {
                                 as *const crate::sound::store::SoundObject)
                         },
                         a[1],
-                        a[2],
+                        &HostCell(a[2] + 8),
                         0x24,
                         0x1C,
-                        8,
                     );
                 },
             },
@@ -262,7 +262,11 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        a[1],
+                        &[
+                            HostCell(a[1] + 0xC),
+                            HostCell(a[1] + 0x10),
+                            HostCell(a[1] + 0x14),
+                        ],
                     );
                 },
             },

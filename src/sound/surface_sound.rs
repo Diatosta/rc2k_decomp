@@ -9,7 +9,7 @@
 //! (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
 //! `flt_516398` (`fld` / `fstp`), the place +0x2C .. +0x34, and
 //! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
-//! Refuses (before anything) a null object, set or request, a set of eight with +0xC
+//! Refuses (before anything) a null set, a set of eight with +0xC
 //! over 1, and a sound past the sample records.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -17,10 +17,11 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
-use crate::math::x87_float::ld;
+use crate::math::x87_float::{ld, st};
 use crate::pointers::GamePtr;
-use crate::scene::x87_mem::fstp;
+use crate::session::Cell32;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
+use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
@@ -29,11 +30,12 @@ use rc2k_core::sound::surfaces;
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,
     set: u32,
-    request: u32,
+    request: &SoundRequest,
 ) -> Result<(), Refused> {
-    if set == 0 || request == 0 {
-        return Err(BadInput("no set or request").into());
+    if set == 0 {
+        return Err(BadInput("no set").into());
     }
+    let object = o;
     let o = GamePtr::to(o);
     let w = |at: u32| o.offset(at).read::<u32>("a sound object's dword");
     let set = GamePtr::new(set);
@@ -55,16 +57,16 @@ pub fn surface_sound(
     if sound != w(slot)? {
         let old = w(slot)?;
         o.offset(slot).write(sound, "a sound object's dword")?;
-        crate::sound::turn_parts::put(request, 0, old)?;
+        request.sound.set(old);
         crate::sound::turn_parts::stop(request)?;
     }
     let sound = w(slot)?;
-    crate::sound::turn_parts::put(request, 0, sound)?;
+    request.sound.set(sound);
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
-    crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
-    x87_1(&crate::sound::store::SURFACE_SOUNDS, request as usize);
-    for k in 0..3 {
-        crate::sound::turn_parts::put(request, 3 + k, w(0x2C + 4 * k as u32)?)?;
+    request.pitch.set(from_int(rate as i32));
+    x87_1(&crate::sound::store::SURFACE_SOUNDS, &request.volume);
+    for (cell, place) in request.place.iter().zip(&object.place) {
+        cell.set(place.bits());
     }
     crate::sound::turn_parts::placed(request)
 }
@@ -73,16 +75,17 @@ pub fn surface_sound(
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[si + 8] = [sf + 0x40]`
-fn x87_1(sf: &crate::sound::store::SurfaceSounds, si: usize) {
+/// `volume = [sf + 0x40]` (the request's +8)
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
     let t0 = ld(sf.volume.bits());
-    fstp(si, 8, t0);
+    volume.set_bits(st(t0));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::HostCell;
 
     // The original's instructions, one function per run.
     reference!(ref_0(sf, si) "fld dword ptr [{sf} + 0x40]", "fstp dword ptr [{si} + 0x8]");
@@ -108,7 +111,7 @@ mod asm_reference {
                         &*(crate::pointers::host_at(a[0])
                             as *const crate::sound::store::SurfaceSounds)
                     },
-                    a[1],
+                    &HostCell(a[1] + 8),
                 );
             },
         }]

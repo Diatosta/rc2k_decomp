@@ -12,23 +12,24 @@
 //! clock + `sound::sample_duration`, +8 1, and `sound::play_placed_sound` (a tail jump).
 //! Else, playing: +8 cleared once the clock is at or past the end (`js` on the
 //! difference). 14 callers.
-//! Refuses a null slot or request, and what the two leaves refuse, before writing.
+//! Refuses what the two leaves refuse, before writing.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
-pub fn play_timed_slot(slot: &crate::sound::store::SoundSlot, request: u32) -> Result<(), Refused> {
+pub fn play_timed_slot(
+    slot: &crate::sound::store::SoundSlot,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    if request == 0 {
-        return Err(BadInput("no request").into());
-    }
     let mut s = TimedSlot {
         sound: slot.sound.get(),
         start: slot.start.get(),
@@ -48,9 +49,9 @@ pub fn play_timed_slot(slot: &crate::sound::store::SoundSlot, request: u32) -> R
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {
-            crate::sound::turn_parts::put(request, 0, s.sound)?;
-            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
-            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
+            request.sound.set(s.sound);
+            request.volume.set(from_int(volume as i32));
+            request.pitch.set(from_int(rate as i32));
             crate::sound::turn_parts::placed(request)
         }
     }

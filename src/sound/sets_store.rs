@@ -57,7 +57,48 @@ pub struct RaceSoundSets {
     /// 0x512360: `off_512360`: two sets (pointers) a kind of car.
     pub kinds: [Dword; 87],
     /// 0x5124BC: `g_raceSoundRequest`: the request `sound::turn_parts` sends (a work area).
-    pub request: Bytes<40>,
+    pub request: SoundRequest,
+}
+
+/// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
+/// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again.
+#[repr(C)]
+pub struct SoundRequest {
+    /// +0: the sound (bit 0x8000: none).
+    pub sound: Dword,
+    /// +4: the pitch, a float (a reading), then the whole number sent.
+    pub pitch: Dword,
+    /// +8: the volume, a float, then (without 3D) the whole number sent.
+    pub volume: Dword,
+    /// +0xC .. +0x14: where the sound is, three floats.
+    pub place: [Dword; 3],
+    /// +0x18: without 3D, the angle (`fpatan` of +0x14 over +0xC).
+    pub angle: Dword,
+    /// +0x1C: without 3D, the place between left and right (a whole number).
+    pub pan: Dword,
+    /// +0x20: the pitch's factor, a float.
+    pub pitch_factor: Dword,
+    /// +0x24: the volume's factor, a float.
+    pub volume_factor: Dword,
+}
+
+const _: () = assert!(size_of::<SoundRequest>() == 40);
+
+impl SoundRequest {
+    /// Dword `n` (the original's +4n), for the cores that name the words by number.
+    pub fn word(&self, n: usize) -> Option<&Dword> {
+        Some(match n {
+            0 => &self.sound,
+            1 => &self.pitch,
+            2 => &self.volume,
+            3..=5 => &self.place[n - 3],
+            6 => &self.angle,
+            7 => &self.pan,
+            8 => &self.pitch_factor,
+            9 => &self.volume_factor,
+            _ => return None,
+        })
+    }
 }
 
 pub static RACE_SOUND_SETS: RaceSoundSets = RaceSoundSets {
@@ -700,7 +741,16 @@ pub static RACE_SOUND_SETS: RaceSoundSets = RaceSoundSets {
         Dword::new(0x4),
         Dword::new(0x0),
     ],
-    request: Bytes::new([0; 40]),
+    request: SoundRequest {
+        sound: Dword::new(0),
+        pitch: Dword::new(0),
+        volume: Dword::new(0),
+        place: [Dword::new(0), Dword::new(0), Dword::new(0)],
+        angle: Dword::new(0),
+        pan: Dword::new(0),
+        pitch_factor: Dword::new(0),
+        volume_factor: Dword::new(0),
+    },
 };
 
 impl RaceSoundSets {

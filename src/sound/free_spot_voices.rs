@@ -7,25 +7,22 @@
 //! playing free one is left; one not playing is freed. Freed: id 0x1888FFFF, sound -2
 //! (+0x28 is left as it is). See `sound/spot_voices.rs`. One caller,
 //! `sound::spot_sounds`.
-//! Refuses (before anything) a null request.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::spot_voices::free_unheard`; each stop through `request`
 /// (its sound written first).
-pub fn free_spot_voices(request: u32) -> Result<(), Refused> {
+pub fn free_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
-    if request == 0 {
-        return Err(BadInput("no request").into());
-    }
     let mut voices = load_voices();
     let done = rc2k_core::sound::spot_voices::free_unheard::<Refused>(&mut voices, |_, sound| {
-        crate::sound::turn_parts::put(request, 0, sound)?;
+        request.sound.set(sound);
         crate::sound::turn_parts::stop(request)
     });
     store_voices(&voices);

@@ -45,14 +45,14 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
 use crate::pointers::GamePtr;
-use crate::scene::x87_mem::{fild, fld, mov};
+use crate::scene::x87_mem::{Base, fild, fld, mov};
 use crate::session::MACHINE;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
 /// The kind of object `o` (its +4), or a refusal.
-pub fn kind_of(o: u32) -> Result<u32, BadInput> {
-    let n: u32 = GamePtr::new(o).offset(4).read("a sound object's kind")?;
+pub fn kind_of(o: &crate::sound::store::SoundObject) -> Result<u32, BadInput> {
+    let n = o.kind.get();
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
@@ -64,14 +64,14 @@ pub fn kind_of(o: u32) -> Result<u32, BadInput> {
 /// The object's dwords where the original reads and writes them. The core's reads and
 /// writes have no failure to give: the first refusal is kept, and the caller asks for it.
 struct Object {
-    at: u32,
+    at: GamePtr,
     failed: std::cell::Cell<Option<BadInput>>,
 }
 
 impl Object {
-    fn new(at: u32) -> Self {
+    fn new(o: &crate::sound::store::SoundObject) -> Self {
         Self {
-            at,
+            at: GamePtr::to(o),
             failed: std::cell::Cell::new(None),
         }
     }
@@ -83,7 +83,7 @@ impl Object {
 
 impl Words for Object {
     fn get(&self, at: u32) -> u32 {
-        GamePtr::new(self.at)
+        self.at
             .offset(at)
             .read("a sound object's dword")
             .unwrap_or_else(|e| {
@@ -92,10 +92,7 @@ impl Words for Object {
             })
     }
     fn set(&mut self, at: u32, value: u32) {
-        if let Err(e) = GamePtr::new(self.at)
-            .offset(at)
-            .write(value, "a sound object's dword")
-        {
+        if let Err(e) = self.at.offset(at).write(value, "a sound object's dword") {
             self.failed.set(self.failed.get().or(Some(e)));
         }
     }
@@ -108,10 +105,11 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let kind = kind_of(o)?;
-    let mut object = Object::new(o);
+    let so = crate::sound::store::SoundObject::at(o)?;
+    let kind = kind_of(so)?;
+    let mut object = Object::new(so);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
-    let (bx, di) = (o, kind);
+    let di = kind;
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || {
         crate::race::replay_file_store::REPLAY_FILE
@@ -133,7 +131,6 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
         &mut left,
     );
     object.check()?;
-    let so = crate::sound::store::SoundObject::at(bx)?;
     x87_1(so, di as usize);
     object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
     x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
@@ -152,7 +149,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     }
     if let Some(low) = low {
         MACHINE.scratch.set(low);
-        x87_3(crate::session::MACHINE.scratch.addr() as usize, so);
+        x87_3(&MACHINE.scratch, so);
     }
     x87_4(so, &crate::sound::store::RACE_CLOCK);
     object.set(0x140, 0);
@@ -199,7 +196,7 @@ fn x87_2(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
 /// `int [t + 0] = 0x3C888889`
 /// `int [t + 0] = 0x3F400000`
 /// `[bx + 0x210] = (int [t + 0] * [t + 0]) + [t + 0]`
-fn x87_3(t: usize, bx: &crate::sound::store::SoundObject) {
+fn x87_3(t: impl Base, bx: &crate::sound::store::SoundObject) {
     let t0 = fild(t, 0);
     mov(t, 0, 0x3C888889);
     let t1 = fld(t, 0);

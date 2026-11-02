@@ -38,9 +38,9 @@ const OBJECTS: u32 = 8;
 const KINDS: u32 = 0x22;
 
 /// The lengths of a list's 95 names.
-fn lengths(list: usize) -> Result<Vec<u32>, BadInput> {
+fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
     use rc2k_core::strings::bytes::Bytes as _;
-    let bytes = GamePtr::new(list as u32).bytes("a speech file's names")?;
+    let bytes = list.bytes("a speech file's names")?;
     let mut at = 0usize;
     let mut lengths = Vec::with_capacity(NAMES);
     for _ in 0..NAMES {
@@ -111,7 +111,8 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
             .get(),
     );
     let (mut ebx, mut edx) = (list(a), list(b));
-    let name = |key| crate::audio::store::name_at(key).map(|at| at.addr() as usize);
+    // Unbounded: the original reads the names on as far as they go.
+    let name = |key| crate::audio::store::name_at(key).map(GamePtr::unbounded);
     let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {

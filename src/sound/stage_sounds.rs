@@ -26,7 +26,6 @@
 use crate::errors::Refused;
 use crate::session::MACHINE;
 use crate::sound::sample_settings::OWN;
-use crate::sound::sets_store::RACE_SOUND_SETS;
 use crate::sound::store::STAGE_SOUNDS;
 
 /// The one-off sounds: the flag's index in `once` and the sound.
@@ -44,8 +43,8 @@ pub fn stage_sounds() -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
     let stage = &STAGE_SOUNDS;
-    RACE_SOUND_SETS.request.set_u32(0x20, ONE);
-    RACE_SOUND_SETS.request.set_u32(0x24, ONE);
+    request.pitch_factor.set(ONE);
+    request.volume_factor.set(ONE);
     for (n, sound) in ONE_OFFS {
         if stage.once[n].get() == 1 {
             stage.once[n].set(0);
@@ -69,10 +68,8 @@ pub fn stage_sounds() -> Result<(), Refused> {
         stage.timed_slot.start.set(wait.start);
     }
     if slot {
-        for k in 0..3 {
-            RACE_SOUND_SETS
-                .request
-                .set_u32(0xC + 4 * k, stage.timed_place[k].bits());
+        for (cell, place) in request.place.iter().zip(&stage.timed_place) {
+            cell.set(place.bits());
         }
         crate::sound::play_timed_slot::play_timed_slot(&stage.timed_slot, request)?;
     }

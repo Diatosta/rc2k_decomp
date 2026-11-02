@@ -8,7 +8,7 @@
 //! `sound::sample_settings`; a volume under 4: nothing; else the request's +8 and +4 the volume and rate
 //! as floats, the place +0x240 .. +0x248, and `sound::play_placed_sound`.
 //! One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object or request and a sound past the sample
+//! Refuses (before anything) a null object and a sound past the sample
 //! records.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -16,16 +16,17 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::sound::sample_settings::{record, sample_settings};
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::one_off`.
 ///
 /// The waiting hit sound of object `o`, through `request`.
-pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
+pub fn car_hit_sound(o: u32, request: &SoundRequest) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
+    if o == 0 {
+        return Err(BadInput("no object").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
     let mut waiting = so.hit_sound.get();
@@ -42,15 +43,15 @@ pub fn car_hit_sound(o: u32, request: u32) -> Result<(), Refused> {
         return Ok(());
     }
     so.hit_sound.set(waiting);
-    crate::sound::turn_parts::put(request, 0, sound)?;
+    request.sound.set(sound);
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
         OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
         OneOff::Play { volume, rate } => {
-            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
-            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
-            for k in 0..3usize {
-                crate::sound::turn_parts::put(request, 3 + k, so.hit_place[k].bits())?;
+            request.volume.set(from_int(volume as i32));
+            request.pitch.set(from_int(rate as i32));
+            for (cell, place) in request.place.iter().zip(&so.hit_place) {
+                cell.set(place.bits());
             }
             crate::sound::turn_parts::placed(request)
         }

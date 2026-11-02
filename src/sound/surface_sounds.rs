@@ -15,7 +15,7 @@
 //! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
 //! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
 //! are `asm_reference` in the tests; `dword_5183CC` is the scratch dword for the constants). One caller, `sound::car_sounds`.
-//! Refuses a null object or request, a surface past the 16 of `dword_51655C` and a set
+//! Refuses a null object, a surface past the 16 of `dword_51655C` and a set
 //! past the seven pairs: what was written is put back (a sound already sent stays).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -24,7 +24,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st, to_int};
-use crate::scene::x87_mem::{fld, mov};
+use crate::scene::x87_mem::{Base, fld, mov};
+use crate::sound::sets_store::SoundRequest;
 use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEEL_SURFACES};
 use rc2k_core::sound::surfaces;
 
@@ -32,7 +33,7 @@ use rc2k_core::sound::surfaces;
 
 /// The surface of the wheel picked (of object `o`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
-fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
+fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(SURFACE_SOUNDS.across.bits(), SURFACE_SOUNDS.along.bits());
     let surface = o.voices[first].surface.get();
@@ -44,12 +45,12 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
         if second == 0 {
             x87_1(
                 &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr() as usize,
+                &crate::session::MACHINE.scratch,
             );
         } else {
             x87_2(
                 &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr() as usize,
+                &crate::session::MACHINE.scratch,
             );
         }
     }
@@ -60,9 +61,9 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
 }
 
 /// The wheels' surface sounds of object `o`, through `request`.
-pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
+pub fn surface_sounds(o: u32, request: &SoundRequest) -> Result<(), Refused> {
+    if o == 0 {
+        return Err(BadInput("no object").into());
     }
     let so = SoundObject::at(o)?;
     x87_3(so, &SURFACE_SOUNDS);
@@ -77,7 +78,7 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3E800000`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
-fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
+fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.bits());
     mov(t, 0, 0x3E800000);
     let t1 = fld(t, 0);
@@ -89,7 +90,7 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3DCCCCCD`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
-fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: usize) {
+fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     let t0 = ld(sf.volume.bits());
     mov(t, 0, 0x3DCCCCCD);
     let t1 = fld(t, 0);

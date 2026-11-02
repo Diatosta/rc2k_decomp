@@ -9,21 +9,21 @@
 //! +0x40; the slots at +0x1C4 and +0x1DC (`sound::play_timed_slot`); then, the
 //! request's pitch factor (+0x20) times the object's +0x210 for it and put back after,
 //! the slot at +0x1F8. One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object or request; what the slots refuse puts back
+//! Refuses (before anything) a null object; what the slots refuse puts back
 //! what was written (sounds already sent stay sent).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
+use crate::sound::sets_store::SoundRequest;
 
 // ---- Rust version ----
 
 /// The gear sounds of object `o`, through `request`.
-pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
-    if o == 0 || request == 0 {
-        return Err(BadInput("no object or no request").into());
+pub fn car_gear_sounds(o: u32, request: &SoundRequest) -> Result<(), Refused> {
+    if o == 0 {
+        return Err(BadInput("no object").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
     if so.state.get() == 3 {
@@ -36,19 +36,17 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
         so.place.each_ref().map(super::super::session::Float::get),
         so.motion.each_ref().map(super::super::session::Float::get),
     );
-    for (n, v) in place.into_iter().enumerate() {
-        GamePtr::new(request)
-            .offset(0xC + 4 * n as u32)
-            .write(v, "a sound request")?;
+    for (cell, v) in request.place.iter().zip(place) {
+        cell.set(v.to_bits());
     }
     for slot in &so.slots[5..] {
         crate::sound::play_timed_slot::play_timed_slot(slot, request)?;
     }
-    let factor = GamePtr::new(request).offset(0x20);
-    let kept: u32 = factor.read("a sound request")?;
-    let pitch = gear_pitch(factor.read::<f32>("a sound request")?, so.gear_pitch.get());
-    factor.write(pitch, "a sound request")?;
+    let factor = &request.pitch_factor;
+    let kept = factor.get();
+    let pitch = gear_pitch(f32::from_bits(kept), so.gear_pitch.get());
+    factor.set(pitch.to_bits());
     crate::sound::play_timed_slot::play_timed_slot(&so.gear_slot, request)?;
-    factor.write(kept, "a sound request")?;
+    factor.set(kept);
     Ok(())
 }
