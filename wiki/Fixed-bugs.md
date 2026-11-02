@@ -404,4 +404,4 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **Seen or read:** seen in screenshots of two copies racing, and read in `scene::init_texture_levels` (0x424001).
 
-**Fix:** the car this machine drives gets the full size, whichever it is; away from a network race that is car 0, as before.
+**Fix:** the car this machine drives, and any car of the same model, get the full size; away from a network race that is car 0 and its like. Two cars of one model need both: the cockpit stayed blurred with only the own car at full size.

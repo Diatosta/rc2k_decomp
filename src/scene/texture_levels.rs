@@ -128,7 +128,11 @@ pub fn init_texture_levels() -> Result<(), Refused> {
                 &kinds,
                 FRAME_SWITCHES.editor_mode.bits() != 0,
                 other(),
-                crate::race::blocks_store::own_car_number() as u32,
+                |car| {
+                    let kinds = &crate::race::vars_store::RACE_VARS.race_car_kinds;
+                    let own = crate::race::blocks_store::own_car_number();
+                    car as usize == own || kinds[car as usize].get() == kinds[own].get()
+                },
             )
         },
     )?;
