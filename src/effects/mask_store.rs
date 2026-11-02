@@ -239,11 +239,12 @@ mod tests {
     use super::*;
     use core::mem::{offset_of, size_of};
 
-    fn bytes<T>(v: &T) -> Vec<u8> {
+    /// The first `len` bytes of `v` (its fields' bytes: the padding past them is never read,
+    /// it holds no value).
+    fn bytes<T>(v: &T, len: usize) -> Vec<u8> {
+        assert!(len <= size_of::<T>());
         let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
+        (0..len).map(|i| unsafe { p.add(i).read() }).collect()
     }
 
     #[test]
@@ -262,15 +263,16 @@ mod tests {
         );
         assert_eq!(size_of::<KindPictures>(), KindPictures::LEN);
         assert!(
-            bytes(&GROUND_NAMES)[..GroundNames::LEN] == image(GroundNames::START, GroundNames::LEN)
+            bytes(&GROUND_NAMES, GroundNames::LEN) == image(GroundNames::START, GroundNames::LEN)
+        );
+        assert!(bytes(&MASK_BLOCKS, MaskBlocks::LEN) == image(MaskBlocks::START, MaskBlocks::LEN));
+        assert!(
+            bytes(&PICTURE_COPY, PictureCopy::LEN) == image(PictureCopy::START, PictureCopy::LEN)
         );
         assert!(
-            bytes(&MASK_BLOCKS)[..MaskBlocks::LEN] == image(MaskBlocks::START, MaskBlocks::LEN)
+            bytes(&KIND_PICTURES, KindPictures::LEN)
+                == image(KindPictures::START, KindPictures::LEN)
         );
-        assert!(
-            bytes(&PICTURE_COPY)[..PictureCopy::LEN] == image(PictureCopy::START, PictureCopy::LEN)
-        );
-        assert!(bytes(&KIND_PICTURES) == image(KindPictures::START, KindPictures::LEN));
     }
 
     #[test]

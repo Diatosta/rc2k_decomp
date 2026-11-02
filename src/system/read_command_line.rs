@@ -2,7 +2,8 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The first word is the program (its place and length to `dword_518BA8`, `dword_518BAC`).
+//! The first word is the program (its length to `COMMAND_LINE`; the original also kept its
+//! place, `dword_518BA8`, which nothing reads).
 //! Of the words after it only those of two characters or more count, by their first two:
 //! - `-v`: a message box with the version ("Rally 5.30 (4.8.2000)", a tab, a line break and
 //!   the second version text `byte_4E0077`, built in the fatal report's `Text`; the title
@@ -79,13 +80,10 @@ pub fn show_version_and_leave() -> ! {
 
 /// The Rust version on a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
-pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
+pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    COMMAND_LINE.program.set(crate::pointers::game_address(
-        line.as_ptr().wrapping_add(sw.program.0),
-    ));
     COMMAND_LINE.program_len.set(sw.program.1 as u32);
     for (on, cell) in [
         (sw.u, &INSTALLER_RUN.updating),
@@ -128,54 +126,21 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
 pub fn read_own_command_line() -> Result<(), BadInput> {
-    let mut own = crate::os::command_line();
-    own.push(0);
-    let line: &'static [u8] = Box::leak(own.into_boxed_slice());
-    crate::pointers::lend(line.as_ptr(), line.len());
-    if read_command_line(line)? == Asked::Version {
+    let mut line = crate::os::command_line();
+    line.push(0);
+    if read_command_line(&line)? == Asked::Version {
         show_version_and_leave();
     }
     Ok(())
 }
 
-/// The program's name on the command line (IDA 0x518BA8 .. 0x518BB0, the image's layout).
-#[repr(C)]
+/// The program's name on the command line, as `read_command_line` found it (the image had
+/// its place and length at `dword_518BA8` / `dword_518BAC`; nothing reads the place).
 pub struct CommandLine {
-    /// 0x518BA8: `dword_518BA8`: the program's name (a pointer into the command line; `system::read_command_line`).
-    pub program: Dword,
-    /// 0x518BAC: `dword_518BAC`: its length.
+    /// `dword_518BAC`: its length.
     pub program_len: Dword,
 }
 
 pub static COMMAND_LINE: CommandLine = CommandLine {
-    program: Dword::new(0x0),
     program_len: Dword::new(0x0),
 };
-
-impl CommandLine {
-    pub const START: usize = 0x518BA8;
-    pub const LEN: usize = 0x8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const COMMAND_LINE) as usize
-    }
-}
-
-#[cfg(test)]
-mod command_line_tests {
-    use super::*;
-
-    #[test]
-    fn commandline_starts_as_the_games() {
-        let size = size_of::<CommandLine>();
-        assert!(CommandLine::LEN <= size && size <= (CommandLine::LEN).next_multiple_of(4));
-        let image = crate::moved::image_bytes(CommandLine::START, CommandLine::LEN);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::pointers::host_at(CommandLine::home()).cast_const(),
-                CommandLine::LEN,
-            )
-        };
-        assert_eq!(mine, &image[..]);
-    }
-}

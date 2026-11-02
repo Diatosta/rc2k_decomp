@@ -315,11 +315,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: || (crate::pointers::game_address(crate::fatal::state::CODE.as_ptr())) as usize,
     },
     Moved {
-        ida: 0x4F52A8, // g_fatalMessage
-        len: 4,
-        home: || (crate::pointers::game_address(crate::fatal::state::MESSAGE.as_ptr())) as usize,
-    },
-    Moved {
         ida: 0x4F66FD, // Caption ("Rally: Guru Meditation")
         len: crate::fatal::state::CAPTION_LEN,
         home: || crate::fatal::state::CAPTION.addr() as usize,
@@ -1019,11 +1014,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::install::vars::InstallerPalette::START,
         len: crate::install::vars::InstallerPalette::LEN,
         home: crate::install::vars::InstallerPalette::home,
-    },
-    Moved {
-        ida: crate::system::read_command_line::CommandLine::START,
-        len: crate::system::read_command_line::CommandLine::LEN,
-        home: crate::system::read_command_line::CommandLine::home,
     },
     Moved {
         ida: crate::system::load_game_data::RunCount::START,

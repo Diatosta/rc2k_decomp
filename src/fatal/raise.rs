@@ -11,24 +11,19 @@
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
 use crate::framework::{Regs, log};
-use std::ffi::CString;
 
 /// Reports `error` with the registers in `regs` and ends the game the way the original
 /// does: on a thread without a thread slot through the exit path (which shows the report in
 /// a message box), on a slot's thread by entering its routine again. It only returns for a
 /// code without the fatal bit, which nothing in this build has.
 pub fn raise(error: FatalError, regs: &Regs) {
-    // The message has to outlive this call: the exit path shows it later. An error is raised
-    // once, so the few bytes are simply never freed.
-    let message = match CString::new(error.message) {
-        Ok(text) if !error.message.is_empty() => {
-            let text = Box::leak(text.into_boxed_c_str()).to_bytes_with_nul();
-            crate::pointers::lend(text.as_ptr(), text.len())
-        }
-        _ => 0,
-    };
+    // None for an empty one, and for one with a NUL inside (a C string could not hold it).
+    let message =
+        (!error.message.is_empty() && !error.message.contains('\0')).then_some(error.message);
     CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);
-    MESSAGE.store(message, std::sync::atomic::Ordering::Relaxed);
+    *MESSAGE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = message;
     crate::fatal::report::report_now(regs);
 }
 

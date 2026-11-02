@@ -12,8 +12,15 @@ pub mod state {
 
     /// g_fatalCode (0x4F52A4): the code of the error being reported.
     pub static CODE: AtomicU32 = AtomicU32::new(0);
-    /// g_fatalMessage (0x4F52A8): the pointer of its message, or 0.
-    pub static MESSAGE: AtomicU32 = AtomicU32::new(0);
+    /// g_fatalMessage (0x4F52A8 held a pointer to it, or 0): the error's message, or none.
+    pub static MESSAGE: std::sync::Mutex<Option<&'static str>> = std::sync::Mutex::new(None);
+
+    /// The message of the error being reported (`MESSAGE`).
+    pub fn message() -> Option<&'static str> {
+        *MESSAGE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
     /// dword_4E0598 (0x4E0598): the Win32 error to name in a report, or 0 (nothing in the
     /// program sets it).
     pub static W32: AtomicU32 = AtomicU32::new(0);
@@ -55,7 +62,8 @@ mod tests {
     fn state_starts_as_the_games() {
         let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
         assert_eq!(word(0x4F52A4), CODE.load(Relaxed));
-        assert_eq!(word(0x4F52A8), MESSAGE.load(Relaxed));
+        assert_eq!(word(0x4F52A8), 0);
+        assert_eq!(message(), None);
         assert_eq!(word(0x4E0598), W32.load(Relaxed));
         assert_eq!(image_bytes(0x4F67BC, 1)[0], REPORTED.load(Relaxed));
         assert_eq!(EXTRA.read().to_vec(), image_bytes(0x4F67BD, EXTRA_LEN));

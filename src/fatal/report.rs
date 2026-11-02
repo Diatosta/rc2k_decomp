@@ -25,7 +25,7 @@
 //! `Text` ends the program, saying so.
 
 use crate::errors::BadInput;
-use crate::fatal::state::{CAPTION, CODE, EXTRA, MESSAGE, REPORTED, TEMPLATE, TEXT, W32};
+use crate::fatal::state::{CAPTION, CODE, EXTRA, REPORTED, TEMPLATE, TEXT, W32};
 use crate::framework::{Regs, log};
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
@@ -44,18 +44,11 @@ pub use rc2k_core::fatal::{Context, Leave, TEXT_ONLY, register_dump, report_text
 
 /// The report for what the game's variables hold now.
 fn text_from_game(context: &Context) -> Result<Vec<u8>, BadInput> {
-    let message: u32 = MESSAGE.load(Ordering::Relaxed);
-    let message = match message {
-        0 => None,
-        m => Some(crate::files::cstring(
-            crate::pointers::GamePtr::new(m),
-            "a fatal error's message",
-        )?),
-    };
+    let message = crate::fatal::state::message().map(str::as_bytes);
     let last_file = crate::files::state::last_file_path();
     Ok(report_text(
         CODE.load(Ordering::Relaxed),
-        message.as_deref(),
+        message,
         &EXTRA.text(),
         last_file.as_deref(),
         W32.load(Ordering::Relaxed),

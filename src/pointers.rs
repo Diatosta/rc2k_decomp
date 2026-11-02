@@ -897,9 +897,10 @@ mod tests {
 
     #[test]
     fn reads_answer_inside_a_region_only() {
-        // On the heap: the stack is a region of its own.
-        let block = Box::new([7u8; 64]);
-        let start = map(block.as_ptr(), 64);
+        // On the heap: the stack is a region of its own. Lent with write permission, as
+        // `LentBytes` lends (reads are atomics, which need it).
+        let block = Box::into_raw(Box::new([7u8; 64]));
+        let start = map(block, 64);
         register(start, 64);
         let p = GamePtr::new(start + 60);
         assert_eq!(p.read::<u32>("test").unwrap(), 0x0707_0707);
@@ -913,6 +914,8 @@ mod tests {
         unregister(start);
         assert!(p.read::<u8>("test").is_err());
         crate::address_map::unmap(start);
+        // SAFETY: `block` is the box above, its range given back.
+        drop(unsafe { Box::from_raw(block) });
     }
 
     #[test]

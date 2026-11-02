@@ -1231,10 +1231,14 @@ mod tests {
             let m = MenuId(n);
             assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
             assert_eq!(MenuId::of(m.labels()), m);
-            // The -1 after the items is the dword right after the last.
+            // The -1 after the items is the dword right after the last: read through the
+            // whole tables (a reference to the last item reaches no further than it).
+            let tables = std::ptr::from_ref(&MENUS).cast::<u8>();
             let last = std::ptr::from_ref::<MenuItem>(m.items().last().unwrap());
+            let after = last.addr() + size_of::<MenuItem>() - tables.addr();
+            assert!(after + 4 <= size_of::<MenuTables>());
             assert_eq!(
-                unsafe { (*last.add(1).cast::<Dword>()).get() },
+                unsafe { (*tables.add(after).cast::<Dword>()).get() },
                 MenuItem::END
             );
         }

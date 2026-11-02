@@ -9,7 +9,8 @@
 //!   and "ereg\", made current; "eregip.exe" into `byte_94E8B0`); installing
 //!   (`g_installing` 1): the installed folder (`g_installSource` normalised into
 //!   `byte_95E7F8`) made current, from the CD (`g_runningFromCd` 1) the program named on
-//!   the command line (`dword_518BA8`, `dword_518BAC` bytes, into `byte_94E8B0`) copied
+//!   the command line (`dword_518BA8`, `dword_518BAC` bytes, into `byte_94E8B0`; the standalone
+//!   copies its own folder's program instead, so only the length is kept) copied
 //!   to ".\ral.exe" (`files::copy_file`) and a second's sleep, and ".\ral.exe" run.
 //!
 //! A folder that cannot be made current ends it.
