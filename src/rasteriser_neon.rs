@@ -5,6 +5,8 @@
 //! nearest integer (0 for NaN) and not to `i32::MIN`, as Rust's own `as i32` does on every
 //! processor.
 
+#![allow(unsafe_code)]
+
 use core::arch::aarch64::*;
 
 #[allow(non_camel_case_types)]

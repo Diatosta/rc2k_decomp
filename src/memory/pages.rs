@@ -3,6 +3,8 @@
 //! `std::alloc`. A block is lent to the game (`pointers::lend_system_block`) and known by
 //! its game address; giving it back forgets it before the memory goes.
 
+#![allow(unsafe_code)]
+
 use std::alloc::Layout;
 use std::collections::HashMap;
 use std::sync::Mutex;

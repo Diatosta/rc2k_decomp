@@ -4,6 +4,8 @@
 //! `f` is `fld dword`, `i` is `fild dword`, `t80` is `fld tbyte`; `wf` is `fstp dword`,
 //! `wi` is `fistp dword`, `wt80` is `fstp tbyte`, `wh` stores a status word.
 
+#![allow(unsafe_code)]
+
 use crate::math::x87_float::{X, f80, from_f80, int, ld, st, to_int};
 
 /// An operand's base: an address, as the runs hold it, or a pointer.

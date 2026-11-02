@@ -4,6 +4,8 @@
 //! textures (the font atlas) as SDL textures, through the crate's managed-texture requests.
 //! Everything here runs on the window's thread (`platform`'s pump and frame).
 
+#![allow(unsafe_code)]
+
 use dear_imgui_rs::render::{DrawCmd, PendingFrame, SnapshotTextureId, TextureOp};
 use dear_imgui_rs::texture::TextureFormat;
 use dear_imgui_rs::{BackendFlags, ConfigFlags, Context, Key, MouseButton, TextureId};

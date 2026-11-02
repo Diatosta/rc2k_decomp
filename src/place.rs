@@ -4,6 +4,8 @@
 //! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
 //! a pointer read from the game's data as its number. (The installer's first, 2026-10-28.)
 
+#![allow(unsafe_code)]
+
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;

@@ -23,6 +23,8 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
+#![allow(unsafe_code)]
+
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::course_lists_store::COURSE_LISTS;

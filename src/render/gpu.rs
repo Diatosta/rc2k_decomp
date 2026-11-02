@@ -7,6 +7,8 @@
 //! pixels the game has written go over the target and the canvas is marked again. Something that
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
+#![allow(unsafe_code)]
+
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{Command, Target, TextureNote};
 use crate::framework::log;

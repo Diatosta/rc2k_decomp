@@ -32,6 +32,8 @@
 //! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
 //! and says so in the log.
 
+#![allow(unsafe_code)]
+
 use crate::framework::log;
 use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;

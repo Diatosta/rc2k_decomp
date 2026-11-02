@@ -18,6 +18,8 @@
 //! running thread's stack. These come after the game's blocks and the moved stores, so a
 //! read that starts in a store keeps the store's bounds. (Rust buffers become slices later.)
 
+#![allow(unsafe_code)]
+
 use crate::errors::BadInput;
 use crate::framework::log;
 use std::collections::BTreeMap;

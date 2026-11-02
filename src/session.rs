@@ -9,6 +9,8 @@
 //! variable to its neighbour reads the same neighbour (the vendor text of the processor,
 //! three dwords; the surface format, six dwords; the Windows version record).
 
+#![allow(unsafe_code)]
+
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 

@@ -1,5 +1,7 @@
 //! The packed string table and the two string-pointer tables the string hooks read.
 
+#![allow(unsafe_code)]
+
 use crate::errors::BadInput;
 use crate::framework::{game_addr, rva};
 use crate::moved::Place;

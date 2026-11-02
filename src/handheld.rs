@@ -2,6 +2,8 @@
 //! knows (no DRM, X11 or Wayland), so the frames go straight to `/dev/fb0`. SDL stays for
 //! sound and the pad (`platform_input`, `input::menu_pad`), on its `dummy` video driver.
 
+#![allow(unsafe_code)]
+
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::sync::{Mutex, MutexGuard, OnceLock};

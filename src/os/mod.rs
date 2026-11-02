@@ -4,6 +4,8 @@
 //! Windows-1252 bytes, as the Win32 `A` functions took them. The system's own facts (its
 //! version, names, drives, memory) are each system's file: `windows.rs`, `unix.rs`.
 
+#![allow(unsafe_code)]
+
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]

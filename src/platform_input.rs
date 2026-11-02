@@ -22,6 +22,8 @@
 //! What SDL's haptics cannot do (an effect it does not have) is logged once and skipped:
 //! the game's own effects go on without it.
 
+#![allow(unsafe_code)]
+
 use crate::framework::log;
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
 use sdl3_sys::everything::*;

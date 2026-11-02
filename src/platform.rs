@@ -24,6 +24,8 @@
 //!
 //! Where the time goes: `platform_timing`.
 
+#![allow(unsafe_code)]
+
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::SURFACES;

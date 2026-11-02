@@ -4,6 +4,9 @@
 // of some 130 functions would repeat that sentence; the particular conditions are in each
 // function's own doc comment and in the `Err(BadInput)` cases it checks.
 #![allow(clippy::missing_safety_doc)]
+// `unsafe` only where a file says it may, each at the top of the file: the platform's edge
+// and the few primitives the game logic stands on. `tools/count_unsafe.py` counts them.
+#![cfg_attr(not(test), deny(unsafe_code))]
 
 mod address_map;
 mod arch;

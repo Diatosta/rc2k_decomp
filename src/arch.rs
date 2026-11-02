@@ -1,6 +1,8 @@
 //! What differs between the 32-bit build and a 64-bit one (phase 9, step 4): the
 //! processor's intrinsics and a thread context's instruction and stack pointers.
 
+#![allow(unsafe_code)]
+
 #[cfg(target_arch = "x86")]
 pub use core::arch::x86::{__cpuid, _mm_cvtss_f32, _mm_rcp_ss, _mm_set_ss, _rdtsc};
 #[cfg(target_arch = "x86_64")]

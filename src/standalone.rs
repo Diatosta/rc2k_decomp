@@ -15,6 +15,8 @@
 //! by `fatal::report` and ends it as the original's. Stand-ins, each to be replaced by a
 //! piece of the platform: see `stand_in`.
 
+#![allow(unsafe_code)]
+
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, Regs, log};
 use crate::install::outside::Game as Outside;

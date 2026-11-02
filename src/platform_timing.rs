@@ -1,6 +1,8 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
 //! thread and the rasteriser's sampled.
 
+#![allow(unsafe_code)]
+
 use crate::framework::log;
 use crate::platform::SHOWN;
 use crate::session::SCREEN as GAME_SCREEN;

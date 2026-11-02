@@ -22,6 +22,8 @@
 //! Pixels are sampled at their integer places, with the top-left rule for edges, as
 //! Direct3D 5 did. Colours, the depth and 1/w are interpolated across the screen.
 
+#![allow(unsafe_code)]
+
 /// A vertex: x, y, z, 1/w, colour, specular, u, v (floats as their bits but the two
 /// colours).
 pub type Vertex = [u32; 8];

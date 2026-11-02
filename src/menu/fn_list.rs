@@ -4,6 +4,8 @@
 //! The lists are the image's (`menu::draw_lists_store`, which share tails: a list may start
 //! inside another) and the menus' own (`dword_7594AA`, `menu::lists_store`).
 
+#![allow(unsafe_code)]
+
 use crate::errors::BadInput;
 use crate::menu::draw_lists_store::{DRAW_LISTS, DrawLists};
 use crate::menu::lists_store::MENU_LISTS;

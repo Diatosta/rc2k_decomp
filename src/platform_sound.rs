@@ -24,6 +24,8 @@
 //! Not done: Doppler, cones, EAX and the voice manager (their property sets are not
 //! offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
+#![allow(unsafe_code)]
+
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

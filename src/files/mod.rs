@@ -1,3 +1,4 @@
+#![allow(unsafe_code)]
 pub mod append_directory;
 pub mod close_stream;
 pub mod copy_file;

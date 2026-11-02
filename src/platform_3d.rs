@@ -29,6 +29,8 @@
 //! The drawing is noted and drawn in tiles over the processor's threads when something is to
 //! see it (see `flush`).
 
+#![allow(unsafe_code)]
+
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};

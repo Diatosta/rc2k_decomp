@@ -3,6 +3,8 @@
 //! Where Unix has no such thing (a drive's serial, a keyboard's subtype, an error mode, a
 //! priority class) the answer is the one a plain Windows machine gives, or none.
 
+#![allow(unsafe_code)]
+
 /// A record shaped as `OSVERSIONINFOA` (0x94 bytes): the kernel's release as the version
 /// (major, minor, build), platform 2 (NT's), and "Linux <release>" as its text. Only the
 /// log's head reads it.

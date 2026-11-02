@@ -1,6 +1,8 @@
 //! The stage's prefs buffer and the scene settings in it (IDA 0x608CB4 .. 0x60AD20): `g_stagePrefs`, the stage's `localdat` read in place (0x206C bytes): the texture kinds, slot kinds, the scene's colours and fog settings, the sun and sky, the face tables, lamp and picture lists, the grid reach, object tints, the draw-distance tables, the mud colour and the surface noise figures. `#[repr(C)]` with the image's layout, over the race block's bytes.
 //! Names are readings unless IDA's.
 
+#![allow(unsafe_code)]
+
 use crate::session::Dword;
 
 #[repr(C)]

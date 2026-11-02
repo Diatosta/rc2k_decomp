@@ -4,6 +4,8 @@
 //! DLL checks the conversion, the hook crate's adapters (`src/bridge.rs`) load these
 //! structures from the game's memory and store them back.
 
+#![cfg_attr(not(test), forbid(unsafe_code))]
+
 pub mod audio;
 pub mod d3d;
 pub mod drive;

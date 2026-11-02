@@ -1,6 +1,8 @@
 //! The software backend: the commands drawn by the rasteriser into the target, in tiles over the
 //! processor's threads. Pixel for pixel what the game showed before there were backends.
 
+#![allow(unsafe_code)]
+
 use super::*;
 use std::sync::Mutex;
 

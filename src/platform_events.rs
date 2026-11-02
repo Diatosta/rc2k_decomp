@@ -1,6 +1,8 @@
 //! SDL's events under the game: closing the window sets the quit switch, and the keys and
 //! buttons the menus know become the game's pending key.
 
+#![allow(unsafe_code)]
+
 use crate::framework::log;
 use crate::input::store::DEVICES;
 use crate::session::FLAGS;

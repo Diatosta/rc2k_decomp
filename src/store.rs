@@ -15,6 +15,8 @@
 //! Threads: whoever wrote under the original's discipline (the audio thread's turn, the
 //! key thread) still does; the reads and writes are volatile, as the image's were.
 
+#![allow(unsafe_code)]
+
 use crate::framework;
 
 /// A block's description: where its first byte now is.

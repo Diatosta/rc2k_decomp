@@ -2,6 +2,8 @@
 //! game's Direct3D layer (`platform_3d`) notes, and a `Backend` that draws them. Everything the
 //! backends must agree on is here; each one's own way of drawing is in its file.
 
+#![allow(unsafe_code)]
+
 pub mod batches;
 pub mod dump;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]

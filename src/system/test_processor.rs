@@ -26,6 +26,8 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
+#![allow(unsafe_code)]
+
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::session::MACHINE;

@@ -13,6 +13,8 @@
 //! is gone (2026-10-24): its addresses stay reserved without access, so a read of one that
 //! has no home ends the program naming it (`standalone`'s fault handler).
 
+#![allow(unsafe_code)]
+
 use crate::framework::{IMAGE_BASE, game_addr, rva};
 use std::cell::UnsafeCell;
 

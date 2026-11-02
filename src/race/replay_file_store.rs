@@ -4,6 +4,8 @@
 //! ("RCIB", the seal, the block and frame counts, the (offset, size) per block). `#[repr(C)]` with
 //! the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#![allow(unsafe_code)]
+
 use crate::session::Dword;
 
 #[repr(C)]

@@ -15,6 +15,8 @@
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
+#![allow(unsafe_code)]
+
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::session::Shared;
 

@@ -18,6 +18,8 @@
 //! folder into the current one (the original copies the program named on its command line
 //! to `.\ral.exe` when run from the CD).
 
+#![allow(unsafe_code)]
+
 use std::path::{Path, PathBuf};
 
 /// The group's folder name (the original's `[CreateGroup(Rally Championship)]`).

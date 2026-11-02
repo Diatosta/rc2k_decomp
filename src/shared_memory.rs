@@ -4,6 +4,8 @@
 //! options). These copy through relaxed atomics, the same moves on the processor, widest
 //! first on aligned places, so an aligned dword stays whole as it did in the original.
 
+#![allow(unsafe_code)]
+
 use std::mem::MaybeUninit;
 #[cfg(target_pointer_width = "64")]
 use std::sync::atomic::AtomicU32;

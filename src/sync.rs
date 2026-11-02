@@ -9,6 +9,8 @@
 //! numbers given by this module, 1 up, one per thread for its life; a slot's thread gets
 //! its id before it starts, as `CreateThread` wrote it into the slot.
 
+#![allow(unsafe_code)]
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
