@@ -201,10 +201,9 @@ pub trait Whole: Copy {
 macro_rules! whole {
     ($($t:ty),*) => {$(
         impl Whole for $t {
+            #[inline]
             fn read_from(at: u32, what: &str) -> Result<Self, BadInput> {
-                let mut b = [0; size_of::<$t>()];
-                copy_into(at, &mut b, what)?;
-                Ok(<$t>::from_le_bytes(b))
+                array(at, what).map(<$t>::from_le_bytes)
             }
             fn to_bytes(self, to: &mut [u8; 64]) {
                 to[..size_of::<$t>()].copy_from_slice(&self.to_le_bytes());
@@ -215,32 +214,13 @@ macro_rules! whole {
 whole!(u8, u16, u32, i8, i16, i32, f32);
 
 impl<const N: usize> Whole for [u8; N] {
+    #[inline]
     fn read_from(at: u32, what: &str) -> Result<Self, BadInput> {
-        let mut b = [0; N];
-        copy_into(at, &mut b, what)?;
-        Ok(b)
+        array(at, what)
     }
     fn to_bytes(self, to: &mut [u8; 64]) {
         to[..N].copy_from_slice(&self);
     }
-}
-
-/// `to.len()` bytes at `at` (as `bytes` names it) into `to`, without a heap copy where the
-/// place is a store's: these reads are the physics' every tick.
-fn copy_into(at: u32, to: &mut [u8], what: &str) -> Result<(), BadInput> {
-    if let Some((s, off)) = store(at) {
-        return s
-            .with(|b| {
-                b.get(off..off.checked_add(to.len())?)
-                    .map(|from| to.copy_from_slice(from))
-            })?
-            .ok_or(BadInput("a read outside the course faces or records"));
-    }
-    if scene_point(at) {
-        return crate::race::scene_points::copy_into(at, to);
-    }
-    to.copy_from_slice(&GamePtr::new(at).read_bytes(to.len(), what)?);
-    Ok(())
 }
 
 /// As `read`; a refusal ends the game (for the readers that cannot carry one).
@@ -255,11 +235,21 @@ pub fn write<T: Whole>(at: u32, v: T, what: &str) -> Result<(), BadInput> {
     write_bytes(at, &b[..size_of::<T>()], what)
 }
 
-/// The `N` bytes at `at` (as `bytes` names it), a store's without a heap copy.
+/// The `N` bytes at `at` (as `bytes` names it), with no heap copy and no copy of unknown
+/// length where the place is a store's: these reads are the physics' every tick.
+#[inline]
 fn array<const N: usize>(at: u32, what: &str) -> Result<[u8; N], BadInput> {
-    let mut a = [0; N];
-    copy_into(at, &mut a, what)?;
-    Ok(a)
+    if let Some((s, off)) = store(at) {
+        return s
+            .with(|b| b.get(off..)?.first_chunk::<N>().copied())?
+            .ok_or(BadInput("a read outside the course faces or records"));
+    }
+    if scene_point(at) {
+        return crate::race::scene_points::array(at);
+    }
+    let mut to = [0; N];
+    to.copy_from_slice(&GamePtr::new(at).read_bytes(N, what)?);
+    Ok(to)
 }
 
 /// The face at `at`.

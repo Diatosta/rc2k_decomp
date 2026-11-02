@@ -15,6 +15,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::session::Dword;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The records.
 pub const COUNT: u32 = 0x2000;
@@ -25,20 +27,34 @@ pub const HELD: u32 = 1;
 
 pub type Record = [u32; 8];
 
-crate::memory::owned::thread_owned!(
-    pub static RECORDS: Vec<Record> = "no point records";
-);
+/// The records, as cells: read and written many times a polygon.
+static RECORDS: [[Dword; 8]; COUNT as usize] =
+    [const { [const { Dword::new(0) }; 8] }; COUNT as usize];
+/// Whether the records are taken.
+static TAKEN: AtomicBool = AtomicBool::new(false);
 
 /// The records made, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr) -> Result<(), Refused> {
-    RECORDS.take(list, BYTES, vec![[0; 8]; COUNT as usize])?;
+    crate::memory::owned::count_on(list, BYTES)?;
+    RECORDS.iter().flatten().for_each(|cell| cell.set(0));
+    TAKEN.store(true, Ordering::Relaxed);
     COURSE_LISTS.point_records.set(HELD);
     Ok(())
 }
 
 /// Given back (the list's `free_list` counts them down).
 pub fn give_back() {
-    RECORDS.give_back();
+    TAKEN.store(false, Ordering::Relaxed);
+}
+
+/// The first `n` records' cells.
+pub fn first_records(n: usize) -> Result<&'static [[Dword; 8]], BadInput> {
+    if !TAKEN.load(Ordering::Relaxed) {
+        return Err(BadInput("no point records"));
+    }
+    RECORDS
+        .get(..n)
+        .ok_or(BadInput("a point record past the block"))
 }
 
 /// Whether the records are taken.
@@ -80,9 +96,24 @@ pub fn of_pool(k: u32) -> u32 {
     POOL_FIRST + k
 }
 
+/// The cells of record `r`, of whichever kind.
+#[inline]
+fn cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
+    if r > COUNT {
+        return far_cells(r);
+    }
+    if !TAKEN.load(Ordering::Relaxed) {
+        return Err(BadInput("no point records"));
+    }
+    (r as usize)
+        .checked_sub(1)
+        .and_then(|k| RECORDS.get(k))
+        .ok_or(BadInput("a point record past the block"))
+}
+
 /// The cells of a quad vertex's or a pool record.
-fn cells(r: u32) -> Option<&'static [crate::session::Dword]> {
-    let (all, k): (&'static [crate::session::Dword], u32) = match r {
+fn far_cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
+    let (all, k): (&'static [Dword], u32) = match r {
         _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
             &crate::race::vars_store::RACE_VARS.quad_vertices,
             r - QUAD_FIRST,
@@ -91,83 +122,57 @@ fn cells(r: u32) -> Option<&'static [crate::session::Dword]> {
             &crate::scene::polygon_store::POLYGON_WORK.record_pool,
             r - POOL_FIRST,
         ),
-        _ => return None,
+        _ => return Err(BadInput("a point record past the records")),
     };
     all.get(8 * k as usize..8 * k as usize + 8)
+        .and_then(|cells| cells.try_into().ok())
+        .ok_or(BadInput("a point record past the records"))
+}
+
+/// Dword `offset` of a record's cells; refused for an offset past the record.
+#[inline]
+fn cell(cells: &[Dword; 8], offset: u32) -> Result<&Dword, BadInput> {
+    if offset.is_multiple_of(4)
+        && let Some(cell) = cells.get(offset as usize / 4)
+    {
+        return Ok(cell);
+    }
+    Err(BadInput("a field past a point record"))
 }
 
 /// Record `r`; refused for none or one past the records.
+#[inline]
 pub fn get(r: u32) -> Result<Record, BadInput> {
-    if r > COUNT {
-        return match cells(r) {
-            Some(cells) => Ok(std::array::from_fn(|k| cells[k].get())),
-            None => Err(BadInput("a point record past the records")),
-        };
-    }
-    RECORDS
-        .with(|all| all.get((r as usize).checked_sub(1)?).copied())?
-        .ok_or(BadInput("a point record past the block"))
+    let cells = cells(r)?;
+    Ok(std::array::from_fn(|k| cells[k].get()))
 }
 
 /// Record `r` set to `record`; refused as `get`.
+#[inline]
 pub fn set(r: u32, record: Record) -> Result<(), BadInput> {
-    if r > COUNT {
-        let Some(cells) = cells(r) else {
-            return Err(BadInput("a point record past the records"));
-        };
-        for (cell, v) in cells.iter().zip(record) {
-            cell.set(v);
-        }
-        return Ok(());
+    for (cell, v) in cells(r)?.iter().zip(record) {
+        cell.set(v);
     }
-    RECORDS
-        .with(|all| {
-            *all.get_mut((r as usize).checked_sub(1)?)? = record;
-            Some(())
-        })?
-        .ok_or(BadInput("a point record past the block"))
+    Ok(())
 }
 
 /// The dword at `offset` of record `r`; refused for an offset past the record.
+#[inline]
 pub fn field(r: u32, offset: u32) -> Result<u32, BadInput> {
-    // Only the one dword: these are read many times a polygon.
-    if (1..=COUNT).contains(&r) && offset.is_multiple_of(4) {
-        let found = RECORDS.with(|all| {
-            all.get(r as usize - 1)
-                .map(|record| record.get(offset as usize / 4).copied())
-        })?;
-        return found
-            .ok_or(BadInput("a point record past the block"))?
-            .ok_or(BadInput("a field past a point record"));
-    }
-    let record = get(r)?;
-    offset
-        .is_multiple_of(4)
-        .then(|| record.get(offset as usize / 4).copied())
-        .flatten()
-        .ok_or(BadInput("a field past a point record"))
+    Ok(cell(cells(r)?, offset)?.get())
 }
 
 /// The dword at `offset` of record `r` set to `v`; refused as `field`.
+#[inline]
 pub fn put_field(r: u32, offset: u32, v: u32) -> Result<(), BadInput> {
-    let mut record = get(r)?;
-    let d = offset
-        .is_multiple_of(4)
-        .then(|| record.get_mut(offset as usize / 4))
-        .flatten()
-        .ok_or(BadInput("a field past a point record"))?;
-    *d = v;
-    set(r, record)
-}
-
-/// `f` on all the records.
-pub fn with_all<R>(f: impl FnOnce(&mut [Record]) -> R) -> Result<R, BadInput> {
-    RECORDS.with(|all| f(all))
+    cell(cells(r)?, offset)?.set(v);
+    Ok(())
 }
 
 /// The dword at `offset` of a polygon vertex's record. A refusal ends the game, as the
 /// original's read of a wrong address went wrong (the polygon code's reads cannot carry
 /// one).
+#[inline]
 pub fn vertex(v: u32, offset: u32) -> u32 {
     field(v, offset).unwrap_or_else(|e| crate::fatal::raise::end("a point record", e))
 }

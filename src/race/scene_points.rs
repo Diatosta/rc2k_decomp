@@ -89,26 +89,26 @@ pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
         .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
 }
 
-/// `to.len()` bytes at place `at` into `to`, refused as `bytes`, without a heap copy.
+/// The `N` bytes at place `at`, refused as `bytes`, without a heap copy.
 #[track_caller]
-pub fn copy_into(at: u32, to: &mut [u8]) -> Result<(), BadInput> {
+#[inline]
+pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
     let caller = std::panic::Location::caller();
-    let len = to.len();
     if at < base() {
-        to.copy_from_slice(&bytes(at, len)?);
-        return Ok(());
+        let mut to = [0; N];
+        to.copy_from_slice(&bytes(at, N)?);
+        return Ok(to);
     }
+    let start = (at - base()) as usize;
     POINTS
-        .with(|p| p.get(range(at, len)?).map(|from| to.copy_from_slice(from)))?
-        .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
+        .with(|p| p.get(start..)?.first_chunk::<N>().copied())?
+        .ok_or_else(|| outside("a read outside the scene points", at, N, caller))
 }
 
 /// The dword at place `at`.
 #[track_caller]
 pub fn word(at: u32) -> Result<u32, BadInput> {
-    let mut b = [0; 4];
-    copy_into(at, &mut b)?;
-    Ok(u32::from_le_bytes(b))
+    array(at).map(u32::from_le_bytes)
 }
 
 /// The dword at place `at`; outside the points the game ends (for the readers that
@@ -121,8 +121,7 @@ pub fn word_or_end(at: u32) -> u32 {
 /// The three dwords of the point at place `at`.
 #[track_caller]
 pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
-    let mut b = [0; 12];
-    copy_into(at, &mut b)?;
+    let b: [u8; 12] = array(at)?;
     Ok(std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     }))

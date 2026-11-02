@@ -519,9 +519,18 @@ pub fn show_frame_now() -> bool {
         if quitting() {
             return false;
         }
+        #[cfg(feature = "remote")]
+        if crate::remote::shot_wanted()
+            && let Some(target) = crate::platform_3d::screen()
+        {
+            crate::render::bring_back(&target);
+        }
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
         {
+            // Before it is shown: on the GPU's path showing clears the canvas.
+            #[cfg(feature = "remote")]
+            let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let showing = std::time::Instant::now();
             let shown_ok = show_frame(screen);
             crate::platform_timing::SHOW_MICROS.fetch_add(
@@ -536,11 +545,9 @@ pub fn show_frame_now() -> bool {
                 .frames
                 .set(DRAW_SURFACE.frames.get().wrapping_add(1));
             #[cfg(feature = "remote")]
-            crate::remote::frame(
-                &screen.pixels.to_vec(),
-                screen.width as u32,
-                screen.height as u32,
-            );
+            if let Some(pixels) = shot {
+                crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);
+            }
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {

@@ -595,11 +595,12 @@ impl Gpu {
     /// the batches.
     fn draw(&mut self, part: Part) {
         let Part {
-            batches,
+            commands,
             uploads,
             written,
             size: (width, height),
         } = part;
+        let batches = Batches::of(&commands, width as u32, height as u32);
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
@@ -886,7 +887,7 @@ struct Written {
 
 /// What a draw needs, all of it the thread's own: the game goes on with its memory meanwhile.
 struct Part {
-    batches: Batches,
+    commands: Vec<Command>,
     uploads: Vec<(TextureNote, Vec<u8>)>,
     written: Option<Written>,
     size: (i32, i32),
@@ -925,17 +926,26 @@ impl Front {
     }
 
     /// Hands over the commands and the canvas's written rows, which it marks again.
-    fn draw(&mut self, canvas: &mut [u8], commands: &[Command]) {
+    fn draw(&mut self, canvas: &mut [u8], commands: Vec<Command>) {
         for pixels in super::take_changed_textures() {
             self.known.remove(&pixels);
         }
-        let (width, height) = self.size;
-        let batches = Batches::of(commands, width as u32, height as u32);
+        let (width, _) = self.size;
         let mut uploads = Vec::new();
-        for note in &batches.textures {
-            if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
-                uploads.push((*note, super::texture_as_bgra(note)));
-                self.known.insert(note.pixels, (note.width, note.height));
+        // One texture is usually drawn many times running.
+        let mut last = None;
+        for command in &commands {
+            if let Command::Fan {
+                texture: Some(note),
+                ..
+            } = command
+                && last != Some(note.pixels)
+            {
+                last = Some(note.pixels);
+                if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
+                    uploads.push((*note, super::texture_as_bgra(note)));
+                    self.known.insert(note.pixels, (note.width, note.height));
+                }
             }
         }
         let stride = width as usize * 4;
@@ -946,7 +956,7 @@ impl Front {
             Written { first, last, bytes }
         });
         self.send(Job::Draw(Part {
-            batches,
+            commands,
             uploads,
             written,
             size: self.size,
@@ -955,7 +965,7 @@ impl Front {
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
     pub fn finish_and_show(&mut self, canvas: &mut [u8]) {
-        self.draw(canvas, &[]);
+        self.draw(canvas, Vec::new());
         self.send(Job::ShowTarget);
     }
 
@@ -971,7 +981,7 @@ impl Front {
     /// The target's picture, with the canvas's written pixels, into the canvas (waits for the
     /// GL: the frame's whole work so far).
     pub fn bring_back(&mut self, canvas: &mut [u8]) {
-        self.draw(canvas, &[]);
+        self.draw(canvas, Vec::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));
         let Ok(picture) = picture.recv() else {
@@ -1000,23 +1010,14 @@ impl Front {
 
 /// The first and last rows of the canvas holding a written pixel.
 fn written_rows(canvas: &[u8], width: usize) -> Option<(usize, usize)> {
+    const BLOCK: usize = 256;
     let unwritten = UNWRITTEN.to_le_bytes();
-    // Blocks of pixels compared with no way out inside one, which the compiler can vectorise:
-    // this looks at most of the screen's pixels every frame.
+    let blank: [u8; BLOCK] = std::array::from_fn(|n| unwritten[n % 4]);
+    // By blocks, as the library compares memory: this looks at most of the screen's pixels
+    // every frame.
     let row_written = |row: &[u8]| {
-        row.as_chunks::<256>().0.iter().any(|block| {
-            block
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .fold(false, |seen, pixel| seen | (*pixel != unwritten))
-        }) || row
-            .as_chunks::<256>()
-            .1
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .any(|p| *p != unwritten)
+        let (blocks, rest) = row.as_chunks::<BLOCK>();
+        blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
     };
     let stride = width * 4;
     let first = canvas.chunks_exact(stride).position(row_written)?;
@@ -1092,6 +1093,6 @@ impl super::Backend for Front {
     fn draw(&mut self, target: &Target, commands: Vec<Command>) {
         self.size = (target.width as i32, target.height as i32);
         // SAFETY: the game's code waits for this call; nothing else writes the canvas meanwhile.
-        Front::draw(self, unsafe { target.bytes() }, &commands);
+        Front::draw(self, unsafe { target.bytes() }, commands);
     }
 }

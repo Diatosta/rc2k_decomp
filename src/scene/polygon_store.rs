@@ -117,7 +117,11 @@ impl PolygonEntry {
 
     /// The whole entry's bytes.
     pub fn bytes(&self) -> [u8; 0x44] {
-        std::array::from_fn(|n| self.word(n & !3).to_le_bytes()[n & 3])
+        let mut bytes = [0; 0x44];
+        for (k, dword) in bytes.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+            *dword = self.word(k * 4).to_le_bytes();
+        }
+        bytes
     }
 
     /// Another entry's contents copied here.

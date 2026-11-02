@@ -226,15 +226,16 @@ pub fn clear_point_records() -> Result<(), BadInput> {
     COURSE_LISTS.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
     let sse = DRAW_SWITCHES.use_sse.get() != 0;
-    crate::scene::point_records::with_all(|records| {
-        for record in &mut records[..0x1000] {
-            if sse {
-                record[..4].copy_from_slice(&pattern);
-            } else {
-                record[0] = u32::MAX;
+    for record in crate::scene::point_records::first_records(0x1000)? {
+        if sse {
+            for (cell, v) in record.iter().zip(pattern) {
+                cell.set(v);
             }
+        } else {
+            record[0].set(u32::MAX);
         }
-    })
+    }
+    Ok(())
 }
 
 /// `race::object_bytes` (0x455263): for each of the 0x100 objects (records at

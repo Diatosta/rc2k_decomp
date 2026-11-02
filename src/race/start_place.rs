@@ -28,7 +28,9 @@ fn count() -> Result<u32, Refused> {
 fn check_point(n: u32) -> Result<(u32, u32, u32, u32), BadInput> {
     let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
     let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-    let point = crate::race::course_places::face(address, "a checkpoint face")?.point(0);
+    // Only the one dword: every checkpoint is measured every physics tick.
+    let point: u32 =
+        crate::race::course_places::read(address.wrapping_add(4), "a checkpoint face")?;
     let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
     Ok((face, address, point, place))
 }

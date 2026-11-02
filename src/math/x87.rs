@@ -442,6 +442,13 @@ pub enum Rounding {
     Chop,
 }
 
+/// Whether this thread rounds to nearest, as it nearly always does (asked by every
+/// operation of `x87_float::X`).
+#[inline]
+pub fn rounds_to_nearest() -> bool {
+    CONTROL.with(std::cell::Cell::get) & 0xC00 == 0
+}
+
 /// This thread's rounding (the emulated control word's bits 10 .. 11).
 pub fn rounding() -> Rounding {
     match (CONTROL.with(std::cell::Cell::get) >> 10) & 3 {

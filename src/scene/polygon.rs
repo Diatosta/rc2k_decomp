@@ -27,7 +27,9 @@ pub fn list_cell(n: usize) -> &'static Dword {
 
 /// The list kept before a clip, cell `n` (as `list_cell`).
 pub fn old_list_cell(n: usize) -> &'static Dword {
-    crate::race::checkpoints_store::nth(&crate::scene::polygon_store::POLYGON_WORK.old_list[0], n)
+    let list = &crate::scene::polygon_store::POLYGON_WORK.old_list;
+    list.get(n)
+        .unwrap_or_else(|| crate::race::checkpoints_store::nth(&list[0], n))
 }
 
 /// The first record of the pool the clip makes its records in (`g_polygonNextRecord`

@@ -217,7 +217,9 @@ struct Pending {
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
 fn draw_noted(pending: &mut Pending) {
-    let commands = std::mem::take(&mut pending.noted);
+    // The next ones about as many: growing to them shows in a profile.
+    let room = pending.noted.len();
+    let commands = std::mem::replace(&mut pending.noted, Vec::with_capacity(room));
     pending.textures.clear();
     let Some(target) = pending.into.take() else {
         return;
@@ -316,27 +318,30 @@ pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
     }
 }
 
-/// `states` shared with the last fan's when they are the same.
-fn shared_states(states: [u32; STATES]) -> std::sync::Arc<[u32; STATES]> {
-    static LAST: Mutex<Option<std::sync::Arc<[u32; STATES]>>> = Mutex::new(None);
-    let mut last = LAST
+/// The states as the last fan had them, until one changes (`forget_states`).
+static SHARED_STATES: Mutex<Option<std::sync::Arc<[u32; STATES]>>> = Mutex::new(None);
+
+/// A render state has changed: the next fan's are read again.
+pub fn forget_states() {
+    *SHARED_STATES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+}
+
+/// The states as they are now, shared with the fans noted since one last changed.
+fn shared_states() -> std::sync::Arc<[u32; STATES]> {
+    let mut shared = SHARED_STATES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    match &*last {
-        Some(kept) if **kept == states => std::sync::Arc::clone(kept),
-        _ => {
-            let new = std::sync::Arc::new(states);
-            *last = Some(std::sync::Arc::clone(&new));
-            new
-        }
-    }
+    std::sync::Arc::clone(shared.get_or_insert_with(|| {
+        std::sync::Arc::new(std::array::from_fn(|n| CARDS_3D.kept_states[n].get()))
+    }))
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     if vertices.len() < 3 {
         return;
     }
-    let states: [u32; STATES] = std::array::from_fn(|n| CARDS_3D.kept_states[n].get());
     let current: u32 = CARDS_3D.current_texture.get();
     let memory = LEVELS_MEMORY.lock().unwrap();
     let texture = (current < MOST)
@@ -380,7 +385,7 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     }
     note(Command::Fan {
         vertices: vertices.into(),
-        states: shared_states(states),
+        states: shared_states(),
         texture,
         bounds,
     });

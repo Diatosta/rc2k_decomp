@@ -76,10 +76,25 @@ thread_local! {
 
 /// Whether `len` bytes from `addr` lie in one region, as `region_of` finds them, through the
 /// thread's cache: a recent block or store, the stack, then the lookups.
+#[inline]
 fn inside(addr: u32, len: usize) -> bool {
     let Some(end) = addr.checked_add(len as u32) else {
         return false;
     };
+    // Most reads follow one another in one region.
+    let same_region = CACHE.with(|cache| {
+        let cache = cache.borrow();
+        let (start, top) = cache.regions[cache.last];
+        addr >= start
+            && end <= top
+            && cache.generation == GENERATION.load(std::sync::atomic::Ordering::Acquire)
+            && cache.map_generation == crate::address_map::generation()
+    });
+    same_region || inside_found(addr, end)
+}
+
+/// `inside` past its last region: the regions held, the stack, then the lookups.
+fn inside_found(addr: u32, end: u32) -> bool {
     let fits = |(start, top): (u32, u32)| addr >= start && end <= top;
     CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
@@ -92,10 +107,6 @@ fn inside(addr: u32, len: usize) -> bool {
             // A range taken off may have been the stack's (a dead thread's stale range
             // overlapping): it is looked up afresh.
             cache.stack = None;
-        }
-        // The last one found first: most reads follow one another in one store.
-        if fits(cache.regions[cache.last]) {
-            return true;
         }
         if let Some(k) = cache.regions.iter().position(|&r| fits(r)) {
             cache.last = k;

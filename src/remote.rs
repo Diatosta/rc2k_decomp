@@ -245,15 +245,17 @@ pub fn poll() {
     }
 }
 
+/// Whether the next frame is to be saved: the GPU's picture is then wanted in the canvas.
+pub fn shot_wanted() -> bool {
+    pending().shot.is_some()
+}
+
 /// After a frame is shown: the screenshot asked for.
 pub fn frame(pixels: &[u8], width: u32, height: u32) {
     let Some(folder) = folder() else { return };
     let Some((id, name)) = pending().shot.take() else {
         return;
     };
-    if let Some(target) = crate::platform_3d::screen() {
-        crate::render::bring_back(&target);
-    }
     let answer = match std::fs::write(folder.join(format!("{name}.raw")), pixels) {
         Ok(()) => format!("{width} {height}"),
         Err(e) => format!("error: {e}"),
