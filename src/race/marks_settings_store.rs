@@ -123,6 +123,11 @@ impl core::ops::Deref for InGroup {
 
 pub static MARKS_SETTINGS: InGroup = InGroup;
 
+/// The part of each car record the lines, the point morphs and the tidy-up work on (the
+/// original's settings + 0x29C + n * 0x4C8, `effects::lines`' "settings block"): its offset
+/// in the car's record, which starts at the settings' +0x60.
+pub const CAR_BLOCK: u32 = 0x29C - 0x60;
+
 /// A car record by handle, where the original kept its address (`effects::emitters`'
 /// `EMITTER.car`, a ring entry's +0x68): `CAR_TAG | n` for car `n`; 0 is none.
 pub const CAR_TAG: u32 = 0xCC00_0000;

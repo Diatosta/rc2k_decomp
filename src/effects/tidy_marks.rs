@@ -24,8 +24,8 @@ use crate::memory::free_list::free_list;
 use crate::memory::{MemoryList, own_heap};
 use crate::pointers::GamePtr;
 
-const CAR_LEN: u32 = 0x4C8;
-const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
+// `sub_4D06F3`'s ebp: the settings' +0x29C for car 0.
+const CAR_PART: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
 fn lists() -> [GamePtr; 6] {
@@ -39,46 +39,42 @@ fn lists() -> [GamePtr; 6] {
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-fn car_lists(settings: u32) -> Result<Vec<GamePtr>, BadInput> {
+fn car_lists() -> Result<Vec<GamePtr>, BadInput> {
     let marks = crate::effects::setup::marks()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
-        .map(|n| GamePtr::new(settings + n * CAR_LEN + CAR_PART + 0x4C))
+        .map(|n| marks.cars[n as usize].at(CAR_PART + 0x4C))
         .collect())
 }
 
 /// Every list it frees, the cars' first.
-fn all_lists(settings: u32) -> Result<Vec<GamePtr>, BadInput> {
-    let mut r = car_lists(settings)?;
+fn all_lists() -> Result<Vec<GamePtr>, BadInput> {
+    let mut r = car_lists()?;
     r.extend(lists());
     Ok(r)
 }
 
 /// The Rust version (see the header).
 pub fn tidy_marks() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if settings == 0 {
-        return Err(BadInput("no marks settings").into());
-    }
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());
     }
     if own_heap() == 1
-        && crate::effects::try_any(all_lists(settings)?.iter(), |&l| {
+        && crate::effects::try_any(all_lists()?.iter(), |&l| {
             Ok(l.read::<MemoryList>("a car's block list")?.head != 0)
         })?
     {
         return Err(BadInput("the game's own heap is in use with a list holding blocks").into());
     }
     for n in 0..count as u32 {
-        let car = settings + n * CAR_LEN + CAR_PART;
-        free_list(crate::pointers::GamePtr::new(car + 0x4C))?;
+        let car = &marks.cars[n as usize];
+        free_list(car.at(CAR_PART + 0x4C))?;
         if let Some(points) = crate::effects::lines::BLOCK_POINTS.get(n as usize) {
             points.give_back();
         }
-        GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
+        car.put(CAR_PART + 0x8C, MORPH_WORK.taken.get())?;
     }
     for list in lists() {
         free_list(list)?;

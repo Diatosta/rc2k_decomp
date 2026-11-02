@@ -10,22 +10,27 @@ use crate::math::x87;
 use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::marks_settings_store::{MarkCar, MarksSettings};
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::FACES;
 use crate::session::{Bytes, Dword, Float};
 use rc2k_core::effects::lines as core;
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
+/// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
+const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
+const _: () = assert!(BLOCK + 0x60 == core::BLOCKS_AT);
+
+fn get(at: GamePtr) -> Result<u32, BadInput> {
+    at.read("a game field")
 }
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
+fn put(at: GamePtr, v: u32) -> Result<(), BadInput> {
+    at.write(v, "a game field")
 }
 
 /// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
 /// the length to `to`'s, added to the whole number at `sum`.
-fn lines(from: u32, to: u32, sum: u32) -> Result<(), Refused> {
+fn lines(from: u32, to: u32, sum: GamePtr) -> Result<(), Refused> {
     lines_with(from, to, sum, x87_length)?;
     Ok(())
 }
@@ -39,7 +44,7 @@ fn x87_length(d: [i32; 3], sum: i32) -> i32 {
 fn lines_with(
     from: u32,
     to: u32,
-    sum: u32,
+    sum: GamePtr,
     length: fn([i32; 3], i32) -> i32,
 ) -> Result<(), Refused> {
     {
@@ -70,14 +75,14 @@ fn lines_with(
 /// `effects::measure_slot_lines` (0x4D1167): faces `from` and `to`, block `block`: for each
 /// of the block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its
 /// lines into the slot's sum (+0xF0 ..). The x87's, for `measure_lines`.
-pub fn measure_slot_lines(from: u32, to: u32, block: u32) -> Result<(), Refused> {
+pub fn measure_slot_lines(from: u32, to: u32, block: &MarkCar) -> Result<(), Refused> {
     {
         for k in 0..core::SLOTS {
             if core::slot_takes(
-                get(block + 0xD0 + 4 * k)?,
+                block.word(BLOCK + 0xD0 + 4 * k)?,
                 crate::scene::object_faces::byte(from + 7)?,
             ) {
-                lines_with(from, to, block + 0xF0 + 4 * k, x87_length)?;
+                lines_with(from, to, block.at(BLOCK + 0xF0 + 4 * k), x87_length)?;
             }
         }
     }
@@ -88,20 +93,20 @@ pub fn measure_slot_lines(from: u32, to: u32, block: u32) -> Result<(), Refused>
 /// of the block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the
 /// face's +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... The x87's,
 /// for `measure_lines`.
-pub fn measure_kind_lines(from: u32, to: u32, block: u32) -> Result<(), Refused> {
+pub fn measure_kind_lines(from: u32, to: u32, block: &MarkCar) -> Result<(), Refused> {
     {
         for k in 0..core::KINDS {
             if core::kind_takes(
-                get(block + 0x130 + 4 * k)?,
+                block.word(BLOCK + 0x130 + 4 * k)?,
                 crate::scene::object_faces::byte(from + 6)?,
                 crate::scene::object_faces::byte(from + 0xB)?,
             ) {
-                let count = block + 0x240 + 4 * k;
+                let count = block.at(BLOCK + 0x240 + 4 * k);
                 put(
                     count,
                     get(count)?.wrapping_add(crate::scene::object_faces::word(from)?),
                 )?;
-                lines_with(from, to, block + 0x1B8 + 4 * k, x87_length)?;
+                lines_with(from, to, block.at(BLOCK + 0x1B8 + 4 * k), x87_length)?;
             }
         }
     }
@@ -109,15 +114,25 @@ pub fn measure_kind_lines(from: u32, to: u32, block: u32) -> Result<(), Refused>
 }
 
 /// The game's tables for `core::measured`: the settings' blocks and the objects' faces.
-struct GameBlocks(u32, crate::effects::Sticky);
+struct GameBlocks(&'static MarksSettings, crate::effects::Sticky);
+
+impl GameBlocks {
+    /// Block `k`'s word at `offset`; a block past the eighth is refused.
+    fn word(&self, k: u32, offset: u32) -> Result<u32, BadInput> {
+        self.0
+            .cars
+            .get(k as usize)
+            .ok_or(BadInput("a settings block past the eighth"))?
+            .word(BLOCK + offset)
+    }
+}
 
 impl core::Blocks for GameBlocks {
     fn marked(&self, k: u32) -> bool {
-        self.1.take(get(core::block_at(self.0, k) + 0xC)) != 0
+        self.1.take(self.word(k, 0xC)) != 0
     }
     fn objects(&self, k: u32) -> [u32; 2] {
-        let block = core::block_at(self.0, k);
-        [self.1.take(get(block)), self.1.take(get(block + 4))]
+        [self.1.take(self.word(k, 0)), self.1.take(self.word(k, 4))]
     }
     fn face_count(&self, object: u32) -> u32 {
         ObjectTables::slot_value(&OBJECT_SLOTS.face_counts, object as usize)
@@ -127,25 +142,18 @@ impl core::Blocks for GameBlocks {
     }
 }
 
-/// The blocks `measure_lines` would measure (`core::measured`): (block, its first faces,
-/// its face count).
-fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
+/// The blocks `measure_lines` would measure (`core::measured`): (block's number, its first
+/// faces, its face count).
+fn measured(every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get();
-    let game = GameBlocks(settings, Default::default());
+    let game = GameBlocks(marks, Default::default());
     let blocks = core::measured(count, every, &game, FACES);
     game.1.done()?;
     let blocks = blocks?;
     Ok(blocks
         .into_iter()
-        .map(|m| {
-            (
-                core::block_at(settings, m.block),
-                m.first[0],
-                m.first[1],
-                m.faces,
-            )
-        })
+        .map(|m| (m.block, m.first[0], m.first[1], m.faces))
         .collect())
 }
 
@@ -162,34 +170,34 @@ fn measured(settings: u32, every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Ref
 // stay x87: its `finit` between)
 pub fn measure_lines() -> Result<(), Refused> {
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
         let marks = crate::effects::setup::marks()?;
         let every = LINES_WORK.every.get() == 1;
-        let blocks = measured(settings, every)?;
+        let blocks = measured(every)?;
         LINES_WORK.any.set(0u32);
         let count = marks.cars_copy.get() as i32;
         let mut todo = blocks.into_iter().peekable();
         for k in (0..count.max(0) as u32).rev() {
-            let Some(&(block, first_a, first_b, faces)) = todo.peek() else {
+            let Some(&(number, first_a, first_b, faces)) = todo.peek() else {
                 continue;
             };
-            if block != block_at(settings, k) {
+            if number != k {
                 continue;
             }
+            let block = &marks.cars[k as usize];
             todo.next();
             if !every {
                 LINES_WORK.any.set(1u32);
             }
-            LINES_WORK.current.set(block);
+            LINES_WORK.current.set(block.at(BLOCK).addr());
             for o in (0x1C..=0x30).step_by(4) {
-                put(block + o, 0)?;
+                block.put(BLOCK + o, 0)?;
             }
             for n in 0..8 {
-                put(block + 0xF0 + 4 * n, 0)?;
+                block.put(BLOCK + 0xF0 + 4 * n, 0)?;
             }
             for n in 0..0x11 {
-                put(block + 0x1B8 + 4 * n, 0)?;
-                put(block + 0x240 + 4 * n, 0)?;
+                block.put(BLOCK + 0x1B8 + 4 * n, 0)?;
+                block.put(BLOCK + 0x240 + 4 * n, 0)?;
             }
             for n in 0..(faces as i32).max(0) as u32 {
                 let from: u32 = crate::scene::objects::face_cell((first_a + n) as usize).get();
@@ -197,7 +205,7 @@ pub fn measure_lines() -> Result<(), Refused> {
                 if crate::scene::object_faces::byte(from + 6)? == 0x1C {
                     let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
-                        lines(from, to, block + 0x18 + 4 * kind)?;
+                        lines(from, to, block.at(BLOCK + 0x18 + 4 * kind))?;
                     }
                 }
                 measure_slot_lines(from, to, block)?;
@@ -205,7 +213,7 @@ pub fn measure_lines() -> Result<(), Refused> {
             }
             if LINES_WORK.shares.get() == 1 {
                 let hundred: u32 = MARKS_FLOATS.hundred.bits();
-                let share = |at: u32, of: u32| -> Result<_, Refused> {
+                let share = |at: GamePtr, of: GamePtr| -> Result<_, Refused> {
                     put(
                         at,
                         x87::share_left_to_int(get(at)? as i32, get(of)? as i32, hundred) as u32,
@@ -213,23 +221,25 @@ pub fn measure_lines() -> Result<(), Refused> {
                     Ok(())
                 };
                 for o in (0x1C..=0x30).step_by(4) {
-                    share(block + o, block + o + 0x18)?;
+                    share(block.at(BLOCK + o), block.at(BLOCK + o + 0x18))?;
                 }
                 x87::finit();
                 for n in (0..8).rev() {
-                    share(block + 0xF0 + 4 * n, block + 0x110 + 4 * n)?;
+                    share(
+                        block.at(BLOCK + 0xF0 + 4 * n),
+                        block.at(BLOCK + 0x110 + 4 * n),
+                    )?;
                 }
                 for n in (0..0x11).rev() {
-                    share(block + 0x1B8 + 4 * n, block + 0x1FC + 4 * n)?;
+                    share(
+                        block.at(BLOCK + 0x1B8 + 4 * n),
+                        block.at(BLOCK + 0x1FC + 4 * n),
+                    )?;
                 }
             }
         }
     }
     Ok(())
-}
-
-fn block_at(settings: u32, k: u32) -> u32 {
-    core::block_at(settings, k)
 }
 
 /// `effects::measure_starting_sums` (0x4D0DB5): `measure_lines` with every block and no
@@ -239,26 +249,24 @@ fn block_at(settings: u32, k: u32) -> u32 {
 /// `measure_lines` with every block, before writing anything.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn measure_starting_sums() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    measured(settings, true)?;
+    measured(true)?;
     LINES_WORK.every.set(1u32);
     LINES_WORK.shares.set(0u32);
     measure_lines()?;
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
-        let block = block_at(settings, k);
+        let block = &marks.cars[k as usize];
         for o in (0x1C..=0x30).step_by(4) {
-            put(block + o + 0x18, get(block + o)?)?;
+            block.put(BLOCK + o + 0x18, block.word(BLOCK + o)?)?;
         }
         for o in (0x1C..=0x30).step_by(4) {
-            put(block + o, 0)?;
+            block.put(BLOCK + o, 0)?;
         }
         for (from, to, n) in [(0xF0, 0x110, 8u32), (0x1B8, 0x1FC, 0x11)] {
             for k in (0..n).rev() {
-                put(block + to + 4 * k, get(block + from + 4 * k)?)?;
-                put(block + from + 4 * k, 0)?;
+                block.put(BLOCK + to + 4 * k, block.word(BLOCK + from + 4 * k)?)?;
+                block.put(BLOCK + from + 4 * k, 0)?;
             }
         }
     }
@@ -293,11 +301,11 @@ pub fn block_point(handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
 /// `g_objectPointCount2` of 12 bytes from `g_objectFirstPoint` in `g_objectPoints`, to the
 /// table the block's +0x8C names. Refuses an object past 0xFF.
 // Converted: `rc2k_core::effects::lines::check_object`
-pub fn copy_block_points(block: u32) -> Result<(), Refused> {
+pub fn copy_block_points(block: &MarkCar) -> Result<(), Refused> {
     {
-        let object = get(block)?;
+        let object = block.word(BLOCK)?;
         core::check_object(object)?;
-        let to = block_points(get(block + 0x8C)?)?;
+        let to = block_points(block.word(BLOCK + 0x8C)?)?;
         let count = OBJECT_SLOTS.point_counts[object as usize].get() as i32;
         let first: u32 = OBJECT_SLOTS.first_point[object as usize].get();
         let mut from = first
@@ -320,36 +328,31 @@ pub fn copy_block_points(block: u32) -> Result<(), Refused> {
 /// as `measure_starting_sums`, before anything is taken.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn set_up_blocks() -> Result<(), Refused> {
-    measured(crate::effects::setup::SETTINGS.pointer.get(), true)?;
+    measured(true)?;
     measure_starting_sums()?;
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
-        let block = block_at(settings, k);
+        let block = &marks.cars[k as usize];
         for o in (0x90..=0xCC).step_by(4) {
-            put(block + o, u32::MAX)?;
+            block.put(BLOCK + o, u32::MAX)?;
         }
         let points: u32 =
-            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block)? as usize);
+            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, block.word(BLOCK)? as usize);
         let bytes = points
             .checked_mul(12)
             .ok_or(BadInput("a block's point count that wraps"))?;
         let table = BLOCK_POINTS
             .get(k as usize)
             .ok_or(BadInput("more than 8 settings blocks"))?;
-        table.take(
-            crate::pointers::GamePtr::new(block + 0x4C),
-            bytes,
-            vec![[0; 3]; points as usize],
-        )?;
+        table.take(block.at(BLOCK + 0x4C), bytes, vec![[0; 3]; points as usize])?;
         let taken = k + 1;
         MORPH_WORK.taken.set(taken);
-        put(block + 0x8C, taken)?;
+        block.put(BLOCK + 0x8C, taken)?;
         copy_block_points(block)?;
         for n in 0..8 {
             let v = x87::loaded(LINES_WORK.block_start[n].bits());
-            put(block + 0x90 + 4 * n as u32, v)?;
+            block.put(BLOCK + 0x90 + 4 * n as u32, v)?;
         }
     }
     Ok(())

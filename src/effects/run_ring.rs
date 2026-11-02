@@ -30,12 +30,18 @@ use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::{MarkCar, car_or_none};
+use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
 use crate::scene::matrix3::extended;
 use crate::session::Float;
 
 fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a game field")
+}
+
+/// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
+/// cars' emitters): the word at the tag + 0x60 in the settings.
+fn entry_flag(marks: &MarksSettings, tag: u32) -> Result<u32, BadInput> {
+    marks.at(tag.wrapping_add(0x60)).read("a mark's field")
 }
 
 fn k(cell: &Float) -> u32 {
@@ -170,10 +176,9 @@ static K16: Kind = Kind {
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
 fn refusal() -> Result<Option<&'static str>, Refused> {
     Ok({
-        let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if s == 0 {
+        let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
-        }
+        };
         let mut e: u32 = RING_WORK.cursor.get();
         let count = RING_WORK.count.get() as i32;
         if count > 0 && (e == 0 || eg(e, 0)? == 0) {
@@ -187,12 +192,12 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
                 let obj = car_or_none(eg(e, 0x68)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
-                    || get(s.wrapping_add(eg(e, 8)?).wrapping_add(0x60))? != 0;
+                    || entry_flag(marks, eg(e, 8)?)? != 0;
                 if needs && obj.map_or(Ok(0), |o| o.word(0x24))? == 0 {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
-                if get(s.wrapping_add(eg(e, 8)?).wrapping_add(0x60))? != 0 {
+                if entry_flag(marks, eg(e, 8)?)? != 0 {
                     if crate::scene::fog_at::fog_at(0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
@@ -249,10 +254,7 @@ fn at_place(e: u32) -> Result<[[u8; 10]; 3], Refused> {
 
 /// The settings' flag for the entry.
 fn shown(e: u32) -> Result<bool, Refused> {
-    Ok({
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        get(eg(e, 8)?.wrapping_add(settings).wrapping_add(0x60))? != 0
-    })
+    Ok(entry_flag(crate::effects::setup::marks()?, eg(e, 8)?)? != 0)
 }
 
 /// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).

@@ -18,40 +18,31 @@
 use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::marks_settings_store::MarkCar;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
 
-const CAR_LEN: u32 = 0x4C8;
-const BLOCK: u32 = 0x29C;
+const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
-}
-
 /// The cars' blocks, the last first (none for a count of 0 or less).
-fn blocks(settings: u32) -> Result<Vec<u32>, Refused> {
+fn blocks() -> Result<Vec<&'static MarkCar>, Refused> {
     let marks = crate::effects::setup::marks()?;
     Ok({
         let count = marks.cars_copy.get() as i32;
         (0..count.clamp(0, MOST_CARS) as u32)
             .rev()
-            .map(|n| settings + n * CAR_LEN + BLOCK)
+            .map(|n| &marks.cars[n as usize])
             .collect()
     })
 }
 
 /// Whether a block's factors differ from its kept ones.
-fn changed(b: u32) -> Result<bool, BadInput> {
+fn changed(b: &MarkCar) -> Result<bool, BadInput> {
     for k in 0..8 {
-        if get(b + 0x90 + 4 * k)? != get(b + 0xB0 + 4 * k)? {
+        if b.word(BLOCK + 0x90 + 4 * k)? != b.word(BLOCK + 0xB0 + 4 * k)? {
             return Ok(true);
         }
     }
@@ -59,13 +50,13 @@ fn changed(b: u32) -> Result<bool, BadInput> {
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-fn points(b: u32) -> Result<(u32, u32, i32), Refused> {
+fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
     Ok({
         let base: u32 = COURSE_LISTS.object_points.bits();
         let first = |id: u32| {
             base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
         };
-        let (a, c) = (get(b)?, get(b + 4)?);
+        let (a, c) = (b.word(BLOCK)?, b.word(BLOCK + 4)?);
         (
             first(a),
             first(c),
@@ -75,32 +66,31 @@ fn points(b: u32) -> Result<(u32, u32, i32), Refused> {
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+fn refusal() -> Result<Option<&'static str>, Refused> {
     let marks = crate::effects::setup::marks()?;
     Ok({
-        if settings == 0 {
-            return Ok(Some("no marks settings"));
-        }
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
         let base: u32 = COURSE_LISTS.object_points.bits();
         let room: u32 = COURSE_LISTS.object_points_room.bits();
-        for b in blocks(settings)? {
+        for b in blocks()? {
             if !changed(b)? {
                 continue;
             }
-            if get(b)? >= SLOTS || get(b + 4)? >= SLOTS {
+            if b.word(BLOCK)? >= SLOTS || b.word(BLOCK + 4)? >= SLOTS {
                 return Ok(Some("an object past 0xFF"));
             }
-            if get(b + 0x8C)? == 0 {
+            if b.word(BLOCK + 0x8C)? == 0 {
                 return Ok(Some("a null base point list"));
             }
             let (a, c, n) = points(b)?;
             if n < 0 {
                 return Ok(Some("a negative point count: the loop runs on"));
             }
-            if n > 0 && crate::effects::lines::block_point(get(b + 0x8C)?, n as u32 - 1).is_err() {
+            if n > 0
+                && crate::effects::lines::block_point(b.word(BLOCK + 0x8C)?, n as u32 - 1).is_err()
+            {
                 return Ok(Some("a base point list shorter than the object's points"));
             }
             let end = base.wrapping_add(room);
@@ -116,33 +106,32 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
 
 /// The Rust version (see the header).
 pub fn morph_object_points() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if let Some(why) = refusal(settings)? {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
     {
-        for b in blocks(settings)? {
-            put(b + 0xC, get(b + 8)?)?;
+        for b in blocks()? {
+            b.put(BLOCK + 0xC, b.word(BLOCK + 8)?)?;
             if crate::effects::try_all(0..8, |k| {
-                Ok(get(b + 0x90 + 4 * k)? == get(b + 0xB0 + 4 * k)?)
+                Ok(b.word(BLOCK + 0x90 + 4 * k)? == b.word(BLOCK + 0xB0 + 4 * k)?)
             })? {
                 continue;
             }
-            put(b + 0xC, 0xFFFF_FFFF)?;
+            b.put(BLOCK + 0xC, 0xFFFF_FFFF)?;
             for k in 0..8 {
-                let v = get(b + 0x90 + 4 * k)?;
-                put(b + 0xB0 + 4 * k, v)?;
+                let v = b.word(BLOCK + 0x90 + 4 * k)?;
+                b.put(BLOCK + 0xB0 + 4 * k, v)?;
                 MORPH_WORK.kept[k as usize].set(v);
             }
             let (a, c, n) = points(b)?;
-            let points = get(b + 0x8C)?;
+            let points = b.word(BLOCK + 0x8C)?;
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
                 let base = crate::effects::lines::block_point(points, k)?;
                 if crate::effects::try_any(0..3, |i| {
                     Ok(base[i as usize] != crate::scene::object_points::word(from + 4 * i)?)
                 })? {
-                    blend_corner(b, to, from, base)?;
+                    blend_corner(b.at(BLOCK).addr(), to, from, base)?;
                 }
             }
         }

@@ -6,7 +6,6 @@ use crate::effects::frame_state::DRAW_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::MemoryList;
-use crate::pointers::GamePtr;
 use crate::session::write_bits;
 use crate::session::{Bytes, Dword, Float, Shared, Word};
 
@@ -17,7 +16,6 @@ pub const LINKS_LEN: u32 = 0x71020;
 pub const CORNERS: u32 = 0x100;
 
 pub const SETTINGS_BLOCKS: u32 = 8;
-pub const SETTINGS_BLOCK: u32 = 0x4C8;
 
 /// `effects::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
 /// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Only code no reference
@@ -152,10 +150,9 @@ pub fn scale_corners() {
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
 pub fn reset_settings_blocks() -> Result<(), Refused> {
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+        let marks = crate::effects::setup::marks()?;
         for n in (0..SETTINGS_BLOCKS).rev() {
-            let block = settings.wrapping_add(0x60 + n * SETTINGS_BLOCK);
-            let at = |o: u32| GamePtr::new(block + o);
+            let at = |o: u32| marks.cars[n as usize].at(o);
             for k in 0..6u32 {
                 let v = x87::loaded(
                     crate::effects::emitters::EMITTER.settings_start[k as usize].bits(),

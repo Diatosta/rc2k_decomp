@@ -31,7 +31,6 @@ use crate::effects::splines::SPLINE_HEAD;
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::At;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -41,10 +40,6 @@ use crate::scene::rotate_point::rotate_point;
 use crate::session::read_on_in;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// Why it refuses, if it does, worked out before anything is written.
 fn refusal() -> Option<&'static str> {
@@ -67,12 +62,10 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-    if get(settings + 0x8C)? != 0 {
-        crate::effects::add_mark_slot::add_mark_slot(
-            get(settings + 0x64)?,
-            MATRICES.view_place[0].addr(),
-        );
+    // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
+    let first = &crate::effects::setup::marks()?.cars[0];
+    if first.word(0x2C)? != 0 {
+        crate::effects::add_mark_slot::add_mark_slot(first.word(4)?, MATRICES.view_place[0].addr());
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
     for s in SLOTS.slots.iter().rev() {

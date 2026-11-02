@@ -27,7 +27,6 @@ use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::fog_at::fog_at;
 use crate::session::Dword;
 
@@ -65,10 +64,6 @@ impl Colours257 {
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const COLOURS_257) as usize
     }
-}
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
@@ -116,10 +111,9 @@ fn colour_at(i: usize) -> u32 {
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 fn refusal() -> Result<Option<&'static str>, Refused> {
     Ok({
-        let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if s == 0 {
+        let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
-        }
+        };
         let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = RING_WORK.cursor.get();
         let count = RING_WORK.count.get() as i32;
@@ -130,7 +124,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
             if e == 0 || eg(e, 0)? == 0 || eg(e, 4)? == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            if get(s + 0x60)? != 0 && eg(e, 0xC)? == STREAK {
+            if marks.cars[0].word(0)? != 0 && eg(e, 0xC)? == STREAK {
                 let life = eg(e, 0x84)?;
                 if life >= ticks && x87::compare_status(eg(e, 0x14)?, eg(e, 0x28)?) != 0x100 {
                     if fog_at(0).is_err() {
@@ -199,8 +193,11 @@ pub fn run_ribbons() -> Result<(), Refused> {
                 break;
             }
             let next = eg(e, 4)?;
-            let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-            if get(settings + 0x60)? != 0 && eg(e, 0xC)? == STREAK && streak(e)? {
+            // The settings' +0x60: the first car record's first word.
+            if crate::effects::setup::marks()?.cars[0].word(0)? != 0
+                && eg(e, 0xC)? == STREAK
+                && streak(e)?
+            {
                 RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
                 if e == RING_WORK.cursor.get() {
                     RING_WORK.cursor.set(eg(e, 4)?);
