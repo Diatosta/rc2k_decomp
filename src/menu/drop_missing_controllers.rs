@@ -23,12 +23,11 @@ const CAR_CONTROLLER: u32 = 0x2C;
 pub fn drop_missing_controllers() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::steps::kept_controller`.
     let most = DEVICES.controller_count.get();
-    for car in cars()? {
-        let controller = crate::pointers::GamePtr::new(car + CAR_CONTROLLER);
-        let c = controller.read::<u32>("a player's controller")?;
+    for car in cars() {
+        let c = car.get().word(CAR_CONTROLLER as usize);
         let kept = rc2k_core::menu::steps::kept_controller(c, most);
         if kept != c {
-            controller.write(kept, "a player's controller")?;
+            car.update(|p| p.store(&[(CAR_CONTROLLER as usize, kept)]));
         }
     }
     Ok(())

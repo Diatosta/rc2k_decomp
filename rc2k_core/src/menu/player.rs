@@ -190,6 +190,13 @@ impl Player {
         self.to_le_bytes()[at]
     }
 
+    /// Bytes stored by offset.
+    pub fn store_bytes(&mut self, at: usize, v: &[u8]) {
+        let mut b = self.to_le_bytes();
+        b[at..at + v.len()].copy_from_slice(v);
+        *self = Self::from_le_bytes(b);
+    }
+
     /// One byte stored by offset.
     pub fn store_byte(&mut self, at: usize, v: u8) {
         let mut b = self.to_le_bytes();

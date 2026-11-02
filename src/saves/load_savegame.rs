@@ -35,9 +35,7 @@ use crate::menu::go_back;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::pointers::GamePtr;
-use crate::saves::gather_savegame::{
-    CAR_LEN, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET, RECORDS_LEN, cars, head,
-};
+use crate::saves::gather_savegame::{CAR_LEN, NAME_LEN, NAME_OFFSET, RECORDS_LEN, cars, head};
 use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::{SAVE_GAMES, SLOTS};
@@ -129,14 +127,19 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
     game(Callee::AfterHead, &mut g)?;
 
     for car in cars {
-        let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
-        cursor.copy_to(GamePtr::new(car), CAR_LEN, "a saved car")?;
+        let name = car.get().name;
+        let saved: [u8; CAR_LEN] = cursor.read("a saved car")?;
+        car.set(rc2k_core::menu::player::Player::from_le_bytes(saved));
         // The file's own pointer is not to be trusted: the game's stays (a save's holds the
         // same place, unless the file was damaged).
-        GamePtr::new(car + NAME_PTR_OFFSET).write(name, "a player's record")?;
-        GamePtr::new(car + NAME_OFFSET).copy_to(GamePtr::new(name), NAME_LEN, "a player's name")?;
+        car.update(|p| p.name = name);
+        let bytes = car.get().to_le_bytes();
+        GamePtr::new(name).write_bytes(
+            &bytes[NAME_OFFSET as usize..NAME_OFFSET as usize + NAME_LEN],
+            "a player's name",
+        )?;
         cursor = cursor.offset(CAR_LEN as u32);
-        g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
+        g.palette = car.addr() + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
     }
     cursor.copy_to(
         GamePtr::new(crate::menu::drivers_store::drivers_addr()),
@@ -145,10 +148,8 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
     )?;
     g.cars = cursor.offset(RECORDS_LEN as u32).addr();
     g.clock = 0xB4;
-    SCREEN_FLOW
-        .start_section
-        .set(GamePtr::new(cars[0] + 0x14).read::<u32>("a player's record")?);
-    g.arg = GamePtr::new(cars[0] + 0x274).read::<u32>("a player's record")?;
+    SCREEN_FLOW.start_section.set(cars[0].get().word(0x14));
+    g.arg = cars[0].get().word(0x274);
     SCREEN_FLOW.start_section_a8.set(g.arg);
 
     game(Callee::EventState, &mut g)?;

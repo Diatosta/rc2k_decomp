@@ -24,14 +24,12 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Bytes, Dword, Float};
 
 /// A player's or a track's record: a game address.
-type Record = u32;
+type Record = crate::menu::standings::PlayerCell;
 
 // g_trakPakHeader (0x734BC6, `records::stages_store`): +0x34 the entries, 0x40 apart. An
 // entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
@@ -478,21 +476,17 @@ const SECOND_BACK_B: [(&Dword, u32); 6] = [
 ];
 
 fn field(rec: Record, off: u32) -> Result<u32, BadInput> {
-    GamePtr::new(rec.wrapping_add(off)).read("a player's record")
+    Ok(rec.get().word(off as usize))
 }
 
 fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(rec.wrapping_add(off)).write(v, "a player's record")
+    rec.update(|p| p.store(&[(off as usize, v)]));
+    Ok(())
 }
 
 /// `g_players`[n].
-pub fn player(n: u32) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        &PLAYER_TABLE,
-        &PLAYER_TABLE.pointers,
-        n as usize,
-        "the players",
-    )
+pub fn player(n: u32) -> Result<Record, BadInput> {
+    crate::menu::player::player(n).ok_or(BadInput("a player past the four"))
 }
 
 /// Words of a record into game variables, in order.
@@ -505,8 +499,7 @@ fn take_words(rec: Record, list: &[(u32, &Dword)]) -> Result<(), BadInput> {
 
 /// The 12 bytes at a record's +0x1C .. +0x27 into a car's `keys`.
 fn take_keys(rec: Record, keys: &Bytes<12>) -> Result<(), BadInput> {
-    let bytes = GamePtr::new(rec.wrapping_add(0x1C)).read_bytes(12, "a player's keys")?;
-    for (k, &b) in bytes.iter().enumerate() {
+    for (k, &b) in rec.get().keys.iter().enumerate() {
         keys.set(k, b);
     }
     Ok(())
@@ -564,8 +557,7 @@ fn give_outcome(rec: Record, o: &Outcome) -> Result<(), BadInput> {
             set_field(rec, 0x27C, o.word.get())?;
             let secs = crate::math::x87::to_int(o.secs.bits()) as u32;
             set_field(rec, 0x94, secs.wrapping_mul(10))?;
-            GamePtr::new(rec.wrapping_add(0x20C))
-                .write_bytes(&o.data.read(), "a player's record")?;
+            rec.update(|p| p.store_bytes(0x20C, &o.data.read()));
         }
     }
     Ok(())
@@ -585,9 +577,8 @@ fn guarded(
     kind: u32,
     step: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    if player(1)? == 0 || player(CURRENT.get())? == 0 {
-        return Err(crate::errors::BadInput("a player's record missing").into());
-    }
+    player(1)?;
+    player(CURRENT.get())?;
     single_rally(start, kind, step)
 }
 
@@ -651,13 +642,18 @@ fn single_rally(
     let mut entry = crate::records::stages_store::STAGE_TABLES
         .trak_pak()
         .wrapping_add(0x34);
-    while field(entry, 0x34)? != stage {
+    let track = |entry: u32, off: u32| -> Result<u32, BadInput> {
+        crate::pointers::GamePtr::new(entry.wrapping_add(off)).read("a track's record")
+    };
+    while track(entry, 0x34)? != stage {
         entry = entry.wrapping_add(0x40);
-        if field(entry, 0)? == u32::MAX {
+        if track(entry, 0)? == u32::MAX {
             return Err(UNKNOWN_TRACK.into());
         }
     }
-    take_words(entry, &TRACK_TO_RACE)?;
+    for &(off, to) in &TRACK_TO_RACE {
+        to.set(track(entry, off)?);
+    }
     for &(from, to) in &SETTINGS_TO_RACE {
         to.set(from.get());
     }
@@ -1955,11 +1951,13 @@ mod tests {
     use super::*;
     use crate::errors::BadInput;
     use crate::framework::{Regs, game_addr, rva};
+    use crate::menu::players_store::PLAYER_TABLE;
+    use crate::pointers::GamePtr;
 
     /// The tests share the game's memory.
     /// The size of the stand-in for the game's image: every variable of the function is below.
     const IMAGE_LEN: usize = 0x400000;
-    const RECORD_LEN: usize = 0x300;
+    const RECORD_LEN: usize = 0x28C;
 
     struct Rng(u64);
     impl Rng {
@@ -1977,11 +1975,7 @@ mod tests {
     /// The game's memory for the tests: the image's stand-in (random bytes, `BASE` at its
     /// start, for the variables that have not moved to statics) and the players' records.
     struct World {
-        /// The records as regions while the world lives. (Declared first: fields drop in
-        /// order, and the regions must go before the records do.)
-        _regions: Vec<crate::pointers::TestRegion>,
         image: usize,
-        records: Vec<Vec<u8>>,
         /// Every range the table (and its calls' stand-ins) reads or writes: (address, length).
         ranges: Vec<(usize, usize)>,
     }
@@ -2001,7 +1995,6 @@ mod tests {
                     .write(rng.next() as u8);
             };
         }
-        let records: Vec<Vec<u8>> = (0..4).map(|_| vec![0u8; RECORD_LEN]).collect();
         let mut ranges = Vec::new();
         for op in SINGLE_RALLY.iter() {
             match *op {
@@ -2022,22 +2015,13 @@ mod tests {
         ] {
             ranges.push((a as usize, len));
         }
-        let _regions = records
-            .iter()
-            .map(|r| crate::pointers::TestRegion::new(r))
-            .collect();
-        for r in &records {
-            ranges.push((
-                crate::pointers::game_address(r.as_ptr()) as usize,
-                RECORD_LEN,
-            ));
+        for r in &PLAYER_TABLE.players {
+            ranges.push((r.addr() as usize, RECORD_LEN));
         }
         ranges.sort_unstable();
         ranges.dedup();
         World {
-            _regions,
             image: base as usize,
-            records,
             ranges,
         }
     }
@@ -2096,7 +2080,6 @@ mod tests {
         /// The +0xD0 word of each record.
         d0: [u32; 4],
         /// Records `g_players` has no entry for (0).
-        missing: [bool; 4],
         stage: u32,
         /// The entry of the track list holding the stage, or the entry the list ends at.
         entry: usize,
@@ -2196,14 +2179,9 @@ mod tests {
                     crate::pointers::host_at(a + i).write(rng.next() as u8);
                 }
             }
-            for (k, r) in w.records.iter().enumerate() {
-                PLAYER_TABLE.pointers[k].set(if c.missing[k] {
-                    0
-                } else {
-                    crate::pointers::game_address(r.as_ptr())
-                });
-                set_field(crate::pointers::game_address(r.as_ptr()), 0xD0, c.d0[k])
-                    .expect("the test's memory is registered");
+            for (k, r) in PLAYER_TABLE.players.iter().enumerate() {
+                PLAYER_TABLE.pointers[k].set(r.addr());
+                set_field(r, 0xD0, c.d0[k]).expect("the record is there");
             }
             EVENT_MODE.set(c.mode);
             PLAYER_COUNT.set(c.count);
@@ -2218,19 +2196,27 @@ mod tests {
                 if id == c.stage {
                     id ^= 1;
                 }
-                set_field(entry(k), 0x34, id).expect("the test's memory is registered");
+                GamePtr::new(entry(k).wrapping_add(0x34))
+                    .write(id, "a test variable")
+                    .unwrap();
                 if k > 0 {
                     let mut s = rng.next();
                     if s == u32::MAX {
                         s = 0;
                     }
-                    set_field(entry(k), 0, s).expect("the test's memory is registered");
+                    GamePtr::new(entry(k).wrapping_add(0))
+                        .write(s, "a test variable")
+                        .unwrap();
                 }
             }
             if c.found {
-                set_field(entry(c.entry), 0x34, c.stage).expect("the test's memory is registered");
+                GamePtr::new(entry(c.entry).wrapping_add(0x34))
+                    .write(c.stage, "a test variable")
+                    .unwrap();
             } else {
-                set_field(entry(c.entry), 0, u32::MAX).expect("the test's memory is registered");
+                GamePtr::new(entry(c.entry).wrapping_add(0))
+                    .write(u32::MAX, "a test variable")
+                    .unwrap();
             }
         }
     }
@@ -2251,9 +2237,7 @@ mod tests {
                 log: Vec::new(),
                 rng: Rng(c.seed ^ 0x55AA),
             };
-            let result = if player(1).unwrap() == 0 || player(CURRENT.get()).unwrap() == 0 {
-                Err(BadInput("a player's record missing").into())
-            } else {
+            let result = {
                 super::table::run(
                     &SINGLE_RALLY,
                     c.start,
@@ -2310,7 +2294,6 @@ mod tests {
                 count,
                 current,
                 d0: [(); 4].map(|_| rng.pick(&[1, 1, 0, 2])),
-                missing: [false, false, false, current == 3],
                 stage: rng.next(),
                 entry: if found {
                     rng.pick(&[0, 1, 2, 4])
@@ -2363,12 +2346,6 @@ mod tests {
                 }
             }
         }
-        // A player's record missing: player 1, and the current.
-        for mode in [5, 9] {
-            let mut c = make(&mut rng, 3, 1, mode, 2, 1);
-            c.missing = [false, true, false, false];
-            out.push(c);
-        }
         out
     }
 
@@ -2383,8 +2360,13 @@ mod tests {
         // A first check that the stand-in memory is there.
         RACE_INFO.set(0x1234_5678);
         assert_eq!(RACE_INFO.get(), 0x1234_5678);
-        let (mut done, mut fatal, mut failed, mut missing, mut engine, mut early, mut results) =
-            (0, 0, 0, 0, 0, 0, 0);
+        let kept_players: Vec<_> = PLAYER_TABLE
+            .players
+            .iter()
+            .map(crate::session::Shared::get)
+            .collect();
+        let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =
+            (0, 0, 0, 0, 0, 0);
         let cases = cases();
         for (n, c) in cases.iter().enumerate() {
             unsafe {
@@ -2405,7 +2387,7 @@ mod tests {
                     Ok(()) => done += 1,
                     Err(Refused::Fatal(_)) => fatal += 1,
                     Err(Refused::BadInput(BadInput("injected"))) => failed += 1,
-                    Err(_) => missing += 1,
+                    Err(e) => panic!("case {n}: an unexpected refusal: {e:?}"),
                 }
                 let places: Vec<u32> = reference.1.iter().map(|&(p, _)| p).collect();
                 engine += places.contains(&11) as u32;
@@ -2414,15 +2396,12 @@ mod tests {
             }
         }
         assert!(
-            done > 100
-                && fatal > 10
-                && failed > 20
-                && missing > 0
-                && engine > 20
-                && early > 5
-                && results > 10,
-            "coverage: {done} {fatal} {failed} {missing} {engine} {early} {results}"
+            done > 100 && fatal > 10 && failed > 20 && engine > 20 && early > 5 && results > 10,
+            "coverage: {done} {fatal} {failed} {engine} {early} {results}"
         );
         crate::moved::restore(&first);
+        for (cell, kept) in PLAYER_TABLE.players.iter().zip(kept_players) {
+            cell.set(kept);
+        }
     }
 }

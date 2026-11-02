@@ -37,26 +37,18 @@ pub fn head() -> [&'static Dword; 7] {
         &MENU_STATE.menus.class_mode,
     ]
 }
+pub use rc2k_core::saves::savegame::NAME_AT as NAME_OFFSET;
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, NAME_LEN, RECORDS_LEN};
-pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAME_PTR_OFFSET};
 
-/// The four players, if every one is there and has its pointer at +0x18.
-pub fn cars() -> Result<[u32; CARS], BadInput> {
-    let mut cars = [0u32; CARS];
-    for (n, car) in cars.iter_mut().enumerate() {
-        *car = PLAYER_TABLE.pointers[n].get();
-        if *car == 0 {
-            return Err(BadInput(
-                "a player is missing: the original reads through null",
-            ));
-        }
-        if GamePtr::new(*car + NAME_PTR_OFFSET).read::<u32>("a player's record")? == 0 {
-            return Err(BadInput(
-                "a car has no pointer at +0x18: the original reads through null",
-            ));
-        }
+/// The four players, if every one has its pointer at +0x18.
+pub fn cars()
+-> Result<&'static [crate::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
+    if PLAYER_TABLE.players.iter().any(|p| p.get().name == 0) {
+        return Err(BadInput(
+            "a car has no pointer at +0x18: the original reads through null",
+        ));
     }
-    Ok(cars)
+    Ok(&PLAYER_TABLE.players)
 }
 
 // ---- Rust version ----
@@ -69,17 +61,18 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
             .offset(4 * n as u32)
             .write(at.get(), "the savegame's head")?;
     }
-    GamePtr::new(cars[0] + CAR0_A).write(SCREEN_FLOW.start_section.get(), "a player's record")?;
-    GamePtr::new(cars[0] + CAR0_B)
-        .write(SCREEN_FLOW.start_section_a8.get(), "a player's record")?;
-    for (n, car) in cars.into_iter().enumerate() {
-        let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
-        GamePtr::new(name).copy_to(GamePtr::new(car + NAME_OFFSET), NAME_LEN, "a player's name")?;
-        GamePtr::new(car).copy_to(
-            buffer.offset((car_at(n)) as u32),
-            CAR_LEN,
-            "a player's record",
-        )?;
+    cars[0].update(|p| {
+        p.store(&[
+            (CAR0_A as usize, SCREEN_FLOW.start_section.get()),
+            (CAR0_B as usize, SCREEN_FLOW.start_section_a8.get()),
+        ]);
+    });
+    for (n, car) in cars.iter().enumerate() {
+        let name = GamePtr::new(car.get().name).read_bytes(NAME_LEN, "a player's name")?;
+        car.update(|p| p.store_bytes(NAME_OFFSET as usize, &name));
+        buffer
+            .offset(car_at(n) as u32)
+            .write_bytes(&car.get().to_le_bytes(), "a player's record")?;
     }
     GamePtr::new(crate::menu::drivers_store::drivers_addr()).copy_to(
         buffer.offset(RECORDS_AT as u32),

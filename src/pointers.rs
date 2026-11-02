@@ -878,10 +878,6 @@ impl Drop for Lent {
     }
 }
 
-/// The tests' name for a lent buffer.
-#[cfg(test)]
-pub type TestRegion = Lent;
-
 #[cfg(test)]
 mod tests {
     use super::*;
