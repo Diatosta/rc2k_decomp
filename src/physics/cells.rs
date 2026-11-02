@@ -52,11 +52,6 @@ impl Trap {
         self.keep(crate::pointers::GamePtr::new(a).read::<u8>(what))
     }
 
-    /// The word at `a`.
-    pub fn word(&self, a: u32, what: &str) -> u16 {
-        self.keep(crate::race::course_places::read::<u16>(a, what))
-    }
-
     /// Whether a refusal has been kept.
     pub fn failed(&self) -> bool {
         self.0.get().is_some()

@@ -406,6 +406,15 @@ impl Face {
         u32::from_le_bytes(self.0[at..at + 4].try_into().unwrap_or_default())
     }
 
+    /// The dword at byte `at`, for code that takes the field's offset from a table (the
+    /// ground search's corners and edges).
+    pub fn dword_at(&self, at: u32) -> u32 {
+        self.0
+            .get(at as usize..)
+            .and_then(|rest| rest.first_chunk())
+            .map_or(0, |b| u32::from_le_bytes(*b))
+    }
+
     /// +0: the kind and flags (`LIT_KIND` for the lit faces and the cameras).
     pub fn kind(&self) -> u8 {
         self.0[0]

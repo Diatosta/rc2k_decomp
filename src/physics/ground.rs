@@ -129,18 +129,15 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
     }
     COURSE.ground_number.set(number);
     let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-    let kind = crate::race::course_places::read::<u8>(face, "a course face's kind")?;
+    // The face read once: its kind, flags, corners and edges.
+    let f = crate::race::course_places::face(face, "a course face")?;
     let trap = Trap::new();
     // One edge.
     let side = |from: u32, to: u32| -> Option<bool> {
         if trap.failed() {
             return None;
         }
-        let s = at(face + from)
-            .and_then(|f| Ok((f, at(face + to)?)))
-            .map_err(Refused::from)
-            .and_then(|(f, t)| edge_side(point(f), point(t)));
-        match s {
+        match edge_side(point(f.dword_at(from)), point(f.dword_at(to))) {
             Ok(s) => (s.zero == Some(true)).then_some(s.carry),
             Err(e) => {
                 trap.refuse(e);
@@ -149,12 +146,12 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         }
     };
     let test = ground_search::face_under_point(
-        kind,
-        || trap.word(face + 2, "a course face's flags"),
+        f.kind(),
+        || f.switches(),
         crate::physics::ground_probe_store::GROUND_PROBE
             .settle_mark
             .get(),
-        |o| trap.dword(face + o, "a course face's corner"),
+        |o| f.dword_at(o),
         side,
     );
     trap.finish()?;
@@ -162,12 +159,10 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
         FaceTest::Inside { half, corners } => (half, corners),
     };
-    let number = COURSE.ground_number.get();
-    COURSE.ground_slot.set(number);
-    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
+    COURSE.ground_slot.set(COURSE.ground_number.get());
     COURSE.ground_half.set(half);
     for (k, &o) in corners.iter().enumerate() {
-        let corner = at(face + o)?;
+        let corner = f.dword_at(o);
         GROUND_WORK.face_corner_numbers[k].set(corner);
         COURSE.ground_corners[k].set(corner);
     }
