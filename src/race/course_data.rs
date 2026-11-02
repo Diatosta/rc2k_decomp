@@ -57,18 +57,16 @@ pub fn reset_face_lights() -> Result<(), Refused> {
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
-        let faces: u32 = COURSE.course_faces.bits();
         const FACE: usize = rc2k_core::race::faces::FACE_BYTES;
-        let all =
-            crate::race::course_places::bytes(faces, count as usize * FACE, "the course faces")?;
+        let all = crate::race::course_places::faces_table(count, "the course faces")?;
         for (n, bytes) in all.as_chunks::<FACE>().0.iter().enumerate() {
             let mut face = *bytes;
             let kept = face;
             rc2k_core::race::faces::reset_lights(&mut face);
             if face != kept {
-                crate::race::course_places::write(
-                    faces.wrapping_add((n as u32) << 6),
-                    face,
+                crate::race::course_places::write_face_number(
+                    n as u32,
+                    rc2k_core::race::faces::Face(face),
                     "a course face",
                 )?;
             }
@@ -91,9 +89,7 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
-        let records: u32 = COURSE.course_records.bits();
-        let bytes =
-            crate::race::course_places::bytes(records, count as usize * 32, "the course records")?;
+        let bytes = crate::race::course_places::records_table(count, "the course records")?;
         let mut list: Vec<[u32; 8]> = bytes
             .as_chunks::<32>()
             .0
@@ -109,7 +105,7 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
             .iter()
             .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
             .collect();
-        crate::race::course_places::write_bytes(records, &out, "the course records")?;
+        crate::race::course_places::write_records_table(&out, "the course records")?;
         for kind in 0..KINDS as usize {
             KIND_RECORDS.first_records[kind].set(grouped.first[kind]);
             KIND_RECORDS.last_records[kind].set(grouped.last[kind]);

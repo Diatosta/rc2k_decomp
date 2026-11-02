@@ -18,17 +18,12 @@ use crate::physics::face_contact;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::ground_search;
 
-fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(crate::race::course_places::read::<u32>(
-        x,
-        "a course record's face number",
-    )?)
-}
-
 /// The record's (first, last) faces.
 pub fn record_faces(n: u32) -> Result<(u32, u32), Refused> {
-    let at = (n << 5).wrapping_add(COURSE.course_records.get());
-    Ok((rd(at + 8)?, rd(at + 0xC)?))
+    let rd = |offset| {
+        crate::race::course_places::record_field::<u32>(n, offset, "a course record's face number")
+    };
+    Ok((rd(8)?, rd(0xC)?))
 }
 
 /// The steps for course record `record` (ebx), not guarded: each of its faces by

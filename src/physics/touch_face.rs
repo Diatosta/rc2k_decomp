@@ -22,18 +22,17 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 
 use crate::math::next_random::next_random;
-use crate::physics::flow::{a, c0, g, p};
+use crate::physics::flow::{a, c0, p};
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
 fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
     let angle = CONTACT_WORK.face_angle.get() as u8;
-    crate::race::course_places::update_face(face, "a touched face", |f| {
+    crate::race::course_places::update_face_number(face, "a touched face", |f| {
         f.touch(mark as u8, angle, clear_9);
     })
 }
@@ -42,8 +41,8 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
 pub fn touch_face() -> Result<(), Refused> {
     let number = CONTACT_WORK.face_number.get();
-    let face = (number << 6).wrapping_add(g(&COURSE.course_faces));
-    if crate::race::course_places::face(face, "a touched face")?.mark() != 0 {
+    let face = number;
+    if crate::race::course_places::face_number(face, "a touched face")?.mark() != 0 {
         return Ok(());
     }
     let count = CONTACT_WORK.lit_face_count.get();
@@ -73,7 +72,7 @@ pub fn touch_face() -> Result<(), Refused> {
             Touch::Chance => {
                 let (_, lucky) = lucky(next_random());
                 if lucky {
-                    crate::race::course_places::update_face(face, "a touched face", |f| {
+                    crate::race::course_places::update_face_number(face, "a touched face", |f| {
                         f.set_mark(0xF);
                     })?;
                     CONTACT_WORK.lit_face_count.set(count + 1);

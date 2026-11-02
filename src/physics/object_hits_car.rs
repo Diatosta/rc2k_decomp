@@ -34,7 +34,7 @@ use rc2k_core::physics::contacts;
 /// address) are read by none of its callers.
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
-pub fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
+pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
     let number = CONTACT_WORK.face_object.get();
     contacts::check_object(number)?;
     { object_turn_matrix() }?;
@@ -78,15 +78,15 @@ pub fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
             for (k, e) in turned.iter().enumerate() {
                 CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
             }
-            // `point` is the scene point's place (`race::scene_points`, from `face_contact`).
-            let place = match crate::race::scene_points::point(point) {
+            // `point` is the scene point's number (from `face_contact`).
+            let place = match crate::race::scene_points::point_number(point) {
                 Ok(p) => p,
                 Err(e) => {
                     refused.set(Some(e.into()));
                     return false;
                 }
             };
-            match point_hits_car(place, object) {
+            match point_hits_car(place, face) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

@@ -20,10 +20,6 @@ use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
-fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::race::course_places::read::<u32>(a, "a checkpoint face or scene point")
-}
-
 /// The Rust version.
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
@@ -39,17 +35,13 @@ pub fn checkpoint_offset() -> Result<(), Refused> {
     }
     let angle = crate::race::checkpoints_store::angle(c as usize).get();
     let face = crate::race::checkpoints_store::face(c as usize).get();
-    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-    let point = at(f + 4)?;
-    let pt = point
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.get());
+    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")?;
     let x = CAR.position[0]
         .get()
-        .wrapping_sub(crate::race::scene_points::word(pt)?);
+        .wrapping_sub(crate::race::scene_points::point_word(point, 0)?);
     let z = CAR.position[2]
         .get()
-        .wrapping_sub(crate::race::scene_points::word(pt + 8)?);
+        .wrapping_sub(crate::race::scene_points::point_word(point, 2)?);
     let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
     CAR.checkpoint_offset[0].set(x2);
     CAR.checkpoint_offset[1].set(z2);

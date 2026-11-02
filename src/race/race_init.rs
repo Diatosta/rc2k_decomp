@@ -6,7 +6,6 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
@@ -110,8 +109,11 @@ pub fn first_check_checkpoint() -> Result<u32, Refused> {
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-        let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        trap.face(address, "a checkpoint face").check()
+        trap.keep_read(crate::race::course_places::face_number(
+            face,
+            "a checkpoint face",
+        ))
+        .check()
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

@@ -15,7 +15,8 @@ use crate::physics::ground_probe_store::GROUND_PROBE;
 use crate::physics::ground_store::GROUND_WORK;
 use rc2k_core::physics::faces;
 
-/// The Rust version: the ground point's side of the edge `from` .. `to` (scene points).
+/// The Rust version: the ground point's side of the edge from scene point `from` to `to`
+/// (their numbers).
 pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refused> {
     let result = |eax, carry, zero| FlagResult {
         eax,
@@ -25,10 +26,10 @@ pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refuse
         zero: Some(zero),
     };
     let point = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
-    let scene = |a: u32| -> Result<(u32, u32), crate::errors::BadInput> {
+    let scene = |n: u32| -> Result<(u32, u32), crate::errors::BadInput> {
         Ok((
-            crate::race::scene_points::word(a)?,
-            crate::race::scene_points::word(a + 8)?,
+            crate::race::scene_points::point_word(n, 0)?,
+            crate::race::scene_points::point_word(n, 2)?,
         ))
     };
     Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {

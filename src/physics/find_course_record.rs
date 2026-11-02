@@ -31,8 +31,11 @@ pub fn find_course_record(key: u32) -> Result<Option<u32>, Refused> {
     let last = KIND_RECORDS.last_records[kind as usize].get();
     let trap = Trap::new();
     let found = find_record(key, first, last, COURSE.course_record_count.bits(), |n| {
-        let record = COURSE.course_records.get().wrapping_add(n << 5);
-        trap.dword(record, "a course record's key")
+        trap.keep(crate::race::course_places::record_field::<u32>(
+            n,
+            0,
+            "a course record's key",
+        ))
     })?;
     trap.finish()?;
     Ok(match found {

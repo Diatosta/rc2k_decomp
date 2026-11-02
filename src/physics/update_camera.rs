@@ -73,12 +73,13 @@ fn fixed_camera(second: bool) -> Result<(), crate::errors::BadInput> {
         crate::race::checkpoints_store::nth(nearest, CAR.checkpoint.get() as usize).get() as usize,
     )
     .get();
-    let face = (face << 6).wrapping_add(COURSE.course_faces.get());
-    let point = rd(face + 4)
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.get());
+    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")
+        .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
-        CAR.camera_position[k as usize].set(crate::race::scene_points::word_or_end(point + 4 * k));
+        CAR.camera_position[k as usize].set(
+            crate::race::scene_points::point_word(point, k)
+                .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
+        );
     }
     crate::physics::camera_height_bias::camera_height_bias()?;
     let d = |k: usize| {

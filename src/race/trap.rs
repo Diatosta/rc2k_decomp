@@ -52,14 +52,6 @@ impl Trap {
         }
     }
 
-    /// As `course`, a whole face (`race::course_places::face`).
-    pub fn face(&self, at: u32, what: &str) -> rc2k_core::race::faces::Face {
-        crate::race::course_places::face(at, what).unwrap_or_else(|e| {
-            self.keep(e);
-            Default::default()
-        })
-    }
-
     /// Keeps a refusal met elsewhere in the closure.
     pub fn keep(&self, e: BadInput) {
         if self.refused.get().is_none() {

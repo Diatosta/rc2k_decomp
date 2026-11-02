@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::trap::Trap;
@@ -220,7 +219,6 @@ pub fn init_checkpoints() -> Result<(), Refused> {
             return Ok(());
         }
         let end = RACE_VARS.last_checkpoint.get();
-        let records = COURSE.course_faces.get();
         let table = &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
@@ -230,8 +228,11 @@ pub fn init_checkpoints() -> Result<(), Refused> {
                 n as usize,
                 "the checkpoint table",
             ));
-            let record = (face << 6).wrapping_add(records);
-            trap.course::<u8>(record + 0x26, "a checkpoint face") != 0
+            trap.keep_read(crate::race::course_places::face_field::<u8>(
+                face,
+                0x26,
+                "a checkpoint face",
+            )) != 0
         })?;
         trap.finish()?;
         SPLIT_TABLES.split_colour_count.set(0);

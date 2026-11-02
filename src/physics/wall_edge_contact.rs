@@ -30,17 +30,16 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::{a, copy_cells};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::fild;
 use rc2k_core::physics::walls;
 
-fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(crate::race::course_places::read::<u32>(
-        x,
-        "a face's or scene point's dword",
-    )?)
+/// The four corners (scene point numbers) of face `face`.
+fn corners(face: u32) -> Result<[u32; 4], Refused> {
+    let corner =
+        |k: u32| crate::race::course_places::face_field::<u32>(face, 4 + 4 * k, "a face's corner");
+    Ok([corner(0)?, corner(1)?, corner(2)?, corner(3)?])
 }
 
 /// The normal across the edge from scene point `first` to `second` (0x45DAAA ..
@@ -50,12 +49,11 @@ fn rd(x: u32) -> Result<u32, Refused> {
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
 pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
-    let point = |k: u32| k.wrapping_mul(12).wrapping_add(COURSE.scene_points.get());
-    let rd = crate::race::scene_points::word;
-    PHYSICS.edge_points[0].set(rd(point(first))?);
-    PHYSICS.edge_points[1].set(rd(point(first) + 8)?);
-    PHYSICS.edge_points[2].set(rd(point(second))?);
-    PHYSICS.edge_points[3].set(rd(point(second) + 8)?);
+    let rd = crate::race::scene_points::point_word;
+    PHYSICS.edge_points[0].set(rd(first, 0)?);
+    PHYSICS.edge_points[1].set(rd(first, 2)?);
+    PHYSICS.edge_points[2].set(rd(second, 0)?);
+    PHYSICS.edge_points[3].set(rd(second, 2)?);
     let dx = PHYSICS.edge_points[2]
         .get()
         .wrapping_sub(PHYSICS.edge_points[0].get());
@@ -85,21 +83,9 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps() -> Result<(), Refused> {
-    let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(COURSE.course_faces.get());
-    let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(COURSE.course_faces.get());
-    let corners = [
-        rd(face + 4)?,
-        rd(face + 8)?,
-        rd(face + 0xC)?,
-        rd(face + 0x10)?,
-    ];
-    let wall_corners = [
-        rd(wall + 4)?,
-        rd(wall + 8)?,
-        rd(wall + 0xC)?,
-        rd(wall + 0x10)?,
-    ];
-    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], corners);
+    let face_corners = corners(CONTACT_WORK.wall_face_now.get())?;
+    let wall_corners = corners(CONTACT_WORK.wall_face_before.get())?;
+    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
         return crate::physics::wall_push_back::steps();
     }

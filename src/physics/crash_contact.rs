@@ -36,7 +36,6 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -63,10 +62,10 @@ pub fn sign(v: u32) -> bool {
 /// `dword_6D3090` ...
 pub fn take_contact(n: usize) -> Result<(), Refused> {
     copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(COURSE.course_faces.get());
+    let face = CAR.probe_point_face[n].get();
     let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
-    for (k, o) in parts.iter().enumerate() {
-        let v = crate::race::course_places::read::<u32>(face + o, "a face's normal")?;
+    for (k, &o) in parts.iter().enumerate() {
+        let v = crate::race::course_places::face_field::<u32>(face, o, "a face's normal")?;
         CONTACT_WORK.contact_normal[k].set_bits(loaded(v));
     }
     copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);

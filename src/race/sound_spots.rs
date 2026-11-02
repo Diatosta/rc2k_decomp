@@ -27,8 +27,9 @@ fn grid_cell(c: u32) -> Result<u32, BadInput> {
     )
 }
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(a, "a sound spot face or point")
+/// Field `offset` of course record `record`.
+fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
+    crate::race::course_places::record_field(record, offset, "a sound spot record")
 }
 
 /// The 25 cells' numbers, in the original's order (five across, then on by 0x1C after
@@ -71,11 +72,10 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
 pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
     use crate::race::skidmarks::int_80;
     {
-        let face = COURSE.course_faces.bits().wrapping_add(face_number << 6);
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
-        let f = crate::race::course_places::face(face, "a sound spot face")?;
+        let f = crate::race::course_places::face_number(face_number, "a sound spot face")?;
         let kind = f.kind();
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
@@ -99,14 +99,11 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             )
         };
         put(0x10, sound)?;
-        let point = get(face + 4)?;
+        let point = f.point(0);
         put(0, point)?;
-        let p = point
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.bits());
         let place = spot_place(
-            crate::race::scene_points::point(p)?,
-            [get(face + 0x30)?, get(face + 0x34)?, get(face + 0x38)?],
+            crate::race::scene_points::point_number(point)?,
+            [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);
         let t =
@@ -130,15 +127,14 @@ pub fn cell_sound_spots(cell: u32) -> Result<(), BadInput> {
         if record >= rc2k_core::race::view::NO_RECORD {
             return Ok(());
         }
-        let at = COURSE.course_records.bits().wrapping_add(record << 5);
-        let mut face = get(at + 8)?;
-        if rc2k_core::race::view::record_faces(face, get(at + 0xC)?).is_none() {
+        let mut face = record_field(record, 8)?;
+        if rc2k_core::race::view::record_faces(face, record_field(record, 0xC)?).is_none() {
             return Ok(());
         }
         loop {
             face_sound_spot(face)?;
             face = face.wrapping_add(1);
-            if face > get(at + 0xC)? {
+            if face > record_field(record, 0xC)? {
                 break;
             }
         }

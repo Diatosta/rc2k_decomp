@@ -29,7 +29,6 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::session::Float;
 use rc2k_core::physics::walls;
@@ -39,13 +38,6 @@ fn copy3(to: &[Float], from: &[Float]) {
     for k in 0..3 {
         to[k].set_bits(from[k].bits());
     }
-}
-
-fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(crate::race::course_places::read::<u32>(
-        x,
-        "a face's or scene point's dword",
-    )?)
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
@@ -80,14 +72,14 @@ pub fn steps() -> Result<(), Refused> {
     figures[2].set(CONTACT_WORK.probe_x[k].get());
     figures[3].set(CONTACT_WORK.probe_z[k].get());
     figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
-    let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(COURSE.course_faces.get());
+    let face = CONTACT_WORK.crossed_figures[4].get();
     for j in 0..4u32 {
-        let point = rd(face + 4 + 4 * j)?
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.get());
-        CONTACT_WORK.crossed_corners[2 * j as usize].set(crate::race::scene_points::word(point)?);
+        let point =
+            crate::race::course_places::face_field::<u32>(face, 4 + 4 * j, "a face's corner")?;
+        CONTACT_WORK.crossed_corners[2 * j as usize]
+            .set(crate::race::scene_points::point_word(point, 0)?);
         CONTACT_WORK.crossed_corners[2 * j as usize + 1]
-            .set(crate::race::scene_points::word(point + 8)?);
+            .set(crate::race::scene_points::point_word(point, 2)?);
     }
     let corner = |j: usize| {
         (
@@ -100,7 +92,9 @@ pub fn steps() -> Result<(), Refused> {
         let (x, z) = corner(j);
         side(x, z)
     });
-    let (from, to) = (rd(face + first)?, rd(face + second)?);
+    let corner_point =
+        |at| crate::race::course_places::face_field::<u32>(face, at, "a face's corner");
+    let (from, to) = (corner_point(first)?, corner_point(second)?);
     PHYSICS.crossed_edge[0].set(from);
     PHYSICS.crossed_edge[1].set(to);
     edge_normal(from, to)?;

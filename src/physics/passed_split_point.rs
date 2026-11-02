@@ -84,7 +84,7 @@ fn angle_at(s: usize) {
     DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
 }
 
-/// The split's checkpoint, its face and the face's first point (esi), refused or fatal
+/// The split's checkpoint, its face and the face's first point's number, refused or fatal
 /// as said.
 fn point() -> Result<(u32, u32, u32), Refused> {
     let split = CAR.splits_passed.get();
@@ -101,18 +101,13 @@ fn point() -> Result<(u32, u32, u32), Refused> {
     if COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-    let index = crate::race::course_places::read_or_end::<u32>(
-        (f + 4) as u32,
+    let index = crate::race::course_places::face_field::<u32>(
+        face,
+        4,
         "physics::passed_split_point's operand",
-    );
-    Ok((
-        cp,
-        index,
-        index
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.get()),
-    ))
+    )
+    .unwrap_or_else(|e| crate::fatal::raise::end("physics::passed_split_point's operand", e));
+    Ok((cp, index, index))
 }
 
 /// The Rust version: whether the car has passed the split's point (CF). The registers it
@@ -125,7 +120,7 @@ pub fn passed_split_point() -> Result<bool, Refused> {
     }
     let (cp, _, pt) = point()?;
     // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
-    let pt = crate::race::scene_points::point(pt)?;
+    let pt = crate::race::scene_points::point_number(pt)?;
     GROUND_WORK.ground_x.set(CAR.position[0].get());
     GROUND_WORK.ground_z.set(CAR.position[2].get());
     distance(pt);

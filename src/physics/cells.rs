@@ -28,7 +28,7 @@ impl Trap {
         Self::default()
     }
 
-    fn keep<T: Default>(&self, r: Result<T, crate::errors::BadInput>) -> T {
+    pub fn keep<T: Default>(&self, r: Result<T, crate::errors::BadInput>) -> T {
         r.unwrap_or_else(|e| {
             self.refuse(e);
             T::default()

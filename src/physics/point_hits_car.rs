@@ -32,11 +32,12 @@ use crate::scene::matrix3::rounded;
 use rc2k_core::physics::contacts;
 
 /// The Rust version: whether the point `point` (its three whole numbers, read by the
-/// caller) of the object at `object` is inside.
+/// caller) of the object of course face `face` (its number; its place at +0x30) is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
-pub fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
-    let rd = |x: u32, what: &str| crate::race::course_places::read::<u32>(x, what);
+pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
+    let rd =
+        |offset: u32, what: &str| crate::race::course_places::face_field::<u32>(face, offset, what);
     PHYSICS
         .point_hits
         .set(PHYSICS.point_hits.get().wrapping_add(1));
@@ -44,7 +45,7 @@ pub fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
     for k in 0..3u32 {
         let v = contacts::point_part(
             point[k as usize],
-            rd(object + 0x30 + 4 * k, "an object's place")?,
+            rd(0x30 + 4 * k, "an object's place")?,
             CONTACT_WORK.object_offset[k as usize].get(),
             CAR.position[k as usize].get(),
         );

@@ -43,10 +43,7 @@ pub fn normalise_work_vector() {
 pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
-            Ok(
-                crate::race::scene_points::point(crate::race::scene_points::place(n))?
-                    .map(|v| v as i32),
-            )
+            Ok(crate::race::scene_points::point_number(n)?.map(|v| v as i32))
         };
         let (a, b, c) = (point(a)?, point(b)?, point(c)?);
         let d = [
@@ -91,10 +88,9 @@ pub fn store_face_normal(
         use rc2k_core::race::faces::{
             NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
         };
-        let faces: u32 = COURSE.course_faces.bits();
-        let face = faces.wrapping_add(face_number << 6);
+        let face = face_number;
         let what = "a course face";
-        let f = crate::race::course_places::face(face, what)?;
+        let f = crate::race::course_places::face_number(face, what)?;
         if !takes_normals(f.kind()) {
             return Ok(());
         }
@@ -103,7 +99,7 @@ pub fn store_face_normal(
             corners,
             || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
-        crate::race::course_places::update_face(face, what, |f| {
+        crate::race::course_places::update_face_number(face, what, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));
         })?;
         let count: u32 = COURSE.scene_point_count.bits();
@@ -114,7 +110,12 @@ pub fn store_face_normal(
             }
             let work: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
             for (place, value) in places.into_iter().zip(work) {
-                crate::race::course_places::write(face + place, value, "a course face normal")?;
+                crate::race::course_places::write_face_field(
+                    face,
+                    place,
+                    value,
+                    "a course face normal",
+                )?;
             }
         }
     }

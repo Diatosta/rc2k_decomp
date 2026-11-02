@@ -20,20 +20,14 @@ use crate::session::Dword;
 /// The entries `g_checkpointFaces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(at, "a course point or face word")
+/// Field `offset` of course face `face`.
+fn face_field<T: crate::race::course_places::Whole>(face: u32, offset: u32) -> Result<T, BadInput> {
+    crate::race::course_places::face_field(face, offset, "a course face")
 }
 
-fn byte(at: u32) -> Result<u8, BadInput> {
-    crate::race::course_places::read(at, "a course face byte")
-}
-
-/// Checkpoint n's face.
+/// Checkpoint n's face (its number).
 fn check_face(n: u32) -> u32 {
-    {
-        let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-        (face << 6).wrapping_add(COURSE.course_faces.bits())
-    }
+    crate::race::checkpoints_store::face(n as usize).get()
 }
 
 fn count() -> Result<u32, Refused> {
@@ -81,7 +75,12 @@ pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
     let n = count()?;
     let trap = Trap::new();
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
-        trap.face(check_face(c), "a checkpoint face").map_place() != (0, 0)
+        trap.keep_read(crate::race::course_places::face_number(
+            check_face(c),
+            "a checkpoint face",
+        ))
+        .map_place()
+            != (0, 0)
     });
     trap.finish()?;
     if anchor.is_some() {
@@ -103,7 +102,11 @@ pub fn count_checks() -> Result<(), Refused> {
     }
     let trap = Trap::new();
     let counts = rc2k_core::race::checkpoints::check_counts(n, |k| {
-        trap.face(check_face(k), "a checkpoint face").check()
+        trap.keep_read(crate::race::course_places::face_number(
+            check_face(k),
+            "a checkpoint face",
+        ))
+        .check()
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
@@ -155,17 +158,9 @@ fn write_n(table: &Dword, n: u32, value: u32) {
     crate::race::checkpoints_store::nth(table, n as usize).set(value);
 }
 
-fn face(n: u32) -> u32 {
-    (n << 6).wrapping_add(COURSE.course_faces.bits())
-}
-
-/// A face's first point: its number (+4) and address.
-fn point_of(face_address: u32) -> Result<(u32, u32), BadInput> {
-    let n = get(face_address + 4)?;
-    Ok((
-        n,
-        n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits()),
-    ))
+/// A face's first point (+4): its number.
+fn point_of(face: u32) -> Result<u32, BadInput> {
+    face_field(face, 4)
 }
 
 fn face_count() -> Result<u32, Refused> {
@@ -191,8 +186,7 @@ pub fn sort_checkpoints() -> Result<(), Refused> {
         let n = face_count()?;
         let kind = line_face_kind(RACE_WORK.stage_direction.bits());
         let of_kind = |b: u32, kind: u8| -> Result<bool, BadInput> {
-            let f = face(b);
-            Ok(byte(f)? == 0xFF && byte(f + 1)? == kind)
+            Ok(face_field::<u8>(b, 0)? == 0xFF && face_field::<u8>(b, 1)? == kind)
         };
         let mut found = 0u32;
         for b in 0..n {
@@ -219,8 +213,21 @@ pub fn sort_checkpoints() -> Result<(), Refused> {
         let trap = Trap::new();
         let c = chain(
             &mut list,
-            |f| trap.face(face(f), "a checkpoint face").check() == 1,
-            |f| trap.face(face(f), "a checkpoint face").next_link(),
+            |f| {
+                trap.keep_read(crate::race::course_places::face_number(
+                    f,
+                    "a checkpoint face",
+                ))
+                .check()
+                    == 1
+            },
+            |f| {
+                trap.keep_read(crate::race::course_places::face_number(
+                    f,
+                    "a checkpoint face",
+                ))
+                .next_link()
+            },
         );
         trap.finish()?;
         for (k, &f) in list.iter().enumerate() {
@@ -247,21 +254,21 @@ pub fn checkpoint_angles() -> Result<(), Refused> {
             n,
             |b| {
                 let (half, scale) = scales.unwrap();
-                let Ok((_, p)) = point_of(check_face(b - 1)).inspect_err(|e| trap.keep(*e)) else {
+                let Ok(p) = point_of(check_face(b - 1)).inspect_err(|e| trap.keep(*e)) else {
                     return 0;
                 };
-                let Ok((_, q)) = point_of(check_face(b)).inspect_err(|e| trap.keep(*e)) else {
+                let Ok(q) = point_of(check_face(b)).inspect_err(|e| trap.keep(*e)) else {
                     return 0;
                 };
-                let w = |a: u32| match crate::race::scene_points::word(a) {
+                let w = |n: u32, k: u32| match crate::race::scene_points::point_word(n, k) {
                     Ok(v) => v,
                     Err(e) => {
                         trap.keep(e);
                         0
                     }
                 };
-                let dx = w(q).wrapping_sub(w(p)) as i32;
-                let dz = w(q + 8).wrapping_sub(w(p + 8)) as i32;
+                let dx = w(q, 0).wrapping_sub(w(p, 0)) as i32;
+                let dz = w(q, 2).wrapping_sub(w(p, 2)) as i32;
                 DRAW.scratch.set_bits(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
@@ -296,27 +303,27 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
         // Converted: `rc2k_core::race::best_line::distances`.
         let sums = rc2k_core::race::best_line::distances(last, |k| {
             let a = match point_of(check_face(k + 1)) {
-                Ok((_, a)) => a,
+                Ok(a) => a,
                 Err(e) => {
                     trap.keep(e);
                     return 0;
                 }
             };
             let b = match point_of(check_face(k)) {
-                Ok((_, b)) => b,
+                Ok(b) => b,
                 Err(e) => {
                     trap.keep(e);
                     return 0;
                 }
             };
-            let w = |a: u32| match crate::race::scene_points::word(a) {
+            let w = |n: u32, k: u32| match crate::race::scene_points::point_word(n, k) {
                 Ok(v) => v,
                 Err(e) => {
                     trap.keep(e);
                     0
                 }
             };
-            let d = [w(a).wrapping_sub(w(b)), w(a + 8).wrapping_sub(w(b + 8))];
+            let d = [w(a, 0).wrapping_sub(w(b, 0)), w(a, 2).wrapping_sub(w(b, 2))];
             crate::session::write_bits(&RACE_VARS.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
             DRAW.scratch.set_bits(length);
@@ -346,7 +353,7 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::best_line::{camera_faces, nearest_camera}`.
         let (cameras, _) = rc2k_core::race::best_line::camera_faces(faces, |b| {
-            let f = trap.face(face(b), "a camera face");
+            let f = trap.keep_read(crate::race::course_places::face_number(b, "a camera face"));
             f.kind() == rc2k_core::race::faces::LIT_KIND && f.object() == set.kind
         });
         trap.finish()?;
@@ -359,29 +366,29 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
             return Ok(());
         }
         for c in 0..n {
-            let (_, p) = point_of(check_face(c))?;
+            let p = point_of(check_face(c))?;
             let from = [
-                crate::race::scene_points::word(p)?,
-                crate::race::scene_points::word(p + 8)?,
+                crate::race::scene_points::point_word(p, 0)?,
+                crate::race::scene_points::point_word(p, 2)?,
             ];
             crate::session::write_bits(&RACE_VARS.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
-                let q = match point_of(face(read_n((set.list)(), e))) {
-                    Ok((_, q)) => q,
+                let q = match point_of(read_n((set.list)(), e)) {
+                    Ok(q) => q,
                     Err(err) => {
                         trap.keep(err);
                         return 0;
                     }
                 };
-                let w = |a: u32| match crate::race::scene_points::word(a) {
+                let w = |n: u32, k: u32| match crate::race::scene_points::point_word(n, k) {
                     Ok(v) => v,
                     Err(e) => {
                         trap.keep(e);
                         0
                     }
                 };
-                let dz = w(q + 8).wrapping_sub(from[1]);
-                let d = x87::int_hypot(w(q).wrapping_sub(from[0]) as i32, dz as i32) as u32;
+                let dz = w(q, 2).wrapping_sub(from[1]);
+                let d = x87::int_hypot(w(q, 0).wrapping_sub(from[0]) as i32, dz as i32) as u32;
                 DRAW.scratch.set_bits(d);
                 d
             });
@@ -420,20 +427,22 @@ pub fn surface_shares() -> Result<(), Refused> {
             Ok(())
         };
         for e in 0..n {
-            let named = get(check_face(e) + 0x3C)?;
+            let named: u32 = face_field(check_face(e), 0x3C)?;
             if named >= faces {
                 continue;
             }
-            let f = face(named);
+            let f = named;
+            let face_byte =
+                |offset| -> Result<u32, BadInput> { Ok(u32::from(face_field::<u8>(f, offset)?)) };
             // Converted: `rc2k_core::race::best_line::{second_weight, first_weight}`.
             let blend = [
-                byte(f + 0x22)?,
-                byte(f + 0x23)?,
-                byte(f + 0x24)?,
-                byte(f + 0x25)?,
+                face_byte(0x22)?,
+                face_byte(0x23)?,
+                face_byte(0x24)?,
+                face_byte(0x25)?,
             ]
             .map(|b| b as u8);
-            let second = byte(f + 0x21)?;
+            let second = face_byte(0x21)?;
             // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
             // field's 4 dwords), so read by address.
             let kind: u32 = crate::session::read_on_in(
@@ -446,7 +455,7 @@ pub fn surface_shares() -> Result<(), Refused> {
             RACE_VARS
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(weight));
-            four(infos + byte(f + 1)? * 0x40)?;
+            four(infos + face_byte(1)? * 0x40)?;
             RACE_VARS
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(
@@ -479,14 +488,15 @@ pub fn map_segment() -> Result<(), Refused> {
         }
         let anchor = |n: u32| {
             let f = check_face(n);
-            let (x, y) = crate::race::course_places::face(f, "a checkpoint face")?.map_place();
+            let (x, y) =
+                crate::race::course_places::face_number(f, "a checkpoint face")?.map_place();
             let place = [(x as u32) << 14, ((y as u32) << 14).wrapping_neg()];
-            let (_, p) = point_of(f)?;
+            let p = point_of(f)?;
             Ok::<_, BadInput>((
                 place,
                 [
-                    crate::race::scene_points::word(p)?,
-                    crate::race::scene_points::word(p + 8)?,
+                    crate::race::scene_points::point_word(p, 0)?,
+                    crate::race::scene_points::point_word(p, 2)?,
                 ],
             ))
         };
@@ -525,10 +535,10 @@ pub fn map_segment() -> Result<(), Refused> {
         let mut e = a;
         loop {
             // The point's number rides along as `turn_point_xz`'s y (ebx in the original).
-            let (number, at) = point_of(check_face(e))?;
+            let number = point_of(check_face(e))?;
             let p = [
-                crate::race::scene_points::word(at)?,
-                crate::race::scene_points::word(at + 8)?,
+                crate::race::scene_points::point_word(number, 0)?,
+                crate::race::scene_points::point_word(number, 2)?,
             ];
             work(0xCC).set(p[0]);
             work(0xD0).set(p[1]);

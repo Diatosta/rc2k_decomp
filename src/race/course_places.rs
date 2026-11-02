@@ -14,7 +14,7 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
-use rc2k_core::race::faces::{Face, Record};
+use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
@@ -234,6 +234,8 @@ pub trait Whole: Copy {
     /// Read at `at`, through a buffer of just its size: these reads are the physics' every tick.
     fn read_from(at: u32, what: &str) -> Result<Self, BadInput>;
     fn to_bytes(self, to: &mut [u8; 64]);
+    /// From the first bytes of `from` (little-endian).
+    fn from_bytes(from: &[u8; 64]) -> Self;
 }
 
 macro_rules! whole {
@@ -245,6 +247,10 @@ macro_rules! whole {
             }
             fn to_bytes(self, to: &mut [u8; 64]) {
                 to[..size_of::<$t>()].copy_from_slice(&self.to_le_bytes());
+            }
+            #[inline]
+            fn from_bytes(from: &[u8; 64]) -> Self {
+                <$t>::from_le_bytes(*from.first_chunk().expect("64 bytes"))
             }
         }
     )*};
@@ -258,6 +264,10 @@ impl<const N: usize> Whole for [u8; N] {
     }
     fn to_bytes(self, to: &mut [u8; 64]) {
         to[..N].copy_from_slice(&self);
+    }
+    #[inline]
+    fn from_bytes(from: &[u8; 64]) -> Self {
+        *from.first_chunk().expect("at most 64 bytes")
     }
 }
 
@@ -302,7 +312,109 @@ pub fn update_face(at: u32, what: &str, change: impl FnOnce(&mut Face)) -> Resul
     write_bytes(at, &f.0, what)
 }
 
-/// The record at `at`.
-pub fn record(at: u32, what: &str) -> Result<Record, BadInput> {
-    array(at, what).map(Record)
+// ---- by number ----
+//
+// What the original reaches as `g_courseFaces + 0x40 n + offset` (and the records' `+ 0x20 n`):
+// a face or record by its number. While the store holds the course (`COURSE.course_faces` is
+// its base) they are its table's entries; before that, the course memory's bytes at the
+// original's address.
+
+const FACE: u32 = 0x40;
+const RECORD: u32 = 0x20;
+
+/// `T` at byte `offset` of entry `n` of `table` (entries of `size` bytes, the base the game
+/// holds `base`); a field reaching past the entry reads on into the next, as the original's.
+#[inline]
+fn field_of<T: Whole>(
+    table: &'static crate::memory::owned::ThreadOwned<Vec<u8>>,
+    own_base: u32,
+    base: u32,
+    size: u32,
+    n: u32,
+    offset: u32,
+    what: &str,
+) -> Result<T, BadInput> {
+    let place = base.wrapping_add(n.wrapping_mul(size)).wrapping_add(offset);
+    if base != own_base || own_base == 0 {
+        return read(place, what);
+    }
+    let at = (n as usize)
+        .checked_mul(size as usize)
+        .and_then(|at| at.checked_add(offset as usize));
+    let mut bytes = [0u8; 64];
+    let len = size_of::<T>();
+    table
+        .with(|b| {
+            let from = b.get(at?..at? + len)?;
+            bytes[..len].copy_from_slice(from);
+            Some(())
+        })?
+        .ok_or(BadInput("a read outside the course faces or records"))?;
+    Ok(T::from_bytes(&bytes))
+}
+
+/// Face `n`.
+#[inline]
+pub fn face_number(n: u32, what: &str) -> Result<Face, BadInput> {
+    face_field::<[u8; 64]>(n, 0, what).map(Face)
+}
+
+/// Field `offset` of face `n`.
+#[inline]
+pub fn face_field<T: Whole>(n: u32, offset: u32, what: &str) -> Result<T, BadInput> {
+    let base = crate::race::course_store::COURSE.course_faces.get();
+    field_of(&FACES, faces_base(), base, FACE, n, offset, what)
+}
+
+/// Face `n` changed by `change`.
+pub fn update_face_number(
+    n: u32,
+    what: &str,
+    change: impl FnOnce(&mut Face),
+) -> Result<(), BadInput> {
+    update_face(face_place(n), what, change)
+}
+
+/// `v` written at field `offset` of face `n`.
+pub fn write_face_field<T: Whole>(n: u32, offset: u32, v: T, what: &str) -> Result<(), BadInput> {
+    write(face_place(n).wrapping_add(offset), v, what)
+}
+
+/// Face `n`'s place (`g_courseFaces + 0x40 n`), for the helpers that still take one.
+pub fn face_place(n: u32) -> u32 {
+    let base = crate::race::course_store::COURSE.course_faces.get();
+    base.wrapping_add(n.wrapping_mul(FACE))
+}
+
+/// The first `count` faces' bytes.
+pub fn faces_table(count: u32, what: &str) -> Result<Vec<u8>, BadInput> {
+    bytes(face_place(0), count as usize * FACE as usize, what)
+}
+
+/// Face `n` set to `face`.
+pub fn write_face_number(n: u32, face: Face, what: &str) -> Result<(), BadInput> {
+    write_bytes(face_place(n), &face.0, what)
+}
+
+/// The first `count` records' bytes.
+pub fn records_table(count: u32, what: &str) -> Result<Vec<u8>, BadInput> {
+    bytes(record_place(0), count as usize * RECORD as usize, what)
+}
+
+/// The records from record 0 set to `bytes`.
+pub fn write_records_table(bytes: &[u8], what: &str) -> Result<(), BadInput> {
+    write_bytes(record_place(0), bytes, what)
+}
+
+/// Record `n`'s place (`dword_5CCCB8 + 0x20 n`).
+fn record_place(n: u32) -> u32 {
+    let base = crate::race::course_store::COURSE.course_records.get();
+    base.wrapping_add(n.wrapping_mul(RECORD))
+}
+
+/// Field `offset` of record `n`.
+#[inline]
+pub fn record_field<T: Whole>(n: u32, offset: u32, what: &str) -> Result<T, BadInput> {
+    let base = crate::race::course_store::COURSE.course_records.get();
+    field_of(&RECORDS, records_base(), base, RECORD, n, offset, what)
 }

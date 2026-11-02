@@ -25,19 +25,16 @@ fn count() -> Result<u32, Refused> {
 }
 
 /// Checkpoint n's face (number, address) and its first point's (+4) number and address.
-fn check_point(n: u32) -> Result<(u32, u32, u32, u32), BadInput> {
+/// Checkpoint `n`'s face and its first point (their numbers).
+fn check_point(n: u32) -> Result<(u32, u32), BadInput> {
     let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-    let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-    // Only the one dword: every checkpoint is measured every physics tick.
-    let point: u32 =
-        crate::race::course_places::read(address.wrapping_add(4), "a checkpoint face")?;
-    let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
-    Ok((face, address, point, place))
+    let point: u32 = crate::race::course_places::face_field(face, 4, "a checkpoint face")?;
+    Ok((face, point))
 }
 
-/// A scene point's dword (`race::scene_points`).
-fn get(at: u32) -> Result<u32, BadInput> {
-    crate::race::scene_points::word(at)
+/// Coordinate `k` of scene point `n`.
+fn get(n: u32, k: u32) -> Result<u32, BadInput> {
+    crate::race::scene_points::point_word(n, k)
 }
 
 /// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below
@@ -54,13 +51,13 @@ pub fn place_car_on_line() -> Result<(), Refused> {
     {
         let (c, n) = line_neighbours(LIGHT_STATE.line_place.bits(), count)?;
         let t: u32 = LIGHT_STATE.line_fraction.bits();
-        let (face, _, _, a) = check_point(c)?;
+        let (face, a) = check_point(c)?;
         COURSE.place_face.set_bits(face);
-        let (_, _, _, b) = check_point(n)?;
-        let (x, _) = lerp(get(a)?, get(b)?, t);
-        let (y, _) = lerp(get(a + 4)?, get(b + 4)?, t);
+        let (_, b) = check_point(n)?;
+        let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
+        let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
         let y = y.wrapping_add(PHYSICS.ground_drop.bits());
-        let (z, _) = lerp(get(a + 8)?, get(b + 8)?, t);
+        let (z, _) = lerp(get(a, 2)?, get(b, 2)?, t);
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
@@ -91,11 +88,9 @@ pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
         return Err(BadInput("a checkpoint past the list").into());
     }
     {
-        let (_, _, _, place) = check_point(c)?;
-        let dx = crate::race::scene_points::word(place)?.wrapping_sub(GROUND_WORK.ground_x.bits())
-            as i32;
-        let dz = crate::race::scene_points::word(place + 8)?
-            .wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
+        let (_, point) = check_point(c)?;
+        let dx = get(point, 0)?.wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
+        let dz = get(point, 2)?.wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())

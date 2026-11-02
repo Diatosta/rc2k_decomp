@@ -32,7 +32,6 @@ use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
-use crate::race::course_store::COURSE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
@@ -47,17 +46,15 @@ fn face_checkpoint(back: u32) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(CAR.checkpoint.get(), back) else {
         return false;
     };
-    let face = (crate::race::checkpoints_store::face(checkpoint as usize).get() << 6)
-        .wrapping_add(COURSE.course_faces.get());
-    let point = rd(face + 4)
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.get());
-    let first = CAR.position[0]
-        .get()
-        .wrapping_sub(crate::race::scene_points::word_or_end(point));
-    let second = CAR.position[2]
-        .get()
-        .wrapping_sub(crate::race::scene_points::word_or_end(point + 8));
+    let face = crate::race::checkpoints_store::face(checkpoint as usize).get();
+    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")
+        .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
+    let coordinate = |k| {
+        crate::race::scene_points::point_word(point, k)
+            .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
+    };
+    let first = CAR.position[0].get().wrapping_sub(coordinate(0));
+    let second = CAR.position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(first, second);
     CAR.camera_heading.set(angle << 16);
     true

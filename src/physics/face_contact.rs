@@ -43,7 +43,6 @@ use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
-use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
@@ -57,15 +56,8 @@ use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 fn byte(x: u32) -> Result<u32, Refused> {
     Ok(u32::from(crate::race::course_places::read::<u8>(
         x,
-        "a face's byte",
+        "a material's byte",
     )?))
-}
-
-fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(crate::race::course_places::read::<u32>(
-        x,
-        "a face's or scene point's dword",
-    )?)
 }
 
 fn touch() -> Result<(), Refused> {
@@ -78,13 +70,27 @@ fn touch() -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(number: u32) -> Result<(), Refused> {
     CONTACT_WORK.face_number.set(number);
-    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
+    let face = number;
+    let face_byte = |offset| -> Result<u32, Refused> {
+        Ok(u32::from(crate::race::course_places::face_field::<u8>(
+            face,
+            offset,
+            "a face's byte",
+        )?))
+    };
+    let face_dword = |offset| -> Result<u32, Refused> {
+        Ok(crate::race::course_places::face_field::<u32>(
+            face,
+            offset,
+            "a face's dword",
+        )?)
+    };
     if crate::scene::kind_hidden_at::kind_hidden_at(face)? {
         return Ok(());
     }
     let mut refused = None;
-    let found = contacts::face_object(byte(face)?, || {
-        byte(face + 1).unwrap_or_else(|e| {
+    let found = contacts::face_object(face_byte(0)?, || {
+        face_byte(1).unwrap_or_else(|e| {
             refused = Some(e);
             0
         })
@@ -104,7 +110,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     let kind = OBJECT_TABLES.object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::framework::log(&format!(
-            "physics::face_contact: face {:#x}: object {object}, kind {kind:#x}, car {} at {:?}",
+            "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
             crate::race::work_store::RACE_WORK.current_car.get(),
             CAR.position
@@ -120,27 +126,24 @@ pub fn steps(number: u32) -> Result<(), Refused> {
             .wrapping_add(kind.wrapping_mul(0x80))
             .wrapping_add(0x1C),
     )?);
-    if contacts::object_tried(byte(face + 0x25)?, RACE_WORK.stage_direction.get(), object).is_err()
-    {
+    if contacts::object_tried(face_byte(0x25)?, RACE_WORK.stage_direction.get(), object).is_err() {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        OBJECT_WORK.angles[k].set(contacts::turn_word(byte(face + o)?));
+        OBJECT_WORK.angles[k].set(contacts::turn_word(face_byte(*o)?));
     }
-    OBJECT_WORK.size.set(byte(face + 0x18)?);
+    OBJECT_WORK.size.set(face_byte(0x18)?);
     // esi and ebp both the face here.
-    let (inside, _, point) =
-        { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) }?;
+    let (inside, point) = { crate::physics::scene_point_hits_car::scene_point_hits_car(face) }?;
     if !inside {
         if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
         }
-        // `point` is a place of `race::scene_points` (phase 13).
-        let dx = crate::race::scene_points::word(point)?
-            .wrapping_add(rd(face + 0x30)?)
+        let dx = crate::race::scene_points::point_word(point, 0)?
+            .wrapping_add(face_dword(0x30)?)
             .wrapping_sub(CAR.position[0].get());
-        let dz = crate::race::scene_points::word(point + 8)?
-            .wrapping_add(rd(face + 0x38)?)
+        let dz = crate::race::scene_points::point_word(point, 2)?
+            .wrapping_add(face_dword(0x38)?)
             .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         DRAW.scratch.set(distance);

@@ -21,16 +21,11 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
-/// The scene point `index`'s address.
-fn point(index: u32) -> u32 {
-    COURSE
-        .scene_points
-        .get()
-        .wrapping_add(index.wrapping_mul(12))
-}
-
-fn at(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read::<u32>(a, "a course face, record or scene point")
+/// The first and last faces (+8, +0xC) of course record `record`.
+fn record_faces(record: u32) -> Result<(u32, u32), BadInput> {
+    let face =
+        |offset| crate::race::course_places::record_field::<u32>(record, offset, "a course record");
+    Ok((face(8)?, face(0xC)?))
 }
 
 /// `physics::face_shares` (0x442323): the three corners named by `dword_639890` ..
@@ -41,8 +36,7 @@ fn at(a: u32) -> Result<u32, BadInput> {
 pub fn face_shares_at() -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        let p = point(GROUND_WORK.face_corner_numbers[k].get());
-        *c = crate::race::scene_points::point(p)?;
+        *c = crate::race::scene_points::point_number(GROUND_WORK.face_corner_numbers[k].get())?;
         for (n, &v) in c.iter().enumerate() {
             GROUND_WORK.face_corners[3 * k + n].set(v);
         }
@@ -128,16 +122,15 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         return Err(BadInput(why).into());
     }
     COURSE.ground_number.set(number);
-    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
     // The face read once: its kind, flags, corners and edges.
-    let f = crate::race::course_places::face(face, "a course face")?;
+    let f = crate::race::course_places::face_number(number, "a course face")?;
     let trap = Trap::new();
     // One edge.
     let side = |from: u32, to: u32| -> Option<bool> {
         if trap.failed() {
             return None;
         }
-        match edge_side(point(f.dword_at(from)), point(f.dword_at(to))) {
+        match edge_side(f.dword_at(from), f.dword_at(to)) {
             Ok(s) => (s.zero == Some(true)).then_some(s.carry),
             Err(e) => {
                 trap.refuse(e);
@@ -178,8 +171,7 @@ pub fn record_refusal(record: u32) -> Option<&'static str> {
         if let Err(e) = ground_search::check_record(record, COURSE.course_record_count.get()) {
             return Some(e.0);
         }
-        let rec = (record << 5).wrapping_add(COURSE.course_records.get());
-        let (Ok(first), Ok(last)) = (at(rec + 8), at(rec + 0xC)) else {
+        let Ok((first, last)) = record_faces(record) else {
             return Some("a course record outside every allocation");
         };
         ground_search::check_record_faces(first, last, COURSE.course_face_count.get())
@@ -195,8 +187,7 @@ pub fn search_record_faces_at(record: u32) -> Result<bool, Refused> {
     if let Some(why) = record_refusal(record) {
         return Err(BadInput(why).into());
     }
-    let rec = (record << 5).wrapping_add(COURSE.course_records.get());
-    let (first, last) = (at(rec + 8)?, at(rec + 0xC)?);
+    let (first, last) = record_faces(record)?;
     let (found, _) = ground_search::search_faces(first, last, face_under_point_at)?;
     Ok(found)
 }

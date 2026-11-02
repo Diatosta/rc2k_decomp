@@ -83,8 +83,15 @@ fn steps() -> Result<(), Refused> {
     let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
-        let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
-        let t1 = infos + (byte(f + 1)? << 6);
+        let f = CAR.probe_point_face[cc].get();
+        let face_byte = |offset| -> Result<u32, Refused> {
+            Ok(u32::from(crate::race::course_places::face_field::<u8>(
+                f,
+                offset,
+                "a wheel's face",
+            )?))
+        };
+        let t1 = infos + (face_byte(1)? << 6);
         let mut edx = share_bit(&CONTACT_WORK.probe_share_v, c);
         let mut ebx = share_bit(&CONTACT_WORK.probe_share_u, c);
         edx = (edx >> 15) & 1;
@@ -93,16 +100,16 @@ fn steps() -> Result<(), Refused> {
             edx ^= 1;
             ebx ^= 1;
         }
-        let (_, _, d1) = flip_cell_index(byte(f)?, ebx, edx);
+        let (_, _, d1) = flip_cell_index(face_byte(0)?, ebx, edx);
         PHYSICS.surface_firsts[cc].set(d1);
-        let (_, _, d2) = flip_cell_index(byte(f + 0x20)?, ebx, edx);
+        let (_, _, d2) = flip_cell_index(face_byte(0x20)?, ebx, edx);
         PHYSICS.surface_seconds[cc].set(d2);
         {
             let e = PHYSICS.surface_firsts[cc].get();
             CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10)?);
             CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18)?);
             CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14)?);
-            let t2 = infos + (byte(f + 0x21)? << 6);
+            let t2 = infos + (face_byte(0x21)? << 6);
             let e2 = PHYSICS.surface_seconds[cc].get();
             CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10)?);
             CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18)?);
@@ -116,19 +123,21 @@ fn steps() -> Result<(), Refused> {
                 kind_index as usize,
                 "the surface kinds (a byte index past the table)",
             )?;
-            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21)? != 0
+            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && face_byte(0x21)? != 0
             {
                 let (x, y, z) = if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
-                    (byte(f + 0x25)?, byte(f + 0x24)?, byte(f + 0x23)?)
+                    (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
                 } else {
-                    (byte(f + 0x22)?, byte(f + 0x23)?, byte(f + 0x24)?)
+                    (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
                 };
                 DRAW.surface_point[0].set(x);
                 DRAW.surface_point[1].set(y.wrapping_sub(x));
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(c as usize);
             }
-            if crate::race::course_places::face(f, "a wheel's face")?.switches() & 0x1000 != 0 {
+            if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
+                != 0
+            {
                 CAR.wheel_surface_a[cc].set(5);
                 CAR.wheel_surface_b[cc].set(5);
                 CAR.wheel_cell_a_byte18[cc].set(0x3C);

@@ -43,36 +43,37 @@ use rc2k_core::drive::lit_faces::{
 
 const MOST: u32 = 0x100;
 
-fn at(p: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(p, "a face of the course")
+/// Field `o` of course face `f` (by number), and its writes.
+fn at(f: u32, o: u32) -> Result<u32, BadInput> {
+    crate::race::course_places::face_field(f, o, "a face of the course")
 }
 
-fn put(p: u32, v: u32) -> Result<(), BadInput> {
-    crate::race::course_places::write(p, v, "a face of the course")
+fn put(f: u32, o: u32, v: u32) -> Result<(), BadInput> {
+    crate::race::course_places::write_face_field(f, o, v, "a face of the course")
 }
 
-fn byte(p: u32) -> Result<u8, BadInput> {
-    crate::race::course_places::read(p, "a face of the course")
+fn byte(f: u32, o: u32) -> Result<u8, BadInput> {
+    crate::race::course_places::face_field(f, o, "a face of the course")
 }
 
-fn set_byte(p: u32, v: u8) -> Result<(), BadInput> {
-    crate::race::course_places::write(p, v, "a face of the course")
+fn set_byte(f: u32, o: u32, v: u8) -> Result<(), BadInput> {
+    crate::race::course_places::write_face_field(f, o, v, "a face of the course")
 }
 
 /// The face's animated bytes.
 fn load(f: u32) -> Result<FaceBytes, BadInput> {
     Ok(FaceBytes {
-        b8: byte(f + 8)?,
-        b9: byte(f + 9)?,
-        b11: byte(f + 0x11)?,
-        b12: byte(f + 0x12)?,
-        b13: byte(f + 0x13)?,
+        b8: byte(f, 8)?,
+        b9: byte(f, 9)?,
+        b11: byte(f, 0x11)?,
+        b12: byte(f, 0x12)?,
+        b13: byte(f, 0x13)?,
     })
 }
 
 fn store(f: u32, b: &FaceBytes) -> Result<(), BadInput> {
     for (o, v) in [(9, b.b9), (0x11, b.b11), (0x13, b.b13)] {
-        set_byte(f + o, v)?;
+        set_byte(f, o, v)?;
     }
     Ok(())
 }
@@ -111,24 +112,20 @@ pub fn animate_at() -> Result<(), Refused> {
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
 fn animate_faces() -> Result<(), Refused> {
-    let faces: u32 = COURSE.course_faces.bits();
-    let points: u32 = COURSE.scene_points.bits();
-    let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
     let mut k = 0;
     loop {
-        let f = faces.wrapping_add(list(k).get() << 6);
+        let f = list(k).get();
         let mut bytes = load(f)?;
         let leave = 'face: {
-            let object = byte(f + 1)?;
+            let object = byte(f, 1)?;
             if object == COUNTDOWN_OBJECT {
                 break 'face count_down(&mut bytes);
             }
-            let point_number = at(f + 4)?;
-            let p = point(point_number);
-            let dx = crate::race::scene_points::word(p)?
+            let point_number = at(f, 4)?;
+            let dx = crate::race::scene_points::point_word(point_number, 0)?
                 .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
             DRAW.scratch.set(dx);
-            let dz = crate::race::scene_points::word(p + 8)?
+            let dz = crate::race::scene_points::point_word(point_number, 2)?
                 .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
             DRAW.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
@@ -162,31 +159,32 @@ fn animate_faces() -> Result<(), Refused> {
                         distance as i32,
                         angle,
                     );
-                    CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30)?);
-                    CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38)?);
-                    put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
-                    put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
-                    let p = point(at(f + 4)?);
-                    GROUND_WORK
-                        .ground_x
-                        .set(crate::race::scene_points::word(p)?.wrapping_add(at(f + 0x30)?));
-                    GROUND_WORK
-                        .ground_z
-                        .set(crate::race::scene_points::word(p + 8)?.wrapping_add(at(f + 0x38)?));
+                    CONTACT_WORK.lit_face_saved_30.set(at(f, 0x30)?);
+                    CONTACT_WORK.lit_face_saved_38.set(at(f, 0x38)?);
+                    put(f, 0x30, at(f, 0x30)?.wrapping_add(x))?;
+                    put(f, 0x38, at(f, 0x38)?.wrapping_add(z))?;
+                    let p = at(f, 4)?;
+                    GROUND_WORK.ground_x.set(
+                        crate::race::scene_points::point_word(p, 0)?.wrapping_add(at(f, 0x30)?),
+                    );
+                    GROUND_WORK.ground_z.set(
+                        crate::race::scene_points::point_word(p, 2)?.wrapping_add(at(f, 0x38)?),
+                    );
                     COURSE
                         .ground_face_last
                         .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                     crate::physics::find_ground::find_ground()?;
                     put(
-                        f + 0x34,
+                        f,
+                        0x34,
                         GROUND_WORK
                             .ground_height
                             .get()
-                            .wrapping_sub(crate::race::scene_points::word(p + 4)?),
+                            .wrapping_sub(crate::race::scene_points::point_word(p, 1)?),
                     )?;
                     if COURSE.ground_slot.get() == u32::MAX {
-                        put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
-                        put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
+                        put(f, 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
+                        put(f, 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
                     false

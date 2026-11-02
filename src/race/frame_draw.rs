@@ -54,12 +54,19 @@ use crate::sound::store::RACE_SOUNDS;
 use crate::sound::store::STAGE_SOUNDS;
 use crate::store::game_read;
 
+/// A dword at game address `a` (frame words and matrices).
 fn get(a: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(a, "a frame, face or point word")
+    crate::race::course_places::read(a, "a frame word")
 }
 
-fn byte1(a: u32) -> Result<u8, BadInput> {
-    crate::race::course_places::read(a, "a face or record byte")
+/// Field `offset` of course face `face`.
+fn face_field<T: crate::race::course_places::Whole>(face: u32, offset: u32) -> Result<T, BadInput> {
+    crate::race::course_places::face_field(face, offset, "a course face")
+}
+
+/// Field `offset` of course record `record`.
+fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
+    crate::race::course_places::record_field(record, offset, "a course record")
 }
 
 /// `race::car_label` (0x45B1B7): at edi seven bytes, " CAR nn" with nn eax's two digits
@@ -726,8 +733,7 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
         let face =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.checkpoint_faces, n as usize)
                 .get();
-        let esi = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let byte = crate::race::course_places::read::<u8>(esi + 0x10, "a face, record or matrix")?;
+        let byte: u8 = face_field(face, 0x10)?;
         let along =
             crate::race::checkpoints_store::cell_in(&CHECKPOINTS.angles[2..], n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, CAR.car_heading.bits());
@@ -818,18 +824,18 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32
 pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     use crate::math::x87::{add, to_int};
     points_there()?;
-    let face = (ebx << 6).wrapping_add(COURSE.course_faces.bits());
+    let face = ebx;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let (record, _) = point_record(get(face + 4 + 4 * k)?)?;
+        let (record, _) = point_record(face_field(face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
     use rc2k_core::race::faces::{DepthBy, average_key, deeper, depth_by};
-    let kind = crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
+    let kind: u8 = face_field(face, 0)?;
     let trap = Trap::new();
     let by = depth_by(kind, || {
-        let object = trap.course::<u8>(face + 1, "a course face's object") as u32;
+        let object = trap.keep_read(face_field::<u8>(face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
         POLYGON_WORK.texture_infos[object as usize].words[11]
             .get()
@@ -838,7 +844,7 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let (record, _) = point_record(get(face + 4)?)?;
+            let (record, _) = point_record(face_field(face, 4)?)?;
             let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
             RACE_VIEW.face_depth_key.set_bits(key);
             RACE_VIEW
@@ -922,9 +928,8 @@ pub fn course_grid() -> Result<(), Refused> {
         for k in 0..GRID_SIDE * GRID_SIDE {
             grid[k as usize].set(GRID_EMPTY);
         }
-        let records: u32 = COURSE.course_records.bits();
         for n in 0..count {
-            let Some((cx, cz)) = record_cell(get((n << 5).wrapping_add(records))?) else {
+            let Some((cx, cz)) = record_cell(record_field(n, 0)?) else {
                 continue;
             };
             COURSE.record_place[0].set_bits(cx);
@@ -959,7 +964,7 @@ fn face_tables() -> [&'static crate::session::Bytes<256>; 4] {
 
 /// A course record's faces (+8 first, +0xC last; -1 none), or None.
 fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> {
-    let (first, last) = (get(record + 8)?, get(record + 0xC)?);
+    let (first, last) = (record_field(record, 8)?, record_field(record, 0xC)?);
     Ok((first != u32::MAX && first <= last).then_some((first, last)))
 }
 
@@ -980,9 +985,8 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
     let mut face = first;
     loop {
         COURSE.current_course_face.set_bits(face);
-        let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face(at, "a course face")?;
+        let read = crate::race::course_places::face_number(face, "a course face")?;
         let kind = read.kind();
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
@@ -1007,7 +1011,7 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
             }
         }
         face = face.wrapping_add(1);
-        if face > get(record + 0xC)? {
+        if face > record_field(record, 0xC)? {
             break;
         }
     }
@@ -1035,9 +1039,8 @@ pub fn face_hide_mask() -> Result<(), Refused> {
     if ground == u32::MAX {
         return Ok(());
     }
-    let face = (ground << 6).wrapping_add(COURSE.course_faces.bits());
     // Converted: `rc2k_core::race::faces::hide_mask`.
-    let word = crate::race::course_places::read::<u16>(face + 2, "a face, record or matrix")?;
+    let word: u16 = face_field(ground, 2)?;
     FRAME_WORK
         .face_hide_mask
         .set_bits(rc2k_core::race::faces::hide_mask(word));
@@ -1124,14 +1127,12 @@ fn check_course_grid() -> Result<(), Refused> {
 pub fn visible_records() -> Result<Vec<u32>, BadInput> {
     {
         // Converted: `rc2k_core::race::view::visible_records`.
-        let records: u32 = COURSE.course_records.bits();
         let grid = &LEVEL_GRID.course_grid;
         let list = rc2k_core::race::view::visible_records(
             grid.iter().map(super::super::session::Dword::get),
             COURSE.course_record_count.bits(),
         )
         .into_iter()
-        .map(|n| (n << 5).wrapping_add(records))
         .collect();
         Ok(list)
     }
@@ -1227,10 +1228,7 @@ fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
 /// the room.
 fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     let point = self::lamp(lamp)?[0].get();
-    let esi = point
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.bits());
-    let place = crate::race::scene_points::point(esi)?;
+    let place = crate::race::scene_points::point_number(point)?;
     let turned = &OBJECT_WORK.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
@@ -1272,11 +1270,9 @@ pub fn gather_lamps() -> Result<(), Refused> {
     }
     RACE_VIEW.lamp_count.set_bits(0u32);
     for k in 0..count {
-        let face = (CONTACT_WORK.lit_faces[k as usize].bits() << 6)
-            .wrapping_add(COURSE.course_faces.bits());
+        let face = CONTACT_WORK.lit_faces[k as usize].bits();
         // Converted: `rc2k_core::race::faces::takes_lamp`.
-        let object =
-            crate::race::course_places::read::<u8>(face + 1, "a face, record or matrix")? as u32;
+        let object = face_field::<u8>(face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;
         }
@@ -1285,8 +1281,8 @@ pub fn gather_lamps() -> Result<(), Refused> {
             continue;
         }
         let at = self::lamp(lamp)?;
-        at[0].set(get(face + 4)?);
-        at[1].set(crate::race::course_places::face(face, "a lamp's face")?.mark() as u32);
+        at[0].set(face_field(face, 4)?);
+        at[1].set(crate::race::course_places::face_number(face, "a lamp's face")?.mark() as u32);
         at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
         add_lamp_entry(lamp)?;
         RACE_VIEW.lamp_count.set_bits(lamp + 1);
@@ -1326,10 +1322,7 @@ fn table_root(v: u32) -> u32 {
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y.
 fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
     {
-        let p = point
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.bits());
-        let [px, py, pz] = crate::race::scene_points::point(p)?;
+        let [px, py, pz] = crate::race::scene_points::point_number(point)?;
         let x = px.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
         let z = pz.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
         CONTACT_WORK.eax_point_x.set(x);
@@ -1368,18 +1361,17 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
         abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
     };
     {
-        let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
         // The face read once for its kind, objects, switches and first point.
-        let read = crate::race::course_places::face(at, "a course face")?;
+        let read = crate::race::course_places::face_number(face, "a course face")?;
         let kind = read.kind();
         if kind == 0xFF {
-            if byte1(at + 1)? >= 0x38 {
+            if face_field::<u8>(face, 1)? >= 0x38 {
                 return Ok(());
             }
-            let (x, _, z) = point_from_car(get(at + 4)?)?;
+            let (x, _, z) = point_from_car(face_field(face, 4)?)?;
             let distance = table_root(int_square_sum(x as i32, z as i32));
             CONTACT_WORK.eax_distance.set_bits(distance);
-            let strength = byte1(at + 0x18)? as u32;
+            let strength = face_field::<u8>(face, 0x18)? as u32;
             DRAW.scratch.set_bits(strength);
             add_eax_weight(int_over_float(strength as i32, distance));
             return Ok(());
@@ -1387,14 +1379,14 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
         if kind >= 0x10 {
             return Ok(());
         }
-        if !abs_below_or_unordered(get(at + 0x30)?, NUMBERS.quarter.bits()) {
+        if !abs_below_or_unordered(face_field(face, 0x30)?, NUMBERS.quarter.bits()) {
             return Ok(());
         }
-        let (x1, _, z1) = point_from_car(get(at + 8)?)?;
+        let (x1, _, z1) = point_from_car(face_field(face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
         CONTACT_WORK.eax_mid_x.set_bits(mx);
         CONTACT_WORK.eax_mid_z.set_bits(mz);
-        let (x2, _, z2) = point_from_car(get(at + 0xC)?)?;
+        let (x2, _, z2) = point_from_car(face_field(face, 0xC)?)?;
         let half: u32 = NUMBERS.half.bits();
         let mx = int_plus_times(x2 as i32, mx, half);
         CONTACT_WORK.eax_mid_x.set_bits(mx);
@@ -1426,15 +1418,14 @@ pub fn eax_environment() -> Result<(), BadInput> {
             if record >= NO_RECORD {
                 continue;
             }
-            let at = (record << 5).wrapping_add(COURSE.course_records.bits());
-            let mut face = get(at + 8)?;
-            if record_faces(face, get(at + 0xC)?).is_none() {
+            let mut face = record_field(record, 8)?;
+            if record_faces(face, record_field(record, 0xC)?).is_none() {
                 continue;
             }
             loop {
                 eax_face_weight(face)?;
                 face = face.wrapping_add(1);
-                if face > get(at + 0xC)? {
+                if face > record_field(record, 0xC)? {
                     break;
                 }
             }
@@ -1547,14 +1538,12 @@ fn lamp_lights_on_point() -> Result<(), BadInput> {
             }
             let tint = lamp[2].get();
             LIGHT_WORK.lamp_tint.set(tint);
-            let point = lamp[0]
-                .get()
-                .wrapping_mul(12)
-                .wrapping_add(COURSE.scene_points.bits());
+            let point = lamp[0].get();
+            let coordinate = |k| crate::race::scene_points::point_word(point, k);
             let d = [
-                crate::race::scene_points::word(point)?.wrapping_sub(place[0].get()),
-                crate::race::scene_points::word(point + 4)?.wrapping_sub(place[1].get()),
-                crate::race::scene_points::word(point + 8)?.wrapping_sub(place[2].get()),
+                coordinate(0)?.wrapping_sub(place[0].get()),
+                coordinate(1)?.wrapping_sub(place[1].get()),
+                coordinate(2)?.wrapping_sub(place[2].get()),
             ];
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
             DRAW.scratch.set_bits(distance);
@@ -2705,11 +2694,7 @@ pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
 /// register kept.
 pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
     let edi = self::lamp(lamp)?;
-    let p = edi[0]
-        .get()
-        .wrapping_mul(12)
-        .wrapping_add(COURSE.scene_points.bits());
-    let [x, y, z] = crate::race::scene_points::point(p)?;
+    let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
     OBJECT_WORK.place[0].set(x);
     OBJECT_WORK.place[1].set(y);
     OBJECT_WORK.place[2].set(z);
@@ -2746,14 +2731,17 @@ pub fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
     match word >> 24 {
         0 => {
             COURSE.current_course_face.set_bits(word);
-            let face = (word << 6).wrapping_add(COURSE.course_faces.bits());
-            let kind = crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
+            let face = word;
+            let kind = crate::race::course_places::face_field::<u8>(face, 0, "a course face")?;
             if kind == 0xFF || kind < 0x10 {
                 LEVEL_GRID.smooth.set_bits(1);
                 LEVEL_GRID.plain_first.set_bits(1);
                 LEVEL_GRID.plain_second.set_bits(1);
                 if kind == 0xFF {
-                    crate::scene::draw_described_object::draw_described_object(face)?;
+                    // The description is the face (esi in the original).
+                    crate::scene::draw_described_object::draw_described_object(
+                        crate::race::course_places::face_place(face),
+                    )?;
                 } else {
                     crate::race::course_faces::draw_tinted_face(face)?;
                 }

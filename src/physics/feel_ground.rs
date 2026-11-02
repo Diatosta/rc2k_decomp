@@ -24,7 +24,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::WheelsOff;
 
 /// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
@@ -51,11 +50,11 @@ pub fn feel_ground() -> Result<(), Refused> {
     if driven == 0 {
         CAR.stuck_count.set(0);
     }
-    let face = (CAR.probe_point_face[4].get() << 6).wrapping_add(COURSE.course_faces.get());
     PHYSICS
         .feel_word
-        .set(u32::from(crate::race::course_places::read::<u16>(
-            face + 0x26,
+        .set(u32::from(crate::race::course_places::face_field::<u16>(
+            CAR.probe_point_face[4].get(),
+            0x26,
             "a face's feel word",
         )?));
     Ok(())

@@ -24,13 +24,12 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
-    let at = (face << 6).wrapping_add(COURSE.course_faces.get()) + 2;
-    Ok(u32::from(crate::race::course_places::read::<u16>(
-        at,
+    Ok(u32::from(crate::race::course_places::face_field::<u16>(
+        face,
+        2,
         "a face's flags",
     )?))
 }

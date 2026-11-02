@@ -42,10 +42,6 @@ fn table_byte(
         .ok_or(BadInput(what))
 }
 
-fn byte_at(a: u32) -> Result<u8, BadInput> {
-    crate::race::course_places::read(a, "a course face or entry byte")
-}
-
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
 /// and `g_polygonMode` 4, the depth test off and `dword_63D9E0` 1.
 pub fn face_depth_test_off() {
@@ -102,22 +98,19 @@ fn turned_to_view(f: &Face, triangle: usize) -> Result<u32, BadInput> {
         if FRAME_SWITCHES.other_way.get() == 0 {
             return Ok(0);
         }
-        let p = f
-            .point(1 + triangle)
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.bits());
+        let p = f.point(1 + triangle);
         let normal = f.normal(triangle);
-        let along = |at: u32, view_at: &Float, normal: u32| -> Result<_, BadInput> {
+        let along = |k: u32, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok(
-                (int(crate::race::scene_points::word(at)? as i32) - ld(view_at.bits()))
+                (int(crate::race::scene_points::point_word(p, k)? as i32) - ld(view_at.bits()))
                     * ld(normal),
             )
         };
         let place = &VIEW_VARS.view_place_f;
         let (x, y, z) = (
-            along(p, &place[0], normal[0])?,
-            along(p + 4, &place[1], normal[1])?,
-            along(p + 8, &place[2], normal[2])?,
+            along(0, &place[0], normal[0])?,
+            along(1, &place[1], normal[1])?,
+            along(2, &place[2], normal[2])?,
         );
         Ok(u32::from(compare(X(0.0), x + (y + z)) & 0x0100 != 0))
     }
@@ -225,8 +218,7 @@ fn point_light(n: u32) -> Result<u32, Refused> {
     if n == u32::MAX {
         return Ok(0);
     }
-    let p = n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits());
-    let [x, y, z] = crate::race::scene_points::point(p)?;
+    let [x, y, z] = crate::race::scene_points::point_number(n)?;
     LIGHT_STATE.lit_place[0].set(x);
     LIGHT_STATE.lit_place[1].set(y);
     LIGHT_STATE.lit_place[2].set(z);
@@ -412,17 +404,15 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
         }
         let trap = Trap::new();
         let c = texture_coordinates(texture_info, pairs, |k| {
-            let points: u32 = COURSE.scene_points.get();
             let n: u32 = RACE_VIEW.corners[k].get();
-            let p = n.wrapping_mul(12).wrapping_add(points);
-            let w = |a: u32| match crate::race::scene_points::word(a) {
+            let w = |k: u32| match crate::race::scene_points::point_word(n, k) {
                 Ok(v) => v,
                 Err(e) => {
                     trap.keep(e);
                     0
                 }
             };
-            (w(p), w(p + 8))
+            (w(0), w(2))
         });
         trap.finish()?;
         set.size.set(c.size);
@@ -451,14 +441,8 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
                 u32::MAX,
             )?;
         }
-        let points: u32 = COURSE.scene_points.get();
         for (k, (from, to)) in copies.into_iter().enumerate() {
-            let to_at = to.wrapping_mul(12).wrapping_add(points);
-            let from_at = from.wrapping_mul(12).wrapping_add(points);
-            crate::race::scene_points::write(
-                to_at,
-                &crate::race::scene_points::bytes(from_at, 12)?,
-            )?;
+            crate::race::scene_points::copy_point(from, to)?;
             RACE_VIEW.corners[k].set(to);
         }
         Ok(())
@@ -739,22 +723,13 @@ pub fn draw_lit_triangle() -> Result<(), Refused> {
     }
     for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
         let v = crate::scene::point_records::of_quad(k as u32);
-        let points: u32 = COURSE.scene_points.get();
-        let pa = entry(first)
-            .point
-            .get()
-            .wrapping_mul(12)
-            .wrapping_add(points);
-        let pb = entry(second)
-            .point
-            .get()
-            .wrapping_mul(12)
-            .wrapping_add(points);
+        let pa = entry(first).point.get();
+        let pb = entry(second).point.get();
         for (n, lit) in LIGHT_STATE.lit_place.iter().enumerate() {
             let o = 4 * n as u32;
             let (a, b) = (
-                crate::race::scene_points::word(pa + o)?,
-                crate::race::scene_points::word(pb + o)?,
+                crate::race::scene_points::point_word(pa, n as u32)?,
+                crate::race::scene_points::point_word(pb, n as u32)?,
             );
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
             let m = m.wrapping_add(a);
@@ -927,7 +902,7 @@ pub fn draw_course_face(face: u32) -> Result<(), Refused> {
     crate::race::frame_draw::points_there()?;
     // The face read once for its corners, normals, kinds, objects and colours: drawing it
     // writes no face.
-    let face = crate::race::course_places::face(face, "a course face")?;
+    let face = crate::race::course_places::face_number(face, "a course face")?;
     face_corners(&face);
     if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points()?;
@@ -951,7 +926,7 @@ pub fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{tints, tinted}`.
     use rc2k_core::race::face_drawing::{tinted, tints};
     let colour: u32 = DRAW.polygon_colour.get();
-    let object = byte_at(face + 1)? as u32;
+    let object = crate::race::course_places::face_field::<u8>(face, 1, "a course face")? as u32;
     // `object` is a byte: inside the 256 tints.
     let tint = STAGE_PREFS.object_tints[object as usize].get();
     if tints(tint) {

@@ -67,15 +67,22 @@ pub fn car_lighting() -> Result<(), Refused> {
     }
     LIGHT_WORK.ground_texture_s.set(GROUND_WORK.share_s.get());
     LIGHT_WORK.ground_texture_t.set(GROUND_WORK.share_t.get());
-    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
+    let face_byte = |offset| -> Result<u32, BadInput> {
+        Ok(u32::from(crate::race::course_places::face_field::<u8>(
+            face,
+            offset,
+            "a course face's byte",
+        )?))
+    };
     for k in 0..4u32 {
-        COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
+        COURSE.face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
     }
-    let material = (crate::scene::polygon::texture_infos_addr()).wrapping_add(byte(f + 0x21) << 6);
+    let material =
+        (crate::scene::polygon::texture_infos_addr()).wrapping_add(face_byte(0x21)? << 6);
     if byte(material + 0x2C) == 1 {
         for k in 0..4u32 {
             let at = &COURSE.face_light_bytes[k as usize];
-            let (v, _) = lighting::shaded(at.get(), byte(f + 0x22 + k) as u8);
+            let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);
             at.set(v);
         }
     }
@@ -96,7 +103,7 @@ pub fn car_lighting() -> Result<(), Refused> {
     let colour = crate::scene::light_tables_store::LIGHT_TABLES.light_table[light as usize].get();
     LIGHT_WORK.car_light_colour.set(colour);
     CAR.light_colour.set(colour);
-    if byte(f + 2) & 4 == 0 {
+    if face_byte(2)? & 4 == 0 {
         return Ok(());
     }
     for (first, table, to) in [
@@ -112,7 +119,7 @@ pub fn car_lighting() -> Result<(), Refused> {
         ),
     ] {
         for k in 0..4u32 {
-            COURSE.face_light_bytes[k as usize].set(byte(f + first + k));
+            COURSE.face_light_bytes[k as usize].set(face_byte(first + k)?);
         }
         let i = corners();
         if i >= lighting::TABLE {

@@ -35,7 +35,6 @@ use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
 use crate::physics::car_store::CAR;
-use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
@@ -46,10 +45,6 @@ use crate::scene::view_matrix::cross_product;
 use crate::session::{Dword, Float};
 use rc2k_core::drive::computer_driver as driver;
 
-fn at(addr: u32) -> Result<u32, BadInput> {
-    crate::race::course_places::read(addr, "the computer driver's data")
-}
-
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(table: fn(usize) -> &'static crate::session::Dword, n: u32, k: u32) -> u32 {
@@ -59,14 +54,10 @@ fn held(table: fn(usize) -> &'static crate::session::Dword, n: u32, k: u32) -> u
 
 /// A checkpoint face's first point: (x, z).
 fn face_point(face: u32) -> Result<(u32, u32), BadInput> {
-    let f = COURSE.course_faces.get().wrapping_add(face << 6);
-    let pt = COURSE
-        .scene_points
-        .get()
-        .wrapping_add(at(f + 4)?.wrapping_mul(12));
+    let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")?;
     Ok((
-        crate::race::scene_points::word(pt)?,
-        crate::race::scene_points::word(pt + 8)?,
+        crate::race::scene_points::point_word(point, 0)?,
+        crate::race::scene_points::point_word(point, 2)?,
     ))
 }
 
@@ -143,11 +134,8 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         .driver_point_then
         .set((RACE_WORK.driver_points_then[0].addr()).wrapping_add(slot << 4));
     let n = CAR.checkpoint.get();
-    let f = COURSE
-        .course_faces
-        .get()
-        .wrapping_add(held(crate::race::checkpoints_store::face, n, 2) << 6);
-    let (b1, b2) = crate::race::course_places::face(f, "a checkpoint face")?.bends();
+    let f = held(crate::race::checkpoints_store::face, n, 2);
+    let (b1, b2) = crate::race::course_places::face_number(f, "a checkpoint face")?.bends();
     let (b1, b2) = (u32::from(b1), u32::from(b2));
     RACE_WORK.driver_bend_a.set(b1);
     RACE_WORK.driver_bend_b.set(b2);

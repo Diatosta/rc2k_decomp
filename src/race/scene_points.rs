@@ -113,13 +113,6 @@ pub fn word(at: u32) -> Result<u32, BadInput> {
     array(at).map(u32::from_le_bytes)
 }
 
-/// The dword at place `at`; outside the points the game ends (for the readers that
-/// cannot carry a refusal, as their reads of game memory did).
-#[track_caller]
-pub fn word_or_end(at: u32) -> u32 {
-    word(at).unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
-}
-
 /// The three dwords of the point at place `at`.
 #[track_caller]
 pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
@@ -132,6 +125,24 @@ pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
 /// Point `n`'s place.
 pub fn place(n: u32) -> u32 {
     n.wrapping_mul(12).wrapping_add(COURSE.scene_points.get())
+}
+
+/// Point `n`'s x, y and z (point -1 as `bytes` reads it).
+#[track_caller]
+pub fn point_number(n: u32) -> Result<[u32; 3], BadInput> {
+    point(place(n))
+}
+
+/// Point `from` copied over point `to` (as `bytes` reads `from`).
+#[track_caller]
+pub fn copy_point(from: u32, to: u32) -> Result<(), BadInput> {
+    write(place(to), &bytes(place(from), 12)?)
+}
+
+/// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
+#[track_caller]
+pub fn point_word(n: u32, k: u32) -> Result<u32, BadInput> {
+    word(place(n).wrapping_add(4 * k))
 }
 
 /// `data` written at place `at`; refused outside the points.
