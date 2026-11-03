@@ -405,3 +405,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen in screenshots of two copies racing, and read in `scene::init_texture_levels` (0x424001).
 
 **Fix:** the car this machine drives, and any car of the same model, get the full size; away from a network race that is car 0 and its like. Two cars of one model need both: the cockpit stayed blurred with only the own car at full size.
+
+## "Remove all" leaves the game's folder behind
+
+**What it is:** the uninstaller removes only the files and folders its install script lists, then the folder itself. Anything else in the folder (the program's own log, files the game or the player added, and on Windows the running program and its libraries) keeps the folder from being removed.
+
+**In game:** after choosing to remove everything, the game's folder was still there with a few files in it.
+
+**Seen or read:** seen with the standalone in a test installation (a file added to the folder stayed), and read in `install::uninstall` (0x4134DF).
+
+**Fix:** with "remove all" chosen, whatever is left of the installation's folder is removed once the listed files are gone; on Windows, what the running program still holds goes right after it ends. Only a folder that holds the installation's record and is neither a drive's root nor the home folder is removed this way. "Keep saved data" is unchanged: the saved games and settings stay.

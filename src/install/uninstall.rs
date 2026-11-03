@@ -15,6 +15,14 @@
 //!
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
+//!
+//! "Remove all" (2026-11-03, a decided difference): the original removed only what its
+//! script lists, so files the game made (its log, `rc2k.log`, the program and its
+//! libraries) kept the folder. With every folder chosen (`script_mark` not 5, "keep saved
+//! data"'s End) the installation's folder goes whole once the listed files are gone; on
+//! Windows what is still in use goes after the program ends (`os::remove_folder_after_exit`).
+//! Only a folder that holds an installation's record (`var\install.cfg`) and is neither a
+//! root nor the home folder.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -37,6 +45,54 @@ fn build_path(
     Ok(crate::place::Place::from(&INSTALLER_PATHS.path_b))
 }
 
+/// The installation's folder, when "remove all" was chosen and it is one that may go whole.
+fn whole_folder() -> Option<std::path::PathBuf> {
+    if INSTALLER_NAMES.script_mark.get() == 5 {
+        return None;
+    }
+    let text = INSTALLER_PATHS.installed.read();
+    let text = &text[..text.iter().position(|&b| b == 0).unwrap_or(text.len())];
+    let mut record = text.to_vec();
+    if !record.ends_with(b"\\") {
+        record.push(b'\\');
+    }
+    record.extend(crate::install::portable::FILE.as_bytes());
+    let folder = std::path::absolute(crate::files::host_path(text)).ok()?;
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .and_then(|h| std::path::absolute(h).ok());
+    let kept = folder.parent().is_none()
+        || home.is_some_and(|h| h == folder)
+        || !crate::files::host_path(&record).is_file();
+    if kept {
+        crate::framework::log(&format!(
+            "install: \"{}\" is not removed whole (not an installation's folder)",
+            folder.display()
+        ));
+        return None;
+    }
+    Some(folder)
+}
+
+/// What is left of `folder` removed (now, and on Windows what is in use after the end).
+fn remove_whole(folder: &std::path::Path) {
+    let now = match std::fs::remove_dir_all(folder) {
+        Ok(()) => "removed".to_string(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => "already gone".to_string(),
+        Err(e) => format!("not all removed ({e})"),
+    };
+    #[cfg(windows)]
+    let now = if folder.exists() {
+        let later = crate::os::remove_folder_after_exit(folder);
+        format!(
+            "{now}; the rest after the end: {}",
+            if later { "asked" } else { "not asked" }
+        )
+    } else {
+        now
+    };
+    crate::framework::log(&format!("install: \"{}\": {now}", folder.display()));
+}
+
 pub fn uninstall() -> Result<(), Refused> {
     use crate::install as i;
     if INSTALLER_NAMES.status.get() == 0 || INSTALLER_NAMES.source.get(0) == 0 {
@@ -53,6 +109,7 @@ pub fn uninstall() -> Result<(), Refused> {
         show();
     }
     normalise(&INSTALLER_NAMES.source, &INSTALLER_PATHS.installed)?;
+    let whole = whole_folder();
     set_cd(&INSTALLER_PATHS.installed);
     i::run_script::run_script(&INSTALLER_NAMES.script)?;
     if INSTALLER_RUN.file_count.get() != 0 {
@@ -77,6 +134,9 @@ pub fn uninstall() -> Result<(), Refused> {
     }
     set_cd(&crate::install::installer::INSTALL_TEXTS.dotdot);
     remove_dir(&INSTALLER_PATHS.installed);
+    if let Some(folder) = whole {
+        remove_whole(&folder);
+    }
     sleep(1000);
     INSTALLER_NAMES.status.set(0);
     wb(&INSTALLER_NAMES.source, 0);
