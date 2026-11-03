@@ -115,8 +115,8 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     }
     crate::effects::setup::marks()?;
     turnable(&angle(sh)?)?;
-    let mut temps = [0u32; 2];
-    let t = crate::pointers::game_address(temps.as_mut_ptr());
+    let temps = [const { Float::from_bits(0) }; 2];
+
     if depth {
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();
@@ -138,14 +138,13 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     normalise(s2);
     let a = angle(sh)?;
     turn_matrix3(Axis::Z, &q.matrix, a)?;
-    let m = q.matrix[0].addr();
-    light_turned_x87(sh, m as usize, t as usize);
+    light_turned_x87(sh, &q.matrix, &temps);
     for n in 0..3 {
         for k in 0..3 {
             q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
         }
     }
-    second_turned_x87(sh, m as usize, t as usize);
+    second_turned_x87(sh, &q.matrix, &temps);
     cross(s2, s1, s0);
     cross(s2, s0, s1);
     corners_x87(sh);
@@ -192,64 +191,64 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, st};
+use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
+fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
     let t0 = bh::ld(s.consts.light[0].bits());
     let t1 = bh::ld(s.consts.light[1].bits());
     let t2 = bh::ld(s.consts.light[2].bits());
-    let t3 = t2 * ld(m, 0);
-    let t4 = t1 * ld(m, 0x4);
-    let t5 = t0 * ld(m, 0x8);
+    let t3 = t2 * ld_cell(&m[0]);
+    let t4 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * ld_cell(&m[2]);
     let t6 = t4 + t5;
     let t7 = t3 + t6;
-    st(t, 0, t7);
-    let t8 = t2 * ld(m, 0xC);
-    let t9 = t1 * ld(m, 0x10);
-    let t10 = t0 * ld(m, 0x14);
+    st_cell(&t[0], t7);
+    let t8 = t2 * ld_cell(&m[3]);
+    let t9 = t1 * ld_cell(&m[4]);
+    let t10 = t0 * ld_cell(&m[5]);
     let t11 = t9 + t10;
     let t12 = t8 + t11;
-    st(t, 0x4, t12);
-    let t13 = t2 * ld(m, 0x18);
-    let t14 = t1 * ld(m, 0x1C);
-    let t15 = t0 * ld(m, 0x20);
+    st_cell(&t[1], t12);
+    let t13 = t2 * ld_cell(&m[6]);
+    let t14 = t1 * ld_cell(&m[7]);
+    let t15 = t0 * ld_cell(&m[8]);
     let t16 = t13 + t15;
     let t17 = t14 + t16;
-    let t18 = ld(t, 0x4);
-    let t19 = ld(t, 0);
+    let t18 = ld_cell(&t[1]);
+    let t19 = ld_cell(&t[0]);
     s.quad.light_turned[0].set_bits(bh::st(t19));
     s.quad.light_turned[1].set_bits(bh::st(t18));
     s.quad.light_turned[2].set_bits(bh::st(t17));
 }
 
 /// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-fn second_turned_x87(s: &Shadow, m: usize, t: usize) {
+fn second_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
     let t0 = bh::ld(s.quad.light_turned[2].bits());
     let t1 = bh::ld(s.quad.light_turned[1].bits());
     let t2 = bh::ld(s.quad.light_turned[0].bits());
-    let t3 = t2 * ld(m, 0);
-    let t4 = t1 * ld(m, 0x4);
-    let t5 = t0 * ld(m, 0x8);
+    let t3 = t2 * ld_cell(&m[0]);
+    let t4 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * ld_cell(&m[2]);
     let t6 = t4 + t5;
     let t7 = t3 + t6;
-    st(t, 0, t7);
-    let t8 = t2 * ld(m, 0xC);
-    let t9 = t1 * ld(m, 0x10);
-    let t10 = t0 * ld(m, 0x14);
+    st_cell(&t[0], t7);
+    let t8 = t2 * ld_cell(&m[3]);
+    let t9 = t1 * ld_cell(&m[4]);
+    let t10 = t0 * ld_cell(&m[5]);
     let t11 = t9 + t10;
     let t12 = t8 + t11;
-    st(t, 0x4, t12);
-    let t13 = t2 * ld(m, 0x18);
-    let t14 = t1 * ld(m, 0x1C);
-    let t15 = t0 * ld(m, 0x20);
+    st_cell(&t[1], t12);
+    let t13 = t2 * ld_cell(&m[6]);
+    let t14 = t1 * ld_cell(&m[7]);
+    let t15 = t0 * ld_cell(&m[8]);
     let t16 = t13 + t15;
     let t17 = t14 + t16;
-    let t18 = ld(t, 0x4);
-    let t19 = ld(t, 0);
+    let t18 = ld_cell(&t[1]);
+    let t19 = ld_cell(&t[0]);
     s.quad.frame[1][0].set_bits(bh::st(t19));
     s.quad.frame[1][1].set_bits(bh::st(t18));
     s.quad.frame[1][2].set_bits(bh::st(t17));
@@ -1132,6 +1131,7 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::with_copy;
     use crate::effects::kind_store::{KindConsts, QuadWork};
+    use crate::effects::store::START;
     use crate::session::Float;
 
     /// A shadow's variables: the quad, the constants and the up (IDA addresses).
@@ -1159,6 +1159,12 @@ mod asm_differential {
                 })
             })
         })
+    }
+    /// `f` on the matrix and the two temporaries at the test addresses `m` and `t`.
+    fn with_matrix(m: usize, t: usize, f: impl FnOnce(&[Float; 9], &[Float; 2])) {
+        with_copy::<[Float; 9], ()>(m, START, |m| {
+            with_copy::<[Float; 2], ()>(t, START, |t| f(m, t));
+        });
     }
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
@@ -1201,7 +1207,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::light_turned_x87(b[0], b[1], b[2]),
-            |b| with_shadow(b[0], SET_2, |s| super::light_turned_x87(s, b[1], b[2])),
+            |b| {
+                with_shadow(b[0], SET_2, |s| {
+                    with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
+                });
+            },
         );
     }
 
@@ -1243,7 +1253,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::second_turned_x87(b[0], b[1], b[2]),
-            |b| with_shadow(b[0], SET_2, |s| super::second_turned_x87(s, b[1], b[2])),
+            |b| {
+                with_shadow(b[0], SET_2, |s| {
+                    with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
+                });
+            },
         );
     }
 
@@ -1450,7 +1464,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::light_turned_2_x87(b[0], b[1], b[2]),
-            |b| with_shadow(b[0], SET_1, |s| super::light_turned_x87(s, b[1], b[2])),
+            |b| {
+                with_shadow(b[0], SET_1, |s| {
+                    with_matrix(b[1], b[2], |m, t| super::light_turned_x87(s, m, t));
+                });
+            },
         );
     }
 
@@ -1492,7 +1510,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::second_turned_2_x87(b[0], b[1], b[2]),
-            |b| with_shadow(b[0], SET_1, |s| super::second_turned_x87(s, b[1], b[2])),
+            |b| {
+                with_shadow(b[0], SET_1, |s| {
+                    with_matrix(b[1], b[2], |m, t| super::second_turned_x87(s, m, t));
+                });
+            },
         );
     }
 

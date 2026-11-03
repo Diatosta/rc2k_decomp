@@ -54,46 +54,40 @@ fn entry_car(e: u32) -> Result<&'static MarkCar, Refused> {
     car_or_none(eg(e, 0x68)?).ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
-fn box_(e: u32, p: u32, m: u32) {
-    box_x87(&RING_WORK, e, p as usize, m as usize);
+fn box_(e: u32, whole: &[Float; 16], car: &MarkCar) {
+    box_x87(&RING_WORK, e, whole, car);
+}
+
+/// The car's whole matrix (its block's), refused where the original would read address 0.
+fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
+    crate::race::blocks_store::car_of(car.word(0x24)?)
+        .map(|b| &b.whole_matrix)
+        .ok_or(BadInput("a ring entry without its object"))
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-fn facing(o: u32) {
-    facing_x87(o as usize, &MARKS_FLOATS, &RING_WORK);
+fn facing(car: &MarkCar) {
+    facing_x87(car, &MARKS_FLOATS, &RING_WORK);
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
-fn pull_length(e: u32, p: u32, l: u32) {
-    pull_length_x87(
-        e,
-        p as usize,
-        l as usize,
-        &RING_WORK,
-        crate::pointers::game_address(&raw const RING_KINDS) as usize,
-    );
+fn pull_length(e: u32, whole: &[Float; 16], length: &mut [u8; 10]) {
+    pull_length_x87(e, whole, length, &RING_WORK, &RING_KINDS);
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
-fn pull_facing(o: u32, l: u32) {
-    pull_facing_x87(o as usize, l as usize, &MARKS_FLOATS, &RING_WORK);
+fn pull_facing(car: &MarkCar, length: &[u8; 10]) {
+    pull_facing_x87(car, length, &MARKS_FLOATS, &RING_WORK);
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-fn pull_strength(e: u32, o: u32) {
-    pull_strength_x87(
-        e,
-        o as usize,
-        &CLOCK,
-        &MARKS_FLOATS,
-        &RING_WORK,
-        crate::pointers::game_address(&raw const RING_KINDS) as usize,
-    );
+fn pull_strength(e: u32, car: &MarkCar) {
+    pull_strength_x87(e, car, &CLOCK, &MARKS_FLOATS, &RING_WORK, &RING_KINDS);
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
-fn box_place(e: u32, m: u32) {
-    box_place_x87(&RING_WORK, e, m as usize);
+fn box_place(e: u32, car: &MarkCar) {
+    box_place_x87(&RING_WORK, e, car);
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
@@ -338,14 +332,13 @@ fn fade(e: u32) -> Result<(), Refused> {
 fn outside_and_away(e: u32) -> Result<bool, Refused> {
     Ok({
         let car = entry_car(e)?;
-        let obj = GamePtr::to(car).addr();
-        box_(e, car.whole_matrix()?, car.at(0x94).addr());
+        box_(e, whole_of(car)?, car);
         let outside = (eg(e, 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32)
             || (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
         if !outside {
             return Ok(false);
         }
-        facing(obj);
+        facing(car);
         (RING_WORK.facing.bits() as i32) <= 0
     })
 }
@@ -459,18 +452,16 @@ fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
 fn pull_toward(e: u32) -> Result<(), Refused> {
     {
         let car = entry_car(e)?;
-        let obj = GamePtr::to(car).addr();
         let mut length = [0u8; 10];
-        let l = crate::pointers::game_address(length.as_mut_ptr());
-        pull_length(e, car.whole_matrix()?, l);
+        pull_length(e, whole_of(car)?, &mut length);
         if (RING_WORK.near.bits() as i32) < 0 {
             return Ok(());
         }
-        pull_facing(obj, l);
+        pull_facing(car, &length);
         if (RING_WORK.facing.bits() as i32) <= 0 {
             return Ok(());
         }
-        pull_strength(e, obj);
+        pull_strength(e, car);
         if (RING_WORK.whole.get() as i32) > (MARKS_FLOATS.pull_limit.bits() as i32) {
             ep(e, 0x64, x87::loaded(MARKS_FLOATS.two_pow_16.bits()))?;
         }
@@ -497,7 +488,7 @@ fn boxed_kind(e: u32, gain: &Float, both: bool) -> Result<bool, Refused> {
         let subcell = ((f as u32) & 3).wrapping_add(eg(e, 0x58)?);
         draw(3, subcell, 0, 0, size, e, p)?;
     }
-    box_place(e, entry_car(e)?.at(0x94).addr());
+    box_place(e, entry_car(e)?);
     let mut outside = (eg(e, 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32);
     if !outside && both {
         outside = (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
@@ -573,44 +564,54 @@ pub fn run_ring() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, ld80, ldi, st80};
+use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
+/// `fld dword ptr [car + off]` of a car record in the settings.
+fn car_float(car: &MarkCar, off: usize) -> bh::X {
+    bh::ld(car.words[off / 4].get())
+}
+
+/// `fld dword ptr [m + off]` of the car's 3 x 3 matrix (the record's +0x94).
+fn turn(car: &MarkCar, off: usize) -> bh::X {
+    car_float(car, 0x94 + off)
+}
+
 /// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
-fn box_x87(w: &RingWork, e: u32, p: usize, m: usize) {
+fn box_x87(w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar) {
     let t0 = eld(e, 0x10);
-    let t1 = t0 - ld(p, 0x30);
+    let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].set_bits(bh::st(t1));
     let t2 = eld(e, 0x14);
-    let t3 = t2 - ld(p, 0x34);
+    let t3 = t2 - ld_cell(&whole[13]);
     w.away[1].set_bits(bh::st(t3));
     let t4 = eld(e, 0x18);
-    let t5 = t4 - ld(p, 0x38);
+    let t5 = t4 - ld_cell(&whole[14]);
     w.away[2].set_bits(bh::st(t5));
     let t6 = bh::ld(w.away[2].bits());
     let t7 = bh::ld(w.away[1].bits());
     let t8 = bh::ld(w.away[0].bits());
-    let t9 = ld(m, 0);
+    let t9 = turn(car, 0);
     let t10 = t9 * t8;
-    let t11 = ld(m, 0x10);
+    let t11 = turn(car, 0x10);
     let t12 = t11 * t7;
-    let t13 = ld(m, 0x20);
+    let t13 = turn(car, 0x20);
     let t14 = t13 * t6;
     let t15 = t12 + t14;
     let t16 = t10 + t15;
-    let t17 = ld(m, 0x4);
+    let t17 = turn(car, 0x4);
     let t18 = t17 * t8;
-    let t19 = ld(m, 0x14);
+    let t19 = turn(car, 0x14);
     let t20 = t19 * t7;
-    let t21 = ld(m, 0x24);
+    let t21 = turn(car, 0x24);
     let t22 = t21 * t6;
     let t23 = t20 + t22;
     let _t24 = t18 + t23;
-    let t25 = ld(m, 0x8);
+    let t25 = turn(car, 0x8);
     let t26 = t8 * t25;
-    let t27 = ld(m, 0x18);
+    let t27 = turn(car, 0x18);
     let t28 = t7 * t27;
-    let t29 = ld(m, 0x28);
+    let t29 = turn(car, 0x28);
     let t30 = t6 * t29;
     let t31 = t30 + t28;
     let t32 = t26 + t31;
@@ -621,7 +622,7 @@ fn box_x87(w: &RingWork, e: u32, p: usize, m: usize) {
 }
 
 /// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
-fn facing_x87(o: usize, f: &MarksFloats, w: &RingWork) {
+fn facing_x87(car: &MarkCar, f: &MarksFloats, w: &RingWork) {
     let t0 = bh::ld(w.away[0].bits());
     let t1 = t0 * t0;
     let t2 = bh::ld(w.away[1].bits());
@@ -642,11 +643,11 @@ fn facing_x87(o: usize, f: &MarksFloats, w: &RingWork) {
     let t15 = t9 * t14;
     w.away[2].set_bits(bh::st(t15));
     let t16 = bh::ld(w.away[0].bits());
-    let t17 = t16 * ld(o, 0x4C);
+    let t17 = t16 * car_float(car, 0x4C);
     let t18 = bh::ld(w.away[1].bits());
-    let t19 = t18 * ld(o, 0x50);
+    let t19 = t18 * car_float(car, 0x50);
     let t20 = bh::ld(w.away[2].bits());
-    let t21 = t20 * ld(o, 0x54);
+    let t21 = t20 * car_float(car, 0x54);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
     w.facing.set_bits(bh::st(t23));
@@ -654,15 +655,15 @@ fn facing_x87(o: usize, f: &MarksFloats, w: &RingWork) {
 
 /// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
 /// `rk` the ring kinds' constants (`RingKinds`).
-fn pull_length_x87(e: u32, p: usize, l: usize, w: &RingWork, rk: usize) {
+fn pull_length_x87(e: u32, whole: &[Float; 16], l: &mut [u8; 10], w: &RingWork, rk: &RingKinds) {
     let t0 = eld(e, 0x10);
-    let t1 = t0 - ld(p, 0x30);
+    let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].set_bits(bh::st(t1));
     let t2 = eld(e, 0x14);
-    let t3 = t2 - ld(p, 0x34);
+    let t3 = t2 - ld_cell(&whole[13]);
     w.away[1].set_bits(bh::st(t3));
     let t4 = eld(e, 0x18);
-    let t5 = t4 - ld(p, 0x38);
+    let t5 = t4 - ld_cell(&whole[14]);
     w.away[2].set_bits(bh::st(t5));
     let t6 = bh::ld(w.away[0].bits());
     let t7 = t6 * t6;
@@ -673,14 +674,14 @@ fn pull_length_x87(e: u32, p: usize, l: usize, w: &RingWork, rk: usize) {
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 - ld(rk, 0x4C);
+    let t15 = t14 - ld_cell(&rk.near_less);
     w.near.set_bits(bh::st(t15));
-    st80(l, 0, t14);
+    *l = bh::f80(t14);
 }
 
 /// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn pull_facing_x87(o: usize, l: usize, f: &MarksFloats, w: &RingWork) {
-    let t0 = bh::from_f80(ld80(l, 0));
+fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
+    let t0 = bh::from_f80(*l);
     let t1 = bh::ld(f.one.bits()) / t0;
     let t2 = bh::ld(w.away[0].bits());
     let t3 = t2 * t1;
@@ -691,15 +692,15 @@ fn pull_facing_x87(o: usize, l: usize, f: &MarksFloats, w: &RingWork) {
     let t6 = bh::ld(w.away[2].bits());
     let t7 = t1 * t6;
     w.away[2].set_bits(bh::st(t7));
-    let t8 = ldi(o, 0x88);
+    let t8 = ldi_cell(&car.words[0x88 / 4]);
     let t9 = bh::ld(f.one.bits()) / t8;
-    let t10 = ld(o, 0x4C);
+    let t10 = car_float(car, 0x4C);
     let t11 = t10 * t9;
     w.turned[0].set_bits(bh::st(t11));
-    let t12 = ld(o, 0x50);
+    let t12 = car_float(car, 0x50);
     let t13 = t12 * t9;
     w.turned[1].set_bits(bh::st(t13));
-    let t14 = ld(o, 0x54);
+    let t14 = car_float(car, 0x54);
     let t15 = t9 * t14;
     w.turned[2].set_bits(bh::st(t15));
     let t16 = bh::ld(w.away[0].bits());
@@ -716,16 +717,23 @@ fn pull_facing_x87(o: usize, l: usize, f: &MarksFloats, w: &RingWork) {
 
 /// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
 /// `rk` the ring kinds' constants (`RingKinds`).
-fn pull_strength_x87(e: u32, o: usize, c: &MarksClock, f: &MarksFloats, w: &RingWork, rk: usize) {
-    let t0 = ldi(o, 0x88);
-    let t1 = t0 * ld(rk, 0x50);
+fn pull_strength_x87(
+    e: u32,
+    car: &MarkCar,
+    c: &MarksClock,
+    f: &MarksFloats,
+    w: &RingWork,
+    rk: &RingKinds,
+) {
+    let t0 = ldi_cell(&car.words[0x88 / 4]);
+    let t1 = t0 * ld_cell(&rk.near_scale);
     let t2 = t1 + bh::ld(f.one.bits());
     let t3 = bh::ld(f.one.bits()) / t2;
     let t4 = bh::ld(f.one.bits()) - t3;
     w.whole.set_bits(bh::st(t4));
     let t5 = bh::ld(f.two_pow_16.bits());
     let t6 = t5 - eld(e, 0x64);
-    let t7 = ld(rk, 0x54);
+    let t7 = ld_cell(&rk.near_rate);
     let t8 = t7 * bh::ld(w.whole.bits());
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
@@ -735,31 +743,31 @@ fn pull_strength_x87(e: u32, o: usize, c: &MarksClock, f: &MarksFloats, w: &Ring
 }
 
 /// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn box_place_x87(w: &RingWork, e: u32, m: usize) {
+fn box_place_x87(w: &RingWork, e: u32, car: &MarkCar) {
     let t0 = eld(e, 0x18);
     let t1 = eld(e, 0x14);
     let t2 = eld(e, 0x10);
-    let t3 = ld(m, 0);
+    let t3 = turn(car, 0);
     let t4 = t3 * t2;
-    let t5 = ld(m, 0x10);
+    let t5 = turn(car, 0x10);
     let t6 = t5 * t1;
-    let t7 = ld(m, 0x20);
+    let t7 = turn(car, 0x20);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = ld(m, 0x4);
+    let t11 = turn(car, 0x4);
     let t12 = t11 * t2;
-    let t13 = ld(m, 0x14);
+    let t13 = turn(car, 0x14);
     let t14 = t13 * t1;
-    let t15 = ld(m, 0x24);
+    let t15 = turn(car, 0x24);
     let t16 = t15 * t0;
     let t17 = t14 + t16;
     let _t18 = t12 + t17;
-    let t19 = ld(m, 0x8);
+    let t19 = turn(car, 0x8);
     let t20 = t2 * t19;
-    let t21 = ld(m, 0x18);
+    let t21 = turn(car, 0x18);
     let t22 = t1 * t21;
-    let t23 = ld(m, 0x28);
+    let t23 = turn(car, 0x28);
     let t24 = t0 * t23;
     let t25 = t24 + t22;
     let t26 = t20 + t25;
@@ -1213,6 +1221,56 @@ mod asm_differential {
     use crate::effects::asm_test::{Op, Spec, differential, with_copy};
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
+    use crate::race::marks_settings_store::MarkCar;
+    use crate::session::{Dword, Float};
+
+    fn word(at: usize) -> u32 {
+        unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
+    }
+
+    /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
+    fn car_with(at: usize, base: usize, offsets: &[usize]) -> MarkCar {
+        let car = MarkCar {
+            words: std::array::from_fn(|_| Dword::new(0)),
+        };
+        for &o in offsets {
+            car.words[o / 4].set(word(at + o - base));
+        }
+        car
+    }
+
+    /// The car's 3 x 3 matrix (the record's +0x94) from the buffer at `at`.
+    fn car_matrix(at: usize) -> MarkCar {
+        let offsets: Vec<usize> = [0x0, 0x4, 0x8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
+            .iter()
+            .map(|o| 0x94 + o)
+            .collect();
+        car_with(at, 0x94, &offsets)
+    }
+
+    /// Runs `f` with the ring kinds' cells holding the given bits, then as they were.
+    fn with_kinds(cells: &[(&Float, u32)], f: impl FnOnce()) {
+        let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
+        for (c, v) in cells {
+            c.set_bits(*v);
+        }
+        f();
+        for ((c, _), v) in cells.iter().zip(saved) {
+            c.set_bits(v);
+        }
+    }
+
+    /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
+    /// matrix's place, as the original reads it).
+    fn whole_at(at: usize) -> [Float; 16] {
+        std::array::from_fn(|i| {
+            Float::from_bits(if (12..15).contains(&i) {
+                word(at + 4 * i)
+            } else {
+                0
+            })
+        })
+    }
 
     #[test]
     fn box_x87_matches() {
@@ -1267,7 +1325,7 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::box_x87(w, e, b[2], b[3]);
+                        super::box_x87(w, e, &whole_at(b[2]), &car_matrix(b[3]));
                     });
                 });
             },
@@ -1308,7 +1366,10 @@ mod asm_differential {
             |b| reference::facing_x87(b[0], b[1]),
             |b| {
                 with_copy(b[0], MarksFloats::START, |f| {
-                    with_copy(b[0], RingWork::START, |w| super::facing_x87(b[1], f, w));
+                    with_copy(b[0], RingWork::START, |w| {
+                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54]);
+                        super::facing_x87(&car, f, w);
+                    });
                 });
             },
         );
@@ -1362,7 +1423,20 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::pull_length_x87(e, b[2], b[3], w, b[4]);
+                        let mut length = [0xAA; 10];
+                        with_kinds(&[(&super::RING_KINDS.near_less, word(b[4] + 0x4C))], || {
+                            super::pull_length_x87(
+                                e,
+                                &whole_at(b[2]),
+                                &mut length,
+                                w,
+                                &super::RING_KINDS,
+                            );
+                        });
+                        unsafe {
+                            crate::pointers::host_at(b[3])
+                                .copy_from_nonoverlapping(length.as_ptr(), 10);
+                        }
                     });
                 });
             },
@@ -1416,7 +1490,11 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], MarksFloats::START, |f| {
                     with_copy(b[0], RingWork::START, |w| {
-                        super::pull_facing_x87(b[1], b[2], f, w);
+                        let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
+                        let length: [u8; 10] = std::array::from_fn(|i| unsafe {
+                            crate::pointers::host_at(b[2] + i).read()
+                        });
+                        super::pull_facing_x87(&car, &length, f, w);
                     });
                 });
             },
@@ -1461,14 +1539,21 @@ mod asm_differential {
                 with_copy(b[0], MarksFloats::START, |f| {
                     with_copy(b[0], RingWork::START, |w| {
                         crate::effects::ring_entries::with_entry_at(b[1], 0x64, 0x68, |e| {
-                            super::pull_strength_x87(
-                                e,
-                                b[2],
-                                crate::effects::setup::clock_at(b[0]),
-                                f,
-                                w,
-                                b[3],
-                            );
+                            let car = car_with(b[2], 0, &[0x88]);
+                            let rates = [
+                                (&super::RING_KINDS.near_scale, word(b[3] + 0x50)),
+                                (&super::RING_KINDS.near_rate, word(b[3] + 0x54)),
+                            ];
+                            with_kinds(&rates, || {
+                                super::pull_strength_x87(
+                                    e,
+                                    &car,
+                                    crate::effects::setup::clock_at(b[0]),
+                                    f,
+                                    w,
+                                    &super::RING_KINDS,
+                                );
+                            });
                         });
                     });
                 });
@@ -1517,7 +1602,7 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
-                        super::box_place_x87(w, e, b[2]);
+                        super::box_place_x87(w, e, &car_matrix(b[2]));
                     });
                 });
             },

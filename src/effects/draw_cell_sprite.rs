@@ -31,29 +31,14 @@ const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
 fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87(
-        (crate::pointers::game_address(p.as_ptr())) as usize,
-        &RING_WORK,
-        &DRAW_WORK,
-    );
+    turn_x87(p, &RING_WORK, &DRAW_WORK);
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
 /// between the x87 steps): the square, turned, about the projected place. Gives what the
 /// original loads into edi at +0x17B: `flt_8EB8C1` between its two stores.
-fn square(k: u32, s: u32) -> u32 {
-    let edi: u32;
-    {
-        edi = square_x87(
-            crate::d3d::vertices_store::piece_addr() as usize,
-            crate::scene::engine_tables_store::piece_addr() as usize,
-            k as usize,
-            s as usize,
-            &DRAW_WORK,
-            &CORNER_SLOPES,
-        );
-    }
-    edi
+fn square(k: u32, angle: u32) -> u32 {
+    square_x87(k as usize, angle as usize, &DRAW_WORK, &CORNER_SLOPES)
 }
 
 /// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
@@ -101,7 +86,7 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(v);
     }
-    square(at, 4 * angle);
+    square(at, angle);
     if clip_quad()? {
         return Ok(());
     }
@@ -112,17 +97,18 @@ pub fn draw_cell_sprite(
 
 use crate::effects::blocks::{CORNER_SLOPES, CornerSlopes};
 use crate::effects::frame_state::{DRAW_WORK, DrawWork};
-use crate::effects::plain::{ld, ld80, st};
+use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::race::matrices_store::MATRICES;
-use crate::session::address_of;
+use crate::scene::engine_tables_store::{cosine, sine};
+use crate::session::Float;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(p: usize, w: &RingWork, dw: &DrawWork) {
-    let t0 = bh::from_f80(ld80(p, 0x14));
-    let t1 = bh::from_f80(ld80(p, 0xA));
-    let t2 = bh::from_f80(ld80(p, 0));
+fn turn_x87(p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+    let t0 = bh::from_f80(p[2]);
+    let t1 = bh::from_f80(p[1]);
+    let t2 = bh::from_f80(p[0]);
     let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());
@@ -156,23 +142,33 @@ fn turn_x87(p: usize, w: &RingWork, dw: &DrawWork) {
     dw.turned[2].set_bits(bh::st(t29));
 }
 
+/// The float at byte `k` of the slope records, whatever field of a record it falls on.
+fn slope_at(cs: &CornerSlopes, k: usize) -> &Float {
+    let record = &cs.slopes[k / 0x24];
+    match (k % 0x24) / 4 {
+        0 => &record.slope,
+        n => &record.values[n - 1],
+    }
+}
+
 /// `square`'s x87 block as plain Rust on the x87 model (77 instructions), same order and memory places.
 /// `k` is the cell's offset in the cell table (16 bytes a cell), which the original also
 /// adds to `g_marksCornerSlopes` (records of 0x24: it reads the float at that byte, whatever
-/// field it falls on: section 16), so that read stays by address.
-fn square_x87(vt: usize, sn: usize, k: usize, s: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
+/// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
+/// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
+fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
-    st(vt, 0x8, t3);
-    st(vt, 0x28, t3);
-    st(vt, 0x48, t3);
-    st(vt, 0x68, t3);
+    st_cell(&VERTICES.vertices[0].z, t3);
+    st_cell(&VERTICES.vertices[1].z, t3);
+    st_cell(&VERTICES.vertices[2].z, t3);
+    st_cell(&VERTICES.vertices[3].z, t3);
     let t4 = bh::int(dw.sprite_half[0].bits() as i32);
     let t5 = t4 * t1;
     dw.sprite_half[0].set_bits(bh::st(t5));
-    let t6 = t5 * ld(address_of(&cs.slopes) as usize, k);
+    let t6 = t5 * ld_cell(slope_at(cs, k));
     dw.sprite_half[1].set_bits(bh::st(t6));
     let t7 = dw.sprite_half[0].bits();
     let t8 = t7 ^ 0x80000000;
@@ -181,24 +177,24 @@ fn square_x87(vt: usize, sn: usize, k: usize, s: usize, dw: &DrawWork, cs: &Corn
     dw.sprite_half[2].set_bits(t9);
     let t10 = bh::ld(dw.sprite_half[0].bits());
     let t11 = bh::ld(dw.sprite_half[1].bits());
-    let t12 = t11 * ld(sn, s.wrapping_add(0x1000));
-    let t13 = t10 * ld(sn, s);
+    let t12 = t11 * ld_cell(cosine(angle));
+    let t13 = t10 * ld_cell(sine(angle));
     let t14 = t12 + t13;
     dw.sprite_half[0].set_bits(bh::st(t14));
     let t15 = -t11;
-    let t16 = t15 * ld(sn, s);
-    let t17 = t10 * ld(sn, s.wrapping_add(0x1000));
+    let t16 = t15 * ld_cell(sine(angle));
+    let t17 = t10 * ld_cell(cosine(angle));
     let t18 = t16 + t17;
     dw.sprite_half[1].set_bits(bh::st(t18));
     let t19 = bh::ld(dw.sprite_half[2].bits());
     let t20 = bh::ld(dw.sprite_half[3].bits());
-    let t21 = t20 * ld(sn, s.wrapping_add(0x1000));
-    let t22 = t19 * ld(sn, s);
+    let t21 = t20 * ld_cell(cosine(angle));
+    let t22 = t19 * ld_cell(sine(angle));
     let t23 = t21 + t22;
     dw.sprite_half[2].set_bits(bh::st(t23));
     let t24 = -t20;
-    let t25 = t24 * ld(sn, s);
-    let t26 = t19 * ld(sn, s.wrapping_add(0x1000));
+    let t25 = t24 * ld_cell(sine(angle));
+    let t26 = t19 * ld_cell(cosine(angle));
     let t27 = t25 + t26;
     dw.sprite_half[3].set_bits(bh::st(t27));
     let t28 = t1 * bh::ld(dw.turned[0].bits());
@@ -206,22 +202,22 @@ fn square_x87(vt: usize, sn: usize, k: usize, s: usize, dw: &DrawWork, cs: &Corn
     let t30 = -t29;
     let t31 = t30 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
-    st(vt, 0x4, t32);
+    st_cell(&VERTICES.vertices[0].y, t32);
     let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
-    st(vt, 0x24, t33);
+    st_cell(&VERTICES.vertices[1].y, t33);
     let t34 = t31 + bh::ld(dw.sprite_half[1].bits());
-    st(vt, 0x44, t34);
+    st_cell(&VERTICES.vertices[2].y, t34);
     let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
-    st(vt, 0x64, t35);
+    st_cell(&VERTICES.vertices[3].y, t35);
     let t36 = t28 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
-    st(vt, 0x0, t37);
+    st_cell(&VERTICES.vertices[0].x, t37);
     let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
-    st(vt, 0x20, t38);
+    st_cell(&VERTICES.vertices[1].x, t38);
     let t39 = t36 + bh::ld(dw.sprite_half[0].bits());
-    st(vt, 0x40, t39);
+    st_cell(&VERTICES.vertices[2].x, t39);
     let t40 = t36 + bh::ld(dw.sprite_half[2].bits());
-    st(vt, 0x60, t40);
+    st_cell(&VERTICES.vertices[3].x, t40);
     t9
 }
 
@@ -383,6 +379,42 @@ mod asm_differential {
     use crate::effects::blocks::CornerSlopes;
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
+    use crate::scene::engine_tables_store::{cosine, sine};
+    use crate::session::Float;
+
+    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
+    fn vertex_cell(off: usize) -> &'static Float {
+        let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
+        match off % 32 {
+            0x0 => &v.x,
+            0x4 => &v.y,
+            0x8 => &v.z,
+            _ => panic!("not a tested vertex field"),
+        }
+    }
+
+    /// Runs `f` with each cell holding the test buffer's dword at its address; what `f`
+    /// leaves goes back to the buffer, the cells as they were.
+    fn staged<R>(cells: &[(&Float, usize)], f: impl FnOnce() -> R) -> R {
+        let host = |a: usize| crate::pointers::host_at(a).cast::<u32>();
+        let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
+        for &(c, a) in cells {
+            c.set_bits(unsafe { host(a).read_unaligned() });
+        }
+        let out = f();
+        for (&(c, a), &old) in cells.iter().zip(&saved) {
+            unsafe { host(a).write_unaligned(c.bits()) };
+            c.set_bits(old);
+        }
+        out
+    }
+
+    /// The three ten-byte values at `at` of the test buffer.
+    fn values(at: usize) -> [[u8; 10]; 3] {
+        std::array::from_fn(|n| {
+            std::array::from_fn(|i| unsafe { crate::pointers::host_at(at + 10 * n + i).read() })
+        })
+    }
 
     #[test]
     fn turn_x87_matches() {
@@ -431,7 +463,7 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(b[2], w, dw);
+                        super::turn_x87(&values(b[2]), w, dw);
                     });
                 });
             },
@@ -515,14 +547,17 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
-                        super::square_x87(
-                            b[1].wrapping_add(0x5605A0),
-                            b[1].wrapping_add(0x623AE4),
-                            b[3],
-                            b[4],
-                            dw,
-                            cs,
-                        )
+                        let vertices: Vec<(&Float, usize)> = [
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ]
+                        .into_iter()
+                        .map(|o| (vertex_cell(o), b[1].wrapping_add(0x5605A0 + o)))
+                        .collect();
+                        let tables = b[1].wrapping_add(0x623AE4);
+                        let mut cells = vertices;
+                        cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
+                        cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
+                        staged(&cells, || super::square_x87(b[3], b[4] / 4, dw, cs))
                     })
                 })
             },

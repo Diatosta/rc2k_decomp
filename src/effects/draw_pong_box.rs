@@ -21,26 +21,17 @@ use crate::d3d::vertices_store::VERTICES;
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 fn sides(v: &[[u8; 10]; 4]) {
-    sides_x87(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        &PONG,
-        &MARKS_FLOATS,
-        &WINDSCREEN_FLAKE_TABLES,
-    );
+    sides_x87(v, &PONG, &MARKS_FLOATS, &WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
 fn corners(v: &[[u8; 10]; 4]) {
-    corners_x87(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        &PONG,
-        &WINDSCREEN_FLAKE_TABLES,
-    );
+    corners_x87(v, &PONG, &WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
-fn projected(p: u32) {
-    projected_x87(p as usize, &WINDSCREEN_FLAKE_TABLES);
+fn projected() {
+    projected_x87(&WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The Rust version (see the header).
@@ -65,25 +56,24 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
     {
         return;
     }
-    projected(crate::d3d::vertices_store::piece_addr());
+    projected();
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
     }
     crate::effects::clip_quad::draw_fan();
 }
 
-use crate::effects::plain::{ld80, st};
+use crate::effects::plain::st_cell;
 use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_TABLES, WindscreenFlakeTables};
 use crate::math::x87_float as bh;
-use crate::math::x87_float::ld;
 use crate::scene::draw_store::DRAW;
 
 /// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
-fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTables) {
-    let _t0 = bh::from_f80(ld80(v, 0x1E));
-    let _t1 = bh::from_f80(ld80(v, 0x14));
-    let t2 = bh::from_f80(ld80(v, 0xA));
-    let t3 = bh::from_f80(ld80(v, 0));
+fn sides_x87(v: &[[u8; 10]; 4], p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTables) {
+    let _t0 = bh::from_f80(v[3]);
+    let _t1 = bh::from_f80(v[2]);
+    let t2 = bh::from_f80(v[1]);
+    let t3 = bh::from_f80(v[0]);
     let t4 = bh::ld(sq.axes[1][0].bits());
     let t5 = t4 * t3;
     let t6 = t5 * bh::ld(sq.lengths[1].bits());
@@ -123,9 +113,9 @@ fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTable
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (50 instructions), same order and memory places.
-fn corners_x87(v: usize, p: &PongState, sq: &WindscreenFlakeTables) {
-    let t0 = bh::from_f80(ld80(v, 0x1E));
-    let t1 = bh::from_f80(ld80(v, 0x14));
+fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
+    let t0 = bh::from_f80(v[3]);
+    let t1 = bh::from_f80(v[2]);
     let t2 = t1 * bh::ld(sq.lengths[1].bits());
     let t3 = t0 * bh::ld(sq.lengths[0].bits());
     let t4 = t3 * bh::ld(sq.axes[0][0].bits());
@@ -170,47 +160,47 @@ fn corners_x87(v: usize, p: &PongState, sq: &WindscreenFlakeTables) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
-fn projected_x87(p: usize, sq: &WindscreenFlakeTables) {
-    let t0 = ld(DRAW.view_scale.bits());
+fn projected_x87(sq: &WindscreenFlakeTables) {
+    let t0 = bh::ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(sq.corners[3][2].bits());
-    let t2 = ld(DRAW.view_scale.bits());
+    let t2 = bh::ld(DRAW.view_scale.bits());
     let t3 = t2 / bh::ld(sq.corners[2][2].bits());
-    let t4 = ld(DRAW.view_scale.bits());
+    let t4 = bh::ld(DRAW.view_scale.bits());
     let t5 = t4 / bh::ld(sq.corners[1][2].bits());
-    let t6 = ld(DRAW.view_scale.bits());
+    let t6 = bh::ld(DRAW.view_scale.bits());
     let t7 = t6 / bh::ld(sq.corners[0][2].bits());
     let t8 = bh::ld(sq.corners[0][1].bits());
     let t9 = t8 * t7;
     let t10 = t7 * bh::ld(sq.corners[0][0].bits());
     let t11 = -t9;
-    let t12 = t11 + ld(DRAW.view_centre[1].bits());
-    st(p, 0x4, t12);
-    let t13 = t10 + ld(DRAW.view_centre[0].bits());
-    st(p, 0, t13);
+    let t12 = t11 + bh::ld(DRAW.view_centre[1].bits());
+    st_cell(&VERTICES.vertices[0].y, t12);
+    let t13 = t10 + bh::ld(DRAW.view_centre[0].bits());
+    st_cell(&VERTICES.vertices[0].x, t13);
     let t14 = bh::ld(sq.corners[1][1].bits());
     let t15 = t14 * t5;
     let t16 = t5 * bh::ld(sq.corners[1][0].bits());
     let t17 = -t15;
-    let t18 = t17 + ld(DRAW.view_centre[1].bits());
-    st(p, 0x24, t18);
-    let t19 = t16 + ld(DRAW.view_centre[0].bits());
-    st(p, 0x20, t19);
+    let t18 = t17 + bh::ld(DRAW.view_centre[1].bits());
+    st_cell(&VERTICES.vertices[1].y, t18);
+    let t19 = t16 + bh::ld(DRAW.view_centre[0].bits());
+    st_cell(&VERTICES.vertices[1].x, t19);
     let t20 = bh::ld(sq.corners[2][1].bits());
     let t21 = t20 * t3;
     let t22 = t3 * bh::ld(sq.corners[2][0].bits());
     let t23 = -t21;
-    let t24 = t23 + ld(DRAW.view_centre[1].bits());
-    st(p, 0x44, t24);
-    let t25 = t22 + ld(DRAW.view_centre[0].bits());
-    st(p, 0x40, t25);
+    let t24 = t23 + bh::ld(DRAW.view_centre[1].bits());
+    st_cell(&VERTICES.vertices[2].y, t24);
+    let t25 = t22 + bh::ld(DRAW.view_centre[0].bits());
+    st_cell(&VERTICES.vertices[2].x, t25);
     let t26 = bh::ld(sq.corners[3][1].bits());
     let t27 = t26 * t1;
     let t28 = t1 * bh::ld(sq.corners[3][0].bits());
     let t29 = -t27;
-    let t30 = t29 + ld(DRAW.view_centre[1].bits());
-    st(p, 0x64, t30);
-    let t31 = t28 + ld(DRAW.view_centre[0].bits());
-    st(p, 0x60, t31);
+    let t30 = t29 + bh::ld(DRAW.view_centre[1].bits());
+    st_cell(&VERTICES.vertices[3].y, t30);
+    let t31 = t28 + bh::ld(DRAW.view_centre[0].bits());
+    st_cell(&VERTICES.vertices[3].x, t31);
     let t32 = bh::ld(sq.corners[0][2].bits());
     let t33 = t32 * bh::ld(sq.inverse.bits());
     let t34 = bh::ld(sq.corners[1][2].bits());
@@ -219,10 +209,10 @@ fn projected_x87(p: usize, sq: &WindscreenFlakeTables) {
     let t37 = t36 * bh::ld(sq.inverse.bits());
     let t38 = bh::ld(sq.corners[3][2].bits());
     let t39 = t38 * bh::ld(sq.inverse.bits());
-    st(p, 0x68, t39);
-    st(p, 0x48, t37);
-    st(p, 0x28, t35);
-    st(p, 0x8, t33);
+    st_cell(&VERTICES.vertices[3].z, t39);
+    st_cell(&VERTICES.vertices[2].z, t37);
+    st_cell(&VERTICES.vertices[1].z, t35);
+    st_cell(&VERTICES.vertices[0].z, t33);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -422,10 +412,46 @@ mod asm_reference {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
+    use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
+    use crate::session::Float;
+
+    /// The four ten-byte values at `at` of the test buffer.
+    fn values(at: usize) -> [[u8; 10]; 4] {
+        std::array::from_fn(|n| {
+            std::array::from_fn(|i| unsafe { crate::pointers::host_at(at + 10 * n + i).read() })
+        })
+    }
+
+    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
+    fn vertex_cell(off: usize) -> &'static Float {
+        let v = &VERTICES.vertices[off / 32];
+        match off % 32 {
+            0x0 => &v.x,
+            0x4 => &v.y,
+            0x8 => &v.z,
+            _ => panic!("not a tested vertex field"),
+        }
+    }
+
+    /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
+    /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
+    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+        let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
+        for &o in offsets {
+            vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
+        }
+        let out = f();
+        for (&o, &old) in offsets.iter().zip(&saved) {
+            unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
+            vertex_cell(o).set_bits(old);
+        }
+        out
+    }
 
     #[test]
     fn sides_x87_matches() {
@@ -481,7 +507,12 @@ mod asm_differential {
                             b[0],
                             WindscreenFlakeTables::START,
                             |sq| {
-                                super::sides_x87(b[1], crate::effects::pong::state_at(b[0]), f, sq);
+                                super::sides_x87(
+                                    &values(b[1]),
+                                    crate::effects::pong::state_at(b[0]),
+                                    f,
+                                    sq,
+                                );
                             },
                         );
                     },
@@ -548,7 +579,7 @@ mod asm_differential {
             |b| reference::corners_x87(b[0], b[1]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
-                    super::corners_x87(b[1], crate::effects::pong::state_at(b[0]), sq);
+                    super::corners_x87(&values(b[1]), crate::effects::pong::state_at(b[0]), sq);
                 });
             },
         );
@@ -609,7 +640,13 @@ mod asm_differential {
             |b| reference::projected_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<WindscreenFlakeTables, _>(b[1], WindscreenFlakeTables::START, |sq| {
-                    super::projected_x87(b[2], sq);
+                    staged(
+                        b[2],
+                        &[
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ],
+                        || super::projected_x87(sq),
+                    );
                 });
             },
         );

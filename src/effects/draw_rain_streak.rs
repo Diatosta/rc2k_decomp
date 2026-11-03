@@ -17,6 +17,7 @@
 //! game's variables. Refuses null marks settings (`clip_quad`'s
 //! refusal), before anything.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::{RAIN, RAIN_RULES, RainRules, RainState};
 use crate::errors::{BadInput, Refused};
@@ -24,16 +25,12 @@ use crate::scene::draw_store::DRAW;
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87((crate::pointers::game_address(p.as_ptr())) as usize, &RAIN);
+    turn_x87(p, &RAIN);
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
 fn project() {
-    project_x87(
-        crate::d3d::vertices_store::piece_addr() as usize,
-        &RAIN,
-        &RAIN_RULES,
-    );
+    project_x87(&RAIN, &RAIN_RULES);
 }
 
 /// The Rust version (see the header).
@@ -59,16 +56,15 @@ pub fn draw_rain_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld80, st};
+use crate::effects::plain::st_cell;
 use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
-use crate::math::x87_float::ld;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (79 instructions), same order and memory places.
-fn turn_x87(p: usize, r: &RainState) {
-    let t0 = bh::from_f80(ld80(p, 0x14));
-    let t1 = bh::from_f80(ld80(p, 0xA));
-    let t2 = bh::from_f80(ld80(p, 0));
+fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
+    let t0 = bh::from_f80(p[2]);
+    let t1 = bh::from_f80(p[1]);
+    let t2 = bh::from_f80(p[0]);
     let t3 = t0 * bh::ld(r.point_scale[0].bits());
     r.second[0].set_bits(bh::st(t3));
     let t4 = t1 * bh::ld(r.point_scale[1].bits());
@@ -127,11 +123,11 @@ fn turn_x87(p: usize, r: &RainState) {
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-fn project_x87(vt: usize, r: &RainState, k: &RainRules) {
+fn project_x87(r: &RainState, k: &RainRules) {
     let t0 = bh::ld(r.second[2].bits());
-    let t1 = ld(DRAW.view_scale.bits()) / t0;
+    let t1 = bh::ld(DRAW.view_scale.bits()) / t0;
     let t2 = bh::ld(r.turned[2].bits());
-    let t3 = ld(DRAW.view_scale.bits()) / t2;
+    let t3 = bh::ld(DRAW.view_scale.bits()) / t2;
     let t4 = bh::ld(r.second[0].bits());
     let t5 = bh::ld(r.second[1].bits());
     let t6 = bh::ld(r.turned[0].bits());
@@ -142,20 +138,20 @@ fn project_x87(vt: usize, r: &RainState, k: &RainRules) {
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0].bits());
     let t13 = t3 * bh::ld(k.view_scale[1].bits());
-    let t14 = t8 + ld(DRAW.view_centre[0].bits());
+    let t14 = t8 + bh::ld(DRAW.view_centre[0].bits());
     r.ends[0][0].set_bits(bh::st(t14));
     let t15 = -t9;
-    let t16 = t15 + ld(DRAW.view_centre[1].bits());
+    let t16 = t15 + bh::ld(DRAW.view_centre[1].bits());
     r.ends[0][1].set_bits(bh::st(t16));
-    let t17 = t10 + ld(DRAW.view_centre[0].bits());
+    let t17 = t10 + bh::ld(DRAW.view_centre[0].bits());
     r.ends[1][0].set_bits(bh::st(t17));
     let t18 = -t11;
-    let t19 = t18 + ld(DRAW.view_centre[1].bits());
+    let t19 = t18 + bh::ld(DRAW.view_centre[1].bits());
     r.ends[1][1].set_bits(bh::st(t19));
     r.ends[0][2].set_bits(bh::st(t12));
     r.ends[1][2].set_bits(bh::st(t13));
     let t20 = bh::ONE;
-    let t21 = t20 / ld(DRAW.farthest.bits());
+    let t21 = t20 / bh::ld(DRAW.farthest.bits());
     let t22 = bh::ld(r.ends[1][0].bits());
     let t23 = t22 - bh::ld(r.ends[0][0].bits());
     r.edge_a[1].set_bits(bh::st(t23));
@@ -181,26 +177,26 @@ fn project_x87(vt: usize, r: &RainState, k: &RainRules) {
     r.depth_scale.set_bits(bh::st(t21));
     let t38 = bh::ld(r.second[2].bits());
     let t39 = t38 * bh::ld(r.depth_scale.bits());
-    st(vt, 0x8, t39);
-    st(vt, 0x28, t39);
-    st(vt, 0x48, t39);
-    st(vt, 0x68, t39);
+    st_cell(&VERTICES.vertices[0].z, t39);
+    st_cell(&VERTICES.vertices[1].z, t39);
+    st_cell(&VERTICES.vertices[2].z, t39);
+    st_cell(&VERTICES.vertices[3].z, t39);
     let t40 = bh::ld(r.ends[0][0].bits());
-    st(vt, 0x0, t40);
+    st_cell(&VERTICES.vertices[0].x, t40);
     let t41 = t40 - bh::ld(r.edge_a[0].bits());
-    st(vt, 0x20, t41);
+    st_cell(&VERTICES.vertices[1].x, t41);
     let t42 = bh::ld(r.ends[1][0].bits());
-    st(vt, 0x60, t42);
+    st_cell(&VERTICES.vertices[3].x, t42);
     let t43 = t42 - bh::ld(r.edge_b[0].bits());
-    st(vt, 0x40, t43);
+    st_cell(&VERTICES.vertices[2].x, t43);
     let t44 = bh::ld(r.ends[0][1].bits());
-    st(vt, 0x4, t44);
+    st_cell(&VERTICES.vertices[0].y, t44);
     let t45 = t44 - bh::ld(r.edge_a[1].bits());
-    st(vt, 0x24, t45);
+    st_cell(&VERTICES.vertices[1].y, t45);
     let t46 = bh::ld(r.ends[1][1].bits());
-    st(vt, 0x64, t46);
+    st_cell(&VERTICES.vertices[3].y, t46);
     let t47 = t46 - bh::ld(r.edge_b[1].bits());
-    st(vt, 0x44, t47);
+    st_cell(&VERTICES.vertices[2].y, t47);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -400,9 +396,45 @@ mod asm_reference {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
+    use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::rain::tests::with_state_at;
+    use crate::session::Float;
+
+    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
+    fn vertex_cell(off: usize) -> &'static Float {
+        let v = &VERTICES.vertices[off / 32];
+        match off % 32 {
+            0x0 => &v.x,
+            0x4 => &v.y,
+            0x8 => &v.z,
+            _ => panic!("not a tested vertex field"),
+        }
+    }
+
+    /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
+    /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
+    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+        let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
+        for &o in offsets {
+            vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
+        }
+        let out = f();
+        for (&o, &old) in offsets.iter().zip(&saved) {
+            unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
+            vertex_cell(o).set_bits(old);
+        }
+        out
+    }
+
+    /// The three ten-byte values at `at` of the test buffer.
+    fn values(at: usize) -> [[u8; 10]; 3] {
+        std::array::from_fn(|n| {
+            std::array::from_fn(|i| unsafe { crate::pointers::host_at(at + 10 * n + i).read() })
+        })
+    }
 
     #[test]
     fn turn_x87_matches() {
@@ -456,7 +488,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::turn_x87(b[0], b[1]),
-            |b| with_state_at(b[0], |r, _| super::turn_x87(b[1], r)),
+            |b| with_state_at(b[0], |r, _| super::turn_x87(&values(b[1]), r)),
         );
     }
 
@@ -539,7 +571,13 @@ mod asm_differential {
             |b| reference::project_x87(b[0], b[1], b[2]),
             |b| {
                 with_state_at(b[2], |r, k| {
-                    super::project_x87(b[1].wrapping_add(0x5605A0), r, k);
+                    staged(
+                        b[1].wrapping_add(0x5605A0),
+                        &[
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ],
+                        || super::project_x87(r, k),
+                    );
                 });
             },
         );

@@ -28,12 +28,7 @@ const LIFE: i32 = 0xFA0;
 
 /// `fld k; fsub z`, kept extended.
 fn less(k: u32, z: u32) -> [u8; 10] {
-    let (v, mut out) = ([k, z], [0u8; 10]);
-    less_x87(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
-    out
+    less_x87(k, z)
 }
 
 /// The Rust version (see the header).
@@ -91,13 +86,14 @@ fn run() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, st80};
+use crate::math::x87_float as bh;
 
-/// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-fn less_x87(v: usize, o: usize) {
-    let t0 = ld(v, 0);
-    let t1 = t0 - ld(v, 0x4);
-    st80(o, 0, t1);
+/// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order: the two
+/// floats `v[0]` and `v[1]`, the difference as ten bytes.
+fn less_x87(k: u32, z: u32) -> [u8; 10] {
+    let t0 = bh::ld(k);
+    let t1 = t0 - bh::ld(z);
+    bh::f80(t1)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -148,7 +144,17 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::less_x87(b[0], b[1]),
-            |b| super::less_x87(b[0], b[1]),
+            |b| {
+                let word = |off: usize| unsafe {
+                    crate::pointers::host_at(b[0] + off)
+                        .cast::<u32>()
+                        .read_unaligned()
+                };
+                let out = super::less_x87(word(0), word(4));
+                for (i, byte) in out.into_iter().enumerate() {
+                    unsafe { crate::pointers::host_at(b[1] + i).write(byte) };
+                }
+            },
         );
     }
 }

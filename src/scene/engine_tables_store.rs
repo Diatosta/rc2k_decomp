@@ -51,7 +51,8 @@ pub const END: usize = 0xA8BB54;
 
 const _: () = assert!(END - START == core::mem::size_of::<EngineTables>());
 
-/// Where IDA 0xA23AE4 is now.
+/// Where IDA 0xA23AE4 is now (the tests' reference).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::moved::place(START) as u32
 }

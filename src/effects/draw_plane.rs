@@ -95,18 +95,12 @@ fn plane_up(m: &MarksSettings) {
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
 fn plane_place(m: &MarksSettings) {
-    plane_place_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        m,
-    );
+    plane_place_x87(m);
 }
 
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
 fn plane_facing() {
-    plane_facing_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        &WINDSCREEN_FLAKE_TABLES,
-    );
+    plane_facing_x87(&WINDSCREEN_FLAKE_TABLES);
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
@@ -203,7 +197,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, st};
+use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{
     WINDSCREEN_FLAKE_TIMING, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
@@ -273,22 +267,22 @@ fn plane_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning)
 }
 
 /// `plane_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn plane_place_x87(hx: usize, m: &MarksSettings) {
+fn plane_place_x87(m: &MarksSettings) {
     let t0 = ldi_cell(&m.listener_point_b_negated[0]);
-    st(hx, 0xB1262, t0);
+    st_cell(&HEX.place[0], t0);
     let t1 = ldi_cell(&m.listener_point_b_negated[1]);
-    st(hx, 0xB1266, t1);
+    st_cell(&HEX.place[1], t1);
     let t2 = ldi_cell(&m.listener_point_b_negated[2]);
-    st(hx, 0xB126A, t2);
+    st_cell(&HEX.place[2], t2);
 }
 
 /// `plane_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-fn plane_facing_x87(hx: usize, sq: &WindscreenFlakeTables) {
-    let t0 = ld(hx, 0xB1262);
+fn plane_facing_x87(sq: &WindscreenFlakeTables) {
+    let t0 = ld_cell(&HEX.place[0]);
     let t1 = t0 * bh::ld(sq.axes[2][0].bits());
-    let t2 = ld(hx, 0xB1266);
+    let t2 = ld_cell(&HEX.place[1]);
     let t3 = t2 * bh::ld(sq.axes[2][1].bits());
-    let t4 = ld(hx, 0xB126A);
+    let t4 = ld_cell(&HEX.place[2]);
     let t5 = t4 * bh::ld(sq.axes[2][2].bits());
     let t6 = t3 + t5;
     let t7 = t1 + t6;
@@ -615,6 +609,7 @@ mod asm_differential {
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
+    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 
     #[test]
@@ -732,8 +727,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0xB1262,
-                    hi: 0xB126E,
+                    lo: 0xB1252,
+                    hi: 0xC9402,
                     reads: &[],
                     writes: &[(0xB1262, F32), (0xB1266, F32), (0xB126A, F32)],
                 },
@@ -749,7 +744,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::plane_place_x87(b[0], b[1]),
-            |b| with_settings(b[1], |m| super::plane_place_x87(b[0], m)),
+            |b| {
+                with_overlays(b[0], &[overlay(&HEX, WindscreenDropVars::START)], || {
+                    with_settings(b[1], super::plane_place_x87);
+                });
+            },
         );
     }
 
@@ -777,12 +776,15 @@ mod asm_differential {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START)],
+                    &[
+                        overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
+                        overlay(&HEX, WindscreenDropVars::START),
+                    ],
                     || {
                         with_copy::<WindscreenFlakeTables, _>(
                             b[0],
                             WindscreenFlakeTables::START,
-                            |sq| super::plane_facing_x87(b[0], sq),
+                            super::plane_facing_x87,
                         );
                     },
                 );
