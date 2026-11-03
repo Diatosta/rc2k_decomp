@@ -21,10 +21,9 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_split(c: &Carried) -> Result<(), Refused> {
+pub fn time_trial_split() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_split`.
-    Game::new(c).run(rounds::time_trial_split)
+    Game::new().run(rounds::time_trial_split)
 }

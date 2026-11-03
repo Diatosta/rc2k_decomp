@@ -18,9 +18,8 @@
 
 use crate::errors::Refused;
 use crate::menu::run_championship::run_event;
-use crate::menu::screen_loop::Carried;
 
-pub fn run_a8_championship(c: &Carried) -> Result<(), Refused> {
+pub fn run_a8_championship() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run` (`a8`).
-    run_event(c, true)
+    run_event(true)
 }

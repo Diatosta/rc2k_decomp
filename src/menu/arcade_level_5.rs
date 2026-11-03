@@ -8,9 +8,8 @@
 
 use crate::errors::Refused;
 use crate::menu::arcade_levels::arcade_level;
-use crate::menu::screen_loop::Carried;
 
-/// The Rust version (`c` the carried values the item gets).
-pub fn arcade_level_5(c: &Carried) -> Result<(), Refused> {
-    arcade_level(c, 5)
+/// The Rust version.
+pub fn arcade_level_5() -> Result<(), Refused> {
+    arcade_level(5)
 }

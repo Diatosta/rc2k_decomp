@@ -6,21 +6,19 @@
 //! fatal error 0x80713214, "No GameMode Defined".
 //!
 //! In:  nothing
-//! Out: the registers as its callees leave them (not `pusha`'d); esi the list
+//! Out: nothing its callers read (not `pusha`'d)
 //! An item action (a reading: the main menu's "car specifications").
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version. `c` the carried values the item gets. (The original leaves the
-/// registers its callees leave, esi the list; an item's caller reads none.)
-pub fn show_car_specs(c: &Carried) -> Result<(), Refused> {
+/// The Rust version.
+pub fn show_car_specs() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
-    let mut r = *c;
     let kind: u32 = EVENT_STATE.event_type.get();
     let Some((list, choice)) = specs_list(kind) else {
         return Err(FatalError {
@@ -29,19 +27,22 @@ pub fn show_car_specs(c: &Carried) -> Result<(), Refused> {
         }
         .into());
     };
-    r.cars = Some(match list {
+    let mut cars = match list {
         SpecsList::Events => CarList::Second,
         SpecsList::Kind4 => CarList::Championship,
         SpecsList::Kind5 => CarList::A8,
-    });
+    };
+    let screen = &crate::menu::car_specs_47af4c_loop::SCREEN;
     if !choice {
-        { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+        { run_screen(screen, &Entry { cars: Some(cars) }) }?;
         return Ok(());
     }
-    crate::menu::cheat_car_list::carry_on(crate::menu::cheat_car_list::cheat_car_list(), &mut r);
-    { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+    if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list() {
+        cars = cheat;
+    }
+    { run_screen(screen, &Entry { cars: Some(cars) }) }?;
     if { CAPTIONS.screen_left.get() } != 1 {
-        crate::menu::take_shown_car::take_shown_car(r.cars)?;
+        crate::menu::take_shown_car::take_shown_car(Some(cars))?;
     }
     Ok(())
 }

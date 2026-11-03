@@ -8,7 +8,6 @@
 //! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
 use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
@@ -20,7 +19,7 @@ pub const START_CHAMPIONSHIP_SPLIT: Starter = Starter {
     },
 };
 
-/// The Rust version (`c` the carried values the item gets).
-pub fn start_championship_split(c: &Carried) -> Result<(), Refused> {
-    start_event(&START_CHAMPIONSHIP_SPLIT, c)
+/// The Rust version.
+pub fn start_championship_split() -> Result<(), Refused> {
+    start_event(&START_CHAMPIONSHIP_SPLIT)
 }

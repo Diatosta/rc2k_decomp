@@ -12,28 +12,20 @@
 use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::screen_loop::Carried;
 
-/// The Rust version for `level` (1 .. 5). `c` the carried values the item gets. (The
-/// original leaves eax -1 for a closed level; nothing reads it.)
-pub fn arcade_level(c: &Carried, level: u32) -> Result<(), Refused> {
-    let mut r = *c;
-    {
-        // Converted: `rc2k_core::menu::arcade::level_open`.
-        use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
-        let open = level_open(CHEAT_VARS.cheats.get(), || {
-            // `mov eax, level - 1` for the look-up, kept on the open path.
-            r.arg = level - 1;
-            ARCADE_GAME.levels_won.get(level as usize - 1)
-        });
-        if !open {
-            r.arg = CLOSED_SOUND;
-            crate::sound::play_menu_sound::play_menu_sound_in_game(r.arg);
-            return Ok(());
-        }
-        ARCADE_GAME.level.set(level);
-        ARCADE_GAME.stage.set(0u32);
-        crate::menu::take_player1_units::take_player1_units()?;
-        crate::menu::arcade_event::arcade_event(&r)
+/// The Rust version for `level` (1 .. 5).
+pub fn arcade_level(level: u32) -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::arcade::level_open`.
+    use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
+    let open = level_open(CHEAT_VARS.cheats.get(), || {
+        ARCADE_GAME.levels_won.get(level as usize - 1)
+    });
+    if !open {
+        crate::sound::play_menu_sound::play_menu_sound_in_game(CLOSED_SOUND);
+        return Ok(());
     }
+    ARCADE_GAME.level.set(level);
+    ARCADE_GAME.stage.set(0u32);
+    crate::menu::take_player1_units::take_player1_units()?;
+    crate::menu::arcade_event::arcade_event()
 }

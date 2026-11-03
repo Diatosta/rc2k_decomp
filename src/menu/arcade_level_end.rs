@@ -14,28 +14,27 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::lists_store::CarList;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version. `c` the carried values the level end is entered with; the original
-/// keeps every register of the caller (`pusha` .. `popa`).
-pub fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
-    let mut r = *c;
+/// The Rust version.
+pub fn arcade_level_end() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(RESULT_FIGURES.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7();
-        run_screen_carried(&crate::menu::screen_488f4c_loop::SCREEN, &mut r)?;
+        run_screen(&crate::menu::screen_488f4c_loop::SCREEN, &Entry::default())?;
         ARCADE_GAME.retry.set(1u32);
         return Ok(());
     }
     let level = won_level(ARCADE_GAME.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
     crate::menu::arcade_finale::arcade_finale()?;
-    r.arg = level;
     if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
         ARCADE_GAME.levels_won.set(level as usize, 1);
-        r.cars = Some(CarList::Shown);
-        run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
+        let shown = Entry {
+            cars: Some(CarList::Shown),
+        };
+        run_screen(&crate::menu::car_specs_47af4c_loop::SCREEN, &shown)?;
         crate::menu::arcade_steps::add_shown_car()?;
         crate::menu::arcade_steps::remove_shown_car(&mut || {
             crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)

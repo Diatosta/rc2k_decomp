@@ -415,3 +415,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen with the standalone in a test installation (a file added to the folder stayed), and read in `install::uninstall` (0x4134DF).
 
 **Fix:** with "remove all" chosen, whatever is left of the installation's folder is removed once the listed files are gone; on Windows, what the running program still holds goes right after it ends. Only a folder that holds the installation's record and is neither a drive's root nor the home folder is removed this way. "Keep saved data" is unchanged: the saved games and settings stay.
+
+## The second player's car is not repaired between split-screen stages
+
+**What it is:** before each stage of a two-player split-screen single rally, the game means to repair both cars: it puts 0 and then 1 in a register and calls the repair twice. The repair does not read that register; it repairs the current player's car, and the current player is 0 both times.
+
+**In game:** in a split-screen single rally, player one's car started each stage as new, while player two's kept the damage of the stages before (worn tyres, a bent body, broken lights).
+
+**Seen or read:** read in `menu::single_rally_split` (0x48260C .. 0x48261B) and `service::repair_car` (0x486F63, which reads `g_currentPlayer`); not seen in play.
+
+**Fix:** the current player is set to each of the two in turn for its repair, then back to 0 for the race, as the original has it.

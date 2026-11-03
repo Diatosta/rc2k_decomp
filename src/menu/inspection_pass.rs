@@ -18,11 +18,11 @@
 use crate::errors::Refused;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
-pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub fn inspection_pass() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
@@ -31,11 +31,9 @@ pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
-    let mut g = *c;
     EVENT_STATE.event_goes_on.set(1u32);
     for (n, &p) in players.iter().enumerate() {
-        g.measure_x = n as u32;
-        EVENT_STATE.current_player.set(g.measure_x);
+        EVENT_STATE.current_player.set(n as u32);
         if !passes::takes_part(p.get().word(0xD0)) {
             continue;
         }
@@ -49,16 +47,17 @@ pub fn inspection_pass(c: &Carried) -> Result<(), Refused> {
             .event_out
             .set(EVENT_STATE.event_out.get().wrapping_add(1));
         crate::menu::inspection_screen::inspection_screen()?;
-        g.arg = passes::SCREEN_PAUSE;
-        crate::system::sleep::sleep(g.arg);
+        crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in()?;
-        run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
+        run_screen(
+            &crate::menu::inspection_area_loop::SCREEN,
+            &Entry::default(),
+        )?;
         if MENU_PAGES.yes_no_answer.get() == 1 {
             return Ok(());
         }
         crate::menu::fades::fade(true)?;
-        g.arg = passes::INSPECTION_PAUSE;
-        crate::system::sleep::sleep(g.arg);
+        crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
     if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
         EVENT_STATE.event_goes_on.set(0u32);

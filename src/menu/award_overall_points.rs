@@ -7,8 +7,7 @@
 //! +0x50 and its driver's +0x74 or player's +0xCC.
 //!
 //! In:  nothing
-//! Out: edi the end entry, ecx 6, edx the last total, eax the last entry's driver number
-//! or player index, esi its driver or player (no `pusha`)
+//! Out: no `pusha`, but nothing after it reads the registers it leaves
 //!
 //! Caller: `sub_4A0E60`. The search is its Rust version. Refuses no table, one without its end
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
@@ -17,43 +16,20 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::standings::*;
 
-/// An entry's driver (with its number) or player (with its index).
-fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<(u32, u32, bool), Refused> {
+/// An entry's driver or player record, and whether it is a driver.
+fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<(u32, bool), Refused> {
     match e.player {
         0 => {
             let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
-            Ok((driver, e.first, true))
+            Ok((driver, true))
         }
-        n if n <= 4 => Ok((player(n - 1).addr(), n - 1, false)),
+        n if n <= 4 => Ok((player(n - 1).addr(), false)),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
 
-/// What `award_overall_points` leaves in the registers, which the championship's later
-/// calls may read: the last entry's (number, total) when there was an entry (eax, edx;
-/// else they are kept), ecx 6. (esi, the owner's record, reaches `scene::set_up_carousel`
-/// in the original, which reads it as no list of cars; edi is the end of the table.)
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Awarded {
-    pub last: Option<(u32, u32)>,
-}
-
-impl Awarded {
-    /// The carried values as the original leaves them (eax, ecx, edx, esi; edi, the end
-    /// of the table, is `self.end`).
-    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
-        if let Some((number, total)) = self.last {
-            c.arg = number;
-            c.cars = None;
-            c.clock = total;
-        }
-        c.measure_x = 6;
-    }
-}
-
-/// The Rust version (see the header); what it leaves in the registers as `Awarded`.
-pub fn award_overall_points() -> Result<Awarded, Refused> {
-    let mut last = None;
+/// The Rust version (see the header).
+pub fn award_overall_points() -> Result<(), Refused> {
     {
         let section: u32 = SECTION_RVA.get();
         if section > 5 {
@@ -69,7 +45,7 @@ pub fn award_overall_points() -> Result<Awarded, Refused> {
         let at = 4 * section;
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
-        for (e, &(o, _, cpu)) in all.iter_mut().zip(&owners) {
+        for (e, &(o, cpu)) in all.iter_mut().zip(&owners) {
             if e.group == 0 {
                 continue;
             }
@@ -78,13 +54,12 @@ pub fn award_overall_points() -> Result<Awarded, Refused> {
             e.overall[section as usize] = given;
             put(o + if cpu { 0x5C } else { 0xB4 } + at, given)?;
         }
-        for (e, &(o, number, cpu)) in all.iter_mut().zip(&owners) {
+        for (e, &(o, cpu)) in all.iter_mut().zip(&owners) {
             let total = total(std::array::from_fn(|k| e.overall[k]));
             e.overall[6] = total;
             put(o + if cpu { 0x74 } else { 0xCC }, total)?;
-            last = Some((number, total));
         }
         with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
-        Ok(Awarded { last })
+        Ok(())
     }
 }

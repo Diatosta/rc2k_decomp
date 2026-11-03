@@ -11,7 +11,6 @@
 //! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
 use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
@@ -23,7 +22,7 @@ pub const START_A8_ONE: Starter = Starter {
     },
 };
 
-/// The Rust version (`c` the carried values the item gets).
-pub fn start_a8_one(c: &Carried) -> Result<(), Refused> {
-    start_event(&START_A8_ONE, c)
+/// The Rust version.
+pub fn start_a8_one() -> Result<(), Refused> {
+    start_event(&START_A8_ONE)
 }

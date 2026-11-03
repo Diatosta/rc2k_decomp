@@ -293,7 +293,7 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             crate::menu::begin_savegame_name::begin_savegame_name(true)?;
             Ok(())
         }
-        ItemFn::LoadSavegame => crate::saves::load_savegame::entry(&c.carried()),
+        ItemFn::LoadSavegame => crate::saves::load_savegame::load_savegame(),
         ItemFn::LoadChampionship46e899Loop => crate::menu::load_championship_46e899_loop::run(),
         ItemFn::SaveSetupLoop => crate::menu::save_setup_loop::run(),
         ItemFn::BeginSetupName => {
@@ -318,18 +318,10 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         }
         ItemFn::PreviousStagePage => crate::menu::stage_view_steps::step_stage_page(false),
         ItemFn::NextStagePage => crate::menu::stage_view_steps::step_stage_page(true),
-        ItemFn::Player0CarSpecs => {
-            crate::menu::player_actions::player_0_car_specs::run(&c.carried())
-        }
-        ItemFn::Player1CarSpecs => {
-            crate::menu::player_actions::player_1_car_specs::run(&c.carried())
-        }
-        ItemFn::Player2CarSpecs => {
-            crate::menu::player_actions::player_2_car_specs::run(&c.carried())
-        }
-        ItemFn::Player3CarSpecs => {
-            crate::menu::player_actions::player_3_car_specs::run(&c.carried())
-        }
+        ItemFn::Player0CarSpecs => crate::menu::player_actions::player_0_car_specs::run(),
+        ItemFn::Player1CarSpecs => crate::menu::player_actions::player_1_car_specs::run(),
+        ItemFn::Player2CarSpecs => crate::menu::player_actions::player_2_car_specs::run(),
+        ItemFn::Player3CarSpecs => crate::menu::player_actions::player_3_car_specs::run(),
         ItemFn::Toggle755640 => crate::menu::option_items::toggle_755640::run(),
         ItemFn::Toggle755644 => crate::menu::option_items::toggle_755644::run(),
         ItemFn::PreviousScreenMode => crate::menu::option_items::previous_screen_mode::run(),
@@ -435,46 +427,42 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::PreviousStageSub => crate::menu::previous_stage_sub::run(),
         ItemFn::NextStageNumber => crate::menu::next_stage_number::run(),
         ItemFn::PreviousStageNumber => crate::menu::previous_stage_number::run(),
-        ItemFn::SingleRally => crate::menu::single_rally::single_rally(&c.carried()),
-        ItemFn::SingleRallySplit => {
-            crate::menu::single_rally_split::single_rally_split(&c.carried())
-        }
-        ItemFn::SingleRallyTwo => crate::menu::single_rally_two::single_rally_two(&c.carried()),
-        ItemFn::SingleRallyThree => {
-            crate::menu::single_rally_three::single_rally_three(&c.carried())
-        }
-        ItemFn::SingleRallyFour => crate::menu::single_rally_four::single_rally_four(&c.carried()),
+        ItemFn::SingleRally => crate::menu::single_rally::single_rally(),
+        ItemFn::SingleRallySplit => crate::menu::single_rally_split::single_rally_split(),
+        ItemFn::SingleRallyTwo => crate::menu::single_rally_two::single_rally_two(),
+        ItemFn::SingleRallyThree => crate::menu::single_rally_three::single_rally_three(),
+        ItemFn::SingleRallyFour => crate::menu::single_rally_four::single_rally_four(),
         ItemFn::ArcadeSelectLevelLoop => crate::menu::arcade_select_level_loop::run(),
-        ItemFn::StartArcade => crate::menu::item_actions::start_arcade(&c.carried()),
-        ItemFn::ArcadeLevel1 => crate::menu::arcade_level_1::arcade_level_1(&c.carried()),
-        ItemFn::ArcadeLevel2 => crate::menu::arcade_level_2::arcade_level_2(&c.carried()),
-        ItemFn::ArcadeLevel3 => crate::menu::arcade_level_3::arcade_level_3(&c.carried()),
-        ItemFn::ArcadeLevel4 => crate::menu::arcade_level_4::arcade_level_4(&c.carried()),
-        ItemFn::ArcadeLevel5 => crate::menu::arcade_level_5::arcade_level_5(&c.carried()),
-        ItemFn::TimeTrialOne => crate::menu::time_trial_one::time_trial_one(&c.carried()),
-        ItemFn::TimeTrialSplit => crate::menu::time_trial_split::time_trial_split(&c.carried()),
-        ItemFn::TimeTrialTwo => crate::menu::time_trial_two::time_trial_two(&c.carried()),
-        ItemFn::TimeTrialThree => crate::menu::time_trial_three::time_trial_three(&c.carried()),
-        ItemFn::TimeTrialFour => crate::menu::time_trial_four::time_trial_four(&c.carried()),
+        ItemFn::StartArcade => crate::menu::item_actions::start_arcade(),
+        ItemFn::ArcadeLevel1 => crate::menu::arcade_level_1::arcade_level_1(),
+        ItemFn::ArcadeLevel2 => crate::menu::arcade_level_2::arcade_level_2(),
+        ItemFn::ArcadeLevel3 => crate::menu::arcade_level_3::arcade_level_3(),
+        ItemFn::ArcadeLevel4 => crate::menu::arcade_level_4::arcade_level_4(),
+        ItemFn::ArcadeLevel5 => crate::menu::arcade_level_5::arcade_level_5(),
+        ItemFn::TimeTrialOne => crate::menu::time_trial_one::time_trial_one(),
+        ItemFn::TimeTrialSplit => crate::menu::time_trial_split::time_trial_split(),
+        ItemFn::TimeTrialTwo => crate::menu::time_trial_two::time_trial_two(),
+        ItemFn::TimeTrialThree => crate::menu::time_trial_three::time_trial_three(),
+        ItemFn::TimeTrialFour => crate::menu::time_trial_four::time_trial_four(),
         ItemFn::TimeTrialSelectPlayersLoop => crate::menu::time_trial_select_players_loop::run(),
         ItemFn::InformationLoop => crate::menu::information_loop::run(),
         ItemFn::ViewBestTimesLoop => crate::menu::view_best_times_loop::run(),
         ItemFn::ViewCoursesLoop => crate::menu::view_courses_loop::run(),
         ItemFn::ViewBestScoresLoop => crate::menu::view_best_scores_loop::run(),
         ItemFn::StartChampionshipOne => {
-            crate::menu::start_championship_one::start_championship_one(&c.carried())
+            crate::menu::start_championship_one::start_championship_one()
         }
         ItemFn::StartChampionshipSplit => {
-            crate::menu::start_championship_split::start_championship_split(&c.carried())
+            crate::menu::start_championship_split::start_championship_split()
         }
         ItemFn::StartChampionshipTwo => {
-            crate::menu::start_championship_two::start_championship_two(&c.carried())
+            crate::menu::start_championship_two::start_championship_two()
         }
         ItemFn::StartChampionshipThree => {
-            crate::menu::start_championship_three::start_championship_three(&c.carried())
+            crate::menu::start_championship_three::start_championship_three()
         }
         ItemFn::StartChampionshipFour => {
-            crate::menu::start_championship_four::start_championship_four(&c.carried())
+            crate::menu::start_championship_four::start_championship_four()
         }
         ItemFn::PreviousStageRows => crate::menu::stage_rows::step_rows(false, false),
         ItemFn::NextStageRows => crate::menu::stage_rows::step_rows(false, true),
@@ -486,11 +474,11 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         }
         ItemFn::NewSimulationIfUnlocked => crate::menu::item_actions::new_simulation_if_unlocked(),
         ItemFn::NewSimulationLoop => crate::menu::new_simulation_loop::run(),
-        ItemFn::StartA8One => crate::menu::start_a8_one::start_a8_one(&c.carried()),
-        ItemFn::StartA8Split => crate::menu::start_a8_split::start_a8_split(&c.carried()),
-        ItemFn::StartA8Two => crate::menu::start_a8_two::start_a8_two(&c.carried()),
-        ItemFn::StartA8Three => crate::menu::start_a8_three::start_a8_three(&c.carried()),
-        ItemFn::StartA8Four => crate::menu::start_a8_four::start_a8_four(&c.carried()),
+        ItemFn::StartA8One => crate::menu::start_a8_one::start_a8_one(),
+        ItemFn::StartA8Split => crate::menu::start_a8_split::start_a8_split(),
+        ItemFn::StartA8Two => crate::menu::start_a8_two::start_a8_two(),
+        ItemFn::StartA8Three => crate::menu::start_a8_three::start_a8_three(),
+        ItemFn::StartA8Four => crate::menu::start_a8_four::start_a8_four(),
         ItemFn::NetworkSettingsItem => crate::net::settings_loop::settings_loop(),
         // (The original leaves eax the mode and the carry set: no caller reads them.)
         ItemFn::JoinNetworkGame => crate::net::start_link::start_link(2),

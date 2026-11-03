@@ -139,8 +139,6 @@ impl finish::Finish for Game {
 
     /// The original leaves the value in eax for the key taken at the end, which replaces
     /// its low byte and is not read: nothing to keep.
-    fn keep(&mut self, _value: u32) {}
-
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         self.fault.check()?;
         match s {

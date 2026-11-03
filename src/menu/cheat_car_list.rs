@@ -15,12 +15,3 @@ pub fn cheat_car_list() -> Option<CarList> {
     let on = rc2k_core::menu::car_lists::cheat_cars(CHEAT_VARS.cheats.get());
     on.then_some(CarList::Cheat)
 }
-
-/// The registers the original leaves for `list`, for register-threaded callers: esi the
-/// list when there is one, the carry whether there is.
-pub fn carry_on(list: Option<CarList>, c: &mut crate::menu::screen_loop::Carried) {
-    if list.is_some() {
-        c.cars = list;
-    }
-    c.carry = list.is_some();
-}

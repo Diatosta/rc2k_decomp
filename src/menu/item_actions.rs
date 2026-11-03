@@ -23,7 +23,7 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, Entry, run_screen};
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 
@@ -87,10 +87,10 @@ pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
 }
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
-/// and the arcade event run. `c` the carried values the item gets.
-pub fn start_arcade(c: &Carried) -> Result<(), Refused> {
+/// and the arcade event run.
+pub fn start_arcade() -> Result<(), Refused> {
     ARCADE_GAME.level.set(0);
     ARCADE_GAME.stage.set(0);
     crate::menu::take_player1_units::take_player1_units()?;
-    crate::menu::arcade_event::arcade_event(c)
+    crate::menu::arcade_event::arcade_event()
 }

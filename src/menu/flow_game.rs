@@ -1,47 +1,36 @@
 //! The game for `rc2k_core::menu::flow` (2026-10-21): the event flows' variables at their
-//! addresses, their callees through an `event_flow::Call` with the registers the originals
-//! give them, and what the originals hand on in registers (one set carried through the
-//! whole flow, as their `pusha` keeps it).
+//! addresses, their callees' Rust versions, the record the last search found and the car
+//! list handed on to the car choice.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{game_addr, rva};
 use crate::menu::event_flow::*;
+use crate::menu::lists_store::CarList;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::run_championship as champ;
-use crate::menu::screen_loop::Carried;
-use crate::menu::screen_loop::run_screen_carried;
+use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
-use rc2k_core::menu::flow::{self, Hand, Picture, Reply, Var};
+use rc2k_core::menu::flow::{self, Picture, Var};
 
-pub const PICTURE_FRAME: usize = 0x46F3FA; // menu::picture_frame, handed to the frame
 pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
 const PLAYER_TIME: u32 = 0x88;
 const PLAYER_ENTRY: u32 = 0xD0;
 
+#[derive(Default)]
 pub struct Game {
-    pub f: Flow,
+    /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
+    record: u32,
+    /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
+    cars: Option<CarList>,
     /// A refused read or write of the core's variables (checked at each call and at the end).
     fault: Fault,
 }
 
 impl Game {
-    pub fn new(c: &Carried) -> Self {
-        Self {
-            f: Flow::new(c),
-            fault: Fault::default(),
-        }
-    }
-
-    /// A flow that goes on from the registers this one has (a nested flow: its changes
-    /// are its own).
-    pub fn nested(f: &Flow) -> Self {
-        Self {
-            f: *f,
-            fault: Fault::default(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Runs a flow on this game; a refused read or write of its variables ends it.
@@ -53,10 +42,6 @@ impl Game {
         self.fault.check()?;
         done
     }
-}
-
-pub fn addr(a: usize) -> u32 {
-    game_addr(rva(a))
 }
 
 /// Where a variable is.
@@ -124,24 +109,17 @@ fn place(v: Var) -> Place {
 }
 
 impl Game {
-    /// A search's or walk's record (the original's edi) and the carried values it leaves.
-    fn screen(&mut self, screen: &crate::menu::screen_loop::Screen) -> Result<(), Refused> {
-        run_screen_carried(screen, &mut self.f.c)
+    /// A screen, entered with the car list handed (the only value a screen reads from its
+    /// caller).
+    fn screen(&self, screen: &Screen) -> Result<(), Refused> {
+        { run_screen(screen, &Entry { cars: self.cars }) }?;
+        Ok(())
     }
+}
 
-    /// The flags `input::take_key` and its like leave.
-    fn key_flags(&mut self, key: u8) {
-        self.f.zero = key == 0;
-    }
-
-    /// `callee`'s answer.
-    fn reply(&self) -> Reply {
-        Reply {
-            eax: self.f.c.arg,
-            carry: self.f.c.carry,
-            zero: self.f.zero,
-        }
-    }
+/// A key's code, none for 0 (`input::take_key`'s and `system::wait_or_key`'s).
+fn key(code: u8) -> Option<u8> {
+    (code != 0).then_some(code)
 }
 
 impl flow::Game for Game {
@@ -151,7 +129,7 @@ impl flow::Game for Game {
         match place(v) {
             Place::Cell(cell) => cell.get(),
             Place::Player(n, offset) => player(n).get().word(offset as usize),
-            Place::Record(offset) => self.fault.get(self.f.record + offset),
+            Place::Record(offset) => self.fault.get(self.record + offset),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
     }
@@ -160,15 +138,14 @@ impl flow::Game for Game {
         match place(v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, offset) => {
-                self.f.record = player(n).addr();
                 player(n).update(|q| q.store(&[(offset as usize, value)]));
             }
-            Place::Record(offset) => self.fault.put(self.f.record + offset, value),
+            Place::Record(offset) => self.fault.put(self.record + offset, value),
             Place::Quitting => crate::session::FLAGS.quitting.set(value),
         }
     }
 
-    fn call(&mut self, c: flow::Call) -> Result<Reply, Refused> {
+    fn run(&mut self, c: flow::Call) -> Result<(), Refused> {
         self.fault.check()?;
         use crate::menu as m;
         use flow::Call as C;
@@ -184,25 +161,22 @@ impl flow::Game for Game {
             C::ClearEventState => m::clear_event_state::clear_event_state()?,
             C::ReadyPlayers => m::ready_players::ready_players()?,
             C::ResetSingleEvent => m::reset_single_event::reset_single_event()?,
-            C::ChampionshipWelcome => m::championship_welcome::championship_welcome(&self.f)?,
-            C::A8Welcome => m::a8_welcome::a8_welcome(&self.f)?,
+            C::ChampionshipWelcome => m::championship_welcome::championship_welcome()?,
+            C::A8Welcome => m::a8_welcome::a8_welcome()?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
-                self.f.record = crate::records::stages_store::STAGE_TABLES.championship();
-                self.f.c.palette = section;
-                self.f.c.arg = index;
+                let table = crate::records::stages_store::STAGE_TABLES.championship();
                 // The original has no end-of-table check: a section past the table's
                 // is refused.
-                if !has_section(self.f.record, section, 600)? {
+                if !has_section(table, section, 600)? {
                     return Err(BadInput("a record section past the table").into());
                 }
-                self.f.record = find_record_in(self.f.record, index as i32, section)?;
+                self.record = find_record_in(table, index as i32, section)?;
             }
-            C::NextRecordKind => self.f.c.arg = m::next_record_kind::next_record_kind()?,
             C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
             C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
-            C::ServicePass => m::service_pass::service_pass(&self.f.c)?,
+            C::ServicePass => m::service_pass::service_pass()?,
             C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all()?,
             C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure()?,
             C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
@@ -211,14 +185,12 @@ impl flow::Game for Game {
                 m::class_championship_pass::class_championship_pass()?;
             }
             C::AwardOverallPoints => {
-                let awarded = m::award_overall_points::award_overall_points()?;
-                awarded.carry_on(&mut self.f.c);
+                m::award_overall_points::award_overall_points()?;
             }
             C::ClearStandingsB => m::clear_standings_b::clear_standings_b()?,
             C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
             C::NumberAllB => {
-                let numbered = m::number_all_b::number_all_b()?;
-                numbered.carry_on(&mut self.f.c);
+                m::number_all_b::number_all_b()?;
             }
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings()?;
@@ -232,13 +204,12 @@ impl flow::Game for Game {
             }
             C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
             C::NumberAllA => {
-                let numbered = m::number_all_a::number_all_a()?;
-                numbered.carry_on(&mut self.f.c);
+                m::number_all_a::number_all_a()?;
             }
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results()?;
             }
-            C::RunEventRaces => m::run_event_races::run_event_races(&mut self.f)?,
+            C::RunEventRaces => m::run_event_races::run_event_races()?,
             C::AddPlayerTimes => m::add_player_times::add_player_times()?,
             C::ClassStageResultsPass => {
                 m::class_stage_results_pass::class_stage_results_pass()?;
@@ -249,7 +220,7 @@ impl flow::Game for Game {
             C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
-            C::InspectionPass => m::inspection_pass::inspection_pass(&self.f.c)?,
+            C::InspectionPass => m::inspection_pass::inspection_pass()?,
             C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
             C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
             C::ChampionshipFinish => m::championship_finish::championship_finish()?,
@@ -257,33 +228,25 @@ impl flow::Game for Game {
             C::BestClassScores => m::best_class_scores::best_class_scores()?,
             C::BestOverallScores => m::best_overall_scores::best_overall_scores()?,
             C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
-            // `from_entry`: the entry's registers are the ones it leaves, and it
-            // reads none.
-            C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options()?,
+            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
             C::HideInGameOptions { players } => {
-                self.f.c.arg = players;
                 m::in_game_options_items::hide_in_game_options(players)?;
             }
             C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
             C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,
-            C::RepairCar { car } => {
-                if let Some(car) = car {
-                    self.f.c.measure_x = car;
-                }
-                crate::service::repair_parts::repair_car()?;
-            }
+            C::RepairCar => crate::service::repair_parts::repair_car()?,
             C::CheatCarList => {
-                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), &mut self.f.c);
+                if let Some(list) = m::cheat_car_list::cheat_car_list() {
+                    self.cars = Some(list);
+                }
             }
             C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
-            C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
+            C::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
             C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
             C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
-            C::TimeTrialService => m::time_trial_service::time_trial_service(&self.f)?,
+            C::TimeTrialService => m::time_trial_service::time_trial_service()?,
             C::Race { next, kind } => {
-                self.f.c.arg = u32::from(next);
-                self.f.c.palette = kind;
-                crate::race::single_rally_race::single_rally_race(self.f.c.arg, kind)?;
+                crate::race::single_rally_race::single_rally_race(u32::from(next), kind)?;
             }
             C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
             C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
@@ -291,101 +254,78 @@ impl flow::Game for Game {
             C::Results482E9B => self.screen(&m::results_482e9b_loop::SCREEN)?,
             C::Screen483163 => self.screen(&m::screen_483163_loop::SCREEN)?,
             C::KeepStageBest => m::keep_stage_best::keep_stage_best()?,
-            C::TimeTrialQualifies { players } => {
-                if let Some(players) = players {
-                    self.f.c.measure_x = players;
-                }
-                m::time_trial_qualifies::time_trial_qualifies()?;
-            }
+            C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies()?,
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
             C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best()?,
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
             C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
             C::StartStream { channel } => {
-                self.f.c.arg = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr(); // ";3files\%speech\rally\rally0.wav"
-                self.f.c.measure_x = channel;
-                crate::sound::start_stream::start_stream(self.f.c.arg, channel);
+                // ";3files\%speech\rally\rally0.wav"
+                let path = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr();
+                crate::sound::start_stream::start_stream(path, channel);
             }
             C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
             C::StopStream => crate::sound::stop_stream::stop_stream(),
-            C::LoadPicture(p) => {
-                let texts = &crate::menu::texts_store::MENU_TEXTS;
-                let picture: &dyn crate::session::TextPlace = match p {
-                    Picture::Championship => &texts.mob_welc_png,
-                    Picture::A8 => &texts.a8_welc_png,
-                };
-                // ebx, the title bar's path, is what the loop's next steps read as a palette.
-                self.f.c.palette = texts.titlebar_png.addr();
-                self.f.c.carry = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
-                    picture,
-                    &texts.titlebar_png,
-                )?;
-            }
             C::ConvertPicture => {
-                self.f.c.carry = crate::gfx::convert_picture::convert_picture_now()?;
-            }
-            C::TakeKey => {
-                let key = crate::input::take_key::take_key();
-                self.f.c.arg = (self.f.c.arg & !0xFF) | u32::from(key);
-                self.key_flags(key);
+                // Whether it worked is not looked at.
+                crate::gfx::convert_picture::convert_picture_now()?;
             }
             C::RunFrame => {
-                // `screens::run_frame` with `menu::picture_frame`: the carry says
-                // the frame was not made; the zero flag is then eax == 0 (it is not).
-                self.f.c.arg = addr(PICTURE_FRAME);
-                match crate::platform::run_frame_now(m::picture_frame::picture_frame) {
-                    None => {
-                        self.f.c.carry = false;
-                        self.f.zero = true;
-                    }
-                    Some(made) => {
-                        let made = made?;
-                        self.f.c.carry = !made;
-                        if made {
-                            self.f.zero = false;
-                        }
-                    }
+                // `screens::run_frame` with `menu::picture_frame` (whether the frame was
+                // made is not looked at).
+                if let Some(made) = crate::platform::run_frame_now(m::picture_frame::picture_frame)
+                {
+                    made?;
                 }
             }
-            C::WaitOrKey { ms } => {
-                self.f.c.arg = ms;
-                let key = crate::system::wait_or_key::wait_or_key(ms);
-                self.f.c.arg = u32::from(key);
-                self.key_flags(key);
-                self.f.c.carry = false;
-            }
-            C::StreamPlaying => {
-                // The welcome polls this until a key comes: the window goes on meanwhile.
-                crate::system::sleep::sleep(10);
-                crate::platform::pump_messages_now();
-                let (zero, carry) = crate::sound::stream_playing::stream_playing();
-                self.f.zero = zero;
-                self.f.c.carry = carry;
-            }
             C::ConfirmLeaving => {
-                let answer = crate::menu::screen_loop::confirm_leaving()?;
-                self.f.c.carry = answer < 1;
-                self.f.zero = answer == 1;
-            }
-        }
-
-        Ok(self.reply())
-    }
-
-    fn hand(&mut self, h: Hand) -> Result<(), Refused> {
-        match h {
-            Hand::CarList(list) => {
-                self.f.c.cars = Some(list);
-            }
-            Hand::CheatFlag(on) => self.f.c.carry = on,
-            Hand::Kept(v) => self.f.c.arg = v,
-            Hand::Stage => {
-                self.f.record = stage_record()?;
-                self.f.c.palette = get(STAGE_SUB);
-                self.f.c.arg = get(STAGE_NUMBER).wrapping_mul(STAGE_RECORD);
+                // The answer is read through `Var::Answer`.
+                crate::menu::screen_loop::confirm_leaving()?;
             }
         }
         Ok(())
+    }
+
+    fn next_record_kind(&mut self) -> Result<u32, Refused> {
+        self.fault.check()?;
+        crate::menu::next_record_kind::next_record_kind()
+    }
+
+    fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
+        self.fault.check()?;
+        let texts = &crate::menu::texts_store::MENU_TEXTS;
+        let picture: &dyn crate::session::TextPlace = match p {
+            Picture::Championship => &texts.mob_welc_png,
+            Picture::A8 => &texts.a8_welc_png,
+        };
+        let failed = crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+            picture,
+            &texts.titlebar_png,
+        )?;
+        Ok(!failed)
+    }
+
+    fn take_key(&mut self) -> Result<Option<u8>, Refused> {
+        self.fault.check()?;
+        Ok(key(crate::input::take_key::take_key()))
+    }
+
+    fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Refused> {
+        self.fault.check()?;
+        Ok(key(crate::system::wait_or_key::wait_or_key(ms)))
+    }
+
+    fn stream_playing(&mut self) -> Result<bool, Refused> {
+        self.fault.check()?;
+        // The welcome polls this until a key comes: the window goes on meanwhile.
+        crate::system::sleep::sleep(10);
+        crate::platform::pump_messages_now();
+        let (playing, _) = crate::sound::stream_playing::stream_playing();
+        Ok(playing)
+    }
+
+    fn hand_cars(&mut self, list: CarList) {
+        self.cars = Some(list);
     }
 
     fn fatal(&mut self, code: u32, message: &'static str) -> Refused {

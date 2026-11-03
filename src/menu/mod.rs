@@ -210,7 +210,6 @@ pub mod player4_controller_loop;
 pub mod player4_details_loop;
 pub mod player_actions;
 pub mod player_details_loop;
-pub mod player_entered;
 pub mod player_name;
 pub mod player_names;
 pub mod player_settings;

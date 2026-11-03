@@ -16,10 +16,9 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_four(c: &Carried) -> Result<(), Refused> {
+pub fn time_trial_four() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_four`.
-    Game::new(c).run(rounds::time_trial_four)
+    Game::new().run(rounds::time_trial_four)
 }

@@ -76,11 +76,6 @@ pub fn added_time(entered: u32, time: u32, total: u32) -> Vec<Store> {
     }
 }
 
-/// `menu::player_entered`: `value` for a player taking part (+0xD0 1), else 0.
-pub fn if_entered(entered: u32, value: u32) -> u32 {
-    if entered == 1 { value } else { 0 }
-}
-
 /// Which stage the stage screens' map shows (`dword_755700`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MapStage {
@@ -193,7 +188,6 @@ mod tests {
         assert_eq!(setup_defaults(9)[5], (0x11C, 9));
         assert_eq!(added_time(1, 5, u32::MAX), [(0x8C, 4)]);
         assert_eq!(added_time(2, 5, 7), [(0x88, HOUR), (0x8C, HOUR)]);
-        assert_eq!((if_entered(1, 7), if_entered(0, 7)), (7, 0));
         assert_eq!(MapStage::Choice as u32, 1);
     }
 

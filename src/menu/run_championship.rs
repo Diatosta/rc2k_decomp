@@ -52,7 +52,6 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_game::Game;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::Carried;
 use crate::session::Dword;
 
 pub const STAGES_DONE: &Dword = &EVENT_STATE.stages_done; // dword_755950
@@ -72,13 +71,11 @@ pub const SERVICE_NEXT: &Dword = &EVENT_STATE.service_next; // dword_75594C
 // dword_755920
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
-/// `c` the carried values of the caller; the original leaves every register as it got
-/// them (`menu::show_in_game_options` reads none).
-pub fn run_event(c: &Carried, a8: bool) -> Result<(), Refused> {
+pub fn run_event(a8: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run`.
-    Game::new(c).run(|g| rc2k_core::menu::championship::run(g, a8))
+    Game::new().run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 
-pub fn run_championship(c: &Carried) -> Result<(), Refused> {
-    run_event(c, false)
+pub fn run_championship() -> Result<(), Refused> {
+    run_event(false)
 }

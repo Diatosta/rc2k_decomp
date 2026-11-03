@@ -350,15 +350,10 @@ pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
 }
 
 /// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,
-/// `number_standings_b`) leave in the registers, which their callers' later calls may read:
-/// the last number given (ecx), the last numbered player's index when there was one (eax;
-/// else it is kept; esi, the player's record, is no list of cars). (The original's edi,
-/// the table's end, is read by no later call: not kept since the tables are blocks,
-/// phase 12.)
+/// `number_standings_b`) give: the last number given (the class passes store it).
 #[derive(Clone, Copy)]
 pub struct Numbered {
     pub last_number: u32,
-    pub last_player: Option<u32>,
 }
 
 /// The numbering of a standings table (`number_all_*`, `number_standings_*`): each entry
@@ -388,7 +383,6 @@ pub fn number_table(
     let groups: Vec<u32> = walked.iter().map(|&(g, _)| g).collect();
     let numbers = rc2k_core::menu::standings::number(&groups, which);
     let mut last_number = 0;
-    let mut last_player = None;
     for (&(_, p), n) in walked.iter().zip(&numbers) {
         let Some(n) = *n else {
             continue;
@@ -397,7 +391,6 @@ pub fn number_table(
         if p != 0 {
             let record = player(p - 1);
             record.update(|q| q.store(&[(record_at as usize, n)]));
-            last_player = Some(p - 1);
         }
     }
     let set = |n: usize| numbers[n];
@@ -417,20 +410,5 @@ pub fn number_table(
             }
         })?,
     }
-    Ok(Numbered {
-        last_number,
-        last_player,
-    })
-}
-
-impl Numbered {
-    /// The carried values as the original leaves them (eax, ecx, esi; edi is nothing a
-    /// screen reads).
-    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
-        c.measure_x = self.last_number;
-        if let Some(index) = self.last_player {
-            c.arg = index;
-            c.cars = None;
-        }
-    }
+    Ok(Numbered { last_number })
 }

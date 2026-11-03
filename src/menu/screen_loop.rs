@@ -255,13 +255,6 @@ pub struct Carried {
     pub carry: bool,
 }
 
-impl Carried {
-    /// What a screen run with these values is entered with.
-    pub fn entry(&self) -> Entry {
-        Entry { cars: self.cars }
-    }
-}
-
 /// Whether the game is quitting (`dword_51837C`).
 pub fn quitting() -> bool {
     FLAGS.quitting.get() == 1
@@ -805,13 +798,4 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
     { screen_loop(screen, entry) }?;
     Ok(screen.result.map(|result| result()))
-}
-
-/// `run_screen` for a flow that holds the carried values: the screen's result, where it
-/// has one, becomes `arg` (the original's eax); every other value is kept.
-pub fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
-    if let Some(result) = { run_screen(screen, &c.entry()) }? {
-        c.arg = result;
-    }
-    Ok(())
 }

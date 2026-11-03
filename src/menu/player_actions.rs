@@ -25,7 +25,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
@@ -130,11 +129,11 @@ pub fn leave_with_carry() {
 }
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
-/// one. `c` the carried values the item gets.
-pub fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
+/// one.
+pub fn player_car_specs(n: u32) -> Result<(), Refused> {
     let kept = EVENT_STATE.current_player.get();
     EVENT_STATE.current_player.set(n);
-    let done = { crate::menu::show_car_specs::show_car_specs(c) };
+    let done = { crate::menu::show_car_specs::show_car_specs() };
     EVENT_STATE.current_player.set(kept);
     done
 }
@@ -221,8 +220,8 @@ macro_rules! car_specs {
         pub mod $module {
             use super::*;
             /// The Rust version where the typed tables run it (`menu::table_calls`).
-            pub fn run(c: &Carried) -> Result<(), crate::errors::Refused> {
-                { player_car_specs($n, c) }
+            pub fn run() -> Result<(), crate::errors::Refused> {
+                { player_car_specs($n) }
             }
         }
     };

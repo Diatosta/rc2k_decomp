@@ -17,13 +17,11 @@
 //! Caller: `menu::run_championship` (`g_eventMode` 2).
 
 use crate::errors::Refused;
-use crate::menu::event_flow::Flow;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
-/// The Rust version. `f` the registers the caller carries (the welcome is a flow of its
-/// own: what it changes is its own, the original keeps every register).
-pub fn championship_welcome(f: &Flow) -> Result<(), Refused> {
+/// The Rust version.
+pub fn championship_welcome() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::championship_welcome`.
-    Game::nested(f).run(welcome::championship_welcome)
+    Game::new().run(welcome::championship_welcome)
 }

@@ -19,10 +19,9 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 
-/// The Rust version. `c` the carried values (the registers the item gets).
-pub fn single_rally(c: &Carried) -> Result<(), Refused> {
+/// The Rust version.
+pub fn single_rally() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally`.
-    Game::new(c).run(rc2k_core::menu::rounds::single_rally)
+    Game::new().run(rc2k_core::menu::rounds::single_rally)
 }

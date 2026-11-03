@@ -17,10 +17,9 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;
-use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub fn single_rally_split(c: &Carried) -> Result<(), Refused> {
+pub fn single_rally_split() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally_split`.
-    Game::new(c).run(rounds::single_rally_split)
+    Game::new().run(rounds::single_rally_split)
 }

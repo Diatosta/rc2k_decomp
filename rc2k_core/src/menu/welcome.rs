@@ -13,7 +13,7 @@ pub const FIRST_WAIT: u32 = 0xBB8;
 
 /// The picture loaded and converted.
 fn picture<G: Game>(e: &mut G, p: Picture) -> Result<(), G::Error> {
-    if e.call(Call::LoadPicture(p))?.carry {
+    if !e.load_picture(p)? {
         return Err(e.fatal(NO_PICTURE.0, NO_PICTURE.1));
     }
     e.run(Call::ConvertPicture)
@@ -37,16 +37,15 @@ pub fn championship_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
         e.set(Var::Leave561, 0);
         e.set(Var::Answer, 0);
         picture(e, Picture::Championship)?;
-        e.run(Call::TakeKey)?;
+        e.take_key()?;
         e.run(Call::RunFrame)?;
-        let mut key = e.call(Call::WaitOrKey { ms: FIRST_WAIT })?.key();
+        let mut key = e.wait_or_key(FIRST_WAIT)?;
         if key.is_none() {
             loop {
-                let playing = e.call(Call::StreamPlaying)?.zero;
-                if !playing || e.get(Var::Quitting) == 1 {
+                if !e.stream_playing()? || e.get(Var::Quitting) == 1 {
                     return Ok(());
                 }
-                key = e.call(Call::TakeKey)?.key();
+                key = e.take_key()?;
                 if key.is_some() {
                     break;
                 }
@@ -71,7 +70,7 @@ pub fn a8_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
         picture(e, Picture::A8)?;
         let key = loop {
             e.run(Call::RunFrame)?;
-            if let Some(key) = e.call(Call::TakeKey)?.key() {
+            if let Some(key) = e.take_key()? {
                 break key;
             }
         };
@@ -83,21 +82,20 @@ pub fn a8_welcome<G: Game>(e: &mut G) -> Result<(), G::Error> {
             break;
         }
     }
-    e.run(Call::TakeKey)
+    e.take_key()?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::flow::Reply;
-    use super::super::flow::log::Log;
+    use super::super::flow::log::{Log, Said};
     use super::*;
 
-    fn key(k: u8) -> Reply {
-        Reply {
-            eax: 0xAB00 | u32::from(k),
-            ..Reply::default()
-        }
+    fn key(k: u8) -> Said {
+        Said::Key(Some(k))
     }
+
+    const NO_KEY: Said = Said::Key(None);
 
     #[test]
     fn championship() {
@@ -108,52 +106,25 @@ mod tests {
         // Escape at the wait, a no, then the speech's end.
         let mut log = Log::default()
             .reply("WaitOrKey", vec![key(ESCAPE)])
-            .reply("StreamPlaying", vec![Reply::default()]);
+            .reply("StreamPlaying", vec![Said::Playing(false)]);
         championship_welcome(&mut log).unwrap();
         assert_eq!(log.count("ConfirmLeaving"), 1);
         assert_eq!(log.count("StopStream"), 1);
         assert_eq!(log.count("StartStream { channel: 0 }"), 2);
 
         // A key while the speech plays.
-        let mut log = Log::default().reply(
-            "TakeKey",
-            vec![
-                key(0),
-                Reply {
-                    zero: true,
-                    ..key(0)
-                },
-                key(0x1C),
-            ],
-        );
+        let mut log = Log::default().reply("TakeKey", vec![key(0), NO_KEY, key(0x1C)]);
         championship_welcome(&mut log).unwrap();
         assert_eq!(log.steps.last().unwrap(), "StopStream");
 
-        let mut log = Log::default().reply(
-            "LoadPicture",
-            vec![Reply {
-                carry: true,
-                ..Reply::default()
-            }],
-        );
+        let mut log = Log::default().reply("LoadPicture", vec![Said::Unreadable]);
         assert!(championship_welcome(&mut log).is_err());
     }
 
     #[test]
     fn a8() {
         let mut log = Log::default()
-            .reply(
-                "TakeKey",
-                vec![
-                    Reply {
-                        zero: true,
-                        ..key(0)
-                    },
-                    key(ESCAPE),
-                    key(5),
-                    key(0),
-                ],
-            )
+            .reply("TakeKey", vec![NO_KEY, key(ESCAPE), key(5), key(0)])
             .on("ConfirmLeaving", vec![vec![(Var::Answer, 0)]]);
         a8_welcome(&mut log).unwrap();
         assert_eq!(log.count("RunFrame"), 3);

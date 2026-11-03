@@ -2,22 +2,21 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::event_flow::{Fault, Flow};
+use crate::menu::event_flow::{Fault, STAGE_RECORD};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
-use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
+use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
-/// steps' Rust versions with the registers the original gives them (one set carried
-/// through).
+/// steps' Rust versions and the car list the car choice was shown.
 struct Game {
-    f: Flow,
+    cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
@@ -79,10 +78,7 @@ impl arcade::Arcade for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Player0Entry => {
-                self.f.record = self.player0.addr();
-                self.player0.update(|p| p.store(&[(0xD0, value)]));
-            }
+            Var::Player0Entry => self.player0.update(|p| p.store(&[(0xD0, value)])),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => address(v).set(value),
@@ -94,68 +90,59 @@ impl arcade::Arcade for Game {
         self.fault.check()?;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
-        let c = &mut self.f.c;
         match s {
             Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
             Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
             Step::SecretCarList => {
-                c.cars = Some(CarList::Second);
-                m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
+                self.cars = Some(m::cheat_car_list::cheat_car_list().unwrap_or(CarList::Second));
             }
-            Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,
-            Step::TakeShownCar => m::take_shown_car::take_shown_car(c.cars)?,
-            Step::NextStageLoop => run_screen_carried(&m::arcade_next_stage_loop::SCREEN, c)?,
+            Step::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
+            Step::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
+            Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
             Step::TakeStageBest => a::take_arcade_stage_best()?,
-            Step::RepairCar => {
-                c.arg = 0;
-                crate::service::repair_parts::repair_car()?;
-            }
-            Step::Race => {
-                c.palette = 2;
-                crate::race::single_rally_race::single_rally_race(c.arg, 2)?;
-            }
+            Step::RepairCar => crate::service::repair_parts::repair_car()?,
+            // From 0 (the original clears eax for the repair just before).
+            Step::Race => crate::race::single_rally_race::single_rally_race(0, 2)?,
             Step::ScoreStage => a::score_arcade_stage()?,
-            Step::ResultsLoop => run_screen_carried(&m::arcade_results_loop::SCREEN, c)?,
-            Step::KeepStageBest => a::keep_arcade_stage_best(self.f.record)?,
+            Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
+            Step::KeepStageBest => {
+                // The stage's record in the level's table.
+                let level = crate::records::stages_store::STAGE_TABLES
+                    .level_table(ARCADE_GAME.level.get())?;
+                let stage = ARCADE_GAME.stage.get().wrapping_mul(STAGE_RECORD);
+                a::keep_arcade_stage_best(level.wrapping_add(stage))?;
+            }
             Step::CheckStageTime => a::check_arcade_stage_time()?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks()?,
             Step::EnterStageTime => a::enter_arcade_stage_time()?,
-            Step::BestTimesLoop => run_screen_carried(&m::arcade_best_times_loop::SCREEN, c)?,
+            Step::BestTimesLoop => self.screen(&m::arcade_best_times_loop::SCREEN)?,
             Step::CheckLevelScore => a::check_arcade_level_score()?,
             Step::ClearScoreMarks => a::clear_arcade_score_marks()?,
             Step::EnterLevelScore => a::enter_arcade_level_score()?,
-            Step::BestScoresLoop => run_screen_carried(&m::best_scores_48a69e_loop::SCREEN, c)?,
-            Step::LevelEnd => m::arcade_level_end::arcade_level_end(c)?,
-            Step::NextLevelReview => run_screen_carried(&m::review_options_4882e2_loop::SCREEN, c)?,
-            Step::RetryReview => run_screen_carried(&m::review_options_48861d_loop::SCREEN, c)?,
-            Step::StageReview => run_screen_carried(&m::arcade_review_options_loop::SCREEN, c)?,
-            // With the registers the event was entered with: it reads none.
+            Step::BestScoresLoop => self.screen(&m::best_scores_48a69e_loop::SCREEN)?,
+            Step::LevelEnd => m::arcade_level_end::arcade_level_end()?,
+            Step::NextLevelReview => self.screen(&m::review_options_4882e2_loop::SCREEN)?,
+            Step::RetryReview => self.screen(&m::review_options_48861d_loop::SCREEN)?,
+            Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,
             Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
-        }
-
-        Ok(())
-    }
-
-    fn hand(&mut self, h: Hand) -> Result<(), Refused> {
-        let f = &mut self.f;
-        match h {
-            Hand::Kept(v) => f.c.arg = v,
-            Hand::StageRecord => {
-                f.c.palette = ARCADE_GAME.level.get();
-                f.record = crate::records::stages_store::STAGE_TABLES.level_table(f.c.palette)?;
-                f.c.arg = ARCADE_GAME.stage.get().wrapping_mul(0xA4);
-                f.record = f.record.wrapping_add(f.c.arg);
-            }
         }
         Ok(())
     }
 }
 
-/// The Rust version. `c` the carried values the event is entered with.
-pub fn arcade_event(c: &Carried) -> Result<(), Refused> {
+impl Game {
+    /// A screen, entered with the car list (the only value a screen reads from its caller).
+    fn screen(&self, screen: &Screen) -> Result<(), Refused> {
+        { run_screen(screen, &Entry { cars: self.cars }) }?;
+        Ok(())
+    }
+}
+
+/// The Rust version.
+pub fn arcade_event() -> Result<(), Refused> {
     let player0 = crate::menu::standings::player(0);
     let mut game = Game {
-        f: Flow::new(c),
+        cars: None,
         player0,
         fault: Fault::default(),
     };

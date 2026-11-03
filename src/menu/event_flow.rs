@@ -193,15 +193,3 @@ pub struct Flow {
     pub zero: bool,
     pub record: u32,
 }
-
-impl Flow {
-    /// The flow of a caller whose carried values are `c` (flags and edi clear, as the
-    /// menus' items get them).
-    pub fn new(c: &Carried) -> Self {
-        Self {
-            c: *c,
-            zero: false,
-            record: 0,
-        }
-    }
-}

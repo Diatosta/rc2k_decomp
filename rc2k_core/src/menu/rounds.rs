@@ -5,7 +5,7 @@
 //! choices, then round after round the stage, the races and the pages after them, until a
 //! yes or a leaving ends it. Each event's steps in its original's order, on `flow::Game`.
 
-use super::flow::{Call, CarList, Game, Hand, Var};
+use super::flow::{Call, CarList, Game, Var};
 use crate::Invalid;
 
 /// Players 2 and 3's times (+0x88) in the time trial (3 597 928 and 3 602 000 ms).
@@ -17,23 +17,22 @@ pub const NO_RESULT: u32 = u32::MAX;
 pub const LEFT: u32 = 0xFFFF_FFFE;
 
 /// The single rally's car list: the first with `dword_7554D8` 1, else the second; the
-/// cheats' with cheat bit 1 (handed with the bit, as the original's `bt` leaves it).
-fn rally_car_list<G: Game>(e: &mut G) -> Result<(), G::Error> {
+/// cheats' with cheat bit 1.
+fn rally_car_list<G: Game>(e: &mut G) {
     let first = e.get(Var::CarListKind) == 1;
     let cheat = e.get(Var::Cheats) & 2 != 0;
-    e.hand(Hand::CarList(if cheat {
+    e.hand_cars(if cheat {
         CarList::Cheat
     } else if first {
         CarList::First
     } else {
         CarList::Second
-    }))?;
-    e.hand(Hand::CheatFlag(cheat))
+    });
 }
 
 /// The time trial's car list: the second, through `menu::cheat_car_list`.
 fn time_trial_car_list<G: Game>(e: &mut G) -> Result<(), G::Error> {
-    e.hand(Hand::CarList(CarList::Second))?;
+    e.hand_cars(CarList::Second);
     e.run(Call::CheatCarList)
 }
 
@@ -50,7 +49,7 @@ fn choose_cars<G: Game>(
         if time_trial {
             time_trial_car_list(e)?;
         } else {
-            rally_car_list(e)?;
+            rally_car_list(e);
         }
         e.run(Call::SelectCarLoop)?;
         if e.get(Var::CarLeft) == 1 {
@@ -68,7 +67,7 @@ fn choose_cars<G: Game>(
 fn repair_all<G: Game>(e: &mut G) -> Result<(), G::Error> {
     for k in 0..4 {
         e.set(Var::Current, k);
-        e.run(Call::RepairCar { car: None })?;
+        e.run(Call::RepairCar)?;
     }
     Ok(())
 }
@@ -92,7 +91,7 @@ fn race_series<G: Game>(
     for k in 0..n {
         e.set(Var::Current, k);
         if repair {
-            e.run(Call::RepairCar { car: None })?;
+            e.run(Call::RepairCar)?;
         }
         e.run(Call::Race {
             next: k + 1 < n,
@@ -101,9 +100,6 @@ fn race_series<G: Game>(
         if e.get(Var::RaceResult) == LEFT {
             e.run(Call::ResetPlayerTimes)?;
             e.run(Call::ReloadFrontEnd)?;
-            if k > 0 {
-                e.hand(Hand::Kept(all))?;
-            }
             return Ok(None);
         }
         all = if k == 0 {
@@ -111,7 +107,6 @@ fn race_series<G: Game>(
         } else {
             all & e.get(Var::RaceResult)
         };
-        e.hand(Hand::Kept(all))?;
     }
     Ok(Some(all))
 }
@@ -120,7 +115,6 @@ fn race_series<G: Game>(
 fn split_race<G: Game>(e: &mut G, kind: u32) -> Result<u32, G::Error> {
     e.run(Call::Race { next: false, kind })?;
     let both = e.get(Var::RaceResult) & e.get(Var::RaceResult2);
-    e.hand(Hand::Kept(both))?;
     Ok(both)
 }
 
@@ -133,13 +127,11 @@ fn keep_bests<G: Game>(e: &mut G, n: u32) -> Result<(), G::Error> {
     Ok(())
 }
 
-/// Players `from` .. n: whether the time qualifies (for player 0 with the player count),
-/// and if it does, the time entered.
+/// Players `from` .. n: whether the time qualifies, and if it does, the time entered.
 fn qualify<G: Game>(e: &mut G, from: u32, n: u32) -> Result<(), G::Error> {
     for k in from..n {
         e.set(Var::Current, k);
-        let players = (k == 0).then(|| e.get(Var::PlayerCount));
-        e.run(Call::TimeTrialQualifies { players })?;
+        e.run(Call::TimeTrialQualifies)?;
         if e.get(Var::Qualifies) == 1 {
             e.run(Call::EnterTimeTrialBest)?;
         }
@@ -163,7 +155,7 @@ fn best_times<G: Game>(e: &mut G) -> Result<bool, G::Error> {
 fn review<G: Game>(e: &mut G, hide: Option<u32>, ask: bool) -> Result<bool, G::Error> {
     match hide {
         Some(players) => e.run(Call::HideInGameOptions { players })?,
-        None => e.run(Call::ShowInGameOptions { from_entry: false })?,
+        None => e.run(Call::ShowInGameOptions)?,
     }
     e.run(Call::Review485F5E)?;
     Ok((ask && e.yes()) || e.get(Var::Ended569) == 1 || e.get(Var::Leave) == 1)
@@ -175,7 +167,7 @@ fn end<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Leave, 0);
     e.set(Var::Ended569, 0);
     e.set(Var::Ended565, 0);
-    e.run(Call::ShowInGameOptions { from_entry: false })
+    e.run(Call::ShowInGameOptions)
 }
 
 /// The stage choice: true when a yes or the leaving ends the event.
@@ -194,15 +186,7 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Leave, 0);
     e.run(Call::ClearEventState)?;
     e.set(Var::Current, 0);
-    let first = e.get(Var::CarListKind) == 1;
-    let cheat = e.get(Var::Cheats) & 2 != 0;
-    e.hand(Hand::CarList(if cheat {
-        CarList::Cheat
-    } else if first {
-        CarList::First
-    } else {
-        CarList::Second
-    }))?;
+    rally_car_list(e);
     e.run(Call::SelectCarLoop)?;
     if e.get(Var::CarLeft) == 1 {
         return Ok(());
@@ -217,7 +201,7 @@ pub fn single_rally<G: Game>(e: &mut G) -> Result<(), G::Error> {
             return Err(Invalid("a current player past the four").into());
         }
         e.set(Var::PlayerEntry(current), 1);
-        e.run(Call::RepairCar { car: None })?;
+        e.run(Call::RepairCar)?;
         e.run(Call::Race {
             next: false,
             kind: 0,
@@ -263,10 +247,15 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
             break;
         }
         e.set(Var::Current, 0);
-        let current = e.get(Var::Current);
-        e.set(Var::PlayerEntry(current), 1);
-        e.run(Call::RepairCar { car: Some(0) })?;
-        e.run(Call::RepairCar { car: Some(1) })?;
+        e.set(Var::PlayerEntry(0), 1);
+        // Both cars repaired. (The original put 0 and 1 in ecx, which `repair_car` does not
+        // read: player 0's car was repaired twice, player 1's kept the last stage's damage.
+        // Fixed bug; the current player is 0 again for the race, as the original's.)
+        for player in 0..2 {
+            e.set(Var::Current, player);
+            e.run(Call::RepairCar)?;
+        }
+        e.set(Var::Current, 0);
         if split_race(e, 0)? != NO_RESULT {
             e.run(Call::Results48584B)?;
             if e.yes() {
@@ -410,10 +399,9 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
             if e.yes() {
                 break;
             }
-            e.hand(Hand::Stage)?;
             e.run(Call::KeepStageBest)?;
             e.set(Var::Qualifies, 0);
-            e.run(Call::TimeTrialQualifies { players: None })?;
+            e.run(Call::TimeTrialQualifies)?;
             if e.get(Var::Qualifies) == 1 {
                 e.run(Call::ClearTimeTrialMarks)?;
                 e.run(Call::EnterTimeTrialBest)?;
@@ -467,7 +455,7 @@ pub fn time_trial_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
         e.run(Call::ReadyPlayers)?;
         for k in 0..2 {
             e.set(Var::Current, k);
-            e.run(Call::RepairCar { car: None })?;
+            e.run(Call::RepairCar)?;
         }
         times_2_3(e);
         if !stage_chosen(e, Call::TimeTrialSelectStage)? {
@@ -480,7 +468,6 @@ pub fn time_trial_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
             if e.yes() {
                 break;
             }
-            e.hand(Hand::Stage)?;
             keep_bests(e, 2)?;
             e.set(Var::Entered, 0);
             e.run(Call::ClearTimeTrialMarks)?;
@@ -522,7 +509,6 @@ pub fn time_trial_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
                 if e.yes() {
                     break;
                 }
-                e.hand(Hand::Stage)?;
                 keep_bests(e, 2)?;
                 e.set(Var::Entered, 0);
                 e.run(Call::ClearTimeTrialMarks)?;
@@ -567,9 +553,6 @@ fn time_trial_rounds<G: Game>(e: &mut G, n: u32, four: bool) -> Result<(), G::Er
             e.run(Call::TimeTrialResultsLoop)?;
             if e.yes() {
                 return Ok(());
-            }
-            if !four {
-                e.hand(Hand::Stage)?;
             }
             keep_bests(e, n)?;
             e.set(Var::Entered, 0);
@@ -625,6 +608,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn split_screen_repairs_both_cars() {
+        // One stage, then the stage choice's yes.
+        let mut log = Log::default().on("SelectStageLoop", vec![vec![], vec![(Var::Answer, 1)]]);
+        single_rally_split(&mut log).unwrap();
+        let race = log
+            .steps
+            .iter()
+            .position(|s| s.starts_with("Race "))
+            .unwrap();
+        assert_eq!(
+            log.steps[race - 6..race],
+            [
+                "PlayerEntry(0)=1",
+                "Current=0",
+                "RepairCar",
+                "Current=1",
+                "RepairCar",
+                "Current=0"
+            ]
+        );
+    }
+
+    #[test]
     fn car_choice_left() {
         let mut log = Log::default().on("SelectCarLoop", vec![vec![], vec![(Var::CarLeft, 1)]]);
         time_trial_three(&mut log).unwrap();
@@ -644,14 +650,10 @@ mod tests {
             .on("SelectStageLoop", vec![vec![], vec![(Var::Answer, 1)]]);
         single_rally_three(&mut log).unwrap();
         assert_eq!(log.count("Race { next: true, kind: 0 }"), 2);
-        assert!(log.has("Kept(5)"));
         assert!(log.has("ReloadFrontEnd"));
         assert!(!log.has("Results482E9B"));
         assert!(log.has("Round=1"));
-        assert_eq!(
-            log.steps.last().unwrap(),
-            "ShowInGameOptions { from_entry: false }"
-        );
+        assert_eq!(log.steps.last().unwrap(), "ShowInGameOptions");
     }
 
     #[test]
@@ -663,7 +665,7 @@ mod tests {
             .on("TimeTrialSelectStage", vec![vec![], vec![(Var::Leave, 1)]]);
         time_trial_two(&mut log).unwrap();
         // All -1: only player 1's qualifying, without the player count.
-        assert!(log.has("TimeTrialQualifies { players: None }"));
+        assert!(log.has("TimeTrialQualifies"));
         assert!(!log.has("TimeTrialResultsLoop"));
         assert!(log.has("EnterTimeTrialBest"));
         assert!(log.has("PlayerTime(3)=3602000"));
