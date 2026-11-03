@@ -3,7 +3,7 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! Unless the Enter came with ah = 4 (`dword_7554D4` at 1): the current player's name kept
+//! Unless the Enter came with ah = 4 (`g_enterSkipsNameEntry` at 1): the current player's name kept
 //! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on (`dword_7556A8` =
 //! 1); then, either way, the length typed (`dword_75556D`) 0. The action of the name's item of the
 //! four players' details pages. Refuses no current player or a player without a name. The menus and
@@ -19,7 +19,7 @@ use crate::menu::text_entry::{Text, field, put_field, with_entry};
 
 pub fn begin_player_name() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
-    let with_4 = { SCREEN_FLOW.enter_with_4.get() } == 1;
+    let with_4 = { SCREEN_FLOW.enter_skips_name_entry.get() } == 1;
     let at = if with_4 { None } else { Some(name()?) };
     // The copy is written, not read.
     let (mut text, mut copy) = (at.map_or(Ok(Text::default()), field)?, Text::default());

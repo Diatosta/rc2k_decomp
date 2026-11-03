@@ -21,8 +21,8 @@ pub struct ScreenFlow {
     pub asking: Dword,
     /// `dword_7554D0`: 1 = left and right do not click (`menu::navigation`).
     pub quiet: Dword,
-    /// `dword_7554D4`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
-    pub enter_with_4: Dword,
+    /// `g_enterSkipsNameEntry`: Enter acts as key 4 (`menu::handle_keys`, `menu::begin_player_name`).
+    pub enter_skips_name_entry: Dword,
     /// `dword_7554D8`: 1 picks the first list of cars (`menu::event_flow`).
     pub car_list_kind: Dword,
     /// Unreferenced bytes (IDA 0x7554DC .. 0x7554E4).
@@ -56,7 +56,7 @@ pub static SCREEN_FLOW: ScreenFlow = ScreenFlow {
     kept: Dword::new(0x1),
     asking: Dword::new(0x0),
     quiet: Dword::new(0x0),
-    enter_with_4: Dword::new(0x0),
+    enter_skips_name_entry: Dword::new(0x0),
     car_list_kind: Dword::new(0x0),
     _gap_7554dc: Bytes::new([0; 8]),
     left_service: Dword::new(0x1),
@@ -106,7 +106,7 @@ mod tests {
         at(offset_of!(ScreenFlow, kept), 0x7554C8);
         at(offset_of!(ScreenFlow, asking), 0x7554CC);
         at(offset_of!(ScreenFlow, quiet), 0x7554D0);
-        at(offset_of!(ScreenFlow, enter_with_4), 0x7554D4);
+        at(offset_of!(ScreenFlow, enter_skips_name_entry), 0x7554D4);
         at(offset_of!(ScreenFlow, car_list_kind), 0x7554D8);
         at(offset_of!(ScreenFlow, left_service), 0x7554E4);
         at(offset_of!(ScreenFlow, menu_sounds_volume), 0x7554E8);

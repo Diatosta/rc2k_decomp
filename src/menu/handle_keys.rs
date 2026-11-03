@@ -7,7 +7,7 @@
 //! (`dword_75AA9C` = 1) or `dword_7551F4` is 1. Otherwise `dword_7556A4` = 0x6F, `dword_755561` =
 //! 0, and the key: none        eax = 1 any         first `menu::handle_yes_no` 0x38        nothing
 //! 1 (Escape)  `dword_755561`, `dword_755A3C` and `dword_758806` = 1; eax = 2 0x1C (Enter)
-//! `dword_7556A4` = 0x14D, the last-key time `dword_7556C4` = the clock, `dword_7554D4` = 1 if ah
+//! `dword_7556A4` = 0x14D, the last-key time `dword_7556C4` = the clock, `g_enterSkipsNameEntry` = 1 if ah
 //! is 4 and else 0, the sound 2; eax = 3. `take_key` only changes al, so ah is what the caller had
 //! in eax: reproduced as it is. others      the last-key time = the clock, then 0x66, 0x6B, 0x69,
 //! 0x68  the four `move_highlight_*` 0x52      `sub_407897` (a screenshot, by what it calls) 0x20
@@ -51,7 +51,7 @@ pub struct Keys {
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
 pub fn handle_keys(eax: u32) -> Result<Keys, Refused> {
-    // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `entered_with_4`).
+    // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Keys {
         result: keys::NOTHING,
@@ -92,7 +92,9 @@ pub fn handle_keys(eax: u32) -> Result<Keys, Refused> {
     if action == Action::Enter {
         OPTION_WORK.menu_sound.set(keys::ENTER_SOUND);
         CHAMP_VIEW.last_key_time.set(clock);
-        SCREEN_FLOW.enter_with_4.set(keys::entered_with_4(eax));
+        SCREEN_FLOW
+            .enter_skips_name_entry
+            .set(keys::enter_skips_name_entry(eax));
         crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
         return Ok(Keys {
             result: keys::ENTERED,
