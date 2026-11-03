@@ -32,14 +32,22 @@ use crate::net::store::NET;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
-use crate::pointers::GamePtr;
 use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
 
-fn get8(at: u32) -> Result<u8, BadInput> {
-    GamePtr::new(at).read::<u8>("a received message")
+/// The received message's byte `at` (the buffer's `unk_52A968`).
+fn get8(at: usize) -> Result<u8, BadInput> {
+    if at >= ROOM as usize {
+        return Err(BadInput("a received message past its buffer"));
+    }
+    Ok(NET.receive_data.get(at))
+}
+
+/// The received message from its byte 1 on.
+fn after_first() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&NET.receive_data).offset(1)
 }
 
 /// The Rust version.
@@ -55,7 +63,7 @@ pub fn take_messages() -> Result<(), Refused> {
         NET.messages_taken
             .set(NET.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
-            system_message(m.bytes)?;
+            system_message()?;
             continue;
         }
         // The sender among the players (the first compared even with none).
@@ -73,7 +81,7 @@ pub fn take_messages() -> Result<(), Refused> {
             continue;
         }
         let block = NET.player_block(player);
-        let first = get8(m.bytes)?;
+        let first = get8(0)?;
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
         let own_state = NET.own.state();
@@ -81,7 +89,7 @@ pub fn take_messages() -> Result<(), Refused> {
         let round = || -> Result<bool, BadInput> {
             let refused = std::cell::Cell::new(None);
             let answer = messages::this_round(m.size, || {
-                let second = get8(m.bytes + 1).unwrap_or_else(|e| {
+                let second = get8(1).unwrap_or_else(|e| {
                     refused.set(Some(e));
                     0
                 });
@@ -95,10 +103,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 // writes it over the send buffer's first).
                 NET.receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
-                chat_line_locked(
-                    player,
-                    crate::pointers::GamePtr::new(m.bytes.wrapping_add(1)),
-                )?;
+                chat_line_locked(player, after_first())?;
             }
             Kind::Call { reply, ready } => {
                 if !messages::answers_call(round()?, own_state) {
@@ -127,13 +132,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 }
                 let time = crate::system::tick_count::tick_count();
                 lock_received();
-                store_received(
-                    first,
-                    block,
-                    time,
-                    crate::pointers::GamePtr::new(m.bytes.wrapping_add(1)),
-                    length,
-                )?;
+                store_received(first, block, time, after_first(), length)?;
                 unlock_received();
             }
             Kind::Other => {}

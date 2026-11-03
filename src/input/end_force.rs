@@ -11,13 +11,12 @@
 //! original's).
 
 use crate::field;
-use crate::input::devices::at;
-use crate::input::di_harness::entry_of;
+use crate::input::di_harness::controller_dword;
 use crate::input::types::{Controller, InputDevice};
 
 /// The Rust version (see the header).
 pub fn end_force(record: &InputDevice) -> Result<(), crate::errors::BadInput> {
-    if at(entry_of(record), field!(Controller, force_feedback))? != 1 {
+    if controller_dword(record, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
     let prop = crate::input::begin_force::dword_property(1);

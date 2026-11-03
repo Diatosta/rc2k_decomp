@@ -35,7 +35,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::pointers::GamePtr;
 
 // sub_409AEE
 // sub_409B1F
@@ -74,7 +73,7 @@ pub fn effect_change(
             Field::Duration => e.effect.duration.set(v),
             Field::FirstAxis => e.axes[0].set(v),
             // the `DIEFFECT` points at the effect's own envelope
-            Field::EnvelopePointer => e.effect.envelope.set(GamePtr::to(&e.envelope).addr()),
+            Field::EnvelopePointer => e.effect.envelope.set(crate::input::make_effect::PART_SET),
             Field::FadeTime => e.envelope.fade_time.set(v),
             Field::Specific(n) => e
                 .type_specific

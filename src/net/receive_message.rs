@@ -5,7 +5,7 @@
 //! big for the buffer).
 //!
 //! In:  nothing
-//! Out: `Received`: the sender (eax; 0 a system message), the bytes (ebx, `unk_52A968`), the
+//! Out: `Received`: the sender (eax; 0 a system message), the bytes (ebx: `unk_52A968`, `NET.receive_data`; not in `Received`), the
 //!      size (ecx; 0 none). The original keeps edx, esi, edi, ebp and leaves the flags of
 //!      `test eax, eax` on the method's result, which its one caller does not read (it tests
 //!      ecx next).
@@ -22,7 +22,6 @@ const _: () = assert!(ROOM as usize == crate::net::dp_session::MESSAGE_MOST);
 #[derive(Clone, Copy, Debug)]
 pub struct Received {
     pub from: u32,
-    pub bytes: u32,
     pub size: u32,
 }
 
@@ -53,7 +52,6 @@ pub fn receive_message() -> Received {
     }
     Received {
         from: NET.received_from.get(),
-        bytes: (NET.receive_data.addr()),
         size: NET.received_size.get(),
     }
 }

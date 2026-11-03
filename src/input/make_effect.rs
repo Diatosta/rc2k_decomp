@@ -22,7 +22,10 @@
 
 use crate::errors::Refused;
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::pointers::GamePtr;
+
+/// What a `DIEFFECT` pointer (`axes`, `directions`, `envelope`, `type_specific`) holds when
+/// it points at the effect's own part: any value but 0 (nothing reads the address).
+pub const PART_SET: u32 = 1;
 
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
 pub fn fill_parameters(e: &ForceEffect) {
@@ -37,11 +40,12 @@ pub fn fill_parameters(e: &ForceEffect) {
     d.trigger_button.set(k::NO_BUTTON);
     d.trigger_repeat_interval.set(0);
     d.axes_count.set(k::AXES_COUNT);
-    // the pointers the `DIEFFECT` holds are game addresses of the effect's own arrays
-    d.axes.set(GamePtr::to(&e.axes).addr());
+    // the pointers the `DIEFFECT` holds (the original: game addresses of the effect's own
+    // arrays) are `PART_SET`: only `effect_objects::parameters_of` reads them, as set or not
+    d.axes.set(PART_SET);
     e.axes[0].set(k::AXES[0]);
     e.axes[1].set(k::AXES[1]);
-    d.directions.set(GamePtr::to(&e.directions).addr());
+    d.directions.set(PART_SET);
     e.directions[0].set(k::DIRECTION);
     d.envelope.set(0);
     d.type_specific_size.set(0);
@@ -57,7 +61,7 @@ pub fn fill_parameters(e: &ForceEffect) {
         return;
     }
     d.type_specific_size.set(4 * params.len() as u32);
-    d.type_specific.set(GamePtr::to(&e.type_specific).addr());
+    d.type_specific.set(PART_SET);
     for (cell, &v) in e.type_specific.iter().zip(params) {
         cell.set(v);
     }

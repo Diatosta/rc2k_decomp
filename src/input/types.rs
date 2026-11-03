@@ -76,7 +76,7 @@ impl DiEnvelope {
 }
 
 /// DirectInput's `DIEFFECT` (DirectX 5: 0x34 bytes). Its pointers (`axes`, `directions`,
-/// `envelope`, `type_specific`) hold game addresses, kept as the game's layout; the
+/// `envelope`, `type_specific`) hold `make_effect::PART_SET` where the game holds addresses; the
 /// DirectInput stand-in is given the parts (`effect_objects::parameters_of`) and takes only
 /// whether each pointer is set.
 #[repr(C)]

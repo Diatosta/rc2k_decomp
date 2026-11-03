@@ -15,23 +15,23 @@
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
 use crate::net::store::{NET, PlayerRecord};
-use crate::pointers::GamePtr;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The Rust version.
-pub fn system_message(message: u32) -> Result<(), Refused> {
-    let get = |at: u32| GamePtr::new(at).read::<u32>("a system message");
-    let kind = get(message)?;
+/// The message is in `NET.receive_data` (`unk_52A968`).
+pub fn system_message() -> Result<(), Refused> {
+    let get = |at: usize| NET.receive_data.get_u32(at);
+    let kind = get(0);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
     match System::of(kind) {
         System::Created => NET.sync_first.set(1),
         System::Destroyed => {
             NET.sync_first.set(1);
-            if get(message + 4)? == A_PLAYER {
+            if get(4) == A_PLAYER {
                 crate::net::dp_objects::delete_player_from_group(
                     NET.dplay.get(),
                     NET.send_to.get(),
-                    get(message + 8)?,
+                    get(8),
                 );
             }
         }
