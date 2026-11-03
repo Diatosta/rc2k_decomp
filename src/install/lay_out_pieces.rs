@@ -18,24 +18,35 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{fatal, rb, rd, rw};
+use crate::install::installer::fatal;
 use crate::install::page_records::{Piece, set_piece_count};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::ListMenu;
-use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
+use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
-/// The game's lists, read where the original reads them.
-struct GameList;
+/// A page's list, read where the original reads it.
+struct GameList(ListMenu);
 
-impl ListMemory for GameList {
-    fn byte(&self, at: u32) -> u8 {
-        rb(at)
+impl ListSource for GameList {
+    fn flags(&self) -> u8 {
+        self.0.flags()
     }
-    fn word(&self, at: u32) -> u16 {
-        rw(at)
+    fn count(&self) -> u8 {
+        self.0.count()
     }
-    fn dword(&self, at: u32) -> u32 {
-        rd(at)
+    fn title_text(&self) -> u16 {
+        self.0.title_text()
+    }
+    fn item(&self, k: u32) -> Item {
+        let item = self.0.item(k);
+        Item {
+            first: item.first(),
+            count: item.count(),
+            text: item.text_id(),
+        }
+    }
+    fn choice(&self, k: u32, c: u32) -> u16 {
+        self.0.item(k).choices().word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
         INSTALLER_PAGES.kind_fonts.get(4 + 8 * font as usize)
@@ -44,7 +55,7 @@ impl ListMemory for GameList {
 
 pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(list.addr(), INSTALLER_PAGES.title.addr(), &GameList) {
+    let made = match pieces::lay_out(&GameList(list)) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
@@ -58,7 +69,10 @@ pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
         }
         piece.set_marks(new.marks);
         piece.set_kind(new.kind);
-        piece.set_item(new.item);
+        piece.set_item(match new.owner {
+            Owner::Title => INSTALLER_PAGES.title.addr(),
+            Owner::Item(k) => list.item(k).addr(),
+        });
         piece.set_x(0);
         piece.set_y(0);
         piece.set_width(0);

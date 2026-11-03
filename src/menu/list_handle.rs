@@ -38,10 +38,6 @@ impl ListMenu {
         Self(place.into().game_ptr())
     }
 
-    pub fn addr(self) -> u32 {
-        self.0.addr()
-    }
-
     /// A header field: `len` bytes at `offset`, inside the header.
     fn head(self, offset: u32, len: u32) -> GamePtr {
         debug_assert!(offset + len <= HEADER);
@@ -64,6 +60,11 @@ impl ListMenu {
 
     pub fn set_count(self, count: u8) {
         wb(self.head(1, 1), count);
+    }
+
+    /// +2: the title's string.
+    pub fn title_text(self) -> u16 {
+        rw(self.head(2, 2))
     }
 
     /// +4: the item highlighted.
@@ -120,6 +121,11 @@ impl ListItem {
     /// The item at a game address (a pointer from a piece or a page's tables).
     pub fn at(addr: u32) -> Self {
         Self(GamePtr::new(addr).limited(ITEM))
+    }
+
+    /// Its game address (what a piece keeps of its item).
+    pub fn addr(self) -> u32 {
+        self.0.addr()
     }
 
     fn field(self, offset: u32, len: u32) -> GamePtr {
@@ -225,6 +231,11 @@ impl Choices {
     /// Where choice `n`'s marks byte is.
     fn marks_at(self, n: u32) -> GamePtr {
         self.0.offset(n.wrapping_mul(2).wrapping_add(1)).limited(1)
+    }
+
+    /// Choice `n`'s word: its string, its high bits marks.
+    pub fn word(self, n: u32) -> u16 {
+        rw(self.0.offset(n.wrapping_mul(2)).limited(2))
     }
 
     /// Choice `n`'s byte at +1.

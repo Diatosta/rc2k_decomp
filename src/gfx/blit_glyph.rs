@@ -3,7 +3,8 @@
 //!
 //! In:  eax = glyph index, ecx = x, edx = y, ebx = palette (256 dwords), esi = glyph table
 //! Out: esi, edi and ebp preserved. eax, ebx, ecx and edx hold leftovers of the drawing loops;
-//!      the Rust version reproduces them, because the function has hundreds of callers.
+//!      only the lobby passes one on (ebx, as the next sprite's palette, which the direct-colour
+//!      sprites never read), so the Rust version returns none of them.
 //! No surface, a null table and a glyph index past the table are fatal errors in the original:
 //! `glyph_record` returns them as errors.
 //!
@@ -94,24 +95,8 @@ pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs,
 // Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory; the core's
 // offsets from the surface's start go to its target (`gfx::surface::Target`).
 
-/// The four registers the original does not preserve, as it leaves them.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Exit {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-}
-
-/// The part of the surface a glyph may touch: `rows` spans of `row_bytes` bytes, the first at
-/// address `first`, each `pitch` bytes after the one before.
-#[derive(Clone, Copy, Debug)]
-pub struct Area {}
-
 /// Draws the glyph `record` at (`x`, `y`). `put(offset, bytes)` receives every write, the
 /// offset from the surface's start.
-/// Returns the registers the original leaves and, unless the glyph is clipped away, the part
-/// of the surface it may have touched.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
 pub fn blit_glyph(
     record: &Glyphs,
@@ -122,7 +107,7 @@ pub fn blit_glyph(
     clip: &Clip,
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
-) -> Result<(Exit, Option<Area>), Refused> {
+) -> Result<(), Refused> {
     use rc2k_core::gfx::blit as core;
     let mut work = core::Scratch {
         left_skip: scratch.left_skip,
@@ -170,7 +155,7 @@ pub fn blit_glyph(
         &mut work,
         &mut |offset, bytes| put(offset, bytes),
     );
-    let Ok((exit, area)) = blitted else {
+    let Ok(()) = blitted else {
         return Err(BadInput("a read past a glyph's record").into());
     };
     if past_palette.get() {
@@ -187,22 +172,7 @@ pub fn blit_glyph(
         top_skip: work.top_skip,
         rows_left: work.rows_left,
     };
-    let exit = Exit {
-        eax: exit.eax,
-        ebx: match exit.ebx {
-            core::Ebx::Value(v) => v,
-            // The row's address on the screen or a texture; on the picture buffer (no
-            // address since phase 12) its offset: only the lobby reads it, on the screen.
-            core::Ebx::Row(offset) => match surface.target {
-                Some(Target::Address(a)) => a.wrapping_add(offset),
-                _ => offset,
-            },
-        },
-        ecx: exit.ecx,
-        edx: exit.edx,
-    };
-    let area = area.map(|_a| Area {});
-    Ok((exit, area))
+    Ok(())
 }
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
@@ -213,13 +183,13 @@ pub fn blit_glyph_on_surface(
     x: i32,
     y: i32,
     palette: Option<u32>,
-) -> Result<Exit, Refused> {
+) -> Result<(), Refused> {
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch();
     let target = surface.target.ok_or(NO_SURFACE)?;
     let surface_window = crate::pointers::Window::new();
-    let (exit, _) = {
+    {
         blit_glyph(
             &record,
             x,
@@ -241,7 +211,7 @@ pub fn blit_glyph_on_surface(
         )
     }?;
     write_scratch(&scratch);
-    Ok(exit)
+    Ok(())
 }
 
 // ---- a call, as the canvases pass it on ----

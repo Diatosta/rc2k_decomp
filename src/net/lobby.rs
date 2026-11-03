@@ -98,8 +98,7 @@ impl Cursor {
 /// `y`). (The original hands each the ebx the blit before left as its palette, which the
 /// sprites, direct colour, never look at.)
 pub fn blit(glyph: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)?;
-    Ok(())
+    crate::gfx::blit_glyph::blit_glyph_on_surface(glyph, SPRITES.get(), x as i32, y as i32, None)
 }
 
 /// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.

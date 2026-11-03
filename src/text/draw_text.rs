@@ -55,7 +55,7 @@ impl Canvas for GameCanvas {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = kerning;
     }
     fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
-        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette).map(|_| ())
+        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette)
     }
 }
 
