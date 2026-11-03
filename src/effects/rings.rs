@@ -3,10 +3,9 @@
 //! runs; its angles kept in a second table at esi.
 
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_vars::{MASKS, Shape};
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::session::Bytes;
 
 use crate::math::x87;
@@ -15,14 +14,6 @@ use crate::session::{read_bits, write_bits};
 /// The ring's floats are `MASKS.ring_*` (0x833D82 the two angles' ends .. 0x833DAE the step).
 pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
-
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
-}
 
 /// The corner table in use (`g_marksRingCorners` holds its number, 0 for A and 1 for B).
 fn ring_corners() -> Result<&'static Bytes<3096>, BadInput> {
@@ -60,7 +51,7 @@ fn quad(corners: &Bytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
 /// give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10) into
 /// `g_marksRingQuad`, then all eight of its floats replaced by corner entries k and k + 1
 /// (section 16), and that spanned (`span_quad`). `s` the shape.
-fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
+fn span_ring_quad(s: &Shape, k: u32) -> Result<(), Refused> {
     {
         let [a1, a2]: [u32; 2] = read_bits(&MASKS.ring_angles);
         let turns = [
@@ -71,10 +62,10 @@ fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
         ];
         write_bits(&MASKS.ring_turns, turns);
         let (r1, r2, cx, cy) = (
-            get(s + 0x1C)?,
-            get(s + 0x20)?,
-            get(s + 0xC)?,
-            get(s + 0x10)?,
+            s.radii[0].bits(),
+            s.radii[1].bits(),
+            s.middle[0].bits(),
+            s.middle[1].bits(),
         );
         let [s1, c1, s2, c2] = turns;
         write_bits(
@@ -92,7 +83,7 @@ fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
         );
         let corners = ring_corners()?;
         write_bits(&MASKS.ring_quad, quad(corners, k)?);
-        span_quad(crate::pointers::game_address(MASKS.ring_quad.as_ptr()))?;
+        span_quad(&MASKS.ring_quad)?;
     }
     Ok(())
 }
@@ -104,10 +95,10 @@ fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
 /// over the sines), and `span_ring_quad`; the angle on by pi over the count. Refuses a
 /// count of 0 or less or past 0x80 (the original's loop tests after counting), and runs or
 /// spans past their room, before writing.
-pub fn span_ring(s: u32, angles: &Bytes<1032>) -> Result<(), Refused> {
+pub fn span_ring(s: &Shape, angles: &Bytes<1032>) -> Result<(), Refused> {
     let mut table = 0u32;
     {
-        let n = get(s + 4)? as i32;
+        let n = s.count.get() as i32;
         if n <= 0 || n > MOST_QUADS as i32 {
             return Err(BadInput("a ring of no quads or more than 0x80").into());
         }
@@ -127,11 +118,11 @@ pub fn span_ring(s: u32, angles: &Bytes<1032>) -> Result<(), Refused> {
         }
         spans_fit(2 * n as u32, rows)?;
         MASKS.run_count.set(MASKS.run_count.get().wrapping_add(1));
-        put(s + 8, MASKS.runs.get())?;
+        s.rows.set(MASKS.runs.get());
         let scales: [u32; 3] = read_bits(&MASK_CONSTANTS.ring_scales);
         let ends = [
-            x87::mul(get(s + 0x14)?, scales[0]),
-            x87::mul(get(s + 0x18)?, scales[1]),
+            x87::mul(s.angle_ends[0].bits(), scales[0]),
+            x87::mul(s.angle_ends[1].bits(), scales[1]),
         ];
         write_bits(&MASKS.ring_ends, ends);
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);

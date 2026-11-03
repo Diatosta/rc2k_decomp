@@ -7,7 +7,6 @@ use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
 use crate::effects::shape_work::SHAPE_WORK;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::session::Dword;
 use rc2k_core::effects::masks::{ShapeRows, Span};
 
@@ -31,10 +30,6 @@ pub static POINTS_B: PointList = PointList {
     faces: &SHAPE_WORK.work.faces_b, // g_marksPointsBFaces
 };
 pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
 
 impl PointList {}
 
@@ -101,30 +96,35 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
     })
 }
 
-/// `effects::draw_mask` (0x4BE6C2): the mask at `at` (into `g_marksMask`) all 0xFF, then
-/// each of the +4 shapes at `shapes` (`g_marksMaskShapes`) drawn (`draw_mask_shape`).
+/// `effects::draw_mask` (0x4BE6C2): shape `n`'s mask (`MASKS.mask_a`, `_b`) all 0xFF, then
+/// each of the shape's +4 quads drawn (`draw_mask_shape`); `g_marksMask` and
+/// `g_marksMaskShapes` hold the shape's number where the original kept addresses.
 /// Refuses a count of 0 or less (the original's loop tests after counting and would run
 /// round) or a span outside the mask, before writing. Converted:
 /// `rc2k_core::effects::masks::draw_mask`.
-pub fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
+pub fn draw_mask(n: u32) -> Result<(), Refused> {
     {
-        let count = get(shapes.wrapping_add(4))? as i32;
+        let shapes = MASKS
+            .shapes
+            .get(n as usize)
+            .ok_or(BadInput("a shape's number that names none"))?;
+        let place = [&MASKS.mask_a, &MASKS.mask_b][n as usize];
+        let count = shapes.count.get() as i32;
         if count <= 0 {
             return Err(BadInput("a mask of no shapes: the loop would run round").into());
         }
-        let entries = get(shapes.wrapping_add(8))?;
+        let entries = shapes.rows.get();
         let mut rows = Vec::new();
         for k in 0..2 * count as u32 {
             let r = shape_rows(entries, k)?;
             r.fit()?;
             rows.push(r);
         }
-        let place = GamePtr::new(at);
-        let mut mask = place.read_bytes(MASK_LEN as usize, "a mark mask")?;
+        let mut mask = place.read_at(0, MASK_LEN as usize, "a mark mask")?;
         rc2k_core::effects::masks::draw_mask(&mut mask, &rows)?;
-        place.write_bytes(&mask, "a mark mask")?;
-        PICKS.mask.set(at);
-        PICKS.shapes.set(shapes);
+        place.write_at(0, &mask, "a mark mask")?;
+        PICKS.mask.set(n);
+        PICKS.shapes.set(n);
         MASKS.mask_value.set(count as u32 - 1);
     }
     Ok(())
@@ -166,30 +166,23 @@ pub fn work_put(at: u32, v: u32) -> Result<(), BadInput> {
 /// as its steps do, mid-way (the work block is on the list, which the original's run
 /// frees with its own).
 pub fn make_masks() -> Result<(), Refused> {
-    // The two shapes' ring-angle tables, masks, pixel tables and corner tables.
-    let shapes = [
-        crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[0])),
-        crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[1])),
-    ];
-    let [corners_a, corners_b] = crate::effects::corners::tables();
-    let corners = [corners_a.addr(), corners_b.addr()];
+    // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
+    // found by its number).
     let ring_angles = [&MASKS.ring_angles_a, &MASKS.ring_angles_b];
-    let masks = [MASKS.mask_a.addr(), MASKS.mask_b.addr()];
-    let pixel_tables = [PICKS.pixel_table_a.addr(), PICKS.pixel_table_b.addr()];
     let list = crate::pointers::GamePtr::to(&MASKS.list);
     MASK_WORK.take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
     crate::effects::shape_points::make_shape_sets()?;
     crate::effects::corners::make_corners()?;
     reset_mask_cursor();
-    for n in 0..2 {
+    for (n, (shape, angles)) in MASKS.shapes.iter().zip(ring_angles).enumerate() {
         MASKS.ring_corners.set(n as u32);
-        crate::effects::rings::span_ring(shapes[n], ring_angles[n])?;
+        crate::effects::rings::span_ring(shape, angles)?;
     }
     for n in 0..2 {
-        draw_mask(masks[n], shapes[n])?;
+        draw_mask(n as u32)?;
     }
     for n in 0..2 {
-        crate::effects::pixels::map_shapes(shapes[n], pixel_tables[n], corners[n])?;
+        crate::effects::pixels::map_shapes(n as u32)?;
     }
     crate::memory::free_list::free_list(list)?;
     MASK_WORK.give_back();

@@ -124,7 +124,7 @@ pub struct MaskVars {
     pub ring_angles_a: Bytes<1032>,
     /// 0x8441CA: `g_marksRingAnglesB`
     pub ring_angles_b: Bytes<1032>,
-    /// 0x8445D2: `g_marksPixelTable`: the table in use (rows of 0x400)
+    /// 0x8445D2: `g_marksPixelTable`: the table in use (rows of 0x400; its shape's number, `PICKS.pixel_table_a` or `_b`, where the original kept its address)
     pub pixel_table: Dword,
     /// 0x8445D6: `flt_8445D6`, `flt_8445DA`: the shapes' middle
     pub middle: [Float; 2],
@@ -132,7 +132,7 @@ pub struct MaskVars {
     pub _gap_8445de: Bytes<4>,
     /// 0x8445E2: `flt_8445E2`
     pub row_distance: Float,
-    /// 0x8445E6: `g_marksPixelCorners`: the corner table kept
+    /// 0x8445E6: `g_marksPixelCorners`: the corner table kept (its shape's number; the original kept its address)
     pub pixel_corners: Dword,
     /// 0x8445EA: Not named: 24 bytes (a gap, or unreferenced data).
     pub _gap_8445ea: Bytes<24>,

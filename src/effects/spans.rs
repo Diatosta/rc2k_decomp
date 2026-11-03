@@ -9,8 +9,7 @@ use crate::effects::mask_vars::MASKS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::session::{read_bits, write_bits};
+use crate::session::{Float, read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
 /// The control words (`MASKS.control_word`, `MASKS.status_word`): the one the triangle came
@@ -170,19 +169,19 @@ pub fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     room(MASKS.cursor.get(), rows)
 }
 
-/// `effects::span_triangle` (0x4BE14D): the triangle at `at` (three x, y floats) copied to
+/// `effects::span_triangle` (0x4BE14D): the triangle `at` (three x, y floats) copied to
 /// 0x833D2E and sorted by y; a run (`g_marksMaskRuns`, 16 bytes on) at the cursor; its top
 /// half and its bottom (split at the middle corner's height, x by `x87::split_x`) spanned
 /// (`span_edges`); the run's first row (the top y rounded) and count noted, the cursor on,
 /// `dword_82E342` counting the spans. All with the x87 rounding toward zero; its control
 /// word put back after. Refuses runs past their table, and spans past the work block or
 /// away, before writing.
-pub fn span_triangle(at: u32) -> Result<(), Refused> {
+pub fn span_triangle(at: &[Float; 6]) -> Result<(), Refused> {
     {
         let came = x87::control_word();
         let own = (came & 0xF3FF) | 0xC00;
         x87::set_control_word(own);
-        let (t, status) = sorted(GamePtr::new(at).read::<[u32; 6]>("a triangle")?);
+        let (t, status) = sorted(read_bits(at));
         let y0 = t[1];
         let (halves, split) = halves(&t);
         let runs: u32 = MASKS.runs.get();
@@ -223,12 +222,12 @@ pub fn span_triangle(at: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::span_quad` (0x4BE0C6): the quad at `at` (four x, y floats) as two triangles, its
+/// `effects::span_quad` (0x4BE0C6): the quad `at` (four x, y floats) as two triangles, its
 /// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Refuses as
 /// `span_triangle` (the second only after the first is made).
-pub fn span_quad(at: u32) -> Result<(), Refused> {
+pub fn span_quad(at: &[Float; 8]) -> Result<(), Refused> {
     {
-        let q = GamePtr::new(at).read::<[u32; 8]>("a quad")?;
+        let q: [u32; 8] = read_bits(at);
         for corners in [[0usize, 1, 2], [2, 3, 0]] {
             let mut t = [0u32; 6];
             for (k, &c) in corners.iter().enumerate() {
@@ -236,7 +235,7 @@ pub fn span_quad(at: u32) -> Result<(), Refused> {
                 t[2 * k + 1] = q[2 * c + 1];
             }
             write_bits(&MASKS.quad_triangle, t);
-            span_triangle(crate::pointers::game_address(MASKS.quad_triangle.as_ptr()))?;
+            span_triangle(&MASKS.quad_triangle)?;
         }
     }
     Ok(())

@@ -4,44 +4,36 @@
 use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_vars::MASKS;
 use crate::effects::work_store::MARKS_WORK;
-use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
+use crate::session::{Dword, Float};
 
 /// `effects::set_line_turn` (0x4BF432) and, `back`, `effects::set_line_turn_back` (0x4BF466):
-/// from the line at esi (+0, +4 to +0xC, +0x10) dx into +0x396 and +0x3A6, minus dy (dy
-/// when `back`) into +0x3A2, its negation into +0x39A. Every register kept.
-pub fn set_line_turn(line: u32, back: bool) -> Result<(), Refused> {
-    {
-        let dx = x87::sub(get(line + 0xC)?, get(line)?);
-        let dy = if back {
-            x87::sub(get(line + 0x10)?, get(line + 4)?)
-        } else {
-            x87::negated_sub(get(line + 0x10)?, get(line + 4)?)
-        };
-        MASKS.turn[0].set_bits(dx);
-        MASKS.turn[3].set_bits(dy);
-        MASKS.turn[1].set_bits(x87::negated(dy));
-        MASKS.turn[4].set_bits(x87::loaded(dx));
-    }
-    Ok(())
+/// from the line at esi (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
+/// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
+/// Every register kept.
+pub fn set_line_turn(line: &[Dword; 6], back: bool) {
+    let dx = x87::sub(line[3].get(), line[0].get());
+    let dy = if back {
+        x87::sub(line[4].get(), line[1].get())
+    } else {
+        x87::negated_sub(line[4].get(), line[1].get())
+    };
+    MASKS.turn[0].set_bits(dx);
+    MASKS.turn[3].set_bits(dy);
+    MASKS.turn[1].set_bits(x87::negated(dy));
+    MASKS.turn[4].set_bits(x87::loaded(dx));
 }
 
 /// `effects::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
 /// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
-pub fn scale_rows3(rows: u32) -> Result<(), BadInput> {
-    crate::race::trap::span(rows, 36, "a mark's three rows")?;
-    for n in 0..3 {
-        let at = GamePtr::new(rows + 12 * n);
-        let row: [u32; 3] = at.read("a mark's row")?;
-        let length = MASK_CONSTANTS.row_lengths[n as usize].bits();
-        at.write(x87::scale_row_bits(row, length), "a mark's row")?;
+pub fn scale_rows3(rows: &[Float; 9]) {
+    for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
+        let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
+        let length = MASK_CONSTANTS.row_lengths[n].bits();
+        for (cell, v) in row.iter().zip(x87::scale_row_bits(bits, length)) {
+            cell.set_bits(v);
+        }
     }
-    Ok(())
 }
 
 /// `effects::smooth_steps` (0x4BE928): from a to b as floats, step n: t (b - a) times

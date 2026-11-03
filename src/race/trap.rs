@@ -61,23 +61,6 @@ impl Trap {
     }
 }
 
-/// Whether `len` bytes from `addr` lie in one of the game's regions, for the calls that still
-/// take a raw pointer into the game's memory (file reads and writes): refused otherwise,
-/// the address logged.
-pub fn span(addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
-    match crate::pointers::region_of(addr) {
-        Some((_, end)) if (end - addr) as usize >= len => Ok(()),
-        _ => {
-            crate::framework::log(&format!(
-                "pointers: {what} at {addr:#010x} ({len} bytes) is outside every allocation"
-            ));
-            Err(BadInput(
-                "a game pointer outside every allocation (rc2k.log names it)",
-            ))
-        }
-    }
-}
-
 /// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie
 /// in one region.
 pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {

@@ -13,13 +13,13 @@ pub struct MaskPicks {
     pub table: [Dword; 256],
     /// 0x844A10: `dword_844A10`: the steps' values
     pub values: [Dword; 256],
-    /// 0x844E10: `g_marksMaskShapes`: the shapes of the mask being drawn
+    /// 0x844E10: `g_marksMaskShapes`: the shape whose mask is being drawn (its number; the original kept its address)
     pub shapes: Dword,
-    /// 0x844E14: `g_marksMask`: the mask being drawn
+    /// 0x844E14: `g_marksMask`: the mask being drawn (its shape's number; the original kept its address)
     pub mask: Dword,
-    /// 0x844E18: `dword_844E18`: the pixel table `map_shapes` was given
+    /// 0x844E18: `dword_844E18`: the pixel table `map_shapes` was given (its shape's number; the original kept its address)
     pub table_in_use: Dword,
-    /// 0x844E1C: `dword_844E1C`: the corner table `map_shapes` was given
+    /// 0x844E1C: `dword_844E1C`: the corner table `map_shapes` was given (its shape's number; the original kept its address)
     pub corners: Dword,
     /// 0x844E20: Not named: 12 bytes (a gap, or unreferenced data).
     pub _gap_844e20: Bytes<12>,
