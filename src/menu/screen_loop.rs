@@ -101,20 +101,15 @@ pub enum Step {
     /// Writes a game variable.
     Write(Cell, u32),
     WriteF32(fn() -> &'static Float, f32),
-    /// Sets what the next call is handed (the original's eax).
-    Arg(u32),
-    /// The same with a text of the game (a picture's path; the original's eax held its
-    /// address).
-    ArgText(Text),
-    /// Calls the game function at this RVA, and if it comes back with the carry flag set,
-    /// that is the fatal error with this code (and no message).
+    /// Calls the game function, and if it fails (the original's carry flag), that is the
+    /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
     /// Something only this screen does, written out in its file.
-    Do(fn(&mut Carried) -> Result<(), Refused>),
+    Do(fn(&Entry) -> Result<(), Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
-    DoFlow(fn(&mut Carried) -> Result<Flow, Refused>),
+    DoFlow(fn(&Entry) -> Result<Flow, Refused>),
 }
 /// Where a `Step::DoFlow` sends the loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -230,87 +225,57 @@ pub struct Screen {
     pub always_asks: bool,
 }
 
-/// The values of the original's registers that something the loop calls reads, as the
-/// original would hold them at each call. The loop sets them where the original sets those
-/// registers, and every callee that changes one changes it here (`call`, the screens' own
-/// steps). Its other registers are scratch that nothing reads (edi is the menu wherever a
-/// callee reads it; ebp nothing reads).
-#[derive(Clone, Copy, Debug, Default)]
+/// What a screen is entered with that its steps read: the list of cars its carousel shows
+/// (the original's esi; `scene::set_up_carousel` reads it for menus 0xD and 0xE). The
+/// original's other registers at entry are scratch to the loop: it sets each before
+/// anything reads it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Entry {
+    pub cars: Option<CarList>,
+}
+
+/// The values of the original's registers that the item actions' flows are handed (until
+/// they hold their own state): the loop builds them from what it holds at an action.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Carried {
-    /// eax: what the next call is handed (a path, a direction, a mode); after a frame the
-    /// milliseconds since set-up, whose bits 8 .. 15 `handle_keys` reads on Enter.
+    /// eax: what the next call is handed.
     pub arg: u32,
-    /// ebx: the palette `load_background` draws its frame sprite with and `draw_menu` a
-    /// highlighted first item's sprite with (the saved highlight, mostly).
+    /// ebx: at an action, the highlight as it was at set-up.
     pub palette: u32,
-    /// ecx: the x `draw_menu` measures a first item that is a text button from, and
-    /// `menu::set_up_front_end` the players' names.
+    /// ecx: at an action, the highlighted item.
     pub measure_x: u32,
-    /// edx: the frame clock `handle_keys` leaves, or what else last wrote edx; read by
-    /// `scene::set_up_front_end_scene`, `menu::play_films` and the items' actions.
+    /// edx: at an action, the frame clock `handle_keys` left.
     pub clock: u32,
     /// esi as a list of cars: the one `scene::set_up_carousel` reads for menus 0xD and 0xE
-    /// and `menu::take_shown_car` reads (from the caller, else what the loop last left in
-    /// esi). None where the original's esi holds anything else (a matrix, a record, a
-    /// list's end mark): those two are its only readers, and both refuse none.
+    /// and `menu::take_shown_car` reads. None where the original's esi holds anything else
+    /// (a matrix, a record, a list's end mark): those two are its only readers, and both
+    /// refuse none.
     pub cars: Option<CarList>,
-    /// The carry flag, which `Step::CallOrFatal` reads after its call (a call that does not
-    /// write it leaves the one before).
+    /// The carry flag.
     pub carry: bool,
-    /// The text the next call is handed (`Step::ArgText`): a picture's path.
-    pub text: Option<Text>,
 }
 
-/// Equal when the registers are and the texts are the same places (the functions that
-/// find them are compared by what they give).
-impl PartialEq for Carried {
-    fn eq(&self, other: &Self) -> bool {
-        let place = |t: Option<Text>| t.map(|f| core::ptr::from_ref(f()).cast::<u8>());
-        (
-            self.arg,
-            self.palette,
-            self.measure_x,
-            self.clock,
-            self.cars,
-            self.carry,
-        ) == (
-            other.arg,
-            other.palette,
-            other.measure_x,
-            other.clock,
-            other.cars,
-            other.carry,
-        ) && place(self.text) == place(other.text)
+impl Carried {
+    /// What a screen run with these values is entered with.
+    pub fn entry(&self) -> Entry {
+        Entry { cars: self.cars }
     }
 }
-
-impl Eq for Carried {}
 
 /// Whether the game is quitting (`dword_51837C`).
 pub fn quitting() -> bool {
     FLAGS.quitting.get() == 1
 }
 
-/// `scene::prepare_menu_scene` (0x46F7FD), with what the original leaves in the registers
-/// the loop carries: the view's place is zeroed first, so `set_view_matrices` leaves eax,
-/// ebx, ecx and edx 0 and esi the view's turn matrix (no list of cars).
-pub fn prepare_scene(c: &mut Carried) {
+/// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
+/// whose carousel is set up after it hands that no list of cars.)
+pub fn prepare_scene() {
     crate::scene::prepare_menu_scene::prepare_menu_scene();
-    (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
-    c.cars = None;
 }
 
-/// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
-/// and leaves eax, ebx, ecx and esi by the menu. It reads no edi.
-pub fn carousel(c: &mut Carried) -> Result<(), Refused> {
-    let left = crate::scene::set_up_carousel::set_up_carousel(c.cars)?;
-    // edi is not carried.
-    let mut edi = 0;
-    left.over(
-        [&mut c.arg, &mut c.palette, &mut c.measure_x, &mut edi],
-        &mut c.cars,
-    );
-    Ok(())
+/// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
+pub fn carousel(cars: Option<CarList>) -> Result<(), Refused> {
+    crate::scene::set_up_carousel::set_up_carousel(cars)
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -319,16 +284,16 @@ pub fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
-/// A game function a screen step runs (by its Rust version), with what it reads and
-/// leaves of the carried values. The comment on each variant is its address in the original.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// A game function a screen step runs (by its Rust version), with what it is handed. The
+/// comment on each variant is its address in the original.
+#[derive(Clone, Copy, Debug)]
 pub enum Callee {
     /// 0x407F95
     TakeKey,
     /// 0x471391 and 0x4713DD (nullsub_83, nullsub_84: a lone `retn`)
     NoOp,
-    /// 0x47EFFF
-    LoadBackground,
+    /// 0x47EFFF, with the picture's path (the original's eax).
+    LoadBackground(Text),
     /// 0x46F7FD
     PrepareScene,
     /// 0x46B47C
@@ -349,8 +314,8 @@ pub enum Callee {
     StepCarStream,
     /// 0x469AA1
     PlayCarStream,
-    /// 0x40939F
-    AxisMoved,
+    /// 0x40939F, with the axis (the original's eax).
+    AxisMoved(u32),
     /// 0x48340B
     RankStageTimes,
     /// 0x48356F
@@ -391,8 +356,8 @@ pub enum Callee {
     LoadSlideshowPicture,
     /// 0x468482
     LoadCarBackground,
-    /// 0x411863
-    LoadPicture,
+    /// 0x411863, with the picture's path (the original's eax).
+    LoadPicture(Text),
     /// 0x406126
     ConvertPicture,
     /// 0x47C63F
@@ -404,19 +369,21 @@ pub enum Callee {
 }
 
 impl Callee {
-    /// Runs the function, with what it reads and leaves of the carried values.
-    pub fn run(self, c: &mut Carried) -> Result<(), Refused> {
+    /// Runs the function: whether it failed (the original's carry flag; false for those that
+    /// do not set it).
+    pub fn run(self) -> Result<bool, Refused> {
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
         use crate::text::draw_text::GameCanvas;
         match self {
-            Self::TakeKey => c.arg = c.arg & !0xFF | take_key() as u32,
-            Self::NoOp => {}
-            Self::LoadBackground => {
-                let path = c.text.ok_or(BadInput("a background with no path named"))?;
-                crate::menu::load_background::load_background(path(), &mut GameCanvas)?;
-                c.carry = false;
+            Self::TakeKey => {
+                take_key();
             }
-            Self::PrepareScene => prepare_scene(c),
+            Self::NoOp => {}
+            // Its carry is never set.
+            Self::LoadBackground(path) => {
+                crate::menu::load_background::load_background(path(), &mut GameCanvas)?;
+            }
+            Self::PrepareScene => prepare_scene(),
             Self::ApplyController => ci::apply_controller()?,
             Self::ReleaseController => ci::release_controller(),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map()?,
@@ -428,9 +395,9 @@ impl Callee {
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                 &mut crate::sound::start_stream::start_stream,
             )?,
-            Self::AxisMoved => {
-                let moved = crate::input::axes::axis_moved(c.arg)?;
-                (c.arg, c.carry) = (moved.eax, moved.carry);
+            // What it leaves (eax, the carry) is read by none of the screens.
+            Self::AxisMoved(axis) => {
+                crate::input::axes::axis_moved(axis)?;
             }
             Self::RankStageTimes => rs::rank_stage_times()?,
             Self::RankTotals => rs::rank_totals()?,
@@ -456,33 +423,30 @@ impl Callee {
                 &mut crate::menu::edit_savegame_name::save_game,
             )?,
             Self::EditReplayName => {
-                c.carry = crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas)?;
+                return crate::menu::edit_replay_name::edit_replay_name(&mut GameCanvas);
             }
             Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name()?,
+            // The way to look is the original's eax there, which the slideshow screen's set-up
+            // leaves 0 or (after an action) a small number: always on.
             Self::LoadSlideshowPicture => {
-                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(c.arg)?;
+                crate::menu::load_slideshow_picture::load_slideshow_picture_in_game(0)?;
             }
+            // Its carry is never set.
             Self::LoadCarBackground => {
                 crate::menu::load_car_background::load_car_background_in_game()?;
-                c.carry = false;
             }
-            Self::LoadPicture => {
-                let path = c.text.ok_or(BadInput("a picture with no path named"))?;
-                c.carry = !crate::gfx::load_picture::load_picture(path())?;
+            Self::LoadPicture(path) => {
+                return Ok(!crate::gfx::load_picture::load_picture(path())?);
             }
-            Self::ConvertPicture => c.carry = crate::gfx::convert_picture::convert_picture_now()?,
-            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(0, c.measure_x)?,
-            Self::SetUpEngine => {
-                crate::scene::set_up_engine::set_up_engine()?;
-                // What it leaves in eax, ebx, ecx and edx (esi and the carry as they were).
-                [c.arg, c.palette, c.measure_x, c.clock] = crate::physics::test_drive::LEFT;
-            }
+            Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
+            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end()?,
+            // What it leaves in eax, ebx, ecx and edx is read by none of the screens.
+            Self::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             Self::SetUpFrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
             }
         }
-
-        Ok(())
+        Ok(false)
     }
 }
 
@@ -512,10 +476,9 @@ fn clear_escape() {
     }
 }
 
-/// A call after which a set carry flag is the fatal error `code`.
-pub fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Result<(), Refused> {
-    { function.run(c) }?;
-    if c.carry {
+/// A call whose failure is the fatal error `code`.
+pub fn call_or_fatal(function: Callee, code: u32) -> Result<(), Refused> {
+    if { function.run() }? {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
         ));
@@ -526,20 +489,20 @@ pub fn call_or_fatal(function: Callee, code: u32, c: &mut Carried) -> Result<(),
 
 /// Runs the steps of one place. Anything but `Flow::On` comes from a `DoFlow` step, after
 /// which the rest of the place is not run.
-fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
+fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
     for step in steps {
         match *step {
-            Step::DoFlow(what) => match what(c)? {
+            Step::DoFlow(what) => match what(entry)? {
                 Flow::On => {}
                 elsewhere => return Ok(elsewhere),
             },
-            Step::Call(function) => function.run(c)?,
+            Step::Call(function) => {
+                function.run()?;
+            }
             Step::Write(variable, value) => variable().set(value),
             Step::WriteF32(variable, value) => variable().set(value),
-            Step::Arg(value) => c.arg = value,
-            Step::ArgText(what) => c.text = Some(what),
-            Step::CallOrFatal(function, code) => call_or_fatal(function, code, c)?,
-            Step::Do(what) => what(c)?,
+            Step::CallOrFatal(function, code) => call_or_fatal(function, code)?,
+            Step::Do(what) => what(entry)?,
         }
     }
     Ok(Flow::On)
@@ -570,16 +533,18 @@ fn run_frame(callback: usize, menu: MenuId) -> Result<(), Refused> {
     }
 }
 
-/// `entry` are the carried values at entry.
+/// `entry` is what the screen is entered with.
 /// Returns why the screen was left, for the log.
-pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
+pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
     let menu = (screen.menu)();
     let callback = screen.frame_callback;
     let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
     let keys_menu = screen.keys_menu.map_or(menu, |other| other());
-    let mut c = *entry;
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
-    run(screen.before, &mut c)?;
+    // The highlight as set-up took it back (the original's ebx at an action) and the clock
+    // `handle_keys` left (edx): what an item's action is handed.
+    let (mut set_up_item, mut keys_clock) = (0u32, 0u32);
+    run(screen.before, entry)?;
 
     let action_menu = screen.action_menu.map_or(menu, |other| other());
     let next_frame = if screen.next_frame_repeats_first {
@@ -591,14 +556,14 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
     loop {
         next = match next {
             Next::SetUp => {
-                run(screen.set_up_first, &mut c)?;
+                run(screen.set_up_first, entry)?;
                 if !screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
-                    c.palette = (screen.saved_item)().get();
-                    LOOP_FLAGS.item.set(c.palette);
+                    set_up_item = (screen.saved_item)().get();
+                    LOOP_FLAGS.item.set(set_up_item);
                     clear_escape();
                 }
-                run(screen.prepare, &mut c)?;
+                run(screen.prepare, entry)?;
 
                 LOOP_FLAGS.menu.set(menu);
                 for list in screen.lists {
@@ -608,30 +573,28 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                     }
                     (list.pointer)().set(table);
                 }
-                run(screen.after_lists, &mut c)?;
+                run(screen.after_lists, entry)?;
                 if !screen.late_highlight {
                     OPTION_WORK.menu_sound.set(NO_SOUND);
                     LOOP_FLAGS.back.set(0u32);
                 }
-                run(screen.background, &mut c)?;
+                run(screen.background, entry)?;
                 crate::menu::draw_frame::draw_frame(menu)?;
                 update_blink();
-                c.arg = CLOCKS.frame.get();
-                CLOCKS.setup_time.set(c.arg);
+                CLOCKS.setup_time.set(CLOCKS.frame.get());
                 PHYSICS.scene_clock.set(0u32);
-                run(screen.before_first_frame, &mut c)?;
-                c.arg = (callback + crate::framework::IMAGE_BASE) as u32;
+                run(screen.before_first_frame, entry)?;
                 set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
                 run_frame(callback, menu)?;
                 if screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
-                    c.palette = (screen.saved_item)().get();
-                    LOOP_FLAGS.item.set(c.palette);
+                    set_up_item = (screen.saved_item)().get();
+                    LOOP_FLAGS.item.set(set_up_item);
                     clear_escape();
                 }
                 Next::FrameTop
             }
-            Next::FrameTop => match run(screen.after_first_frame, &mut c)? {
+            Next::FrameTop => match run(screen.after_first_frame, entry)? {
                 Flow::On | Flow::NextFrame => Next::Frame,
                 Flow::SetUp => Next::SetUp,
                 Flow::Leave => {
@@ -642,7 +605,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
             Next::Frame => {
                 update_blink();
                 frames += 1;
-                let flow = run(screen.after_blink, &mut c)?;
+                let flow = run(screen.after_blink, entry)?;
                 if flow == Flow::SetUp {
                     Next::SetUp
                 } else if flow == Flow::Leave {
@@ -661,13 +624,13 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                     if screen.no_quit_check {
                         OPTION_WORK.menu_sound.set(NO_SOUND);
                     }
-                    run(screen.before_frame, &mut c)?;
-                    c.arg = (later_callback + crate::framework::IMAGE_BASE) as u32;
+                    run(screen.before_frame, entry)?;
                     set_lists(screen, screen.lists);
                     run_frame(later_callback, menu)?;
-                    c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
-                    PHYSICS.scene_clock.set(c.arg);
-                    match run(screen.each_frame, &mut c)? {
+                    PHYSICS
+                        .scene_clock
+                        .set(CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get()));
+                    match run(screen.each_frame, entry)? {
                         Flow::On => Next::ActionCheck,
                         Flow::NextFrame => Next::Frame,
                         Flow::SetUp => Next::SetUp,
@@ -682,10 +645,11 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                 crate::menu::texts_store::MENU_TEXTS
                     .keys_menu
                     .set(keys_menu.code());
-                let keys = handle_keys(c.arg)?;
-                c.arg = keys.result;
+                // The original hands it the time since set-up in eax (the frame's last
+                // write there that a screen's steps do not change before it reads it).
+                let keys = handle_keys(PHYSICS.scene_clock.get())?;
                 if let Some(clock) = keys.clock {
-                    c.clock = clock;
+                    keys_clock = clock;
                 }
                 match keys.result {
                     1 => next_frame,
@@ -697,26 +661,30 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                 }
             }
             Next::ActionCheck => {
-                let elapsed = c.arg;
                 actions += 1;
-                c.measure_x = LOOP_FLAGS.item.get();
-                let item = c.measure_x;
+                let item = LOOP_FLAGS.item.get();
                 let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-                kept().set(c.measure_x);
+                kept().set(item);
                 clear_escape();
-                run_item_action(action_menu, &c)?;
+                let handed = Carried {
+                    palette: set_up_item,
+                    measure_x: item,
+                    clock: keys_clock,
+                    cars: entry.cars,
+                    ..Carried::default()
+                };
+                run_item_action(action_menu, &handed)?;
                 CAPTIONS.screen_left.set(0);
-                c.palette = kept().get();
-                LOOP_FLAGS.item.set(c.palette);
+                set_up_item = kept().get();
+                LOOP_FLAGS.item.set(set_up_item);
                 clear_escape();
-                c.arg = elapsed;
                 if screen.restart_action_check {
                     if LOOP_FLAGS.ended_a.get() == 1 {
                         why = format!("after the action of item {item}: dword_755569 was 1");
                         Next::Leave
                     } else if EVENT_STATE.event_done.get() == 1 {
                         MENU_PAGES.yes_no_answer.set(0u32);
-                        Callee::TakeKey.run(&mut c)?;
+                        Callee::TakeKey.run()?;
                         Next::SetUp
                     } else if LOOP_FLAGS.back.get() == 1 {
                         why = format!("after the action of item {item}: dword_755561 is 1");
@@ -764,42 +732,38 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                             && !screen.ask_unless.is_some_and(|flag| flag() == 1))
                         || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
                     if asked {
-                        run(screen.before_asking, &mut c)?;
-                        // The flags of `cmp g_yesNoAnswer, 1`.
-                        c.carry = confirm_leaving(&c)? < 1;
+                        run(screen.before_asking, entry)?;
+                        confirm_leaving()?;
                         if MENU_PAGES.yes_no_answer.get() != 1 {
-                            run(on_refusal, &mut c)?;
+                            run(on_refusal, entry)?;
                             next = Next::SetUp;
                             continue;
                         }
-                        run(screen.confirmed, &mut c)?;
+                        run(screen.confirmed, entry)?;
                         if screen.always_asks {
                             return Ok(done());
                         }
                     } else if screen.unasked_skips_save {
-                        run(screen.after, &mut c)?;
-                        c = *entry;
-                        run(screen.after_restored, &mut c)?;
+                        run(screen.after, entry)?;
+                        run(screen.after_restored, entry)?;
                         return Ok(done());
                     }
                 } else {
-                    run(screen.leaving, &mut c)?;
+                    run(screen.leaving, entry)?;
                 }
-                c.measure_x = LOOP_FLAGS.item.get();
-                screen.leave_saved_item.unwrap_or(screen.saved_item)().set(c.measure_x);
+                screen.leave_saved_item.unwrap_or(screen.saved_item)().set(LOOP_FLAGS.item.get());
                 clear_escape();
-                run(screen.after, &mut c)?;
-                c = *entry;
-                run(screen.after_restored, &mut c)?;
+                run(screen.after, entry)?;
+                run(screen.after_restored, entry)?;
                 return Ok(done());
             }
         };
     }
 }
 
-/// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`)
-/// gets the carried values as they are; every register comes back as it was.
-pub fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
+/// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`),
+/// which reads nothing it is entered with; every register comes back as it was.
+pub fn confirm_leaving() -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
         crate::menu::confirm_leaving::confirm_leaving(&mut || {
@@ -810,7 +774,8 @@ pub fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
                 MENU_PAGES.yes_no_answer.set(1u32);
                 return;
             }
-            asked = run_screen(&crate::menu::leave_question_loop::SCREEN, c).map(|_| ());
+            asked = run_screen(&crate::menu::leave_question_loop::SCREEN, &Entry::default())
+                .map(|_| ());
         })
     };
     asked.map(|()| answer)
@@ -826,20 +791,18 @@ pub fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
 /// `run_screen`.
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     log(&format!("{name}: the Rust version runs"));
-    let why = { screen_loop(screen, &Carried::default()) }?;
+    let why = { screen_loop(screen, &Entry::default()) }?;
     log(&format!(
         "{name}: the Rust version has left the screen ({why})"
     ));
     Ok(())
 }
 
-/// A screen loop run from Rust (the event flows, `confirm_leaving`): it starts from the
-/// caller's carried values, which can hold what the screen reads (`select_car_loop`'s and
-/// `car_specs_47af4c_loop`'s list of cars, read by `scene::set_up_carousel`: the time
-/// trial's carousel refused with "no list of cars" when they were dropped, 2026-10-23).
-/// Returns the screen's result where it has one (the original's eax; every other register
-/// kept).
-pub fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refused> {
+/// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the
+/// screen reads from its caller (`Entry`: the list of cars of `select_car_loop` and
+/// `car_specs_47af4c_loop`). Returns the screen's result where it has one (the original's
+/// eax).
+pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
     { screen_loop(screen, entry) }?;
     Ok(screen.result.map(|result| result()))
 }
@@ -847,7 +810,7 @@ pub fn run_screen(screen: &Screen, entry: &Carried) -> Result<Option<u32>, Refus
 /// `run_screen` for a flow that holds the carried values: the screen's result, where it
 /// has one, becomes `arg` (the original's eax); every other value is kept.
 pub fn run_screen_carried(screen: &Screen, c: &mut Carried) -> Result<(), Refused> {
-    if let Some(result) = { run_screen(screen, c) }? {
+    if let Some(result) = { run_screen(screen, &c.entry()) }? {
         c.arg = result;
     }
     Ok(())

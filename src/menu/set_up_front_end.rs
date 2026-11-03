@@ -48,11 +48,12 @@ fn record_tables() -> [u32; 13] {
 
 // ---- Rust version ----
 
-/// `stage` and `x` are ebp and ecx at entry: the stage handed to the made-up times (only
-/// read while `dword_755A0C` is 1, which it is only for `default_checkpoint_times`, which
-/// does not read it) and the x `fit_player_names` measures from (the loading picture
-/// leaves ecx alone).
-pub fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
+/// The original's ebp and ecx at entry reach the made-up times as their stage and
+/// `fit_player_names` as its x. Neither is looked at: the stage only while `dword_755A0C` is
+/// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
+/// where a measuring starts, which a width does not depend on. The stage passed is 0.
+pub fn set_up_front_end() -> Result<(), Refused> {
+    let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
         default_checkpoint_times, default_class_times, default_stage_times,
@@ -64,7 +65,7 @@ pub fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
     crate::menu::link_player_names::link_player_names()?;
     crate::menu::show_loading_picture::show_loading_picture()?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
-    crate::menu::fit_player_names::fit_player_names(x)?;
+    crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
     SOUND_OPTIONS
         .music_volume

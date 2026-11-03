@@ -21,14 +21,14 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(_: &Entry) -> Result<(), Refused> {
     DRAW_WORK.escaped.set(0x0u32);
-    c.measure_x = SCREEN_ITEMS.first[slot::LOAD_CHAMPIONSHIP].get();
-    SCREEN_ITEMS.current[slot::LOAD_CHAMPIONSHIP].set(c.measure_x);
+    SCREEN_ITEMS.current[slot::LOAD_CHAMPIONSHIP]
+        .set(SCREEN_ITEMS.first[slot::LOAD_CHAMPIONSHIP].get());
     Ok(())
 }
 
@@ -80,10 +80,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.load_championship_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.load_championship_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

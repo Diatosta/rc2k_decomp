@@ -34,9 +34,7 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene,
-};
+use crate::menu::screen_loop::{Callee, Entry, Flow, List, Screen, Step, carousel, prepare_scene};
 use crate::menu::state_store::MENU_STATE;
 use crate::menu::update_blink::update_blink;
 use crate::scene::draw_store::DRAW;
@@ -47,37 +45,36 @@ use crate::session::CLOCKS;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     EVENT_STATE.event_done.set(0u32);
-    c.text = Some(|| &crate::menu::texts_store::MENU_TEXTS.main_menu_picture);
-    Callee::LoadBackground.run(c)?; // menu::load_background (its carry not looked at)
+    // menu::load_background (whether it failed is not looked at)
+    Callee::LoadBackground(|| &crate::menu::texts_store::MENU_TEXTS.main_menu_picture).run()?;
     DRAW.view_offset[0].set(7u32);
     DRAW.view_offset[1].set(0xAu32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c); // scene::prepare_menu_scene
+    prepare_scene(); // scene::prepare_menu_scene
     LOOP_FLAGS.ended_a.set(0u32);
-    Callee::TakeKey.run(c)?; // input::take_key
+    Callee::TakeKey.run()?; // input::take_key
     DRAW_WORK.escaped.set(0u32);
     OPTION_WORK.menu_sound.set(0x6Fu32);
     SCREEN_FLOW.turning.set(1u32);
     MENU_STATE.carousel.menu.set(0u32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::MAIN_MENU].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(None)?;
+    let item = SCREEN_ITEMS.current[slot::MAIN_MENU].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 
-/// With the clock in `Carried::arg`.
-fn before_first_frame(c: &mut Carried) -> Result<(), Refused> {
-    CHAMP_VIEW.last_key_time.set(c.arg);
+/// The loop has just set the set-up time to the frame clock.
+fn before_first_frame(_: &Entry) -> Result<(), Refused> {
+    CHAMP_VIEW.last_key_time.set(CLOCKS.setup_time.get());
     CHEAT_VARS.notice_due.set(1u32);
 
     Ok(())
 }
 
-fn idle(c: &mut Carried) -> Result<Flow, Refused> {
+fn idle(_: &Entry) -> Result<Flow, Refused> {
     if LOOP_FLAGS.idle.get() == 0 {
         return Ok(Flow::On);
     }
@@ -87,7 +84,6 @@ fn idle(c: &mut Carried) -> Result<Flow, Refused> {
     if crate::film::NO_FMV.get() == 1 {
         return Ok(Flow::On);
     }
-    c.arg = 1;
     log("menu::main_menu_loop: idle, sub_4161CD is called");
     // `menu::play_films` with mode 1 in eax; it keeps every register. edi is the menu
     // here (the loop's last store to it); ebp it does not read.
@@ -95,9 +91,9 @@ fn idle(c: &mut Carried) -> Result<Flow, Refused> {
     log("menu::main_menu_loop: sub_4161CD has come back");
     LOOP_FLAGS.idle.set(0u32);
     update_blink();
-    c.arg = CLOCKS.frame.get();
-    CHAMP_VIEW.last_key_time.set(c.arg);
-    CLOCKS.setup_time.set(c.arg);
+    let now = CLOCKS.frame.get();
+    CHAMP_VIEW.last_key_time.set(now);
+    CLOCKS.setup_time.set(now);
     Ok(Flow::SetUp)
 }
 

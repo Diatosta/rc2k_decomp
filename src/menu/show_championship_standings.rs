@@ -11,30 +11,23 @@
 
 use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::screen_loop::{Carried, run_screen};
-use crate::menu::standings::*;
+use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // dword_7558F4
 // g_eventMode
 
-/// The Rust version (see the header). `c` the carried values (the registers the page's
-/// screen is run with).
-pub fn show_championship_standings(c: &Carried) -> Result<(), Refused> {
-    let mut c = Carried {
-        palette: ANY_GROUP,
-        ..*c
-    };
+/// The Rust version (see the header).
+pub fn show_championship_standings() -> Result<(), Refused> {
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
-    found.carry_on(&mut c);
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
     let count = held_figure(Page::ChampionshipStandings, found.figure);
     CHAMP_VIEW.count.set(count);
-    crate::menu::first_page_stage::carry_on(
-        crate::menu::first_page_stage::first_page_stage(),
-        &mut c,
-    );
+    crate::menu::first_page_stage::first_page_stage();
     crate::menu::stage_range_caption::stage_range_caption()?;
-    run_screen(&crate::menu::championship_standings_loop::SCREEN, &c)?;
+    run_screen(
+        &crate::menu::championship_standings_loop::SCREEN,
+        &Entry::default(),
+    )?;
     Ok(())
 }

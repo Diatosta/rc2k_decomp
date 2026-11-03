@@ -31,28 +31,26 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
+    Callee, Entry, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
     let current: u32 = EVENT_STATE.current_player.get();
     let Some(player) = crate::menu::player::player(current) else {
         return Err(crate::errors::BadInput("a current player past the four").into());
     };
-    c.arg = player.get().word(0x30);
-    SCREEN_FLOW.shown_gearing.set(c.arg);
+    SCREEN_FLOW.shown_gearing.set(player.get().word(0x30));
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0xDu32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(entry.cars)?;
+    let item = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
     SCREEN_FLOW.turning.set(0x0u32);
     MENU_STATE.carousel.front.set(0x0u32);
     EVENT_STATE.shown_car.set(0x0u32);
@@ -60,20 +58,20 @@ fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xFFFFFFCEu32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     Ok(())
 }
 
-fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
 }
 
-fn leaving(c: &mut Carried) -> Result<(), Refused> {
+fn leaving(_: &Entry) -> Result<(), Refused> {
     if CAPTIONS.screen_left.get() == 0x1 {
-        Callee::GoBack.run(c)?;
+        Callee::GoBack.run()?;
     }
     Ok(())
 }
@@ -110,10 +108,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.select_car_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.select_car_picture
+    }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,

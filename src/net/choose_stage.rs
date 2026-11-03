@@ -8,7 +8,7 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::choose_car::ESCAPED;
 use crate::net::store::{NET, PlayerRecord};
 use crate::race::state_store::RACE_STATE;
@@ -17,7 +17,7 @@ use crate::race::state_store::RACE_STATE;
 /// registers (see `net::choose_car`): all 0 here.
 pub fn choose_stage() -> Result<(), Refused> {
     ESCAPED.set(0);
-    { run_screen(&crate::menu::select_stage_loop::SCREEN, &Carried::default()) }?;
+    { run_screen(&crate::menu::select_stage_loop::SCREEN, &Entry::default()) }?;
     if ESCAPED.get() != 1 {
         NET.own
             .head

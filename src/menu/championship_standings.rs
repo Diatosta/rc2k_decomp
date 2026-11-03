@@ -14,13 +14,10 @@
 
 use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
 
-/// The Rust version (see the header). `c` the carried values (the registers the pages'
-/// screens are run with).
-pub fn championship_standings(c: &Carried) -> Result<(), Refused> {
-    let mut g = *c;
+/// The Rust version (see the header).
+pub fn championship_standings() -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
@@ -34,13 +31,13 @@ pub fn championship_standings(c: &Carried) -> Result<(), Refused> {
         }
     }
     if !a8 {
-        crate::menu::number_all_b::number_all_b()?.carry_on(&mut g);
+        crate::menu::number_all_b::number_all_b()?;
     }
     MENU_STATE.menus.standings_shown.set(1u32);
     if a8 {
-        crate::menu::class_championship_pass::class_championship_pass(&g)?;
+        crate::menu::class_championship_pass::class_championship_pass()?;
     } else {
-        crate::menu::show_championship_standings::show_championship_standings(&g)?;
+        crate::menu::show_championship_standings::show_championship_standings()?;
     }
     MENU_STATE.menus.standings_shown.set(0u32);
     Ok(())

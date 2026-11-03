@@ -16,7 +16,6 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::Carried;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::class_pages;
@@ -28,8 +27,8 @@ fn first_class() -> u32 {
     })
 }
 
-/// The Rust version (see the header). `c` the carried values (registers the pages' screens are run with).
-pub fn class_championship_pass(c: &Carried) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub fn class_championship_pass() -> Result<(), Refused> {
     let first = first_class();
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
@@ -45,15 +44,8 @@ pub fn class_championship_pass(c: &Carried) -> Result<(), Refused> {
         }
         LOOP_FLAGS.ended_b.set(1u32);
         let numbered = crate::menu::number_standings_b::number_standings_b(class)?;
-        let mut g = Carried {
-            palette: class,
-            ..*c
-        };
-        numbered.carry_on(&mut g);
         EVENT_STATE.count_a.set(numbered.last_number);
-        crate::menu::show_class_championship_standings::show_class_championship_standings(
-            class, &g,
-        )?;
+        crate::menu::show_class_championship_standings::show_class_championship_standings(class)?;
         if MENU_PAGES.yes_no_answer.get() == 1 {
             break;
         }

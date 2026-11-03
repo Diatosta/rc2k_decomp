@@ -19,20 +19,20 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, FRAME_CALLBACK, List, Screen, Step};
 use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = if MENU_STATE.menus.which_title.get() == 1 {
+fn set_first_item(_: &Entry) -> Result<(), Refused> {
+    let title = if MENU_STATE.menus.which_title.get() == 1 {
         0x138
     } else {
         0x139
     };
-    MENUS.overall_rally_results.items[0].string.set(c.arg);
+    MENUS.overall_rally_results.items[0].string.set(title);
 
     Ok(())
 }
@@ -64,10 +64,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.overall_rally_results_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.overall_rally_results_picture
+    }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,

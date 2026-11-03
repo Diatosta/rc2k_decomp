@@ -10,7 +10,7 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::SCREEN_ITEMS;
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, prepare_scene};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, prepare_scene};
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
@@ -19,26 +19,25 @@ const SLOT: usize = (0x7476E4 - 0x747660) / 4;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_c: &mut Carried) -> Result<(), Refused> {
+fn before(_: &Entry) -> Result<(), Refused> {
     SCREEN_ITEMS.current[SLOT].set(SCREEN_ITEMS.first[SLOT].get());
     Ok(())
 }
 
 // The original prepares the scene before the carousel, which left the front car white
 // (seen 2026-10-30): here as `menu::select_car_loop`, the scene last.
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0xCu32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[SLOT].get();
-    LOOP_FLAGS.item.set(c.arg);
+    carousel(None)?;
+    LOOP_FLAGS.item.set(SCREEN_ITEMS.current[SLOT].get());
     SCREEN_FLOW.turning.set(0x0u32);
     MENU_STATE.carousel.front.set(0x0u32);
     EVENT_STATE.shown_car.set(0x0u32);
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xFFFFFFCEu32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     Ok(())
 }
 
@@ -74,10 +73,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.cspecs_png),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.cspecs_png
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

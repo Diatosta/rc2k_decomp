@@ -18,27 +18,25 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, screen_entry};
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.measure_x = SCREEN_ITEMS.first[slot::NEW_SIMULATION].get();
-    SCREEN_ITEMS.current[slot::NEW_SIMULATION].set(c.measure_x);
+fn before(_: &Entry) -> Result<(), Refused> {
+    SCREEN_ITEMS.current[slot::NEW_SIMULATION].set(SCREEN_ITEMS.first[slot::NEW_SIMULATION].get());
     EVENT_STATE.event_done.set(0x0u32);
     Ok(())
 }
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0x2u32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::NEW_SIMULATION].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(None)?;
+    let item = SCREEN_ITEMS.current[slot::NEW_SIMULATION].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
 
     Ok(())
 }
@@ -70,10 +68,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.new_simulation_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.new_simulation_picture
+    }))],
     after_first_frame: &[
         Step::Write(|| &DRAW.view_offset[0], 0x7),
         Step::Write(|| &DRAW.view_offset[1], 0xA),

@@ -22,25 +22,24 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xAu32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0x2u32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::TIME_TRIAL_SELECT_PLAYERS].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(None)?;
+    let item = SCREEN_ITEMS.current[slot::TIME_TRIAL_SELECT_PLAYERS].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 
@@ -71,10 +70,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.time_trial_select_players_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.time_trial_select_players_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

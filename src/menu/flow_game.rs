@@ -208,7 +208,7 @@ impl flow::Game for Game {
             C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
             C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points()?,
             C::ClassChampionshipPass => {
-                m::class_championship_pass::class_championship_pass(&self.f.c)?;
+                m::class_championship_pass::class_championship_pass()?;
             }
             C::AwardOverallPoints => {
                 let awarded = m::award_overall_points::award_overall_points()?;
@@ -221,14 +221,14 @@ impl flow::Game for Game {
                 numbered.carry_on(&mut self.f.c);
             }
             C::ShowChampionshipStandings => {
-                m::show_championship_standings::show_championship_standings(&self.f.c)?;
+                m::show_championship_standings::show_championship_standings()?;
             }
             C::SectionFinish => m::section_finish::section_finish()?,
             C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
             C::WalkSectionRecords => m::walk_section_records::walk_section_records()?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all()?,
             C::ClassRallyResultsPass => {
-                m::class_rally_results_pass::class_rally_results_pass(&self.f.c)?;
+                m::class_rally_results_pass::class_rally_results_pass()?;
             }
             C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
             C::NumberAllA => {
@@ -236,15 +236,15 @@ impl flow::Game for Game {
                 numbered.carry_on(&mut self.f.c);
             }
             C::ShowOverallRallyResults => {
-                m::show_overall_rally_results::show_overall_rally_results(&self.f.c)?;
+                m::show_overall_rally_results::show_overall_rally_results()?;
             }
             C::RunEventRaces => m::run_event_races::run_event_races(&mut self.f)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times()?,
             C::ClassStageResultsPass => {
-                m::class_stage_results_pass::class_stage_results_pass(&self.f.c)?;
+                m::class_stage_results_pass::class_stage_results_pass()?;
             }
             C::ShowOverallStageResults => {
-                m::show_overall_stage_results::show_overall_stage_results(&self.f.c)?;
+                m::show_overall_stage_results::show_overall_stage_results()?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
@@ -254,8 +254,8 @@ impl flow::Game for Game {
             C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
             C::ChampionshipFinish => m::championship_finish::championship_finish()?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
-            C::BestClassScores => m::best_class_scores::best_class_scores(&self.f.c)?,
-            C::BestOverallScores => m::best_overall_scores::best_overall_scores(&self.f.c)?,
+            C::BestClassScores => m::best_class_scores::best_class_scores()?,
+            C::BestOverallScores => m::best_overall_scores::best_overall_scores()?,
             C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
             // `from_entry`: the entry's registers are the ones it leaves, and it
             // reads none.
@@ -363,7 +363,7 @@ impl flow::Game for Game {
                 self.f.c.carry = carry;
             }
             C::ConfirmLeaving => {
-                let answer = crate::menu::screen_loop::confirm_leaving(&self.f.c)?;
+                let answer = crate::menu::screen_loop::confirm_leaving()?;
                 self.f.c.carry = answer < 1;
                 self.f.zero = answer == 1;
             }

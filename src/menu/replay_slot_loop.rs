@@ -9,17 +9,18 @@
 //! Callers: `race::replay_viewer` (modes 2, 3), `race::viewer_action` (0x14),
 //! `race::choose_save_slot`, 0x46F79C, 0x46F7A7.
 
-use crate::errors::Refused;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::errors::{BadInput, Refused};
+use crate::menu::screen_loop::{Entry, run_screen};
 
-/// The Rust version: the slot chosen (eax; -1 for none). `c` the carried values the screen
-/// is run with; `c.arg` 0 to load, else to save.
-pub fn replay_slot_loop(c: &Carried) -> Result<u32, Refused> {
-    let screen = if c.arg != 0 {
+/// The Rust version: the slot chosen (-1 for none), on the saving screen when `saving`
+/// (the original's eax non-zero), else on the loading one.
+pub fn replay_slot_loop(saving: bool) -> Result<u32, Refused> {
+    let screen = if saving {
         &crate::menu::save_replay_loop::SCREEN
     } else {
         &crate::menu::load_replay_loop::SCREEN
     };
-    // (A screen with no result leaves eax as it was.)
-    Ok({ run_screen(screen, c) }?.unwrap_or(c.arg))
+    let slot = { run_screen(screen, &Entry::default()) }?;
+    // Both screens leave the slot in eax (their `result`).
+    Ok(slot.ok_or(BadInput("a replay slot screen without its result"))?)
 }

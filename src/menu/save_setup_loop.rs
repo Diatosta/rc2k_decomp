@@ -20,17 +20,17 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, prepare_scene, screen_entry,
+    Callee, Entry, Flow, List, Screen, Step, prepare_scene, screen_entry,
 };
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn prepare(c: &mut Carried) -> Result<(), Refused> {
+fn prepare(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[0].set(0x0u32);
     DRAW.view_offset[1].set(0x0u32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     DRAW.clip_edges[2].set(0x0u32);
     DRAW.clip_edges[3].set(0x320u32);
     DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
@@ -38,9 +38,9 @@ fn prepare(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+fn each_frame(_: &Entry) -> Result<Flow, Refused> {
     if OPTION_WORK.typing.get() == 0x1 {
-        Callee::EditSetupName.run(c)?;
+        Callee::EditSetupName.run()?;
         if OPTION_WORK.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }

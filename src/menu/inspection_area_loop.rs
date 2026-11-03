@@ -45,8 +45,9 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.inspection_area_picture),
-        Step::Call(Callee::LoadPicture),
+        Step::Call(Callee::LoadPicture(|| {
+            &crate::menu::texts_store::MENU_TEXTS.inspection_area_picture
+        })),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],
     after_first_frame: &[],

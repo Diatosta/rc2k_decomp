@@ -19,16 +19,16 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Carried, List, Screen, Step, prepare_scene, screen_entry};
+use crate::menu::screen_loop::{Entry, List, Screen, Step, prepare_scene, screen_entry};
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn prepare(c: &mut Carried) -> Result<(), Refused> {
+fn prepare(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[0].set(0x0u32);
     DRAW.view_offset[1].set(0x0u32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     DRAW.clip_edges[2].set(0x0u32);
     DRAW.clip_edges[3].set(0x320u32);
     DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);

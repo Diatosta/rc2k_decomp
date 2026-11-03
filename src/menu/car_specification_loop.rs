@@ -21,42 +21,38 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    Callee, Entry, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = CHEAT_VARS.kept_car.get();
-    EVENT_STATE.shown_car.set(c.arg);
+fn before(_: &Entry) -> Result<(), Refused> {
+    EVENT_STATE.shown_car.set(CHEAT_VARS.kept_car.get());
     EVENT_STATE.car_page.set(0x0u32);
 
     Ok(())
 }
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[0].set(0xFFFFFF60u32);
     DRAW.view_offset[1].set(0xFFFFFF9Cu32);
     DRAW.view_zoom.set(0x100u32);
-    prepare_scene(c);
+    prepare_scene();
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0xBu32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::CAR_SPECIFICATION].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(None)?;
+    let item = SCREEN_ITEMS.current[slot::CAR_SPECIFICATION].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
     SCREEN_FLOW.turning.set(0x0u32);
-    c.arg = EVENT_STATE.shown_car.get();
-    MENU_STATE.carousel.front.set(c.arg);
+    MENU_STATE.carousel.front.set(EVENT_STATE.shown_car.get());
     Ok(())
 }
 
-fn after(c: &mut Carried) -> Result<(), Refused> {
-    c.arg = EVENT_STATE.shown_car.get();
-    CHEAT_VARS.kept_car.set(c.arg);
+fn after(_: &Entry) -> Result<(), Refused> {
+    CHEAT_VARS.kept_car.set(EVENT_STATE.shown_car.get());
 
     Ok(())
 }

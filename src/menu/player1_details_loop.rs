@@ -20,13 +20,13 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, Flow, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+fn each_frame(_: &Entry) -> Result<Flow, Refused> {
     if OPTION_WORK.typing.get() == 0x1 {
-        Callee::EditPlayerName.run(c)?;
+        Callee::EditPlayerName.run()?;
         if OPTION_WORK.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }
@@ -82,8 +82,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.player1_details_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
+        Step::Call(Callee::LoadBackground(|| {
+            &crate::menu::texts_store::MENU_TEXTS.player1_details_picture
+        })),
     ],
     after_first_frame: &[Step::Write(|| &EVENT_STATE.current_player, 0x0)],
     confirm: None,

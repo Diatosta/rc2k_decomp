@@ -5,21 +5,16 @@
 //! put back.
 //!
 //! In:  nothing
-//! Out: as `test_drive_run` leaves the registers (ebx 5000); no flags read
+//! Out: as `test_drive_run` leaves the registers, which nothing reads; no flags read
 //!
 //! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse
-//! (everything written put back). Plain since 2026-10-23 (phase 3): its one caller calls it by
-//! address (`routes.rs`), which sets the registers it leaves (`LEFT`).
+//! (everything written put back). The registers it leaves nothing reads (2026-11-03: the main
+//! menu writes ebx at 0x474AC7 before reading it).
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
-
-/// What the original leaves in eax, ebx, ecx and edx (`test_drive_run`'s last step:
-/// 4999 / 20, the step count, 20, 4999 % 20). Its caller by address (`scene::set_up_engine`)
-/// leaves ebx to `menu::main_menu_loop`, which reads it (0x47493E).
-pub const LEFT: [u32; 4] = [249, test_drive_run::STEPS, 20, 19];
 
 /// The Rust version.
 pub fn test_drive() -> Result<(), Refused> {

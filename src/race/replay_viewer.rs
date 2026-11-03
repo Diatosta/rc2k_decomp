@@ -350,7 +350,7 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
 fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
     use crate::race::*;
     match place {
-        1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(&r.c)?,
+        1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(r.c.arg != 0)?,
         2 => save_last_replay::save_last_replay(r.c.arg)?,
         3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
         4 => find_snapshot_number::find_snapshot_number()?,

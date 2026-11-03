@@ -10,11 +10,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn best_class_scores(c: &Carried) -> Result<(), Refused> {
+pub fn best_class_scores() -> Result<(), Refused> {
     let players = counted_players()?;
     let classes: u32 = EVENT_STATE.classes.get();
     let (true, true) = (
@@ -23,30 +23,28 @@ pub fn best_class_scores(c: &Carried) -> Result<(), Refused> {
     ) else {
         return Err(BadInput("no classes, more than five, or no best-score table").into());
     };
-    let mut g = *c;
     for class in 0..classes {
-        g.clock = class;
         EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
-            g.arg = p.get().word(0xB0);
-            g.palette = p.get().word(0x90);
-            if g.palette == class {
-                g.palette = class * 0x258 + 0x21C;
+            let player_score = p.get().word(0xB0);
+            if p.get().word(0x90) == class {
                 // The group's tenth entry's offset (the original leaves its address in
                 // esi, which the screen's lists set before anything reads it).
                 // Converted: `rc2k_core::menu::bests::makes_score`.
-                let score = tenth_best_score(class)?;
-                if rc2k_core::menu::bests::makes_score(g.arg, score) {
+                let tenth = tenth_best_score(class)?;
+                if rc2k_core::menu::bests::makes_score(player_score, tenth) {
                     enter_best(None, 0xB0)?;
                     EVENT_STATE.any_time_qualified.set(1u32);
                 }
             }
         }
-        g.measure_x = players.len() as u32;
         if EVENT_STATE.any_time_qualified.get() == 1 {
             EVENT_STATE.class.set(class);
-            run_screen(&crate::menu::best_class_scores_loop::SCREEN, &g)?;
+            run_screen(
+                &crate::menu::best_class_scores_loop::SCREEN,
+                &Entry::default(),
+            )?;
             if MENU_PAGES.yes_no_answer.get() == 1 {
                 break;
             }

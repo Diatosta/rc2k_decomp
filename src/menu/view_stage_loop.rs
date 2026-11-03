@@ -19,7 +19,7 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -34,31 +34,29 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(_: &Entry) -> Result<(), Refused> {
     KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
     KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
-    c.arg = EVENT_STATE.section.get();
-    EVENT_STATE.dword_755964.set(c.arg);
-    c.arg = EVENT_STATE.index.get();
-    EVENT_STATE.first_page_stage.set(c.arg);
+    EVENT_STATE.dword_755964.set(EVENT_STATE.section.get());
+    EVENT_STATE.first_page_stage.set(EVENT_STATE.index.get());
 
     Ok(())
 }
 
-fn after_lists(c: &mut Carried) -> Result<(), Refused> {
-    Callee::CountStagePages.run(c)?;
-    Callee::StyleChosenStageItem.run(c)?;
+fn after_lists(_: &Entry) -> Result<(), Refused> {
+    Callee::CountStagePages.run()?;
+    Callee::StyleChosenStageItem.run()?;
     if EVENT_STATE.stage_pages.get() == 0x0 {
-        Callee::StyleStageItem.run(c)?;
+        Callee::StyleStageItem.run()?;
     }
     CHAMP_VIEW.stage_mode.set(0x3u32);
     Ok(())
 }
 
-fn after(c: &mut Carried) -> Result<(), Refused> {
+fn after(_: &Entry) -> Result<(), Refused> {
     EVENT_STATE.index.set(take_kept());
     EVENT_STATE.section.set(take_kept());
-    Callee::StopStream.run(c)?;
+    Callee::StopStream.run()?;
     Ok(())
 }
 

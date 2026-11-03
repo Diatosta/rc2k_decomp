@@ -23,11 +23,11 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, quitting, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, Flow, List, Screen, Step, quitting, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_c: &mut Carried) -> Result<(), Refused> {
+fn before(_: &Entry) -> Result<(), Refused> {
     // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
@@ -41,14 +41,14 @@ fn before(_c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
 }
 
-fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn each_frame(_: &Entry) -> Result<Flow, Refused> {
     if OPTION_WORK.redefining_key.get() == 0x1 && OPTION_WORK.redefining_key.get() != 0x0 {
         return Ok(Flow::NextFrame);
     }
@@ -98,10 +98,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.redefine_keys_player1_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.redefine_keys_player1_picture
+    }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,

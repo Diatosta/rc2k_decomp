@@ -19,35 +19,34 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Carried, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
+    Callee, Entry, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
 };
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: Start");
     DRAW.view_offset[0].set(0xFFFFFF64u32);
     DRAW.view_offset[1].set(0x27u32);
     DRAW.view_zoom.set(0x140u32);
-    prepare_scene(c);
+    prepare_scene();
     DRAW.clip_edges[2].set(0xFFFFFFD8u32);
     DRAW.clip_edges[3].set(0x2F8u32);
     DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
     DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0x9u32);
-    carousel(c)?;
-    c.arg = SCREEN_ITEMS.current[slot::INFORMATION].get();
-    LOOP_FLAGS.item.set(c.arg);
-    c.arg = c.arg.wrapping_sub(1);
-    MENU_STATE.carousel.front.set(c.arg);
+    carousel(None)?;
+    let item = SCREEN_ITEMS.current[slot::INFORMATION].get();
+    LOOP_FLAGS.item.set(item);
+    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 
-fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: End");
     Ok(())
@@ -82,8 +81,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.information_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
+        Step::Call(Callee::LoadBackground(|| {
+            &crate::menu::texts_store::MENU_TEXTS.information_picture
+        })),
     ],
     after_first_frame: &[],
     confirm: None,

@@ -19,17 +19,17 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, log_line, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+fn set_up_first(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     log_line(c"VCoursesScr: Start");
     Ok(())
 }
 
-fn after(_c: &mut Carried) -> Result<(), Refused> {
+fn after(_: &Entry) -> Result<(), Refused> {
     // Between `pusha` and `popa`: no register changes.
     log_line(c"VCoursesScr: End");
     Ok(())

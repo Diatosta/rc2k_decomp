@@ -24,28 +24,27 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
+fn each_frame(_: &Entry) -> Result<Flow, Refused> {
     if OPTION_WORK.typing.get() == 0x1 {
-        Callee::EditReplayName.run(c)?;
-        if !c.carry {
+        let failed = Callee::EditReplayName.run()?;
+        if !failed {
             if OPTION_WORK.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);
             }
             if CAPTIONS.screen_left.get() == 0x1 {
                 CAPTIONS.screen_left.set(0x0u32);
-                c.arg = 0xFFFFFFFF;
                 DRAW_WORK.work_0c.set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
-            c.arg = MENU_PAGES.replay_page.get();
-            c.arg = c.arg.wrapping_mul(0x14);
-            c.arg = c.arg.wrapping_add(LOOP_FLAGS.item.get());
-            c.arg = c.arg.wrapping_sub(1);
-            DRAW_WORK.work_0c.set(c.arg);
+            // 0x14 replays a page; the items count from 1.
+            let replay = MENU_PAGES.replay_page.get().wrapping_mul(0x14);
+            DRAW_WORK
+                .work_0c
+                .set(replay.wrapping_add(LOOP_FLAGS.item.get()).wrapping_sub(1));
             return Ok(Flow::Leave);
         }
     }
@@ -106,10 +105,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.save_replay_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.save_replay_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

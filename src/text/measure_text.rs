@@ -75,6 +75,18 @@ pub fn measure_bytes_at(
     Ok((m.width, m.lines))
 }
 
+/// The font `font`, refused unless it only measures (`MODE_MEASURE`): then a measured width
+/// does not depend on the x the measuring starts from, so callers whose original hands
+/// whatever x its caller left measure from 0. A font in another mode would draw the text.
+pub fn only_measures(
+    font: crate::gfx::typefaces::FontId,
+) -> Result<GamePtr, crate::errors::BadInput> {
+    if font.object().mode.get() != rc2k_core::text::MODE_MEASURE {
+        return Err(crate::errors::BadInput("a measuring font that draws"));
+    }
+    Ok(font.game_ptr())
+}
+
 /// For Rust callers, with a font object in game memory: the object is only written if the
 /// canvas keeps font changes.
 pub fn measure_text_at(

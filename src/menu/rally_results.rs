@@ -14,23 +14,20 @@
 
 use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
 
-/// The Rust version (see the header). `c` the carried values (the registers the pages'
-/// screens are run with).
-pub fn rally_results(c: &Carried) -> Result<(), Refused> {
-    let mut g = *c;
+/// The Rust version (see the header).
+pub fn rally_results() -> Result<(), Refused> {
     MENU_STATE.menus.which_title.set(1u32);
     crate::menu::standings_a_from_all::standings_a_from_all()?;
     // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
     if !rc2k_core::menu::results_pages::class_pages_only(CHAMP_VIEW.event_mode.get()) {
         crate::menu::sort_standings_by_total::sort_standings_by_total()?;
         crate::menu::clear_standings_a::clear_standings_a()?;
-        crate::menu::number_all_a::number_all_a()?.carry_on(&mut g);
-        crate::menu::show_overall_rally_results::show_overall_rally_results(&g)?;
+        crate::menu::number_all_a::number_all_a()?;
+        crate::menu::show_overall_rally_results::show_overall_rally_results()?;
     } else {
-        crate::menu::class_rally_results_pass::class_rally_results_pass(&g)?;
+        crate::menu::class_rally_results_pass::class_rally_results_pass()?;
     }
     MENU_STATE.menus.which_title.set(0u32);
     Ok(())

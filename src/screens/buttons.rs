@@ -185,11 +185,8 @@ pub fn draw_text_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let font = item.measuring_font.get();
-    if font.object().mode.get() != rc2k_core::text::MODE_MEASURE {
-        return Err(crate::errors::BadInput("a text button's measuring font that draws").into());
-    }
-    let measured = measure_string_by_id_at(item.string.get(), font.game_ptr(), 0, canvas)?;
+    let font = crate::text::measure_text::only_measures(item.measuring_font.get())?;
+    let measured = measure_string_by_id_at(item.string.get(), font, 0, canvas)?;
     draw_button(
         kind,
         rc2k_core::screens::buttons::text_width(measured.width),

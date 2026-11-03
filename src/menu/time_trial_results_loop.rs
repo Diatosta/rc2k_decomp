@@ -67,10 +67,9 @@ pub const SCREEN: Screen = Screen {
     ],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.time_trial_results_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.time_trial_results_picture
+    }))],
     after_first_frame: &[],
     confirm: Some(&[]),
     ask_also_if: None,

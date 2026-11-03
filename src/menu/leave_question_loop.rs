@@ -64,10 +64,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Write(|| &SCREEN_FLOW.asking, 0x1)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.leave_question_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.leave_question_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

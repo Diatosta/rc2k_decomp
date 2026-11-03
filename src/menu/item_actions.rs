@@ -23,7 +23,7 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::screen_loop::{Carried, Entry, run_screen};
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 
@@ -55,16 +55,18 @@ pub fn open_service_box(page: u32) {
     MENU_STATE.service_ui.box_page.set(page);
 }
 
-/// `menu::view_stage_details`: the stage information screen. `c` the carried values the
-/// item gets.
-pub fn view_stage_details(c: &Carried) -> Result<(), Refused> {
+/// `menu::view_stage_details`: the stage information screen.
+pub fn view_stage_details() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(EVENT_STATE.event_type.get());
     if time_trial {
-        run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, c)?;
+        run_screen(
+            &crate::menu::time_trial_stage_details_loop::SCREEN,
+            &Entry::default(),
+        )?;
     } else {
-        run_screen(&crate::menu::view_stage_loop::SCREEN, c)?;
+        run_screen(&crate::menu::view_stage_loop::SCREEN, &Entry::default())?;
     }
     Ok(())
 }

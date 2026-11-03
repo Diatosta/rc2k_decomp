@@ -19,13 +19,12 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.measure_x = SCREEN_ITEMS.first[slot::NEXT_STAGE].get();
-    SCREEN_ITEMS.current[slot::NEXT_STAGE].set(c.measure_x);
+fn before(_: &Entry) -> Result<(), Refused> {
+    SCREEN_ITEMS.current[slot::NEXT_STAGE].set(SCREEN_ITEMS.first[slot::NEXT_STAGE].get());
     Ok(())
 }
 

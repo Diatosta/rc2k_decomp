@@ -22,11 +22,11 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     if CAPTIONS.screen_left.get() == 0x1 {
         CAPTIONS.screen_left.set(0x0u32);
         return Ok(Flow::SetUp);

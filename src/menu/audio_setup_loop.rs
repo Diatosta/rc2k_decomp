@@ -17,13 +17,12 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(c: &mut Carried) -> Result<(), Refused> {
-    c.measure_x = SCREEN_ITEMS.first[slot::AUDIO_SETUP].get();
-    SCREEN_ITEMS.current[slot::AUDIO_SETUP].set(c.measure_x);
+fn before(_: &Entry) -> Result<(), Refused> {
+    SCREEN_ITEMS.current[slot::AUDIO_SETUP].set(SCREEN_ITEMS.first[slot::AUDIO_SETUP].get());
     Ok(())
 }
 
@@ -70,10 +69,9 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Write(|| &SCREEN_FLOW.quiet, 0x1)],
     prepare: &[],
     after_lists: &[],
-    background: &[
-        Step::ArgText(|| &crate::menu::texts_store::MENU_TEXTS.audio_setup_picture),
-        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
-    ],
+    background: &[Step::Call(Callee::LoadBackground(|| {
+        &crate::menu::texts_store::MENU_TEXTS.audio_setup_picture
+    }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,

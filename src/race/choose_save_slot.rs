@@ -10,14 +10,12 @@
 //! Caller: `race::viewer_action` (0x16).
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
 
-/// The Rust version: the slot chosen (eax; -1 for none). `c` the carried values the
-/// slot screen is run with (`c.arg` non-zero: the saving screen).
-pub fn choose_save_slot(c: &Carried) -> Result<u32, Refused> {
+/// The Rust version: the slot chosen (eax; -1 for none).
+pub fn choose_save_slot() -> Result<u32, Refused> {
     // Both keep every register.
     crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
-    let slot = crate::menu::replay_slot_loop::replay_slot_loop(c)?;
+    let slot = crate::menu::replay_slot_loop::replay_slot_loop(true)?;
     crate::race::viewer_load_stage::viewer_load_stage()?;
     Ok(slot)
 }

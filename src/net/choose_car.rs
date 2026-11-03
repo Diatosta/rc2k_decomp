@@ -12,26 +12,21 @@ use crate::errors::Refused;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::screen_loop::{Carried, run_screen};
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::{NET, PlayerRecord};
 use crate::session::Dword;
 
 const CLEARED: &Dword = &EVENT_STATE.current_player; // dword_75598C
 pub const ESCAPED: &Dword = &DRAW_WORK.escaped; // dword_755A3C: the screen was left with Escape
 
-/// The Rust version. The car screen starts from the car (eax) and the list of cars (esi);
-/// the other registers it is handed are the lobby loop's leftovers (ebx the clock's tick,
-/// ecx and edx scratch), which the screen overwrites or reads only as the x its first item
-/// is measured from: 0 here, as the loop leaves ecx.
+/// The Rust version. The car screen is handed the list of cars (the original's esi); the
+/// car it starts from its set-up finds itself (the current player's record,
+/// `menu::car_choice::find_player_car`).
 pub fn choose_car() -> Result<(), Refused> {
     CLEARED.set(0);
     let cars = crate::net::car_list::car_list()?;
     ESCAPED.set(0);
-    let entry = Carried {
-        arg: PLAYER_TABLE.players[0].get().car_number,
-        cars: Some(cars),
-        ..Carried::default()
-    };
+    let entry = Entry { cars: Some(cars) };
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;

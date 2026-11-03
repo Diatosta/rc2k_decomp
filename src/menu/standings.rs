@@ -137,15 +137,6 @@ pub struct Found {
     pub entry: usize,
 }
 
-impl Found {
-    /// The carried values as the original leaves them (ecx the screens' `measure_x`, edx
-    /// their `clock`; edi, the entry, is nothing a screen reads).
-    pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
-        c.measure_x = self.computers;
-        c.clock = self.figure;
-    }
-}
-
 /// A table copied out of the game's memory for the core to work on, stored back when dropped
 /// (whatever the caller's way out: the original works in place, so its changes stay).
 pub struct GameTable {

@@ -288,8 +288,7 @@ fn another_replay(r: &mut Carried) -> Result<(), Refused> {
     }
     crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
     loop {
-        r.arg = 0;
-        r.arg = crate::menu::replay_slot_loop::replay_slot_loop(r)?;
+        r.arg = crate::menu::replay_slot_loop::replay_slot_loop(false)?;
         if r.arg == u32::MAX {
             if REPLAY_FILE.replay_open.get() == 1 {
                 return crate::race::viewer_load_stage::viewer_load_stage();
@@ -315,8 +314,7 @@ fn save(r: &mut Carried, back: bool) -> Result<(), Refused> {
     if back && REPLAY_FILE.viewer_slot.get() < 100 {
         r.palette = REPLAY_FILE.viewer_slot.get();
     } else {
-        r.arg = 1;
-        r.arg = crate::race::choose_save_slot::choose_save_slot(r)?;
+        r.arg = crate::race::choose_save_slot::choose_save_slot()?;
         if r.arg == u32::MAX {
             return Ok(());
         }

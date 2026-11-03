@@ -348,7 +348,7 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::ToggleA3d => crate::menu::option_items::toggle_a3d::run(),
         ItemFn::ToggleDolby => crate::menu::option_items::toggle_dolby::run(),
         ItemFn::ToggleChannels => crate::menu::option_items::toggle_channels::run(),
-        ItemFn::ViewStageDetails => crate::menu::item_actions::view_stage_details(&c.carried()),
+        ItemFn::ViewStageDetails => crate::menu::item_actions::view_stage_details(),
         ItemFn::ApplyScreenMode => crate::menu::apply_screen_mode::apply_screen_mode(),
         ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_player_3c_hook::run(),
         ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(&c.carried()),
@@ -480,9 +480,9 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::NextStageRows => crate::menu::stage_rows::step_rows(false, true),
         ItemFn::PreviousStageRowsOf90 => crate::menu::stage_rows::step_rows(true, false),
         ItemFn::NextStageRowsOf90 => crate::menu::stage_rows::step_rows(true, true),
-        ItemFn::RallyResults => crate::menu::rally_results::rally_results(&c.carried()),
+        ItemFn::RallyResults => crate::menu::rally_results::rally_results(),
         ItemFn::ChampionshipStandings => {
-            crate::menu::championship_standings::championship_standings(&c.carried())
+            crate::menu::championship_standings::championship_standings()
         }
         ItemFn::NewSimulationIfUnlocked => crate::menu::item_actions::new_simulation_if_unlocked(),
         ItemFn::NewSimulationLoop => crate::menu::new_simulation_loop::run(),

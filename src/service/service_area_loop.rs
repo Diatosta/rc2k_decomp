@@ -90,7 +90,6 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
-        Step::Arg(0),
         Step::Write(|| &MENU_STATE.menus.skip_edit_values, 0),
     ],
     set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0)],

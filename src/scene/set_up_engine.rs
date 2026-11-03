@@ -12,9 +12,7 @@ use crate::errors::Refused;
 use crate::scene::fill_engine_tables::fill_engine_tables;
 
 /// The Rust version: the tables, then the cars' figures (`physics::test_drive`). The
-/// registers the original leaves are `physics::test_drive::LEFT` in eax, ebx, ecx and edx
-/// (ebx read by `menu::main_menu_loop`, edx by the screens), and esi as it came; a caller
-/// that carries those registers sets them.
+/// registers the original leaves nothing reads (see `physics::test_drive`).
 pub fn set_up_engine() -> Result<(), Refused> {
     fill_engine_tables();
     crate::physics::test_drive::test_drive()
