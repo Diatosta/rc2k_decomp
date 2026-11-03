@@ -104,11 +104,11 @@ pub fn read_record(at: u32) -> Result<Record, BadInput> {
 }
 
 /// Where a function of the time tables writes: a typed stage table, or the game's memory
-/// (the rallies' tables, `RALLY_TIMES`: place and length).
+/// (a rally's table, `RALLY_TIMES`).
 #[derive(Clone, Copy)]
 pub enum Target {
     Stages(&'static crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
-    Game(u32, usize),
+    Rally(&'static [crate::saves::best_times_store::TimeEntry; 20]),
 }
 
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
@@ -127,9 +127,10 @@ pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
                     }
                     Ok::<_, BadInput>(())
                 })??,
-                Target::Game(at, len) => {
-                    let at = crate::pointers::GamePtr::new(at);
-                    let mut bytes = at.read_bytes(len, "a table of times")?;
+                Target::Rally(table) => {
+                    let at = crate::pointers::GamePtr::to(table);
+                    let mut bytes =
+                        at.read_bytes(core::mem::size_of_val(table), "a table of times")?;
                     block.write(&mut bytes);
                     at.write_bytes(&bytes, "a table of times")?;
                 }

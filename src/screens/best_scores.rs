@@ -455,7 +455,7 @@ pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     rc2k_core::screens::best_scores::fastest(
         &mut ScoresScreen::new(canvas),
         nation,
-        HeldText::Game(record + 0x54),
+        HeldText::Place(crate::records::stages_store::STAGE_TABLES.record_text(record, 0x54)),
         car,
         &speed,
     )

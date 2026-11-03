@@ -129,7 +129,9 @@ pub fn draw_records_rows(
         // The stage record is the game's.
         let top = Holder {
             nation: f.get(record + rows.nationality),
-            name: HeldText::Game(record + rows.name),
+            name: HeldText::Place(
+                crate::records::stages_store::STAGE_TABLES.record_text(record, rows.name),
+            ),
             car: f.get(record + rows.car),
             figure: f.get(record + rows.speed),
         };

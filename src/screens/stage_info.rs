@@ -43,7 +43,9 @@ pub fn draw_stage_best_and_fastest(
         };
         let top = Holder {
             nation: get(record + 0x74)?,
-            name: HeldText::Game(record + 0x54),
+            name: HeldText::Place(
+                crate::records::stages_store::STAGE_TABLES.record_text(record, 0x54),
+            ),
             car: get(record + 0x78)?,
             figure: get(record + 0x30)?,
         };

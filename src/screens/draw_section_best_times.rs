@@ -19,34 +19,31 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
+use crate::pointers::GamePtr;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
 const SECTIONS: u32 = 6;
-// seconds
-const ENTRY_LEN: u32 = 0x9C;
 /// The Rust version.
 pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let section: u32 = EVENT_STATE.section.get();
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
     }
-    let e = crate::saves::best_times_store::RallyTimes::table_of(section as usize)?;
+    let table = crate::saves::best_times_store::RallyTimes::table(section as usize)?;
     // Converted: `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
-    let f = crate::menu::event_flow::Fault::default();
     // The rallies' tables are the game's (`RALLY_TIMES`), not blocks.
     let rows: [SectionRow<crate::screens::game_screen::HeldText>; 10] = std::array::from_fn(|n| {
-        let e = e + n as u32 * ENTRY_LEN;
+        let e = &table[n];
         SectionRow {
-            name: crate::screens::game_screen::HeldText::Game(e + 0x20),
-            time: f.get(e + 0x18),
-            nation: f.get(e + 8),
-            car: f.get(e + 0x10),
-            player: f.get(e + 0x40) == 1,
+            name: crate::screens::game_screen::HeldText::Place(GamePtr::to(&e.name)),
+            time: e.rally_time.get(),
+            nation: e.nation.get(),
+            car: e.car.get(),
+            player: e.is_player.get() == 1,
         }
     });
-    f.check()?;
     rc2k_core::screens::best_scores::section_best_times(
         &mut crate::screens::best_scores::ScoresScreen::new(canvas),
         &rows,

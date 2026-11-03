@@ -175,7 +175,9 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     speed.pop();
     let fastest = Fastest {
         nation: get(fastest + nation)?,
-        name: HeldText::Game(fastest + name),
+        name: HeldText::Place(
+            crate::records::stages_store::STAGE_TABLES.record_text(fastest, name),
+        ),
         car: get(fastest + car)?,
         palette: if both_off == 1 {
             CAPTIONS.shown_group.get()

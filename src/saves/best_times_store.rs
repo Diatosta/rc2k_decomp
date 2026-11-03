@@ -1250,6 +1250,20 @@ impl RallyTimes {
         )
     }
 
+    /// Rally `n`'s table, when the name the game keeps for it (`table_of`) is that table.
+    pub fn table(n: usize) -> Result<&'static [TimeEntry; 20], crate::errors::BadInput> {
+        let at = Self::table_of(n)?;
+        let table = RALLY_TIMES.rallies.get(n).ok_or(crate::errors::BadInput(
+            "a rally past the six best-times tables",
+        ))?;
+        if at != crate::pointers::game_address(core::ptr::from_ref(table)) {
+            return Err(crate::errors::BadInput(
+                "a rally's best-times name not at its own table",
+            ));
+        }
+        Ok(table)
+    }
+
     /// IDA 0x742C98, the first byte of the piece.
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.

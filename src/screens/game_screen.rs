@@ -133,6 +133,8 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldText {
     Game(u32),
+    /// A text in a field of a typed store (a record's name), bounded by it.
+    Place(GamePtr),
     Held(Held),
 }
 
@@ -146,6 +148,14 @@ impl GameText for HeldText {
     ) -> Result<Drawn, Refused> {
         match self {
             HeldText::Game(at) => at.draw(font, x, y, canvas),
+            HeldText::Place(at) => {
+                let out = draw_text_at(font, at, x, y, canvas)?;
+                Ok(Drawn {
+                    y: out.y,
+                    after: out.text.addr(),
+                    too_wide: out.too_wide,
+                })
+            }
             HeldText::Held(h) => {
                 let out = crate::text::draw_text::draw_bytes_at(font, &h.with_nul(), x, y, canvas)?;
                 Ok(Drawn {
@@ -171,6 +181,10 @@ impl GameText for HeldText {
     ) -> Result<(u32, u32), Refused> {
         match self {
             HeldText::Game(at) => at.measure(font, x, canvas),
+            HeldText::Place(at) => {
+                let m = crate::text::measure_text::measure_text_at(font, at, x, canvas)?;
+                Ok((m.width, m.lines))
+            }
             HeldText::Held(h) => {
                 crate::text::measure_text::measure_bytes_at(font, &h.with_nul(), x, canvas)
             }
