@@ -13,13 +13,19 @@
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT};
-use crate::input::types::{DiEffectInfo, ForceEffect};
+use crate::input::types::{DiEffectInfo, InputDevice};
 use crate::pointers::GamePtr;
 
-/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`.
-pub fn callback(info: u32, record: u32) -> u32 {
+/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`; the
+/// context is the device record's handle (`Devices::handle_of`).
+pub fn callback(info: u32, context: u32) -> u32 {
+    let Some(record) = crate::input::store::device_of(context) else {
+        crate::input::devices::refused_here(
+            "input::effect_found",
+            BadInput("an effect listing's context that is no device record"),
+        );
+        return 0;
+    };
     match effect_found(info, record) {
         Ok(eax) => eax,
         Err(e) => {
@@ -36,7 +42,7 @@ fn listed_dword(at: u32) -> u32 {
 }
 
 /// The Rust version: eax.
-pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
+pub fn effect_found(info: u32, record: &InputDevice) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::force::take_listed`.
     use rc2k_core::input::force::{Found, Listed, take_listed};
     let guid = |at: u32| GamePtr::new(at).read::<[u8; 16]>("an effect's GUID");
@@ -49,26 +55,23 @@ pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
             dynamic_params: listed_dword(info + field!(DiEffectInfo, dynamic_params)),
         }
     };
-    for n in 0..6 {
-        let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
+    for e in &record.effects {
         let mut f = Found {
-            found: at(e, field!(ForceEffect, found))?,
+            found: e.found.get(),
             listed: Listed {
-                guid: guid(e.wrapping_add(field!(ForceEffect, guid)))?,
-                eff_type: at(e, field!(ForceEffect, eff_type))?,
-                static_params: at(e, field!(ForceEffect, static_params))?,
-                dynamic_params: at(e, field!(ForceEffect, dynamic_params))?,
+                guid: e.guid.read(),
+                eff_type: e.eff_type.get(),
+                static_params: e.static_params.get(),
+                dynamic_params: e.dynamic_params.get(),
             },
         };
         // The wanted GUID is read only where the core asks for it.
         let failed = std::cell::Cell::new(None);
-        let taken = take_listed(at(e, field!(ForceEffect, kind))?, &mut f, &listed, || {
-            at(e, field!(ForceEffect, wanted))
-                .and_then(crate::input::guids::guid_of)
-                .unwrap_or_else(|err| {
-                    failed.set(Some(err));
-                    [0; 16]
-                })
+        let taken = take_listed(e.kind.get(), &mut f, &listed, || {
+            crate::input::guids::guid_of(e.wanted.get()).unwrap_or_else(|err| {
+                failed.set(Some(err));
+                [0; 16]
+            })
         });
         if let Some(err) = failed.take() {
             return Err(err);
@@ -76,21 +79,11 @@ pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
         if !taken {
             continue;
         }
-        put(e, field!(ForceEffect, found), f.found)?;
-        put(e, field!(ForceEffect, eff_type), f.listed.eff_type)?;
-        put(
-            e,
-            field!(ForceEffect, static_params),
-            f.listed.static_params,
-        )?;
-        put(
-            e,
-            field!(ForceEffect, dynamic_params),
-            f.listed.dynamic_params,
-        )?;
-        GamePtr::new(e)
-            .offset(field!(ForceEffect, guid))
-            .write(f.listed.guid, "an effect's GUID")?;
+        e.found.set(f.found);
+        e.eff_type.set(f.listed.eff_type);
+        e.static_params.set(f.listed.static_params);
+        e.dynamic_params.set(f.listed.dynamic_params);
+        e.guid.write(&f.listed.guid);
     }
     Ok(1)
 }

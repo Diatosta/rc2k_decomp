@@ -21,7 +21,7 @@
 //! steps refuse.
 
 use crate::errors::Refused;
-use crate::input::devices::record_addrs;
+use crate::input::devices::records;
 use crate::input::store::DEVICES;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -84,7 +84,7 @@ pub fn input_thread() -> Result<(), Refused> {
             }
         }
     }
-    for record in record_addrs() {
+    for record in records() {
         { crate::input::release_device::release_device_in_game(record) }?;
     }
     let input = DEVICES.direct_input.get();

@@ -29,6 +29,9 @@
 //! Threads: the input thread polls and the game's thread reads, as the image's bytes were
 //! shared (atomic cells and volatile bytes).
 
+use crate::errors::BadInput;
+use crate::input::types::InputDevice;
+use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword, Float};
 
 // ---- first values, from the image (`store_data.rs`) ----
@@ -243,7 +246,7 @@ pub struct Devices {
     /// original kept their addresses and never changes them; 0 none).
     pub input_devices: [Dword; 2],
     /// `g_inputRecord1` and `g_inputRecord2` (`types::InputDevice`).
-    pub records: [Bytes<RECORD_LEN>; 2],
+    pub records: [InputDevice; 2],
     /// `g_controllerCount`.
     pub controller_count: Dword,
     /// `g_controllers`: 16 entries (`types::Controller`).
@@ -254,10 +257,10 @@ pub struct Devices {
     pub guids: Bytes<0x30>,
 }
 
-const fn records(runs: Runs, at: usize) -> [Bytes<RECORD_LEN>; 2] {
+const fn records(runs: Runs, at: usize) -> [InputDevice; 2] {
     [
-        Bytes::new(with_guid_refs(init::<RECORD_LEN>(runs, at))),
-        Bytes::new(with_guid_refs(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
+        InputDevice::from_bytes(&with_guid_refs(init::<RECORD_LEN>(runs, at))),
+        InputDevice::from_bytes(&with_guid_refs(init::<RECORD_LEN>(runs, at + RECORD_LEN))),
     ]
 }
 
@@ -364,24 +367,40 @@ impl Devices {
         table
     }
 
-    /// Device `n`'s record (`g_inputDevices[n]`, by handle: `device_of`).
-    pub fn device(&self, n: usize) -> u32 {
+    /// Device `n`'s record (`g_inputDevices[n]`, by handle: `device_of`); `None` for a
+    /// device the table holds as 0.
+    pub fn device(&self, n: usize) -> Option<&'static InputDevice> {
         device_of(self.input_devices[n].get())
     }
 
     /// `g_inputDevices[n]` as the original indexes it: past the two pointers (`n` up to 7)
-    /// it reads the first record's bytes (the drive code only refuses `n` past 7).
-    pub fn input_device(&self, n: usize) -> u32 {
-        use core::mem::offset_of;
+    /// it reads the first record's bytes (the drive code only refuses `n` past 7). What
+    /// those hold is no handle: a 0 is no device, any other value the original would
+    /// follow as an address, which is refused here.
+    pub fn input_device(&self, n: usize) -> Result<Option<&'static InputDevice>, BadInput> {
         if n < self.input_devices.len() {
-            return self.device(n);
+            return Ok(self.device(n));
         }
-        let at = offset_of!(Devices, input_devices) + 4 * n;
-        assert!(at + 4 <= core::mem::size_of::<Devices>());
-        crate::pointers::read_or_end(
-            crate::pointers::game_address(std::ptr::from_ref::<Self>(self)).wrapping_add(at as u32),
-            "an input device past the table",
-        )
+        let at = 4 * (n - self.input_devices.len());
+        let held: u32 = GamePtr::to(&self.records[0])
+            .offset(at as u32)
+            .read("an input device past the table")?;
+        if held == 0 {
+            return Ok(None);
+        }
+        Err(BadInput(
+            "an input device past the table that holds no record's handle",
+        ))
+    }
+
+    /// The handle of one of the two records (`DEVICE_TAG | n`), for a context DirectInput
+    /// hands back.
+    pub fn handle_of(&self, record: &InputDevice) -> Result<u32, BadInput> {
+        self.records
+            .iter()
+            .position(|r| std::ptr::eq(r, record))
+            .map(|n| DEVICE_TAG | n as u32)
+            .ok_or(BadInput("a record that is none of the two device records"))
     }
 
     /// Key `key`'s state in that table (the window's messages write it: 0xFF down).
@@ -398,14 +417,13 @@ impl Devices {
 /// A device record by handle (phase 13): `DEVICE_TAG | n` for `records[n]`.
 pub const DEVICE_TAG: u32 = 0xCE00_0000;
 
-/// Where the record a handle names is (0 for 0). A value that is no handle ends the
-/// program.
-pub fn device_of(handle: u32) -> u32 {
+/// The record a handle names (`None` for 0). A value that is no handle ends the program.
+pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
     if handle == 0 {
-        return 0;
+        return None;
     }
     match DEVICES.records.get((handle ^ DEVICE_TAG) as usize) {
-        Some(record) => record.addr(),
+        Some(record) => Some(record),
         None => crate::fatal::raise::end(
             "input::store::device_of",
             crate::errors::BadInput("a device record's handle that names none"),

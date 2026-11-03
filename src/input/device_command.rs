@@ -19,13 +19,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::devices::put;
 use crate::input::store::DEVICES;
 use crate::race::state_store::RACE_STATE;
 use crate::sound::store::RACE_SOUNDS;
 
-fn device(n: usize) -> u32 {
-    DEVICES.device(n)
+/// Device `n`'s record: a command names a device the table holds.
+fn device(n: usize) -> Result<&'static crate::input::types::InputDevice, crate::errors::BadInput> {
+    DEVICES.device(n).ok_or(crate::errors::BadInput(
+        "a device command for a device without a record",
+    ))
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
@@ -42,17 +44,17 @@ pub fn device_command(command: u32) -> Result<(), Refused> {
         for step in steps {
             match step {
                 EffectsOn(on) => crate::input::store::FORCE_FEEDBACK.race_on.set(on as u32),
-                Release(n) => crate::input::release_device::release_device(device(n))?,
-                Acquire(n) => crate::input::acquire_device::acquire_device(device(n))?,
+                Release(n) => crate::input::release_device::release_device(device(n)?)?,
+                Acquire(n) => crate::input::acquire_device::acquire_device(device(n)?)?,
                 EndEffects => crate::input::end_effects::end_effects()?,
                 Tick => crate::input::input_tick::input_tick()?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
-                    device(n),
+                    device(n)?,
                     crate::pointers::GamePtr::to(&RACE_STATE.settings.cars[n]).offset(
                         std::mem::offset_of!(crate::race::state_store::RaceCar, record_2c) as u32,
                     ),
                 )?,
-                Reading(n, on) => put(device(n), 0x414, on as u32)?,
+                Reading(n, on) => device(n)?.reading.set(on as u32),
                 SecondApart => {
                     if RACE_STATE.settings.cars[0].record_2c.get()
                         == RACE_STATE.settings.cars[1].record_2c.get()

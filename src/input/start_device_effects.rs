@@ -10,16 +10,17 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::input::types::InputDevice;
 
-/// The six effects of the device at `record` told `what` (the loop of both functions).
-pub fn all_six(record: u32, what: u32) -> Result<(), Refused> {
+/// The six effects of the device `record` told `what` (the loop of both functions).
+pub fn all_six(record: &InputDevice, what: u32) -> Result<(), Refused> {
     for effect in 0..6 {
         crate::input::set_effect::set_effect(record, effect, what, 0, 0)?;
     }
     Ok(())
 }
 
-/// The device at `record`'s effects started.
-pub fn start_device_effects(record: u32) -> Result<(), Refused> {
+/// The device `record`'s effects started.
+pub fn start_device_effects(record: &InputDevice) -> Result<(), Refused> {
     all_six(record, 2)
 }

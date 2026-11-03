@@ -16,37 +16,34 @@
 
 use crate::errors::BadInput;
 use crate::input::store::DEVICES;
+use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
 
-/// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
-pub fn record_addrs() -> [u32; 2] {
-    DEVICES
-        .records
-        .each_ref()
-        .map(super::super::session::Bytes::addr)
+/// The two records (`g_inputRecord1`, `g_inputRecord2`).
+pub fn records() -> &'static [InputDevice; 2] {
+    &DEVICES.records
 }
 
 /// The device's state (`g_deviceState`), 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
-/// A dword of the record at `record`.
+/// A dword at `record` (a controller's entry, a property: not a device record).
 pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
     GamePtr::new(record)
         .offset(offset)
         .read("a device record's dword")
 }
 
-/// Writes a dword of the record at `record`.
+/// Writes a dword at `record` (as `at`).
 pub fn put(record: u32, offset: u32, v: u32) -> Result<(), BadInput> {
     GamePtr::new(record)
         .offset(offset)
         .write(v, "a device record's dword")
 }
 
-/// Whether key `key` is down.
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
-pub fn record_bytes(record: u32) -> Result<rc2k_core::input::devices::Record, BadInput> {
-    GamePtr::new(record).read("a device record")
+pub fn record_bytes(record: &InputDevice) -> Result<rc2k_core::input::devices::Record, BadInput> {
+    GamePtr::to(record).read("a device record")
 }
 
 /// A refusal met inside a closure the core asks for a value (it has no failure to give):

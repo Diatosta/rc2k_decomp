@@ -30,6 +30,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
+use crate::input::types::InputDevice;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::pointers::GamePtr;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
@@ -40,21 +41,10 @@ use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 /// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
 #[cfg(all(test, target_arch = "x86"))]
 const SQRT_OFFSET: usize = 0x5C2C60;
-const GAUGE: u32 = 0x4EC;
-const STAGE: u32 = 0x4F0;
-const CLOCK: u32 = 0x4F4;
 
 #[cfg(all(test, target_arch = "x86"))]
 fn p(x: usize, v: u32) {
     crate::store::game_write(crate::framework::rva(x), v);
-}
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("the tyre change device")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "the tyre change device")
 }
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
@@ -83,14 +73,14 @@ pub fn press_time(s: i32) -> i32 {
 /// The gauge's dealings with the game: the device's state written into it before each
 /// drawing.
 struct GameIo {
-    device: u32,
+    device: &'static InputDevice,
 }
 
 impl GameIo {
-    fn store(&self, g: &Gauge) -> Result<(), BadInput> {
-        put(self.device + GAUGE, g.gauge)?;
-        put(self.device + STAGE, g.stage)?;
-        put(self.device + CLOCK, g.clock)
+    fn store(&self, g: &Gauge) {
+        self.device.gauge.set(g.gauge);
+        self.device.stage.set(g.stage);
+        self.device.clock.set(g.clock);
     }
 }
 
@@ -101,11 +91,12 @@ impl Io for GameIo {
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
         // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
-        Ok(get(self.device + 0x4E8)? & 0xFF != 0)
+        Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        self.store(g)?;
-        crate::race::draw_tyre_change::draw_tyre_change(self.device)
+        self.store(g);
+        // The drawing takes the device by address (its x87 turn reads the gauge).
+        crate::race::draw_tyre_change::draw_tyre_change(GamePtr::to(self.device).addr())
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(s as i32) as u32
@@ -134,21 +125,20 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let d = DEVICES.input_device(player as usize);
-    if d == 0 {
+    let Some(d) = DEVICES.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
-    }
+    };
     TYRE.player.set(player);
     let mut io = GameIo { device: d };
     let mut gauge = Gauge {
-        gauge: get(d + GAUGE)?,
-        stage: get(d + STAGE)?,
-        clock: get(d + CLOCK)?,
+        gauge: d.gauge.get(),
+        stage: d.stage.get(),
+        clock: d.clock.get(),
     };
     let before = gauge;
     let result = turn(start, &mut gauge, &mut io)?;
     if gauge != before {
-        io.store(&gauge)?;
+        io.store(&gauge);
     }
     MACHINE.scratch.set(result);
     Ok(result)

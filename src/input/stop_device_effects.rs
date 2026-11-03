@@ -12,8 +12,9 @@
 
 use crate::errors::Refused;
 use crate::input::start_device_effects::all_six;
+use crate::input::types::InputDevice;
 
-/// The device at `record`'s effects stopped.
-pub fn stop_device_effects(record: u32) -> Result<(), Refused> {
+/// The device `record`'s effects stopped.
+pub fn stop_device_effects(record: &InputDevice) -> Result<(), Refused> {
     all_six(record, 4)
 }

@@ -6,23 +6,26 @@
 
 use crate::errors::BadInput;
 use crate::input::store::{DEVICES, KEYBOARD};
+use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
 /// (+0x2C, +0x30, +0x34, +0x38).
-pub fn device_state(device: u32) -> Result<[u32; 4], BadInput> {
-    let at = GamePtr::new(device).offset(0x2C);
-    Ok([
-        at.read("a device's state")?,
-        at.offset(4).read("a device's state")?,
-        at.offset(8).read("a device's state")?,
-        at.offset(12).read("a device's state")?,
-    ])
+pub fn device_state(device: &InputDevice) -> [u32; 4] {
+    [
+        device.axes[0].get(),
+        device.axes[1].get(),
+        device.axes[2].get(),
+        device.buttons.get(),
+    ]
 }
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
 pub fn first_device_state() -> Result<[u32; 4], BadInput> {
-    device_state(DEVICES.device(0))
+    let Some(device) = DEVICES.device(0) else {
+        return Err(BadInput("no first input device record"));
+    };
+    Ok(device_state(device))
 }
 
 /// What `input::axis_moved` leaves: the carry (none), eax.
@@ -45,7 +48,7 @@ pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
         return Ok(Moved { carry: true, eax });
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
-    let device = DEVICES.records[0].get_u32(0).wrapping_mul(0x50);
+    let device = DEVICES.records[0].controller.get().wrapping_mul(0x50);
     let axes: u32 = GamePtr::to(&DEVICES.controllers)
         .offset(device)
         .offset(0x14)

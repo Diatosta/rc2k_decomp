@@ -13,11 +13,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::devices::{at, put, record_addrs};
+use crate::errors::Refused;
+use crate::input::devices::records;
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
+use crate::session::Dword;
 
 /// A tick of the devices (see the header).
 pub fn input_tick() -> Result<(), Refused> {
@@ -28,7 +28,7 @@ pub fn input_tick() -> Result<(), Refused> {
     if command != 0 {
         return crate::input::device_command::device_command(command);
     }
-    let records = record_addrs();
+    let records = records();
     for record in records {
         crate::input::read_device::read_device(record)?;
         crate::input::device_effects::device_effects(record)?;
@@ -36,21 +36,15 @@ pub fn input_tick() -> Result<(), Refused> {
     if DEVICES.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
-        let read = |record: u32| -> Result<[u32; 4], BadInput> {
-            let mut out = [0; 4];
-            for (v, o) in out
-                .iter_mut()
-                .zip([0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)])
-            {
-                *v = at(record, o)?;
-            }
-            Ok(out)
+        let read = |record: &InputDevice| -> [u32; 4] {
+            let [steering, brake, throttle] = record.readings.each_ref().map(Dword::get);
+            [steering, brake, throttle, record.bits.get()]
         };
-        let mut a = read(first)?;
-        let b = read(second)?;
+        let mut a = read(first);
+        let b = read(second);
         rc2k_core::input::devices::merge_readings(&mut a, &b);
-        for (o, v) in [0x4DC, 0x4E0, 0x4E4, 0x4E8].into_iter().zip(a) {
-            put(first, o, v)?;
+        for (cell, v) in first.readings.iter().chain([&first.bits]).zip(a) {
+            cell.set(v);
         }
     }
     Ok(())

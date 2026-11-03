@@ -12,8 +12,8 @@
 use crate::errors::Refused;
 
 /// Both device records.
-pub fn records() -> [u32; 2] {
-    crate::input::devices::record_addrs()
+pub fn records() -> &'static [crate::input::types::InputDevice; 2] {
+    crate::input::devices::records()
 }
 
 /// Both devices' effects started.

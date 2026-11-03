@@ -15,18 +15,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::input::devices::{at, put};
 use crate::input::store::DEVICES;
-use crate::input::types::{ForceEffect, InputDevice};
+use crate::input::types::InputDevice;
 
 pub const CONTROLLERS: u32 = 16;
-const EFFECTS: u32 = 0x3C;
-const EFFECT_LEN: u32 = 0xA4;
 
 /// The controller entry's dword at `offset` for the record's controller, or the refusal.
-pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
-    let n = at(record, field!(InputDevice, controller))?;
+pub fn controller(record: &InputDevice, offset: usize) -> Result<u32, Refused> {
+    let n = record.controller.get();
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
@@ -34,28 +30,25 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
 }
 
 /// The pending changes of the device `record`'s effects.
-pub fn device_effects(record: u32) -> Result<(), Refused> {
-    if at(record, field!(InputDevice, effects_on))? != 1
-        || at(record, field!(InputDevice, device))? == 0
-    {
+pub fn device_effects(record: &InputDevice) -> Result<(), Refused> {
+    if record.effects_on.get() != 1 || record.device.get() == 0 {
         return Ok(());
     }
     if controller(record, 0x1C)? != 1 {
         return Ok(());
     }
-    for k in 0..6 {
-        let effect = record + EFFECTS + EFFECT_LEN * k;
-        if at(effect, field!(ForceEffect, object))? == 0 {
+    for effect in &record.effects {
+        if effect.object.get() == 0 {
             continue;
         }
-        let change = at(effect, field!(ForceEffect, pending))?;
-        put(effect, field!(ForceEffect, pending), 0)?;
+        let change = effect.pending.get();
+        effect.pending.set(0);
         if change == 0 {
             continue;
         }
         // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
-        let function = at(effect, field!(ForceEffect, change))?;
+        let function = effect.change.get();
         crate::input::effect_changes::effect_change_at(
             function, record, effect, what, a as u32, b as u32,
         )?;

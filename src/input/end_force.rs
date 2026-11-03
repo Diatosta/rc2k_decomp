@@ -10,23 +10,21 @@
 //! Caller: `input::release_device`. The controller's number is not checked (as the
 //! original's).
 
-use crate::errors::BadInput;
 use crate::field;
-use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of};
-use crate::input::types::{Controller, ForceEffect, InputDevice};
+use crate::input::devices::at;
+use crate::input::di_harness::entry_of;
+use crate::input::types::{Controller, InputDevice};
 
 /// The Rust version (see the header).
-pub fn end_force(record: u32) -> Result<(), BadInput> {
-    if at(entry_of(record)?, field!(Controller, force_feedback))? != 1 {
+pub fn end_force(record: &InputDevice) -> Result<(), crate::errors::BadInput> {
+    if at(entry_of(record), field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
     let prop = crate::input::begin_force::dword_property(1)?;
-    crate::input::di_objects::set_property(at(record, field!(InputDevice, device))?, 9, prop);
-    for n in 0..6 {
-        let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        crate::input::effect_objects::release_effect(e)?;
-        put(e, field!(ForceEffect, found), 0)?;
+    crate::input::di_objects::set_property(record.device.get(), 9, prop);
+    for e in &record.effects {
+        crate::input::effect_objects::release_effect(e);
+        e.found.set(0);
     }
     Ok(())
 }

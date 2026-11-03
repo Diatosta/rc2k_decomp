@@ -36,7 +36,7 @@ use crate::input::store::DEVICES;
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
-use crate::pointers::GamePtr;
+use crate::session::Dword;
 use crate::session::MACHINE;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
@@ -69,23 +69,18 @@ fn log_int(v: u32, newline: bool) {
 }
 
 /// The settings from the configuration, and the log's line.
-fn settings(record: u32, entry: u32) -> Result<(), BadInput> {
+fn settings(record: &D, entry: u32) -> Result<(), BadInput> {
     use rc2k_core::input::acquire::{Config, Settings, settings};
     // Converted: `rc2k_core::input::acquire::settings`.
-    let kind = field!(D, kind);
     let fields = [
-        kind,
-        field!(D, axis_code),
-        field!(D, strength),
-        field!(D, dead_zone),
-        field!(D, end_zone),
-        field!(D, axis_pick),
+        &record.kind,
+        &record.axis_code,
+        &record.strength,
+        &record.dead_zone,
+        &record.end_zone,
+        &record.axis_pick,
     ];
-    let mut got = [0u32; 6];
-    for (g, f) in got.iter_mut().zip(fields) {
-        *g = at(record, f)?;
-    }
-    let [k, code, strength, dead, end, pick] = got;
+    let [k, code, strength, dead, end, pick] = fields.map(Dword::get);
     let config = Config {
         kind: DEVICES.joy_mode.get(),
         axis_code: DEVICES.joy_code.get(),
@@ -117,36 +112,33 @@ fn settings(record: u32, entry: u32) -> Result<(), BadInput> {
         s.axis_pick,
     ];
     for (f, v) in fields.into_iter().zip(values) {
-        put(record, f, v)?;
+        f.set(v);
     }
     log_text(JOY_RVA);
-    log_int(at(record, field!(D, controller))?, false);
+    log_int(record.controller.get(), false);
     log_int(at(entry, field!(C, axes))?, false);
     log_int(at(entry, field!(C, buttons))?, false);
     log_text(AXMODE_RVA);
-    log_int(at(record, kind)?, false);
+    log_int(record.kind.get(), false);
     log_text(AXCODE_RVA);
-    crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code))?, false, 2);
+    crate::logfile::log_hex8::log_hex8(record.axis_code.get(), false, 2);
     log_text(DZ_RVA);
-    log_int(at(record, field!(D, dead_zone))?, false);
-    log_int(at(record, field!(D, end_zone))?, false);
+    log_int(record.dead_zone.get(), false);
+    log_int(record.end_zone.get(), false);
     log_text(FF_RVA);
     log_int(at(entry, field!(C, force_feedback))?, false);
-    log_int(at(record, field!(D, strength))?, true);
+    log_int(record.strength.get(), true);
     Ok(())
 }
 
 /// The axis at offset (the record's axis pick `n` & 7) x 4.
-fn axis(record: u32, n: u32) -> Result<u32, BadInput> {
-    let at = record.wrapping_add(field!(D, axis_pick) + n);
-    Ok(axis_offset(
-        GamePtr::new(at).read::<u8>("a device record's axis pick")?,
-    ))
+fn axis(record: &D, n: usize) -> u32 {
+    axis_offset(record.axis_pick_byte(n))
 }
 
 /// The ranges, dead zones and saturation.
-fn properties(record: u32) -> Result<(), BadInput> {
-    let device = at(record, field!(D, device))?;
+fn properties(record: &D) -> Result<(), BadInput> {
+    let device = record.device.get();
     let set =
         |what: u32, prop: u32| crate::input::di_objects::set_property(device, what, prop) as u32;
     let (header, object, how) = (
@@ -162,16 +154,16 @@ fn properties(record: u32) -> Result<(), BadInput> {
     put(range, field!(R, min), (-256i32) as u32)?;
     put(range, field!(R, max), 0)?;
     set(DIPROP_RANGE, range);
-    put(range, object, axis(record, 1)?)?;
+    put(range, object, axis(record, 1))?;
     put(range, how, 1)?;
     put(range, field!(R, min), (-256i32) as u32)?;
     put(range, field!(R, max), 0x100)?;
     set(DIPROP_RANGE, range);
     // Converted: `rc2k_core::input::acquire` (`axis_offset`, `two_axes`,
     // `dead_zone_value`, `saturation`).
-    let two_axes = two_axes(at(record, field!(D, kind))?);
+    let two_axes = two_axes(record.kind.get());
     if two_axes {
-        put(range, object, axis(record, 0)?)?;
+        put(range, object, axis(record, 0))?;
         set(DIPROP_RANGE, range);
     }
     let dword = DEVICES.dword_property.addr();
@@ -188,23 +180,20 @@ fn properties(record: u32) -> Result<(), BadInput> {
     start(Some(0))?;
     set(DIPROP_DEADZONE, dword);
     // (sic) the range's object, not the dead zone's
-    put(range, object, axis(record, 1)?)?;
+    put(range, object, axis(record, 1))?;
     put(dword, field!(W, header.how), 1)?;
     put(
         dword,
         field!(W, data),
-        dead_zone_value(at(record, field!(D, dead_zone))?),
+        dead_zone_value(record.dead_zone.get()),
     )?;
     set(DIPROP_DEADZONE, dword);
     if two_axes {
-        put(range, object, axis(record, 0)?)?;
+        put(range, object, axis(record, 0))?;
         set(DIPROP_DEADZONE, dword);
     }
     start(None)?;
-    if let Some(data) = saturation(
-        at(record, field!(D, dead_zone))?,
-        at(record, field!(D, end_zone))?,
-    ) {
+    if let Some(data) = saturation(record.dead_zone.get(), record.end_zone.get()) {
         put(dword, field!(W, data), data)?;
         set(DIPROP_SATURATION, dword);
     }
@@ -212,15 +201,15 @@ fn properties(record: u32) -> Result<(), BadInput> {
 }
 
 /// The Rust version (see the header).
-pub fn acquire_device(record: u32) -> Result<(), Refused> {
+pub fn acquire_device(record: &D) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::acquire::acquire`.
-    let entry = entry_of(record)?;
+    let entry = entry_of(record);
     let late = Deferred::default();
     let step = acquire(
-        at(record, field!(D, controller))?,
+        record.controller.get(),
         DEVICES.controller_count.get(),
         || late.get(at(entry, field!(C, attached))),
-        || late.get(at(record, field!(D, device))),
+        || record.device.get(),
     );
     late.finish()?;
     match step {
@@ -232,13 +221,13 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     let hr = crate::input::di_objects::create_device(
         DEVICES.direct_input.get(),
         entry + field!(C, instance),
-        record.wrapping_add(field!(D, device)),
+        record.device.addr(),
         0,
     ) as u32;
     if hr != 0 {
         return Err(NO_OBJECT.into());
     }
-    let device = at(record, field!(D, device))?;
+    let device = record.device.get();
     if crate::input::di_objects::query_interface(
         device,
         INPUT_GUIDS.device2.addr(),
@@ -248,9 +237,9 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
         return Err(fatal(0x8023_8318).into());
     }
     crate::input::di_objects::release(device);
-    put(record, field!(D, device), DEVICES.new_joystick2.get())?;
+    record.device.set(DEVICES.new_joystick2.get());
     DEVICES.new_joystick2.set(0);
-    let device = at(record, field!(D, device))?;
+    let device = record.device.get();
     if crate::input::di_objects::set_data_format(device, a(JOYSTICK_FORMAT_RVA)) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
@@ -262,7 +251,7 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
         crate::input::begin_force::begin_force(record)?;
     }
     crate::input::di_objects::acquire(device);
-    crate::input::clear_device_readings::clear_device_readings(record)?;
-    put(record, field!(D, acquired), 1)?;
+    crate::input::clear_device_readings::clear_device_readings(record);
+    record.acquired.set(1);
     Ok(())
 }

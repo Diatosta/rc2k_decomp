@@ -21,9 +21,8 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::devices::{Deferred, at};
-use crate::input::effects::HAS_EFFECTS;
 use crate::input::store::DEVICES;
+use crate::input::store::device_of;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
 use crate::sound::store::RACE_SOUNDS;
@@ -66,19 +65,17 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     let p = Players {
         cars: v.cars.each_ref().map(super::super::session::Dword::get),
         one_player: v.one_player.get() == 1,
-        devices: v
-            .devices
-            .each_ref()
-            .map(|c| crate::input::store::device_of(c.get())),
+        // the devices by handle: the core only asks whether one is none (0)
+        devices: v.devices.each_ref().map(crate::session::Dword::get),
         views: v
             .views
             .each_ref()
             .map(|c| crate::race::blocks_store::block_of(c.get())),
         one_players_devices: v.two_devices.get() != 0,
     };
-    let late = Deferred::default();
-    let loaded = loads(&p, |device| late.get(at(device, HAS_EFFECTS)) == 1)?;
-    late.finish()?;
+    let loaded = loads(&p, |device| {
+        device_of(device).is_some_and(|record| record.effects_on.get() == 1)
+    })?;
     for load in loaded {
         if load.update {
             let object = v
@@ -86,7 +83,8 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
                 .get(load.car as usize)
                 .ok_or(BadInput("a car past the sound objects' table"))?
                 .get();
-            crate::input::update_car_effects::update_car_effects(load.view, object, load.device)?;
+            let device = device_of(load.device).ok_or(BadInput("a load on a null device"))?;
+            crate::input::update_car_effects::update_car_effects(load.view, object, device)?;
         }
     }
     Ok(())

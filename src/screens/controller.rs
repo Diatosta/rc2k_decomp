@@ -71,7 +71,9 @@ pub fn learn_axis() -> Result<(), Refused> {
         if !m.carry {
             let (byte, found) = l::pedal(control);
             player.update(|p| p.store_byte(byte as usize, m.eax as u8));
-            crate::input::store::DEVICES.records[0].set_u32(0x18, player.get().word(0x38));
+            crate::input::store::DEVICES.records[0]
+                .axis_code
+                .set(player.get().word(0x38));
             DRAW_WORK.figure.set(found);
             C.learning.set(0);
             take = false;
@@ -100,7 +102,7 @@ pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, R
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().word(0x2C);
-    if device != 0 && crate::input::store::DEVICES.device(0) == 0 {
+    if device != 0 && crate::input::store::DEVICES.device(0).is_none() {
         return Err(crate::errors::BadInput("no input device").into());
     }
     Ok(player)

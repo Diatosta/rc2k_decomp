@@ -52,7 +52,9 @@ pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     TYRE.wheel[0].set(x);
     TYRE.wheel[1].set(y);
     TYRE.player.set(car);
-    let device = crate::input::store::DEVICES.input_device(car as usize);
+    let Some(device) = crate::input::store::DEVICES.input_device(car as usize)? else {
+        return Err(crate::errors::BadInput("a tyre screen car without a device").into());
+    };
     set_texture(TYRE.device_texture.get());
     for (value, state) in STATES {
         set_render_state(value, state);
@@ -63,7 +65,8 @@ pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
         address_of(&TYRE.turning_texture),
         address_of(&TYRE.turning_rect),
         0xFF_FFFF,
-        device,
+        // The quad's turn reads the device's gauge by address.
+        crate::pointers::GamePtr::to(device).addr(),
     )?;
     crate::drive::tyre_screen_parts::tyre_screen_parts()
 }

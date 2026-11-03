@@ -10,7 +10,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
-use crate::pointers::GamePtr;
 use rc2k_core::drive::controls::device_curve;
 
 /// The Rust version: [eax, ebx, ecx, edx].
@@ -19,12 +18,11 @@ pub fn device_axes(device: u32) -> Result<[u32; 4], Refused> {
     if device > 7 {
         return Err(BadInput("a device past 7").into());
     }
-    let d = DEVICES.input_device(device as usize);
-    if d == 0 {
+    let Some(d) = DEVICES.input_device(device as usize)? else {
         return Err(BadInput("a null input device").into());
-    }
-    let [ecx, edx, mut eax, ebx]: [u32; 4] =
-        GamePtr::new(d.wrapping_add(0x4DC)).read("an input device")?;
+    };
+    let [ecx, edx, mut eax] = d.readings.each_ref().map(crate::session::Dword::get);
+    let ebx = d.bits.get();
     if DEVICES.nonlinear_steering.get() != 0 {
         eax = device_curve(eax);
     }

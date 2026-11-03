@@ -18,7 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal};
+use crate::input::di_harness::{entry_of, fatal};
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
@@ -48,15 +48,15 @@ pub fn dword_property(data: u32) -> Result<u32, BadInput> {
 }
 
 /// The Rust version (see the header).
-pub fn begin_force(record: u32) -> Result<(), Refused> {
-    let entry = entry_of(record)?;
+pub fn begin_force(record: &InputDevice) -> Result<(), Refused> {
+    let entry = entry_of(record);
     if at(entry, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
     crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
-    let device = at(record, field!(InputDevice, device))?;
+    let device = record.device.get();
     // Converted: `rc2k_core::input::acquire::gain`.
-    let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
+    let Some(gain) = gain(record.strength.get()) else {
         crate::input::di_objects::set_property(device, DIPROP_AUTOCENTER, dword_property(1)?);
         return Ok(());
     };
@@ -68,11 +68,11 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
         return Err(fatal(0x8023_8422).into());
     }
     let found = crate::input::effect_found::callback;
-    crate::input::di_objects::enum_effects(device, found, record, 0);
-    for n in 0..6 {
-        let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
-        crate::input::make_effect::make_effect(record, effect, n)?;
+    // The record goes to the callback as its handle.
+    crate::input::di_objects::enum_effects(device, found, DEVICES.handle_of(record)?, 0);
+    for (n, effect) in record.effects.iter().enumerate() {
+        crate::input::make_effect::make_effect(record, effect, n as u32)?;
     }
-    put(record, field!(InputDevice, effects_on), 1)?;
+    record.effects_on.set(1);
     Ok(())
 }

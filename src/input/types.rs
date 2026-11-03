@@ -3,6 +3,7 @@
 //! fills (`DIJOYSTATE`, `DIEFFECT`, `DIENVELOPE`): their layouts, checked at compile time.
 //! The code reads and writes the game's memory through `field!` (a field's offset).
 
+use crate::session::{Bytes, Dword};
 use std::mem::{offset_of, size_of};
 
 /// A field's offset in a type, as the `u32` the record helpers take.
@@ -34,100 +35,266 @@ pub struct Controller {
     pub name: [u8; 32],
 }
 
+// ---- the device records: cells in the store, built from the image's bytes ----
+
+/// The little-endian dword of `b` at `at`.
+const fn dword_of(b: &[u8], at: usize) -> Dword {
+    Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+}
+
+/// `N` dwords of `b` from `at`.
+const fn dwords_of<const N: usize>(b: &[u8], at: usize) -> [Dword; N] {
+    let mut out = [const { Dword::new(0) }; N];
+    let mut k = 0;
+    while k < N {
+        out[k] = dword_of(b, at + 4 * k);
+        k += 1;
+    }
+    out
+}
+
 /// DirectInput's `DIENVELOPE`.
 #[repr(C)]
 pub struct DiEnvelope {
-    pub size: u32,
-    pub attack_level: u32,
-    pub attack_time: u32,
-    pub fade_level: u32,
-    pub fade_time: u32,
+    pub size: Dword,
+    pub attack_level: Dword,
+    pub attack_time: Dword,
+    pub fade_level: Dword,
+    pub fade_time: Dword,
 }
 
-/// DirectInput's `DIEFFECT` (DirectX 5: 0x34 bytes).
+impl DiEnvelope {
+    const fn at(b: &[u8], at: usize) -> Self {
+        Self {
+            size: dword_of(b, at),
+            attack_level: dword_of(b, at + 4),
+            attack_time: dword_of(b, at + 8),
+            fade_level: dword_of(b, at + 12),
+            fade_time: dword_of(b, at + 16),
+        }
+    }
+}
+
+/// DirectInput's `DIEFFECT` (DirectX 5: 0x34 bytes). Its pointers (`axes`, `directions`,
+/// `envelope`, `type_specific`) hold game addresses, which the DirectInput stand-in reads.
 #[repr(C)]
 pub struct DiEffect {
-    pub size: u32,
-    pub flags: u32,
-    pub duration: u32,
-    pub sample_period: u32,
-    pub gain: u32,
-    pub trigger_button: u32,
-    pub trigger_repeat_interval: u32,
-    pub axes_count: u32,
-    pub axes: u32,
-    pub directions: u32,
-    pub envelope: u32,
-    pub type_specific_size: u32,
-    pub type_specific: u32,
+    pub size: Dword,
+    pub flags: Dword,
+    pub duration: Dword,
+    pub sample_period: Dword,
+    pub gain: Dword,
+    pub trigger_button: Dword,
+    pub trigger_repeat_interval: Dword,
+    pub axes_count: Dword,
+    pub axes: Dword,
+    pub directions: Dword,
+    pub envelope: Dword,
+    pub type_specific_size: Dword,
+    pub type_specific: Dword,
+}
+
+impl DiEffect {
+    const fn at(b: &[u8], at: usize) -> Self {
+        Self {
+            size: dword_of(b, at),
+            flags: dword_of(b, at + 4),
+            duration: dword_of(b, at + 8),
+            sample_period: dword_of(b, at + 12),
+            gain: dword_of(b, at + 16),
+            trigger_button: dword_of(b, at + 20),
+            trigger_repeat_interval: dword_of(b, at + 24),
+            axes_count: dword_of(b, at + 28),
+            axes: dword_of(b, at + 32),
+            directions: dword_of(b, at + 36),
+            envelope: dword_of(b, at + 40),
+            type_specific_size: dword_of(b, at + 44),
+            type_specific: dword_of(b, at + 48),
+        }
+    }
 }
 
 /// One of a device record's six force-feedback effects (`input::make_effect`).
 #[repr(C)]
 pub struct ForceEffect {
-    /// Its function (`input::effect_N_change`), called with a change.
-    pub change: u32,
-    /// The kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
-    pub kind: u32,
-    /// The GUID wanted (by handle: `guids::guid_ref`).
-    pub wanted: u32,
-    /// 1 when the device listed one of its kind (`input::effect_found`).
-    pub found: u32,
-    pub guid: Guid,
-    pub eff_type: u32,
-    pub static_params: u32,
-    pub dynamic_params: u32,
-    /// A change waiting for the input thread (`input::set_effect`).
-    pub pending: u32,
-    /// Its `IDirectInputEffect`.
-    pub object: u32,
+    /// +0: its function (`input::effect_N_change`, a game address), called with a change.
+    pub change: Dword,
+    /// +4: the kind wanted: 1 constant, 2 ramp, 3 periodic, 4 condition.
+    pub kind: Dword,
+    /// +8: the GUID wanted (by handle: `guids::guid_ref`).
+    pub wanted: Dword,
+    /// +0xC: 1 when the device listed one of its kind (`input::effect_found`).
+    pub found: Dword,
+    /// +0x10: the GUID the device listed.
+    pub guid: Bytes<16>,
+    /// +0x20, +0x24, +0x28: what the device listed (`DIEFFECTINFOA`).
+    pub eff_type: Dword,
+    pub static_params: Dword,
+    pub dynamic_params: Dword,
+    /// +0x2C: a change waiting for the input thread (`input::set_effect`).
+    pub pending: Dword,
+    /// +0x30: its `IDirectInputEffect`.
+    pub object: Dword,
+    /// +0x34: the `DIEFFECT` handed to DirectInput.
     pub effect: DiEffect,
-    pub type_specific: [u32; 6],
-    pub axes: [u32; 2],
-    pub directions: [i32; 2],
+    /// +0x68: the type-specific parameters.
+    pub type_specific: [Dword; 6],
+    /// +0x80: the axes (the `DIEFFECT` points at them).
+    pub axes: [Dword; 2],
+    /// +0x88: the directions.
+    pub directions: [Dword; 2],
+    /// +0x90: the envelope.
     pub envelope: DiEnvelope,
+}
+
+impl ForceEffect {
+    const fn at(b: &[u8], at: usize) -> Self {
+        let mut guid = [0u8; 16];
+        let mut k = 0;
+        while k < 16 {
+            guid[k] = b[at + 0x10 + k];
+            k += 1;
+        }
+        Self {
+            change: dword_of(b, at),
+            kind: dword_of(b, at + 4),
+            wanted: dword_of(b, at + 8),
+            found: dword_of(b, at + 0xC),
+            guid: Bytes::new(guid),
+            eff_type: dword_of(b, at + 0x20),
+            static_params: dword_of(b, at + 0x24),
+            dynamic_params: dword_of(b, at + 0x28),
+            pending: dword_of(b, at + 0x2C),
+            object: dword_of(b, at + 0x30),
+            effect: DiEffect::at(b, at + 0x34),
+            type_specific: dwords_of(b, at + 0x68),
+            axes: dwords_of(b, at + 0x80),
+            directions: dwords_of(b, at + 0x88),
+            envelope: DiEnvelope::at(b, at + 0x90),
+        }
+    }
 }
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
 #[repr(C)]
 pub struct Binding {
-    pub key: u32,
-    pub place: u32,
-    pub sign: u32,
-    pub button: u32,
+    pub key: Dword,
+    /// The axis's place in the record (0x2C, 0x30, 0x34; 0 none).
+    pub place: Dword,
+    pub sign: Dword,
+    pub button: Dword,
+}
+
+impl Binding {
+    const fn at(b: &[u8], at: usize) -> Self {
+        Self {
+            key: dword_of(b, at),
+            place: dword_of(b, at + 4),
+            sign: dword_of(b, at + 8),
+            button: dword_of(b, at + 12),
+        }
+    }
 }
 
 /// `g_inputRecord1` / `2`: a player's input device (`input/devices.rs`).
 #[repr(C)]
 pub struct InputDevice {
-    /// The controller's number in `g_controllers`.
-    pub controller: u32,
-    /// Its `IDirectInputDevice2A` (0: none).
-    pub device: u32,
-    /// 1 digital, 2 one axis for throttle and brake, 3 an axis each.
-    pub kind: u32,
-    /// The force feedback's strength (0 .. 100).
-    pub strength: u32,
-    pub dead_zone: u32,
-    pub end_zone: u32,
-    /// Which state dwords the axes are (+0x1A, +0x1B the second and third).
-    pub axis_code: [u8; 4],
-    /// The axes for the ranges and dead zones (+0x1C, +0x1D).
-    pub axis_pick: [u8; 4],
-    pub sensitivity: u32,
-    pub acquired: u32,
-    pub effects_on: u32,
-    pub axes: [i32; 3],
-    pub buttons: u32,
+    /// +0: the controller's number in `g_controllers`.
+    pub controller: Dword,
+    /// +4: its `IDirectInputDevice2A` (0: none).
+    pub device: Dword,
+    /// +8: 1 digital, 2 one axis for throttle and brake, 3 an axis each.
+    pub kind: Dword,
+    /// +0xC: the force feedback's strength (0 .. 100).
+    pub strength: Dword,
+    /// +0x10.
+    pub dead_zone: Dword,
+    /// +0x14.
+    pub end_zone: Dword,
+    /// +0x18: which state dwords the axes are, a byte each (+0x1A, +0x1B the second and
+    /// third).
+    pub axis_code: Dword,
+    /// +0x1C: the axes for the ranges and dead zones, a byte each (+0x1C, +0x1D).
+    pub axis_pick: Dword,
+    /// +0x20.
+    pub sensitivity: Dword,
+    /// +0x24: 1 while acquired.
+    pub acquired: Dword,
+    /// +0x28: 1 while its effects run.
+    pub effects_on: Dword,
+    /// +0x2C: the three axes, copied from the device's state at each poll.
+    pub axes: [Dword; 3],
+    /// +0x38: its buttons (bits).
+    pub buttons: Dword,
+    /// +0x3C: the six effects.
     pub effects: [ForceEffect; 6],
-    /// 1 while it is read.
-    pub reading: u32,
-    pub hat_kind: u32,
+    /// +0x414: 1 while it is read.
+    pub reading: Dword,
+    /// +0x418.
+    pub hat_kind: Dword,
+    /// +0x41C: the twelve bindings.
     pub bindings: [Binding; 12],
-    /// Steering, brake, throttle (`drive::device_axes`).
-    pub readings: [i32; 3],
-    pub bits: u32,
-    pub rest: [u8; 12],
+    /// +0x4DC: steering, brake, throttle (`drive::device_axes`).
+    pub readings: [Dword; 3],
+    /// +0x4E8.
+    pub bits: Dword,
+    /// +0x4EC, +0x4F0, +0x4F4: the tyre change's gauge, stage and clock
+    /// (`race::tyre_change_gauge`).
+    pub gauge: Dword,
+    pub stage: Dword,
+    pub clock: Dword,
+}
+
+impl InputDevice {
+    /// A record from the image's `RECORD_LEN` bytes.
+    pub const fn from_bytes(b: &[u8; 0x4F8]) -> Self {
+        let mut effects = [const { ForceEffect::at(&[0; 0xA4], 0) }; 6];
+        let mut k = 0;
+        while k < 6 {
+            effects[k] = ForceEffect::at(b, 0x3C + 0xA4 * k);
+            k += 1;
+        }
+        let mut bindings = [const { Binding::at(&[0; 16], 0) }; 12];
+        let mut k = 0;
+        while k < 12 {
+            bindings[k] = Binding::at(b, 0x41C + 16 * k);
+            k += 1;
+        }
+        Self {
+            controller: dword_of(b, 0),
+            device: dword_of(b, 4),
+            kind: dword_of(b, 8),
+            strength: dword_of(b, 0xC),
+            dead_zone: dword_of(b, 0x10),
+            end_zone: dword_of(b, 0x14),
+            axis_code: dword_of(b, 0x18),
+            axis_pick: dword_of(b, 0x1C),
+            sensitivity: dword_of(b, 0x20),
+            acquired: dword_of(b, 0x24),
+            effects_on: dword_of(b, 0x28),
+            axes: dwords_of(b, 0x2C),
+            buttons: dword_of(b, 0x38),
+            effects,
+            reading: dword_of(b, 0x414),
+            hat_kind: dword_of(b, 0x418),
+            bindings,
+            readings: dwords_of(b, 0x4DC),
+            bits: dword_of(b, 0x4E8),
+            gauge: dword_of(b, 0x4EC),
+            stage: dword_of(b, 0x4F0),
+            clock: dword_of(b, 0x4F4),
+        }
+    }
+
+    /// Byte `n` of `axis_code`.
+    pub fn axis_code_byte(&self, n: usize) -> u8 {
+        self.axis_code.get().to_le_bytes()[n]
+    }
+
+    /// Byte `n` of `axis_pick`.
+    pub fn axis_pick_byte(&self, n: usize) -> u8 {
+        self.axis_pick.get().to_le_bytes()[n]
+    }
 }
 
 /// DirectInput's `DIJOYSTATE` (`g_deviceState`).
@@ -158,6 +325,21 @@ const _: () = assert!(offset_of!(InputDevice, reading) == 0x414);
 const _: () = assert!(offset_of!(InputDevice, bindings) == 0x41C);
 const _: () = assert!(offset_of!(InputDevice, readings) == 0x4DC);
 const _: () = assert!(offset_of!(InputDevice, bits) == 0x4E8);
+const _: () = assert!(offset_of!(InputDevice, device) == 4);
+const _: () = assert!(offset_of!(InputDevice, strength) == 0xC);
+const _: () = assert!(offset_of!(InputDevice, axis_code) == 0x18);
+const _: () = assert!(offset_of!(InputDevice, axis_pick) == 0x1C);
+const _: () = assert!(offset_of!(InputDevice, acquired) == 0x24);
+const _: () = assert!(offset_of!(InputDevice, effects_on) == 0x28);
+const _: () = assert!(offset_of!(InputDevice, buttons) == 0x38);
+const _: () = assert!(offset_of!(InputDevice, hat_kind) == 0x418);
+const _: () = assert!(offset_of!(InputDevice, gauge) == 0x4EC);
+const _: () = assert!(offset_of!(InputDevice, clock) == 0x4F4);
+const _: () = assert!(size_of::<InputDevice>() == crate::input::store::RECORD_LEN);
+const _: () = assert!(size_of::<Binding>() == 16);
+const _: () = assert!(offset_of!(ForceEffect, wanted) == 8);
+const _: () = assert!(offset_of!(ForceEffect, guid) == 0x10);
+const _: () = assert!(offset_of!(ForceEffect, pending) == 0x2C);
 const _: () = assert!(size_of::<DiJoyState>() == 0x50);
 
 /// DirectInput's `DIDEVCAPS` (`g_joystickCaps`).

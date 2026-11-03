@@ -15,50 +15,41 @@
 //! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's
 //! in the standalone program, `input::di_objects`).
 
-use crate::errors::BadInput;
-use crate::field;
-use crate::input::devices::{at, put};
 use crate::input::types::ForceEffect;
+use crate::pointers::GamePtr;
 
 /// `release_effect`'s Rust version.
-pub fn release_effect(effect: u32) -> Result<(), BadInput> {
-    let object = at(effect, field!(ForceEffect, object))?;
+pub fn release_effect(effect: &ForceEffect) {
+    let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::stop(object);
         crate::input::di_objects::release(object);
-        put(effect, field!(ForceEffect, object), 0)?;
+        effect.object.set(0);
     }
-    Ok(())
 }
 
 /// `start_effect`'s Rust version.
-pub fn start_effect(effect: u32) -> Result<(), BadInput> {
-    let object = at(effect, field!(ForceEffect, object))?;
+pub fn start_effect(effect: &ForceEffect) {
+    let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::download(object);
         crate::input::di_objects::start(object, 1, 0);
     }
-    Ok(())
 }
 
 /// `set_effect_parameters`'s Rust version.
-pub fn set_effect_parameters(effect: u32, flags: u32) -> Result<(), BadInput> {
-    let object = at(effect, field!(ForceEffect, object))?;
+pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
+    let object = effect.object.get();
     if object != 0 {
-        crate::input::di_objects::set_parameters(
-            object,
-            effect.wrapping_add(field!(ForceEffect, effect)),
-            flags,
-        );
+        // The `DIEFFECT` is handed on by address (the DirectInput stand-in reads it).
+        crate::input::di_objects::set_parameters(object, GamePtr::to(&effect.effect).addr(), flags);
     }
-    Ok(())
 }
 
 /// `stop_effect`'s Rust version.
-pub fn stop_effect(effect: u32) -> Result<(), BadInput> {
-    let object = at(effect, field!(ForceEffect, object))?;
+pub fn stop_effect(effect: &ForceEffect) {
+    let object = effect.object.get();
     if object != 0 {
         crate::input::di_objects::stop(object);
     }
-    Ok(())
 }

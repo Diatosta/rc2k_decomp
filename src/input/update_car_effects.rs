@@ -32,6 +32,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::devices::at;
+use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
 
@@ -64,7 +65,7 @@ struct Last {
 fn update_car_effects_with(
     view: u32,
     object: u32,
-    device: u32,
+    device: &InputDevice,
     scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let r = &mut Last::default();
@@ -197,7 +198,7 @@ fn update_car_effects_with(
 /// The car's force feedback for the frame (the original's x87 arithmetic). The
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
-pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
+pub fn update_car_effects(view: u32, object: u32, device: &InputDevice) -> Result<(), Refused> {
     update_car_effects_with(view, object, device, &crate::session::MACHINE.scratch)
 }
 
