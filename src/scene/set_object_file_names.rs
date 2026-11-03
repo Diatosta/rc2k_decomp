@@ -12,7 +12,6 @@
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 
-use crate::pointers::GamePtr;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::object_store::OBJECT_WORK;
 
@@ -47,8 +46,12 @@ pub fn set_object_file_names(folder_kind: u32) -> Result<(), crate::errors::BadI
             .set_bits(FILE_NUMBERS.text_addr(lwo));
         FILE_NUMBERS.object_lwo_number.set_bits(lwo_number);
         let digits = number_digits(OBJECT_WORK.loading_kind.bits());
-        GamePtr::new(ro3_number).write(digits, "the object's file number")?;
-        GamePtr::new(lwo_number).write(digits, "the object's file number")?;
+        FILE_NUMBERS
+            .text_ptr(ro3 + number)
+            .write(digits, "the object's file number")?;
+        FILE_NUMBERS
+            .text_ptr(lwo + number)
+            .write(digits, "the object's file number")?;
         Ok(())
     }
 }

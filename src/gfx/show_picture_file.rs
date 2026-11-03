@@ -88,7 +88,8 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused>
                     return Ok(eax);
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
-                    crate::gfx::screen_state::DRAW_SURFACE.x.addr(),
+                    crate::pointers::GamePtr::to(&crate::gfx::screen_state::DRAW_SURFACE.x)
+                        .limited(0x30),
                 )?;
                 unlock_surface();
                 show_frame_now();

@@ -185,7 +185,7 @@ impl FontId {
 
     /// Where the object is, as a checked game pointer.
     pub fn game_ptr(self) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::new(self.addr())
+        crate::pointers::GamePtr::to(self.object())
     }
 
     /// IDA's address of the object (what the image's tables held).

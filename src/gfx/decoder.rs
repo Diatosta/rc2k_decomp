@@ -76,11 +76,6 @@ impl Decoder {
     pub fn palette(&self) -> [u32; 256] {
         std::array::from_fn(|n| self.palette[n].get())
     }
-
-    /// Where the decoded palette is (256 dwords, for the code that is handed the place).
-    pub fn palette_ptr(&self) -> *mut u32 {
-        self.palette.as_ptr() as *mut u32
-    }
 }
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519118).

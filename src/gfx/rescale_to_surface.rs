@@ -35,11 +35,13 @@ const ROW_GAP: usize = 0x2C;
 
 // ---- Rust version ----
 
-/// `surface` is where the twelve dwords of a surface's description are (a game address).
-pub fn rescale_to_surface(surface: u32) -> Result<(), Refused> {
+/// `surface` is where the twelve dwords of a surface's description are.
+pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refused> {
     use crate::pointers::{GamePtr, write_or_end};
     let field = |offset: usize| {
-        GamePtr::new(surface + offset as u32).read::<u32>("a surface's description")
+        surface
+            .offset(offset as u32)
+            .read::<u32>("a surface's description")
     };
     let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
     let (width, height) = (field(WIDTH)?, field(HEIGHT)?);

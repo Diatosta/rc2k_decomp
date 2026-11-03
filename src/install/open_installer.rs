@@ -76,8 +76,8 @@ pub fn open_installer() -> Result<(), Refused> {
         0x80AF_7445,
     )?;
     crate::gfx::palette_to_dwords::palette_to_dwords(
-        INSTALLER_PALETTE.palette.addr(),
-        crate::text::blend_font::BLENDED_PALETTE.addr(),
+        crate::pointers::GamePtr::to(&INSTALLER_PALETTE.palette),
+        crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE),
     )?;
     let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
     components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());

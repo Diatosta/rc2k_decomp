@@ -12,9 +12,9 @@
 
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
+use crate::pointers::GamePtr;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::set_object_material::MATERIAL_LEN;
-use crate::service::harness::Region;
 
 // ---- game data ----
 
@@ -49,9 +49,9 @@ const FILES: [KindFile; 4] = [
     },
 ];
 
-fn records(file: &KindFile) -> Region {
+fn records(file: &KindFile) -> (GamePtr, usize) {
     (
-        (crate::scene::polygon::materials_addr() + (file.first_kind * MATERIAL_LEN) as u32),
+        crate::scene::polygon::materials_ptr().offset((file.first_kind * MATERIAL_LEN) as u32),
         file.kinds * MATERIAL_LEN,
     )
 }
@@ -61,11 +61,7 @@ fn records(file: &KindFile) -> Region {
 pub fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        read_whole_file(
-            crate::pointers::GamePtr::new(FILE_NUMBERS.text_addr(file.path)),
-            crate::pointers::GamePtr::new(to),
-            room as u32,
-        )?;
+        read_whole_file(FILE_NUMBERS.text_ptr(file.path), to, room as u32)?;
     }
     Ok(())
 }

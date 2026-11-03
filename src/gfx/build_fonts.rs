@@ -238,8 +238,8 @@ fn tables(palettes: &Dword) -> Result<(), Refused> {
     )?;
     MENU_FONTS.font27_glyphs.set(SHEET.table.get());
     palette_to_pixels(palettes.get())?;
-    GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
-        GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
+    GamePtr::to(&DECODER.palette).copy_to(
+        GamePtr::to(&MENU_FONTS.palette_sheet),
         PALETTE_BYTES,
         "the fonts' palette sheet",
     )?;

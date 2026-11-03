@@ -21,7 +21,6 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
@@ -52,10 +51,11 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
             return Ok(None);
         }
         let kind: u32 = OBJECT_TABLES.object_kind(object);
-        let material = crate::scene::polygon::materials_addr()
-            .wrapping_add(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
+        let material = crate::scene::polygon::materials_ptr()
+            .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
         let word = |at: usize| {
-            GamePtr::new(material.wrapping_add(at as u32))
+            material
+                .offset(at as u32)
                 .read::<u16>("an object's material")
                 .map(u32::from)
         };

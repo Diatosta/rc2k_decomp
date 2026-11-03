@@ -30,7 +30,6 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -101,9 +100,9 @@ pub fn set_object_material() -> Result<(), BadInput> {
         return Err(BadInput("an object's number past the tables"));
     }
     let kind: u32 = OBJECT_TABLES.object_kind(object);
-    let material = crate::scene::polygon::materials_addr()
-        .wrapping_add(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
-    let way = GamePtr::new(material.wrapping_add(0x20)).read::<u8>("an object's material")? as u32;
+    let material = crate::scene::polygon::materials_ptr()
+        .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
+    let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
     let state = state();
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));

@@ -44,6 +44,15 @@ pub fn materials_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
+/// `materials_addr` as a pointer bounded by the polygon work around the records, not the
+/// records alone: `scene::set_object_material` is given kind -1 and reads the record before
+/// the first (the texture infos' tail), as the original does.
+pub fn materials_ptr() -> crate::pointers::GamePtr {
+    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
+    crate::pointers::GamePtr::to(&*POLYGON_WORK)
+        .offset(core::mem::offset_of!(PolygonWork, object_materials) as u32)
+}
+
 /// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
 /// record reads on into the next, as the original's arithmetic does.
 #[track_caller]

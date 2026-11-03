@@ -151,15 +151,11 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
     LIGHT_WORK.light_kind.set(2u32);
     let object: u32 = FRAME_SWITCHES.object_number.bits();
     let kind: u32 = OBJECT_TABLES.object_kind(object);
-    let record = (crate::scene::polygon::materials_addr()).wrapping_add(kind.wrapping_mul(0x80));
-    if GamePtr::new(record)
-        .offset(0x1F)
-        .read::<u8>("an object's material")?
-        != 0
-    {
+    let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
+    if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         LIGHT_WORK.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(record)?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(record.addr())?;
     end();
     Ok(())
 }

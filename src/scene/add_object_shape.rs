@@ -39,7 +39,6 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -85,8 +84,12 @@ fn dword(offset: usize) -> Result<u32, BadInput> {
     if offset.checked_add(4).is_none_or(|end| end > FILE_ROOM) {
         return Err(PAST);
     }
-    GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
-        .read("a word of an object's file")
+    Ok(u32::from_le_bytes(
+        crate::scene::objects::file()
+            .read_at(offset, 4, "a word of an object's file")?
+            .try_into()
+            .unwrap(),
+    ))
 }
 
 fn numbered(marks: &mut [u32]) {
@@ -220,10 +223,7 @@ fn room(shape: &Shape) -> Result<Room, BadInput> {
     Ok(room)
 }
 
-pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
-    if file != crate::scene::objects::file_addr() as usize {
-        return Err(BadInput("an object's file elsewhere than in its buffer"));
-    }
+pub fn add_object_shape() -> Result<(), BadInput> {
     let shape = match shape()? {
         Ok(shape) => shape,
         Err(points) => {
@@ -237,8 +237,12 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     let room = room(&shape)?;
     let slot = room.slot as usize;
     let read = |offset: usize| -> Result<u32, BadInput> {
-        GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
-            .read("a word of an object's file")
+        Ok(u32::from_le_bytes(
+            crate::scene::objects::file()
+                .read_at(offset, 4, "a word of an object's file")?
+                .try_into()
+                .unwrap(),
+        ))
     };
 
     crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
@@ -308,8 +312,8 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     for face in shape.faces.iter().filter(|face| face.taken) {
         crate::scene::objects::face_cell(face_number as usize).set(out as u32);
         let len = 0x10 + face.vertices * 0x10;
-        let source = GamePtr::new(crate::scene::objects::file_addr() + face.at as u32)
-            .read_bytes(len, "a face of an object's file")?;
+        let source =
+            crate::scene::objects::file().read_at(face.at, len, "a face of an object's file")?;
         let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
         let mut made = Vec::with_capacity(len);
         let mut push = |value: u32| made.extend_from_slice(&value.to_le_bytes());
@@ -341,7 +345,7 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     OBJECT_TABLES.face_count.set(face_number);
     OBJECT_TABLES
         .normals_at
-        .set((file + shape.normals_at) as u32);
+        .set(crate::scene::objects::file().addr() + shape.normals_at as u32);
     OBJECT_WORK
         .face_cursor
         .set_bits(out as u32 - room.face_memory);

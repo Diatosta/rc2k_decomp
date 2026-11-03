@@ -30,7 +30,7 @@
 //! `scene::load_front_end_objects`.
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_whole_file::read_whole_file;
+use crate::files::read_whole_file::read_whole_file_bytes;
 use crate::files::state::BYTES_READ;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -46,7 +46,7 @@ use crate::scene::measure_object::measure_object;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
+use crate::scene::objects::{FACES, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
 
 // ---- game data ----
@@ -175,10 +175,9 @@ pub fn load_object() -> Result<(), Refused> {
     // The file read is the `.ro3` one, whatever the name's last character was.
     GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
     BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
-    read_whole_file(
+    read_whole_file_bytes(
         GamePtr::new(FILE_NUMBERS.object_ro3_path.bits()),
-        GamePtr::new(crate::scene::objects::file_addr()),
-        FILE_ROOM as u32,
+        crate::scene::objects::file(),
     )?;
     if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
         return Ok(());
@@ -246,7 +245,7 @@ pub fn load_object() -> Result<(), Refused> {
 /// One `scene::add_object_shape` with a mask.
 fn shape(mask: u32) -> Result<(), Refused> {
     DRAW_SWITCHES.loading_group_mask.set_bits(mask);
-    Ok({ add_object_shape(crate::scene::objects::file_addr() as usize) }?)
+    Ok({ add_object_shape() }?)
 }
 
 /// The three fatal errors at the end, in the original's order.

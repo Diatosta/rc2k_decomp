@@ -14,14 +14,14 @@ pub const ENTRIES: usize = 256;
 
 // ---- Rust version ----
 
-pub fn palette_to_dwords(from: u32, to: u32) -> Result<(), BadInput> {
-    if from == 0 || to == 0 {
+pub fn palette_to_dwords(from: GamePtr, to: GamePtr) -> Result<(), BadInput> {
+    if from.is_null() || to.is_null() {
         return Err(BadInput("no palette"));
     }
     // From the last entry down, as the original goes: it matters if the two overlap. The
     // bytes are read first (an entry's three bytes lie below its dword, so the order of the
     // writes cannot change a read that comes after it).
-    let palette = GamePtr::new(from).read_bytes(ENTRIES * 3, "a palette")?;
+    let palette = from.read_bytes(ENTRIES * 3, "a palette")?;
     let mut dwords = Vec::with_capacity(ENTRIES * 4);
     for entry in 0..ENTRIES {
         // Converted: `rc2k_core::gfx::pixels::palette_entry`.
@@ -32,5 +32,5 @@ pub fn palette_to_dwords(from: u32, to: u32) -> Result<(), BadInput> {
         ];
         dwords.extend_from_slice(&rc2k_core::gfx::pixels::palette_entry(bytes).to_le_bytes());
     }
-    GamePtr::new(to).write_bytes(&dwords, "a palette's dwords")
+    to.write_bytes(&dwords, "a palette's dwords")
 }

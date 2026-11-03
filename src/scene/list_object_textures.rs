@@ -14,7 +14,6 @@
 //! textures, and a list that would leave the records.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::FILE_ROOM;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
@@ -28,8 +27,12 @@ pub fn file_dword(offset: usize) -> Result<u32, BadInput> {
     if offset + 4 > FILE_ROOM {
         return Err(BadInput("the object's file runs past its room"));
     }
-    GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
-        .read("a word of an object's file")
+    Ok(u32::from_le_bytes(
+        crate::scene::objects::file()
+            .read_at(offset, 4, "a word of an object's file")?
+            .try_into()
+            .unwrap(),
+    ))
 }
 
 // Converted: `rc2k_core::scene::objects::{texture_list, texture_record}`

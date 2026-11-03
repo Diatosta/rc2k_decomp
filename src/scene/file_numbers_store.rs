@@ -70,6 +70,14 @@ impl ObjectFileNumbers {
         assert!((0x60AD34..0x60AF04).contains(&ida));
         self.unknown_14[0].addr() + (ida - 0x60AD34) as u32
     }
+
+    /// `text_addr` as a pointer bounded by the untyped bytes `unknown_14` hold the texts in.
+    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
+        assert!((0x60AD34..0x60AF04).contains(&ida));
+        crate::pointers::GamePtr::to(&self.unknown_14[0])
+            .limited(4 * self.unknown_14.len() as u32)
+            .offset((ida - 0x60AD34) as u32)
+    }
 }
 
 /// IDA 0x60AD20, the first byte of the piece.
