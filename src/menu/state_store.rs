@@ -3,6 +3,7 @@
 //! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
 //! cells with the image's layout, one static; `moved::MOVED` points the range at it.
 
+use crate::menu::lists_store::CarList;
 use crate::session::{Bytes, Dword, Float};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
@@ -23,7 +24,8 @@ pub struct SetupItem {
 pub struct Carousel {
     /// `dword_75A658`: the kind of the entry being drawn.
     pub kind: Dword,
-    /// `dword_75A65C`: the address of the entries' records (the menu's list).
+    /// `dword_75A65C`: the menu's list of cars (the address of the entries' records in the
+    /// original), `CarList::code` (0: none); `Carousel::list`.
     pub entries: Dword,
     /// `g_carouselDirection`: 1 after right, -1 after left, 0 at rest.
     pub direction: Dword,
@@ -51,6 +53,17 @@ pub struct Carousel {
     pub passed: Dword,
     /// `dword_75AA8C`: 1 when a set-up has been made (a reading).
     pub set_up: Dword,
+}
+
+impl Carousel {
+    /// The list the carousel shows, none before one is set up.
+    pub fn list(&self) -> Result<Option<CarList>, crate::errors::BadInput> {
+        Ok(CarList::from_code(self.entries.get())?)
+    }
+
+    pub fn set_list(&self, list: CarList) {
+        self.entries.set(list.code());
+    }
 }
 
 /// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).

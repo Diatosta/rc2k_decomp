@@ -10,7 +10,7 @@
 //! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::{CarList, MENU_LISTS};
 use crate::session::Dword;
 
 /// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
@@ -39,12 +39,12 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
 }
 
 /// The Rust version.
-pub fn car_list() -> Result<u32, Refused> {
+pub fn car_list() -> Result<CarList, Refused> {
     Ok(
         if any_won(&MENU_LISTS.cars_second, &MENU_LISTS.secret_cars)? {
-            MENU_LISTS.cars_with_clio[0].addr()
+            CarList::WithClio
         } else {
-            MENU_LISTS.cars_first[0].addr()
+            CarList::First
         },
     )
 }

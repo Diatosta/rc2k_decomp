@@ -66,8 +66,10 @@ pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Carried) -> Result<(), Refuse
 fn in_game(callee: Callee, regs: &mut Carried) -> Result<(), Refused> {
     match callee {
         Callee::Prepare => crate::menu::ready_players::ready_players()?,
+        // esi the saved cars, which `dword_75516C` holds as well.
         Callee::CopySomeData => {
-            crate::saves::keep_player_settings::keep_player_settings(regs.cars)?;
+            let saved = SAVEGAME_PREVIEW.saved_cars.get();
+            crate::saves::keep_player_settings::keep_player_settings(saved)?;
         }
         // (The championship drivers keep every register of their caller.)
         Callee::RunEvent => crate::menu::run_championship::run_championship(regs)?,
@@ -119,7 +121,8 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
         cursor = cursor.offset(4);
     }
     SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
-    g.cars = cursor.addr();
+    // esi the saved cars (`CopySomeData` reads them from `dword_75516C`): no list of cars.
+    g.cars = None;
     if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
         game(Callee::CopySomeData, &mut g)?;
     }
@@ -145,7 +148,8 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
         RECORDS_LEN,
         "the saved drivers",
     )?;
-    g.cars = cursor.offset(RECORDS_LEN as u32).addr();
+    // esi the end of the records: no list of cars.
+    g.cars = None;
     g.clock = 0xB4;
     SCREEN_FLOW.start_section.set(cars[0].get().word(0x14));
     g.arg = cars[0].get().word(0x274);

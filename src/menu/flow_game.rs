@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, rva};
 use crate::menu::event_flow::*;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::run_championship as champ;
@@ -15,7 +14,7 @@ use crate::menu::screen_loop::run_screen_carried;
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
-use rc2k_core::menu::flow::{self, CarList, Hand, Picture, Reply, Var};
+use rc2k_core::menu::flow::{self, Hand, Picture, Reply, Var};
 
 pub const PICTURE_FRAME: usize = 0x46F3FA; // menu::picture_frame, handed to the frame
 pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
@@ -376,11 +375,7 @@ impl flow::Game for Game {
     fn hand(&mut self, h: Hand) -> Result<(), Refused> {
         match h {
             Hand::CarList(list) => {
-                self.f.c.cars = match list {
-                    CarList::First => MENU_LISTS.cars_first[0].addr(),
-                    CarList::Second => MENU_LISTS.cars_second[0].addr(),
-                    CarList::Cheat => MENU_LISTS.cheat_cars[0].addr(),
-                }
+                self.f.c.cars = Some(list);
             }
             Hand::CheatFlag(on) => self.f.c.carry = on,
             Hand::Kept(v) => self.f.c.arg = v,

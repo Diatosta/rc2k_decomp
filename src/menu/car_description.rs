@@ -18,13 +18,15 @@ const ENTRIES: u32 = 0x100;
 
 /// The description of the entry shown (`dword_755990` through `dword_75A65C`), by handle.
 pub fn shown_description() -> Result<u32, Refused> {
-    let table: u32 = MENU_STATE.carousel.entries.get();
+    let table = MENU_STATE.carousel.list()?;
     let entry: u32 = EVENT_STATE.shown_car.get();
-    if table == 0 || entry >= ENTRIES {
+    let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());
-    }
-    let record =
-        crate::pointers::GamePtr::new(table + entry * 4).read::<u32>("a car description handle")?;
+    };
+    let record = crate::menu::lists_store::MENU_LISTS
+        .cars(table)
+        .offset(entry * 4)
+        .read::<u32>("a car description handle")?;
     if record == 0 {
         return Err(BadInput("an entry without its record").into());
     }

@@ -60,6 +60,7 @@ use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::handle_keys::handle_keys;
+use crate::menu::lists_store::CarList;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MenuId;
 use crate::menu::option_work_store::OPTION_WORK;
@@ -68,7 +69,6 @@ use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::matrices_store::MATRICES;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 use crate::session::{Dword, Float};
@@ -249,10 +249,11 @@ pub struct Carried {
     /// edx: the frame clock `handle_keys` leaves, or what else last wrote edx; read by
     /// `scene::set_up_front_end_scene`, `menu::play_films` and the items' actions.
     pub clock: u32,
-    /// esi: the list of cars `scene::set_up_carousel` reads for menus 0xD and 0xE (from the
-    /// caller, else what the loop last left in esi); read by
-    /// `scene::set_up_front_end_scene`, `menu::play_films` and the items' actions.
-    pub cars: u32,
+    /// esi as a list of cars: the one `scene::set_up_carousel` reads for menus 0xD and 0xE
+    /// and `menu::take_shown_car` reads (from the caller, else what the loop last left in
+    /// esi). None where the original's esi holds anything else (a matrix, a record, a
+    /// list's end mark): those two are its only readers, and both refuse none.
+    pub cars: Option<CarList>,
     /// The carry flag, which `Step::CallOrFatal` reads after its call (a call that does not
     /// write it leaves the one before).
     pub carry: bool,
@@ -292,11 +293,11 @@ pub fn quitting() -> bool {
 
 /// `scene::prepare_menu_scene` (0x46F7FD), with what the original leaves in the registers
 /// the loop carries: the view's place is zeroed first, so `set_view_matrices` leaves eax,
-/// ebx, ecx and edx 0 and esi the view's turn matrix.
+/// ebx, ecx and edx 0 and esi the view's turn matrix (no list of cars).
 pub fn prepare_scene(c: &mut Carried) {
     crate::scene::prepare_menu_scene::prepare_menu_scene();
     (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
-    c.cars = MATRICES.view_turn_matrix[0].addr();
+    c.cars = None;
 }
 
 /// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
@@ -305,13 +306,10 @@ pub fn carousel(c: &mut Carried) -> Result<(), Refused> {
     let left = crate::scene::set_up_carousel::set_up_carousel(c.cars)?;
     // edi is not carried.
     let mut edi = 0;
-    left.over([
-        &mut c.arg,
-        &mut c.palette,
-        &mut c.measure_x,
+    left.over(
+        [&mut c.arg, &mut c.palette, &mut c.measure_x, &mut edi],
         &mut c.cars,
-        &mut edi,
-    ]);
+    );
     Ok(())
 }
 

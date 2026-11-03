@@ -260,19 +260,22 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
             _ => Next::Sound,
         });
     }
-    r.c.cars = INSTALLER_PAGES
+    // esi the chosen entry of the record (read by the Enter key's step below): no list of
+    // cars.
+    let entry = INSTALLER_PAGES
         .choice
         .get()
         .wrapping_mul(0x10)
         .wrapping_add(r.record)
         .wrapping_add(0x18);
+    r.c.cars = None;
     r.c.palette = ReplayViewBlock::key_table()?;
     step(13, r)?;
     if r.zero {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        r.c.palette = GamePtr::new(r.c.cars + 1).read::<u8>("game data")? as u32;
+        r.c.palette = GamePtr::new(entry + 1).read::<u8>("game data")? as u32;
         step(8, r)?;
         if r.zero {
             return Ok(Next::Mark);

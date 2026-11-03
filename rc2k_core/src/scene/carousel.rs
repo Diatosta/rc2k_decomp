@@ -106,19 +106,15 @@ pub fn list_end(entry: impl Fn(usize) -> u32, from: usize) -> Option<usize> {
 }
 
 /// The checks of a list of cars (each entry a car, its first dword its number:
-/// `number(car)`), before anything is written: refuses no list, a list without its end, a
+/// `number(car)`), before anything is written: refuses a list without its end, a
 /// car that is not there and a car's number past the kinds' table. With `from_second`
 /// (menu 0xE) the list as it will be after a list of one has had its car copied over its
 /// end.
 pub fn check_cars(
-    list: u32,
     entry: impl Fn(usize) -> u32,
     number: impl Fn(u32) -> u32,
     from_second: bool,
 ) -> Result<(), Invalid> {
-    if list == 0 {
-        return Err(Invalid("no list of cars"));
-    }
     let copied = if from_second {
         let count = list_end(&entry, 1).ok_or(Invalid("a list of cars without its end"))?;
         count == 1
@@ -183,19 +179,18 @@ mod tests {
         let list = [0x100u32, 0x200, END, 0x300, END];
         let entry = |n: usize| list.get(n).copied().unwrap_or(0);
         assert_eq!(list_end(entry, 1), Some(2));
-        assert!(check_cars(4, entry, |c| c / 0x100, false).is_ok());
-        assert!(check_cars(0, entry, |c| c, false).is_err());
-        assert!(check_cars(4, entry, |c| c * 4, false).is_err());
+        assert!(check_cars(entry, |c| c / 0x100, false).is_ok());
+        assert!(check_cars(entry, |c| c * 4, false).is_err());
         // A list of one has its car over its end: then read on to the next end.
         let one = [0x100u32, END, 0x200, END];
         let entry = |n: usize| one.get(n).copied().unwrap_or(0);
-        assert!(check_cars(4, entry, |_| 1, true).is_ok());
-        assert!(check_cars(4, entry, |_| 1, false).is_ok());
+        assert!(check_cars(entry, |_| 1, true).is_ok());
+        assert!(check_cars(entry, |_| 1, false).is_ok());
         let one = [0x100u32, END, 0, END];
         let entry = |n: usize| one.get(n).copied().unwrap_or(0);
-        assert!(check_cars(4, entry, |_| 1, true).is_err());
+        assert!(check_cars(entry, |_| 1, true).is_err());
         let two = [0x100u32, 0x100, 0, END];
         let entry = |n: usize| two.get(n).copied().unwrap_or(0);
-        assert!(check_cars(4, entry, |_| 1, false).is_err());
+        assert!(check_cars(entry, |_| 1, false).is_err());
     }
 }

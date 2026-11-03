@@ -137,7 +137,7 @@ fn state() -> String {
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
     let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
     format!(
-        "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={}",
+        "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         screen_frames(),
         crate::race::numbers_store::NUMBERS.in_race.get(),
@@ -174,6 +174,13 @@ fn state() -> String {
             .map(|cell| format!("{:.2}", cell.get()))
             .collect::<Vec<_>>()
             .join(","),
+        // The players' cars and the car the car choice shows, for the menus' checks.
+        (0..crate::menu::player::PLAYERS)
+            .filter_map(crate::menu::player::player)
+            .map(|p| p.get().car_number.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        crate::menu::event_store::EVENT_STATE.shown_car.get(),
     )
 }
 

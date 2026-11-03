@@ -8,7 +8,7 @@
     remote.py pad a [ms]                 a gamepad button (menus)
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
-    remote.py state                      frames, race flag, menu, item, speed, time, place
+    remote.py state                      frames, race flag, menu, item, speed, time, place, cars
     remote.py pilot seconds              the game's computer driver drives the player's car, with a trace
     remote.py drive on|off               the game's computer driver at the player's wheel, or not
     remote.py log [n]                    the game's log, last n lines

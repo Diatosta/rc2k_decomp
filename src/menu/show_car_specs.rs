@@ -12,7 +12,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::CarList;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 
 /// The Rust version. `c` the carried values the item gets. (The original leaves the
@@ -29,11 +29,11 @@ pub fn show_car_specs(c: &Carried) -> Result<(), Refused> {
         }
         .into());
     };
-    r.cars = match list {
-        SpecsList::Events => MENU_LISTS.cars_second[0].addr(),
-        SpecsList::Kind4 => MENU_LISTS.cars_championship[0].addr(),
-        SpecsList::Kind5 => MENU_LISTS.cars_a8[0].addr(),
-    };
+    r.cars = Some(match list {
+        SpecsList::Events => CarList::Second,
+        SpecsList::Kind4 => CarList::Championship,
+        SpecsList::Kind5 => CarList::A8,
+    });
     if !choice {
         { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
         return Ok(());

@@ -4,6 +4,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_store::EVENT_STATE;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::player::player;
 use crate::menu::state_store::MENU_STATE;
@@ -20,10 +21,12 @@ pub fn find_player_car() -> Result<(), Refused> {
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;
-    let list: u32 = MENU_STATE.carousel.entries.get();
-    let entry =
-        |n: u32| crate::pointers::GamePtr::new(list + 4 * n).read::<u32>("a carousel entry");
-    if list == 0 || entry(0)? == u32::MAX {
+    let Some(list) = MENU_STATE.carousel.list()? else {
+        return Err(BadInput("no carousel entries").into());
+    };
+    let entries = MENU_LISTS.cars(list);
+    let entry = |n: u32| entries.offset(4 * n).read::<u32>("a carousel entry");
+    if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
     }
     // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.

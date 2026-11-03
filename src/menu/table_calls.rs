@@ -74,7 +74,10 @@ impl ItemCall {
             ebx: self.carried.palette,
             ecx: self.carried.measure_x,
             edx: self.carried.clock,
-            esi: self.carried.cars,
+            esi: self
+                .carried
+                .cars
+                .map_or(0, rc2k_core::menu::car_lists::CarList::code),
             edi: self.menu.map_or(0, MenuId::code),
             ebp: self.item,
             ..Regs::default()

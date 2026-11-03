@@ -30,21 +30,21 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<(u32, u32, bool
 }
 
 /// What `award_overall_points` leaves in the registers, which the championship's later
-/// calls may read (esi reaches `scene::set_up_carousel` in the original): the last entry's
-/// (number, owner's record, total) when there was an entry (eax, esi, edx; else they are
-/// kept), ecx 6, edi the end of the table.
+/// calls may read: the last entry's (number, total) when there was an entry (eax, edx;
+/// else they are kept), ecx 6. (esi, the owner's record, reaches `scene::set_up_carousel`
+/// in the original, which reads it as no list of cars; edi is the end of the table.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Awarded {
-    pub last: Option<(u32, u32, u32)>,
+    pub last: Option<(u32, u32)>,
 }
 
 impl Awarded {
     /// The carried values as the original leaves them (eax, ecx, edx, esi; edi, the end
     /// of the table, is `self.end`).
     pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
-        if let Some((number, owner, total)) = self.last {
+        if let Some((number, total)) = self.last {
             c.arg = number;
-            c.cars = owner;
+            c.cars = None;
             c.clock = total;
         }
         c.measure_x = 6;
@@ -82,7 +82,7 @@ pub fn award_overall_points() -> Result<Awarded, Refused> {
             let total = total(std::array::from_fn(|k| e.overall[k]));
             e.overall[6] = total;
             put(o + if cpu { 0x74 } else { 0xCC }, total)?;
-            last = Some((number, o, total));
+            last = Some((number, total));
         }
         with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
         Ok(Awarded { last })

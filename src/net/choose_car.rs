@@ -29,12 +29,12 @@ pub fn choose_car() -> Result<(), Refused> {
     ESCAPED.set(0);
     let entry = Carried {
         arg: PLAYER_TABLE.players[0].get().car_number,
-        cars,
+        cars: Some(cars),
         ..Carried::default()
     };
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
-        crate::menu::take_shown_car::take_shown_car(cars)?;
+        crate::menu::take_shown_car::take_shown_car(Some(cars))?;
         NET.own.head.set(
             PlayerRecord::CAR,
             PLAYER_TABLE.players[0].get().car_number as u8,

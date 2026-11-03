@@ -13,13 +13,13 @@
 //! from `dword_75A674` on, `g_carouselCount`, the front, angle and direction 0, and
 //! the spacing and place (`dword_75A664` .. `dword_75A670`).
 //! - 0xB (`sub_48FED9`) the cars of the list `off_759DCA`, 0xD (`sub_4A08AB`) those
-//!   of the list in esi: the list's address to `dword_75A65C`; for each entry until
+//!   of the list in esi: the list's address to `dword_75A65C` (here its `CarList`); for each entry until
 //!   -1, the car's number (its first dword) picks a kind from `dword_75A1FE`, which
 //!   goes to the next entry's kind; the count to `g_carouselCount`, one less to
 //!   `dword_75649C`; then the size (0xF, 0xC), the front, angle and direction 0, the
 //!   spacing and place of the cars' carousels, `dword_63503C` = 0x10FF (the angle
 //!   about x) and `dword_635020` = 0xFFFE6000 (the height). Out: eax, ebx, edi as the
-//!   last entry left them, ecx = the count less one, esi = the list's -1;
+//!   last entry left them, ecx = the count less one, esi = the list's -1 (here: no list);
 //! - 0xE (`sub_4A094F`) as 0xD, but first the list is counted from its second entry
 //!   (its first is not looked at) and a list of one car has that car copied over its
 //!   -1 (the original's way of showing one car twice: the list is changed, and is then
@@ -35,7 +35,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::rva;
 use crate::menu::cars_store::CAR_TABLE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::{CarList, MENU_LISTS};
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_set_ups::PLAIN;
 use crate::scene::object_store::OBJECT_WORK;
@@ -84,12 +84,12 @@ fn run_op(op: Op) {
     }
 }
 
-/// Runs `f` with a reader of the game's words (a list's entry, a car's number) that answers
-/// the list's end where the address is bad, and refuses afterwards: the core's checks take
+/// Runs `f` with a reader of the list's entries (by number) that answers the list's end
+/// where an entry is past the lists, and refuses afterwards: the core's checks take
 /// readers that cannot fail.
-fn reading<R>(f: impl FnOnce(&dyn Fn(u32) -> u32) -> R) -> Result<R, BadInput> {
+fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Result<R, BadInput> {
     let failed = std::cell::Cell::new(None);
-    let read = |at: u32| match MENU_LISTS.place_at(at).read::<u32>("a list of cars") {
+    let read = |n: usize| match list_entry(list, n) {
         Ok(word) => word,
         Err(e) => {
             failed.set(Some(e));
@@ -103,16 +103,17 @@ fn reading<R>(f: impl FnOnce(&dyn Fn(u32) -> u32) -> R) -> Result<R, BadInput> {
     }
 }
 
-fn list_entry(list: u32, n: usize) -> Result<u32, BadInput> {
+fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
     MENU_LISTS
-        .place_at(list.wrapping_add(4 * n as u32))
+        .cars(list)
+        .offset(4 * n as u32)
         .read("a list of cars")
 }
 
 /// The checks of a list of cars, before anything is written (see
 /// `rc2k_core::scene::carousel::check_cars`).
-fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
-    reading(|read| {
+fn check_cars(list: CarList, from_second: bool) -> Result<(), Refused> {
+    reading(list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
         let number = |car: u32| match crate::menu::cars_store::description_ptr(car)
@@ -124,12 +125,7 @@ fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
                 u32::MAX
             }
         };
-        let checked = carousel::check_cars(
-            list,
-            |n| read(list.wrapping_add(4 * n as u32)),
-            number,
-            from_second,
-        );
+        let checked = carousel::check_cars(read, number, from_second);
         failed.take().map_or(Ok(checked), Err)
     })???;
     Ok(())
@@ -137,26 +133,30 @@ fn check_cars(list: u32, from_second: bool) -> Result<(), Refused> {
 
 /// The registers the original leaves, where it writes them (the others are as they came).
 /// Read through the menus' carried registers: eax and ebx (the last car and its kind), ecx
-/// (the number of entries less one, or 0), esi (the end of the list); edi (the last car)
-/// is read by none (`lq.py -s 4904DD`).
+/// (the number of entries less one, or 0), esi (the list of cars after); edi (the last
+/// car) is read by none (`lq.py -s 4904DD`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Left {
     pub eax: Option<u32>,
     pub ebx: Option<u32>,
     pub ecx: Option<u32>,
-    pub esi: Option<u32>,
+    /// esi where it is written: the fixed kinds' list (menu 0xC), or no list (the cars'
+    /// carousels leave the address of their list's end mark, which no one reads as a list).
+    pub esi: Option<Option<CarList>>,
     pub edi: Option<u32>,
 }
 
 impl Left {
-    /// Puts the registers it writes over the given ones (eax, ebx, ecx, esi, edi).
-    pub fn over(self, regs: [&mut u32; 5]) {
-        let [eax, ebx, ecx, esi, edi] = regs;
+    /// Puts the registers it writes over the given ones (eax, ebx, ecx, edi; esi `cars`).
+    pub fn over(self, regs: [&mut u32; 4], cars: &mut Option<CarList>) {
+        if let Some(list) = self.esi {
+            *cars = list;
+        }
+        let [eax, ebx, ecx, edi] = regs;
         for (to, from) in [
             (eax, self.eax),
             (ebx, self.ebx),
             (ecx, self.ecx),
-            (esi, self.esi),
             (edi, self.edi),
         ] {
             if let Some(v) = from {
@@ -167,14 +167,13 @@ impl Left {
 }
 
 /// The cars' carousels, from the list; `size` the object's size.
-fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
+fn cars(out: &mut Left, list: CarList, size: u32) -> Result<(), BadInput> {
     {
         MENU_STATE.carousel.set_up.set(1);
-        MENU_STATE.carousel.entries.set(list);
+        MENU_STATE.carousel.set_list(list);
         let mut n = 0;
-        let mut esi = list;
         loop {
-            let car: u32 = MENU_LISTS.place_at(esi).read("a list of cars")?;
+            let car = list_entry(list, n)?;
             if car == u32::MAX {
                 break;
             }
@@ -189,9 +188,8 @@ fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
             out.ebx = Some(kind);
             MENU_STATE.carousel.kinds[n].set(kind);
             n += 1;
-            esi = esi.wrapping_add(4);
         }
-        out.esi = Some(esi);
+        out.esi = Some(None);
         MENU_STATE.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         out.ecx = Some(last);
@@ -207,7 +205,8 @@ fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
 /// The Rust version: `list` is the list of cars the original reads in esi (menus 0xD and
 /// 0xE; the other menus' own); returns the registers it leaves.
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
+pub fn set_up_carousel(list: Option<CarList>) -> Result<Left, Refused> {
+    let given = || list.ok_or(BadInput("no list of cars"));
     let mut out = Left::default();
     {
         let menu: u32 = MENU_STATE.carousel.menu.get();
@@ -216,15 +215,13 @@ pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
         }
         match menu {
             0xB => {
-                let cars_list = MENU_LISTS.cars_first[0].addr();
-                check_cars(cars_list, false)?;
-                cars(&mut out, cars_list, 0xF)?;
+                check_cars(CarList::First, false)?;
+                cars(&mut out, CarList::First, 0xF)?;
             }
             0xC => {
                 MENU_STATE.carousel.set_up.set(1);
-                let fixed = MENU_LISTS.cars_a8[0].addr();
-                out.esi = Some(fixed);
-                MENU_STATE.carousel.entries.set(fixed);
+                out.esi = Some(Some(CarList::A8));
+                MENU_STATE.carousel.set_list(CarList::A8);
                 OBJECT_WORK.size.set_bits(0xCu32);
                 write_prefix(&MENU_STATE.carousel.kinds, &FIXED_KINDS);
                 MENU_STATE.carousel.count.set(6u32);
@@ -234,20 +231,21 @@ pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 }
             }
             0xD => {
+                let list = given()?;
                 check_cars(list, false)?;
                 cars(&mut out, list, 0xC)?;
             }
             0xE => {
+                let list = given()?;
                 check_cars(list, true)?;
                 MENU_STATE.carousel.set_up.set(1);
-                let count = reading(|read| {
-                    carousel::list_end(|n| read(list.wrapping_add(4 * n as u32)), 1).unwrap_or(0)
-                })?;
+                let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
                     let first = list_entry(list, 0)?;
                     out.eax = Some(first);
                     MENU_LISTS
-                        .place_at(list.wrapping_add(4))
+                        .cars(list)
+                        .offset(4)
                         .write(first, "a list of cars")?;
                 }
                 cars(&mut out, list, 0xC)?;

@@ -4,7 +4,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::SLOTS;
@@ -20,17 +19,17 @@ const ENTRIES: u32 = 0x100;
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
 pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
-    let table: u32 = MENU_STATE.carousel.entries.get();
-    if table == 0 {
+    let Some(table) = MENU_STATE.carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
-    }
+    };
+    let table = crate::menu::lists_store::MENU_LISTS.cars(table);
     let mut wanted = [0u32; 4];
     let mut record = 0;
     for (n, &entry) in entries.iter().enumerate() {
         if entry >= ENTRIES {
             return Err(BadInput("a carousel entry past the records"));
         }
-        record = GamePtr::new(table.wrapping_add(entry * 4)).read("a carousel entry's record")?;
+        record = table.offset(entry * 4).read("a carousel entry's record")?;
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));
         }

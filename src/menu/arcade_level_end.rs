@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::CarList;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Carried, run_screen_carried};
 
@@ -34,7 +34,7 @@ pub fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
     r.arg = level;
     if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
         ARCADE_GAME.levels_won.set(level as usize, 1);
-        r.cars = MENU_LISTS.shown_cars[0].addr();
+        r.cars = Some(CarList::Shown);
         run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
         crate::menu::arcade_steps::add_shown_car()?;
         crate::menu::arcade_steps::remove_shown_car(&mut || {

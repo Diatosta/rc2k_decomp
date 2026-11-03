@@ -99,14 +99,7 @@ pub enum Var {
     Done,
 }
 
-/// The car lists the car choice is given.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CarList {
-    /// `off_759CAE`.
-    Championship,
-    /// `off_759D16`.
-    A8,
-}
+pub use super::car_lists::CarList;
 
 /// The callees.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

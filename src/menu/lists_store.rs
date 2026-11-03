@@ -5,7 +5,9 @@
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::menu::cars_store::car_cell;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
+pub use rc2k_core::menu::car_lists::CarList;
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
 const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
@@ -197,12 +199,21 @@ pub fn repair_time_at(key: u32) -> Result<Option<&'static Dword>, crate::errors:
 }
 
 impl MenuLists {
-    /// The place at game address `at` (a list of cars the menus carry as an address, or a
-    /// place in one), bounded by these lists: the original reads a list on to its end
-    /// marker, past one field into the next.
-    pub fn place_at(&self, at: u32) -> crate::pointers::GamePtr {
-        let lists = crate::pointers::GamePtr::to(self);
-        lists.offset(at.wrapping_sub(lists.addr()))
+    /// A list of cars, from its first entry to the end of these lists: the original reads
+    /// a list on to its end mark, and a list of one shown twice (menu 0xE) is read on past
+    /// its field into the next.
+    pub fn cars(&self, list: CarList) -> GamePtr {
+        use std::mem::offset_of;
+        let at = match list {
+            CarList::First => offset_of!(MenuLists, cars_first),
+            CarList::Second => offset_of!(MenuLists, cars_second),
+            CarList::WithClio => offset_of!(MenuLists, cars_with_clio),
+            CarList::Championship => offset_of!(MenuLists, cars_championship),
+            CarList::A8 => offset_of!(MenuLists, cars_a8),
+            CarList::Cheat => offset_of!(MenuLists, cheat_cars),
+            CarList::Shown => offset_of!(MenuLists, shown_cars),
+        };
+        GamePtr::to(self).offset(at as u32)
     }
 }
 

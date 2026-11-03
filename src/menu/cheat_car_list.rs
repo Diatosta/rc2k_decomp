@@ -7,19 +7,19 @@
 //! Callers: the time trial's events, before each car choice.
 
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::CarList;
 
 /// The Rust version: the cheat cars' list (`off_75A412`) when the cheat is on.
-pub fn cheat_car_list() -> Option<u32> {
+pub fn cheat_car_list() -> Option<CarList> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
     let on = rc2k_core::menu::car_lists::cheat_cars(CHEAT_VARS.cheats.get());
-    on.then(|| MENU_LISTS.cheat_cars[0].addr())
+    on.then_some(CarList::Cheat)
 }
 
 /// The registers the original leaves for `list`, for register-threaded callers: esi the
 /// list when there is one, the carry whether there is.
-pub fn carry_on(list: Option<u32>, c: &mut crate::menu::screen_loop::Carried) {
-    if let Some(list) = list {
+pub fn carry_on(list: Option<CarList>, c: &mut crate::menu::screen_loop::Carried) {
+    if list.is_some() {
         c.cars = list;
     }
     c.carry = list.is_some();

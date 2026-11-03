@@ -95,16 +95,7 @@ pub enum Var {
     Quitting,
 }
 
-/// The car lists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CarList {
-    /// `off_759DCA`, `off_75A042`: the single rally's (by `dword_7554D8`), the second also
-    /// the time trial's.
-    First,
-    Second,
-    /// `off_75A412`: with cheat bit 1.
-    Cheat,
-}
+pub use super::car_lists::CarList;
 
 /// The welcomes' pictures (with the title bar).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

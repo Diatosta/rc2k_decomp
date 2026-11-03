@@ -75,6 +75,60 @@ pub fn add_car(cars: &mut Vec<u32>, room: usize, car: u32) -> Result<bool, Inval
     Ok(true)
 }
 
+/// The lists of cars the menus hand to the car screens and the carousels (the original
+/// passes a list by its address, in esi, and keeps the carousel's in `dword_75A65C`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CarList {
+    /// `off_759DCA`: the single rally's first list (by `dword_7554D8`), the network game's
+    /// without a won car.
+    First,
+    /// `off_75A042`: the single rally's second, the time trial's and the arcade's.
+    Second,
+    /// `off_759E52`: the network game's with a won car (the Clio and the extra cars).
+    WithClio,
+    /// `off_759CAE`: the championship's.
+    Championship,
+    /// `off_759D16`: the A8 game's (and the six fixed kinds' carousel, menu 0xC).
+    A8,
+    /// `off_75A412`: the cheat "Unlock Cars"'s (bit 1).
+    Cheat,
+    /// `off_75A12E`: the arcade's shown cars.
+    Shown,
+}
+
+impl CarList {
+    const ALL: [CarList; 7] = [
+        Self::First,
+        Self::Second,
+        Self::WithClio,
+        Self::Championship,
+        Self::A8,
+        Self::Cheat,
+        Self::Shown,
+    ];
+
+    /// The number a game variable keeps for the list (0 stands for none).
+    pub fn code(self) -> u32 {
+        Self::ALL
+            .iter()
+            .position(|&l| l == self)
+            .map_or(0, |n| n as u32 + 1)
+    }
+
+    /// The list a game variable's number names: none for 0. Refused: a number naming no
+    /// list.
+    pub fn from_code(code: u32) -> Result<Option<CarList>, Invalid> {
+        match code {
+            0 => Ok(None),
+            n => Self::ALL
+                .get(n as usize - 1)
+                .copied()
+                .map(Some)
+                .ok_or(Invalid("a number that names no list of cars")),
+        }
+    }
+}
+
 /// `menu::cheat_car_list`: whether the cheat's car list (`off_75A412`) is chosen: the
 /// cheat "Unlock Cars" (bit 1) on.
 pub fn cheat_cars(cheats: u32) -> bool {
@@ -182,6 +236,11 @@ mod tests {
         assert_eq!(entries(4, |n| words[n]), Ok(vec![5, 6]));
         assert!(entries(2, |n| words[n]).is_err());
         assert!(cheat_cars(2) && !cheat_cars(0xFFFF_FFFD));
+        for list in CarList::ALL {
+            assert_eq!(CarList::from_code(list.code()), Ok(Some(list)));
+        }
+        assert_eq!(CarList::from_code(0), Ok(None));
+        assert!(CarList::from_code(8).is_err());
         assert_eq!(shown_car(&[7, 8], 1), Ok(8));
         assert!(shown_car(&[7, 8], 2).is_err());
         assert_eq!(place_if_missing(&[5, 6], 6), None);

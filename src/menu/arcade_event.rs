@@ -4,7 +4,7 @@ use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::event_flow::{Fault, Flow};
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::lists_store::CarList;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::results_store::RESULT_FIGURES;
@@ -99,7 +99,7 @@ impl arcade::Arcade for Game {
             Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
             Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
             Step::SecretCarList => {
-                c.cars = MENU_LISTS.cars_second[0].addr();
+                c.cars = Some(CarList::Second);
                 m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
             }
             Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,

@@ -360,13 +360,14 @@ pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
 
 /// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,
 /// `number_standings_b`) leave in the registers, which their callers' later calls may read:
-/// the last number given (ecx), the last numbered player as (index, record) when there was
-/// one (eax, esi; else they are kept). (The original's edi, the table's end, is read by no
-/// later call: not kept since the tables are blocks, phase 12.)
+/// the last number given (ecx), the last numbered player's index when there was one (eax;
+/// else it is kept; esi, the player's record, is no list of cars). (The original's edi,
+/// the table's end, is read by no later call: not kept since the tables are blocks,
+/// phase 12.)
 #[derive(Clone, Copy)]
 pub struct Numbered {
     pub last_number: u32,
-    pub last_player: Option<(u32, PlayerCell)>,
+    pub last_player: Option<u32>,
 }
 
 /// The numbering of a standings table (`number_all_*`, `number_standings_*`): each entry
@@ -405,7 +406,7 @@ pub fn number_table(
         if p != 0 {
             let record = player(p - 1);
             record.update(|q| q.store(&[(record_at as usize, n)]));
-            last_player = Some((p - 1, record));
+            last_player = Some(p - 1);
         }
     }
     let set = |n: usize| numbers[n];
@@ -436,9 +437,9 @@ impl Numbered {
     /// screen reads).
     pub fn carry_on(&self, c: &mut crate::menu::screen_loop::Carried) {
         c.measure_x = self.last_number;
-        if let Some((index, record)) = self.last_player {
+        if let Some(index) = self.last_player {
             c.arg = index;
-            c.cars = record.addr();
+            c.cars = None;
         }
     }
 }
