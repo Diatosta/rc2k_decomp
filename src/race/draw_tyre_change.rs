@@ -78,7 +78,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     crate::gfx::rect::fill_rect(
         crate::gfx::rect::rect_of(&VIEWER_PANEL.texture_rect),
         0,
-        TYRE.palette.addr(),
+        crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(&TYRE.palette)),
     )
 }
 

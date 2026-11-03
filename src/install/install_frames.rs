@@ -58,7 +58,9 @@ pub fn progress_frame() -> Result<bool, Refused> {
         crate::gfx::rect::fill_rect(
             crate::gfx::rect::rect_in(&INSTALLER_PAGES.bar),
             0,
-            crate::text::blend_font::BLENDED_PALETTE.addr(),
+            crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(
+                &crate::text::blend_font::BLENDED_PALETTE,
+            )),
         )?;
         let x = INSTALLER_PAGES.bar.get_u32(0);
         let kept_clip: u32 = BLIT.clip.right.get();
@@ -102,7 +104,9 @@ pub fn copying_frame() -> Result<bool, Refused> {
             0,
             0,
             0x2A,
-            crate::text::blend_font::BLENDED_PALETTE.addr(),
+            crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(
+                &crate::text::blend_font::BLENDED_PALETTE,
+            )),
         );
         unlock();
         carry = !show();

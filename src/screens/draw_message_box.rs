@@ -30,7 +30,7 @@ pub fn box_home() -> usize {
 
 /// The Rust version (`x` the caller's ecx).
 pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    use crate::gfx::rect::{fill_rect, frame_rect};
+    use crate::gfx::rect::{Palette, fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
     use crate::text::measure_string_by_id::measure_string_by_id_at;
     let bits = crate::gfx::surface::surface().bits_per_pixel;
@@ -61,7 +61,7 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
     BOX[0].set(b.rect[0]);
     BOX[1].set(b.rect[1]);
     let rect = crate::gfx::rect::rect_of(&BOX);
-    let palettes = FONTS.palettes.get();
+    let palettes = Palette::Held(FONTS.palettes.get());
     fill_rect(rect, FILL, palettes)?;
     frame_rect(rect, 0, 0, FRAME, palettes);
     draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;

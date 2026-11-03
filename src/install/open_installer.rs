@@ -79,8 +79,10 @@ pub fn open_installer() -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&INSTALLER_PALETTE.palette),
         crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE),
     )?;
-    let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
-    components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
+    components_to_pixels(
+        &crate::text::blend_font::BLENDED_PALETTE,
+        &crate::text::blend_font::BLENDED_PALETTE,
+    );
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture(&INSTALLER_NAMES.backdrop)?;
     crate::gfx::convert_picture::convert_picture_now()?;

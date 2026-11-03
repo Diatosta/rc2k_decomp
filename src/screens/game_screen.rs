@@ -21,13 +21,20 @@ pub trait GameFont: Copy {
     fn pointer(self) -> GamePtr;
 }
 
-/// A font the game hands over as a pointer (the menu tables' fonts).
+/// A font of the menus: one of the font objects a menu item or label names, or the blended
+/// font a highlighted item pulses in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct FontAt(pub u32);
+pub enum MenuFont {
+    Object(crate::gfx::typefaces::FontId),
+    Blended,
+}
 
-impl GameFont for FontAt {
+impl GameFont for MenuFont {
     fn pointer(self) -> GamePtr {
-        GamePtr::new(self.0)
+        match self {
+            MenuFont::Object(id) => id.game_ptr(),
+            MenuFont::Blended => GamePtr::to(&crate::text::blend_font::BLENDED_FONT),
+        }
     }
 }
 
@@ -36,7 +43,8 @@ pub trait GameWork: Copy {
     fn cell(self) -> &'static Dword;
 }
 
-/// A text a screen draws: where the game keeps it (an address, `u32`), or one held by
+/// A text a screen draws: where the game keeps it (an address, `u32`: the tables and records the
+/// game hands over keep their texts as addresses), or one held by
 /// value (`HeldText`: the typed tables' names, phase 12).
 pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
@@ -787,13 +795,16 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             self.canvas,
         )
     }
-    fn blended(&mut self, since_key: u32, a: FontAt, b: FontAt) -> Result<FontAt, Refused> {
+    fn blended(&mut self, since_key: u32, a: MenuFont, b: MenuFont) -> Result<MenuFont, Refused> {
         use crate::text::blend_font::blend_font;
         blend_font(since_key, 0x100, a.pointer(), b.pointer())?;
-        Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr()))
+        Ok(MenuFont::Blended)
     }
-    fn font_value(&self, f: FontAt) -> u32 {
-        f.0
+    fn font_value(&self, f: MenuFont) -> u32 {
+        match f {
+            MenuFont::Object(id) => id.addr(),
+            MenuFont::Blended => crate::text::blend_font::BLENDED_FONT.addr(),
+        }
     }
 }
 
@@ -806,8 +817,8 @@ impl MenuScreen<'_> {
     }
 }
 
-/// The menus' screen: fonts by pointer.
-pub type MenuScreen<'a> = GameScreen<'a, FontAt, rc2k_core::screens::menus::Work>;
+/// The menus' screen: fonts of the menu tables.
+pub type MenuScreen<'a> = GameScreen<'a, MenuFont, rc2k_core::screens::menus::Work>;
 
 impl GameFont for rc2k_core::screens::service::Font {
     fn pointer(self) -> GamePtr {

@@ -42,14 +42,14 @@ pub fn draw_menu_labels(
     }
     // Converted: `rc2k_core::screens::menus::labels` (the list read here: the first label
     // drawn without being checked for the end, as the original).
-    use crate::screens::game_screen::{FontAt, MenuScreen};
+    use crate::screens::game_screen::{MenuFont, MenuScreen};
     let mut list = Vec::new();
     let mut label = labels;
     loop {
         list.push(rc2k_core::screens::menus::Label {
             x: dword(label)? as i32,
             y: dword(label + 4)? as i32,
-            font: FontAt(crate::menu::menus_store::label_font(label + 8)?.addr()),
+            font: MenuFont::Object(crate::menu::menus_store::label_font(label + 8)?),
             id: dword(label + 0xC)?,
         });
         label += LABEL_LEN;

@@ -59,12 +59,12 @@ pub fn draw_menu_items(
     }
     // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
     // drawn without being checked for the end, as the original).
-    use crate::screens::game_screen::{FontAt, MenuScreen};
+    use crate::screens::game_screen::{MenuFont, MenuScreen};
     use rc2k_core::screens::menus::Item;
     // The first item, then each until one whose x is the end mark (the -1 after the
     // menu's last item is one).
     let shown = 1 + all[1..].iter().take_while(|i| i.x.get() != END).count();
-    let list: Vec<Item<FontAt>> = all[..shown]
+    let list: Vec<Item<MenuFont>> = all[..shown]
         .iter()
         .map(|i| Item {
             x: i.x.get(),
@@ -73,8 +73,8 @@ pub fn draw_menu_items(
             text_y: i.text_y.get(),
             kind: i.id.get(),
             id: i.string.get(),
-            font: FontAt(i.font.get().addr()),
-            pulse_font: FontAt(i.highlight_font.get().addr()),
+            font: MenuFont::Object(i.font.get()),
+            pulse_font: MenuFont::Object(i.highlight_font.get()),
             behind: i.behind.get(),
             sprite: i.sprites.get().raw(),
             spaced: i.spaced.get() == 1,

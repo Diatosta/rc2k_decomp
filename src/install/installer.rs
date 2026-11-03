@@ -348,16 +348,27 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
 }
 
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
-/// format `format` into `to`.
-pub fn components_to_pixels(from: u32, to: u32, format: u32) {
-    let format = crate::pointers::read_or_end::<crate::gfx::pixel_format::PixelFormat>(
-        format,
-        "a pixel format",
+/// surface's format into `to`.
+pub fn components_to_pixels(
+    from: &crate::moved::Place<[u32; 256]>,
+    to: &crate::moved::Place<[u32; 256]>,
+) {
+    let what = "a pixel format";
+    let format = crate::gfx::pixel_format::surface_format()
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    let (from, to) = (
+        crate::pointers::GamePtr::to(from),
+        crate::pointers::GamePtr::to(to),
     );
     for n in 0..0x100u32 {
-        let components = rd(from + 4 * n);
+        let components = from
+            .offset(4 * n)
+            .read::<u32>("an installer dword")
+            .unwrap_or_else(|e| refuse(e));
         let pixel = crate::gfx::components_to_pixel::components_to_pixel(&format, components);
-        wd(to + 4 * n, pixel);
+        to.offset(4 * n)
+            .write(pixel, "an installer dword")
+            .unwrap_or_else(|e| refuse(e));
     }
 }
 

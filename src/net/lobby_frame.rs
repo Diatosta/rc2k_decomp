@@ -202,7 +202,13 @@ pub fn lobby_frame() -> Result<(), Refused> {
         }
     }
     for line_y in [0x156, 0x217] {
-        crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, FONTS.palettes.get());
+        crate::gfx::rect::draw_hline(
+            0,
+            line_y,
+            0x320,
+            7,
+            crate::gfx::rect::Palette::Held(FONTS.palettes.get()),
+        );
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
