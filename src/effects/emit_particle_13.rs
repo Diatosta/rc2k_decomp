@@ -59,7 +59,7 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
     let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
     let car = emitting_car()?;
-    let m = car.word(0x24)?;
+    let m = car.whole_matrix()?;
     let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,

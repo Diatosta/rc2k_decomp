@@ -105,7 +105,7 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
     let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
     let car = emitting_car()?;
-    let m = car.word(0x24)?;
+    let m = car.whole_matrix()?;
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&TWIN_STATE.point),
         set.tuning.lift.bits(),

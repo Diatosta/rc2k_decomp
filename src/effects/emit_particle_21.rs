@@ -75,7 +75,7 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
         let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
-        let m = car.word(0x24)?;
+        let m = car.whole_matrix()?;
         let r = next_c5(&KIND21_SET.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);

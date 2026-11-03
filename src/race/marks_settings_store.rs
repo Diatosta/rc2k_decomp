@@ -167,6 +167,38 @@ impl MarkCar {
         self.at(offset).read("a car record's field")
     }
 
+    /// The car block the record's +0x24 and +0x28 name (the original kept the block's
+    /// whole matrix's and first part matrix's addresses there; a block handle here, set by
+    /// `drive::share_car_state`), none when 0.
+    fn block_at(
+        &self,
+        offset: u32,
+    ) -> Result<Option<&'static crate::physics::car_store::Car>, crate::errors::BadInput> {
+        Ok(crate::race::blocks_store::car_of(self.word(offset)?))
+    }
+
+    /// Where the car's whole matrix is (the block's +0x8C0, the original's +0x24), 0 when
+    /// no block is set.
+    pub fn whole_matrix(&self) -> Result<u32, crate::errors::BadInput> {
+        Ok(self
+            .block_at(0x24)?
+            .map_or(0, |b| crate::pointers::GamePtr::to(&b.whole_matrix).addr()))
+    }
+
+    /// Where the car's first part matrix is (the block's +0x740, the original's +0x28), 0
+    /// when no block is set.
+    pub fn part_matrix(&self) -> Result<u32, crate::errors::BadInput> {
+        Ok(self
+            .block_at(0x28)?
+            .map_or(0, |b| crate::pointers::GamePtr::to(&b.part_matrices).addr()))
+    }
+
+    /// Names block `handle` for `whole_matrix` and `part_matrix` (+0x24, +0x28).
+    pub fn set_block(&self, handle: u32) -> Result<(), crate::errors::BadInput> {
+        self.put(0x24, handle)?;
+        self.put(0x28, handle)
+    }
+
     /// Writes the dword at `offset`.
     pub fn put(&self, offset: u32, value: u32) -> Result<(), crate::errors::BadInput> {
         self.at(offset).write(value, "a car record's field")

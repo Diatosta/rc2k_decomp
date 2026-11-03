@@ -33,7 +33,7 @@ use crate::session::{read_bits, write_bits};
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
 /// The Rust version (see the header): `o` the car's object (the original's esi).
 pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
-    if o.word(0x24)? == 0 {
+    if o.whole_matrix()? == 0 {
         return Err(BadInput("a null car matrix").into());
     }
     let k = read_bits(&EMITTER.place_k);
@@ -58,7 +58,7 @@ pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
         o.word(0x1A8)?,
         MARKS_FLOATS.half.bits(),
     ) as u32);
-    let m = o.word(0x24)?;
+    let m = o.whole_matrix()?;
     for p in [0x110, 0x158, 0x1A0, 0x1E8] {
         let turned = rotate_point(
             &At(m),

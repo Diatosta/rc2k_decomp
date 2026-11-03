@@ -85,7 +85,7 @@ pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
     match crate::race::marks_settings_store::car_or_none(EMITTER.car.get()) {
-        Some(car) => Ok(car.word(0x24)? != 0),
+        Some(car) => Ok(car.whole_matrix()? != 0),
         None => Ok(false),
     }
 }

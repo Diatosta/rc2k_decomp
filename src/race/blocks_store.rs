@@ -136,6 +136,12 @@ pub fn own_car_number() -> usize {
     }
 }
 
+/// The block a handle names, none for 0; a value naming no block ends the program (as
+/// `block_of`).
+pub fn car_of(handle: u32) -> Option<&'static Car> {
+    (block_of(handle) != 0).then(|| &CAR_BLOCKS.cars[(handle ^ BLOCK_TAG) as usize])
+}
+
 /// `own_car_number`'s block.
 pub fn own_car() -> &'static Car {
     &CAR_BLOCKS.cars[own_car_number()]

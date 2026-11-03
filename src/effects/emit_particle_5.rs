@@ -124,7 +124,7 @@ pub fn emit_particle_5_with(
         EMITTER.sign.set(sign as u32);
         EMITTER.strength.set_bits(strength);
         let car = emitting_car()?;
-        let m = car.word(0x24)?;
+        let m = car.whole_matrix()?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         EMITTER.sides[0].set(a as u32);

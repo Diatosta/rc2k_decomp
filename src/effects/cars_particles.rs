@@ -68,7 +68,7 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
         }
         for n in cars()? {
             let car = &marks.cars[n];
-            if car.word(0x24)? == 0 || car.word(0x28)? == 0 {
+            if car.whole_matrix()? == 0 || car.part_matrix()? == 0 {
                 return Ok(Some("a car's null matrix or vector"));
             }
             if car.word(4)? >= MODELS {
@@ -92,7 +92,7 @@ pub fn cars_particles() -> Result<(), Refused> {
             .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
         let car = &crate::effects::setup::marks()?.cars[n as usize];
         EMITTER.car.set(car_handle(n as usize));
-        let m = car.word(0x24)?;
+        let m = car.whole_matrix()?;
         adjugate_matrix(m, car.at(0x94).addr());
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
             let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
@@ -140,7 +140,7 @@ pub fn cars_particles() -> Result<(), Refused> {
                 car.put(o, 0)?;
             }
         }
-        let w = car.word(0x28)?;
+        let w = car.part_matrix()?;
         let up = read_bits(&EMITTER.up);
         let across = [
             x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),

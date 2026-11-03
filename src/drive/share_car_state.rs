@@ -7,6 +7,9 @@
 //!   0 .. 7 (the sign of the difference);
 //! - the car file's light record (`g_lightRecords`, 0x134 each, by
 //!   `race::car_file_number` of block +0x24) +0x2C .. +0x38 into record +0xC .. +0x18;
+//! - the block named at record +0x24 and +0x28 (the original wrote the addresses of
+//!   block +0x8C0 and +0x740 there; a block handle here: `MarkCar::whole_matrix`,
+//!   `part_matrix`);
 //! - about eighty fields moved as the original moves them (`MOVES`, the wheels' four
 //!   each), four of them cleared by the block's switches (+0x600 .. and bits 5 .. 8 of
 //!   +0x298), a part only when block +0xA34 is set;
@@ -74,8 +77,7 @@ pub fn share_car_state_at(s: u32, o: &MarkCar, p: u32, scratch: u32) -> Result<(
     for (r, l) in sharing::LIGHT_MOVES {
         o.at(r).write(at(light + l)?, "a car record's field")?;
     }
-    o.at(0x24).write(s + 0x8C0, "a car record's field")?;
-    o.at(0x28).write(s + 0x740, "a car record's field")?;
+    o.set_block(crate::race::blocks_store::handle_of(s))?;
     o.at(8)
         .write(x87::loaded(at(s + 0x1D8)?), "a car record's field")?;
     o.at(4).write(n, "a car record's field")?;

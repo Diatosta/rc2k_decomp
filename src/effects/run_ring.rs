@@ -193,7 +193,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                 let obj = car_or_none(eg(e, 0x68)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, eg(e, 8)?)? != 0;
-                if needs && obj.map_or(Ok(0), |o| o.word(0x24))? == 0 {
+                if needs && obj.map_or(Ok(0), MarkCar::whole_matrix)? == 0 {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -233,7 +233,7 @@ fn aged(e: u32, ground: bool) -> Result<bool, Refused> {
 /// The place on the object's (unrounded sums), st(0) first.
 fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(e)?.word(0x24)?;
+        let m = entry_car(e)?.whole_matrix()?;
         [
             x87::add_80(eg(e, 0x10)?, get(m + 0x30)?),
             x87::add_80(eg(e, 0x14)?, get(m + 0x34)?),
@@ -339,7 +339,7 @@ fn outside_and_away(e: u32) -> Result<bool, Refused> {
     Ok({
         let car = entry_car(e)?;
         let obj = GamePtr::to(car).addr();
-        box_(e, car.word(0x24)?, car.at(0x94).addr());
+        box_(e, car.whole_matrix()?, car.at(0x94).addr());
         let outside = (eg(e, 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32)
             || (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
         if !outside {
@@ -462,7 +462,7 @@ fn pull_toward(e: u32) -> Result<(), Refused> {
         let obj = GamePtr::to(car).addr();
         let mut length = [0u8; 10];
         let l = crate::pointers::game_address(length.as_mut_ptr());
-        pull_length(e, car.word(0x24)?, l);
+        pull_length(e, car.whole_matrix()?, l);
         if (RING_WORK.near.bits() as i32) < 0 {
             return Ok(());
         }

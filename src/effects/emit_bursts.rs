@@ -212,7 +212,7 @@ pub fn emit_bursts_with(
                 for o in [0x44, 0x48, 0x4C] {
                     put(o, 0)?;
                 }
-                let m = car.word(0x24)?;
+                let m = car.whole_matrix()?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 MARKS_FRAME.emit_side.set_bits(side);
                 let place: [u32; 3] = crate::effects::try_from_fn(|k| {
