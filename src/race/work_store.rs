@@ -138,9 +138,9 @@ pub struct RaceWork {
     pub driver_bend_a: Dword,
     /// +0x1120 (0x71C0D8): (`drive::drive_computer_car`).
     pub driver_bend_b: Dword,
-    /// +0x1124 (0x71C0DC): its point in `driver_points_now`.
+    /// +0x1124 (0x71C0DC): its point in `driver_points_now` (a byte offset; the original kept the address).
     pub driver_point_now: Dword,
-    /// +0x1128 (0x71C0E0): its point in `driver_points_then`.
+    /// +0x1128 (0x71C0E0): its point in `driver_points_then` (a byte offset; the original kept the address).
     pub driver_point_then: Dword,
     /// +0x112c (0x71C0E4): 1: aim ahead.
     pub driver_aim: Dword,

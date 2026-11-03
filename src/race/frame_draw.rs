@@ -1630,23 +1630,33 @@ pub fn draw_distance_settings() {
     }
 }
 
-/// `race::sample_noise` (0x44FD38): the 64 x 64 byte map at esi sampled at the work car's
+/// `race::sample_noise` (0x44FD38): the 64 x 64 byte map `map` bytes into `g_noiseBytes`
+/// (the original's esi, its address) sampled at the work car's
 /// place (`g_car` +0x6A4 and +0x6AC: the top byte the cell, the next two the fraction):
 /// the four corners into `dword_637620` .. `dword_63762C`, blended along x into
 /// `dword_637630` / `dword_637634` and then along z, each step `imul` and `shrd` by 16;
 /// the result shifted left 8, given (the original's eax; what it leaves in ebx, ecx and edx,
 /// the fractions and the last product's high half, its callers do not read).
-pub fn sample_noise(map: u32) -> Result<u32, BadInput> {
+pub fn sample_noise(map: usize) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     {
         let (px, pz) = (CAR.camera_position[0].get(), CAR.camera_position[2].get());
-        let trap = Trap::new();
+        let refused = std::cell::Cell::new(None);
+        let noise = &ENGINE_TABLES.noise_bytes;
         let s = rc2k_core::race::view::sample_noise(
-            |n| trap.read::<u8>(map + n, "a noise map"),
+            |n| match noise.read_at(map + n as usize, 1, "a noise map") {
+                Ok(b) => b[0],
+                Err(e) => {
+                    refused.set(refused.take().or(Some(e)));
+                    0
+                }
+            },
             px,
             pz,
         );
-        trap.finish()?;
+        if let Some(e) = refused.take() {
+            return Err(e);
+        }
         let out = &LIGHT_STATE.noise_samples;
         for (cell, &c) in out.iter().zip(&s.corners) {
             cell.set(c);
@@ -1673,7 +1683,7 @@ pub fn fog_table() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings();
-    let noise = sample_noise(ENGINE_TABLES.noise_bytes.addr())?;
+    let noise = sample_noise(0)?;
     let fog = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {

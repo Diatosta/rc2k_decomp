@@ -28,9 +28,10 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
     noise_level(sample, lo, hi).0
 }
 
-/// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
+/// The noise map `x` bytes into `g_noiseBytes`: its sample under the work car (what
+/// `race::sample_noise` leaves in eax).
 fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(x as u32)
+    sample_noise(x)
 }
 
 /// The Rust version.
@@ -39,24 +40,14 @@ fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
 pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
-            sample(
-                (crate::scene::engine_tables_store::ENGINE_TABLES
-                    .noise_bytes
-                    .addr()
-                    + 0x50) as usize,
-            )?,
+            sample(0x50)?,
             STAGE_PREFS.blit_cleared[0].get(),
             STAGE_PREFS.blit_cleared[1].get(),
         );
         CAR.surface_noise_a.set(first);
         CAR.surface_noise_b.set(first);
         let second = scaled(
-            sample(
-                (crate::scene::engine_tables_store::ENGINE_TABLES
-                    .noise_bytes
-                    .addr()
-                    + 0x20) as usize,
-            )?,
+            sample(0x20)?,
             STAGE_PREFS.surface_scale[0].get(),
             STAGE_PREFS.surface_scale[1].get(),
         );

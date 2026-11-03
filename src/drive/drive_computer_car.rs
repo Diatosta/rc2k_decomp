@@ -127,12 +127,10 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         return Ok(());
     }
     let slot = RACE_WORK.driver_slot.get();
-    RACE_WORK
-        .driver_point_now
-        .set((RACE_WORK.driver_points_now[0].addr()).wrapping_add(slot << 4));
-    RACE_WORK
-        .driver_point_then
-        .set((RACE_WORK.driver_points_then[0].addr()).wrapping_add(slot << 4));
+    // The slot's points by their byte offset in the tables (the original kept their
+    // addresses; it alone read them, as `slot_point` does here).
+    RACE_WORK.driver_point_now.set(slot << 4);
+    RACE_WORK.driver_point_then.set(slot << 4);
     let n = CAR.checkpoint.get();
     let f = held(crate::race::checkpoints_store::face, n, 2);
     let (b1, b2) = crate::race::course_places::face_number(f, "a checkpoint face")?.bends();
