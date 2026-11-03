@@ -13,28 +13,28 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{rb, rd, wb};
+use crate::menu::list_handle::{ItemByte, ListItem};
 use rc2k_core::install::items::{self, MARKS};
 
 /// An item of choices' chosen byte; and whether choice `cl` is free.
-pub fn choice_places(item: u32) -> (u32, impl Fn(u8) -> bool + use<>) {
-    let table = rd(item + 0xC);
-    let free = move |cl: u8| rb(table.wrapping_add(2 * cl as u32 + 1)) & MARKS == 0;
-    (rd(item + 8), free)
+pub fn choice_places(item: ListItem) -> (ItemByte, impl Fn(u8) -> bool + use<>) {
+    let table = item.choices();
+    let free = move |cl: u8| table.marks(cl as u32) & MARKS == 0;
+    (item.value(), free)
 }
 
 /// The choice reached stored, when it changed.
-pub fn store_choice(chosen_at: u32, chosen: u8, cl: u8) {
+pub fn store_choice(chosen_at: ItemByte, chosen: u8, cl: u8) {
     if cl != chosen {
-        wb(chosen_at, cl);
+        chosen_at.set(cl);
     }
 }
 
-pub fn choice_back(item: u32) -> Result<(), Refused> {
+pub fn choice_back(item: ListItem) -> Result<(), Refused> {
     let (chosen_at, free) = choice_places(item);
-    let chosen = rb(chosen_at);
+    let chosen = chosen_at.get();
     // Converted: `rc2k_core::install::items::choice_back`.
-    let cl = items::choice_back(chosen, || rb(item + 1), free)?;
+    let cl = items::choice_back(chosen, || item.count(), free)?;
     store_choice(chosen_at, chosen, cl);
     Ok(())
 }

@@ -98,9 +98,9 @@ pub fn run_installer() -> Result<(), Refused> {
             load_language()?;
         }
         let pages = if INSTALLER_RUN.updating.get() == 1 {
-            INSTALLER_PAGES.update_pages.addr()
+            crate::install::page_records::PageEntry::of(&INSTALLER_PAGES.update_pages)
         } else {
-            INSTALLER_PAGES.normal_pages.addr()
+            crate::install::page_records::PageEntry::of(&INSTALLER_PAGES.normal_pages)
         };
         i::run_pages::run_pages(pages)?;
     }

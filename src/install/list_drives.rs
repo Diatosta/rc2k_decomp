@@ -82,7 +82,7 @@ pub fn list_drives() {
     };
     // A link: the menu's IDA address, as the image's (`InstallerPages::resolved`).
     INSTALLER_PAGES.chosen_menu.set_u32(0, name);
-    wb(menu.add(1), drives::items(count));
+    crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
 }
 
 fn g_at(at: u32) -> u32 {

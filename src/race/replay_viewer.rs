@@ -38,6 +38,7 @@ use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
+use crate::menu::list_handle::ListMenu;
 use crate::menu::screen_loop::Carried;
 use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
@@ -358,7 +359,7 @@ fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
             r.zero = key == 0;
             r.c.carry = false;
         }
-        7 => mark_viewer_items::mark_viewer_items(r.record)?,
+        7 => mark_viewer_items::mark_viewer_items(ListMenu::at(r.record))?,
         8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
         9 => {
@@ -369,8 +370,13 @@ fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
         10 => crate::menu::list_take_key::list_take_key().carry_on(r),
         11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
         12 => crate::gfx::take_screenshot::take_screenshot()?,
-        13 => crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record)?.carry_on(r),
-        14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record)?,
+        13 => {
+            crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, ListMenu::at(r.record))?
+                .carry_on(r);
+        }
+        14 => {
+            r.c.carry = crate::menu::list_item_unusable::list_item_unusable(ListMenu::at(r.record));
+        }
         15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
         16 => close_viewed_replay::close_viewed_replay()?,
         _ => viewer_tidy_stage::viewer_tidy_stage()?,

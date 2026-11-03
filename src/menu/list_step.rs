@@ -38,9 +38,13 @@ impl Stepped {
 
 /// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
 /// `table` (ebx, 0 for none).
-pub fn list_step(key: u8, table: u32, list: u32) -> Result<Stepped, crate::errors::BadInput> {
+pub fn list_step(
+    key: u8,
+    table: u32,
+    list: crate::menu::list_handle::ListMenu,
+) -> Result<Stepped, crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::list_menu::step`.
-    let count = crate::pointers::GamePtr::new(list + 1).read::<u8>("a list menu's count")?;
+    let count = list.count();
     if !MOVES.contains(&key) {
         // Not a move: the choice is not looked at (`step` answers `Other` or `NoTable`).
         let (carry, zero) = match step(key, 0, count, table != 0, |_| 0) {

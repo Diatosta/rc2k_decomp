@@ -9,16 +9,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{rb, rd, wb};
+use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
 
 /// `number` the choice (ecx, all 32 bits read for the mark).
-pub fn choice_by_number(item: u32, number: u32) {
-    let chosen_at = rd(item + 8);
-    let table = rd(item + 0xC);
+pub fn choice_by_number(item: ListItem, number: u32) {
+    let chosen_at = item.value();
+    let table = item.choices();
     // Converted: `rc2k_core::install::items::choice_by_number`.
-    let free = || rb(table.wrapping_add(number.wrapping_mul(2)).wrapping_add(1)) & MARKS == 0;
-    if let Some(choice) = items::choice_by_number(number, rb(item + 1), free) {
-        wb(chosen_at, choice);
+    let free = || table.marks(number) & MARKS == 0;
+    if let Some(choice) = items::choice_by_number(number, item.count(), free) {
+        chosen_at.set(choice);
     }
 }

@@ -10,10 +10,11 @@
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;
+use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken (the original's zero).
-pub fn key_right(item: u32) -> Result<bool, Refused> {
+pub fn key_right(item: ListItem) -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
     item_key(item, ItemKey::Right, 0)
 }

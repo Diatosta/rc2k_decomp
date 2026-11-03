@@ -16,10 +16,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    append_byte, append_string_by_id, draw_action, draw_string, draw_text, rb, rd, rw, str_append,
+    append_byte, append_string_by_id, draw_action, draw_string, draw_text, rb, str_append,
     text_action,
 };
-use crate::install::lay_out_pieces::PIECE;
+use crate::install::page_records::{Piece, piece_count};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::place::Place;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -35,30 +35,30 @@ fn colour(marks: u8, kind: u32) -> u32 {
 }
 
 pub fn draw_pieces() -> Result<(), Refused> {
-    let count = INSTALLER_PAGES.layout.get_u32(0);
+    let count = piece_count();
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
     for k in 0..count {
-        let piece = crate::place::Place::from(&INSTALLER_PAGES.layout).add(4 + PIECE * k);
-        let first = rb(piece);
-        let (x, y) = (rd(piece.add(8)), rd(piece.add(0xC)));
+        let piece = Piece::nth(k);
+        let first = piece.marks();
+        let (x, y) = (piece.x(), piece.y());
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
-        match Way::of(first, rb(piece.add(1))) {
+        match Way::of(first, piece.kind()) {
             Way::String { font_kind } => {
                 draw_string(
-                    rw(piece.add(2)) as u32,
+                    piece.text_id() as u32,
                     crate::pointers::GamePtr::new(font(colour(first, font_kind))?),
                     x,
                     y,
                 )?;
             }
             Way::Edit => {
-                let item = rd(piece.add(4));
-                let record = rd(item + 0xC);
-                let edit_font = font(colour(first, rb(record + 4) as u32))?;
-                let mut text = Place::from(rd(item + 8));
-                if pieces::caret(first, rb(record)) {
+                let item = piece.item();
+                let record = item.edit_field();
+                let edit_font = font(colour(first, record.font_kind() as u32))?;
+                let mut text = Place::from(item.target());
+                if pieces::caret(first, record.flags()) {
                     let cursor = str_append(text, &TEXT_BUFFER.text);
                     let cursor = append_string_by_id(4, cursor);
                     append_byte(cursor, 0);
@@ -67,21 +67,21 @@ pub fn draw_pieces() -> Result<(), Refused> {
                 draw_text(edit_font, text, x, y)?;
             }
             Way::Text => {
-                let item = rd(piece.add(4));
-                let mut cursor = append_string_by_id(rw(piece.add(2)) as u32, &TEXT_BUFFER.text);
-                let action = rd(item + 0xC);
+                let item = piece.item();
+                let mut cursor = append_string_by_id(piece.text_id() as u32, &TEXT_BUFFER.text);
+                let action = item.data();
                 if action != 0 {
                     cursor = text_action(action, cursor)?;
                 }
                 append_byte(cursor, 0);
                 draw_text(
-                    font(colour(first, rb(item + 1) as u32))?,
+                    font(colour(first, item.font_kind() as u32))?,
                     &TEXT_BUFFER.text,
                     x,
                     y,
                 )?;
             }
-            Way::Action => draw_action(rd(rd(piece.add(4)) + 0xC))?,
+            Way::Action => draw_action(piece.item().data())?,
             Way::Other => {}
         }
     }

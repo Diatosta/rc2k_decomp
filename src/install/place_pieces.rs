@@ -10,18 +10,13 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::rd;
-use crate::install::lay_out_pieces::PIECE;
+use crate::install::page_records::{BoxRecord, Piece, piece_count};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::place::Place;
 
 pub fn place_pieces() -> Result<(), Refused> {
-    let base = Place::from(&INSTALLER_PAGES.layout).add(4);
-    let at = |k: u32| base.add(PIECE.wrapping_mul(k));
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
-    let rows = rc2k_core::install::layout::rows(INSTALLER_PAGES.layout.get_u32(0), |k| {
-        rd(rd(at(k).add(4)) + 4)
-    })?;
+    let rows = rc2k_core::install::layout::rows(piece_count(), |k| Piece::nth(k).item().box_at())?;
     for (first, n, the_box) in rows {
         let title_box = Place::from(&INSTALLER_PAGES.title_box);
         let (place, title) = if the_box == 0 {
@@ -29,7 +24,7 @@ pub fn place_pieces() -> Result<(), Refused> {
         } else {
             (Place::from(the_box), the_box == title_box.game())
         };
-        crate::install::place_row::place_row(at(first), n, place, title, the_box)?;
+        crate::install::place_row::place_row(first, n, BoxRecord::of(place), title, the_box)?;
     }
     Ok(())
 }

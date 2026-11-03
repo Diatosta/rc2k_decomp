@@ -10,12 +10,12 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::rb;
+use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::EnterWay;
 
 /// Enter on `item`; whether it was taken (the original's zero).
-pub fn item_enter(item: u32) -> Result<bool, Refused> {
-    let kind = rb(item) & 0xF;
+pub fn item_enter(item: ListItem) -> Result<bool, Refused> {
+    let kind = item.kind();
     // Converted: `rc2k_core::install::items::EnterWay`.
     match EnterWay::of(kind) {
         Some(EnterWay::Link) => crate::install::item_link::item_link(item),

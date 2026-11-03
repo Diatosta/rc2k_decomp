@@ -22,15 +22,16 @@
 
 use crate::errors::Refused;
 use crate::input::store::KEYBOARD_FILE;
-use crate::install::installer::{append_string_by_id, measure_text, rb, rd, rw, wb};
+use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
+use crate::menu::list_handle::{EditField, ListItem};
 use crate::place::Place;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
-pub fn edit_font(record: u32) -> Result<u32, crate::errors::BadInput> {
-    let kind = rb(record + 4) as u32;
+pub fn edit_font(record: EditField) -> Result<u32, crate::errors::BadInput> {
+    let kind = record.font_kind() as u32;
     let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts).add(5 + 8 * kind)) as u32;
     crate::install::vars::InstallerPages::font_of(font)
 }
@@ -47,16 +48,16 @@ fn past_nul(mut at: u32) -> u32 {
 
 fn clear(text: u32, most: u32) {
     for n in 0..most + 2 {
-        wb(text + n, 0);
+        wb(Place::from(text).add(n), 0);
     }
 }
 
 /// `key` as eax (al the key, ah its bits). Returns eax as the original leaves it (its
 /// caller reads al again) and its zero: set, but for Escape and Enter (`or ah, 8`).
-pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
-    let text = rd(item + 8);
-    let record = rd(item + 0xC);
-    let most = crate::install::folders::field_most(text, rb(record + 1)) as u32;
+pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
+    let text = item.target();
+    let record = item.edit_field();
+    let most = crate::install::folders::field_most(text, record.most()) as u32;
     let with_bit_3 = (key | 0x800, false);
     let backspace = || {
         if rb(text) != 0 {
@@ -69,15 +70,15 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
     } else {
         match EditKey::of(key as u8) {
             EditKey::Escape => {
-                wb(record, rb(record) & !EDITING);
+                record.set_flags(record.flags() & !EDITING);
                 let backup = &INSTALLER_PATHS.script_path;
                 for n in 0..most + 2 {
-                    wb(text + n, rb(Place::from(backup).add(n)));
+                    wb(Place::from(text).add(n), rb(Place::from(backup).add(n)));
                 }
                 return Ok(with_bit_3);
             }
             EditKey::Enter => {
-                wb(record, rb(record) & !EDITING);
+                record.set_flags(record.flags() & !EDITING);
                 let words = crate::pointers::GamePtr::new(text).bytes("an edited text")?;
                 let (blank, _) = edits::blank(&words)?;
                 if blank {
@@ -91,7 +92,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
                             crate::install::run_installer::put_typed(&first);
                         }
                         _ => {
-                            append_string_by_id(rw(record + 2) as u32, text);
+                            append_string_by_id(record.default_text() as u32, text);
                         }
                     }
                 }
@@ -138,7 +139,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
         text,
         most.wrapping_add(text).wrapping_add(1),
     )?;
-    let widest = crate::install::folders::field_width(text, rw(record + 6));
+    let widest = crate::install::folders::field_width(text, record.width());
     if edits::too_wide(width, widest) {
         backspace();
     }

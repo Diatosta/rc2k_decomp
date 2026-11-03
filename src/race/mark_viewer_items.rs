@@ -17,9 +17,11 @@ use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
-pub fn mark_viewer_items(list: u32) -> Result<(), crate::errors::BadInput> {
+pub fn mark_viewer_items(
+    list: crate::menu::list_handle::ListMenu,
+) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::race::viewer::item_marks`.
-    crate::menu::list_clear_marks::list_clear_marks(list)?;
+    crate::menu::list_clear_marks::list_clear_marks(list);
     let block = REPLAY_VIEW.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: REPLAY_VIEW.last_race_viewed.get() == 1,
@@ -43,8 +45,8 @@ pub fn mark_viewer_items(list: u32) -> Result<(), crate::errors::BadInput> {
         one_player: REPLAY_WORK.header_one_player.get() == 1,
     };
     for (item, bit) in rc2k_core::race::viewer::item_marks(&state) {
-        let at = crate::pointers::GamePtr::new(list + 0x18 + 0x10 * item);
-        at.write::<u8>(at.read::<u8>("a list item")? | bit, "a list item")?;
+        let item = list.item(item);
+        item.set_first(item.first() | bit);
     }
     Ok(())
 }

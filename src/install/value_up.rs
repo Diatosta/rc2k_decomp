@@ -8,16 +8,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{rb, rd, wb};
 use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::ListItem;
 
-pub fn value_up(item: u32) {
-    let value_at = rd(item + 8);
+pub fn value_up(item: ListItem) {
+    let value_at = item.value();
     // Converted: `rc2k_core::install::items::value_up`.
     let value = rc2k_core::install::items::value_up(
-        rb(value_at),
+        value_at.get(),
         INSTALLER_PAGES.repeats.get(),
-        rb(item + 0xD),
+        item.value_most(),
     );
-    wb(value_at, value as u8);
+    value_at.set(value as u8);
 }

@@ -11,18 +11,19 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{item_action_at, rb, rd};
+use crate::install::installer::item_action_at;
 use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
 /// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
 /// on the next list).
-pub fn item_link(item: u32) -> Result<bool, Refused> {
-    let action = rd(item + 8);
+pub fn item_link(item: ListItem) -> Result<bool, Refused> {
+    let action = item.target();
     let mut next = 0;
     // Converted: `rc2k_core::install::items::link`.
     match items::link(action, || {
-        next = rb(item + 1);
+        next = item.count();
         next
     }) {
         LinkWay::Action => item_action_at(action),

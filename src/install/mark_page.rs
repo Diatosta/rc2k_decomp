@@ -16,54 +16,47 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{rb, rd, wb};
 use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
-pub fn mark_page(list: u32) {
+pub fn mark_page(list: ListMenu) {
     let mut cl = 0u8;
-    let mut esi = list + 0x18;
     // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
     // `lit`).
-    let place = |item: u32| {
-        (
-            crate::pointers::GamePtr::new(rd(item + 0xC)),
-            2 * items::walked(rb(item + 1)),
-        )
-    };
-    let table = |item: u32| {
-        let (at, len) = place(item);
-        at.read_bytes(len, "an item's choices")
+    let table = |item: ListItem| {
+        item.choices()
+            .bytes(2 * items::walked(item.count()), "an item's choices")
             .unwrap_or_else(|e| crate::install::installer::refuse(e))
     };
     loop {
-        let byte = rb(esi);
+        let esi = list.item(cl as u32);
+        let byte = esi.first();
         if byte & 0xF == 2 {
             let ah = byte & MARKS;
             if ah == UNUSABLE {
                 let mut choices = table(esi);
                 items::mark_choices(&mut choices, ah);
-                place(esi)
-                    .0
+                esi.choices()
                     .write_bytes(&choices, "an item's choices")
                     .unwrap_or_else(|e| crate::install::installer::refuse(e));
             } else if ah == 0
-                && let Some(chosen) = items::lone_choice(&table(esi), rb(esi + 1))
+                && let Some(chosen) = items::lone_choice(&table(esi), esi.count())
             {
-                wb(rd(esi + 8), chosen);
-                wb(esi, rb(esi) | UNUSABLE);
+                esi.value().set(chosen);
+                esi.set_first(esi.first() | UNUSABLE);
             }
         }
-        let byte = rb(esi);
+        let byte = esi.first();
         if byte & MARKS == 0 && cl as u32 == INSTALLER_PAGES.choice.get() {
             let mut editing = None;
             if byte & 0xF == 4 {
-                let record = rd(esi + 0xC);
-                if rb(record) & 4 != 0 {
+                let record = esi.edit_field();
+                if record.flags() & 4 != 0 {
                     crate::install::next_edit::next_edit(0, list);
                 }
-                editing = Some(rb(record) & 1 != 0);
+                editing = Some(record.flags() & 1 != 0);
             }
             let clock = || {
                 INSTALLER_PAGES
@@ -72,21 +65,18 @@ pub fn mark_page(list: u32) {
                     .wrapping_sub(INSTALLER_PAGES.move_clock.get())
             };
             if editing == Some(true) || items::lit(editing, clock()) {
-                wb(esi, rb(esi) | MARKS);
+                esi.set_first(esi.first() | MARKS);
             }
         }
         if byte & 0xF == 2 {
-            let chosen = rb(rd(esi + 8));
-            if chosen < rb(esi + 1) {
-                let at = rd(esi + 0xC)
-                    .wrapping_add(1)
-                    .wrapping_add(2 * chosen as u32);
-                wb(at, rb(at) | MARKS);
+            let chosen = esi.value().get();
+            if chosen < esi.count() {
+                let choices = esi.choices();
+                choices.set_marks(chosen as u32, choices.marks(chosen as u32) | MARKS);
             }
         }
-        esi = esi.wrapping_add(0x10);
         cl = cl.wrapping_add(1);
-        if cl == rb(list + 1) {
+        if cl == list.count() {
             break;
         }
     }

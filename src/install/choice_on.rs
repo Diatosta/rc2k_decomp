@@ -14,13 +14,13 @@
 
 use crate::errors::Refused;
 use crate::install::choice_back::{choice_places, store_choice};
-use crate::install::installer::rb;
+use crate::menu::list_handle::ListItem;
 
-pub fn choice_on(item: u32) -> Result<(), Refused> {
+pub fn choice_on(item: ListItem) -> Result<(), Refused> {
     let (chosen_at, free) = choice_places(item);
-    let chosen = rb(chosen_at);
+    let chosen = chosen_at.get();
     // Converted: `rc2k_core::install::items::choice_on`.
-    let cl = rc2k_core::install::items::choice_on(chosen, || rb(item + 1), free)?;
+    let cl = rc2k_core::install::items::choice_on(chosen, || item.count(), free)?;
     store_choice(chosen_at, chosen, cl);
     Ok(())
 }

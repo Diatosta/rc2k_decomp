@@ -10,14 +10,14 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::rb;
+use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{Helper, ItemKey};
 
 /// A key on `item`: the helper the key has for the item's kind, `number` for the number
 /// keys' helpers; the original's zero after it (the helpers' set, else that of the last
 /// compare of the kind).
-pub fn item_key(item: u32, key: ItemKey, number: u32) -> Result<bool, Refused> {
-    let kind = rb(item) & key.kind_mask();
+pub fn item_key(item: ListItem, key: ItemKey, number: u32) -> Result<bool, Refused> {
+    let kind = item.first() & key.kind_mask();
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
     use crate::install as i;
     match key.helper(kind) {
@@ -33,6 +33,6 @@ pub fn item_key(item: u32, key: ItemKey, number: u32) -> Result<bool, Refused> {
 }
 
 /// Whether the key was taken (the original's zero).
-pub fn key_up(item: u32) -> Result<bool, Refused> {
+pub fn key_up(item: ListItem) -> Result<bool, Refused> {
     item_key(item, ItemKey::Up, 0)
 }

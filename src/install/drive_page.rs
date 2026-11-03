@@ -17,16 +17,17 @@ use crate::install::installer::rb;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
-pub fn drive_page(state: u32, list: u32) {
+pub fn drive_page(state: u32, list: ListMenu) {
     let letters = crate::place::Place::from(&crate::install::store::DRIVE_ROWS.drive_rows);
     if state == 0 {
         let letter = crate::strings::same_text::lower(INSTALLER_PATHS.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
         let at = |n: u32| letters.add(pages::DRIVE_TEXT * n);
-        let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(list + 1));
+        let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), list.count());
         if let Some(highlight) = highlight {
             INSTALLER_PAGES.choice.set(highlight);
         }

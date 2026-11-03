@@ -18,12 +18,11 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::installer::{fatal, rb, rw, wb, wd, ww};
+use crate::install::installer::{fatal, rb, rd, rw};
+use crate::install::page_records::{Piece, set_piece_count};
 use crate::install::vars::INSTALLER_PAGES;
-use rc2k_core::install::layout;
+use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
-
-pub const PIECE: u32 = layout::PIECE;
 
 /// The game's lists, read where the original reads them.
 struct GameList;
@@ -36,35 +35,35 @@ impl ListMemory for GameList {
         rw(at)
     }
     fn dword(&self, at: u32) -> u32 {
-        crate::install::installer::rd(at)
+        rd(at)
     }
     fn text_font(&self, font: u8) -> u8 {
         INSTALLER_PAGES.kind_fonts.get(4 + 8 * font as usize)
     }
 }
 
-pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
+pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(list, INSTALLER_PAGES.title.addr(), &GameList) {
+    let made = match pieces::lay_out(list.addr(), INSTALLER_PAGES.title.addr(), &GameList) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
             return Err(BadInput("more pieces than the page's table holds").into());
         }
     };
-    let base = crate::place::Place::from(&INSTALLER_PAGES.layout);
-    for (n, piece) in made.iter().enumerate() {
-        let at = base.add(4 + PIECE * n as u32);
-        if let Some(text) = piece.text {
-            ww(at.add(2), text);
+    for (n, new) in made.iter().enumerate() {
+        let piece = Piece::nth(n as u32);
+        if let Some(text) = new.text {
+            piece.set_text_id(text);
         }
-        wb(at, piece.marks);
-        wb(at.add(1), piece.kind);
-        wd(at.add(4), piece.item);
-        for k in 0..4 {
-            wd(at.add(8 + 4 * k), 0);
-        }
+        piece.set_marks(new.marks);
+        piece.set_kind(new.kind);
+        piece.set_item(new.item);
+        piece.set_x(0);
+        piece.set_y(0);
+        piece.set_width(0);
+        piece.set_height(0);
     }
-    wd(base, made.len() as u32);
+    set_piece_count(made.len() as u32);
     Ok(())
 }

@@ -10,15 +10,15 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::rb;
 use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` as eax (al the key, ah its bits); whether it was taken (the original's zero).
-pub fn folder_key(key: u32, list: u32) -> bool {
+pub fn folder_key(key: u32, list: ListMenu) -> bool {
     // Converted: `rc2k_core::install::items::FolderKey`.
     let way = FolderKey::of(key);
-    let answer = way.answer(|| rb(list));
+    let answer = way.answer(|| list.flags());
     if let Some(answer) = answer {
         INSTALLER_PAGES.list_answer.set(answer);
         INSTALLER_PAGES.list_leave.set(1);

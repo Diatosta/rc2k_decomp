@@ -16,9 +16,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{rb, rd, wd};
-use crate::install::lay_out_pieces::PIECE;
-use crate::place::Place;
+use crate::install::page_records::{BoxRecord, Piece as LaidPiece};
 use rc2k_core::install::layout::{self, Area, Piece};
 
 /// `first` the first piece, `count` the pieces, `the_box` the box, `eax` as it comes (the
@@ -26,35 +24,35 @@ use rc2k_core::install::layout::{self, Area, Piece};
 ///
 /// `title`: the box is the title's (`unk_51DD98`).
 pub fn place_row(
-    first: Place,
+    first: u32,
     count: u32,
-    the_box: Place,
+    the_box: BoxRecord,
     title: bool,
     eax: u32,
 ) -> Result<(), Refused> {
-    let at = |k: u32| first.add(PIECE.wrapping_mul(k));
+    let at = |k: u32| LaidPiece::nth(first.wrapping_add(k));
     // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;
     // their x and y written back.
     let mut pieces: Vec<Piece> = (0..count)
         .map(|k| Piece {
-            marks: rb(at(k)),
-            kind: rb(at(k).add(1)),
-            x: rd(at(k).add(8)),
-            y: rd(at(k).add(0xC)),
-            width: rd(at(k).add(0x10)),
-            height: rd(at(k).add(0x14)),
+            marks: at(k).marks(),
+            kind: at(k).kind(),
+            x: at(k).x(),
+            y: at(k).y(),
+            width: at(k).width(),
+            height: at(k).height(),
         })
         .collect();
     let area = Area {
-        x: rd(the_box),
-        y: rd(the_box.add(4)),
-        width: rd(the_box.add(8)),
-        height: rd(the_box.add(0xC)),
+        x: the_box.x(),
+        y: the_box.y(),
+        width: the_box.width(),
+        height: the_box.height(),
     };
     layout::place_row(&mut pieces, area, title, eax)?;
     for (k, p) in (0..).zip(&pieces) {
-        wd(at(k).add(8), p.x);
-        wd(at(k).add(0xC), p.y);
+        at(k).set_x(p.x);
+        at(k).set_y(p.y);
     }
     Ok(())
 }

@@ -16,6 +16,7 @@
 //! and `draw_action`, each knowing the functions the game's tables put in that place.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::menu::list_handle::ListMenu;
 use crate::place::Place;
 use crate::session::FLAGS;
 
@@ -386,17 +387,17 @@ pub fn list_take_key() -> Result<u8, Refused> {
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
-pub fn list_step(key: u32, table: u32, list: u32) -> Result<bool, crate::errors::BadInput> {
+pub fn list_step(key: u32, table: u32, list: ListMenu) -> Result<bool, crate::errors::BadInput> {
     Ok(crate::menu::list_step::list_step(key as u8, table, list)?.zero)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).
-pub fn list_clear_marks(list: u32) -> Result<(), crate::errors::BadInput> {
-    crate::menu::list_clear_marks::list_clear_marks(list)
+pub fn list_clear_marks(list: ListMenu) {
+    crate::menu::list_clear_marks::list_clear_marks(list);
 }
 
 /// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(list: u32) -> Result<bool, crate::errors::BadInput> {
+pub fn list_item_unusable(list: ListMenu) -> bool {
     crate::menu::list_item_unusable::list_item_unusable(list)
 }
 
@@ -415,7 +416,7 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
 /// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
 /// disc's install) and the registration.
-pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
+pub fn page_action(place: u32, state: u32, list: ListMenu) -> Result<(), Refused> {
     use crate::install as i;
     match place {
         0x414199 => i::language_page::language_page(state, list)?,
@@ -438,7 +439,7 @@ pub fn page_action(place: u32, state: u32, list: u32) -> Result<(), Refused> {
 
 /// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
-pub fn key_action(place: u32, key: u32, list: u32) -> Result<bool, Refused> {
+pub fn key_action(place: u32, key: u32, list: ListMenu) -> Result<bool, Refused> {
     match place {
         0x41534E => Ok(crate::install::folder_key::folder_key(key, list)),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),

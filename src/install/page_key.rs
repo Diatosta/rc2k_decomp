@@ -14,14 +14,14 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{rb, rd};
 use crate::install::vars::INSTALLER_PAGES;
+use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
 /// `key` as eax (al the key, ah its bits) on `item` of `list`. Returns eax as the callees
 /// leave it (`install::edit_key` changes it) and whether the key did something (the
 /// original's zero).
-pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> {
+pub fn page_key(key: u32, item: ListItem, list: ListMenu) -> Result<(u32, bool), Refused> {
     use crate::install as i;
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).
@@ -29,8 +29,8 @@ pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> 
         // test al, al
         return Ok((key, key as u8 == 0));
     };
-    let kind = rb(item) & 0xF;
-    let edited = items::takes_every_key(kind, || rb(rd(item + 0xC)) & 1 != 0);
+    let kind = item.kind();
+    let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
     let (eax, zero) = if edited {
         i::edit_key::edit_key(key, item)?
     } else {
@@ -48,7 +48,7 @@ pub fn page_key(key: u32, item: u32, list: u32) -> Result<(u32, bool), Refused> 
         }
         if way == PageKey::Escape {
             // test byte ptr [edi], 10h: the page left unless the list stays
-            let stays = rb(list) & items::STAYS != 0;
+            let stays = list.flags() & items::STAYS != 0;
             if !stays {
                 INSTALLER_PAGES.list_answer.set(0);
                 INSTALLER_PAGES.list_leave.set(1);

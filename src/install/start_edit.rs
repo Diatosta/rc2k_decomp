@@ -9,22 +9,22 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::installer::{rb, rd, wb};
 use crate::install::vars::INSTALLER_PATHS;
+use crate::menu::list_handle::ListItem;
 
-pub fn start_edit(item: u32) {
-    let record = rd(item + 0xC);
-    let text = rd(item + 8);
-    let most = crate::install::folders::field_most(text, rb(record + 1));
+pub fn start_edit(item: ListItem) {
+    let record = item.edit_field();
+    let text = item.target();
+    let most = crate::install::folders::field_most(text, record.most());
     // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
     let at = crate::pointers::GamePtr::new(text);
     let mut words = at
         .read_bytes(most as usize + 2, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
-    let flags = rc2k_core::install::edits::start_edit(rb(record), most, &mut words);
+    let flags = rc2k_core::install::edits::start_edit(record.flags(), most, &mut words);
     at.write_bytes(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
-    wb(record, flags);
+    record.set_flags(flags);
     crate::place::Place::from(&INSTALLER_PATHS.script_path)
         .write(&words, "the edit's backup")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));

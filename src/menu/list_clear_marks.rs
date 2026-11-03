@@ -9,36 +9,30 @@
 //! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times, as the original
 //! (the callers' lists have items). Callers: `race::mark_viewer_items`, `sub_4144CF` (three).
 
-use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::menu::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 /// The Rust version.
-pub fn list_clear_marks(list: u32) -> Result<(), BadInput> {
+pub fn list_clear_marks(list: ListMenu) {
     // Converted: `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
     // Its count is a byte, but the original counts it down as a dword: 0 goes round
     // 2^32 times.
-    let mut count = GamePtr::new(list + 1).read::<u8>("a list menu\'s count")? as u32;
-    let mut item = GamePtr::new(list + 0x18);
+    let mut count = list.count() as u32;
+    let mut n = 0;
     loop {
-        let kind = unmarked(item.read::<u8>("a list item")?);
-        item.write::<u8>(kind, "a list item")?;
+        let item = list.item(n);
+        let kind = unmarked(item.first());
+        item.set_first(kind);
         if has_choices(kind) {
-            let n = rounds(item.offset(1).read::<u8>("a list item")?);
-            let choices = GamePtr::new(item.offset(0xC).read::<u32>("a list item")? + 1);
-            for c in 0..n as u32 {
-                let choice = choices.offset(2 * c);
-                choice.write::<u8>(
-                    unmarked(choice.read::<u8>("a list choice")?),
-                    "a list choice",
-                )?;
+            let choices = item.choices();
+            for c in 0..rounds(item.count()) as u32 {
+                choices.set_marks(c, unmarked(choices.marks(c)));
             }
         }
-        item = item.offset(0x10);
+        n = n.wrapping_add(1);
         count = count.wrapping_sub(1);
         if count == 0 {
             break;
         }
     }
-    Ok(())
 }
