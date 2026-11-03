@@ -37,7 +37,6 @@ use crate::framework::rva;
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
-use crate::pointers::GamePtr;
 use crate::scene::carousel_set_ups::PLAIN;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::session::{Dword, write_all, write_prefix};
@@ -90,7 +89,7 @@ fn run_op(op: Op) {
 /// readers that cannot fail.
 fn reading<R>(f: impl FnOnce(&dyn Fn(u32) -> u32) -> R) -> Result<R, BadInput> {
     let failed = std::cell::Cell::new(None);
-    let read = |at: u32| match GamePtr::new(at).read::<u32>("a list of cars") {
+    let read = |at: u32| match MENU_LISTS.place_at(at).read::<u32>("a list of cars") {
         Ok(word) => word,
         Err(e) => {
             failed.set(Some(e));
@@ -105,7 +104,9 @@ fn reading<R>(f: impl FnOnce(&dyn Fn(u32) -> u32) -> R) -> Result<R, BadInput> {
 }
 
 fn list_entry(list: u32, n: usize) -> Result<u32, BadInput> {
-    GamePtr::new(list.wrapping_add(4 * n as u32)).read("a list of cars")
+    MENU_LISTS
+        .place_at(list.wrapping_add(4 * n as u32))
+        .read("a list of cars")
 }
 
 /// The checks of a list of cars, before anything is written (see
@@ -173,7 +174,7 @@ fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
         let mut n = 0;
         let mut esi = list;
         loop {
-            let car: u32 = GamePtr::new(esi).read("a list of cars")?;
+            let car: u32 = MENU_LISTS.place_at(esi).read("a list of cars")?;
             if car == u32::MAX {
                 break;
             }
@@ -245,7 +246,9 @@ pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 if count == 1 {
                     let first = list_entry(list, 0)?;
                     out.eax = Some(first);
-                    GamePtr::new(list.wrapping_add(4)).write(first, "a list of cars")?;
+                    MENU_LISTS
+                        .place_at(list.wrapping_add(4))
+                        .write(first, "a list of cars")?;
                 }
                 cars(&mut out, list, 0xC)?;
             }

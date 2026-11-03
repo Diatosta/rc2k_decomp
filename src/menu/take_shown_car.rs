@@ -26,7 +26,8 @@ pub fn take_shown_car(list: u32) -> Result<(), Refused> {
     let shown: u32 = EVENT_STATE.shown_car.get();
     // Converted: `rc2k_core::menu::player::Player::take_car`.
     {
-        let entry = crate::pointers::GamePtr::new(list.wrapping_add(shown.wrapping_mul(4)))
+        let entry = crate::menu::lists_store::MENU_LISTS
+            .place_at(list.wrapping_add(shown.wrapping_mul(4)))
             .read::<u32>("take shown car: a game value")?;
         // The entry is a description's handle (`cars_store::car_ref`).
         let description = crate::menu::cars_store::description_ptr(entry)?;

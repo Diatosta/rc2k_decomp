@@ -196,6 +196,16 @@ pub fn repair_time_at(key: u32) -> Result<Option<&'static Dword>, crate::errors:
     }
 }
 
+impl MenuLists {
+    /// The place at game address `at` (a list of cars the menus carry as an address, or a
+    /// place in one), bounded by these lists: the original reads a list on to its end
+    /// marker, past one field into the next.
+    pub fn place_at(&self, at: u32) -> crate::pointers::GamePtr {
+        let lists = crate::pointers::GamePtr::to(self);
+        lists.offset(at.wrapping_sub(lists.addr()))
+    }
+}
+
 pub static MENU_LISTS: MenuLists = MenuLists {
     draw_list: [const { Dword::new(0xffffffff) }; 25],
     own_places: [
