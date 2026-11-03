@@ -6,10 +6,14 @@
 //! Caller: `net::reset_cars`.
 
 /// The Rust version.
-pub fn clear_car_state(block: u32) -> Result<(), crate::errors::BadInput> {
+pub fn clear_car_state(
+    block: &crate::physics::car_store::Car,
+) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::net::cars::CLEARED`.
     for (offset, v) in rc2k_core::net::cars::CLEARED {
-        crate::pointers::GamePtr::new(block + offset).write(v, "a car block's field")?;
+        crate::pointers::GamePtr::to(block)
+            .offset(offset)
+            .write(v, "a car block's field")?;
     }
     Ok(())
 }

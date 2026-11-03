@@ -69,9 +69,9 @@ pub fn draw_needle() -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        let vertex = crate::d3d::vertices_store::piece_addr() + 0x20 * n as u32;
+        let vertex = &crate::d3d::vertices_store::VERTICES.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);
-        crate::hud::turned_vertex::turned_vertex(vertex, angle, point)?;
+        crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
     }
     crate::scene::draw_store::DRAW
         .polygon_vertex_count

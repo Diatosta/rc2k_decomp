@@ -20,9 +20,9 @@ use rc2k_core::hud::icons;
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
 /// `bottom` (ebx) its row.
 // Converted: `rc2k_core::hud::icons`
-pub fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refused> {
-    let e = record.wrapping_add(entry);
-    let get = |o: u32| GamePtr::new(e + o).read::<u32>("a hud record's field");
+pub fn draw_icon(record: GamePtr, bottom: u32, entry: u32) -> Result<(), Refused> {
+    let e = record.offset(entry);
+    let get = |o: u32| e.offset(o).read::<u32>("a hud record's field");
     if !icons::shown(get(0x84)?) {
         return Ok(());
     }

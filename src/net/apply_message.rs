@@ -40,8 +40,6 @@ fn note_unbelievable(player: u32) {
 
 /// The Rust version.
 pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
-    let rd = |at: u32| GamePtr::new(at).read::<u32>("a received message or car block");
-    let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "a car block's field");
     log_int(NET.player.get() as i32, false, 1);
     log_int(RACE_VIEW.local_car.get() as i32, false, 1);
     log_int(message.read::<u8>("a received message")? as i32, false, 1);
@@ -51,6 +49,12 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
         return Ok(());
     }
     let block = RACE_WORK.car_block(player as usize);
+    // The block is looked up at each access: a null one refuses at the first, as the original's.
+    let at = |offset: u32| {
+        Ok::<_, BadInput>(GamePtr::to(crate::race::trap::car_at(block)?).offset(offset))
+    };
+    let rd = |offset: u32| at(offset)?.read::<u32>("a received message or car block");
+    let wr = |offset: u32, v: u32| at(offset)?.write(v, "a car block's field");
     // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
     // exact for the decision).
     let Some(kind) = Kind::of(message.read("a received message")?) else {
@@ -65,28 +69,27 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
         return Ok(());
     }
     for (n, &value) in values.iter().enumerate() {
-        wr(block + kind.destination(n), value)?;
+        wr(kind.destination(n), value)?;
     }
     if kind != Kind::Position {
         return Ok(());
     }
-    let three =
-        |at: u32| Ok::<_, BadInput>([rd(block + at)?, rd(block + at + 4)?, rd(block + at + 8)?]);
+    let three = |at: u32| Ok::<_, BadInput>([rd(at)?, rd(at + 4)?, rd(at + 8)?]);
     let (wanted, now) = (three(race::WANTED)?, three(race::PLACE)?);
-    let steps = rd(block + race::STEPS)?;
+    let steps = rd(race::STEPS)?;
     match race::arrival(wanted, now, steps, race::SNAP_FROM) {
         Arrival::Jump => {
             for (k, v) in (0..).zip(wanted) {
-                wr(block + race::PLACE + 4 * k, v)?;
+                wr(race::PLACE + 4 * k, v)?;
             }
             // +0xFC0 now holds a place, not a step: a glide under way ends.
-            wr(block + race::GLIDE_STEPS, 0)?;
+            wr(race::GLIDE_STEPS, 0)?;
         }
         Arrival::Glide(step) => {
             for (k, v) in (0..).zip(step) {
-                wr(block + race::WANTED + 4 * k, v)?;
+                wr(race::WANTED + 4 * k, v)?;
             }
-            wr(block + race::GLIDE_STEPS, race::GLIDE)?;
+            wr(race::GLIDE_STEPS, race::GLIDE)?;
         }
     }
     Ok(())

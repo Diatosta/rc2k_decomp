@@ -36,7 +36,7 @@ pub fn store_received(
     bytes: GamePtr,
     length: u32,
 ) -> Result<(), Refused> {
-    let base = GamePtr::new(block.inbox_addr());
+    let base = block.inbox();
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
     let mut inbox = base.read_bytes(inbox::INBOX, "a player's inbox")?;
     let message = bytes.read_bytes(length as usize, "a received message")?;

@@ -16,10 +16,10 @@ const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker(record: u32) -> Result<(), Refused> {
+pub fn draw_marker(record: GamePtr) -> Result<(), Refused> {
     HUD.quad[5].set(HUD.marker_colours[0].get());
     {
-        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let f = f32::from_bits;
         let x = marker_x(
             f(get(0x6C)?),

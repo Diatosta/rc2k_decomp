@@ -6,9 +6,10 @@
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 
 /// The Rust version (see the header).
-pub fn icons_0(record: u32) -> Result<(), Refused> {
+pub fn icons_0(record: GamePtr) -> Result<(), Refused> {
     HUD.icon_shift.set(0);
     HUD.icon_scale.set_bits(HUD.icon_scales[0].bits());
     draw_icon(record, 0xC8, 0)

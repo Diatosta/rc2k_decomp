@@ -12,24 +12,28 @@
 use crate::errors::Refused;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::pointers::GamePtr;
-use crate::race::state_store::RACE_STATE;
+use crate::race::state_store::{RACE_STATE, RaceSettings, RaceState};
 use rc2k_core::net::settings::{self, Copy};
+use std::mem::offset_of;
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_player_settings() -> Result<(), Refused> {
     let player = &PLAYER_TABLE.players[0];
     // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
     player.update(|p| p.store(&[(settings::TAKEN_MARK as usize, 1)]));
-    let to = RACE_STATE.settings.car_kind_current.addr();
+    // The copies run on past the settings into the results, so the bound is the whole state.
+    let to = GamePtr::to(&RACE_STATE).offset(
+        (offset_of!(RaceState, settings) + offset_of!(RaceSettings, car_kind_current)) as u32,
+    );
     for copy in settings::copies() {
         match copy {
             Copy::Dword { to: at, from } => {
                 let v = player.get().word(from as usize);
-                GamePtr::new(to + at).write(v, "the race settings")?;
+                to.offset(at).write(v, "the race settings")?;
             }
             Copy::Bytes { to: at, from, len } => {
                 let bytes = player.get().to_le_bytes();
-                GamePtr::new(to + at).write_bytes(
+                to.offset(at).write_bytes(
                     &bytes[from as usize..(from + len) as usize],
                     "the race settings",
                 )?;

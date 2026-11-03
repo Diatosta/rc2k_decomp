@@ -16,10 +16,6 @@ impl Loose32 {
     pub fn set(&self, value: u32) {
         self.0.set_u32(0, value);
     }
-
-    pub fn addr(&self) -> u32 {
-        self.0.addr()
-    }
 }
 
 /// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).

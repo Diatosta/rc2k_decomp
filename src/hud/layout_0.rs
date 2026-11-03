@@ -104,9 +104,9 @@ pub fn needle_sign(field: u32) -> u32 {
 /// The Rust version (see the header): the HUD of one player, `record` the HUD's record.
 // Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
 // stage panel and the needle's sign)
-pub fn layout_0(record: u32) -> Result<(), Refused> {
+pub fn layout_0(record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
-    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
     let flags = get(0xF8)?;
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);

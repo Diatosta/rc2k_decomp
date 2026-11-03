@@ -74,7 +74,7 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
             .offset(car_at(n) as u32)
             .write_bytes(&car.get().to_le_bytes(), "a player's record")?;
     }
-    GamePtr::new(crate::menu::drivers_store::drivers_addr()).copy_to(
+    GamePtr::to(&crate::menu::drivers_store::DRIVERS).copy_to(
         buffer.offset(RECORDS_AT as u32),
         RECORDS_LEN,
         "the drivers' records",

@@ -129,8 +129,8 @@ impl PlayerBlock {
 
     /// Where the count and the records are (`+0x34`, the start of the inbox
     /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
-    pub fn inbox_addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<Self>(self)) + 0x34
+    pub fn inbox(&self) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(self).offset(0x34)
     }
 }
 

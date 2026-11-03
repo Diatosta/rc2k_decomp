@@ -30,16 +30,14 @@ pub const INPUTS: Message = Message {
 
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
 pub fn send_fields(m: &Message) -> Result<(), Refused> {
-    let (car, message) = (
-        crate::physics::car_store::car_addr(),
-        crate::pointers::game_address(crate::race::work_store::RACE_WORK.net_message.as_ptr()),
-    );
+    let car = GamePtr::to(&crate::physics::car_store::CAR);
+    let message = GamePtr::to(&crate::race::work_store::RACE_WORK.net_message);
     log_send(m.text);
     // Converted: `rc2k_core::net::race::Kind::pack`.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     let dwords = m.kind.pack(|field| {
-        GamePtr::new(car + field)
+        car.offset(field)
             .read::<u32>("the car's work block")
             .unwrap_or_else(|e| {
                 refused.set(Some(e));
@@ -50,9 +48,11 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
         return Err(e.into());
     }
     for (n, &v) in dwords.iter().enumerate() {
-        GamePtr::new(message + 4 * n as u32).write(v, "the network message")?;
+        message
+            .offset(4 * n as u32)
+            .write(v, "the network message")?;
     }
-    send_message(GamePtr::new(message), 4 * dwords.len() as u32)
+    send_message(message, 4 * dwords.len() as u32)
 }
 
 /// The Rust version.

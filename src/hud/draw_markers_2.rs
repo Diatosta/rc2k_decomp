@@ -8,9 +8,10 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_markers_1::markers_with;
+use crate::pointers::GamePtr;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub fn draw_markers_2(record: u32) -> Result<(), Refused> {
+pub fn draw_markers_2(record: GamePtr) -> Result<(), Refused> {
     markers_with(record, [0x11F, 0x12C])
 }

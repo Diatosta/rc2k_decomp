@@ -39,13 +39,13 @@ pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
 /// (see the header and `hud::draw_stage_bars_1`'s).
 // Converted: `rc2k_core::hud::stage_bars`
 pub fn bars(
-    record: u32,
+    record: GamePtr,
     kinds: &[&[Dword]],
     colour_vars: &[&Dword],
     dy: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
     let count = get(0x74)?;
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
@@ -100,7 +100,7 @@ pub fn bars(
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
-pub fn draw_stage_bar(record: u32) -> Result<(), Refused> {
+pub fn draw_stage_bar(record: GamePtr) -> Result<(), Refused> {
     bars(
         record,
         &[&RACE_OVERLAY.overlay_part_kinds_a],

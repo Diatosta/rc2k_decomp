@@ -15,25 +15,23 @@ use rc2k_core::net::race;
 
 /// The Rust version.
 pub fn follow_remote() -> Result<(), crate::errors::BadInput> {
-    let car = crate::physics::car_store::car_addr();
-    let rd = |at: u32| GamePtr::new(at).read::<u32>("the car's work block");
-    let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "the car's work block");
+    let car = GamePtr::to(&crate::physics::car_store::CAR);
+    let rd = |at: u32| car.offset(at).read::<u32>("the car's work block");
+    let wr = |at: u32, v: u32| car.offset(at).write(v, "the car's work block");
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
-    let three = |at: u32| {
-        Ok::<_, crate::errors::BadInput>([rd(car + at)?, rd(car + at + 4)?, rd(car + at + 8)?])
-    };
+    let three = |at: u32| Ok::<_, crate::errors::BadInput>([rd(at)?, rd(at + 4)?, rd(at + 8)?]);
     if NET.session.get() == 0 {
         return Ok(());
     }
-    let steps = rd(car + race::GLIDE_STEPS)?;
+    let steps = rd(race::GLIDE_STEPS)?;
     if steps == 0 {
         return Ok(());
     }
     let step = three(race::WANTED)?;
     if let Some((left, place)) = race::glide(true, steps, three(race::PLACE)?, step) {
-        wr(car + race::GLIDE_STEPS, left)?;
+        wr(race::GLIDE_STEPS, left)?;
         for (k, v) in (0..).zip(place) {
-            wr(car + race::PLACE + 4 * k, v)?;
+            wr(race::PLACE + 4 * k, v)?;
         }
     }
     Ok(())

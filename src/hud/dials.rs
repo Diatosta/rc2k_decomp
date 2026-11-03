@@ -29,7 +29,7 @@ pub struct Setup {
 
 /// The Rust version of a set-up's copies (see the header); its caller then draws the
 /// shape (`hud::draw_disc` or `hud::draw_needle`).
-pub fn set_up(record: u32, s: &Setup) -> Result<(), Refused> {
+pub fn set_up(record: GamePtr, s: &Setup) -> Result<(), Refused> {
     {
         let flat = PANEL.flat.get() == 0;
         for &(from, to, only_flat) in s.copies {
@@ -37,7 +37,7 @@ pub fn set_up(record: u32, s: &Setup) -> Result<(), Refused> {
                 continue;
             }
             let v = match from {
-                From::Field(o) => GamePtr::new(record + o).read::<u32>("a hud record's field")?,
+                From::Field(o) => record.offset(o).read::<u32>("a hud record's field")?,
                 From::Var(c) => c(&HUD).bits(),
             };
             to(&HUD).set_bits(v);
@@ -47,13 +47,13 @@ pub fn set_up(record: u32, s: &Setup) -> Result<(), Refused> {
 }
 
 /// A disc's set-up and the disc.
-pub fn disc(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+pub fn disc(record: GamePtr, s: &Setup) -> Result<(), crate::errors::Refused> {
     set_up(record, s)?;
     crate::hud::draw_disc::draw_disc()
 }
 
 /// A needle's set-up and the needle.
-pub fn needle(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+pub fn needle(record: GamePtr, s: &Setup) -> Result<(), crate::errors::Refused> {
     set_up(record, s)?;
     crate::hud::draw_needle::draw_needle()
 }

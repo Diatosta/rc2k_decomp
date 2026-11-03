@@ -17,10 +17,12 @@ use rc2k_core::net::cars;
 /// The Rust version.
 pub fn reset_cars() -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
-        let block = RACE_WORK.car_block(car as usize);
+        let block = crate::race::trap::car_at(RACE_WORK.car_block(car as usize))?;
         // Converted: `rc2k_core::net::cars::reset_fields`.
         for (offset, v) in cars::reset_fields(car) {
-            GamePtr::new(block + offset).write(v, "a car block's field")?;
+            GamePtr::to(block)
+                .offset(offset)
+                .write(v, "a car block's field")?;
         }
         clear_car_state(block)?;
     }

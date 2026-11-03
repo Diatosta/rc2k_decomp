@@ -141,7 +141,7 @@ pub fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> {
         g.palette = car.addr() + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
     }
     cursor.copy_to(
-        GamePtr::new(crate::menu::drivers_store::drivers_addr()),
+        GamePtr::to(&crate::menu::drivers_store::DRIVERS),
         RECORDS_LEN,
         "the saved drivers",
     )?;

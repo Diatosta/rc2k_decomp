@@ -9,10 +9,9 @@
 //!
 //! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
-use crate::errors::Refused;
+use crate::d3d::vertices_store::Vertex;
 use crate::hud::store::HUD;
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
-use crate::pointers::GamePtr;
 use rc2k_core::hud::disc;
 
 /// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
@@ -20,24 +19,29 @@ use rc2k_core::hud::disc;
 /// original hands its caller's ebx to `math::turn_float_point_xz` as y; that goes to
 /// `g_scratchY` alone, which is written before it is read everywhere: 0 here.
 // Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
-pub fn turned_vertex(vertex: u32, angle: u32, point: [f64; 2]) -> Result<(), Refused> {
+pub fn turned_vertex(vertex: &Vertex, angle: u32, point: [f64; 2]) {
     let [y, x] = point.map(|v| v as f32);
     HUD.point[1].set(y.to_bits());
     HUD.point[0].set(x.to_bits());
-    let put =
-        |o: u32, v: f32| GamePtr::new(vertex + o).write::<u32>(v.to_bits(), "a hud record's field");
     let scale = HUD.uv_scale_x.get();
-    put(0x18, disc::turned_texture(x, HUD.uv_shift[0].get(), scale))?;
-    put(0x1C, disc::turned_texture(y, HUD.uv_shift[1].get(), scale))?;
+    vertex
+        .u
+        .set_bits(disc::turned_texture(x, HUD.uv_shift[0].get(), scale).to_bits());
+    vertex
+        .v
+        .set_bits(disc::turned_texture(y, HUD.uv_shift[1].get(), scale).to_bits());
     let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
     HUD.point[1].set(tz);
     HUD.point[0].set(tx);
     let size = HUD.needle_size.get();
     let [tx, tz] = [tx, tz].map(f32::from_bits);
-    put(0, disc::turned_place(tx, size, HUD.needle_centre[0].get()))?;
-    put(4, disc::turned_place(tz, size, HUD.needle_centre[1].get()))?;
+    vertex
+        .x
+        .set_bits(disc::turned_place(tx, size, HUD.needle_centre[0].get()).to_bits());
+    vertex
+        .y
+        .set_bits(disc::turned_place(tz, size, HUD.needle_centre[1].get()).to_bits());
     let colour = disc::white_under(HUD.quad[0].get());
-    GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
-    GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
-    Ok(())
+    vertex.colour.set(colour);
+    vertex.specular.set(0);
 }

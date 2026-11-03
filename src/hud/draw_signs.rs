@@ -26,7 +26,7 @@ pub fn row_by(y: u32, lift: u32) -> u32 {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub fn draw_signs(record: u32) -> Result<(), Refused> {
+pub fn draw_signs(record: GamePtr) -> Result<(), Refused> {
     signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20)
 }
 
@@ -34,7 +34,7 @@ pub fn draw_signs(record: u32) -> Result<(), Refused> {
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub fn signs_with(
-    record: u32,
+    record: GamePtr,
     first: u32,
     start: u32,
     shift: u32,
@@ -43,7 +43,7 @@ pub fn signs_with(
 ) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
     {
-        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let places = get(start)?.wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {
             let v = get(first + 4 * n)?;

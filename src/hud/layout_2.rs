@@ -35,9 +35,9 @@ fn lower(y: u32) -> u32 {
 /// `record` the HUD's record.
 // Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
-pub fn layout_2(record: u32) -> Result<(), Refused> {
+pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
-    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
     let [f1, f2] = [get(0xF8)?, get(0xFC)?];
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);

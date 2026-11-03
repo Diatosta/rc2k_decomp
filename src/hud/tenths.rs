@@ -13,10 +13,12 @@ use crate::pointers::GamePtr;
 const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
 /// The Rust version (see the header): the record's six times in tenths.
-pub fn tenths(record: u32) -> Result<(), Refused> {
+pub fn tenths(record: GamePtr) -> Result<(), Refused> {
     // Converted: `rc2k_core::hud::tenths::tenths`.
     let times: [i32; 6] = crate::effects::try_from_fn(|n| {
-        Ok(GamePtr::new(record + FIELDS[n]).read::<i32>("a hud record's field")?)
+        Ok(record
+            .offset(FIELDS[n])
+            .read::<i32>("a hud record's field")?)
     })?;
     let (tenths, _) = rc2k_core::hud::tenths::tenths(times);
     for (cell, v) in HUD.times.iter().zip(tenths) {

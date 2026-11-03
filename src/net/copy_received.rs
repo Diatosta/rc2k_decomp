@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::net::{lock_received, unlock_received};
-use crate::pointers::GamePtr;
 use rc2k_core::net::inbox;
 
 /// The records' room: 16 players.
@@ -30,7 +29,7 @@ pub fn copy_received() -> Result<(), Refused> {
     let mut player = 0u32;
     loop {
         // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
-        let at = GamePtr::new(NET.player_block(player).inbox_addr());
+        let at = NET.player_block(player).inbox();
         let mut both = at.read_bytes(2 * inbox::COPIED, "a player's inbox")?;
         inbox::hand_over(&mut both);
         at.write_bytes(&both, "a player's inbox")?;

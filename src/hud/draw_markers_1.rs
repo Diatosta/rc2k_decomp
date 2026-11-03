@@ -30,9 +30,9 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two markers at rows `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
+pub fn markers_with(record: GamePtr, rows: [u32; 2]) -> Result<(), Refused> {
     {
-        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let k = HUD.uv_scale_x.bits();
         for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
             HUD.quad[5].set(HUD.marker_colours[n].get());
@@ -59,6 +59,6 @@ pub fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub fn draw_markers_1(record: u32) -> Result<(), Refused> {
+pub fn draw_markers_1(record: GamePtr) -> Result<(), Refused> {
     markers_with(record, [1, 0xE])
 }
