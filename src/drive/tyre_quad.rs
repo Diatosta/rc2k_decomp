@@ -21,16 +21,17 @@ use rc2k_core::drive::tyre_screen::quad_corners;
 /// rectangles as addresses (the viewer's items).
 pub fn tyre_quad(uv: u32, rect: u32, colour: u32) -> Result<(), Refused> {
     let rect: [u32; 4] = GamePtr::new(rect).read("a tyre's rectangle")?;
+    let uv: [u32; 4] = GamePtr::new(uv).read("a tyre's texture rectangle")?;
     quad_of(uv, rect, colour)
 }
 
 /// `tyre_quad` on rectangles held as cells.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
 pub fn tyre_quad_cells(uv: &[Dword; 4], rect: &[Dword; 4], colour: u32) -> Result<(), Refused> {
-    quad_of(crate::session::address_of(uv), read_all(rect), colour)
+    quad_of(read_all(uv), read_all(rect), colour)
 }
 
-fn quad_of(uv: u32, rect: [u32; 4], colour: u32) -> Result<(), Refused> {
+fn quad_of(uv: [u32; 4], rect: [u32; 4], colour: u32) -> Result<(), Refused> {
     let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
         VERTICES.vertices[k].x.set_bits(x.to_bits());

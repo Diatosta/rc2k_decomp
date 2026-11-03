@@ -26,18 +26,18 @@
 //! Callers: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45E3BF`,
 //! `physics::crash_contact`, `physics::ground_contact`.
 
-use crate::math::x87_float::X;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::math::x87_float::{X, f80};
 use crate::math::x87_run::{compare_80, neg_rounded};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
-use crate::physics::tables_store::PHYSICS;
+use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
@@ -45,7 +45,6 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-use crate::scene::x87_mem::{fnstsw, fstp, fstp80};
 use crate::session::Float;
 
 /// Three floats copied as bits, in order.
@@ -148,8 +147,7 @@ pub fn contact_force() {
     if PHYSICS.contact_step.get() != 0 {
         fill3(&CONTACT_WORK.contact_normal_push, 0);
         copy3(&CONTACT_WORK.contact_extra, &CONTACT_WORK.contact_normal);
-        let mut part = [0u8; 10];
-        x87_5((crate::pointers::game_address(part.as_mut_ptr())) as usize);
+        let part = x87_5();
         scale_vector(&CONTACT_WORK.contact_extra, part);
         DRAW.scratch.set(rounded(part));
     }
@@ -183,8 +181,7 @@ pub fn contact_force() {
     {
         fill3(&CONTACT_WORK.contact_slide, 0);
     }
-    let mut status = 0u16;
-    x87_6(crate::pointers::game_address(&raw mut status) as usize);
+    let status = x87_6();
     if status & 0x4100 == 0 {
         x87_7();
     }
@@ -195,15 +192,15 @@ pub fn contact_force() {
         &CONTACT_WORK.contact_total,
     );
     let edi = PHYSICS.contact_record.get();
+    // The record the contact's force goes to (+0 force, +0xC place).
+    let record = crate::pointers::GamePtr::new(edi)
+        .record::<ForceRecord>("a contact record")
+        .unwrap_or_else(|e| crate::fatal::raise::end("a contact record", e));
     turn_by_inverse(&CONTACT_WORK.contact_total);
-    x87_8(edi as usize);
+    x87_8(&record.force);
     turn_by_inverse(&CONTACT_WORK.contact_point);
     for k in 0..3 {
-        crate::pointers::write_or_end(
-            edi + 0xC + 4 * k,
-            CONTACT_WORK.contact_point[k as usize].bits(),
-            "a contact record",
-        );
+        record.point[k].set_bits(CONTACT_WORK.contact_point[k].bits());
     }
 }
 
@@ -270,20 +267,20 @@ fn x87_4() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = ([rc + 0x2D1DF8] * int [rc + 0x214148]) / int [rc + 0x21414C]`
-fn x87_5(o: usize) {
+fn x87_5() -> [u8; 10] {
     let t0 = ld(CONTACT_WORK.contact_normal_factor.bits());
     let t1 = int(PHYSICS.contact_step.bits() as i32);
     let t2 = t0 * t1;
     let t3 = int(PHYSICS.contact_steps.bits() as i32);
     let t4 = t2 / t3;
-    fstp80(o, 0, t4);
+    f80(t4)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x2D3140] * [rc + 0x2D3140]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
 /// `status [s + 0] = status`
-fn x87_6(s: usize) {
+fn x87_6() -> u16 {
     let t0 = ld(CONTACT_WORK.contact_slide[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(CONTACT_WORK.contact_slide[1].bits());
@@ -295,8 +292,7 @@ fn x87_6(s: usize) {
     let t8 = t7.sqrt();
     DRAW.scratch.set_bits(st(t8));
     let t9 = ld(CONTACT_WORK.contact_slide_limit_held.bits());
-    let t10 = compare(t8, t9);
-    fnstsw(s, 0, t10);
+    compare(t8, t9)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -326,25 +322,26 @@ fn x87_7() {
 /// `[d + 0] = [rc + 0x2D3150] / [rc + 0x21388C]`
 /// `[d + 4] = [rc + 0x2D3154] / [rc + 0x21388C]`
 /// `[d + 8] = [rc + 0x2D3158] / [rc + 0x21388C]`
-fn x87_8(d: usize) {
+fn x87_8(d: &[Float; 3]) {
     let t0 = ld(CONTACT_WORK.contact_total[0].bits());
     let t1 = ld(PHYSICS.step_time.bits());
     let t2 = t0 / t1;
-    fstp(d, 0, t2);
+    d[0].set_bits(st(t2));
     let t3 = ld(CONTACT_WORK.contact_total[1].bits());
     let t4 = ld(PHYSICS.step_time.bits());
     let t5 = t3 / t4;
-    fstp(d, 4, t5);
+    d[1].set_bits(st(t5));
     let t6 = ld(CONTACT_WORK.contact_total[2].bits());
     let t7 = ld(PHYSICS.step_time.bits());
     let t8 = t6 / t7;
-    fstp(d, 8, t8);
+    d[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, view};
 
     // The original's instructions, one function per run.
     reference!(ref_0(rc) "fld dword ptr [{rc} + 0x2D30C0]", "fadd dword ptr [{rc} + 0x2D30A8]", "fstp dword ptr [{rc} + 0x2D30CC]", "fld dword ptr [{rc} + 0x2D30C4]", "fadd dword ptr [{rc} + 0x2D30AC]", "fstp dword ptr [{rc} + 0x2D30D0]", "fld dword ptr [{rc} + 0x2D30C8]", "fadd dword ptr [{rc} + 0x2D30B0]", "fstp dword ptr [{rc} + 0x2D30D4]");
@@ -440,7 +437,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[1]),
+                plain: |a| a[1].set_tbyte(0, x87_5()),
             },
             Block {
                 name: "contact_force line 137",
@@ -484,7 +481,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_6(a[1]),
+                plain: |a| a[1].set_word(0, x87_6()),
             },
             Block {
                 name: "contact_force line 176",
@@ -549,7 +546,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_8(a[1]),
+                plain: |a| x87_8(view(a[1], 0)),
             },
         ]
     }

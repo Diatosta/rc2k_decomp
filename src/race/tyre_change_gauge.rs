@@ -32,7 +32,6 @@ use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 use crate::menu::names_store::NAME_BUFFERS;
-use crate::pointers::GamePtr;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::MACHINE;
@@ -96,7 +95,7 @@ impl Io for GameIo {
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
         self.store(g);
         // The drawing takes the device by address (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(GamePtr::to(self.device).addr())
+        crate::race::draw_tyre_change::draw_tyre_change(self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(s as i32) as u32

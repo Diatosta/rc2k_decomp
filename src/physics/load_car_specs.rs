@@ -32,7 +32,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::car_specs_store::{CAR_SPECS, CarSpec};
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fld};
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
@@ -75,12 +74,10 @@ fn words(spec: &CarSpec) {
 pub fn load_car_specs() -> Result<(), Refused> {
     let kind = CAR.car_kind.get();
     let spec = record();
-    // The x87 runs read the record at their operands' offsets.
-    let s = crate::pointers::game_address(std::ptr::from_ref::<CarSpec>(spec));
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    x87_1(s as usize);
+    x87_1(spec);
     if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
         CAR.engine_speed_limit
             .set_bits(x87::loaded(NUMBERS.thousand.bits()));
@@ -92,7 +89,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     }
     words(spec);
     // 0x4216C5 .. 0x421704
-    x87_2(s as usize);
+    x87_2(spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
         x87_3();
@@ -101,7 +98,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     PHYSICS.spec_grip_b.set_bits(PHYSICS.spec_default_ba4.get());
     PHYSICS.spec_wheel.set_bits(PHYSICS.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    x87_4(s as usize);
+    x87_4(spec);
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
@@ -125,33 +122,33 @@ pub fn load_car_specs() -> Result<(), Refused> {
 /// `[rc + 0x1CB960] = [s + 0xAC] + [rc + 0x1C5DDC]`
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
-fn x87_1(s: usize) {
-    let t0 = fild(s, 0x64);
+fn x87_1(s: &CarSpec) {
+    let t0 = int(s.figures[0].get() as i32);
     GEAR.figures[0].set_bits(st(t0));
-    let t1 = fild(s, 0x68);
+    let t1 = int(s.figures[1].get() as i32);
     GEAR.figures[1].set_bits(st(t1));
-    let t2 = fild(s, 0x6C);
+    let t2 = int(s.figures[2].get() as i32);
     GEAR.figures[2].set_bits(st(t2));
-    let t3 = fild(s, 0x70);
+    let t3 = int(s.figures[3].get() as i32);
     GEAR.figures[3].set_bits(st(t3));
-    let t4 = fild(s, 0x74);
+    let t4 = int(s.engine_top.get() as i32);
     CAR.engine_speed_limit.set_bits(st(t4));
     let t5 = ld(PHYSICS.spec_scale_1b8.bits());
     CAR.unknown_1e0.set_bits(st(t5));
-    let t6 = fld(s, 0xA4);
+    let t6 = ld(s.shift_points[0].bits());
     GEAR.shift_up_point.set_bits(st(t6));
     let t7 = ld(PHYSICS.spec_scale_a4.bits());
     let t8 = t6 * t7;
     GEAR.shift_ratio_figure.set_bits(st(t8));
-    let t9 = fld(s, 0xA8);
+    let t9 = ld(s.shift_points[1].bits());
     let t10 = ld(NUMBERS.tenths[0].bits());
     let t11 = t9 + t10;
     GEAR.shift_down_point.set_bits(st(t11));
-    let t12 = fld(s, 0xAC);
+    let t12 = ld(s.shift_points[2].bits());
     let t13 = ld(NUMBERS.tenths[0].bits());
     let t14 = t12 + t13;
     GEAR.shift_down_clutch_point.set_bits(st(t14));
-    let t15 = fild(s, 0x78);
+    let t15 = int(s.over_top.get() as i32);
     let t16 = ld(PHYSICS.rev_limit_scale.bits());
     let t17 = t15 * t16;
     let t18 = ld(CAR.engine_speed_limit.bits());
@@ -168,20 +165,20 @@ fn x87_1(s: usize) {
 /// `int [rc + 0x214BC0] = (int [s + 0x40] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn x87_2(s: usize) {
-    let t0 = fild(s, 0x40);
+fn x87_2(s: &CarSpec) {
+    let t0 = int(s.whole_figures[0].get() as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
     let t3 = ld(NUMBERS.thousand.bits());
     let t4 = t2 / t3;
     PHYSICS.spec_ints[0].set_bits(to_int(t4) as u32);
-    let t5 = fild(s, 0x44);
+    let t5 = int(s.whole_figures[1].get() as i32);
     let t6 = ld(NUMBERS.k65536.bits());
     let t7 = t5 * t6;
     let t8 = ld(NUMBERS.thousand.bits());
     let t9 = t7 / t8;
     PHYSICS.spec_ints[1].set_bits(to_int(t9) as u32);
-    let t10 = fild(s, 0x48);
+    let t10 = int(s.whole_figures[2].get() as i32);
     let t11 = ld(NUMBERS.k65536.bits());
     let t12 = t10 * t11;
     let t13 = ld(NUMBERS.thousand.bits());
@@ -219,12 +216,12 @@ fn x87_3() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214BAC] = [s + 0x38] * [rc + 0x213FC8]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [rc + 0x213FC8]`
-fn x87_4(s: usize) {
-    let t0 = fld(s, 0x38);
+fn x87_4(s: &CarSpec) {
+    let t0 = ld(s.weights[0].bits());
     let t1 = ld(PHYSICS.gravity.bits());
     let t2 = t0 * t1;
     PHYSICS.spec_drive[0].set_bits(st(t2));
-    let t3 = fld(s, 0x3C);
+    let t3 = ld(s.weights[1].bits());
     let t4 = ld(PHYSICS.gravity.bits());
     let t5 = t3 * t4;
     PHYSICS.spec_drive[1].set_bits(st(t5));
@@ -253,6 +250,24 @@ fn x87_5(k: usize) {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    /// A record with the bytes `from .. to` of the test buffer at `base` (the rest zero):
+    /// the buffers hold only the offsets the run reads.
+    fn spec_at(base: usize, from: usize, to: usize) -> Box<CarSpec> {
+        // SAFETY: cells and byte arrays only, all-zero is valid; the buffer holds `to` bytes.
+        let spec: Box<CarSpec> = Box::new(unsafe { std::mem::zeroed() });
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                crate::pointers::host_at(base + from),
+                std::ptr::from_ref::<CarSpec>(&spec)
+                    .cast::<u8>()
+                    .cast_mut()
+                    .add(from),
+                to - from,
+            );
+        }
+        spec
+    }
 
     // The original's instructions, one function per run.
     reference!(ref_0(s, rc) "fild dword ptr [{s} + 0x64]", "fstp dword ptr [{rc} + 0x1CB96C]", "fild dword ptr [{s} + 0x68]", "fstp dword ptr [{rc} + 0x1CB970]", "fild dword ptr [{s} + 0x6C]", "fstp dword ptr [{rc} + 0x1CB974]", "fild dword ptr [{s} + 0x70]", "fstp dword ptr [{rc} + 0x1CB978]", "fild dword ptr [{s} + 0x74]", "fstp dword ptr [{rc} + 0x31A1B4]", "fld dword ptr [{rc} + 0x213F10]", "fstp dword ptr [{rc} + 0x31A1B8]", "fld dword ptr [{s} + 0xA4]", "fst dword ptr [{rc} + 0x1CB958]", "fmul dword ptr [{rc} + 0x213E88]", "fstp dword ptr [{rc} + 0x1CB964]", "fld dword ptr [{s} + 0xA8]", "fadd dword ptr [{rc} + 0x1C5DDC]", "fstp dword ptr [{rc} + 0x1CB95C]", "fld dword ptr [{s} + 0xAC]", "fadd dword ptr [{rc} + 0x1C5DDC]", "fstp dword ptr [{rc} + 0x1CB960]", "fild dword ptr [{s} + 0x78]", "fmul dword ptr [{rc} + 0x213EB8]", "fdiv dword ptr [{rc} + 0x31A1B4]", "fstp dword ptr [{rc} + 0x1CB968]", "fld dword ptr [{rc} + 0x31A1B4]", "fmul dword ptr [{rc} + 0x213FE4]", "fstp dword ptr [{rc} + 0x214104]");
@@ -307,7 +322,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0]),
+                plain: |a| x87_1(&spec_at(a[0], 0x64, 0xB0)),
             },
             Block {
                 name: "load_car_specs line 145",
@@ -323,7 +338,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0]),
+                plain: |a| x87_2(&spec_at(a[0], 0x40, 0x4C)),
             },
             Block {
                 name: "load_car_specs line 162",
@@ -355,7 +370,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(a[0]),
+                plain: |a| x87_4(&spec_at(a[0], 0x38, 0x40)),
             },
             Block {
                 name: "load_car_specs line 194 idx k=0",

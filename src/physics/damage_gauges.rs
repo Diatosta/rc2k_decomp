@@ -16,6 +16,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::errors::BadInput;
 use crate::math::x87::loaded;
 use crate::math::x87_float::X;
 #[allow(unused_imports)] // the generated body uses some of them
@@ -27,18 +28,21 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
 use crate::race::work_store::RACE_WORK;
-use crate::scene::x87_mem::{fld, fstp};
-use crate::session::Cell32;
+use crate::session::{Cell32, Float};
 
-/// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
-fn gear_gauge(gear: u32) -> u32 {
-    (CAR.gear_wear[1].addr()).wrapping_add(gear.wrapping_mul(4))
+/// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
+fn gear_gauge(gear: u32) -> &'static Float {
+    CAR.gear_wear
+        .get(gear.wrapping_add(1) as usize)
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end("a gear's wear gauge", BadInput("the gear is not -1 .. 7"))
+        })
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
-fn hold_at(at: u32) {
-    let rd = || crate::pointers::read_or_end::<u32>(at, "a damage gauge");
-    let put = |v: u32| crate::pointers::write_or_end(at, v, "a damage gauge");
+fn hold_at(at: &Float) {
+    let rd = || at.bits();
+    let put = |v: u32| at.set_bits(v);
     if c0(rd(), DAMAGE.gauge_low.bits()) {
         put(loaded(DAMAGE.gauge_low.bits()));
     }
@@ -197,11 +201,13 @@ pub fn steps() {
     hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
     let gear = DAMAGE.dword_75b3bc.bits();
     let gauge = gear_gauge(gear);
-    x87_3(
-        &DAMAGE,
-        ((DAMAGE.flt_75b5b0.addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
-        gauge as usize,
-    );
+    let factor = DAMAGE
+        .gear_factors
+        .get(gear.wrapping_add(1) as usize)
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end("a gear's factor", BadInput("the gear is not -1 .. 7"))
+        });
+    x87_3(&DAMAGE, factor, gauge);
     hold_at(gauge);
     x87_4(&DAMAGE);
     hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
@@ -281,10 +287,15 @@ pub fn steps() {
     hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
     x87_6(&DAMAGE);
     let part = DAMAGE.flt_75b3e4.bits();
+    let kind = |table: &'static [Float; 2]| {
+        table.get(part as usize).unwrap_or_else(|| {
+            crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
+        })
+    };
     x87_7(
         &DAMAGE,
-        ((DAMAGE.kind_table_a[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
-        ((DAMAGE.kind_table_b[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
+        kind(&DAMAGE.kind_table_a),
+        kind(&DAMAGE.kind_table_b),
     );
     x87_5(
         &DAMAGE.flt_75b46c,
@@ -363,12 +374,12 @@ pub fn steps() {
     let gear = DAMAGE.dword_75b3bc.bits();
     if DAMAGE.dword_75b3b8.bits() == 0x1 {
         let gauge = gear_gauge(gear);
-        x87_10(gauge as usize, &DAMAGE.gauge_rates[18]);
+        x87_10(gauge, &DAMAGE.gauge_rates[18]);
     }
     let gear = DAMAGE.dword_75b3bc.bits();
     if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
         let gauge = gear_gauge(gear);
-        x87_10(gauge as usize, &DAMAGE.gauge_rates[19]);
+        x87_10(gauge, &DAMAGE.gauge_rates[19]);
     }
     x87_5(
         &DAMAGE.flt_75b450,
@@ -765,7 +776,7 @@ pub fn steps() {
         hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
         let gear = DAMAGE.dword_75b3bc.bits();
         let gauge = gear_gauge(gear);
-        x87_12(&DAMAGE, gauge as usize);
+        x87_12(&DAMAGE, gauge);
         hold_at(gauge);
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
@@ -1034,17 +1045,17 @@ fn x87_2(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ((([m + 0x35B398] * [m + 0x35B5A8]) * [m + 0x35B370]) * [t + 0]) + [v + 0]`
-fn x87_3(m: &DamageModel, t: usize, v: usize) {
+fn x87_3(m: &DamageModel, t: &impl Cell32, v: &impl Cell32) {
     let t0 = ld(m.flt_75b398.bits());
     let t1 = ld(m.wear_rates[12].bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b370.bits());
     let t4 = t2 * t3;
-    let t5 = fld(t, 0);
+    let t5 = ld(t.bits());
     let t6 = t4 * t5;
-    let t7 = fld(v, 0);
+    let t7 = ld(v.bits());
     let t8 = t6 + t7;
-    fstp(v, 0, t8);
+    v.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1110,13 +1121,13 @@ fn x87_6(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B488] = [m + 0x35B488] * [t + 0]`
 /// `[m + 0x35B48C] = [m + 0x35B48C] * [u + 0]`
-fn x87_7(m: &DamageModel, t: usize, u: usize) {
+fn x87_7(m: &DamageModel, t: &impl Cell32, u: &impl Cell32) {
     let t0 = ld(m.flt_75b488.bits());
-    let t1 = fld(t, 0);
+    let t1 = ld(t.bits());
     let t2 = t0 * t1;
     m.flt_75b488.set_bits(st(t2));
     let t3 = ld(m.flt_75b48c.bits());
-    let t4 = fld(u, 0);
+    let t4 = ld(u.bits());
     let t5 = t3 * t4;
     m.flt_75b48c.set_bits(st(t5));
 }
@@ -1148,11 +1159,11 @@ fn x87_9(o1: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = [v + 0] + [m + o1]`
-fn x87_10(v: usize, o1: &impl Cell32) {
-    let t0 = fld(v, 0);
+fn x87_10(v: &impl Cell32, o1: &impl Cell32) {
+    let t0 = ld(v.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 + t1;
-    fstp(v, 0, t2);
+    v.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1168,13 +1179,13 @@ fn x87_11(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[v + 0] = ([m + 0x35B3C8] * [m + 0x35B6CC]) + [v + 0]`
-fn x87_12(m: &DamageModel, v: usize) {
+fn x87_12(m: &DamageModel, v: &impl Cell32) {
     let t0 = ld(m.flt_75b3c8.bits());
     let t1 = ld(m.figures[21].bits());
     let t2 = t0 * t1;
-    let t3 = fld(v, 0);
+    let t3 = ld(v.bits());
     let t4 = t2 + t3;
-    fstp(v, 0, t4);
+    v.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1296,6 +1307,7 @@ fn x87_13(m: &DamageModel) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::scene::x87_mem::HostCell;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
@@ -1858,7 +1870,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_18(a[0], a[1], a[2]) },
-                plain: |a| x87_3(dm(a[0]), a[1], a[2]),
+                plain: |a| x87_3(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
                 name: "damage_gauges line 239",
@@ -2113,7 +2125,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_29(a[0], a[1], a[2]) },
-                plain: |a| x87_7(dm(a[0]), a[1], a[2]),
+                plain: |a| x87_7(dm(a[0]), &HostCell(a[1]), &HostCell(a[2])),
             },
             Block {
                 name: "damage_gauges line 365",
@@ -2345,7 +2357,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_40(a[0], a[1]) },
-                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[18]),
+                plain: |a| x87_10(&HostCell(a[0]), &dm(a[1]).gauge_rates[18]),
             },
             Block {
                 name: "damage_gauges line 486",
@@ -2361,7 +2373,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_41(a[0], a[1]) },
-                plain: |a| x87_10(a[0], &dm(a[1]).gauge_rates[19]),
+                plain: |a| x87_10(&HostCell(a[0]), &dm(a[1]).gauge_rates[19]),
             },
             Block {
                 name: "damage_gauges line 493",
@@ -3426,7 +3438,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_87(a[0], a[1]) },
-                plain: |a| x87_12(dm(a[0]), a[1]),
+                plain: |a| x87_12(dm(a[0]), &HostCell(a[1])),
             },
             Block {
                 name: "damage_gauges line 991",

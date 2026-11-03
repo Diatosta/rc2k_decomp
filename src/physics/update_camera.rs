@@ -89,12 +89,12 @@ fn fixed_camera(second: bool) -> Result<(), crate::errors::BadInput> {
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
-    x87_1((crate::pointers::game_address(v.as_ptr())) as usize);
+    x87_1(v);
     CAR.camera_heading.set(CAR.camera_heading.get() << 4);
     CAR.camera_pitch
         .set((CAR.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
-    x87_2((crate::pointers::game_address(w.as_ptr())) as usize);
+    x87_2(w);
     DRAW.scratch.set(dz);
     VIEW_VARS.camera_distance.set_bits(rounded({
         crate::physics::vector_length::vector_length(&VIEW_VARS.camera_vector)
@@ -256,9 +256,9 @@ pub fn steps() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x31A688] = ((atan2(int [v + 0], int [v + 4]) * [rc + 0x1C5D98]) * [rc + 0x1C5E28]) * [rc + 0x1C5DD4]`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_1(v: usize) {
-    let t0 = fild(v, 0);
-    let t1 = fild(v, 4);
+fn x87_1(v: [u32; 3]) {
+    let t0 = int(v[0] as i32);
+    let t1 = int(v[1] as i32);
     let t2 = t0.atan2(t1);
     let t3 = ld(NUMBERS.k65536.bits());
     let t4 = t2 * t3;
@@ -267,10 +267,10 @@ fn x87_1(v: usize) {
     let t7 = ld(NUMBERS.one_over_two_pi.bits());
     let t8 = t6 * t7;
     CAR.camera_heading.set_bits(to_int(t8) as u32);
-    let t9 = fild(v, 8);
-    let t10 = fild(v, 0);
+    let t9 = int(v[2] as i32);
+    let t10 = int(v[0] as i32);
     let t11 = t10 * t10;
-    let t12 = fild(v, 4);
+    let t12 = int(v[1] as i32);
     let t13 = t12 * t12;
     let t14 = t11 + t13;
     let t15 = t14.sqrt();
@@ -289,16 +289,16 @@ fn x87_1(v: usize) {
 /// `[rc + 0x2062D8] = int [v + 0] / [rc + 0x1C5D98]`
 /// `[rc + 0x2062DC] = int [v + 4] / [rc + 0x1C5D98]`
 /// `[rc + 0x2062E0] = int [v + 8] / [rc + 0x1C5D98]`
-fn x87_2(v: usize) {
-    let t0 = fild(v, 0);
+fn x87_2(v: [u32; 3]) {
+    let t0 = int(v[0] as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
     VIEW_VARS.camera_vector[0].set_bits(st(t2));
-    let t3 = fild(v, 4);
+    let t3 = int(v[1] as i32);
     let t4 = ld(NUMBERS.k65536.bits());
     let t5 = t3 / t4;
     VIEW_VARS.camera_vector[1].set_bits(st(t5));
-    let t6 = fild(v, 8);
+    let t6 = int(v[2] as i32);
     let t7 = ld(NUMBERS.k65536.bits());
     let t8 = t6 / t7;
     VIEW_VARS.camera_vector[2].set_bits(st(t8));
@@ -451,6 +451,7 @@ fn x87_9() {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::view;
 
     // The original's instructions, one function per run.
     reference!(ref_0(v, rc) "fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A688]", "fild dword ptr [{v} + 8]", "fild dword ptr [{v}]", ".byte 0xD8, 0xC8", "fild dword ptr [{v} + 4]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x31A690]");
@@ -479,7 +480,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0]),
+                plain: |a| x87_1(*view(a[0], 0)),
             },
             Block {
                 name: "update_camera line 89",
@@ -495,7 +496,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0]),
+                plain: |a| x87_2(*view(a[0], 0)),
             },
             Block {
                 name: "update_camera line 109",

@@ -217,6 +217,13 @@ impl crate::session::Cell32 for HostCell {
     }
 }
 
+/// The `T` at `off` bytes into a test buffer at `base` (the plain versions' typed operands).
+#[cfg(all(test, target_arch = "x86"))]
+pub(crate) fn view<T>(base: usize, off: usize) -> &'static T {
+    // SAFETY: the buffer is lent for the run (`asm_test`), aligned for its cells.
+    unsafe { &*(crate::pointers::host_at(base + off) as *const T) }
+}
+
 /// `fild dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fild(base: impl Base, off: usize) -> X {

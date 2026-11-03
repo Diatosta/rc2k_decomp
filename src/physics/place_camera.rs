@@ -16,9 +16,8 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::math::x87_float::ld;
+use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::lights_store::LIGHTS_DATA;
@@ -26,7 +25,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fstp80};
+use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
@@ -39,9 +38,9 @@ type Turns = (
 /// The steps both versions share; `second` the second offset turned with the car.
 fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
-        LIGHTS_DATA.place_second[0].addr()
+        &LIGHTS_DATA.place_second
     } else {
-        LIGHTS_DATA.place_usual[0].addr()
+        &LIGHTS_DATA.place_usual
     };
     let places = [
         &VIEW_VARS.place_a,
@@ -52,9 +51,9 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         &VIEW_VARS.place_f,
     ];
     for (k, to) in places.iter().enumerate() {
-        to.set(rd(esi + 4 * k as u32));
+        to.set(esi[k].get());
     }
-    let last = rd(esi + 0x18);
+    let last = esi[6].get();
     for to in [
         &VIEW_VARS.place_last_a,
         &VIEW_VARS.place_last_b,
@@ -117,18 +116,12 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
 pub fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
-        let mut parts = [[0u8; 10]; 3];
         let turns = [
             &CAMERA_WORK.view_turn_x,
             &CAMERA_WORK.view_turn_y,
             &CAMERA_WORK.view_turn_z,
         ];
-        for (k, x) in turns.iter().enumerate() {
-            x87_1(
-                x.addr() as usize,
-                (crate::pointers::game_address(parts[k].as_mut_ptr())) as usize,
-            );
-        }
+        let parts = turns.map(x87_1);
         let turned = { crate::scene::rotate_point::rotate_point(&CAR.crash_matrix, parts) };
         let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
@@ -147,18 +140,19 @@ pub fn place_camera() {
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`
-fn x87_1(v: usize, o: usize) {
-    let t0 = fild(v, 0);
+/// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`; the value is `o`'s ten bytes.
+fn x87_1(v: &impl Cell32) -> [u8; 10] {
+    let t0 = int(v.bits() as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
-    fstp80(o, 0, t2);
+    f80(t2)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, HostCell};
 
     // The original's instructions, one function per run.
     reference!(ref_0(v, rc, o) "fild dword ptr [{v}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp tbyte ptr [{o}]");
@@ -182,7 +176,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| x87_1(a[0], a[2]),
+            plain: |a| a[2].set_tbyte(0, x87_1(&HostCell(a[0]))),
         }]
     }
 

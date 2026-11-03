@@ -205,12 +205,9 @@ pub struct DamageModel {
     pub lerp_tables: [[Float; 4]; 13],
     /// `flt_75B578` ..: the wear rates (`flt_75B584` ..) `physics::damage_wear` raises and lowers the gauges by.
     pub wear_rates: [Float; 13],
-    /// Unreferenced bytes (IDA 0X75B5AC .. 0X75B5B0).
-    pub _gap_75b5ac: Bytes<4>,
-    /// `flt_75B5B0`: not worked out.
-    pub flt_75b5b0: Float,
-    /// Unreferenced bytes (IDA 0X75B5B4 .. 0X75B5D0).
-    pub _gap_75b5b4: Bytes<28>,
+    /// `flt_75B5B0` at index 1 (0x75B5AC .. 0x75B5D0): the gear factors by gear + 1
+    /// (reverse, neutral, 1 .. 7), `physics::damage_gauges`; `flt_75B5B0` itself (neutral) is not worked out.
+    pub gear_factors: [Float; 9],
     /// `flt_75B5D0` ..: the gauges' rates (`physics::damage_gauges`), times the step's shares.
     pub gauge_rates: [Float; 24],
     /// `flt_75B630`: the first kind table (by `flt_75B3E4`'s bits).
@@ -424,15 +421,17 @@ pub static DAMAGE: DamageModel = DamageModel {
         Float::from_bits(0x3c1374bc),
         Float::from_bits(0x3a83126f),
     ],
-    _gap_75b5ac: Bytes::new(sparse::<4>(&[(0x2, &[0x80, 0x3f])])),
-    flt_75b5b0: Float::from_bits(0),
-    _gap_75b5b4: Bytes::new(sparse::<28>(&[(
-        0x0,
-        &[
-            0x66, 0x66, 0xe6, 0x3f, 0x9a, 0x99, 0x99, 0x3f, 0x9a, 0x99, 0x19, 0x3f, 0x9a, 0x99,
-            0x99, 0x3e, 0x9a, 0x99, 0x19, 0x3e, 0x0a, 0xd7, 0xa3, 0x3d, 0x8f, 0xc2, 0x75, 0x3d,
-        ],
-    )])),
+    gear_factors: [
+        Float::from_bits(0x3f800000),
+        Float::from_bits(0),
+        Float::from_bits(0x3fe66666),
+        Float::from_bits(0x3f99999a),
+        Float::from_bits(0x3f19999a),
+        Float::from_bits(0x3e99999a),
+        Float::from_bits(0x3e19999a),
+        Float::from_bits(0x3da3d70a),
+        Float::from_bits(0x3d75c28f),
+    ],
     gauge_rates: [
         Float::from_bits(0x3d99999a),
         Float::from_bits(0x3e19999a),
@@ -668,6 +667,7 @@ mod tests {
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DamageModel, lerp_tables), 0x75B4A8);
+        at(offset_of!(DamageModel, gear_factors), 0x75B5AC);
         at(offset_of!(DamageModel, wear_table), 0x75B73C);
     }
 }

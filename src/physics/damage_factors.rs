@@ -31,7 +31,6 @@ use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::fnstsw;
 use crate::session::Cell32;
 
 #[allow(dead_code)]
@@ -129,11 +128,7 @@ pub fn steps() {
     }
     // 0x4ABCAA: 1 when the engine's speed is above the limit times `flt_75B37C`.
     DAMAGE.flt_75b3c0.set_bits(0);
-    let mut status = 0u16;
-    x87_14(
-        &DAMAGE,
-        crate::pointers::game_address(&raw mut status) as usize,
-    );
+    let status = x87_14(&DAMAGE);
     if status & 0x100 != 0 {
         DAMAGE.flt_75b3c0.set_bits(ONE);
     }
@@ -385,13 +380,12 @@ fn x87_13(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_14(m: &DamageModel, s: usize) {
+fn x87_14(m: &DamageModel) -> u16 {
     let t0 = ld(CAR.engine_speed_limit.bits());
     let t1 = ld(m.flt_75b37c.bits());
     let t2 = t0 * t1;
     let t3 = ld(CAR.engine_speed.bits());
-    let t4 = compare(t2, t3);
-    fnstsw(s, 0, t4);
+    compare(t2, t3)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -484,6 +478,7 @@ mod asm_reference {
         unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::Base;
 
     // The original's instructions, one function per run.
     reference!(ref_0(rc, m) "fild dword ptr [{rc} + 0x31A008]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3F8]", "fild dword ptr [{rc} + 0x31A00C]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B3FC]", "fild dword ptr [{rc} + 0x319FF8]", "fdiv dword ptr [{m} + 0x35B35C]", "fstp dword ptr [{m} + 0x35B400]");
@@ -910,7 +905,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
-                plain: |a| x87_14(dm(a[1]), a[2]),
+                plain: |a| a[2].set_word(0, x87_14(dm(a[1]))),
             },
             Block {
                 name: "damage_factors line 302",

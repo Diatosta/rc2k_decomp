@@ -4,9 +4,9 @@
 //! eases their patterns repeat.
 
 use crate::math::x87;
-use crate::math::x87_float::compare;
+use crate::math::x87_float::{compare, ld, st};
 use crate::math::x87_run::compare_full;
-use crate::scene::x87_mem::{fld, fnstsw, fstp};
+use crate::session::Float;
 
 /// The game's dword at IDA address `x` (or a place of a moved block).
 pub fn g(x: impl crate::store::At) -> u32 {
@@ -97,21 +97,11 @@ pub fn table_lerp(
         p(out, x87::loaded(t[3].bits()));
         return;
     }
-    let mut status = 0u16;
-    x87_1(
-        (crate::pointers::game_address(t.as_ptr())) as usize,
-        a(zero) as usize,
-        crate::pointers::game_address(&raw mut status) as usize,
-    );
-    if status & 0x4000 != 0 {
+    if x87_1(t, g(zero)) & 0x4000 != 0 {
         p(out, x87::loaded(t[1].bits()));
         return;
     }
-    x87_2(
-        a(x) as usize,
-        (crate::pointers::game_address(t.as_ptr())) as usize,
-        a(out) as usize,
-    );
+    p(out, x87_2(g(x), t));
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -119,33 +109,32 @@ pub fn table_lerp(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_1(t: usize, z: usize, s: usize) {
-    let t0 = fld(t, 8);
-    let t1 = fld(t, 0);
+fn x87_1(t: &[Float; 4], z: u32) -> u16 {
+    let t0 = ld(t[2].bits());
+    let t1 = ld(t[0].bits());
     let t2 = t0 - t1;
-    let t3 = fld(z, 0);
-    let t4 = compare(t2, t3);
-    fnstsw(s, 0, t4);
+    let t3 = ld(z);
+    compare(t2, t3)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ((([x + 0] - [t + 0]) / ([t + 8] - [t + 0])) * ([t + 0xC] - [t + 4])) + [t + 4]`
-fn x87_2(x: usize, t: usize, o: usize) {
-    let t0 = fld(x, 0);
-    let t1 = fld(t, 0);
+fn x87_2(x: u32, t: &[Float; 4]) -> u32 {
+    let t0 = ld(x);
+    let t1 = ld(t[0].bits());
     let t2 = t0 - t1;
-    let t3 = fld(t, 8);
-    let t4 = fld(t, 0);
+    let t3 = ld(t[2].bits());
+    let t4 = ld(t[0].bits());
     let t5 = t3 - t4;
     let t6 = t2 / t5;
-    let t7 = fld(t, 0xC);
-    let t8 = fld(t, 4);
+    let t7 = ld(t[3].bits());
+    let t8 = ld(t[1].bits());
     let t9 = t7 - t8;
     let t10 = t6 * t9;
-    let t11 = fld(t, 4);
+    let t11 = ld(t[1].bits());
     let t12 = t10 + t11;
-    fstp(o, 0, t12);
+    st(t12)
 }
 
 /// The first three cells of `from` copied as integers (`mov eax, [from]; mov [to], eax`,
@@ -168,6 +157,8 @@ pub fn fill_cells<A: crate::session::Cell32>(to: &[A], v: u32) {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, HostCell, view};
+    use crate::session::Cell32;
 
     // The original's instructions, one function per run.
     reference!(ref_0(t, z, s) "fld dword ptr [{t} + 8]", "fsub dword ptr [{t}]", "fcomp dword ptr [{z}]", "fnstsw word ptr [{s}]");
@@ -193,7 +184,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| a[2].set_word(0, x87_1(view(a[0], 0), HostCell(a[1]).bits())),
             },
             Block {
                 name: "flow line 138",
@@ -213,7 +204,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1], a[2]) },
-                plain: |a| x87_2(a[0], a[1], a[2]),
+                plain: |a| HostCell(a[2]).set_bits(x87_2(HostCell(a[0]).bits(), view(a[1], 0))),
             },
         ]
     }

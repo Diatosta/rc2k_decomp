@@ -10,6 +10,7 @@
 //! `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
 use crate::race::frame_store::FRAME_WORK;
@@ -19,7 +20,6 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::write_floats;
-use crate::scene::x87_mem::{fild, fstp80};
 use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
@@ -92,24 +92,12 @@ pub fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32;
 
 /// `fild car; fisub listener`, as an 80-bit value.
 fn car_part(car: u32, listener: u32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    let v = [car, listener];
-    x87_1(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
-    out
+    x87_1([car, listener])
 }
 
 /// `fild offset; fiadd car; fisub listener`, as an 80-bit value.
 fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    let v = [offset, car, listener];
-    x87_2(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
-    out
+    x87_2([offset, car, listener])
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -117,29 +105,30 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] - int [v + 4]`
-fn x87_1(v: usize, o: usize) {
-    let t0 = fild(v, 0);
-    let t1 = fild(v, 4);
+fn x87_1(v: [u32; 2]) -> [u8; 10] {
+    let t0 = int(v[0] as i32);
+    let t1 = int(v[1] as i32);
     let t2 = t0 - t1;
-    fstp80(o, 0, t2);
+    f80(t2)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = (int [v + 0] + int [v + 4]) - int [v + 8]`
-fn x87_2(v: usize, o: usize) {
-    let t0 = fild(v, 0);
-    let t1 = fild(v, 4);
+fn x87_2(v: [u32; 3]) -> [u8; 10] {
+    let t0 = int(v[0] as i32);
+    let t1 = int(v[1] as i32);
     let t2 = t0 + t1;
-    let t3 = fild(v, 8);
+    let t3 = int(v[2] as i32);
     let t4 = t2 - t3;
-    fstp80(o, 0, t4);
+    f80(t4)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, view};
 
     // The original's instructions, one function per run.
     reference!(ref_0(v, o) "fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]");
@@ -161,7 +150,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| a[1].set_tbyte(0, x87_1(*view(a[0], 0))),
             },
             Block {
                 name: "car_sounds line 119",
@@ -177,7 +166,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| a[1].set_tbyte(0, x87_2(*view(a[0], 0))),
             },
         ]
     }

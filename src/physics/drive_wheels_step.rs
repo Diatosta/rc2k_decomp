@@ -37,7 +37,6 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
-use crate::scene::x87_mem::{fld, fnstsw};
 use crate::session::{Cell32, Float};
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
@@ -47,12 +46,7 @@ fn one_less_abs(v: &Float, to: &Float) {
 
 /// `fld b; fabs; fld a; fabs; fcompp; fnstsw`: C0, |a| below |b| or unordered.
 fn abs_below(x: u32, y: u32) -> bool {
-    let (v, mut status) = ([x, y], 0u16);
-    x87_2(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut status) as usize,
-    );
-    status & 0x100 != 0
+    x87_2([x, y]) & 0x100 != 0
 }
 
 /// `fld from; fstp to`.
@@ -140,18 +134,11 @@ fn steps() -> Result<(), Refused> {
         x87_13();
         ease_zero(&CAR.drive_speed_b, &PHYSICS.wheel_speed_step);
         if CAR.handbrake.get() != 0 {
-            let (v, mut status) = (
-                [
-                    CAR.drive_speed_a.bits(),
-                    CAR.drive_speed_b.bits(),
-                    NUMBERS.one.bits(),
-                ],
-                0u16,
-            );
-            x87_14(
-                (crate::pointers::game_address(v.as_ptr())) as usize,
-                crate::pointers::game_address(&raw mut status) as usize,
-            );
+            let status = x87_14([
+                CAR.drive_speed_a.bits(),
+                CAR.drive_speed_b.bits(),
+                NUMBERS.one.bits(),
+            ]);
             if status & 0x100 != 0 {
                 CAR.drive_speed_a.set_bits(0);
                 CAR.drive_speed_b.set_bits(0);
@@ -214,8 +201,7 @@ fn steps() -> Result<(), Refused> {
         PHYSICS.forces[10].force[0].set_bits(0);
         PHYSICS.forces[10].force[2].set_bits(0);
         // 0x43E855: the rolling drag against the motion.
-        let mut status = 0u16;
-        x87_20(crate::pointers::game_address(&raw mut status) as usize);
+        let status = x87_20();
         if status & 0x4100 == 0 {
             x87_21();
         }
@@ -268,13 +254,12 @@ fn x87_1(v: &dyn Cell32, t: &dyn Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_2(v: usize, s: usize) {
-    let t0 = fld(v, 4);
+fn x87_2(v: [u32; 2]) -> u16 {
+    let t0 = ld(v[1]);
     let t1 = t0.abs();
-    let t2 = fld(v, 0);
+    let t2 = ld(v[0]);
     let t3 = t2.abs();
-    let t4 = compare(t3, t1);
-    fnstsw(s, 0, t4);
+    compare(t3, t1)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -515,14 +500,13 @@ fn x87_13() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_14(v: usize, s: usize) {
-    let t0 = fld(v, 0);
-    let t1 = fld(v, 4);
+fn x87_14(v: [u32; 3]) -> u16 {
+    let t0 = ld(v[0]);
+    let t1 = ld(v[1]);
     let t2 = t0 + t1;
     let t3 = t2.abs();
-    let t4 = fld(v, 8);
-    let t5 = compare(t3, t4);
-    fnstsw(s, 0, t5);
+    let t4 = ld(v[2]);
+    compare(t3, t4)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -621,7 +605,7 @@ fn x87_19() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
-fn x87_20(s: usize) {
+fn x87_20() -> u16 {
     let t0 = ld(CAR.local_velocity[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(CAR.local_velocity[2].bits());
@@ -630,8 +614,7 @@ fn x87_20(s: usize) {
     let t5 = t4.sqrt();
     DRAW.scratch.set_bits(st(t5));
     let t6 = ld(PHYSICS.wheel_drag[1].bits());
-    let t7 = compare(t5, t6);
-    fnstsw(s, 0, t7);
+    compare(t5, t6)
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -763,6 +746,7 @@ fn x87_25() {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{Base, view};
 
     // The original's instructions, one function per run.
     reference!(ref_0(v, rc, t) "fld dword ptr [{v}]", ".byte 0xD9, 0xE1", "fsub dword ptr [{rc} + 0x1C5D38]", ".byte 0xD9, 0xE0", "fstp dword ptr [{t}]");
@@ -832,7 +816,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| a[1].set_word(0, x87_2(*view(a[0], 0))),
             },
             Block {
                 name: "drive_wheels_step line 73",
@@ -1119,7 +1103,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| x87_14(a[0], a[1]),
+                plain: |a| a[1].set_word(0, x87_14(*view(a[0], 0))),
             },
             Block {
                 name: "drive_wheels_step line 292",
@@ -1208,7 +1192,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1]) },
-                plain: |a| x87_20(a[1]),
+                plain: |a| a[1].set_word(0, x87_20()),
             },
             Block {
                 name: "drive_wheels_step line 385",

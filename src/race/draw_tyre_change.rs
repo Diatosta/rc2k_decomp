@@ -27,7 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit::BLIT;
 use crate::gfx::fonts_store::FONTS;
-use crate::pointers::GamePtr;
+use crate::input::types::InputDevice;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -108,7 +108,7 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
-pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
+pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
     let clips = (clip(&BLIT.clip.left), clip(&BLIT.clip.right));
     let done = (|| -> Result<(), Refused> {
         let failed = { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
@@ -158,9 +158,8 @@ pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
             0x80
         };
         fill(x, 0xB2, 0x80, 0x4B)?;
-        let state = GamePtr::new(device + 0x4F0).read::<u32>("the tyre change device's state")?;
-        if state == 1 {
-            let time = GamePtr::new(device + 0x4F4).read::<u32>("the tyre change device's time")?;
+        if device.stage.get() == 1 {
+            let time = device.clock.get();
             { build_text(0x12D, Some(time)) }?;
         } else {
             { build_text(0x12C, None) }?;

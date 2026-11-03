@@ -30,7 +30,7 @@ use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::fld;
+use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
 
@@ -44,7 +44,7 @@ fn step() -> Result<(), Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    x87_1(((PHYSICS.gear_ratios[1].addr()).wrapping_add(gear.wrapping_mul(4))) as usize);
+    x87_1(&PHYSICS.gear_ratios[gear.wrapping_add(1) as usize]);
     crate::physics::drive_torque_share::drive_torque_share();
     x87_2();
     { crate::physics::revs_from_wheels::revs_from_wheels() }?;
@@ -95,11 +95,11 @@ pub fn test_drive_run() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214750] = (([rc + 0x214748] * [rc + 0x1CB968]) / [r + 0]) / [rc + 0x1C5E34]`
-fn x87_1(r: usize) {
+fn x87_1(r: &Float) {
     let t0 = ld(PHYSICS.engine_force.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
-    let t3 = fld(r, 0);
+    let t3 = ld(r.bits());
     let t4 = t2 / t3;
     let t5 = ld(NUMBERS.k10000.bits());
     let t6 = t4 / t5;
@@ -156,6 +156,7 @@ fn x87_3() {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::view;
 
     // The original's instructions, one function per run.
     reference!(ref_0(rc, r) "fld dword ptr [{rc} + 0x214748]", "fmul dword ptr [{rc} + 0x1CB968]", "fdiv dword ptr [{r}]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fstp dword ptr [{rc} + 0x214750]");
@@ -178,7 +179,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[1]),
+                plain: |a| x87_1(view(a[1], 0)),
             },
             Block {
                 name: "test_drive_run line 51",

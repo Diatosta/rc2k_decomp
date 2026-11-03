@@ -16,7 +16,7 @@
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
-use crate::session::address_of;
+use crate::session::read_all;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
 const STATES: [(u32, u32); 11] = [
@@ -62,11 +62,10 @@ pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     crate::drive::tyre_quad::tyre_quad_cells(&TYRE.panel_texture, &TYRE.panel, 0xFF_FFFF)?;
     crate::drive::tyre_quad::tyre_quad_cells(&TYRE.wheel_texture, &TYRE.wheel, 0xFF_FFFF)?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
-        address_of(&TYRE.turning_texture),
-        address_of(&TYRE.turning_rect),
+        read_all(&TYRE.turning_texture),
+        &TYRE.turning_rect,
         0xFF_FFFF,
-        // The quad's turn reads the device's gauge by address.
-        crate::pointers::GamePtr::to(device).addr(),
+        device,
     )?;
     crate::drive::tyre_screen_parts::tyre_screen_parts()
 }

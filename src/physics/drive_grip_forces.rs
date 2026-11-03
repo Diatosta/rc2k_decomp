@@ -39,7 +39,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
-use crate::scene::x87_mem::fld;
 use crate::session::Float;
 
 /// `edx` = the steer angle's table index (+0x64C >> 20).
@@ -74,7 +73,7 @@ pub fn drive_grip_forces() {
         } else {
             &PHYSICS.grip_factor[0]
         };
-        x87_3(factor.addr() as usize);
+        x87_3(factor);
         DRAW.scratch.set(CAR.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
@@ -176,8 +175,7 @@ pub fn drive_grip_forces() {
         .grip_change
         .set_bits(x87::sub(old, CAR.grip_force_sum.bits()));
     ease_zero(&NUMBERS.grip_change, &PHYSICS.grip_ease_step);
-    let held = [old];
-    x87_15((crate::pointers::game_address(held.as_ptr())) as usize);
+    x87_15(old);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -210,11 +208,11 @@ fn x87_2() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214260] = |(((([rc + 0x2142A8] * [rc + 0x213FC8]) * [f + 0]) * [rc + 0x214B74]) / [rc + 0x31A184])|`
-fn x87_3(f: usize) {
+fn x87_3(f: &Float) {
     let t0 = ld(PHYSICS.wheel_grips[4].bits());
     let t1 = ld(PHYSICS.gravity.bits());
     let t2 = t0 * t1;
-    let t3 = fld(f, 0);
+    let t3 = ld(f.bits());
     let t4 = t2 * t3;
     let t5 = ld(PHYSICS.grip_scale.bits());
     let t6 = t4 * t5;
@@ -390,12 +388,12 @@ fn x87_14() {
 /// `[rc + 0x2149E4] = [rc + 0x2149E4] * [rc + 0x31ACC8]`
 /// `[rc + 0x2149F0] = -([rc + 0x2149F0] / [rc + 0x31ACD4])`
 /// `[rc + 0x214A04] = -([rc + 0x214A04] * [rc + 0x31ACD4])`
-fn x87_15(o: usize) {
+fn x87_15(o: u32) {
     let t0 = ld(NUMBERS.grip_change.bits());
     let t1 = ld(CAR.grip_force_sum.bits());
     let t2 = t0 + t1;
     CAR.eased_yaw_spin.set_bits(st(t2));
-    let t3 = fld(o, 0);
+    let t3 = ld(o);
     let t4 = ld(CAR.eased_yaw_spin.bits());
     let t5 = t3 - t4;
     let t6 = -t5;
@@ -438,6 +436,8 @@ fn x87_15(o: usize) {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::{HostCell, view};
+    use crate::session::Cell32;
 
     // The original's instructions, one function per run.
     reference!(ref_0(bf, e, rc) "fld dword ptr [{bf} + {e}*4 + 0x623AE4]", "fmul dword ptr [{rc} + 0x31A184]", "fdiv dword ptr [{rc} + 0x214BA0]", "fstp dword ptr [{rc} + 0x31A1E8]");
@@ -539,7 +539,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_3(a[1]),
+                plain: |a| x87_3(view(a[1], 0)),
             },
             Block {
                 name: "drive_grip_forces line 98",
@@ -834,7 +834,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
-                plain: |a| x87_15(a[1]),
+                plain: |a| x87_15(HostCell(a[1]).bits()),
             },
         ]
     }

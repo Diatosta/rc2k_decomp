@@ -40,13 +40,12 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::physics::tables_store::{PHYSICS, PhysicsTables};
+use crate::physics::tables_store::{PHYSICS, PhysicsTables, Surface};
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fld};
 use crate::session::Dword;
 use std::cmp::Ordering;
 
@@ -59,7 +58,7 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
 fn share_bit(v: &[Dword; 64], c: u32) -> u32 {
-    x87_1(v[0].addr() as usize, c as usize);
+    x87_1(v, c as usize);
     DRAW.scratch.get()
 }
 
@@ -79,7 +78,6 @@ fn check() -> Result<(), Refused> {
 /// back).
 fn steps() -> Result<(), Refused> {
     check()?;
-    let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
         let f = CAR.probe_point_face[cc].get();
@@ -148,16 +146,22 @@ fn steps() -> Result<(), Refused> {
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
-            let esi = surfaces + s1 * 0x30;
-            let edi = surfaces + s2 * 0x30;
-            x87_3(esi as usize, edi as usize, c as usize);
+            let (esi, edi) = (
+                &PHYSICS.surfaces[s1 as usize],
+                &PHYSICS.surfaces[s2 as usize],
+            );
+            x87_3(esi, edi, cc);
             let (ps, pd) = (
-                PhysicsTables::surface_table_of(s1)?,
-                PhysicsTables::surface_table_of(s2)?,
+                PhysicsTables::surface_table_index(s1)?,
+                PhysicsTables::surface_table_index(s2)?,
             );
             let k = CAR.tyre_kind.get();
-            x87_4(ps as usize, pd as usize, k as usize);
-            x87_5(esi as usize, edi as usize, c as usize);
+            x87_4(
+                &PHYSICS.surface_tables[ps..],
+                &PHYSICS.surface_tables[pd..],
+                k as usize,
+            );
+            x87_5(esi, edi, cc);
         }
     }
     x87_6();
@@ -208,8 +212,8 @@ pub fn wheel_surfaces() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
-fn x87_1(t: usize, c: usize) {
-    let t0 = fld(t, c * 4);
+fn x87_1(t: &[Dword; 64], c: usize) {
+    let t0 = ld(t[c].bits());
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
     DRAW.scratch.set_bits(to_int(t2) as u32);
@@ -237,16 +241,16 @@ fn x87_2(c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
-fn x87_3(s: usize, d: usize, c: usize) {
-    let t0 = fld(s, 0x28);
-    let t1 = fld(d, 0x28);
+fn x87_3(s: &Surface, d: &Surface, c: usize) {
+    let t0 = ld(s.grip.bits());
+    let t1 = ld(d.grip.bits());
     let t2 = t1 - t0;
     let t3 = ld(CAR.wheel_surface_blend[c].bits());
     let t4 = t2 * t3;
     let t5 = t0 + t4;
     PHYSICS.point_grips[c].set_bits(st(t5));
-    let t6 = fld(s, 0x2C);
-    let t7 = fld(d, 0x2C);
+    let t6 = ld(s.blend_2c.bits());
+    let t7 = ld(d.blend_2c.bits());
     let t8 = t7 - t6;
     let t9 = ld(CAR.wheel_surface_blend[c].bits());
     let t10 = t8 * t9;
@@ -258,9 +262,9 @@ fn x87_3(s: usize, d: usize, c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
-fn x87_4(s: usize, d: usize, k: usize) {
-    let t6 = fild(s, k * 4 + 4);
-    let t7 = fild(s, k * 4 + 0x1C);
+fn x87_4(s: &[Dword], d: &[Dword], k: usize) {
+    let t6 = int(s[k + 1].get() as i32);
+    let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
     let t9 = ld(CAR.surface_blend.bits());
     let t10 = t8 * t9;
@@ -268,8 +272,8 @@ fn x87_4(s: usize, d: usize, k: usize) {
     let t12 = ld(NUMBERS.hundredth_a.bits());
     let t13 = t11 * t12;
     PHYSICS.surface_scales[0].set_bits(st(t13));
-    let t14 = fild(d, k * 4 + 4);
-    let t15 = fild(d, k * 4 + 0x1C);
+    let t14 = int(d[k + 1].get() as i32);
+    let t15 = int(d[k + 7].get() as i32);
     let t16 = t15 - t14;
     let t17 = ld(CAR.surface_blend.bits());
     let t18 = t16 * t17;
@@ -288,11 +292,11 @@ fn x87_4(s: usize, d: usize, k: usize) {
 /// `[rc + c * 4 + 0x2146D4] = [s + 0x24] + (([d + 0x24] - [s + 0x24]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
-fn x87_5(s: usize, d: usize, c: usize) {
-    let t0 = fld(s, 4);
+fn x87_5(s: &Surface, d: &Surface, c: usize) {
+    let t0 = ld(s.slide_grip.bits());
     let t1 = ld(PHYSICS.surface_scales[0].bits());
     let t2 = t0 * t1;
-    let t3 = fld(d, 4);
+    let t3 = ld(d.slide_grip.bits());
     let t4 = ld(PHYSICS.surface_scales[1].bits());
     let t5 = t3 * t4;
     let t6 = t5 - t2;
@@ -302,10 +306,10 @@ fn x87_5(s: usize, d: usize, c: usize) {
     let t10 = ld(PHYSICS.spec_surface[2].bits());
     let t11 = t9 * t10;
     PHYSICS.wheel_loads[c].set_bits(st(t11));
-    let t12 = fld(s, 8);
+    let t12 = ld(s.accel_grip.bits());
     let t13 = ld(PHYSICS.surface_scales[0].bits());
     let t14 = t12 * t13;
-    let t15 = fld(d, 8);
+    let t15 = ld(d.accel_grip.bits());
     let t16 = ld(PHYSICS.surface_scales[1].bits());
     let t17 = t15 * t16;
     let t18 = t17 - t14;
@@ -315,10 +319,10 @@ fn x87_5(s: usize, d: usize, c: usize) {
     let t22 = ld(PHYSICS.spec_surface[0].bits());
     let t23 = t21 * t22;
     PHYSICS.wheel_grips[c].set_bits(st(t23));
-    let t24 = fld(s, 0xC);
+    let t24 = ld(s.brake_grip.bits());
     let t25 = ld(PHYSICS.surface_scales[0].bits());
     let t26 = t24 * t25;
-    let t27 = fld(d, 0xC);
+    let t27 = ld(d.brake_grip.bits());
     let t28 = ld(PHYSICS.surface_scales[1].bits());
     let t29 = t27 * t28;
     let t30 = t29 - t26;
@@ -328,29 +332,29 @@ fn x87_5(s: usize, d: usize, c: usize) {
     let t34 = ld(PHYSICS.spec_surface[1].bits());
     let t35 = t33 * t34;
     PHYSICS.wheel_grips_b[c].set_bits(st(t35));
-    let t36 = fld(s, 0x20);
-    let t37 = fld(d, 0x20);
+    let t36 = ld(s.drag.bits());
+    let t37 = ld(d.drag.bits());
     let t38 = t37 - t36;
     let t39 = ld(CAR.wheel_surface_blend[c].bits());
     let t40 = t38 * t39;
     let t41 = t36 + t40;
     PHYSICS.surface_blends[c].set_bits(st(t41));
-    let t42 = fld(s, 0x24);
-    let t43 = fld(d, 0x24);
+    let t42 = ld(s.blend_24.bits());
+    let t43 = ld(d.blend_24.bits());
     let t44 = t43 - t42;
     let t45 = ld(CAR.wheel_surface_blend[c].bits());
     let t46 = t44 * t45;
     let t47 = t42 + t46;
     PHYSICS.surface_blends[5 + c].set_bits(st(t47));
-    let t48 = fld(s, 0x14);
-    let t49 = fld(d, 0x14);
+    let t48 = ld(s.blend_10[1].bits());
+    let t49 = ld(d.blend_10[1].bits());
     let t50 = t49 - t48;
     let t51 = ld(CAR.wheel_surface_blend[c].bits());
     let t52 = t50 * t51;
     let t53 = t48 + t52;
     PHYSICS.surface_blends[10 + c].set_bits(st(t53));
-    let t54 = fld(s, 0x10);
-    let t55 = fld(d, 0x10);
+    let t54 = ld(s.blend_10[0].bits());
+    let t55 = ld(d.blend_10[0].bits());
     let t56 = t55 - t54;
     let t57 = ld(CAR.wheel_surface_blend[c].bits());
     let t58 = t56 * t57;
@@ -429,6 +433,14 @@ fn x87_7() {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::view;
+
+    /// The dwords of a test buffer a run with index `k` reads (`k + 8` of them).
+    fn table(base: usize, k: usize) -> &'static [Dword] {
+        // SAFETY: the buffer holds the offsets up to `k * 4 + 0x1C` and 16 bytes more,
+        // lent for the run and aligned for its cells.
+        unsafe { std::slice::from_raw_parts(crate::pointers::host_at(base) as *const Dword, k + 8) }
+    }
 
     // The original's instructions, one function per run.
     reference!(ref_0(t, c, rc) "fld dword ptr [{t} + {c}*4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
@@ -456,7 +468,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=1",
@@ -473,7 +485,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=4",
@@ -490,7 +502,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=0",
@@ -571,7 +583,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[3]),
+                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=1",
@@ -592,7 +604,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[3]),
+                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=4",
@@ -613,7 +625,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[3]),
+                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=0",
@@ -634,7 +646,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[2], a[3]),
+                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=1",
@@ -655,7 +667,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[2], a[3]),
+                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=4",
@@ -676,7 +688,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[2], a[3]),
+                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=0",
@@ -728,7 +740,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[2], a[3]),
+                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=1",
@@ -780,7 +792,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[2], a[3]),
+                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=4",
@@ -832,7 +844,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[2], a[3]),
+                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 258",

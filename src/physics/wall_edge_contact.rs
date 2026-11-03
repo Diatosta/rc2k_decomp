@@ -23,8 +23,8 @@
 use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
-use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
+use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
@@ -32,7 +32,6 @@ use crate::physics::flow::{a, copy_cells};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::fild;
 use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
@@ -61,7 +60,7 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
         .get()
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
-    x87_1((crate::pointers::game_address(d.as_ptr())) as usize);
+    x87_1(d);
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
@@ -117,9 +116,9 @@ pub fn steps() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(d: usize) {
-    let t0 = fild(d, 0);
-    let t1 = fild(d, 4);
+fn x87_1(d: [u32; 2]) {
+    let t0 = int(d[0] as i32);
+    let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
     let t3 = ld(NUMBERS.one_over_two_pi.bits());
     let t4 = t2 * t3;
@@ -132,6 +131,7 @@ fn x87_1(d: usize) {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::view;
 
     // The original's instructions, one function per run.
     reference!(ref_0(d, rc) "fild dword ptr [{d}]", "fild dword ptr [{d} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5DD4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
@@ -151,7 +151,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0]),
+            plain: |a| x87_1(*view(a[0], 0)),
         }]
     }
 

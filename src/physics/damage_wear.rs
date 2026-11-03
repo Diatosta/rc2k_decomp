@@ -24,13 +24,9 @@ use crate::physics::car_store::CAR;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::fild;
+use crate::pointers::GamePtr;
 use crate::session::Cell32;
-
-#[allow(dead_code)]
-fn rd(x: u32) -> u32 {
-    crate::pointers::read_or_end(x, "a car block's field")
-}
+use core::mem::offset_of;
 
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
 pub fn steps() {
@@ -208,16 +204,25 @@ pub fn steps() {
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
     let row = DAMAGE.dword_75b3e8.bits() << 6;
-    let column = rd((DAMAGE.dword_75b8c0.addr())
-        .wrapping_add((DAMAGE.dword_75b3ec.bits() & 0xF).wrapping_mul(8)));
-    let first = (DAMAGE.wear_table[0].addr())
-        .wrapping_add(row)
-        .wrapping_add(column.wrapping_mul(4));
-    let column = rd((DAMAGE.dword_75b8c4.addr()).wrapping_add(column.wrapping_mul(8)));
-    let second = (DAMAGE.wear_table[0].addr())
-        .wrapping_add(row)
-        .wrapping_add(column.wrapping_mul(4));
-    x87_7(first as usize, &DAMAGE, second as usize);
+    // The original runs on through the store, whatever the columns hold.
+    let store = GamePtr::to(&DAMAGE);
+    let at = |field: usize, n: u32| store.offset((field as u32).wrapping_add(n));
+    let read = |at: GamePtr| {
+        at.read::<u32>("a car block's field")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
+    };
+    let wear = offset_of!(DamageModel, wear_table);
+    let column = read(at(
+        offset_of!(DamageModel, dword_75b8c0),
+        (DAMAGE.dword_75b3ec.bits() & 0xF).wrapping_mul(8),
+    ));
+    let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
+    let column = read(at(
+        offset_of!(DamageModel, dword_75b8c4),
+        column.wrapping_mul(8),
+    ));
+    let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
+    x87_7(first, &DAMAGE, second);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -334,13 +339,13 @@ fn x87_6(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B484] = ((int [f + 0] * (1 - [m + 0x35B3F0])) + (int [s + 0] * [m + 0x35B3F0])) * [m + 0x35B8BC]`
-fn x87_7(f: usize, m: &DamageModel, s: usize) {
-    let t0 = fild(f, 0);
+fn x87_7(f: u32, m: &DamageModel, s: u32) {
+    let t0 = int(f as i32);
     let t1 = X(1.0);
     let t2 = ld(m.dword_75b3f0.bits());
     let t3 = t1 - t2;
     let t4 = t0 * t3;
-    let t5 = fild(s, 0);
+    let t5 = int(s as i32);
     let t6 = ld(m.dword_75b3f0.bits());
     let t7 = t5 * t6;
     let t8 = t4 + t7;
@@ -359,6 +364,7 @@ mod asm_reference {
         unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::HostCell;
 
     // The original's instructions, one function per run.
     reference!(ref_0(m, rc) "fld dword ptr [{m} + 0x35B584]", "fmul dword ptr [{m} + 0x35B3B0]", "fmul dword ptr [{m} + 0x35B390]", "fadd dword ptr [{rc} + 0x31A284]", "fstp dword ptr [{rc} + 0x31A284]");
@@ -790,7 +796,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[0], dm(a[1]), a[2]),
+                plain: |a| x87_7(HostCell(a[0]).bits(), dm(a[1]), HostCell(a[2]).bits()),
             },
         ]
     }
