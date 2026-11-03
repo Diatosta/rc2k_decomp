@@ -95,7 +95,8 @@ pub fn guid_of(handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
             "an effect's GUID handle that names none",
         ));
     }
-    crate::pointers::GamePtr::new((InputGuids::home() + at) as u32)
+    crate::pointers::GamePtr::to(&INPUT_GUIDS)
+        .offset(8 + at as u32)
         .read::<[u8; 16]>("an effect's GUID")
 }
 

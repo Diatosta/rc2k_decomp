@@ -48,7 +48,9 @@ pub fn device_command(command: u32) -> Result<(), Refused> {
                 Tick => crate::input::input_tick::input_tick()?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(n),
-                    RACE_STATE.settings.cars[n].record_2c.addr(),
+                    crate::pointers::GamePtr::to(&RACE_STATE.settings.cars[n]).offset(
+                        std::mem::offset_of!(crate::race::state_store::RaceCar, record_2c) as u32,
+                    ),
                 )?,
                 Reading(n, on) => put(device(n), 0x414, on as u32)?,
                 SecondApart => {

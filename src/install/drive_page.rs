@@ -21,11 +21,11 @@ use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
 pub fn drive_page(state: u32, list: u32) {
-    let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr();
+    let letters = crate::place::Place::from(&crate::install::store::DRIVE_ROWS.drive_rows);
     if state == 0 {
         let letter = crate::strings::same_text::lower(INSTALLER_PATHS.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
-        let at = |n: u32| letters + pages::DRIVE_TEXT * n;
+        let at = |n: u32| letters.add(pages::DRIVE_TEXT * n);
         let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), rb(list + 1));
         if let Some(highlight) = highlight {
             INSTALLER_PAGES.choice.set(highlight);
@@ -34,9 +34,7 @@ pub fn drive_page(state: u32, list: u32) {
     if (state as i32) < 0
         && let Some(offset) = pages::chosen_drive(INSTALLER_PAGES.choice.get())
     {
-        INSTALLER_PATHS
-            .typed
-            .set(0, rb(offset.wrapping_add(letters)));
+        INSTALLER_PATHS.typed.set(0, rb(letters.add(offset)));
         INSTALLER_PATHS.typed.set(1, b':');
         INSTALLER_RUN.path_problem.set(0);
     }

@@ -37,21 +37,21 @@ pub fn measure_pieces() -> Result<(), Refused> {
     let mut height = None;
     for k in 0..count {
         let left = count - k;
-        let piece = INSTALLER_PAGES.layout.addr() + 4 + PIECE * k;
+        let piece = crate::place::Place::from(&INSTALLER_PAGES.layout).add(4 + PIECE * k);
         // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
         // `measure_colour_at`).
         let marks = rb(piece);
         if marks & 0x20 != 0 {
-            wb(piece + 1, pieces::measured_kind(marks, rb(piece + 1)));
+            wb(piece.add(1), pieces::measured_kind(marks, rb(piece.add(1))));
         }
-        let (width, high) = match Way::of(marks, rb(piece + 1)) {
+        let (width, high) = match Way::of(marks, rb(piece.add(1))) {
             Way::String { font_kind } => {
                 let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
                     .add(pieces::measure_colour_at(font_kind))) as u32;
-                measure_string(rw(piece + 2) as u32, font_of(font)?, left)?
+                measure_string(rw(piece.add(2)) as u32, font_of(font)?, left)?
             }
             Way::Edit => {
-                let item = rd(piece + 4);
+                let item = rd(piece.add(4));
                 let record = rd(item + 0xC);
                 let font_height = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
                     .add(7 + 8 * rb(record + 4) as u32)) as u32;
@@ -59,8 +59,8 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 (width as u32, font_height)
             }
             Way::Text => {
-                let item = rd(piece + 4);
-                let mut cursor = append_string_by_id(rw(piece + 2) as u32, &TEXT_BUFFER.text);
+                let item = rd(piece.add(4));
+                let mut cursor = append_string_by_id(rw(piece.add(2)) as u32, &TEXT_BUFFER.text);
                 let action = rd(item + 0xC);
                 if action != 0 {
                     cursor = text_action(action, cursor)?;
@@ -72,7 +72,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 measure_text(font_of(font)?, &TEXT_BUFFER.text, left)?
             }
             Way::Action => {
-                let the_box = rd(rd(piece + 4) + 4);
+                let the_box = rd(rd(piece.add(4)) + 4);
                 (rd(the_box + 8), rd(the_box + 0xC))
             }
             Way::Other => {
@@ -86,8 +86,8 @@ pub fn measure_pieces() -> Result<(), Refused> {
             }
         };
         height = Some(high);
-        wd(piece + 0x10, width);
-        wd(piece + 0x14, high);
+        wd(piece.add(0x10), width);
+        wd(piece.add(0x14), high);
     }
     Ok(())
 }

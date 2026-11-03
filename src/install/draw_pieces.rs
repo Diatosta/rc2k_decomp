@@ -40,21 +40,21 @@ pub fn draw_pieces() -> Result<(), Refused> {
         return Err(BadInput("a page of no pieces").into());
     }
     for k in 0..count {
-        let piece = INSTALLER_PAGES.layout.addr() + 4 + PIECE * k;
+        let piece = crate::place::Place::from(&INSTALLER_PAGES.layout).add(4 + PIECE * k);
         let first = rb(piece);
-        let (x, y) = (rd(piece + 8), rd(piece + 0xC));
+        let (x, y) = (rd(piece.add(8)), rd(piece.add(0xC)));
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
-        match Way::of(first, rb(piece + 1)) {
+        match Way::of(first, rb(piece.add(1))) {
             Way::String { font_kind } => {
                 draw_string(
-                    rw(piece + 2) as u32,
+                    rw(piece.add(2)) as u32,
                     crate::pointers::GamePtr::new(font(colour(first, font_kind))?),
                     x,
                     y,
                 )?;
             }
             Way::Edit => {
-                let item = rd(piece + 4);
+                let item = rd(piece.add(4));
                 let record = rd(item + 0xC);
                 let edit_font = font(colour(first, rb(record + 4) as u32))?;
                 let mut text = Place::At(rd(item + 8));
@@ -67,8 +67,8 @@ pub fn draw_pieces() -> Result<(), Refused> {
                 draw_text(edit_font, text, x, y)?;
             }
             Way::Text => {
-                let item = rd(piece + 4);
-                let mut cursor = append_string_by_id(rw(piece + 2) as u32, &TEXT_BUFFER.text);
+                let item = rd(piece.add(4));
+                let mut cursor = append_string_by_id(rw(piece.add(2)) as u32, &TEXT_BUFFER.text);
                 let action = rd(item + 0xC);
                 if action != 0 {
                     cursor = text_action(action, cursor)?;
@@ -81,7 +81,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
                     y,
                 )?;
             }
-            Way::Action => draw_action(rd(rd(piece + 4) + 0xC))?,
+            Way::Action => draw_action(rd(rd(piece.add(4)) + 0xC))?,
             Way::Other => {}
         }
     }

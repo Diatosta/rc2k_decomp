@@ -68,8 +68,9 @@ fn walk(folder: u32) -> Result<(), Refused> {
     }
     loop {
         // list the folder
-        let base = crate::files::numbered_path::buffer().addr(); // byte_94E8B0
-        crate::pointers::GamePtr::new(base).write_bytes(&folder, "the search path")?;
+        let search = crate::files::numbered_path::buffer(); // byte_94E8B0
+        search.write_bytes(&folder, "the search path")?;
+        let base = search.addr();
         let mut cursor = base.wrapping_add(folder.len() as u32);
         if rb(cursor.wrapping_sub(1)) != b'\\' {
             cursor = append_byte(cursor, b'\\').game();

@@ -52,17 +52,17 @@ pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
             return Err(BadInput("more pieces than the page's table holds").into());
         }
     };
-    let base = INSTALLER_PAGES.layout.addr();
+    let base = crate::place::Place::from(&INSTALLER_PAGES.layout);
     for (n, piece) in made.iter().enumerate() {
-        let at = base + 4 + PIECE * n as u32;
+        let at = base.add(4 + PIECE * n as u32);
         if let Some(text) = piece.text {
-            ww(at + 2, text);
+            ww(at.add(2), text);
         }
         wb(at, piece.marks);
-        wb(at + 1, piece.kind);
-        wd(at + 4, piece.item);
+        wb(at.add(1), piece.kind);
+        wd(at.add(4), piece.item);
         for k in 0..4 {
-            wd(at + 8 + 4 * k, 0);
+            wd(at.add(8 + 4 * k), 0);
         }
     }
     wd(base, made.len() as u32);

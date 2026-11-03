@@ -30,11 +30,11 @@ use crate::install::vars::INSTALLER_RUN;
 fn build_path(
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
-) -> Result<u32, Refused> {
+) -> Result<crate::place::Place, Refused> {
     let cursor = str_append(&INSTALLER_PATHS.installed, &INSTALLER_PATHS.path_b);
     let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
     append_byte(cursor, 0);
-    Ok(INSTALLER_PATHS.path_b.addr())
+    Ok(crate::place::Place::from(&INSTALLER_PATHS.path_b))
 }
 
 pub fn uninstall() -> Result<(), Refused> {

@@ -24,11 +24,11 @@ use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
 
 /// The device `record` set up from its controls at `controls` (see the header).
-pub fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
+pub fn set_up_device(record: u32, controls: GamePtr) -> Result<(), Refused> {
     GamePtr::new(record)
         .offset(0x414)
         .fill(0, 0xC8, "a device record's bindings")?;
-    let n = at(controls, 0)?;
+    let n = controls.offset(0).read::<u32>("a player's controls")?;
     if n != 0 {
         put(record, field!(InputDevice, controller), n - 1)?;
         for (to, from) in [
@@ -38,10 +38,14 @@ pub fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
             (0x14, 0x14),
             (0x18, 0xC),
         ] {
-            put(record, to, at(controls, from)?)?;
+            put(
+                record,
+                to,
+                controls.offset(from).read::<u32>("a player's controls")?,
+            )?;
         }
         // Converted: `rc2k_core::input::devices::device_kind`.
-        let kind = at(controls, 8)?;
+        let kind = controls.offset(8).read::<u32>("a player's controls")?;
         put(record, field!(InputDevice, sensitivity), kind)?;
         let kind = rc2k_core::input::devices::device_kind(kind);
         put(record, field!(InputDevice, kind), kind)?;
@@ -49,12 +53,12 @@ pub fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
-        let key: u8 = GamePtr::new(controls)
-            .offset(key as u32)
-            .read("a device's control key")?;
+        let key: u8 = controls.offset(key as u32).read("a device's control key")?;
         let b = rc2k_core::input::devices::binding(
             key,
-            at(controls, word as u32)?,
+            controls
+                .offset(word as u32)
+                .read::<u32>("a player's controls")?,
             at(record, 0x24)? == 1,
         );
         for (n, v) in b.into_iter().enumerate() {

@@ -19,8 +19,7 @@
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::input::devices::put;
-use crate::input::di_harness::{CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a};
+use crate::input::di_harness::{CAPS_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
@@ -28,7 +27,10 @@ use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
-fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
+fn look_over(
+    instance: u32,
+    entry: &'static crate::session::Bytes<{ crate::input::store::CONTROLLER_LEN }>,
+) -> Result<bool, BadInput> {
     let input = DEVICES.direct_input.get();
     let ok = |hr: u32| hr == 0;
     if !ok(crate::input::di_objects::create_device(
@@ -63,31 +65,31 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
         return Ok(false);
     }
     let found = crate::input::axis_found::callback;
-    crate::input::di_objects::enum_objects(device2, found, entry, 0);
+    crate::input::di_objects::enum_objects(device2, found, entry.addr(), 0);
     // `instance` is the `DIDEVICEINSTANCEA` the emulation lists, alive for this call.
     let dev_type: u32 = GamePtr::new(instance + field!(DiDeviceInstance, dev_type))
         .read("a listed device's type")?;
     let guid: [u8; 16] = GamePtr::new(instance + field!(DiDeviceInstance, instance))
         .read("a listed device's GUID")?;
-    put(entry, field!(Controller, dev_type), dev_type)?;
-    GamePtr::new(entry)
+    entry.set_u32(field!(Controller, dev_type) as usize, dev_type);
+    GamePtr::to(entry)
         .offset(field!(Controller, instance))
         .write(guid, "a controller's instance GUID")?;
     // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = DEVICES.controller_count.get();
     let name = name_prefix(count);
-    let at_name = entry + field!(Controller, name);
-    GamePtr::new(at_name).write_bytes(&name, "a controller's name")?;
+    let at_name = GamePtr::to(entry).offset(field!(Controller, name));
+    at_name.write_bytes(&name, "a controller's name")?;
     use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
     use std::sync::atomic::Ordering::Relaxed;
     let kept = KEEP_CASE.swap(0, Relaxed);
-    let to = at_name as usize + name.len();
+    let to = at_name.offset(name.len() as u32);
     // room 0x19 is never refused
     let _ = {
         crate::strings::copy_printable::copy_printable(
             crate::pointers::GamePtr::new(instance + field!(DiDeviceInstance, instance_name)),
-            crate::pointers::GamePtr::new(to as u32),
+            to,
             NAME_ROOM,
         )
     };
@@ -100,13 +102,13 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
         caps(field!(DiDevCaps, hats)),
         DEVICES.no_force_feedback.get(),
     );
-    put(entry, field!(Controller, caps_flags), f.caps_flags)?;
-    put(entry, field!(Controller, axes), f.axes)?;
-    put(entry, field!(Controller, buttons), f.buttons)?;
-    put(entry, field!(Controller, hats), f.hats)?;
-    put(entry, field!(Controller, attached), f.attached)?;
+    entry.set_u32(field!(Controller, caps_flags) as usize, f.caps_flags);
+    entry.set_u32(field!(Controller, axes) as usize, f.axes);
+    entry.set_u32(field!(Controller, buttons) as usize, f.buttons);
+    entry.set_u32(field!(Controller, hats) as usize, f.hats);
+    entry.set_u32(field!(Controller, attached) as usize, f.attached);
     if let Some(force) = f.force_feedback {
-        put(entry, field!(Controller, force_feedback), force)?;
+        entry.set_u32(field!(Controller, force_feedback) as usize, force);
     }
     DEVICES.controller_count.set(count.wrapping_add(1));
     Ok(true)
@@ -129,7 +131,7 @@ pub fn joystick_found(instance: u32, _context: u32) -> Result<u32, BadInput> {
     if count >= CONTROLLERS {
         return Ok(0);
     }
-    let entry = DEVICES.controllers[0].addr() + count * CONTROLLER_LEN;
+    let entry = &DEVICES.controllers[count as usize];
     look_over(instance, entry)?;
     for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
         let object = cell.get();

@@ -62,7 +62,6 @@ pub fn effect_change(
     use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
     let e = effect;
-    let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
     let failed = std::cell::Cell::new(None);
     let read = |at: u32| {
@@ -77,7 +76,12 @@ pub fn effect_change(
         a,
         b,
         || read(record + field!(InputDevice, sensitivity)),
-        |n| std::array::from_fn(|k| read(row_at(n) + 4 * k as u32)),
+        // the core asks only for a row inside the table
+        |n| {
+            DEVICES.effect_rows[n as usize]
+                .each_ref()
+                .map(crate::session::Dword::get)
+        },
     )
     .map_err(BadInput::from);
     if let Some(err) = failed.get() {

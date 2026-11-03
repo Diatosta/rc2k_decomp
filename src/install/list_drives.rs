@@ -42,7 +42,7 @@ pub fn list_drives() {
         }
     }
     INSTALLER_RUN.drive_count.set(0);
-    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr();
+    let mut ebx = crate::place::Place::from(&crate::install::store::DRIVE_ROWS.drive_rows);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives + 8 * (letter - b'a') as u32;
@@ -64,19 +64,25 @@ pub fn list_drives() {
         );
         // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
-            wb(row + 2 + n as u32, b);
+            wb(row.add(2 + n as u32), b);
         }
-        ebx = row + 0x10;
+        ebx = row.add(0x10);
     }
     let count = INSTALLER_RUN.drive_count.get();
     let (menu, name) = match drives::menu(count) {
-        DriveMenu::Eight => (INSTALLER_PAGES.menu_8.addr(), 0x51D7F8),
-        DriveMenu::Sixteen => (INSTALLER_PAGES.menu_16.addr(), 0x51D8B0),
-        DriveMenu::More => (INSTALLER_PAGES.menu_more.addr(), 0x51D9E8),
+        DriveMenu::Eight => (crate::place::Place::from(&INSTALLER_PAGES.menu_8), 0x51D7F8),
+        DriveMenu::Sixteen => (
+            crate::place::Place::from(&INSTALLER_PAGES.menu_16),
+            0x51D8B0,
+        ),
+        DriveMenu::More => (
+            crate::place::Place::from(&INSTALLER_PAGES.menu_more),
+            0x51D9E8,
+        ),
     };
     // A link: the menu's IDA address, as the image's (`InstallerPages::resolved`).
     INSTALLER_PAGES.chosen_menu.set_u32(0, name);
-    wb(menu + 1, drives::items(count));
+    wb(menu.add(1), drives::items(count));
 }
 
 fn g_at(at: u32) -> u32 {

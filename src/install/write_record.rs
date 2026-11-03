@@ -14,7 +14,6 @@
 use crate::errors::Refused;
 use crate::install::installer::media_mode;
 use crate::install::vars::INSTALLER_PATHS;
-use crate::pointers::GamePtr;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 /// The record written; whether the write worked (the original leaves `write_file`'s carry
@@ -24,10 +23,9 @@ pub fn write_record() -> Result<bool, Refused> {
     let start = crate::place::Place::from(&TEXT_BUFFER.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
-    let text_at = |x: u32, what| crate::files::cstring(GamePtr::new(x), what);
-    let locale_at = crate::pointers::game_address(crate::files::state::locale_directory());
-    let locale = (GamePtr::new(locale_at).read::<u8>("the locale directory")? != 0)
-        .then(|| text_at(locale_at, "the locale directory"))
+    let locale_at = crate::files::state::locale_directory_place();
+    let locale = (locale_at.read::<u8>("the locale directory")? != 0)
+        .then(|| crate::files::cstring(locale_at, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
         &crate::place::Place::from(&INSTALLER_PATHS.game_dir).text("the game's folder")?,

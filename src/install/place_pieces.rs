@@ -13,21 +13,23 @@ use crate::errors::Refused;
 use crate::install::installer::rd;
 use crate::install::lay_out_pieces::PIECE;
 use crate::install::vars::INSTALLER_PAGES;
+use crate::place::Place;
 
 pub fn place_pieces() -> Result<(), Refused> {
-    let base = INSTALLER_PAGES.layout.addr() + 4;
-    let at = |k: u32| base.wrapping_add(PIECE * k);
+    let base = Place::from(&INSTALLER_PAGES.layout).add(4);
+    let at = |k: u32| base.add(PIECE.wrapping_mul(k));
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
     let rows = rc2k_core::install::layout::rows(INSTALLER_PAGES.layout.get_u32(0), |k| {
-        rd(rd(at(k) + 4) + 4)
+        rd(rd(at(k).add(4)) + 4)
     })?;
     for (first, n, the_box) in rows {
-        let place = if the_box == 0 {
-            INSTALLER_PAGES.title_box.addr()
+        let title_box = Place::from(&INSTALLER_PAGES.title_box);
+        let (place, title) = if the_box == 0 {
+            (title_box, true)
         } else {
-            the_box
+            (Place::At(the_box), the_box == title_box.game())
         };
-        crate::install::place_row::place_row(at(first), n, place, the_box)?;
+        crate::install::place_row::place_row(at(first), n, place, title, the_box)?;
     }
     Ok(())
 }
