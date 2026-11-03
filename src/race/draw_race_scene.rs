@@ -62,7 +62,9 @@ fn view_blocks() -> Result<[u32; 2], Refused> {
 }
 
 fn at_block(block: u32, offset: u32) -> Result<u32, BadInput> {
-    GamePtr::new(block + offset).read("a view block's word")
+    GamePtr::to(crate::race::trap::car_at(block)?)
+        .offset(offset)
+        .read("a view block's word")
 }
 
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,

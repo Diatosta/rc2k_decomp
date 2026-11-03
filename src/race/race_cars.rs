@@ -38,8 +38,9 @@ pub fn reset_car_blocks() -> Result<(), BadInput> {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         for n in 0..BLOCK_COUNT {
             let b: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
+            let car = GamePtr::to(crate::race::trap::car_at(b)?);
             for (off, v) in reset_block(n, cars, SPLIT_TABLES.stage_numbers[0].get()) {
-                GamePtr::new(b + off).write(v, "a car block's word")?;
+                car.offset(off).write(v, "a car block's word")?;
             }
         }
         for n in 0..BLOCK_COUNT as usize {
@@ -170,8 +171,8 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::cars::set_up_pick`.
         let stage: u32 = RACE_VARS.stage_number.bits();
         let pick = rc2k_core::race::cars::set_up_pick(stage)?;
-        let put =
-            |off: u32, v: u32| GamePtr::new(b.wrapping_add(off)).write(v, "a car block's set-up");
+        let car = GamePtr::to(crate::race::trap::car_at(b)?);
+        let put = |off: u32, v: u32| car.offset(off).write(v, "a car block's set-up");
         for off in [0x20, 0x3C, 0x30, 0x34] {
             put(off, 0x80)?;
         }
@@ -551,7 +552,9 @@ pub fn set_up_cars() -> Result<(), Refused> {
     for n in 0..2 {
         for (off, v) in PLAYER_RESETS {
             let b = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            GamePtr::new(b + off).write(v, "a car block's word")?;
+            GamePtr::to(crate::race::trap::car_at(b)?)
+                .offset(off)
+                .write(v, "a car block's word")?;
         }
     }
     for &step in cars_steps(RACE_VARS.run_kind.bits()) {

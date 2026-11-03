@@ -61,7 +61,9 @@ fn stopped() -> Result<(), Refused> {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
     let menu = REPLAY_VIEW.viewer_list[0].addr();
-    let items = GamePtr::new(menu + 1).read::<u8>("the viewer list")?;
+    let items = GamePtr::to(&REPLAY_VIEW.viewer_list)
+        .offset(1)
+        .read::<u8>("the viewer list")?;
     let mut item = menu + 0x18;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times.

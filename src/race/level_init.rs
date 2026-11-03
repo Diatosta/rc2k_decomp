@@ -39,7 +39,7 @@ fn put(at: u32, value: u32) -> Result<(), BadInput> {
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
-pub fn allocate_course_memory(list: u32) -> Result<(), Refused> {
+pub fn allocate_course_memory(list: &[crate::session::Dword; 4]) -> Result<(), Refused> {
     COURSE_LISTS.first_part.set(FIRST_PART);
     COURSE_LISTS.course_bytes_total.set(
         COURSE_LISTS
@@ -49,7 +49,11 @@ pub fn allocate_course_memory(list: u32) -> Result<(), Refused> {
     );
     // Counted whole, as the original's one block; the info part is Rust's own store
     // (`race::course_places::INFO`), named by its place.
-    let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
+    let memory = take_course_memory(
+        crate::pointers::GamePtr::to(list),
+        FIRST_PART + INFO_PART,
+        FIRST_PART,
+    )?;
     COURSE_LISTS.course_memory.set(memory);
     COURSE_LISTS
         .course_info
@@ -70,8 +74,12 @@ static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex:
 
 /// `bytes` of course memory counted on `list`, the first `kept` of them held: their game
 /// address.
-fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> {
-    let mut memory = crate::memory::owned::counted(crate::pointers::GamePtr::new(list), bytes)?;
+fn take_course_memory(
+    list: crate::pointers::GamePtr,
+    bytes: u32,
+    kept: u32,
+) -> Result<u32, Refused> {
+    let mut memory = crate::memory::owned::counted(list, bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
     let memory = crate::pointers::LentBytes::from_vec(memory);
@@ -134,7 +142,7 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list() -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        crate::pointers::GamePtr::new(FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH)),
+        FILE_NUMBERS.text_ptr(texts::ERROR_LIST_PATH),
         &crate::race::error_list_store::ERROR_LIST.list,
     )?;
     Ok(())

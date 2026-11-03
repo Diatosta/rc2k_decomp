@@ -39,12 +39,18 @@ pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 
 /// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's
 /// bottom (`g_screenHeight`) or at or below -0x1B.
-fn credit_line(id: u32, font: u32, x: i32, y: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+fn credit_line(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: i32,
+    y: i32,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
     if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
         return Ok(());
     }
-    draw_string_by_id_at(id, crate::pointers::GamePtr::new(font), x, y, canvas)?;
+    draw_string_by_id_at(id, font.game_ptr(), x, y, canvas)?;
     Ok(())
 }
 
@@ -156,15 +162,14 @@ pub fn roll_credits(
     }
     let font_of = |f: Font| {
         use crate::gfx::typefaces::fonts;
-        let font = match f.0 {
+        match f.0 {
             1 => fonts::TITLE,
             2 => fonts::HEADING_23,
             3 => fonts::LABELS,
             4 => fonts::VALUES,
             7 => fonts::TIME,
             _ => fonts::NAME,
-        };
-        font.addr()
+        }
     };
     let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
     let trap = Trap::new();
@@ -176,7 +181,7 @@ pub fn roll_credits(
         },
         width,
         CREDITS.top.get() as i32,
-        |f| trap.read::<i32>(font_of(f) + 8, "a font record"),
+        |f| font_of(f).object().line_height.get() as i32,
     );
     trap.finish()?;
     for line in lines {

@@ -6,6 +6,7 @@ use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tyre_store::TYRE_CHANGE;
+use crate::session::{Dword, Float};
 use crate::sound::sets_store::SOUND_KINDS;
 
 fn get(at: u32) -> Result<u32, BadInput> {
@@ -58,19 +59,19 @@ pub fn sound_row(row: u32) -> Result<(), BadInput> {
 #[derive(Clone, Copy)]
 pub struct TableVars {
     /// dword_516358: 1 once done.
-    pub done: u32,
+    pub done: &'static Dword,
     /// unk_516258: 0x40 floats.
-    pub sines: u32,
+    pub sines: &'static [Float; 64],
     /// dword_5183CC: the scratch.
-    pub scratch: u32,
+    pub scratch: &'static Dword,
 }
 
 impl TableVars {
     pub fn game() -> Self {
         Self {
-            done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr(),
-            sines: crate::session::address_of(&SOUND_KINDS.sines),
-            scratch: crate::session::MACHINE.scratch.addr(),
+            done: &crate::sound::store::SURFACE_SOUNDS.tables_done,
+            sines: &SOUND_KINDS.sines,
+            scratch: &crate::session::MACHINE.scratch,
         }
     }
 }
@@ -84,10 +85,10 @@ pub const RECORDS: u32 = 0x22;
 // Converted: `rc2k_core::race::sound_tables::{reciprocal, sines}`.
 pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     use rc2k_core::race::sound_tables::{reciprocal, sines};
-    if get(v.done)? == 1 {
+    if v.done.get() == 1 {
         return Ok(());
     }
-    put(v.done, 1)?;
+    v.done.set(1);
     for n in 0..RECORDS {
         let record = crate::sound::sets_store::SoundKinds::record_of(n)?;
         sound_span(record + 4)?;
@@ -101,10 +102,11 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     }
     let (table, last) = sines();
     for (k, f) in table.iter().enumerate() {
-        put(v.sines + 4 * k as u32, f.to_bits())?;
+        v.sines[k].set(*f);
     }
     // The scratch: 0x20, the step, then each x: the last left.
-    put(v.scratch, last.to_bits())
+    v.scratch.set(last.to_bits());
+    Ok(())
 }
 
 /// `race::restart_race_sounds`: the commands waited for, the race's sounds reset, let
@@ -135,15 +137,15 @@ pub fn silence_race_sounds() -> Result<(), Refused> {
 /// own addresses (the game's, or a test's).
 #[derive(Clone, Copy)]
 pub struct ObjectVars {
-    pub table: u32,
-    pub objects: [u32; 8],
+    pub table: &'static [Dword; 8],
+    pub objects: &'static [crate::sound::store::SoundObject; 8],
 }
 
 impl ObjectVars {
     pub fn game() -> Self {
         Self {
-            table: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-            objects: std::array::from_fn(|k| crate::sound::store::RACE_SOUNDS.objects[k].addr()),
+            table: &crate::sound::store::RACE_SOUNDS.table,
+            objects: &crate::sound::store::RACE_SOUNDS.objects,
         }
     }
 }
@@ -203,9 +205,7 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         if one && crate::net::store::NET.player.get() > 7 {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
-        let objects: Vec<u32> = (0..8)
-            .map(|n| get(v.table + 4 * n))
-            .collect::<Result<_, _>>()?;
+        let objects: Vec<u32> = v.table.iter().map(Dword::get).collect();
         if objects.contains(&0) {
             return Err(crate::errors::BadInput("a race sound object missing").into());
         }
@@ -227,10 +227,8 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
             RACE_SOUNDS.player_cars[0].set(crate::net::store::NET.player.get());
             RACE_SOUNDS.count.set(crate::net::store::NET.players.get());
         }
-        for (n, &o) in v.objects.iter().enumerate() {
-            crate::sound::store::SoundObject::at(o)?
-                .sound_offset
-                .set(object_mark(n as u32));
+        for (n, o) in v.objects.iter().enumerate() {
+            o.sound_offset.set(object_mark(n as u32));
         }
         let first = crate::sound::store::SoundObject::at(
             objects[RACE_SOUNDS.player_cars[0].get() as usize],

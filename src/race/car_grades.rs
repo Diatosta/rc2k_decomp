@@ -15,13 +15,12 @@ pub use rc2k_core::race::cars::GRADES;
 pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
     // tried (the ones before it are written over at once).
+    let car = GamePtr::to(crate::race::trap::car_at(block)?);
     for &(from, to, thresholds) in &GRADES {
-        let x = f32::from_bits(
-            GamePtr::new(block.wrapping_add(from)).read::<u32>("a car block's value")?,
-        );
+        let x = f32::from_bits(car.offset(from).read::<u32>("a car block's value")?);
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
         DRAW.scratch.set_bits(tried);
-        GamePtr::new(block.wrapping_add(to)).write(grade, "a car block's grade")?;
+        car.offset(to).write(grade, "a car block's grade")?;
     }
     Ok(())
 }

@@ -3,12 +3,11 @@
 //! its leaves.
 
 use crate::audio::store::AUDIO;
-use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::menu::option_work_store::OPTION_WORK;
+use crate::physics::car_store::Car;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
@@ -39,22 +38,21 @@ pub fn players_all_out() -> Result<bool, Refused> {
 
 /// `race::set_car_counter` (0x43A96C): block esi's message (+0x71C eax, +0x72C 0x12C,
 /// +0x730 0), written in the original's order (+0x71C, +0x730, +0x72C).
-pub fn set_car_counter(at: u32, value: u32) -> Result<(), BadInput> {
+pub fn set_car_counter(car: &Car, value: u32) {
     // Converted: `rc2k_core::race::cars::Message::new`.
     let m = rc2k_core::race::cars::Message::new(value);
-    GamePtr::new(at + 0x71C).write(m.id, "a car block's message")?;
-    GamePtr::new(at + 0x730).write(m.age, "a car block's message")?;
-    GamePtr::new(at + 0x72C).write(m.time_left, "a car block's message")
+    car.notice_id.set(m.id);
+    car.notice_time_b.set(m.age);
+    car.notice_time.set(m.time_left);
 }
 
 /// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by
 /// their fixed addresses), each with eax.
-pub fn set_both_counters(value: u32) -> Result<(), BadInput> {
+pub fn set_both_counters(value: u32) {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
-    for n in 0..2 {
-        set_car_counter(crate::race::blocks_store::block_addr(n), value)?;
+    for car in &crate::race::blocks_store::CAR_BLOCKS.cars[..2] {
+        set_car_counter(car, value);
     }
-    Ok(())
 }
 
 /// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
@@ -115,7 +113,8 @@ fn pressed(key: usize) -> bool {
 pub fn race_keys() -> Result<(), Refused> {
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
-    let view = RACE_VIEW.view_block(usize::from(second));
+    let view_addr = RACE_VIEW.view_block(usize::from(second));
+    let view = Car::at(view_addr);
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
     // volume_step, flip_bit}`.
     use rc2k_core::race::keys::{
@@ -133,18 +132,17 @@ pub fn race_keys() -> Result<(), Refused> {
         })
     });
     // The view block's +0x220 with `bit` flipped; gives the counter.
-    let flip = |view: u32, bit: (u32, u32, u32)| -> Result<u32, BadInput> {
-        let flags = GamePtr::new(view + 0x220);
-        let (now, counter) = flip_bit(flags.read("a view block's flags")?, bit);
-        flags.write(now, "a view block's flags")?;
-        Ok(counter)
+    let flip = |view: &Car, bit: (u32, u32, u32)| -> u32 {
+        let (now, counter) = flip_bit(view.option_bits.get(), bit);
+        view.option_bits.set(now);
+        counter
     };
     match key {
         Some(Key::NextView) => {
-            crate::drive::next_camera_view::next_camera_view(view)?;
-            let camera = GamePtr::new(view + 0x688).read::<u32>("a view block's camera")?;
+            crate::drive::next_camera_view::next_camera_view(view_addr)?;
+            let camera = view.camera_blend_view.get();
             if camera < COUNTED_VIEWS {
-                set_car_counter(view, PHYSICS.view_counters[camera as usize].get())?;
+                set_car_counter(view, PHYSICS.view_counters[camera as usize].get());
             }
         }
         Some(Key::Split) => {
@@ -153,12 +151,12 @@ pub fn race_keys() -> Result<(), Refused> {
             }
             let (split, counter) = split_flip(RACE_VARS.split.bits());
             RACE_VARS.split.set_bits(split);
-            set_both_counters(counter)?;
+            set_both_counters(counter);
         }
         Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
             let up = k == Key::VolumeUp;
             let (step, counter) = volume_key(up, second);
-            set_both_counters(counter)?;
+            set_both_counters(counter);
             if second {
                 // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
                 let from: u32 = if up {
@@ -179,12 +177,12 @@ pub fn race_keys() -> Result<(), Refused> {
             }
         }
         Some(Key::Bit(n)) => {
-            let counter = flip(view, BITS[n])?;
-            set_car_counter(view, counter)?;
+            let counter = flip(view, BITS[n]);
+            set_car_counter(view, counter);
         }
         Some(Key::Shared) => {
-            let counter = flip(RACE_VIEW.view_block(0), SHARED_BIT)?;
-            set_both_counters(counter)?;
+            let counter = flip(Car::at(RACE_VIEW.view_block(0)), SHARED_BIT);
+            set_both_counters(counter);
         }
         None => {}
     }

@@ -6,7 +6,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
@@ -22,9 +21,6 @@ use crate::session::Dword;
 const LIFT: u32 = 0x5_0000;
 const MOST_SORTED: u32 = 0x3D;
 const MOST_CONVERTED: u32 = 0x40;
-const XS: u32 = 0xAF0;
-const YS: u32 = 0xBF0;
-const ZS: u32 = 0xCF0;
 
 /// `race::car_kind_10` (0x41F4A1) and `race::car_kind_11` (0x41F485): a car's entry of
 /// one of the two tables (the car held to 0 .. 0x21).
@@ -32,10 +28,6 @@ pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
     // Converted: `rc2k_core::race::cars::table_entry`.
     let n = rc2k_core::race::cars::table_entry(car);
     table[n].get()
-}
-
-fn put(at: u32, value: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(value, "a car's point list")
 }
 
 /// One of the four sorts: the key's offset in the point, and whether the order is
@@ -138,27 +130,22 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = f32::from_bits(NUMBERS.k65536.bits());
+            let car = car_at(block)?;
+            let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
                 let p = points + n * 12;
-                for (k, list) in [XS, YS, ZS].into_iter().enumerate() {
+                for (k, list) in lists.into_iter().enumerate() {
                     // The original goes through `dword_62400C` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
                     DRAW.scratch.set(c);
-                    put(
-                        block + list + 4 * n,
-                        rc2k_core::race::cars::point_float(c, scale),
-                    )?;
+                    list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
             CONTACT_WORK.car_point_count.set(count);
-            let lists = [XS, YS, ZS].map(|list| GamePtr::new(block + list));
-            let mut points = [[0u32; 0x40]; 3];
-            for (p, l) in points.iter_mut().zip(&lists) {
-                *p = l.read("a car's point list")?;
-            }
+            let mut points = lists.map(crate::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
-            for (l, p) in lists.iter().zip(points) {
-                l.write(p, "a car's point list")?;
+            for (l, p) in lists.into_iter().zip(points) {
+                crate::session::write_bits(l, p);
             }
             CONTACT_WORK.car_point_count.set(count + 2);
         }

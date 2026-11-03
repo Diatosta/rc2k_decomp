@@ -370,8 +370,10 @@ fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadI
     {
         return Ok(bytes.try_into().expect("N bytes"));
     }
-    let base = infos[0].words[0].addr();
-    GamePtr::new(base.wrapping_add(at as u32)).read("a texture info's bytes")
+    GamePtr::to(&infos[0].words)
+        .unbounded()
+        .offset(at as u32)
+        .read("a texture info's bytes")
 }
 
 /// `race::face_texture_coordinates` (0x453267) / `race::face_texture_coordinates_2`
@@ -597,14 +599,16 @@ pub fn draw_face() -> Result<(), Refused> {
     let second: u32 = RACE_VIEW.texture_b.get();
     let trap = Trap::new();
     let picked = || {
-        let record = POLYGON_WORK.texture_infos[0].words[0]
-            .addr()
-            .wrapping_add(second << 6);
-        let pick = trap.read::<u8>(record + 0x2C, "a texture info's kind") as usize;
+        let record = GamePtr::to(&POLYGON_WORK.texture_infos[0].words)
+            .unbounded()
+            .offset(second << 6);
+        let pick = trap.read_at::<u8>(record.offset(0x2C), "a texture info's kind") as usize;
         // dword_63D9D0: indexed by a byte (not bounded by the field's 4 dwords), so
         // read by address.
-        trap.read::<u32>(
-            RACE_VIEW.surface_kinds[0].addr() + (4 * pick) as u32,
+        trap.read_at::<u32>(
+            GamePtr::to(&RACE_VIEW.surface_kinds)
+                .unbounded()
+                .offset((4 * pick) as u32),
             "the surface kinds table",
         )
     };

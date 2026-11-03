@@ -20,7 +20,13 @@ impl Trap {
     /// The `T` at `at`, or its zero when the read is refused (kept for `finish`).
     #[track_caller]
     pub fn read<T: Copy + Default>(&self, at: u32, what: &str) -> T {
-        match GamePtr::new(at).read::<T>(what) {
+        self.read_at(GamePtr::new(at), what)
+    }
+
+    /// As `read`, at a pointer made from a store's field.
+    #[track_caller]
+    pub fn read_at<T: Copy + Default>(&self, at: GamePtr, what: &str) -> T {
+        match at.read::<T>(what) {
             Ok(v) => v,
             Err(e) => {
                 if self.refused.get().is_none() {

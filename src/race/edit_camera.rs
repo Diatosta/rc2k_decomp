@@ -11,7 +11,6 @@
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -42,17 +41,15 @@ pub fn step_camera(step: i8) -> Result<(), Refused> {
     if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
-    let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr())
-    .wrapping_sub(1)
-    .wrapping_add(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .camera_edit
-            .get(),
-    )
-    .wrapping_add(block.wrapping_mul(8));
-    let at = GamePtr::new(byte);
+    let at = crate::race::viewer::camera_ptr(
+        0u32.wrapping_sub(1)
+            .wrapping_add(
+                crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    .camera_edit
+                    .get(),
+            )
+            .wrapping_add(block.wrapping_mul(8)),
+    );
     let old: u8 = at.read("a replay camera byte")?;
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
@@ -62,7 +59,7 @@ pub fn step_camera(step: i8) -> Result<(), Refused> {
     );
     let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
     at.write(dl, "a replay camera byte")?;
-    let spread = crate::race::spread_camera::spread_camera(byte, old);
+    let spread = crate::race::spread_camera::spread_camera(at, old);
     if spread.is_err() {
         at.write(old, "a replay camera byte")?; // refused before it wrote: nothing left written
     }

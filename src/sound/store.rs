@@ -226,11 +226,6 @@ impl SoundObject {
         crate::pointers::GamePtr::new(address).record::<SoundObject>("a sound object")
     }
 
-    /// Its address, as the game's tables hold it.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<SoundObject>(self))
-    }
-
     /// The timed slot the image names by its offset in the object (the core's lists of
     /// slots are by offset). Any other offset is a bug of the caller.
     pub fn slot_at(&self, offset: u32) -> &SoundSlot {

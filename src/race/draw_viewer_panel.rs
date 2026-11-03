@@ -17,7 +17,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -67,7 +66,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         };
     // The text buffer drawn with a font at (x, y).
     let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-        let font = GamePtr::new(font.addr());
+        let font = font.game_ptr();
         let mut copy: crate::text::font::Font = font.read("a font record")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,

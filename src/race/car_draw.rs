@@ -111,14 +111,17 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
         let side = lamp_side(float(&block.drive_speed_b), limit);
         OBJECT_TABLES.car_mark_textures[2].set(side);
         OBJECT_TABLES.car_mark_textures[3].set(side);
-        let name = (RACE_WORK.number_texture_names[0].addr())
-            .wrapping_add(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
+        // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
+        let name = GamePtr::to(&RACE_WORK.number_texture_names)
+            .unbounded()
+            .offset(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
         DRAW.scratch.set(n as u32);
         let (place, _) = letter_place(n);
-        let letter =
-            letter_number(GamePtr::new(name + place).read::<u8>("a car's number texture name")?)
-                as u32;
+        let letter = letter_number(
+            name.offset(place)
+                .read::<u8>("a car's number texture name")?,
+        ) as u32;
         OBJECT_TABLES.car_mark_textures[5].set(letter);
         OBJECT_TABLES.car_letter_b.set(letter);
         let d = number_digits(car_at(car)?.start_slot_value.bits());

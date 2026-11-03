@@ -3,7 +3,6 @@
 //! their steps.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -148,9 +147,7 @@ pub fn wait_for_commands() {
 /// commands' registers but those the audio thread reads (command 2's eax) go as 0.
 /// Refuses, before anything, a sound object missing (the original writes through 0).
 pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
-    let objects: Vec<u32> = (0..8)
-        .map(|n| GamePtr::new(v.objects + 4 * n).read::<u32>("the race sound objects"))
-        .collect::<Result<_, _>>()?;
+    let objects: Vec<u32> = v.objects.iter().map(crate::session::Dword::get).collect();
     if objects.contains(&0) {
         return Err(crate::errors::BadInput("a race sound object missing").into());
     }
@@ -164,11 +161,9 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
         reset_object(crate::sound::store::SoundObject::at(o)?);
     }
     clear_stage_flags();
-    let first = v.voices;
-    for k in 0..0x48u32 {
-        let at = first + 0x50 * k;
-        GamePtr::new(at).write(0x1888_FFFFu32, "a sound voice")?;
-        GamePtr::new(at + 0x14).write(0xFFFF_FFFEu32, "a sound voice")?;
+    for voice in v.voices.iter() {
+        voice[0].set(0x1888_FFFF);
+        voice[5].set(0xFFFF_FFFE);
     }
     crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
     crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
@@ -181,15 +176,15 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
 /// Where `reset_race_sounds` finds the sound objects' table and the voices (the game's,
 /// or a test's: the audio thread reads the game's).
 pub struct SoundVars {
-    pub objects: u32,
-    pub voices: u32,
+    pub objects: &'static [crate::session::Dword; 8],
+    pub voices: &'static [[crate::session::Dword; 20]; 72],
 }
 
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            objects: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-            voices: crate::session::address_of(&SPOT_VOICES.voices),
+            objects: &crate::sound::store::RACE_SOUNDS.table,
+            voices: &SPOT_VOICES.voices,
         }
     }
 }

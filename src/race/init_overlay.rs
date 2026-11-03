@@ -16,11 +16,9 @@
 //! One caller, `sub_44426F` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more than
 //! 0x40 parts (the original writes past its three lists).
 
-use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::split_tables_store::SPLIT_TABLES;
-use crate::pointers::GamePtr;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::panel_store::PANEL;
@@ -29,10 +27,6 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 
 const ONE: u32 = 0x3F80_0000;
-
-fn put(at: u32, value: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(value, "an overlay variable")
-}
 
 /// `race::init_overlay` (see the header).
 pub fn init_overlay() -> Result<(), Refused> {
@@ -110,7 +104,7 @@ pub fn init_overlay() -> Result<(), Refused> {
         for car in 0..RACE_WORK.car_blocks.len() {
             let block = RACE_WORK.car_block(car);
             for off in OVERLAY_CLEARED {
-                put(block + off, 0)?;
+                crate::race::race_init::state_cell(crate::race::trap::car_at(block)?, off)?.set(0);
             }
         }
         for distance in &PANEL.distance {

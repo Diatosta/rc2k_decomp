@@ -155,8 +155,9 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     // them changes nothing).
     s.log();
     s.indent(3);
+    // stru_5C6D50: the course's MemoryList.
     level::allocate_course_memory(
-        crate::race::course_lists_store::COURSE_LISTS.course_memory_list[0].addr(), /* stru_5C6D50: the course's MemoryList */
+        &crate::race::course_lists_store::COURSE_LISTS.course_memory_list,
     )?;
     s.progress(2)?;
     s.progress(4)?;

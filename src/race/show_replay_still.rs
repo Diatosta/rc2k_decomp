@@ -29,9 +29,11 @@ use crate::race::work_store::RACE_WORK;
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame() -> Result<(), BadInput> {
     // unk_7172EC: car block 8's start (the copy runs on past the block).
-    let to = crate::race::blocks_store::block_addr(8);
-    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr();
-    GamePtr::new(from).copy_to(GamePtr::new(to), 4 * 0xA04, "the replay frame")
+    // Both ends are unbounded: the copy runs on past block 8 (and the read block is 0x2810
+    // bytes, but its field is the first dword).
+    let to = GamePtr::to(&crate::race::blocks_store::CAR_BLOCKS.cars[8]).unbounded();
+    let from = GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0]).unbounded();
+    from.copy_to(to, 4 * 0xA04, "the replay frame")
 }
 
 /// The Rust version (the original leaves registers nothing reads).

@@ -21,11 +21,16 @@ pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
 /// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
 /// check the offset).
 pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
-    let at = crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr()
-        .wrapping_add(offset as u32);
-    GamePtr::new(at).read("a replay camera byte")
+    camera_ptr(offset as u32).read("a replay camera byte")
+}
+
+/// The place `offset` bytes on from the first block's cameras. Unbounded: the original does
+/// not check the offset against the table (a camera step from camera 0 reads the byte
+/// before it).
+pub fn camera_ptr(offset: u32) -> GamePtr {
+    GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras)
+        .unbounded()
+        .offset(offset)
 }
 
 // ---- the list menu (`menu::list_*`) ----

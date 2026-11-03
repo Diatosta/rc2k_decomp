@@ -100,11 +100,9 @@ pub fn init_skidmarks() -> Result<(), BadInput> {
         for n in 0..2 {
             reset_skid_slots(&crate::race::blocks_store::CAR_BLOCKS.cars[n]);
         }
-        let marks = crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_links
-            .addr();
-        for n in 0..0x400u32 {
-            GamePtr::new(marks + 8 * n).write(u32::MAX, "the skid links")?;
+        let links = &crate::race::shadow_skids_store::SHADOW_SKIDS.skid_links;
+        for n in 0..0x400 {
+            links.set_u32(8 * n, u32::MAX);
         }
         crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_next
@@ -118,12 +116,12 @@ pub fn init_skidmarks() -> Result<(), BadInput> {
 pub fn copy_lights_data() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
-    let records = crate::race::light_records_store::LIGHT_RECORDS.record_addr(0);
+    let records = GamePtr::to(&crate::race::light_records_store::LIGHT_RECORDS.records);
     let source = crate::race::lights_store::LIGHTS_DATA.lights.read();
-    let mut laid = GamePtr::new(records)
-        .read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
+    let mut laid =
+        records.read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
     lay_lights(&source, &mut laid);
-    GamePtr::new(records).write_bytes(&laid, "the light records")
+    records.write_bytes(&laid, "the light records")
 }
 
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into

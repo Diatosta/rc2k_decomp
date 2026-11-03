@@ -27,13 +27,13 @@ pub fn replay_screenshot() -> Result<(), Refused> {
         VIEWER_PANEL.picture_clock.set(crate::os::ticks());
     }
     let kept: u32 = PICTURE.name.get();
-    let name = VIEWER_PANEL.picture_name[0].addr();
+    let name = GamePtr::to(&VIEWER_PANEL.picture_name);
     // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
-    let digits = GamePtr::new(name + 4);
+    let digits = name.offset(4);
     let (counted, _, _) =
         rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
     digits.write(counted, "the picture name")?;
-    PICTURE.name.set(name);
+    PICTURE.name.set(name.addr());
     let saved = (|| {
         // The surface locked (the carry says it was not), the picture written, the
         // surface unlocked.

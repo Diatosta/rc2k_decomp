@@ -152,15 +152,10 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
             crate::race::keep_undo::keep_undo();
             let block = REPLAY_VIEW.replay_block.get();
             if block != REPLAY_FILE.index_block_count.get() {
-                let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .block_cameras
-                    .addr())
-                .wrapping_add(byte)
-                .wrapping_add(block.wrapping_mul(8));
-                let at = crate::pointers::GamePtr::new(byte);
+                let at = crate::race::viewer::camera_ptr(byte.wrapping_add(block.wrapping_mul(8)));
                 let old: u8 = at.read("a replay block's camera byte")?;
                 at.write(old ^ 1, "a replay block's camera byte")?;
-                crate::race::spread_camera::spread_camera(byte, old)?;
+                crate::race::spread_camera::spread_camera(at, old)?;
             }
         }
         Action::EditAndStep { camera, back } => {
@@ -207,16 +202,11 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
     if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
-    let byte_at = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr())
-    .wrapping_add(byte as u32)
-    .wrapping_add(block.wrapping_mul(8));
-    let at = crate::pointers::GamePtr::new(byte_at);
+    let at = crate::race::viewer::camera_ptr((byte as u32).wrapping_add(block.wrapping_mul(8)));
     let old: u8 = at.read("a replay block's camera byte")?;
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
     at.write(dl, "a replay block's camera byte")?;
-    crate::race::spread_camera::spread_camera(byte_at, old)
+    crate::race::spread_camera::spread_camera(at, old)
 }
 
 /// 0x11: the marked blocks cut (`viewer::cut_marks`).
