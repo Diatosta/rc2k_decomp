@@ -233,29 +233,27 @@ pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut s) = ([a, b, c], 0u16);
-    sum_compare_x87(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut s) as usize,
-    );
-    u32::from(s) & 0x700
+    u32::from(sum_status(a, b, c)) & 0x700
 }
 
 /// `fld x; fld k; fsub w [; fsub m]; fcompp; fstsw ax; and eax, 700h` (`m` with `Some`).
 pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
-    let (v, mut s) = ([x, k, w, m.unwrap_or(0)], 0u16);
-    if m.is_some() {
-        less_compare_x87_1(
-            (crate::pointers::game_address(v.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut s) as usize,
-        );
-    } else {
-        less_compare_x87_2(
-            (crate::pointers::game_address(v.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut s) as usize,
-        );
-    };
-    u32::from(s) & 0x700
+    u32::from(less_status(x, k, w, m)) & 0x700
+}
+
+/// `fld a; fadd b; fcomp c; fnstsw`: a + b against c, the status word's condition bits.
+fn sum_status(a: u32, b: u32, c: u32) -> u16 {
+    bh::compare(bh::ld(a) + bh::ld(b), bh::ld(c))
+}
+
+/// `fld x; fld k; fsub w [; fsub m]; fcompp; fnstsw`: k - w [- m] against x, the status
+/// word's condition bits.
+fn less_status(x: u32, k: u32, w: u32, m: Option<u32>) -> u16 {
+    let mut t = bh::ld(k) - bh::ld(w);
+    if let Some(m) = m {
+        t -= bh::ld(m);
+    }
+    bh::compare(t, bh::ld(x))
 }
 
 fn pair(r: &[Float; 2]) -> [f32; 2] {
@@ -353,33 +351,8 @@ pub fn overlap() -> (bool, u32) {
     (true, s)
 }
 
-use crate::effects::plain::{ld, st16};
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87_float as bh;
-
-/// `sum_compare`'s x87 block as plain Rust on the x87 model (4 instructions), same order and memory places.
-fn sum_compare_x87(v: usize, s: usize) {
-    let t0 = ld(v, 0);
-    let t1 = t0 + ld(v, 0x4);
-    st16(s, 0, bh::compare(t1, ld(v, 0x8)));
-}
-
-/// `less_compare`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn less_compare_x87_1(v: usize, s: usize) {
-    let t0 = ld(v, 0);
-    let t1 = ld(v, 0x4);
-    let t2 = t1 - ld(v, 0x8);
-    let t3 = t2 - ld(v, 0xC);
-    st16(s, 0, bh::compare(t3, t0));
-}
-
-/// `less_compare`'s x87 block as plain Rust on the x87 model (5 instructions), same order and memory places.
-fn less_compare_x87_2(v: usize, s: usize) {
-    let t0 = ld(v, 0);
-    let t1 = ld(v, 0x4);
-    let t2 = t1 - ld(v, 0x8);
-    st16(s, 0, bh::compare(t2, t0));
-}
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
@@ -442,6 +415,17 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::pointers::{read_or_end, write_or_end};
+
+    /// The float at `base + off` of a test buffer.
+    fn at(base: usize, off: usize) -> u32 {
+        read_or_end(base.wrapping_add(off) as u32, "a test operand")
+    }
+
+    /// The status word written as `fnstsw` does.
+    fn put(base: usize, status: u16) {
+        write_or_end(base as u32, status, "a test status");
+    }
 
     #[test]
     fn sum_compare_x87_matches() {
@@ -465,7 +449,12 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::sum_compare_x87(b[0], b[1]),
-            |b| super::sum_compare_x87(b[0], b[1]),
+            |b| {
+                put(
+                    b[1],
+                    super::sum_status(at(b[0], 0), at(b[0], 4), at(b[0], 8)),
+                )
+            },
         );
     }
 
@@ -491,7 +480,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::less_compare_x87_1(b[0], b[1]),
-            |b| super::less_compare_x87_1(b[0], b[1]),
+            |b| {
+                let m = Some(at(b[0], 0xC));
+                put(
+                    b[1],
+                    super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), m),
+                );
+            },
         );
     }
 
@@ -517,7 +512,12 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::less_compare_x87_2(b[0], b[1]),
-            |b| super::less_compare_x87_2(b[0], b[1]),
+            |b| {
+                put(
+                    b[1],
+                    super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), None),
+                )
+            },
         );
     }
 }

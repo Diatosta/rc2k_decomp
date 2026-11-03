@@ -1,16 +1,8 @@
-//! The memory places of the marks' x87 blocks, written as plain Rust: a block's operand is
-//! the base address (or an index) its instructions used, `off` the displacement, so the same
-//! place is read or written. Floats go through `x87_float`'s `X` (what the x87 holds).
+//! The memory places of the marks' x87 blocks, written as plain Rust: typed cells and
+//! buffers, read and written where the blocks' instructions did. Floats go through
+//! `x87_float`'s `X` (what the x87 holds).
 
 use crate::math::x87_float::{self as bh, X};
-
-/// `fld dword ptr [base + off]`.
-pub(crate) fn ld(base: usize, off: usize) -> X {
-    bh::ld(crate::pointers::read_or_end::<u32>(
-        (base.wrapping_add(off)) as u32,
-        "effects::plain's operand",
-    ))
-}
 
 /// `fld dword ptr` of a float cell (a typed record's field).
 pub(crate) fn ld_cell(cell: &crate::session::Float) -> X {
@@ -75,12 +67,4 @@ pub(crate) fn st80_at<const N: usize>(bytes: &crate::session::Bytes<N>, offset: 
 pub(crate) fn set_status(status: u16) {
     let s = &crate::effects::work_store::MARKS_WORK.fpu_status;
     s.set_bits((s.bits() & 0xFFFF_0000) | u32::from(status));
-}
-
-pub(crate) fn st16(base: usize, off: usize, status: u16) {
-    crate::pointers::write_or_end::<u16>(
-        (base.wrapping_add(off)) as u32,
-        status,
-        "effects::plain's operand",
-    );
 }
