@@ -68,7 +68,7 @@ pub enum Call {
     RemoveSecretCars,
     ApplyCheats,
     /// The user's name to this place.
-    UserName(u32),
+    UserName(crate::pointers::GamePtr),
     /// The computer's name to this place.
     ComputerName(u32),
     /// A random number under this.
@@ -105,10 +105,9 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
             push_string(&mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
-            crate::pointers::GamePtr::new(
-                (crate::pointers::game_address(names.as_ptr())).wrapping_add(name as u32),
-            )
-            .write_bytes(&bytes, "a default slot name")?;
+            crate::pointers::GamePtr::to(names)
+                .offset(name as u32)
+                .write_bytes(&bytes, "a default slot name")?;
         }
     }
     Ok(())
@@ -133,19 +132,20 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     }
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
-        let name = NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32;
+        let name = crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names)
+            .offset((player * NAME_LEN) as u32);
         if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
             continue;
         }
         if player == 0 {
-            let place = crate::pointers::GamePtr::new(name);
-            outside(Call::UserName(place.addr()))?;
+            let place = name;
+            outside(Call::UserName(place))?;
             copy_printable(place, place, USER_NAME_ROOM)?;
             if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
         }
-        default_name(crate::pointers::GamePtr::new(name), NAME_LEN, id, &[])?;
+        default_name(name, NAME_LEN, id, &[])?;
     }
 
     if NET.machine_name.get(0) == 0 {
@@ -232,7 +232,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         Call::UserName(to) => {
             if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
                 name.push(0);
-                crate::pointers::GamePtr::new(to).write_bytes(&name, "the user's name")?;
+                to.write_bytes(&name, "the user's name")?;
             }
         }
         Call::ComputerName(to) => {

@@ -293,10 +293,6 @@ impl Byte {
     pub fn set(&self, value: u8) {
         self.0.store(value, Relaxed);
     }
-
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
-    }
 }
 
 /// A buffer of the game's bytes (a table, a record handed on by address), shared between the

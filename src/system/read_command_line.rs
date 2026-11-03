@@ -50,29 +50,27 @@ pub enum Asked {
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave() -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
-    let caption = crate::fatal::state::CAPTION.addr();
+    let caption = GamePtr::to(&crate::fatal::state::CAPTION);
     // byte_4F6702: its `:`
-    GamePtr::new(caption + 5)
+    caption
+        .offset(5)
         .write(0u8, "the caption")
         .unwrap_or_else(|e| leave(e));
-    let c_text = |at: usize, what| {
-        crate::files::cstring(GamePtr::new(at as u32), what).unwrap_or_else(|e| leave(e))
-    };
-    let mut text = c_text((START_TEXTS.version.addr() + 6) as usize, "the version");
+    let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
+    let mut text = c_text(GamePtr::to(&START_TEXTS.version).offset(6), "the version");
     text.extend(*b"\t\r\n");
+    // The second text is empty: its NUL is its one byte.
     text.extend(c_text(
-        START_TEXTS.second_text.addr() as usize,
+        GamePtr::to(&START_TEXTS.second_text),
         "the second text",
     ));
     let mut kept = text.clone();
     kept.push(0);
-    let place = crate::fatal::state::TEXT.addr(); // Text
-    GamePtr::new(place)
+    GamePtr::to(&crate::fatal::state::TEXT) // Text
         .write_bytes(&kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
     // MB_ICONINFORMATION | MB_TASKMODAL.
-    let caption =
-        crate::files::cstring(GamePtr::new(caption), "the caption").unwrap_or_else(|e| leave(e));
+    let caption = crate::files::cstring(caption, "the caption").unwrap_or_else(|e| leave(e));
     crate::os::message_box(crate::os::Icon::Information, &caption, &text);
     // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
