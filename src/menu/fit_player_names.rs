@@ -12,7 +12,7 @@
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::player_names::{PLAYERS, name};
+use crate::menu::player_names::{PLAYERS, name_ptr};
 use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_string_by_id::MEASURING_FONT;
@@ -28,31 +28,23 @@ const LONGEST: usize = 0x1000;
 // ---- Rust version ----
 
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
-pub fn fit_name(text: u32, x: u32) -> Result<u32, Refused> {
-    let name = GamePtr::new(text).bytes("a name")?;
+pub fn fit_name(text: GamePtr, x: u32) -> Result<u32, Refused> {
+    let name = text.bytes("a name")?;
     let Some(len) = (0..LONGEST).find(|&n| name.byte(n) == Some(0)) else {
         return Err(BadInput("a name without its end").into());
     };
     // Converted: `rc2k_core::menu::text_entry::fit_name`.
     let font = MEASURING_FONT.game_ptr();
     text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
-        GamePtr::new(text + len as u32).write::<u8>(0, "a name")?;
-        Ok({
-            measure_text_at(
-                font,
-                crate::pointers::GamePtr::new(text),
-                x as i32,
-                &mut GameCanvas,
-            )
-        }?
-        .width)
+        text.offset(len as u32).write::<u8>(0, "a name")?;
+        Ok({ measure_text_at(font, text, x as i32, &mut GameCanvas) }?.width)
     })
 }
 
 pub fn fit_player_names(x: u32) -> Result<(), Refused> {
     let mut x = x;
     for player in 0..PLAYERS {
-        x = fit_name(name(player), x)?;
+        x = fit_name(name_ptr(player), x)?;
     }
     Ok(())
 }

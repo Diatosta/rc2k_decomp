@@ -14,6 +14,15 @@ pub fn name(player: usize) -> u32 {
     NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32
 }
 
+/// Player `player`'s name as a pointer bounded by the names' store (the original runs on
+/// past a name that lacks its end).
+pub fn name_ptr(player: usize) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&NAME_BUFFERS).offset(
+        (std::mem::offset_of!(crate::menu::names_store::Names, player_names) + player * NAME_LEN)
+            as u32,
+    )
+}
+
 /// Player `player`'s name, the whole 0x20 bytes.
 pub fn name_bytes(player: usize) -> [u8; NAME_LEN] {
     std::array::from_fn(|i| NAME_BUFFERS.player_names.get(player * NAME_LEN + i))

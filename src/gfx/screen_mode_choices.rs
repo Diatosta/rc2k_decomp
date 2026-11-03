@@ -33,7 +33,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
 use crate::gfx::cards::CARDS;
-use crate::gfx::modes::MODES;
+use crate::gfx::modes::{MODES, Modes};
 use crate::pointers::GamePtr;
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
@@ -46,18 +46,17 @@ use crate::gfx::screen_state::SCREEN_MODE;
 
 /// `system::find_entry` as the original uses it: the entry whose first dword is `key`, or
 /// the place past the table's `count` entries.
-fn entry_or_past(key: u32, table: usize, count: u32) -> Result<u32, BadInput> {
-    let at = table as u32;
+fn entry_or_past(key: u32, table: GamePtr, count: u32) -> Result<GamePtr, BadInput> {
     for n in 0..count {
-        if read(at + 8 * n)? == key {
-            return Ok(at + 8 * n);
+        if read(table.offset(8 * n))? == key {
+            return Ok(table.offset(8 * n));
         }
     }
-    Ok(at + 8 * count)
+    Ok(table.offset(8 * count))
 }
 
-fn read(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a screen mode table's dword")
+fn read(at: GamePtr) -> Result<u32, BadInput> {
+    at.read("a screen mode table's dword")
 }
 
 /// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
@@ -67,8 +66,8 @@ fn list_mode(place: u32) -> Result<u32, BadInput> {
         .read("a screen mode table's dword")
 }
 
-fn read_word(at: u32) -> Result<u32, BadInput> {
-    Ok(GamePtr::new(at).read::<u16>("a screen mode table's word")? as u32)
+fn read_word(at: GamePtr) -> Result<u32, BadInput> {
+    Ok(at.read::<u16>("a screen mode table's word")? as u32)
 }
 
 /// The modes the list would hold (the mode table's of the pixel kind's bits), or None
@@ -175,14 +174,14 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
-        let mode = read(at)?;
+        let mode = read(GamePtr::new(at))?;
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_or_past(size_key, MODES.sizes_addr(), 8)?;
-        let kind = entry_or_past(kind_key, MODES.pixel_kinds_addr(), 2)?;
+        let size = entry_or_past(size_key, Modes::sizes_ptr(), 8)?;
+        let kind = entry_or_past(kind_key, Modes::pixel_kinds_ptr(), 2)?;
         let l = mc::Listed {
-            width: read_word(size + 4)?,
-            height: read_word(size + 6)?,
-            figure: read(kind + 4)?,
+            width: read_word(size.offset(4))?,
+            height: read_word(size.offset(6))?,
+            figure: read(kind.offset(4))?,
             mode,
         };
         let slot = 16 * n;
@@ -201,8 +200,8 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     let race = SCREEN_MODE.race_mode.get();
     let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
-        entry_or_past(mc::third_key(race), MODES.kinds_addr(), 3)
-            .and_then(|e| read(e + 4))
+        entry_or_past(mc::third_key(race), Modes::kinds_ptr(), 3)
+            .and_then(|e| read(e.offset(4)))
             .unwrap_or_else(|e| {
                 failed.set(Some(e));
                 0

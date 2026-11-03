@@ -207,8 +207,8 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     crate::race::game_map::load_game_map(
-        FILE_NUMBERS.text_addr(texts::MAP_PATH),
-        FILE_NUMBERS.text_addr(texts::MAP_KEY),
+        FILE_NUMBERS.text_ptr(texts::MAP_PATH),
+        FILE_NUMBERS.text_ptr(texts::MAP_KEY),
     )?;
     s.progress(0x5A)?;
     s.indent(-3);

@@ -34,11 +34,6 @@ pub fn pool_start() -> u32 {
     crate::scene::point_records::of_pool(0)
 }
 
-/// The textures' records (0x40 bytes each).
-pub fn texture_infos_addr() -> u32 {
-    crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
-}
-
 /// The objects' material records (0x80 bytes each), as a pointer to the first bounded by the
 /// polygon work around the records, not the
 /// records alone: `scene::set_object_material` is given kind -1 and reads the record before

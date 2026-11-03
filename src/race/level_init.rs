@@ -33,8 +33,8 @@ pub fn number_places() -> [crate::place::Place; 9] {
     ]
 }
 const TEXTURES: u32 = 0x100;
-fn put(at: u32, value: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(value, "a course variable")
+fn put(at: GamePtr, value: u32) -> Result<(), BadInput> {
+    at.write(value, "a course variable")
 }
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
@@ -167,7 +167,8 @@ pub fn build_texture_infos() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
-            let out = crate::scene::polygon::texture_infos_addr() + n * 0x40;
+            let out =
+                GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.texture_infos[n as usize]);
             let kind = STAGE_PREFS.texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();
@@ -178,17 +179,17 @@ pub fn build_texture_infos() -> Result<(), Refused> {
                 |o| trap.keep_read(field::<u8>(rec + o, "a course info record")),
             );
             trap.finish()?;
-            put(out + 0x24, t.row)?;
-            put(out + 0x20, t.group)?;
+            put(out.offset(0x24), t.row)?;
+            put(out.offset(0x20), t.group)?;
             for (k, &value) in t.values.iter().enumerate() {
-                put(out + 0x10 + 4 * k as u32, value)?;
+                put(out.offset(0x10 + 4 * k as u32), value)?;
             }
-            GamePtr::new(out + 0x1C).write(t.byte, "a texture info")?;
-            GamePtr::new(out + 0x2C).write_bytes(&t.bytes, "a texture info")?;
+            out.offset(0x1C).write(t.byte, "a texture info")?;
+            out.offset(0x2C).write_bytes(&t.bytes, "a texture info")?;
             for (k, &value) in t.first.iter().enumerate() {
-                put(out + 4 * k as u32, value)?;
+                put(out.offset(4 * k as u32), value)?;
             }
-            put(out + 0x28, t.marked)?;
+            put(out.offset(0x28), t.marked)?;
         }
     }
     Ok(())

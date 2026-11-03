@@ -285,16 +285,14 @@ pub fn load_packed_game_map(path: GamePtr) -> Result<(), Refused> {
 /// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
 /// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
 /// limits and buffer put back.
-pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
-    if MAP.use_packed.get() == 1
-        && !crate::files::file_exists::file_exists_at(GamePtr::new(picture))?
-    {
+pub fn load_game_map(picture: GamePtr, key_path: GamePtr) -> Result<(), Refused> {
+    if MAP.use_packed.get() == 1 && !crate::files::file_exists::file_exists_at(picture)? {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = GamePtr::to(&crate::files::state::PACKED_PATH);
-        let len = crate::strings::text_length::nul_at(GamePtr::new(picture), "a text to append")?;
+        let len = crate::strings::text_length::nul_at(picture, "a text to append")?;
         let room = path.limited(crate::files::state::PACKED_PATH_LEN as u32);
-        GamePtr::new(picture).copy_to(room.offset(3), len as usize, "a text to append")?;
+        picture.copy_to(room.offset(3), len as usize, "a text to append")?;
         room.offset(3 + len)
             .offset(4u32.wrapping_neg())
             .write(0x0071_732Eu32, "the packed map's path")?;
@@ -303,8 +301,8 @@ pub fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
         return Ok(());
     }
     MAP.tile_count.set(0u32);
-    MAP.picture_path.set(picture);
-    MAP.key_path.set(key_path);
+    MAP.picture_path.set(picture.addr());
+    MAP.key_path.set(key_path.addr());
     let (bytes, format) = take_format()?;
     take_tiles()?;
     // The key sheet is a picture buffer (Rust's since phase 12, `gfx::picture`), counted on

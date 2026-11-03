@@ -31,7 +31,7 @@ pub fn spread_camera(byte: GamePtr, old: u8) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {
-        trap.read::<u8>(at(n).addr(), "a replay camera byte")
+        trap.read_at::<u8>(at(n), "a replay camera byte")
     })?;
     trap.finish()?;
     for n in 1..=s.taken {

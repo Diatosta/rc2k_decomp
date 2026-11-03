@@ -60,13 +60,13 @@ impl Source {
 }
 const PALETTE_BYTES: usize = 0x400;
 /// The four font sheets and where each one's table is kept.
-fn font_sheets() -> [(u32, &'static Dword); 4] {
-    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27, address};
+fn font_sheets() -> [(GamePtr, &'static Dword); 4] {
+    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
-        (address(&FNT13), &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
-        (address(&FNT21), &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
-        (address(&FNT23), &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
-        (address(&FNT27), &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
+        (GamePtr::to(&FNT13), &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
+        (GamePtr::to(&FNT21), &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
+        (GamePtr::to(&FNT23), &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
+        (GamePtr::to(&FNT27), &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
     ]
 }
 
@@ -245,7 +245,7 @@ fn tables(palettes: &Dword) -> Result<(), Refused> {
     )?;
     for (sheet, kept) in font_sheets() {
         begin_glyph_table(list)?;
-        build_glyphs(crate::pointers::GamePtr::new(sheet), list)?;
+        build_glyphs(sheet, list)?;
         kept.set(SHEET.table.get());
     }
     end_glyph_tables()?;

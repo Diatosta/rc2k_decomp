@@ -77,6 +77,20 @@ macro_rules! table_addr {
 }
 
 impl Modes {
+    /// Where a table is, as a pointer bounded by the whole block (the tables are walked
+    /// past their ends).
+    fn table_ptr(offset: usize) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(&MODES).offset(offset as u32)
+    }
+    pub fn pixel_kinds_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, pixel_kinds))
+    }
+    pub fn sizes_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, sizes))
+    }
+    pub fn kinds_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, kinds))
+    }
     table_addr!(pixel_kinds_addr, pixel_kinds);
     table_addr!(sizes_addr, sizes);
     table_addr!(kinds_addr, kinds);
