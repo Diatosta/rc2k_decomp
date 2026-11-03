@@ -2,8 +2,7 @@
 //! (`menu::run_championship`, `menu::run_a8_championship`), their starters, the single
 //! rally's and the time trial's multi-player events. Each of them is a sequence of calls
 //! and of tests of the game's variables. The flows run on `menu::flow_game::Game`
-//! (the callees' Rust versions, the screens through `menu::screen_loop`), and carry the
-//! registers the originals hand from call to call in a `Flow`.
+//! (the callees' Rust versions, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
 use crate::menu::captions_store::CAPTIONS;
@@ -16,7 +15,6 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::menu::screen_loop::Carried;
 use crate::session::Dword;
 
 /// A game variable.
@@ -178,18 +176,4 @@ pub fn with_stage_times<R>(
 ) -> Result<R, BadInput> {
     let (table, stage) = stage_times()?;
     table.with(|t| f(&mut t.stages[stage]))
-}
-
-// ---- the registers the flows carry ----
-
-/// The registers an event flow carries from one callee to the next (the originals are
-/// `pusha` .. `popa` bodies whose registers go on to every call): the values the screens
-/// are run with (`Carried`: eax `arg`, ebx `palette`, ecx `measure_x`, edx `clock`, esi
-/// `cars`, the carry), the zero flag, and edi, the record the last search or walk left
-/// (`record`).
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Flow {
-    pub c: Carried,
-    pub zero: bool,
-    pub record: u32,
 }

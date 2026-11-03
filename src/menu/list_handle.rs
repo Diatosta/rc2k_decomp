@@ -151,6 +151,11 @@ impl ListItem {
         rw(self.field(2, 2))
     }
 
+    /// +1 of the replay viewer's items: the viewer action Enter does there.
+    pub fn viewer_action(self) -> u8 {
+        self.count()
+    }
+
     /// +1 of a text item: the kind of its font.
     pub fn font_kind(self) -> u8 {
         self.count()

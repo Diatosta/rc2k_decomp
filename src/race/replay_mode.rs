@@ -3,16 +3,16 @@
 //! `race::replay_viewer` (0x41CF0C) with eax the mode.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
 use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_viewer::Mode;
 
-/// One start in `mode` (the original's eax): the viewer, when there is a replay. `c` the
-/// carried values the item gets. (The original leaves eax `mode` with a replay, else keeps
-/// every register; nothing reads them.)
-pub fn replay_mode(c: &Carried, mode: u32) -> Result<(), Refused> {
+/// One start in `mode` (the original's eax): the viewer, when there is a replay. (The
+/// original leaves eax `mode` with a replay, else keeps every register; nothing reads
+/// them.)
+pub fn replay_mode(mode: Mode) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
     if rc2k_core::race::viewer_flow::views_replay(REPLAY_FILE.replay_closed.bits()) {
-        crate::race::replay_viewer::replay_viewer(c, mode)?;
+        crate::race::replay_viewer::replay_viewer(mode)?;
     }
     Ok(())
 }

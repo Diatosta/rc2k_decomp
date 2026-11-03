@@ -12,17 +12,15 @@
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::{MenuId, MenuItem};
-use crate::menu::screen_loop::Carried;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-/// `carried` are the screen loop's registers that the action gets as they are (the
-/// original's every register but eax = the value, ebp = the item, edi = the menu: the
-/// flows started from items hand them on to their screens); what the action leaves is
-/// nobody's (the original keeps every register).
-pub fn run_item_action(menu: MenuId, carried: &Carried) -> Result<(), crate::errors::Refused> {
+/// The Rust version: the highlighted item's action, with its value. (The original hands
+/// the action the screen loop's other registers too, which no action reads; what the
+/// action leaves is nobody's.)
+pub fn run_item_action(menu: MenuId) -> Result<(), crate::errors::Refused> {
     let items = menu.items();
     let highlighted: u32 = LOOP_FLAGS.item.get();
     // Converted: `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
@@ -36,7 +34,7 @@ pub fn run_item_action(menu: MenuId, carried: &Carried) -> Result<(), crate::err
         let item = &items[n as usize];
         let value = item.action_value.get();
         DRAW_WORK.action_value.set(value);
-        crate::menu::table_calls::call_action(item.action.get(), value, item, menu, carried);
+        crate::menu::table_calls::call_action(item.action.get(), value, item, menu);
         LOOP_FLAGS.item.set(item.id.get());
     }
     Ok(())

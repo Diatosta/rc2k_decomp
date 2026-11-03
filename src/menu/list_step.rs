@@ -14,49 +14,18 @@
 use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
-/// What `list_step` gives: the highlight (ecx, with its low byte the new choice) where a
-/// move key set it, and the carry and zero flags its callers test.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Stepped {
-    pub choice: Option<u32>,
-    pub carry: bool,
-    pub zero: bool,
-}
-
-impl Stepped {}
-
-impl Stepped {
-    /// The same in a flow's registers (`menu::event_flow::Flow`).
-    pub fn carry_on(&self, f: &mut crate::menu::event_flow::Flow) {
-        if let Some(choice) = self.choice {
-            f.c.measure_x = choice;
-        }
-        f.c.carry = self.carry;
-        f.zero = self.zero;
-    }
-}
-
 /// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
-/// `table` (ebx, 0 for none).
+/// `table` (ebx, 0 for none): whether it moved (the zero flag the original leaves; its
+/// carry and ecx no caller reads).
 pub fn list_step(
     key: u8,
     table: u32,
     list: crate::menu::list_handle::ListMenu,
-) -> Result<Stepped, crate::errors::BadInput> {
+) -> Result<bool, crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::list_menu::step`.
     let count = list.count();
     if !MOVES.contains(&key) {
-        // Not a move: the choice is not looked at (`step` answers `Other` or `NoTable`).
-        let (carry, zero) = match step(key, 0, count, table != 0, |_| 0) {
-            Step::NoTable => (true, false),
-            Step::Other { below } => (below, false),
-            _ => unreachable!("a move from a key that is not one"),
-        };
-        return Ok(Stepped {
-            choice: None,
-            carry,
-            zero,
-        });
+        return Ok(false);
     }
     let ecx = INSTALLER_PAGES.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
@@ -71,18 +40,9 @@ pub fn list_step(
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
     let stepped = step(key, ecx as u8, count, table != 0, entry_of);
     fault.check()?;
-    let (choice, carry, zero) = match stepped {
-        Step::Moved(cl) => {
-            INSTALLER_PAGES.choice.set(with_cl(cl));
-            (with_cl(cl), false, true)
-        }
-        Step::Blocked(cl) => (with_cl(cl), false, false),
-        Step::NoTable => (ecx, true, false),
-        Step::Other { below } => (ecx, below, false),
+    let Step::Moved(cl) = stepped else {
+        return Ok(false);
     };
-    Ok(Stepped {
-        choice: Some(choice),
-        carry,
-        zero,
-    })
+    INSTALLER_PAGES.choice.set(with_cl(cl));
+    Ok(true)
 }

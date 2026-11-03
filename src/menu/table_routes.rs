@@ -343,9 +343,9 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::ViewStageDetails => crate::menu::item_actions::view_stage_details(),
         ItemFn::ApplyScreenMode => crate::menu::apply_screen_mode::apply_screen_mode(),
         ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_player_3c_hook::run(),
-        ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(&c.carried()),
-        ItemFn::ReplayItemB => crate::menu::replay_item_b::replay_item_b(&c.carried()),
-        ItemFn::ReplayItemA => crate::menu::replay_item_a::replay_item_a(&c.carried()),
+        ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(),
+        ItemFn::ReplayItemB => crate::menu::replay_item_b::replay_item_b(),
+        ItemFn::ReplayItemA => crate::menu::replay_item_a::replay_item_a(),
         ItemFn::ToggleCaptionChoice => {
             crate::menu::player_actions::toggle_caption_choice_hook::run()
         }

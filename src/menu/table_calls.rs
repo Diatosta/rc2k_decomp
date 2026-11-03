@@ -3,8 +3,8 @@
 //! tables hold it, run by its Rust version (`table_routes.rs`; `crate::routes`, for
 //! the few others, went 2026-10-24: nothing could reach them by address). Callers: `menu::run_list` and the frame
 //! callbacks (`call_listed`: screen functions, no registers), `menu::run_item_action`
-//! (`call_action`: an `ItemCall`, the item's value, the item, the menu and the screen
-//! loop's carried values), `menu::navigation`'s moves (`call_key`).
+//! (`call_action`: an `ItemCall`, the item's value, the item and the menu),
+//! `menu::navigation`'s moves (`call_key`).
 //!
 //! A refused input (`BadInput`) ends the program, saying which function refused and why
 //! (2026-10-23); a fatal error is raised from Rust. An address in no table: the empty
@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, log};
 use crate::menu::menus_store::{MenuId, MenuItem};
-use crate::menu::screen_loop::Carried;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
@@ -45,39 +44,21 @@ pub fn call_key(function: u32, item: &MenuItem) -> Result<(), Refused> {
 }
 
 /// What a menu item's function is given (typed, 2026-10-24; the original's registers at
-/// the call: eax the item's value, ebp the item, edi the menu, ebx / ecx / edx / esi the
-/// screen loop's carried ones, which the flows that items start hand on to their screens).
+/// the call: eax the item's value, ebp the item, edi the menu; the screen loop's others,
+/// which no function reads).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ItemCall {
     pub value: u32,
     /// The item's game address (the original's ebp; for a refusal's report).
     pub item: u32,
     pub menu: Option<MenuId>,
-    pub carried: Carried,
 }
 
 impl ItemCall {
-    /// The carried values as the item's function gets them: the value where the call's
-    /// argument goes (eax), no carry.
-    pub fn carried(&self) -> Carried {
-        Carried {
-            arg: self.value,
-            carry: false,
-            ..self.carried
-        }
-    }
-
     /// The registers the original hands the function, for a refusal's report.
     pub fn regs(&self) -> Regs {
         Regs {
             eax: self.value,
-            ebx: self.carried.palette,
-            ecx: self.carried.measure_x,
-            edx: self.carried.clock,
-            esi: self
-                .carried
-                .cars
-                .map_or(0, rc2k_core::menu::car_lists::CarList::code),
             edi: self.menu.map_or(0, MenuId::code),
             ebp: self.item,
             ..Regs::default()
@@ -86,14 +67,12 @@ impl ItemCall {
 }
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value,
-/// the item, the menu and the screen loop's carried values. A refusal ends the program
-/// here, as `call`'s.
-pub fn call_action(function: u32, value: u32, item: &MenuItem, menu: MenuId, carried: &Carried) {
+/// the item and the menu. A refusal ends the program here, as `call`'s.
+pub fn call_action(function: u32, value: u32, item: &MenuItem, menu: MenuId) {
     let given = ItemCall {
         value,
         item: item.addr(),
         menu: Some(menu),
-        carried: *carried,
     };
     let ral = function;
     let result = if let Some(f) = ItemFn::from_ral(ral) {

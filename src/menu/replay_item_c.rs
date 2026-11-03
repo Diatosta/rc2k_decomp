@@ -9,9 +9,8 @@
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::screen_loop::Carried;
 
-/// The Rust version (`c` the carried values the item gets).
-pub fn replay_item_c(c: &Carried) -> Result<(), Refused> {
-    crate::race::replay_mode_2::replay_mode_2(c)
+/// The Rust version.
+pub fn replay_item_c() -> Result<(), Refused> {
+    crate::race::replay_mode_2::replay_mode_2()
 }

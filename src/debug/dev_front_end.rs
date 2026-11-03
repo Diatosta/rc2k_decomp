@@ -209,7 +209,7 @@ fn last_replay() -> Result<(), Refused> {
         write_at(0x63DB7C, u32::MAX); // g_playerOptions
         write_at(0x63DB80, u32::MAX);
         let result =
-            crate::race::replay_mode::replay_mode(&crate::menu::screen_loop::Carried::default(), 1);
+            crate::race::replay_mode::replay_mode(crate::race::replay_viewer::Mode::LastRace);
         write_at(0x5C5CE0, 0);
         result
     })

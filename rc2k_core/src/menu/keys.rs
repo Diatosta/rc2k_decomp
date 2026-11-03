@@ -1,10 +1,14 @@
 //! What a key means on a menu (converted 2026-10-21 from `menu::handle_keys` 0x465FCC).
 //! The keys are the game's scan codes as `input::take_key` gives them.
 
-/// What `handle_keys` leaves in eax: nothing for the caller to do, Escape, Enter.
-pub const NOTHING: u32 = 1;
-pub const ESCAPED: u32 = 2;
-pub const ENTERED: u32 = 3;
+/// What a key means to the screen loop (`handle_keys`' eax 1, 2, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pressed {
+    /// Nothing for the caller to do.
+    Nothing = 1,
+    Escape = 2,
+    Enter = 3,
+}
 
 /// `dword_7556A4` on any key looked at, and after Enter.
 pub const NO_SOUND: u32 = 0x6F;

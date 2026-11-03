@@ -208,7 +208,7 @@ pub fn run_frame<T>(frame: impl FnOnce() -> Result<T, Refused>) -> Result<(), Re
 
 /// `menu::list_take_key`: the key.
 pub fn list_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key().key)
+    Ok(crate::menu::list_take_key::list_take_key())
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.

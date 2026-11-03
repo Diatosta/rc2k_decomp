@@ -72,6 +72,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 use crate::session::{Dword, Float};
+use rc2k_core::menu::keys::Pressed;
 
 // ---- game code the loop calls itself ----
 
@@ -232,27 +233,6 @@ pub struct Screen {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
     pub cars: Option<CarList>,
-}
-
-/// The values of the original's registers that the item actions' flows are handed (until
-/// they hold their own state): the loop builds them from what it holds at an action.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Carried {
-    /// eax: what the next call is handed.
-    pub arg: u32,
-    /// ebx: at an action, the highlight as it was at set-up.
-    pub palette: u32,
-    /// ecx: at an action, the highlighted item.
-    pub measure_x: u32,
-    /// edx: at an action, the frame clock `handle_keys` left.
-    pub clock: u32,
-    /// esi as a list of cars: the one `scene::set_up_carousel` reads for menus 0xD and 0xE
-    /// and `menu::take_shown_car` reads. None where the original's esi holds anything else
-    /// (a matrix, a record, a list's end mark): those two are its only readers, and both
-    /// refuse none.
-    pub cars: Option<CarList>,
-    /// The carry flag.
-    pub carry: bool,
 }
 
 /// Whether the game is quitting (`dword_51837C`).
@@ -536,7 +516,6 @@ pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
     // The highlight as set-up took it back (the original's ebx at an action) and the clock
     // `handle_keys` left (edx): what an item's action is handed.
-    let (mut set_up_item, mut keys_clock) = (0u32, 0u32);
     run(screen.before, entry)?;
 
     let action_menu = screen.action_menu.map_or(menu, |other| other());
@@ -552,8 +531,7 @@ pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
                 run(screen.set_up_first, entry)?;
                 if !screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
-                    set_up_item = (screen.saved_item)().get();
-                    LOOP_FLAGS.item.set(set_up_item);
+                    LOOP_FLAGS.item.set((screen.saved_item)().get());
                     clear_escape();
                 }
                 run(screen.prepare, entry)?;
@@ -581,8 +559,7 @@ pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
                 run_frame(callback, menu)?;
                 if screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
-                    set_up_item = (screen.saved_item)().get();
-                    LOOP_FLAGS.item.set(set_up_item);
+                    LOOP_FLAGS.item.set((screen.saved_item)().get());
                     clear_escape();
                 }
                 Next::FrameTop
@@ -640,15 +617,11 @@ pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
                     .set(keys_menu.code());
                 // The original hands it the time since set-up in eax (the frame's last
                 // write there that a screen's steps do not change before it reads it).
-                let keys = handle_keys(PHYSICS.scene_clock.get())?;
-                if let Some(clock) = keys.clock {
-                    keys_clock = clock;
-                }
-                match keys.result {
-                    1 => next_frame,
-                    3 => Next::ActionCheck,
-                    other => {
-                        why = format!("handle_keys returned {other}");
+                match handle_keys(PHYSICS.scene_clock.get())? {
+                    Pressed::Nothing => next_frame,
+                    Pressed::Enter => Next::ActionCheck,
+                    Pressed::Escape => {
+                        why = "Escape".to_string();
                         Next::Leave
                     }
                 }
@@ -659,17 +632,9 @@ pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
                 let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
                 kept().set(item);
                 clear_escape();
-                let handed = Carried {
-                    palette: set_up_item,
-                    measure_x: item,
-                    clock: keys_clock,
-                    cars: entry.cars,
-                    ..Carried::default()
-                };
-                run_item_action(action_menu, &handed)?;
+                run_item_action(action_menu)?;
                 CAPTIONS.screen_left.set(0);
-                set_up_item = kept().get();
-                LOOP_FLAGS.item.set(set_up_item);
+                LOOP_FLAGS.item.set(kept().get());
                 clear_escape();
                 if screen.restart_action_check {
                     if LOOP_FLAGS.ended_a.get() == 1 {

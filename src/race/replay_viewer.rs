@@ -1,10 +1,10 @@
-//! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode (eax):
+//! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode (eax, `Mode`):
 //! 1 the last race's replay (222); 2 a saved one chosen (`menu::replay_slot_loop` 0; none:
 //! nothing); 3 the last race's saved into a slot chosen (`replay_slot_loop` 1,
-//! `race::save_last_replay`) and nothing else; 4 and 5 the game's own replay ebx (+100)
-//! only shown, played at once (`race::viewer_action` 6), 5 with the keys ignored; other
-//! modes nothing. `dword_5BEC9C` the mode, `dword_5BECA0` the replay, `g_holdCarRevs` 1
-//! while it runs.
+//! `race::save_last_replay`) and nothing else. `dword_5BEC9C` the mode, `dword_5BECA0` the
+//! replay, `g_holdCarRevs` 1 while it runs. (Modes 4 and 5, the game's own replay ebx + 100
+//! only shown, 5 with the keys ignored, are entered only at 0x41CDA8 and 0x41CDB5, which
+//! nothing references: not kept.)
 //!
 //! Then the replay opened (`race::open_viewed_replay`; failing: the end), no camera edit,
 //! `dword_5C2544` whether it is the last race's, the snapshots' number found
@@ -12,7 +12,7 @@
 //! set up (`unk_5C255C`: no sound, shown, not leaving, the clocks, item 6), the pending key
 //! dropped, the items marked (`race::mark_viewer_items`). Each frame after (shown by
 //! `screens::run_frame` with `sub_41D5FB`, `race::viewer_frame`): the clocks, a key
-//! (`menu::list_take_key`); the game quitting, or (only shown) the play over, ends it; keys
+//! (`menu::list_take_key`); the game quitting ends it; keys
 //! held after a play (`dword_5C2554`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
 //! nothing; Escape twice in a row ends it. Playing (`dword_5BEC98` 0): a frame on
 //! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad 0) a screenshot
@@ -28,19 +28,16 @@
 //! (`race::close_viewed_replay`), the front end back (`race::viewer_tidy_stage`),
 //! `dword_5BEC98` and `g_holdCarRevs` 0.
 //!
-//! In:  eax the mode, ebx the replay for modes 4 and 5
+//! In:  eax the mode
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Callers: `race::replay_mode_1`, `race::replay_mode_3`, `sub_41CD9D` (2), 0x41CDAF (4),
-//! 0x41CDBC (5). Key 0x26 is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
+//! Callers: `race::replay_mode_1`, `race::replay_mode_3`, `race::replay_mode_2`. Key 0x26
+//! is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::install::vars::INSTALLER_PAGES;
-use crate::menu::event_flow::Flow;
 use crate::menu::list_handle::ListMenu;
-use crate::menu::screen_loop::Carried;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -84,6 +81,17 @@ pub const KEYS: [(u8, u32); 30] = [
 const DEVELOPER: [(u8, u32); 4] = [(b'?', 0x26), (b'@', 0x27), (b'A', 0x28), (b'B', 0x25)];
 const MOVES: [u8; 4] = [0x66, 0x6B, 0x68, 0x69];
 
+/// What the viewer is started for (the original's eax).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    /// The last race's replay.
+    LastRace = 1,
+    /// A saved replay, chosen on the loading screen.
+    Saved = 2,
+    /// The last race's replay saved into a slot chosen, and nothing else.
+    SaveLast = 3,
+}
+
 /// Where the stopped viewer's key leads.
 enum Next {
     Sound,
@@ -91,111 +99,81 @@ enum Next {
     Action(u32),
 }
 
-/// The Rust version: `mode` the viewer's mode (the original's eax), `c` the carried
-/// values the slot screens are run with. A translated body: `r` is its scratch (the
-/// original keeps every register of its caller).
-pub fn replay_viewer(c: &Carried, mode: u32) -> Result<(), Refused> {
-    let r = &mut Flow {
-        c: Carried { arg: mode, ..*c },
-        zero: false,
-        record: 0,
-    };
-    view(r)?;
+/// The Rust version.
+pub fn replay_viewer(mode: Mode) -> Result<(), Refused> {
+    view(mode)?;
     // The end (0x41D436).
-    step(16, r)?;
-    step(17, r)?;
+    crate::race::close_viewed_replay::close_viewed_replay()?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
     REPLAY_FILE.viewer_stopped.set(0);
     REPLAY_FILE.hold_car_revs.set(0);
     Ok(())
 }
 
 /// Up to the end.
-fn view(r: &mut Flow) -> Result<(), Refused> {
-    REPLAY_FILE.viewer_mode.set(r.c.arg);
-    REPLAY_FILE.viewer_slot.set(r.c.palette);
+fn view(mode: Mode) -> Result<(), Refused> {
+    use crate::race::*;
+    REPLAY_FILE.viewer_mode.set(mode as u32);
     REPLAY_FILE.hold_car_revs.set(1);
     REPLAY_VIEW.viewer_only_shown.set(0);
-    match r.c.arg {
-        1 => {
-            REPLAY_FILE.viewer_slot.set(LAST_RACE);
-            REPLAY_FILE.viewer_stopped.set(1);
-        }
-        2 | 3 => {
-            let save = r.c.arg == 3;
-            r.c.arg = save as u32;
-            step(1, r)?;
-            if r.c.arg == u32::MAX {
+    let slot = match mode {
+        Mode::LastRace => LAST_RACE,
+        Mode::Saved | Mode::SaveLast => {
+            let saving = mode == Mode::SaveLast;
+            let slot = crate::menu::replay_slot_loop::replay_slot_loop(saving)?;
+            if slot == u32::MAX {
                 return Ok(());
             }
-            REPLAY_FILE.viewer_slot.set(r.c.arg);
-            if save {
-                step(2, r)?;
-                return Ok(());
+            if saving {
+                REPLAY_FILE.viewer_slot.set(slot);
+                return save_last_replay::save_last_replay(slot);
             }
-            REPLAY_FILE.viewer_stopped.set(1);
+            slot
         }
-        4 | 5 => {
-            REPLAY_VIEW.viewer_keys_ignored.set((r.c.arg == 5) as u32);
-            REPLAY_VIEW.viewer_only_shown.set(1);
-            REPLAY_FILE.viewer_stopped.set(0);
-            REPLAY_FILE
-                .viewer_slot
-                .set(REPLAY_FILE.viewer_slot.get().wrapping_add(100));
-        }
-        _ => return Ok(()),
-    }
-    r.c.palette = REPLAY_FILE.viewer_slot.get();
-    step(3, r)?;
-    if r.c.carry {
+    };
+    REPLAY_FILE.viewer_slot.set(slot);
+    REPLAY_FILE.viewer_stopped.set(1);
+    let failed = open_viewed_replay::open_viewed_replay(slot)?;
+    if failed {
         return Ok(());
     }
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .camera_edit
         .set(0);
-    r.c.arg = (REPLAY_FILE.viewer_slot.get() == LAST_RACE) as u32;
-    REPLAY_VIEW.last_race_viewed.set(r.c.arg);
-    step(4, r)?;
-    step(5, r)?;
-    r.record = REPLAY_VIEW.viewer_list[0].addr();
+    REPLAY_VIEW.last_race_viewed.set((slot == LAST_RACE) as u32);
+    find_snapshot_number::find_snapshot_number()?;
+    viewer_load_stage::viewer_load_stage()?;
+    let list = ListMenu::at(REPLAY_VIEW.viewer_list[0].addr());
     REPLAY_FILE.viewer_sound.set(0);
     INSTALLER_PAGES.list_answer.set(1);
     INSTALLER_PAGES.list_leave.set(0);
-    r.c.arg = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(r.c.arg);
-    INSTALLER_PAGES.key_clock.set(r.c.arg);
+    let now = CLOCKS.key_ticks.get();
+    INSTALLER_PAGES.move_clock.set(now);
+    INSTALLER_PAGES.key_clock.set(now);
     INSTALLER_PAGES.choice.set(6);
-    step(6, r)?;
-    step(7, r)?;
-    if REPLAY_VIEW.viewer_only_shown.get() == 1 {
-        r.c.palette = 6;
-        step(8, r)?;
-        return Ok(());
-    }
+    // The pending key dropped.
+    crate::input::take_key::take_key();
+    mark_viewer_items::mark_viewer_items(list)?;
     loop {
-        step(9, r)?;
-        r.c.arg = CLOCKS.key_ticks.get();
-        INSTALLER_PAGES.frame_clock.set(r.c.arg);
-        r.c.arg = INSTALLER_PAGES.choice.get();
-        INSTALLER_PAGES.choice_before.set(r.c.arg);
-        step(10, r)?;
+        // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
+        if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
+            lost?;
+        }
+        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        INSTALLER_PAGES
+            .choice_before
+            .set(INSTALLER_PAGES.choice.get());
+        let mut key = crate::menu::list_take_key::list_take_key();
         if FLAGS.quitting.get() == 1 {
             return Ok(());
-        }
-        if REPLAY_VIEW.viewer_only_shown.get() == 1 {
-            if REPLAY_FILE.viewer_stopped.get() == 1 {
-                return Ok(());
-            }
-            if REPLAY_VIEW.viewer_keys_ignored.get() == 1 {
-                r.c.arg = 0;
-            }
         }
         if REPLAY_VIEW.wait_key_release.get() == 1 {
             if DEVICES.keys_down.get(1) == 0 && DEVICES.keys_down.get(0x1C) == 0 {
                 REPLAY_VIEW.wait_key_release.set(0);
             }
-            r.c.arg = 0;
+            key = 0;
         }
-        if r.c.arg as u8 == 1 {
+        if key == 1 {
             REPLAY_VIEW.wait_key_release.set(1);
             REPLAY_VIEW
                 .escape_count
@@ -203,49 +181,53 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
             if REPLAY_VIEW.escape_count.get() == 2 {
                 return Ok(());
             }
-            r.c.arg = 0;
+            key = 0;
         }
-        if r.c.arg as u8 != 0 {
+        if key != 0 {
             REPLAY_VIEW.escape_count.set(0);
         }
         if REPLAY_FILE.viewer_stopped.get() != 1 {
-            step(11, r)?;
-            if r.c.carry || r.c.arg as u8 != 0 {
+            let ended = step_viewed_replay::step_viewed_replay()?;
+            if ended || key != 0 {
                 REPLAY_FILE.viewer_stopped.set(1);
             }
             continue;
         }
-        let key = r.c.arg as u8;
         let next = if (key as i8) <= 0 {
             Next::Mark
         } else {
-            stopped_key(r, key)?
+            stopped_key(list, key)?
         };
         let next = match next {
-            Next::Action(action) => {
-                r.c.palette = action;
-                step(8, r)?;
-                if r.zero { Next::Mark } else { Next::Sound }
-            }
+            Next::Action(action) => action_next(action)?,
             other => other,
         };
         if let Next::Mark = next {
-            mark(r, key)?;
+            mark(list, key)?;
         }
         // The menu sound asked for (0x41D41C).
-        r.c.arg = REPLAY_FILE.viewer_sound.get();
+        let sound = REPLAY_FILE.viewer_sound.get();
         REPLAY_FILE.viewer_sound.set(0);
-        step(15, r)?;
+        crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         if INSTALLER_PAGES.list_leave.get() == 1 {
             return Ok(());
         }
     }
 }
 
+/// An action done: the items are marked again after one that is an action.
+fn action_next(action: u32) -> Result<Next, Refused> {
+    Ok(if crate::race::viewer_action::viewer_action(action)? {
+        Next::Mark
+    } else {
+        Next::Sound
+    })
+}
+
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
+fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
-        step(12, r)?;
+        crate::gfx::take_screenshot::take_screenshot()?;
     }
     if crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .camera_edit
@@ -260,24 +242,12 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
             _ => Next::Sound,
         });
     }
-    // esi the chosen entry of the record (read by the Enter key's step below): no list of
-    // cars.
-    let entry = INSTALLER_PAGES
-        .choice
-        .get()
-        .wrapping_mul(0x10)
-        .wrapping_add(r.record)
-        .wrapping_add(0x18);
-    r.c.cars = None;
-    r.c.palette = ReplayViewBlock::key_table()?;
-    step(13, r)?;
-    if r.zero {
+    if crate::menu::list_step::list_step(key, ReplayViewBlock::key_table()?, list)? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        r.c.palette = GamePtr::new(entry + 1).read::<u8>("game data")? as u32;
-        step(8, r)?;
-        if r.zero {
+        let chosen = list.item(INSTALLER_PAGES.choice.get());
+        if let Next::Mark = action_next(u32::from(chosen.viewer_action()))? {
             return Ok(Next::Mark);
         }
     }
@@ -303,11 +273,11 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
 
 /// After a move or an action (0x41D3B0): the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
-fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
-    step(7, r)?;
-    step(14, r)?;
+fn mark(list: ListMenu, key: u8) -> Result<(), Refused> {
+    use crate::menu::list_item_unusable::list_item_unusable;
+    crate::race::mark_viewer_items::mark_viewer_items(list)?;
     'tail: {
-        if !r.c.carry {
+        if !list_item_unusable(list) {
             break 'tail;
         }
         'reset: {
@@ -316,73 +286,31 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
             }
             // On the way it went while it cannot be chosen.
             loop {
-                r.c.palette = ReplayViewBlock::key_table()?;
-                step(13, r)?;
-                if !r.zero {
+                if !crate::menu::list_step::list_step(key, ReplayViewBlock::key_table()?, list)? {
                     break;
                 }
-                step(14, r)?;
-                if !r.c.carry {
+                if !list_item_unusable(list) {
                     break 'tail;
                 }
             }
-            r.c.palette = INSTALLER_PAGES.choice_before.get();
-            INSTALLER_PAGES.choice.set(r.c.palette);
-            step(14, r)?;
-            if !r.c.carry {
+            // Else back where it was.
+            INSTALLER_PAGES
+                .choice
+                .set(INSTALLER_PAGES.choice_before.get());
+            if !list_item_unusable(list) {
                 return Ok(());
             }
         }
+        // Else item 6, or 0x13 when item 6 is marked.
         INSTALLER_PAGES.choice.set(6);
-        if GamePtr::new(r.record + 0x78).read::<u8>("game data")? & 0xC0 != 0 {
+        if list.item(6).first() & 0xC0 != 0 {
             INSTALLER_PAGES.choice.set(0x13);
         }
     }
     if (key as i8) > 0 {
-        r.c.palette = INSTALLER_PAGES.frame_clock.get();
-        INSTALLER_PAGES.move_clock.set(r.c.palette);
-    }
-    Ok(())
-}
-
-/// The calls by place, as IDA shows them (the Rust versions; the frame's run through the
-/// platform).
-fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
-    use crate::race::*;
-    match place {
-        1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(r.c.arg != 0)?,
-        2 => save_last_replay::save_last_replay(r.c.arg)?,
-        3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
-        4 => find_snapshot_number::find_snapshot_number()?,
-        5 => viewer_load_stage::viewer_load_stage()?,
-        6 => {
-            // `input::take_key` into al and the zero flag.
-            let key = crate::input::take_key::take_key();
-            r.c.arg = r.c.arg & !0xFF | u32::from(key);
-            r.zero = key == 0;
-            r.c.carry = false;
-        }
-        7 => mark_viewer_items::mark_viewer_items(ListMenu::at(r.record))?,
-        8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
-        // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
-        9 => {
-            if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
-                lost?;
-            }
-        }
-        10 => crate::menu::list_take_key::list_take_key().carry_on(r),
-        11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
-        12 => crate::gfx::take_screenshot::take_screenshot()?,
-        13 => {
-            crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, ListMenu::at(r.record))?
-                .carry_on(r);
-        }
-        14 => {
-            r.c.carry = crate::menu::list_item_unusable::list_item_unusable(ListMenu::at(r.record));
-        }
-        15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
-        16 => close_viewed_replay::close_viewed_replay()?,
-        _ => viewer_tidy_stage::viewer_tidy_stage()?,
+        INSTALLER_PAGES
+            .move_clock
+            .set(INSTALLER_PAGES.frame_clock.get());
     }
     Ok(())
 }

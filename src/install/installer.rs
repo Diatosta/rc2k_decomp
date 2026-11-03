@@ -384,13 +384,13 @@ pub fn load_language() -> Result<(), Refused> {
 
 /// `menu::list_take_key` (0x41469A): the key (0: none).
 pub fn list_take_key() -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key().key)
+    Ok(crate::menu::list_take_key::list_take_key())
 }
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
 pub fn list_step(key: u32, table: u32, list: ListMenu) -> Result<bool, crate::errors::BadInput> {
-    Ok(crate::menu::list_step::list_step(key as u8, table, list)?.zero)
+    crate::menu::list_step::list_step(key as u8, table, list)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).
