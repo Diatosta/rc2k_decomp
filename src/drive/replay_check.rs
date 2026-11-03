@@ -90,10 +90,10 @@ fn piece_name(piece: StartPiece) -> String {
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame() -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::block_addr(8);
+    let saved = crate::race::blocks_store::replay_state();
     let read = |at: u32| GamePtr::new(at).read::<u32>("the replay check's blocks");
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
-    if read(saved + 8)? != clock {
+    if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());
     }
@@ -101,7 +101,12 @@ pub fn compare_frame() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let ours = crate::drive::save_replay_cars::piece_addr(piece);
         for k in 0..n as u32 {
-            let (now, kept) = (read(ours + 4 * k)?, read(saved + 4 * (offset as u32 + k))?);
+            let (now, kept) = (
+                read(ours + 4 * k)?,
+                saved
+                    .offset(4 * (offset as u32 + k))
+                    .read::<u32>("the replay check's blocks")?,
+            );
             if now == kept
                 || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k as usize))
             {

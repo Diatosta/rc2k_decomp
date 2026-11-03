@@ -35,7 +35,8 @@ pub fn keep_replay_frame() -> Result<(), BadInput> {
     if REPLAY_FRAMES.tenth.get() == 0 {
         let offset = slot_offset(REPLAY_FRAMES.frame.get());
         let to = GamePtr::to(&REPLAY_FRAMES.slots).offset(offset);
-        GamePtr::new(crate::race::blocks_store::block_addr(0)).copy_to(
+        // The first four blocks (`SLOT_SIZE` is four of them).
+        GamePtr::to(&crate::race::blocks_store::CAR_BLOCKS.cars).copy_to(
             to,
             SIZE,
             "a car's block",

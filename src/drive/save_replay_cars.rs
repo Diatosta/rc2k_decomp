@@ -26,10 +26,10 @@ pub fn piece_addr(piece: StartPiece) -> u32 {
 pub fn save_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
-            crate::race::blocks_store::block_addr(8) + 4 * offset as u32,
+            crate::race::blocks_store::replay_state().offset(4 * offset as u32),
             piece_addr(piece),
         );
-        GamePtr::new(place).copy_to(GamePtr::new(state), n * 4, "the cars' starting state")?;
+        GamePtr::new(place).copy_to(state, n * 4, "the cars' starting state")?;
     }
     Ok(())
 }

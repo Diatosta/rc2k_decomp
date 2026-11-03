@@ -151,6 +151,21 @@ pub fn block_at(address: u32, what: &'static str) -> Result<&'static Car, crate:
     Ok(Car::at(address))
 }
 
+/// The replay's starting state (`unk_7172EC`): its dwords, from car block 8 on.
+pub const REPLAY_STATE_DWORDS: usize = 0xA04;
+const _: () = assert!(
+    8 * BLOCK_LEN + 4 * REPLAY_STATE_DWORDS
+        <= core::mem::size_of::<crate::race::groups_store::CarsAndReplay>()
+);
+
+/// The replay's starting state: 0xA04 dwords from car block 8, running past the car blocks
+/// into the replay work (their group holds both), as a pointer bounded by that length.
+pub fn replay_state() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&crate::race::groups_store::CARS_AND_REPLAY)
+        .offset((8 * BLOCK_LEN) as u32)
+        .limited((4 * REPLAY_STATE_DWORDS) as u32)
+}
+
 /// `own_car_number`'s block.
 pub fn own_car() -> &'static Car {
     &CAR_BLOCKS.cars[own_car_number()]
