@@ -12,15 +12,9 @@
 use crate::drive::car::*;
 use crate::errors::Refused;
 
-/// The Rust core on the variables at `p`: the work copy and the block exchange one copy.
+/// The Rust version.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
-pub fn store_car_at(p: CarPlaces) -> Result<(), Refused> {
-    let (_, block) = p.block()?;
-    copy_dwords(p.work, block)?;
-    Ok(())
-}
-
-/// The Rust version, on the game's variables.
 pub fn store_car() -> Result<(), Refused> {
-    store_car_at(CarPlaces::game())
+    copy_car(&crate::physics::car_store::CAR, current_block()?)?;
+    Ok(())
 }
