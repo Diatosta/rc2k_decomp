@@ -25,6 +25,9 @@ pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
 pub fn with_overlays<R>(mk: usize, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
+    for o in overlays {
+        fits_buffer(mk.wrapping_add(o.start).wrapping_sub(START), o.len);
+    }
     let at = |o: &Overlay| crate::pointers::host_at(mk.wrapping_add(o.start).wrapping_sub(START));
     let saved: Vec<Vec<u8>> = overlays
         .iter()
@@ -41,4 +44,16 @@ pub fn with_overlays<R>(mk: usize, overlays: &[Overlay], f: impl FnOnce() -> R) 
         }
     }
     out
+}
+
+/// Stops the test (naming it) unless `len` bytes from the game address `at` lie in one test
+/// buffer: a block copied into a buffer too small for it overwrote the heap past it.
+#[track_caller]
+pub fn fits_buffer(at: usize, len: usize) {
+    let room =
+        crate::pointers::region_of(at as u32).map(|(_, end)| (end as usize).wrapping_sub(at));
+    assert!(
+        room.is_some_and(|room| room >= len),
+        "a {len:#x}-byte block at {at:#x} does not fit its test buffer ({room:#x?} bytes there)"
+    );
 }

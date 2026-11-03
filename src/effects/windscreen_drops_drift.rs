@@ -56,9 +56,7 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
                     HEX.turn[3 * col + k].set_bits(x);
                 }
             }
-            let turn = crate::pointers::game_address(HEX.turn.as_ptr());
-            let adj = crate::pointers::game_address(HEX.adjugate.as_ptr());
-            adjugate3(turn, adj)?;
+            adjugate3(&HEX.turn, &HEX.adjugate);
             // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
             let temps = [Float::from_bits(0), Float::from_bits(0)];
             let kept = Bytes::new([0u8; 30]);

@@ -1381,7 +1381,7 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0x1D06E0,
-                    hi: 0x1D07E4,
+                    hi: 0x1D07FC,
                     reads: &[(0x1D07D8, F32), (0x1D07DC, F32), (0x1D07E0, F32)],
                     writes: &[
                         (0x1D077C, F32),
@@ -1507,7 +1507,7 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0x90,
-                    hi: 0x1D0784,
+                    hi: 0x1D07FC,
                     reads: &[(0x90, I32), (0x22C, F32), (0x29C, F32), (0x1D0780, F32)],
                     writes: &[(0x1D0780, F32), (0x1D0780, I32)],
                 },

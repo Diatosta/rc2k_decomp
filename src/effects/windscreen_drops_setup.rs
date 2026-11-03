@@ -34,7 +34,7 @@ const STATES: [(u32, u32); 8] = [
 
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
 fn axes() {
-    axes_x87(crate::effects::windscreen_drop_vars::WindscreenDropVars::base());
+    axes_x87();
 }
 
 /// The Rust version (see the header).
@@ -71,10 +71,10 @@ pub fn windscreen_drops_setup() {
     }
 }
 
-use crate::effects::plain::ld;
+use crate::effects::plain::ld_cell;
 
 /// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn axes_x87(hx: usize) {
+fn axes_x87() {
     let t0 = bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
     let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
     WINDSCREEN_DROP_WORK.setup_axes[0].set_bits(bh::st(t1));
@@ -94,22 +94,22 @@ fn axes_x87(hx: usize) {
     let t11 = t10 * bh::ld(WINDSCREEN_DROP_WORK.radii[0].bits());
     WINDSCREEN_DROP_WORK.setup_axes[5].set_bits(bh::st(t11));
     let t12 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[0].bits());
-    let t13 = t12 * ld(hx, 0xC9346);
+    let t13 = t12 * ld_cell(&HEX.axes_k[0]);
     WINDSCREEN_DROP_WORK.setup_axes[6].set_bits(bh::st(t13));
     let t14 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[1].bits());
-    let t15 = t14 * ld(hx, 0xC934A);
+    let t15 = t14 * ld_cell(&HEX.axes_k[1]);
     WINDSCREEN_DROP_WORK.setup_axes[7].set_bits(bh::st(t15));
     let t16 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[2].bits());
-    let t17 = t16 * ld(hx, 0xC934E);
+    let t17 = t16 * ld_cell(&HEX.axes_k[2]);
     WINDSCREEN_DROP_WORK.setup_axes[8].set_bits(bh::st(t17));
     let t18 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[3].bits());
-    let t19 = t18 * ld(hx, 0xC9352);
+    let t19 = t18 * ld_cell(&HEX.axes_k[3]);
     WINDSCREEN_DROP_WORK.setup_axes[9].set_bits(bh::st(t19));
     let t20 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[4].bits());
-    let t21 = t20 * ld(hx, 0xC9356);
+    let t21 = t20 * ld_cell(&HEX.axes_k[4]);
     WINDSCREEN_DROP_WORK.setup_axes[10].set_bits(bh::st(t21));
     let t22 = bh::ld(WINDSCREEN_DROP_WORK.setup_axes[5].bits());
-    let t23 = t22 * ld(hx, 0xC935A);
+    let t23 = t22 * ld_cell(&HEX.axes_k[5]);
     WINDSCREEN_DROP_WORK.setup_axes[11].set_bits(bh::st(t23));
 }
 
@@ -172,13 +172,14 @@ mod asm_differential {
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_WORK, WindscreenDropWork};
+    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
 
     #[test]
     fn axes_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[Op::Base {
                 lo: 0xAF832,
-                hi: 0xC935E,
+                hi: 0xC9402,
                 reads: &[
                     (0xAFC82, F32),
                     (0xAFCDA, F32),
@@ -223,8 +224,11 @@ mod asm_differential {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
-                    || super::axes_x87(b[0]),
+                    &[
+                        overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
+                        overlay(&HEX, WindscreenDropVars::START),
+                    ],
+                    super::axes_x87,
                 );
             },
         );

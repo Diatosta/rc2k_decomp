@@ -160,12 +160,6 @@ impl WindscreenDropVars {
     pub fn home() -> usize {
         (crate::pointers::game_address(core::ptr::addr_of!(HEX))) as usize
     }
-
-    /// The base the x87 blocks used for the marks' block (`store::base()`), moved so that
-    /// `base + (IDA address - 0x764F40)` lands on this static's variables.
-    pub fn base() -> usize {
-        Self::home().wrapping_sub(Self::START - crate::effects::store::START)
-    }
 }
 
 #[cfg(test)]

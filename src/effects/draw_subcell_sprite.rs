@@ -29,20 +29,13 @@ const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
 fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87(
-        (crate::pointers::game_address(p.as_ptr())) as usize,
-        &RING_WORK,
-        &DRAW_WORK,
-    );
+    turn_x87(p, &RING_WORK, &DRAW_WORK);
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
 fn square() {
-    square_x87(
-        crate::d3d::vertices_store::piece_addr() as usize,
-        &DRAW_WORK,
-    );
+    square_x87(&DRAW_WORK);
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
@@ -94,17 +87,17 @@ pub fn draw_subcell_sprite(
 }
 
 use crate::effects::frame_state::{DRAW_WORK, DrawWork};
-use crate::effects::plain::{ld80, st};
+use crate::effects::plain::st_cell;
 use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 use crate::race::matrices_store::MATRICES;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(p: usize, w: &RingWork, dw: &DrawWork) {
-    let t0 = bh::from_f80(ld80(p, 0x14));
-    let t1 = bh::from_f80(ld80(p, 0xA));
-    let t2 = bh::from_f80(ld80(p, 0));
+fn turn_x87(p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+    let t0 = bh::from_f80(p[2]);
+    let t1 = bh::from_f80(p[1]);
+    let t2 = bh::from_f80(p[0]);
     let t3 = ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = ld(MATRICES.view_matrix[4].bits());
@@ -139,15 +132,15 @@ fn turn_x87(p: usize, w: &RingWork, dw: &DrawWork) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-fn square_x87(vt: usize, dw: &DrawWork) {
+fn square_x87(dw: &DrawWork) {
     let t0 = ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
-    st(vt, 0x8, t3);
-    st(vt, 0x28, t3);
-    st(vt, 0x48, t3);
-    st(vt, 0x68, t3);
+    st_cell(&VERTICES.vertices[0].z, t3);
+    st_cell(&VERTICES.vertices[1].z, t3);
+    st_cell(&VERTICES.vertices[2].z, t3);
+    st_cell(&VERTICES.vertices[3].z, t3);
     let t4 = bh::ld(dw.half[0].bits());
     let t5 = t4 * t1;
     dw.half[0].set_bits(bh::st(t5));
@@ -157,22 +150,22 @@ fn square_x87(vt: usize, dw: &DrawWork) {
     let t8 = -t7;
     let t9 = t8 + ld(DRAW.view_centre[1].bits());
     let t10 = t9 - bh::ld(dw.half[1].bits());
-    st(vt, 0x4, t10);
+    st_cell(&VERTICES.vertices[0].y, t10);
     let t11 = t9 - bh::ld(dw.half[1].bits());
-    st(vt, 0x24, t11);
+    st_cell(&VERTICES.vertices[1].y, t11);
     let t12 = t9 + bh::ld(dw.half[1].bits());
-    st(vt, 0x44, t12);
+    st_cell(&VERTICES.vertices[2].y, t12);
     let t13 = t9 + bh::ld(dw.half[1].bits());
-    st(vt, 0x64, t13);
+    st_cell(&VERTICES.vertices[3].y, t13);
     let t14 = t6 + ld(DRAW.view_centre[0].bits());
     let t15 = t14 - bh::ld(dw.half[0].bits());
-    st(vt, 0x0, t15);
+    st_cell(&VERTICES.vertices[0].x, t15);
     let t16 = t14 + bh::ld(dw.half[0].bits());
-    st(vt, 0x20, t16);
+    st_cell(&VERTICES.vertices[1].x, t16);
     let t17 = t14 + bh::ld(dw.half[0].bits());
-    st(vt, 0x40, t17);
+    st_cell(&VERTICES.vertices[2].x, t17);
     let t18 = t14 - bh::ld(dw.half[0].bits());
-    st(vt, 0x60, t18);
+    st_cell(&VERTICES.vertices[3].x, t18);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -287,10 +280,39 @@ mod asm_reference {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
+    use crate::d3d::vertices_store::VERTICES;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential, with_copy};
     use crate::effects::frame_state::DrawWork;
     use crate::effects::ring_store::RingWork;
+    use crate::session::Float;
+
+    /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
+    fn vertex_cell(off: usize) -> &'static Float {
+        let v = &VERTICES.vertices[off / 32];
+        match off % 32 {
+            0x0 => &v.x,
+            0x4 => &v.y,
+            0x8 => &v.z,
+            _ => panic!("not a tested vertex field"),
+        }
+    }
+
+    /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
+    /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
+    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
+        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+        let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
+        for &o in offsets {
+            vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
+        }
+        let out = f();
+        for (&o, &old) in offsets.iter().zip(&saved) {
+            unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
+            vertex_cell(o).set_bits(old);
+        }
+        out
+    }
 
     #[test]
     fn turn_x87_matches() {
@@ -339,7 +361,12 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(b[2], w, dw);
+                        let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
+                            crate::pointers::host_at(b[2] + 10 * n)
+                                .cast::<[u8; 10]>()
+                                .read_unaligned()
+                        });
+                        super::turn_x87(&place, w, dw);
                     });
                 });
             },
@@ -394,7 +421,13 @@ mod asm_differential {
             |b| reference::square_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    super::square_x87(b[1].wrapping_add(0x5605A0), dw);
+                    staged(
+                        b[1].wrapping_add(0x5605A0),
+                        &[
+                            0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
+                        ],
+                        || super::square_x87(dw),
+                    );
                 });
             },
         );

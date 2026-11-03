@@ -61,36 +61,17 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 /// st(0) a m3 + b m2, st(1) b m0 + a m1, unrounded (the original's `fld st(1)`, `fxch`s
 /// and `faddp`s). Every register kept.
 pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    let mut out = [[0u8; 10]; 2];
-    let m = crate::pointers::game_address(MASKS.turn.as_ptr());
-    turn_pair_x87(
-        (crate::pointers::game_address(inputs.as_ptr())) as usize,
-        m as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
-    out
+    turn_pair_x87(&inputs, &MASKS.turn)
 }
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
-fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
-    let mut v = [0i32; 2];
-    scaled_ints_x87(
-        (crate::pointers::game_address(inputs.as_ptr())) as usize,
-        crate::pointers::game_address(k) as usize,
-        (crate::pointers::game_address(v.as_mut_ptr())) as usize,
-    );
-    (v[0], v[1])
+fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &Float, k1: &Float) -> (i32, i32) {
+    scaled_ints_x87(inputs, k0, k1)
 }
 
 /// `fild v; fdiv k; fstp tbyte`.
-fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    int_over_80_x87(
-        crate::pointers::game_address(&raw const v) as usize,
-        crate::pointers::game_address(k) as usize,
-        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
-    );
-    out
+fn int_over_80(v: i32, k: &Float) -> [u8; 10] {
+    int_over_80_x87(v, k)
 }
 
 /// `effects::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded (b), st(1) times
@@ -98,48 +79,47 @@ fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
 pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let scales = &MASK_CONSTANTS.pair_scales;
-    let (b, a) = scaled_ints(&inputs, scales.as_ptr().cast::<u32>());
+    let (b, a) = scaled_ints(&inputs, &scales[0], &scales[1]);
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);
-    [
-        int_over_80(b, (&raw const scales[3]).cast::<u32>()),
-        int_over_80(a, (&raw const scales[2]).cast::<u32>()),
-    ]
+    [int_over_80(b, &scales[3]), int_over_80(a, &scales[2])]
 }
 // ---- the converted versions (`rc2k_core::effects::turns`) ----
 
-use crate::effects::plain::{ld, ld80, ldi, st80, sti};
+use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 
-/// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-fn turn_pair_x87(i: usize, m: usize, o: usize) {
-    let t0 = bh::from_f80(ld80(i, 0xA));
-    let t1 = bh::from_f80(ld80(i, 0));
-    let t2 = t1 * ld(m, 0x10);
-    let t3 = t0 * ld(m, 0xC);
+/// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places
+/// (`i` the two inputs, `m` the turn: the block reads its floats 0, 1, 3 and 4).
+fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[Float; 9]) -> [[u8; 10]; 2] {
+    let t0 = bh::from_f80(i[1]);
+    let t1 = bh::from_f80(i[0]);
+    let t2 = t1 * ld_cell(&m[4]);
+    let t3 = t0 * ld_cell(&m[3]);
     let t4 = t2 + t3;
-    let t5 = t0 * ld(m, 0);
-    let t6 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld_cell(&m[0]);
+    let t6 = t1 * ld_cell(&m[1]);
     let t7 = t5 + t6;
-    st80(o, 0, t4);
-    st80(o, 0xA, t7);
+    [bh::f80(t4), bh::f80(t7)]
 }
 
-/// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn scaled_ints_x87(i: usize, k: usize, v: usize) {
-    let t0 = bh::from_f80(ld80(i, 0xA));
-    let t1 = bh::from_f80(ld80(i, 0));
-    let t2 = t1 * ld(k, 0);
-    sti(v, 0, t2);
-    let t3 = t0 * ld(k, 0x4);
-    sti(v, 0x4, t3);
+/// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places
+/// (the two whole numbers it stores).
+fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &Float, k1: &Float) -> (i32, i32) {
+    let t0 = bh::from_f80(i[1]);
+    let t1 = bh::from_f80(i[0]);
+    let t2 = t1 * ld_cell(k0);
+    let v0 = bh::to_int(t2);
+    let t3 = t0 * ld_cell(k1);
+    let v1 = bh::to_int(t3);
+    (v0, v1)
 }
 
 /// `int_over_80`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-fn int_over_80_x87(v: usize, k: usize, o: usize) {
-    let t0 = ldi(v, 0);
-    let t1 = t0 / ld(k, 0);
-    st80(o, 0, t1);
+fn int_over_80_x87(v: i32, k: &Float) -> [u8; 10] {
+    let t0 = bh::int(v);
+    let t1 = t0 / ld_cell(k);
+    bh::f80(t1)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -216,6 +196,29 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::session::Float;
+
+    /// The `N` bytes of the test buffer at `at`.
+    fn bytes<const N: usize>(at: usize) -> [u8; N] {
+        std::array::from_fn(|n| unsafe { crate::pointers::host_at(at + n).read() })
+    }
+
+    /// The test buffer's dword at `at` as a float cell.
+    fn cell(at: usize) -> Float {
+        Float::from_bits(u32::from_le_bytes(bytes::<4>(at)))
+    }
+
+    /// `data` into the test buffer at `at`.
+    fn put(at: usize, data: &[u8]) {
+        for (n, &b) in data.iter().enumerate() {
+            unsafe { crate::pointers::host_at(at + n).write(b) };
+        }
+    }
+
+    /// The two ten-byte inputs at the test buffer's `at` (0 and 0xA).
+    fn pair(at: usize) -> [[u8; 10]; 2] {
+        [bytes::<10>(at), bytes::<10>(at + 0xA)]
+    }
 
     #[test]
     fn turn_pair_x87_matches() {
@@ -245,7 +248,19 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::turn_pair_x87(b[0], b[1], b[2]),
-            |b| super::turn_pair_x87(b[0], b[1], b[2]),
+            |b| {
+                // The turn's floats 0, 1, 3 and 4 (byte offsets 0, 4, 0xC, 0x10).
+                let m: [Float; 9] = std::array::from_fn(|n| {
+                    if n < 5 {
+                        cell(b[1] + 4 * n)
+                    } else {
+                        cell(b[1])
+                    }
+                });
+                let out = super::turn_pair_x87(&pair(b[0]), &m);
+                put(b[2], &out[0]);
+                put(b[2] + 0xA, &out[1]);
+            },
         );
     }
 
@@ -277,7 +292,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::scaled_ints_x87(b[0], b[1], b[2]),
-            |b| super::scaled_ints_x87(b[0], b[1], b[2]),
+            |b| {
+                let (v0, v1) = super::scaled_ints_x87(&pair(b[0]), &cell(b[1]), &cell(b[1] + 4));
+                put(b[2], &v0.to_le_bytes());
+                put(b[2] + 4, &v1.to_le_bytes());
+            },
         );
     }
 
@@ -309,7 +328,10 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::int_over_80_x87(b[0], b[1], b[2]),
-            |b| super::int_over_80_x87(b[0], b[1], b[2]),
+            |b| {
+                let v = i32::from_le_bytes(bytes::<4>(b[0]));
+                put(b[2], &super::int_over_80_x87(v, &cell(b[1])));
+            },
         );
     }
 }

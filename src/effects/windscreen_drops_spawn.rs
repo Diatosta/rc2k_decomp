@@ -23,10 +23,7 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        &KEPT,
-    );
+    rate_x87(&KEPT);
 }
 
 /// The Rust version (see the header).
@@ -57,12 +54,12 @@ pub fn windscreen_drops_spawn() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::ld;
+use crate::effects::plain::ld_cell;
 use crate::effects::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-fn rate_x87(hx: usize, kv: &KeptView) {
+fn rate_x87(kv: &KeptView) {
     let t0 = bh::ld(kv.first_angle.bits());
     let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
     let t2 = t1.sin();
@@ -75,11 +72,11 @@ fn rate_x87(hx: usize, kv: &KeptView) {
     let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
     let t9 = t8.cos();
     let t10 = t6 * t9;
-    let t11 = t10 * ld(hx, 0xC936A);
+    let t11 = t10 * ld_cell(&HEX.spawn_k[0]);
     let t12 = t11 + bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
     WINDSCREEN_DROP_STATE.spawn_rate.set_bits(bh::st(t12));
     let t13 = bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
-    crate::effects::plain::set_status(bh::compare(t13, ld(hx, 0xC936E)));
+    crate::effects::plain::set_status(bh::compare(t13, ld_cell(&HEX.spawn_k[1])));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -127,6 +124,7 @@ mod asm_differential {
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
     use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
+    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
 
     #[test]
     fn rate_x87_matches() {
@@ -138,7 +136,7 @@ mod asm_differential {
                 },
                 Op::Base {
                     lo: 0x42F6,
-                    hi: 0xC9372,
+                    hi: 0xC9402,
                     reads: &[
                         (0x42FE, F32),
                         (0xACC83, F32),
@@ -163,8 +161,9 @@ mod asm_differential {
                         &[
                             overlay(&SHAPE_TILT, ShapeTilt::START),
                             overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
+                            overlay(&HEX, WindscreenDropVars::START),
                         ],
-                        || super::rate_x87(b[1], kv),
+                        || super::rate_x87(kv),
                     );
                 });
             },

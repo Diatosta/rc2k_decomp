@@ -68,20 +68,12 @@ impl Colours257 {
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(e: u32) {
-    first_frame_x87(
-        e,
-        &CLOCK,
-        crate::pointers::game_address(&raw const RING_KINDS) as usize,
-    );
+    first_frame_x87(e, &CLOCK);
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 fn move_(e: u32) {
-    move_x87(
-        e,
-        &CLOCK,
-        crate::pointers::game_address(&raw const RING_KINDS) as usize,
-    );
+    move_x87(e, &CLOCK);
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
@@ -221,14 +213,13 @@ pub fn run_ribbons() -> Result<(), Refused> {
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::frame_state::{DRAW_WORK, DrawWork};
-use crate::effects::plain::ld;
+use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 use crate::race::matrices_store::MATRICES;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-/// `rk` the ring kinds' constants (`RingKinds`).
-fn first_frame_x87(e: u32, c: &MarksClock, rk: usize) {
+fn first_frame_x87(e: u32, c: &MarksClock) {
     let t0 = eld(e, 0x18);
     let t1 = eld(e, 0x14);
     let t2 = eld(e, 0x10);
@@ -274,14 +265,14 @@ fn first_frame_x87(e: u32, c: &MarksClock, rk: usize) {
     let t37 = t36 * int(c.frame_ticks.get() as i32);
     let t38 = t37 + eld(e, 0x18);
     est(e, 0x18, t38);
-    let t39 = ld(rk, 0x94);
+    let t39 = ld_cell(&RING_KINDS.ribbon_a);
     let t40 = t39 * int(c.frame_ticks.get() as i32);
     let t41 = t40 + eld(e, 0x30);
     est(e, 0x30, t41);
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-fn move_x87(e: u32, c: &MarksClock, rk: usize) {
+fn move_x87(e: u32, c: &MarksClock) {
     let t0 = eld(e, 0x2C);
     let t1 = t0 * int(c.frame_ticks.get() as i32);
     let t2 = t1 + eld(e, 0x10);
@@ -294,7 +285,7 @@ fn move_x87(e: u32, c: &MarksClock, rk: usize) {
     let t7 = t6 * int(c.frame_ticks.get() as i32);
     let t8 = t7 + eld(e, 0x18);
     est(e, 0x18, t8);
-    let t9 = ld(rk, 0x98);
+    let t9 = ld_cell(&RING_KINDS.ribbon_b);
     let t10 = t9 * int(c.frame_ticks.get() as i32);
     let t11 = t10 + eld(e, 0x30);
     est(e, 0x30, t11);
@@ -493,6 +484,24 @@ mod asm_differential {
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::frame_state::DrawWork;
+    use crate::effects::run_ring::RING_KINDS;
+    use crate::session::Float;
+
+    fn word(at: usize) -> u32 {
+        unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
+    }
+
+    /// Runs `f` with the ring kinds' cells holding the given bits, then as they were.
+    fn with_kinds(cells: &[(&Float, u32)], f: impl FnOnce()) {
+        let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
+        for (c, v) in cells {
+            c.set_bits(*v);
+        }
+        f();
+        for ((c, _), v) in cells.iter().zip(saved) {
+            c.set_bits(v);
+        }
+    }
 
     #[test]
     fn first_frame_x87_matches() {
@@ -556,7 +565,9 @@ mod asm_differential {
             |b| reference::first_frame_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x38, |e| {
-                    super::first_frame_x87(e, crate::effects::setup::clock_at(b[1]), b[3]);
+                    with_kinds(&[(&RING_KINDS.ribbon_a, word(b[3] + 0x94))], || {
+                        super::first_frame_x87(e, crate::effects::setup::clock_at(b[1]));
+                    });
                 });
             },
         );
@@ -599,7 +610,9 @@ mod asm_differential {
             |b| reference::move_x87(b[0], b[1], b[2]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x38, |e| {
-                    super::move_x87(e, crate::effects::setup::clock_at(b[0]), b[2]);
+                    with_kinds(&[(&RING_KINDS.ribbon_b, word(b[2] + 0x98))], || {
+                        super::move_x87(e, crate::effects::setup::clock_at(b[0]));
+                    });
                 });
             },
         );

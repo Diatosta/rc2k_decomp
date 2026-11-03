@@ -80,11 +80,27 @@ impl PartialEq for Buf {
 /// address need not be aligned for its cells) and put back afterwards. The buffer must
 /// hold the whole block.
 pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
+    crate::effects::typed_sync::fits_buffer(
+        mk.wrapping_add(start).wrapping_sub(START),
+        size_of::<T>(),
+    );
     let p = crate::pointers::host_at(mk.wrapping_add(start).wrapping_sub(START)).cast::<T>();
+    // The copy on the heap: some blocks are near 2 MB, a test thread's whole stack (copied
+    // by value there they overflowed it, and Wine hung on the fault).
     unsafe {
-        let local = p.read_unaligned();
+        let mut local = Box::<T>::new_uninit();
+        core::ptr::copy_nonoverlapping(
+            p.cast::<u8>(),
+            local.as_mut_ptr().cast::<u8>(),
+            size_of::<T>(),
+        );
+        let local = local.assume_init();
         let out = f(&local);
-        p.write_unaligned(local);
+        core::ptr::copy_nonoverlapping(
+            (&raw const *local).cast::<u8>(),
+            p.cast::<u8>(),
+            size_of::<T>(),
+        );
         out
     }
 }

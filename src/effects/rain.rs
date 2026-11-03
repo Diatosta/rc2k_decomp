@@ -294,12 +294,47 @@ pub mod tests {
                 .wrapping_sub(crate::effects::store::START),
         )
         .cast::<RainRules>();
+        // On the heap: the two are near 2 MB together, a test thread's whole stack (copied
+        // by value there they overflowed it, and Wine hung on the fault).
+        for start in [RainState::START, RainRules::START] {
+            crate::effects::typed_sync::fits_buffer(
+                mk.wrapping_add(start)
+                    .wrapping_sub(crate::effects::store::START),
+                if start == RainState::START {
+                    size_of::<RainState>()
+                } else {
+                    size_of::<RainRules>()
+                },
+            );
+        }
         unsafe {
-            let (s, r) = (state.read_unaligned(), rules.read_unaligned());
+            let (s, r) = (boxed_copy(state), boxed_copy(rules));
             let out = f(&s, &r);
-            state.write_unaligned(s);
-            rules.write_unaligned(r);
+            core::ptr::copy_nonoverlapping(
+                (&raw const *s).cast::<u8>(),
+                state.cast::<u8>(),
+                size_of_val(&*s),
+            );
+            core::ptr::copy_nonoverlapping(
+                (&raw const *r).cast::<u8>(),
+                rules.cast::<u8>(),
+                size_of_val(&*r),
+            );
             out
+        }
+    }
+
+    /// A heap copy of the (possibly unaligned) value at `from`, never on the stack.
+    #[cfg(target_arch = "x86")]
+    unsafe fn boxed_copy<T>(from: *const T) -> Box<T> {
+        let mut b = Box::<T>::new_uninit();
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                from.cast::<u8>(),
+                b.as_mut_ptr().cast::<u8>(),
+                size_of::<T>(),
+            );
+            b.assume_init()
         }
     }
 

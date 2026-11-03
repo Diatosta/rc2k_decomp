@@ -442,7 +442,7 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0x1574C5,
-                    hi: 0x158F15,
+                    hi: 0x1610BD,
                     reads: &[
                         (0x15753D, F32),
                         (0x157541, F32),

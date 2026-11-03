@@ -2,81 +2,77 @@
 //! apart) into edi's: each entry a difference of two products (`fsubp`), rounded as written
 //! (so an output over the input is read back as the original does).
 //!
-//! In:  esi the matrix, edi the result
+//! In:  esi the matrix, edi the result (here two arrays of nine floats)
 //! Out: every register kept
 //!
 //! Caller: `sub_4BCB1D` (0x4BCD63). The arithmetic is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order. Refuses a null pointer.
+//! (`math::x87_float`), in the original's order.
 
-use crate::errors::{BadInput, Refused};
+use crate::session::Float;
 
-/// The Rust version (see the header).
-pub fn adjugate3(s: u32, d: u32) -> Result<(), Refused> {
-    if s == 0 || d == 0 {
-        return Err(BadInput("a null matrix").into());
-    }
-    adjugate3_x87(s as usize, d as usize);
-    Ok(())
+/// The Rust version (see the header): `s` the matrix, `d` the result (another array).
+pub fn adjugate3(s: &[Float; 9], d: &[Float; 9]) {
+    adjugate3_x87(s, d);
 }
 
-use crate::effects::plain::{ld, st};
+use crate::effects::plain::{ld_cell, st_cell};
 
 /// `adjugate3`'s x87 block as plain Rust on the x87 model (54 instructions), same order and memory places.
-fn adjugate3_x87(s: usize, d: usize) {
-    let t0 = ld(s, 0x10);
-    let t1 = t0 * ld(s, 0x20);
-    let t2 = ld(s, 0x14);
-    let t3 = t2 * ld(s, 0x1C);
+fn adjugate3_x87(s: &[Float; 9], d: &[Float; 9]) {
+    let t0 = ld_cell(&s[4]);
+    let t1 = t0 * ld_cell(&s[8]);
+    let t2 = ld_cell(&s[5]);
+    let t3 = t2 * ld_cell(&s[7]);
     let t4 = t1 - t3;
-    st(d, 0, t4);
-    let t5 = ld(s, 0x8);
-    let t6 = t5 * ld(s, 0x1C);
-    let t7 = ld(s, 0x4);
-    let t8 = t7 * ld(s, 0x20);
+    st_cell(&d[0], t4);
+    let t5 = ld_cell(&s[2]);
+    let t6 = t5 * ld_cell(&s[7]);
+    let t7 = ld_cell(&s[1]);
+    let t8 = t7 * ld_cell(&s[8]);
     let t9 = t6 - t8;
-    st(d, 0x4, t9);
-    let t10 = ld(s, 0x4);
-    let t11 = t10 * ld(s, 0x14);
-    let t12 = ld(s, 0x8);
-    let t13 = t12 * ld(s, 0x10);
+    st_cell(&d[1], t9);
+    let t10 = ld_cell(&s[1]);
+    let t11 = t10 * ld_cell(&s[5]);
+    let t12 = ld_cell(&s[2]);
+    let t13 = t12 * ld_cell(&s[4]);
     let t14 = t11 - t13;
-    st(d, 0x8, t14);
-    let t15 = ld(s, 0x14);
-    let t16 = t15 * ld(s, 0x18);
-    let t17 = ld(s, 0xC);
-    let t18 = t17 * ld(s, 0x20);
+    st_cell(&d[2], t14);
+    let t15 = ld_cell(&s[5]);
+    let t16 = t15 * ld_cell(&s[6]);
+    let t17 = ld_cell(&s[3]);
+    let t18 = t17 * ld_cell(&s[8]);
     let t19 = t16 - t18;
-    st(d, 0xC, t19);
-    let t20 = ld(s, 0);
-    let t21 = t20 * ld(s, 0x20);
-    let t22 = ld(s, 0x8);
-    let t23 = t22 * ld(s, 0x18);
+    st_cell(&d[3], t19);
+    let t20 = ld_cell(&s[0]);
+    let t21 = t20 * ld_cell(&s[8]);
+    let t22 = ld_cell(&s[2]);
+    let t23 = t22 * ld_cell(&s[6]);
     let t24 = t21 - t23;
-    st(d, 0x10, t24);
-    let t25 = ld(s, 0x8);
-    let t26 = t25 * ld(s, 0xC);
-    let t27 = ld(s, 0);
-    let t28 = t27 * ld(s, 0x14);
+    st_cell(&d[4], t24);
+    let t25 = ld_cell(&s[2]);
+    let t26 = t25 * ld_cell(&s[3]);
+    let t27 = ld_cell(&s[0]);
+    let t28 = t27 * ld_cell(&s[5]);
     let t29 = t26 - t28;
-    st(d, 0x14, t29);
-    let t30 = ld(s, 0xC);
-    let t31 = t30 * ld(s, 0x1C);
-    let t32 = ld(s, 0x10);
-    let t33 = t32 * ld(s, 0x18);
+    st_cell(&d[5], t29);
+    let t30 = ld_cell(&s[3]);
+    let t31 = t30 * ld_cell(&s[7]);
+    let t32 = ld_cell(&s[4]);
+    let t33 = t32 * ld_cell(&s[6]);
     let t34 = t31 - t33;
-    st(d, 0x18, t34);
-    let t35 = ld(s, 0x4);
-    let t36 = t35 * ld(s, 0x18);
-    let t37 = ld(s, 0);
-    let t38 = t37 * ld(s, 0x1C);
+    st_cell(&d[6], t34);
+    let t35 = ld_cell(&s[1]);
+    let t36 = t35 * ld_cell(&s[6]);
+    let t37 = ld_cell(&s[0]);
+    let t38 = t37 * ld_cell(&s[7]);
     let t39 = t36 - t38;
-    st(d, 0x1C, t39);
-    let t40 = ld(s, 0);
-    let t41 = t40 * ld(s, 0x10);
-    let t42 = ld(s, 0x4);
-    let t43 = t42 * ld(s, 0xC);
+    st_cell(&d[7], t39);
+    let t40 = ld_cell(&s[0]);
+    let t41 = t40 * ld_cell(&s[4]);
+    let t42 = ld_cell(&s[1]);
+    let t43 = t42 * ld_cell(&s[3]);
     let t44 = t41 - t43;
-    st(d, 0x20, t44);
+    st_cell(&d[8], t44);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -155,6 +151,29 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential};
+    use crate::session::Float;
+
+    /// Nine floats holding the test buffer's (at `at`) dwords.
+    fn staged(at: usize) -> [Float; 9] {
+        std::array::from_fn(|n| {
+            Float::from_bits(unsafe {
+                crate::pointers::host_at(at + 4 * n)
+                    .cast::<u32>()
+                    .read_unaligned()
+            })
+        })
+    }
+
+    /// The nine floats back into the test buffer at `at`.
+    fn put_back(at: usize, cells: &[Float; 9]) {
+        for (n, cell) in cells.iter().enumerate() {
+            unsafe {
+                crate::pointers::host_at(at + 4 * n)
+                    .cast::<u32>()
+                    .write_unaligned(cell.bits());
+            }
+        }
+    }
 
     #[test]
     fn adjugate3_x87_matches() {
@@ -198,7 +217,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::adjugate3_x87(b[0], b[1]),
-            |b| super::adjugate3_x87(b[0], b[1]),
+            |b| {
+                let (s, d) = (staged(b[0]), staged(b[1]));
+                super::adjugate3_x87(&s, &d);
+                put_back(b[1], &d);
+            },
         );
     }
 }

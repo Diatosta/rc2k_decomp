@@ -300,12 +300,6 @@ pub fn game_read<T: Copy>(place: impl Where) -> T {
     crate::pointers::read_or_end(place.address() as u32, "a marks variable")
 }
 
-/// The block's address for the x87 blocks (`mk`): `mk + offset` with `offset` IDA's
-/// address less `START` (0x764F40) is the variable.
-pub fn base() -> u32 {
-    STORE.addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -355,15 +349,6 @@ mod tests {
         assert_eq!(
             crate::moved::place(START - 4),
             framework::game_addr(START - 4 - IMAGE_BASE) as usize
-        );
-    }
-
-    #[test]
-    fn base_and_offset_land_on_the_block() {
-        let offset = 0x7652A8 - START;
-        assert_eq!(
-            base() as usize + offset,
-            (Slot::at(0x7652A8).address()) as u32 as usize
         );
     }
 }
