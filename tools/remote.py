@@ -73,6 +73,10 @@ def running():
 
 
 def ask(command, timeout=20):
+    # Checked before the command is written: a copy that is running but not the one the pid
+    # file names would otherwise take a command reported as not run.
+    if not running():
+        sys.exit(f'the game has ended ("{command}" not run): remote.py log')
     number = str(int(time.time() * 1000) % 100000000)
     put_cmd(f'{number} {command}')
     end = time.time() + timeout
