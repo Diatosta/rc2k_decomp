@@ -16,8 +16,8 @@
 //!   `DestroyPlayer`, `CreateGroup`, `AddPlayerToGroup`, `DeletePlayerFromGroup`,
 //!   `EnumPlayers`, `EnumGroups`, `GetPlayerData`, `SetPlayerData`), `SetSessionDesc`, `Send`,
 //!   `Receive` (DPERR_NOMESSAGES, DPERR_BUFFERTOOSMALL as DirectPlay), `Close`.
-//! - The lobby object: `CreateCompoundAddress`; the rest of a lobby's launch is not there
-//!   (DPERR_NOTLOBBIED: the standalone program is never launched by one).
+//! - The lobby object: `CreateCompoundAddress` (the original never takes a lobby's launch:
+//!   `net::open_lobby`).
 //!
 //! The game calls the methods as the functions here (phase 11, 2026-10-26: before, through
 //! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
@@ -32,7 +32,6 @@ use std::ffi::CString;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
-const E_NOINTERFACE: u32 = 0x8000_4002;
 const CLASS_NOT_REGISTERED: u32 = 0x8004_0154;
 const DPERR_ALREADYINITIALIZED: u32 = 0x8877_0005;
 const DPERR_BUFFERTOOSMALL: u32 = 0x8877_001E;
@@ -42,7 +41,6 @@ const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
 const DPERR_NOMESSAGES: u32 = 0x8877_00BE;
 const DPERR_NOSESSIONS: u32 = 0x8877_00DC;
 const DPERR_UNINITIALIZED: u32 = 0x8877_0140;
-const DPERR_NOTLOBBIED: u32 = 0x8877_042E;
 
 const DPOPEN_JOIN: u32 = 1;
 const DPOPEN_CREATE: u32 = 2;
@@ -128,15 +126,8 @@ struct State {
     session: Option<Arc<Session>>,
 }
 
-/// Which object: `IDirectPlay4A` or `IDirectPlayLobby2A`.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind {
-    Play,
-    Lobby,
-}
-
+/// An `IDirectPlay4A` or `IDirectPlayLobby2A` object.
 struct Object {
-    kind: Kind,
     refs: AtomicU32,
     state: Mutex<State>,
 }
@@ -174,7 +165,7 @@ fn session(this: u32) -> Option<Arc<Session>> {
     with_state(this, |s| s.session.clone())
 }
 
-fn make(kind: Kind) -> u32 {
+fn make() -> u32 {
     let id = NEXT.fetch_add(1, Ordering::SeqCst);
     OBJECTS
         .lock()
@@ -182,7 +173,6 @@ fn make(kind: Kind) -> u32 {
         .push((
             id,
             Arc::new(Object {
-                kind,
                 refs: AtomicU32::new(1),
                 state: Mutex::new(State::default()),
             }),
@@ -241,31 +231,16 @@ fn fresh_guid() -> Guid {
 
 /// `CoCreateInstance` for DirectPlay's two classes: the object, or the error.
 pub fn create(class: &Guid, interface: &Guid) -> Result<u32, u32> {
-    if *class == CLSID_DIRECTPLAY && *interface == IID_IDIRECTPLAY4A {
-        Ok(make(Kind::Play))
-    } else if *class == CLSID_DIRECTPLAYLOBBY && *interface == IID_IDIRECTPLAYLOBBY2A {
-        Ok(make(Kind::Lobby))
+    if (*class == CLSID_DIRECTPLAY && *interface == IID_IDIRECTPLAY4A)
+        || (*class == CLSID_DIRECTPLAYLOBBY && *interface == IID_IDIRECTPLAYLOBBY2A)
+    {
+        Ok(make())
     } else {
         Err(CLASS_NOT_REGISTERED)
     }
 }
 
 // ---- IUnknown ----
-
-/// `QueryInterface`: the object itself for its own interface (one reference more).
-pub fn query_interface(this: u32, iid: &Guid) -> Result<u32, u32> {
-    let o = object(this);
-    let own = match o.kind {
-        Kind::Play => IID_IDIRECTPLAY4A,
-        Kind::Lobby => IID_IDIRECTPLAYLOBBY2A,
-    };
-    if *iid == own {
-        o.refs.fetch_add(1, Ordering::SeqCst);
-        Ok(this)
-    } else {
-        Err(E_NOINTERFACE)
-    }
-}
 
 /// `Release`: the references left; at none the session is closed and the object goes.
 pub fn release(this: u32) -> u32 {
@@ -604,21 +579,6 @@ fn initialize(s: &mut State, parts: Vec<(Guid, Vec<u8>)>) -> u32 {
 }
 
 // ---- IDirectPlayLobby2A ----
-
-/// The lobby's `Connect`: never launched by a lobby.
-pub fn connect(_this: u32) -> u32 {
-    DPERR_NOTLOBBIED
-}
-
-/// The lobby's `GetConnectionSettings`: never launched by a lobby.
-pub fn get_connection_settings(_this: u32) -> u32 {
-    DPERR_NOTLOBBIED
-}
-
-/// The lobby's `SetConnectionSettings`: never launched by a lobby.
-pub fn set_connection_settings(_this: u32) -> u32 {
-    DPERR_NOTLOBBIED
-}
 
 /// An address element: its type's GUID and its data (DPCOMPOUNDADDRESSELEMENT).
 pub type Element = (Guid, Vec<u8>);

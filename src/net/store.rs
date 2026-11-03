@@ -378,12 +378,9 @@ pub struct NetVars {
     pub dplay: Dword,
     /// 0x5AB28C: `g_dplayLobby`: the `IDirectPlayLobby2A` object.
     pub lobby: Dword,
-    /// 0x5AB290: `g_lobbyLaunched`: the game was launched by a lobby.
-    pub lobby_launched: Dword,
-    /// 0x5AB294: `dword_5AB294`: the lobby's connection settings (an address).
-    pub settings: Dword,
-    /// 0x5AB298: `dword_5AB298`: their size.
-    pub settings_size: Dword,
+    /// 0x5AB290 .. 0x5AB29C: `g_lobbyLaunched`, a lobby's connection settings and their
+    /// size: the lobby-launched branch's, left out with the lobbies (`net::open_lobby`).
+    pub _gap_5ab290: [Dword; 3],
     /// 0x5AB29C: `g_netName`: a `DPNAME`.
     pub dp_name: DpName,
     /// 0x5AB2AC: `g_netSessionDesc`: a `DPSESSIONDESC2`.
@@ -499,9 +496,7 @@ pub static NET: NetVars = NetVars {
     dplay_2: Dword::new(0),
     dplay: Dword::new(0),
     lobby: Dword::new(0),
-    lobby_launched: Dword::new(0),
-    settings: Dword::new(0),
-    settings_size: Dword::new(0),
+    _gap_5ab290: [Dword::new(0), Dword::new(0), Dword::new(0)],
     dp_name: DpName::zero(),
     session_desc: SessionDesc::zero(),
     _gap_5ab2fc: Bytes::new([0; 4]),
@@ -735,15 +730,7 @@ mod tests {
         assert_eq!(offset_of!(NetVars, dplay_2), 0x5AB284 - NetVars::START);
         assert_eq!(offset_of!(NetVars, dplay), 0x5AB288 - NetVars::START);
         assert_eq!(offset_of!(NetVars, lobby), 0x5AB28C - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, lobby_launched),
-            0x5AB290 - NetVars::START
-        );
-        assert_eq!(offset_of!(NetVars, settings), 0x5AB294 - NetVars::START);
-        assert_eq!(
-            offset_of!(NetVars, settings_size),
-            0x5AB298 - NetVars::START
-        );
+        assert_eq!(offset_of!(NetVars, _gap_5ab290), 0x5AB290 - NetVars::START);
         assert_eq!(offset_of!(NetVars, dp_name), 0x5AB29C - NetVars::START);
         assert_eq!(offset_of!(NetVars, session_desc), 0x5AB2AC - NetVars::START);
         assert_eq!(offset_of!(NetVars, app_guid), 0x5AB300 - NetVars::START);

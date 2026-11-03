@@ -1,9 +1,10 @@
 //! `net::start_link` (0x416F50): a network game, from the menu's host (eax 1, action
-//! 0x4AAAEC) and join (2, 0x4AAAE1) items or a lobby's launch (3, `net::lobby_launched_game`):
+//! 0x4AAAEC) and join (2, 0x4AAAE1) items (the original's third, a lobby's launch, is left
+//! out with the lobbies: `net::open_lobby`):
 //! "NET: Starting link", the mode to `dword_52A908`, the player's settings
 //! (`net::take_player_settings`) and record (`net::fill_own_player` with `g_playerNames`),
 //! the background; the connections listed (`net::find_connections_regs`; failing: message
-//! 0x154). Unless a lobby launched the game: the saved connection (`net::find_saved_connection`)
+//! 0x154). Then the saved connection (`net::find_saved_connection`)
 //! or one chosen (`net::choose_connection`; none: the end), kept (`net::keep_connection`),
 //! made (`net::connecting`; failing: 0x154); then as the host (mode 1, state bit 0x10) the
 //! session made (`net::hosting`), else the sessions listed (`net::find_sessions_regs`), one
@@ -19,7 +20,7 @@
 //! In:  the mode
 //! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Escape on the sessions' list gives the carry too, so it shows message 0x155 as a failure
-//! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC, `net::lobby_launched_game`.
+//! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC.
 
 use crate::errors::Refused;
 use crate::menu::names_store::NAME_BUFFERS;
@@ -44,9 +45,6 @@ fn link() -> Result<Way, Refused> {
     use crate::net::*;
     if !find_connections::find_connections()? {
         return Ok(Way::Message(NO_CONNECTION));
-    }
-    if NET.lobby_launched.get() == 1 {
-        return Ok(Way::On);
     }
     let connection = match find_saved_connection::find_saved_connection()? {
         Some(saved) => saved,
@@ -88,7 +86,7 @@ fn link() -> Result<Way, Refused> {
     })
 }
 
-/// The Rust version: a network game in `mode` (1 host, 2 join, 3 launched by a lobby).
+/// The Rust version: a network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);

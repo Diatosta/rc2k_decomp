@@ -1,4 +1,4 @@
-//! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join, 3 launched by a lobby):
+//! The way through (`net::start_link`, 0x416F50, eax 1 host, 2 join):
 //! the player's record set up (`net::take_player_settings`, `net::fill_own_player`), the
 //! DirectPlay connections listed (`net::find_connections`: the lobby object, DirectPlay,
 //! `EnumConnections` into the 0x54-byte records at `dword_52AC38`), one chosen
@@ -120,37 +120,6 @@ pub fn log_hex(value: u32, newline: bool) {
 /// `logfile::log_int_l<level>_nl`.
 pub fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
-}
-
-/// The lobby's connection settings (`dword_5AB294`, `memory::allocate` on the network's
-/// list in the original): Rust's bytes since phase 13 (2026-10-27), counted on the list as
-/// the game's block was and lent to the platform, which fills them with DirectPlay's
-/// structure and its own addresses inside; given back with the list (`free_messages`).
-/// Only a lobby's launch reaches it, which the platform never reports
-/// (`dp_objects::get_connection_settings`).
-struct LobbySettings {
-    _bytes: crate::pointers::LentBytes,
-}
-
-static LOBBY_SETTINGS: std::sync::Mutex<Option<LobbySettings>> = std::sync::Mutex::new(None);
-
-/// `bytes` of settings taken: their game address.
-pub fn take_lobby_settings(bytes: u32) -> Result<u32, Refused> {
-    let memory = crate::memory::owned::counted(crate::net::tables::list(), bytes)?;
-    let memory = crate::pointers::LentBytes::from_vec(memory);
-    let at = memory.addr();
-    *LOBBY_SETTINGS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-        Some(LobbySettings { _bytes: memory });
-    Ok(at)
-}
-
-/// The settings given back (the list's `free_list` counts them down).
-pub fn give_back_lobby_settings() {
-    *LOBBY_SETTINGS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// `strings::copy_printable`: the name at `text` (a typed buffer, or a pointer from the

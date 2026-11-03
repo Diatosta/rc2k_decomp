@@ -119,7 +119,6 @@ pub mod project_polygon;
 pub mod raise_texture_needs;
 pub mod read_kind_records;
 pub mod reading;
-pub mod rebuild_front_end;
 pub mod reflect_vector;
 pub mod reflection_coordinates;
 pub mod reload_slot_textures;

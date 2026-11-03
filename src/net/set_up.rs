@@ -1,5 +1,6 @@
 //! `net::set_up` (0x41848E): what the network game needs before anything else: the
-//! receiving thread's event and the mutex, and whether a lobby launched the game.
+//! receiving thread's event and the mutex (and in the original whether a lobby launched the
+//! game).
 //!
 //! In:  nothing
 //! Out: nothing (every register preserved, `pusha` .. `popa`)
@@ -8,8 +9,7 @@
 //! fatal error 0x80168501; a mutex (`threading::create_mutex`) to `dword_52AB6C`, none:
 //! fatal error 0x80168502. Then `sub_418E23`: DirectPlay's lobby asked
 //! (`CoCreateInstance`) whether the game was launched by one ("NET: Lobby launch
-//! detected", `dword_5AB290` 1); nothing in the standalone program (no lobby:
-//! `dword_5AB290` stays 0).
+//! detected", `dword_5AB290` 1); left out with the lobbies (`net::open_lobby`).
 //! One caller, `start` (0x4010A2).
 
 use crate::errors::{FatalError, Refused};

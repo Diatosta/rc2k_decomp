@@ -85,7 +85,6 @@ pub mod list_players;
 pub mod lobby;
 pub mod lobby_button;
 pub mod lobby_frame;
-pub mod lobby_launched_game;
 pub mod lobby_loop;
 pub mod lock_received;
 pub mod message_frame;

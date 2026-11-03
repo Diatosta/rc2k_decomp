@@ -508,17 +508,17 @@ pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
 /// The window's state and the main loop's: 0x518370 .. 0x51839C.
 #[repr(C)]
 pub struct Flags {
-    pub f370: Dword,            // dword_518370
-    pub window_active: Dword,   // g_windowActive
-    pub window_focused: Dword,  // g_windowFocused
-    pub quitting: Dword,        // g_quitting
-    pub lost: Dword,            // dword_518380
-    pub no_task_switch: Dword,  // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
-    pub keep_priority: Dword,   // g_keepPriority (`noprichange`, a setting)
-    pub f38c: Dword,            // dword_51838C
-    pub main_loop_stack: Dword, // g_mainLoopStack
-    pub f394: Dword,            // dword_518394 (1 at start)
-    pub paused: Dword,          // dword_518398
+    pub f370: Dword,           // dword_518370
+    pub window_active: Dword,  // g_windowActive
+    pub window_focused: Dword, // g_windowFocused
+    pub quitting: Dword,       // g_quitting
+    pub lost: Dword,           // dword_518380
+    pub no_task_switch: Dword, // dword_518384 (`notaskswitch`, a `var\ral.cfg` setting)
+    pub keep_priority: Dword,  // g_keepPriority (`noprichange`, a setting)
+    /// `dword_51838C` and `g_mainLoopStack`: only the main loop's, which needs neither.
+    pub _gap_51838c: [Dword; 2],
+    pub f394: Dword,   // dword_518394 (1 at start)
+    pub paused: Dword, // dword_518398
 }
 
 pub static FLAGS: Flags = Flags {
@@ -529,8 +529,7 @@ pub static FLAGS: Flags = Flags {
     lost: Dword::new(0),
     no_task_switch: Dword::new(0),
     keep_priority: Dword::new(0),
-    f38c: Dword::new(0),
-    main_loop_stack: Dword::new(0),
+    _gap_51838c: [Dword::new(0), Dword::new(0)],
     f394: Dword::new(1),
     paused: Dword::new(0),
 };

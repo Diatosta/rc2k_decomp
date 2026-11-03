@@ -6,8 +6,8 @@
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Callers: `menu::play_films` and `scene::rebuild_front_end`, which call the Rust version
-//! directly. Its calls by place: 0 `set_up_engine`, 1 `find_present_courses`, 2
+//! Caller: `menu::play_films` (the original's `scene::rebuild_front_end`, 0x4154CD, too:
+//! only a lobby's launch reaches it, left out with the lobbies, `net::open_lobby`). Its calls by place: 0 `set_up_engine`, 1 `find_present_courses`, 2
 //! `fill_light_tables`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
