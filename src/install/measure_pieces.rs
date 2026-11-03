@@ -16,10 +16,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    append_byte, append_string_by_id, measure_string, measure_text, rb, text_action,
+    append_byte, append_string_by_id, measure_string, measure_text, text_action,
 };
 use crate::install::page_records::{BoxRecord, Piece, piece_count};
-use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::InstallerPages;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
@@ -46,16 +46,14 @@ pub fn measure_pieces() -> Result<(), Refused> {
         }
         let (width, high) = match Way::of(marks, piece.kind()) {
             Way::String { font_kind } => {
-                let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
-                    .add(pieces::measure_colour_at(font_kind))) as u32;
+                let font = InstallerPages::kind_font(pieces::measure_colour_at(font_kind)) as u32;
                 measure_string(piece.text_id() as u32, font_of(font)?, left)?
             }
             Way::Edit => {
                 let item = piece.item();
                 let record = item.edit_field();
-                let font_height = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
-                    .add(7 + 8 * record.font_kind() as u32))
-                    as u32;
+                let font_height =
+                    InstallerPages::kind_font(7 + 8 * record.font_kind() as u32) as u32;
                 let width = crate::install::folders::field_width(item.target(), record.width());
                 (width as u32, font_height)
             }
@@ -68,8 +66,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 }
                 append_byte(cursor, 0);
                 let kind = item.font_kind() as u32;
-                let font = rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts)
-                    .add(pieces::measure_colour_at(kind))) as u32;
+                let font = InstallerPages::kind_font(pieces::measure_colour_at(kind)) as u32;
                 measure_text(font_of(font)?, &TEXT_BUFFER.text, left)?
             }
             Way::Action => {

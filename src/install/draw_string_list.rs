@@ -21,14 +21,14 @@ pub fn draw_string_list(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    let table: u32 = table.into().game();
+    let table: crate::place::Place = table.into();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
-        let record = table.wrapping_add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
+        let record = table.add(offset);
+        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
         draw_string(
-            rd(record + 0xC),
-            crate::pointers::GamePtr::new(rd(record + 8)),
+            rd(record.add(0xC)),
+            crate::pointers::GamePtr::new(rd(record.add(8))),
             x,
             y,
         )?;

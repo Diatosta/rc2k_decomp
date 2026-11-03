@@ -23,20 +23,20 @@ pub fn blit_glyph_list(
     y: u32,
     glyphs: u32,
 ) -> Result<(), Refused> {
-    let table: u32 = table.into().game();
+    let table: crate::place::Place = table.into();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
-        let record = table.wrapping_add(offset);
-        let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
+        let record = table.add(offset);
+        let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
         // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
         {
             crate::gfx::blit_glyph::blit_glyph_on_surface(
-                rd(record + 8),
+                rd(record.add(8)),
                 glyphs,
                 x as i32,
                 y as i32,
                 // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
-                rd(record + 0xC),
+                rd(record.add(0xC)),
             )
         }?;
     }

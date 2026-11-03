@@ -23,7 +23,7 @@ use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::drives::{self, DriveMenu};
 
 pub fn list_drives() {
-    let drives = crate::session::address_of(&INSTALLER_RUN.drives);
+    let drives = crate::place::Place::from(crate::pointers::GamePtr::to(&INSTALLER_RUN.drives));
     let mut letter = INSTALLER_RUN.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
@@ -32,9 +32,9 @@ pub fn list_drives() {
         if drives::offered(kind)
             && let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(letter)
         {
-            let slot = drives + 8 * letter.wrapping_sub(b'a' as u32);
+            let slot = drives.add(8u32.wrapping_mul(letter.wrapping_sub(b'a' as u32)));
             wd(slot, g_at(slot).wrapping_add(1));
-            wd(slot + 4, free);
+            wd(slot.add(4), free);
         }
         letter = letter.wrapping_add(1);
         if letter > b'z' as u32 {
@@ -45,7 +45,7 @@ pub fn list_drives() {
     let mut ebx = crate::place::Place::from(&crate::install::store::DRIVE_ROWS.drive_rows);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
-        let slot = drives + 8 * (letter - b'a') as u32;
+        let slot = drives.add(8 * (letter - b'a') as u32);
         if g_at(slot) == 0 {
             continue;
         }
@@ -54,7 +54,7 @@ pub fn list_drives() {
             .set(INSTALLER_RUN.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
-        let free = drives::free(g_at(slot + 4));
+        let free = drives::free(g_at(slot.add(4)));
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |bytes| {
@@ -85,6 +85,6 @@ pub fn list_drives() {
     crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
 }
 
-fn g_at(at: u32) -> u32 {
+fn g_at(at: crate::place::Place) -> u32 {
     crate::install::installer::rd(at)
 }

@@ -16,11 +16,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    append_byte, append_string_by_id, draw_action, draw_string, draw_text, rb, str_append,
-    text_action,
+    append_byte, append_string_by_id, draw_action, draw_string, draw_text, str_append, text_action,
 };
 use crate::install::page_records::{Piece, piece_count};
-use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::InstallerPages;
 use crate::place::Place;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
@@ -30,8 +29,7 @@ fn font(index: u32) -> Result<u32, BadInput> {
 }
 
 fn colour(marks: u8, kind: u32) -> u32 {
-    rb(crate::place::Place::from(&INSTALLER_PAGES.kind_fonts).add(pieces::colour_at(marks, kind)))
-        as u32
+    InstallerPages::kind_font(pieces::colour_at(marks, kind)) as u32
 }
 
 pub fn draw_pieces() -> Result<(), Refused> {
