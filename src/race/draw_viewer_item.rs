@@ -19,6 +19,7 @@ use crate::install::vars::INSTALLER_PAGES;
 use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::{REPLAY_VIEW, ReplayViewBlock};
+use crate::session::Dword;
 
 fn camera_byte(byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
@@ -26,19 +27,20 @@ fn camera_byte(byte: usize) -> Result<u32, BadInput> {
     )? as u32)
 }
 
-/// The Rust version. `item` the list item (the original's esi), `index` its number
+/// The Rust version. `item` the list item (the original's esi: its 16 bytes), `index` its number
 /// (ecx). The original keeps every register.
-pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
-    let byte = |n: u32| GamePtr::new(item + n).read::<u8>("a list item's byte");
+pub fn draw_viewer_item(item: &[Dword; 4], index: u32) -> Result<(), Refused> {
+    // Its first dword's low bytes: the flags and the switch.
+    let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
     let word = |at: u32| GamePtr::new(at).read::<u32>("a list item's word");
-    if byte(0)? & 0x40 != 0 {
+    if byte(0) & 0x40 != 0 {
         return Ok(());
     }
     let mut picture = ReplayViewBlock::item_picture(index)?;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     if picture == (VIEWER_PANEL.switch_pictures_a[0].addr()) {
-        let n = camera_byte(switch_byte(byte(1)?) as usize)?;
+        let n = camera_byte(switch_byte(byte(1)) as usize)?;
         picture = VIEWER_PANEL.switch_picture(0, n)?;
     }
     if picture == (VIEWER_PANEL.switch_pictures_b[0].addr()) {
@@ -54,7 +56,7 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     VIEWER_PANEL.item_place[1].set(word(place + 4)?);
     VIEWER_PANEL.item_place[3].set(word(place + 0xC)?);
     let colour = item_colour(
-        byte(0)?,
+        byte(0),
         index == INSTALLER_PAGES.choice.get(),
         || {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
@@ -69,5 +71,5 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
                 .wrapping_sub(INSTALLER_PAGES.move_clock.get())
         },
     );
-    crate::drive::tyre_quad::tyre_quad(picture, VIEWER_PANEL.item_place[0].addr(), colour)
+    crate::drive::tyre_quad::tyre_quad(picture, &VIEWER_PANEL.item_place, colour)
 }

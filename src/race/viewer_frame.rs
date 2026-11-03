@@ -18,7 +18,7 @@
 //! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -60,22 +60,30 @@ fn stopped() -> Result<(), Refused> {
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    let menu = REPLAY_VIEW.viewer_list[0].addr();
     let items = GamePtr::to(&REPLAY_VIEW.viewer_list)
         .offset(1)
         .read::<u8>("the viewer list")?;
-    let mut item = menu + 0x18;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
-    // goes round 256 times.
+    // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
+    // the 26 there is refused.
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
+        let first = 6 + 4 * index as usize;
+        let item = REPLAY_VIEW
+            .viewer_list
+            .get(first..)
+            .and_then(|rest| rest.first_chunk::<4>())
+            .ok_or(BadInput("a viewer item past the 26"))?;
         crate::race::draw_viewer_item::draw_viewer_item(item, index)?;
-        item += 0x10;
     }
-    let quad = |uv: &Dword, rect: &Dword, colour: u32| {
-        crate::drive::tyre_quad::tyre_quad(uv.addr(), rect.addr(), colour)
+    let quad = |uv: &[Dword], rect: &[Dword; 4], colour: u32| {
+        // The texture rectangle's first four dwords (the frame's picture holds five).
+        let uv = uv
+            .first_chunk::<4>()
+            .ok_or(BadInput("a texture rectangle of fewer than four"))?;
+        crate::drive::tyre_quad::tyre_quad_cells(uv, rect, colour)
     };
     let v = &VIEWER_PANEL;
-    quad(&v.frame_picture_rect[0], &v.bar_frame_rect[0], 0xFF_FFFF)?;
+    quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
     let blocks = REPLAY_FILE.index_block_count.get();
     if blocks != 0 {
         let (w, x) = (
@@ -96,17 +104,17 @@ fn stopped() -> Result<(), Refused> {
             w,
             blocks,
         )?;
-        quad(&v.button_body_rect[0], &v.bar_rect[0], 0xFF00)?;
+        quad(&v.button_body_rect, &v.bar_rect, 0xFF00)?;
         VIEWER_PANEL.mark_rect[0].set(mark_x(first.0, x));
-        quad(&v.mark_picture_rect[0], &v.mark_rect[0], 0xFF_FFFF)?;
+        quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
         VIEWER_PANEL.mark_rect[0].set(mark_x(second.0, x));
-        quad(&v.mark_picture_rect[0], &v.mark_rect[0], 0xFF_FFFF)?;
+        quad(&v.mark_picture_rect, &v.mark_rect, 0xFF_FFFF)?;
         VIEWER_PANEL.place_rect[0].set(place_x(here.0, x));
-        quad(&v.place_picture_rect[0], &v.place_rect[0], 0xFF_FFFF)?;
-        quad(&v.button_picture_rect[0], &v.button_rect_a[0], 0xFF_FFFF)?;
-        quad(&v.button_picture_rect[0], &v.button_rect_c[0], 0xFF_FFFF)?;
-        quad(&v.button_body_rect[0], &v.button_rect_b[0], 0xFF_FFFF)?;
-        quad(&v.button_body_rect[0], &v.button_rect_d[0], 0xFF_FFFF)?;
+        quad(&v.place_picture_rect, &v.place_rect, 0xFF_FFFF)?;
+        quad(&v.button_picture_rect, &v.button_rect_a, 0xFF_FFFF)?;
+        quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
+        quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
+        quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
         crate::race::draw_viewer_panel::draw_viewer_panel()?;
     }
     Ok(())

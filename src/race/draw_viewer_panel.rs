@@ -141,9 +141,9 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;
     let quad = |colour: u32| {
-        crate::drive::tyre_quad::tyre_quad(
-            VIEWER_PANEL.texture_rect[0].addr(),
-            VIEWER_PANEL.screen_rect[0].addr(),
+        crate::drive::tyre_quad::tyre_quad_cells(
+            &VIEWER_PANEL.texture_rect,
+            &VIEWER_PANEL.screen_rect,
             colour,
         )
     };
