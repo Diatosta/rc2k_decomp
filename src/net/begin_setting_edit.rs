@@ -10,6 +10,7 @@
 
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
+use crate::net::begin_edit::EditedText;
 use crate::net::lobby::{Cursor, PALETTE};
 use crate::net::store::NET;
 use rc2k_core::net::editing::{self, Setting};
@@ -20,8 +21,8 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = INSTALLER_PAGES.choice.get();
     let text = match Setting::of(item) {
-        Setting::Name => NET.machine_name.addr(),
-        Setting::HostAddress => NET.host_address.addr(),
+        Setting::Name => EditedText::MachineName,
+        Setting::HostAddress => EditedText::HostAddress,
         Setting::MostPlayers => {
             let mut cursor = Cursor(crate::place::Place::from(&INSTALLER_PATHS.path_a));
             cursor.bytes(&crate::strings::format_u32::format_u32(
@@ -29,9 +30,9 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
                 0,
             ))?;
             cursor.nul()?;
-            INSTALLER_PATHS.path_a.addr()
+            EditedText::MostPlayers
         }
         Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr())
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE)
 }

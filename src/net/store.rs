@@ -225,14 +225,16 @@ impl SessionDesc {
 pub struct NetVars {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
     pub receive_done: Dword,
-    /// 0x52A4B4: `g_netEditText`: the text of the item edited (an address).
+    /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
+    /// (`net::begin_edit::EditedText`; the original keeps its address).
     pub edit_text: Dword,
     /// 0x52A4B8: `g_netEdited`: the item edited (-1: none).
     pub edited: Dword,
     /// 0x52A4BC: `dword_52A4BC`: the widest the edited text may be.
     pub edit_width: Dword,
-    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with.
-    pub edit_font: Dword,
+    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with (the original
+    /// keeps its address).
+    pub edit_font: crate::gfx::typefaces::FontCell,
     /// 0x52A4C4: `dword_52A4C4`: the time of the players' last listing.
     pub clock_a: Dword,
     /// 0x52A4C8: `g_netChatInput`: what this player types into the chat.
@@ -425,7 +427,8 @@ pub static NET: NetVars = NetVars {
     edit_text: Dword::new(0),
     edited: Dword::new(0),
     edit_width: Dword::new(0),
-    edit_font: Dword::new(0),
+    // 0 in the image: the first font's number; read only once an edit has set it.
+    edit_font: crate::gfx::typefaces::FontCell::at(0x51E3A4),
     clock_a: Dword::new(0),
     chat_input: Bytes::new([0; 64]),
     chat: Bytes::new([0; 768]),

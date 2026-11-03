@@ -11,16 +11,51 @@ use crate::install::vars::INSTALLER_PATHS;
 use crate::net::lobby::movsb;
 use crate::net::store::NET;
 
+/// The texts an edit works on (`NET.edit_text`, where the original keeps the address): the
+/// settings' machine name, host address and players' count (written into the installer's
+/// first path), and the chat's input line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditedText {
+    MachineName = 1,
+    HostAddress = 2,
+    MostPlayers = 3,
+    ChatInput = 4,
+}
+
+impl EditedText {
+    /// The text, bounded by its buffer.
+    pub fn place(self) -> crate::pointers::GamePtr {
+        use crate::pointers::GamePtr;
+        match self {
+            EditedText::MachineName => GamePtr::to(&NET.machine_name),
+            EditedText::HostAddress => GamePtr::to(&NET.host_address),
+            EditedText::MostPlayers => GamePtr::to(&INSTALLER_PATHS.path_a),
+            EditedText::ChatInput => GamePtr::to(&NET.chat_input),
+        }
+    }
+
+    /// The text `NET.edit_text` names (refused when none is).
+    pub fn edited() -> Result<Self, crate::errors::BadInput> {
+        Ok(match NET.edit_text.get() {
+            1 => EditedText::MachineName,
+            2 => EditedText::HostAddress,
+            3 => EditedText::MostPlayers,
+            4 => EditedText::ChatInput,
+            _ => return Err(crate::errors::BadInput("no edited text")),
+        })
+    }
+}
+
 /// The Rust version.
 pub fn begin_edit(
     item: u32,
-    text: u32,
+    text: EditedText,
     width: u32,
-    font: u32,
+    font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
     NET.edited.set(item);
-    NET.edit_text.set(text);
+    NET.edit_text.set(text as u32);
     NET.edit_width.set(width);
     NET.edit_font.set(font);
-    movsb(&INSTALLER_PATHS.script_path, text, 0x40)
+    movsb(&INSTALLER_PATHS.script_path, text.place(), 0x40)
 }

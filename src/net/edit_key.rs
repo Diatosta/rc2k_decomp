@@ -22,8 +22,8 @@ use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 
-fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "an edited text")
+fn set_byte(at: GamePtr, v: u8) -> Result<(), BadInput> {
+    at.write(v, "an edited text")
 }
 
 /// The Rust version.
@@ -31,18 +31,18 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if NET.edited.get() != editing::NOT_EDITING {
-        let text = NET.edit_text.get();
-        let words = GamePtr::new(text).bytes("an edited text")?;
+        let text = crate::net::begin_edit::EditedText::edited()?.place();
+        let words = text.bytes("an edited text")?;
         match EditKey::of(key) {
             EditKey::Escape => {
                 movsb(text, &INSTALLER_PATHS.script_path, editing::TEXT_LEN as u32)?;
                 NET.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => NET.edited.set(editing::NOT_EDITING),
-            EditKey::Clear => GamePtr::new(text).fill(0, editing::TEXT_LEN, "an edited text")?,
+            EditKey::Clear => text.fill(0, editing::TEXT_LEN, "an edited text")?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
-                    set_byte(text + last as u32, 0)?;
+                    set_byte(text.offset(last as u32), 0)?;
                 }
             }
             EditKey::Other => {
@@ -51,18 +51,18 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     && let Some(at) = editing::end_for_char(&words)?
                 {
                     let at = at as u32;
-                    GamePtr::new(text + at).write(typed as u16, "an edited text")?;
+                    text.offset(at).write(typed as u16, "an edited text")?;
                     let width = {
                         measure_text_at(
-                            crate::pointers::GamePtr::new(NET.edit_font.get()),
-                            crate::pointers::GamePtr::new(text),
+                            NET.edit_font.get().game_ptr(),
+                            text,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
                     if editing::too_wide(width, NET.edit_width.get()) {
-                        set_byte(text + at, 0)?;
+                        set_byte(text.offset(at), 0)?;
                     }
                 }
             }
