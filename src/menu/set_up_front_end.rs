@@ -98,7 +98,9 @@ pub fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
     }
     if LOOP_FLAGS.options_loaded.get() != 1 {
         for table in record_tables() {
-            crate::records::default_stage_records::default_stage_records(table)?;
+            crate::records::default_stage_records::default_stage_records(
+                crate::records::stages_store::STAGE_TABLES.place_at(table),
+            )?;
         }
     }
     Ok(())

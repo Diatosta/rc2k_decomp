@@ -414,7 +414,7 @@ pub fn draw_own_car() -> Result<(), Refused> {
     }
     VIEW_VARS.drawn_car.set(number);
     let block = car_at(car)?;
-    if !seen_inside(block.unknown_6f4[2].get()) {
+    if !seen_inside(block.state_bits.get()) {
         return Ok(());
     }
     LIGHT_WORK.view_light_base.set(block.light_colour.get());

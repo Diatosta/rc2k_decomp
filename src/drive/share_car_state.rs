@@ -147,11 +147,11 @@ pub fn share_car_state_at(
         *v = o.word(0x258 + 4 * k as u32)?;
     }
     sharing::fill_holes(&mut kept);
-    // +0x700 .. (inside `unknown_6f4`), +0xA3C .. (eight dwords, past `part_damage_limits`'
-    // seven) and +0xA5C .. (inside `unknown_a58`): by offset in the block.
-    for (k, v) in kept.into_iter().enumerate() {
-        put(car, 0x700 + 4 * k as u32, v)?;
+    for (cell, v) in car.part_wake_counts.iter().zip(kept) {
+        cell.set(v);
     }
+    // +0xA3C .. (eight dwords, past `part_damage_limits`' seven) and +0xA5C .. (inside
+    // `unknown_a58`): by offset in the block.
     for k in 0..8 {
         put(car, 0xA3C + 4 * k, o.word(0x32C + 4 * k)?)?;
     }

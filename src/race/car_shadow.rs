@@ -26,12 +26,24 @@ use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 
 // unk_641AA4: the points, 0x20 bytes each
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a shadow point or entry")
+/// The shadow's points (`unk_641AA4`), bounded by their table.
+fn points() -> GamePtr {
+    GamePtr::to(&SHADOW_SKIDS.shadow_points)
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a shadow point or entry")
+/// The point at game address `at` (`dword_643ABC` keeps the farthest one's), bounded as
+/// `points`.
+fn point_at(at: u32) -> GamePtr {
+    let points = points();
+    points.offset(at.wrapping_sub(points.addr()))
+}
+
+fn get(a: GamePtr) -> Result<u32, BadInput> {
+    a.read("a shadow point")
+}
+
+fn put(a: GamePtr, v: u32) -> Result<(), BadInput> {
+    a.write(v, "a shadow point")
 }
 
 /// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
@@ -65,26 +77,26 @@ pub fn shadow_angles() -> Result<(), Refused> {
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow points or more than 0x40").into());
         }
-        let records = SHADOW_SKIDS.shadow_points.addr();
-        let farthest: u32 = SHADOW_SKIDS.farthest.get();
+        let records = points();
+        let farthest = point_at(SHADOW_SKIDS.farthest.get());
         for k in 0..8 {
-            let (a, b) = (get(records + 4 * k)?, get(farthest + 4 * k)?);
-            put(records + 4 * k, b)?;
-            put(farthest + 4 * k, a)?;
+            let (a, b) = (get(records.offset(4 * k))?, get(farthest.offset(4 * k))?);
+            put(records.offset(4 * k), b)?;
+            put(farthest.offset(4 * k), a)?;
         }
-        let first = get(records + 0xC)?;
+        let first = get(records.offset(0xC))?;
         SHADOW_SKIDS.first_angle.set_bits(first);
         let zero: u32 = NUMBERS.zero.bits();
         let unit: u32 = NUMBERS.k65536.bits();
         for k in 0..count {
-            let record = records + 0x20 * k;
-            let mut v = sub(get(record + 0xC)?, first);
+            let record = records.offset(0x20 * k);
+            let mut v = sub(get(record.offset(0xC))?, first);
             if crate::math::x87_load::below_or_unordered(v, zero) {
                 v = two_pi_plus(v);
             }
             DRAW.scratch.set_bits(v);
-            put(record + 0xC, mul_to_int(v, unit) as u32)?;
-            put(record + 0x14, 0)?;
+            put(record.offset(0xC), mul_to_int(v, unit) as u32)?;
+            put(record.offset(0x14), 0)?;
         }
         if count >= 2 {
             // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
@@ -611,9 +623,9 @@ fn sun_slant(sun: u32, turn: u32) {
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
-fn angle_of(at: u32) -> Result<u32, BadInput> {
+fn angle_of(at: GamePtr) -> Result<u32, BadInput> {
     use crate::math::x87_float::{ld, st};
-    Ok(st(ld(get(at)?).atan2(ld(get(at + 8)?))))
+    Ok(st(ld(get(at)?).atan2(ld(get(at.offset(8))?))))
 }
 
 /// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
@@ -657,7 +669,7 @@ pub fn shadow_points() -> Result<(), Refused> {
     let (sx, sz) = (SHADOW_SKIDS.slant_x.bits(), SHADOW_SKIDS.slant_z.bits());
     let lift: u32 = PHYSICS.camera_drop.bits();
     let unit: u32 = NUMBERS.k65536.bits();
-    let mut at = SHADOW_SKIDS.shadow_points.addr();
+    let mut at = points();
     for k in 0..count as usize {
         let p = [
             to_tbyte(CAR.probe_point_x[k].bits()),
@@ -666,29 +678,29 @@ pub fn shadow_points() -> Result<(), Refused> {
         ];
         let t = crate::scene::rotate_point::rotate_point(&CAR.body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
-        put(at + 4, y)?;
+        put(at.offset(4), y)?;
         let x = lifted(y, lift, sx, x);
         put(at, x)?;
         let z = lifted(y, lift, sz, z);
-        put(at + 8, z)?;
+        put(at.offset(8), z)?;
         let angle = angle_of(at)?;
-        put(at + 0xC, angle)?;
+        put(at.offset(0xC), angle)?;
         let length = crate::math::x87_load::float_hypot(x, z);
-        put(at + 0x10, length)?;
+        put(at.offset(0x10), length)?;
         if !below_or_unordered(length, SHADOW_SKIDS.farthest_length.bits()) {
             SHADOW_SKIDS.farthest_length.set_bits(length);
-            SHADOW_SKIDS.farthest.set(at);
+            SHADOW_SKIDS.farthest.set(at.addr());
         }
         put(
             at,
             (mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()),
         )?;
         put(
-            at + 8,
+            at.offset(8),
             (mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()),
         )?;
-        put(at + 4, FRAME_WORK.shadow_ground.bits())?;
-        at += 0x20;
+        put(at.offset(4), FRAME_WORK.shadow_ground.bits())?;
+        at = at.offset(0x20);
     }
     Ok(())
 }
@@ -753,14 +765,18 @@ pub fn cast_car_shadows() -> Result<(), Refused> {
     FRAME_WORK.shadow_strength.set(SHADOW_STRENGTH);
     for n in 0..cars {
         let b = block(n);
-        if !casts_shadow(get(b + 0x6FC)?) {
+        if !casts_shadow(
+            crate::race::blocks_store::block_at(b, "a car's block")?
+                .state_bits
+                .get(),
+        ) {
             continue;
         }
         RACE_WORK.current_car.set(n);
         crate::drive::load_car::load_car()?;
         FRAME_WORK
             .shadow_point_count
-            .set_bits(get(crate::physics::car_store::car_addr() + 0x260)?);
+            .set_bits(crate::physics::car_store::CAR.probe_count.bits());
         if first_pass(RACE_VARS.settings_words[2].bits()) {
             cast_car_shadow()?;
         }
@@ -1298,7 +1314,10 @@ mod asm_reference {
                 let (want, got) = unsafe {
                     (
                         angle_asm(crate::pointers::game_address(at.as_ptr())),
-                        angle_of(crate::pointers::game_address(at.as_ptr())).unwrap(),
+                        angle_of(crate::pointers::GamePtr::new(
+                            crate::pointers::game_address(at.as_ptr()),
+                        ))
+                        .unwrap(),
                     )
                 };
                 assert!(within_ulps(want, got, 1), "{at:x?}: {want:#x} {got:#x}");

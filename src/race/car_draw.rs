@@ -280,7 +280,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
     ] {
         COURSE.group_masks[to].set(field(offset)?);
     }
-    let state = car_at(car)?.unknown_6f4[2].bits();
+    let state = car_at(car)?.state_bits.bits();
     let bit = COURSE.group_masks[17].bits();
     VIEW_VARS.group_mask.set(u32::MAX);
     if state & 2 != 0 {

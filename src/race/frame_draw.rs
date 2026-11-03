@@ -378,7 +378,7 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
                 // Converted: `rc2k_core::race::lights::part_wake`.
                 use rc2k_core::race::lights::{PartWake, part_wake};
                 let block = car_at(b)?;
-                let count = block.unknown_6f4[3 + slot].get();
+                let count = block.part_wake_counts[slot].get();
                 let part = part_wake(block.unknown_48[slot].get(), count);
                 if part == PartWake::Left {
                     continue;
@@ -1160,14 +1160,14 @@ pub fn car_light_modes() -> Result<(), Refused> {
             .get();
         RACE_VIEW.shown_car.set_bits(shown);
         for n in 0..8 {
-            car_at(block(n))?.unknown_6f4[2].set(0);
+            car_at(block(n))?.state_bits.set(0);
         }
         // Converted: `rc2k_core::race::lights::{lights_drawn, light_word}`.
         use rc2k_core::race::lights::{light_word, lights_drawn};
         let mode: u32 = RACE_VARS.run_kind.bits();
         for n in 0..cars {
             let this_car = car_at(block(n))?;
-            let at = &this_car.unknown_6f4[2];
+            let at = &this_car.state_bits;
             let me = n == shown;
             let drawn = lights_drawn(
                 this_car.driver_kind.bits() != 0,
@@ -2518,7 +2518,7 @@ pub fn car_lights() -> Result<(), Refused> {
     for n in 0..cars {
         let b = block(n);
         // Both only with the lights on: the `jz` skips to the `popa`.
-        if lights_on(car_at(b)?.unknown_6f4[2].bits()) {
+        if lights_on(car_at(b)?.state_bits.bits()) {
             add_car_depth_entry(b, n)?;
             car_light_flares(b)?;
         }

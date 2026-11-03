@@ -1220,8 +1220,14 @@ impl StageTables {
     /// the original does, a record number past a table runs on into the next): a pointer
     /// bounded by these tables, so a read off them is refused.
     pub fn record_text(&self, record: u32, off: u32) -> crate::pointers::GamePtr {
-        let start = crate::pointers::game_address(core::ptr::from_ref(self));
-        crate::pointers::GamePtr::to(self).offset(record.wrapping_add(off).wrapping_sub(start))
+        self.place_at(record.wrapping_add(off))
+    }
+
+    /// The place at game address `at` (a table or record the game keeps by address),
+    /// bounded by these tables.
+    pub fn place_at(&self, at: u32) -> crate::pointers::GamePtr {
+        let tables = crate::pointers::GamePtr::to(self);
+        tables.offset(at.wrapping_sub(tables.addr()))
     }
 
     /// The championship's first record.

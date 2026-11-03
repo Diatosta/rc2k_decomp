@@ -382,7 +382,13 @@ pub struct Car {
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: Dword,
     /// +0x6f4 (0x71A6CC): not named.
-    pub unknown_6f4: [Dword; 9],
+    pub unknown_6f4: [Dword; 2],
+    /// +0x6fc (0x71A6D4): the car's state bits (lights, seen from inside 0x10, casts a
+    /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`).
+    pub state_bits: Dword,
+    /// +0x700 (0x71A6D8): the six parts' wake counts (`race::frame_draw`'s lights,
+    /// `drive::share_car_state`).
+    pub part_wake_counts: [Dword; 6],
     /// +0x718 (0x71A6F0): the engine speed shown (+0x1D8 as a float, not below
     /// `flt_6140F8`; `race::car_parts`), drawn by the panel and the car's number.
     pub shown_engine_speed: Float,
@@ -586,6 +592,8 @@ mod tests {
         // other tests write the work car while they run
         let _lock = crate::store::test_lock();
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
+        assert_eq!(offset_of!(Car, state_bits), 0x6FC);
+        assert_eq!(offset_of!(Car, part_wake_counts), 0x700);
         assert_eq!(offset_of!(Car, part_matrices), 0x740);
         assert_eq!(offset_of!(Car, body_matrix), 0x840);
         assert_eq!(offset_of!(Car, whole_matrix), 0x8C0);

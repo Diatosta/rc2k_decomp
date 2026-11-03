@@ -29,28 +29,29 @@ const MOST_RECORDS: usize = 0x1000;
 
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
-fn records(table: u32) -> Result<usize, BadInput> {
+fn records(table: GamePtr) -> Result<usize, BadInput> {
     // Converted: `rc2k_core::files::records::record_count`.
-    let records = GamePtr::new(table).bytes("a record table")?;
+    let records = table.bytes("a record table")?;
     Ok(rc2k_core::files::records::record_count(
         &records,
         MOST_RECORDS,
     )?)
 }
 
-pub fn default_stage_records(table: u32) -> Result<(), Refused> {
-    if table == 0 {
+/// `table` the table, a place in the stage tables (`StageTables::place_at`).
+pub fn default_stage_records(table: GamePtr) -> Result<(), Refused> {
+    if table.is_null() {
         return Err(BadInput("no record table").into());
     }
-    if GamePtr::new(table + 0x54).read::<u8>("a record name")? != 0 {
+    if table.offset(0x54).read::<u8>("a record name")? != 0 {
         return Ok(());
     }
     // (the record, the dwords by offset, the two names by offset)
-    type Made = (u32, [(u32, u32); 6], [(u32, Vec<u8>); 2]);
+    type Made = (GamePtr, [(u32, u32); 6], [(u32, Vec<u8>); 2]);
     let mut made: Vec<Made> = Vec::new();
     for n in 0..records(table)? {
-        let record = table + (n * RECORD_LEN) as u32;
-        if GamePtr::new(record).read::<u32>("a record tag")? != 0 {
+        let record = table.offset((n * RECORD_LEN) as u32);
+        if record.read::<u32>("a record tag")? != 0 {
             continue;
         }
         let first = Driver::number(random_below(0xAA)?)?;
@@ -72,10 +73,10 @@ pub fn default_stage_records(table: u32) -> Result<(), Refused> {
     }
     for (record, dwords, names) in made {
         for (offset, value) in dwords {
-            GamePtr::new(record + offset).write(value, "a stage record")?;
+            record.offset(offset).write(value, "a stage record")?;
         }
         for (offset, name) in names {
-            GamePtr::new(record + offset).write_bytes(&name, "a stage record")?;
+            record.offset(offset).write_bytes(&name, "a stage record")?;
         }
     }
     Ok(())
