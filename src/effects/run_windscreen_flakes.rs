@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::matrix3::extended;
-use crate::session::{address_of, read_bits};
+use crate::session::read_bits;
 
 use crate::d3d::vertices_store::VERTICES;
 const LIFE: i32 = 0xFA0;
@@ -84,11 +84,7 @@ fn run() -> Result<(), Refused> {
                 less(WINDSCREEN_FLAKE_STATE.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),
             ];
-            crate::effects::draw_windscreen_flake::draw_windscreen_flake(
-                address_of(item),
-                colour,
-                values,
-            );
+            crate::effects::draw_windscreen_flake::draw_windscreen_flake(item, colour, values);
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

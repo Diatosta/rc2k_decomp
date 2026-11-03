@@ -16,7 +16,6 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
-use crate::effects::plain::ld_cell;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::windscreen_drop_vars::HEX;
@@ -24,43 +23,16 @@ use crate::errors::Refused;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
+use crate::session::{Bytes, Float};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(m: &MarksSettings) {
-    view_moved_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        m,
-        &CLOCK,
-    );
-}
-
-/// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
-fn drift_turned(m: u32, t: u32, l: u32) {
-    drift_turned_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        m as usize,
-        t as usize,
-        l as usize,
-    );
-}
-
-/// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
-fn drift_back(m: u32, t: u32, l: u32) {
-    drift_back_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        m as usize,
-        t as usize,
-        l as usize,
-    );
+    view_moved_x87(m, &CLOCK);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 fn move_kept(m: &MarksSettings) {
-    move_kept_x87(
-        crate::effects::windscreen_drop_vars::WindscreenDropVars::base(),
-        m,
-        &CLOCK,
-    );
+    move_kept_x87(m, &CLOCK);
 }
 
 /// The Rust version (see the header).
@@ -87,15 +59,12 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
             let turn = crate::pointers::game_address(HEX.turn.as_ptr());
             let adj = crate::pointers::game_address(HEX.adjugate.as_ptr());
             adjugate3(turn, adj)?;
-            let mut temps = [0u32; 2];
-            let mut kept = [0u8; 30];
-            let (t, l) = (
-                crate::pointers::game_address(temps.as_mut_ptr()),
-                crate::pointers::game_address(kept.as_mut_ptr()),
-            );
-            drift_turned(adj, t, l);
+            // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
+            let temps = [Float::from_bits(0), Float::from_bits(0)];
+            let kept = Bytes::new([0u8; 30]);
+            drift_turned_x87(&HEX.adjugate, &temps, &kept);
             turn_matrix3(Axis::X, &HEX.turn, extended(HEX.angle.bits()))?;
-            drift_back(turn, t, l);
+            drift_back_x87(&HEX.turn, &temps, &kept);
         }
         move_kept(m);
     }
@@ -112,125 +81,125 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::plain::{ld, ld80, st, st80};
+use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn view_moved_x87(hx: usize, m: &MarksSettings, c: &MarksClock) {
+fn view_moved_x87(m: &MarksSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
-    let t1 = t0 - ld(hx, 0xB1296);
+    let t1 = t0 - ld_cell(&HEX.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t3 = ld_cell(&m.listener_car_place[1]);
-    let t4 = t3 - ld(hx, 0xB129A);
+    let t4 = t3 - ld_cell(&HEX.kept_place[1]);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t6 = ld_cell(&m.listener_car_place[2]);
-    let t7 = t6 - ld(hx, 0xB129E);
+    let t7 = t6 - ld_cell(&HEX.kept_place[2]);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-    st(hx, 0xB12B6, t8);
-    st(hx, 0xB12B2, t5);
-    st(hx, 0xB12AE, t2);
-    let t9 = ld(hx, 0xB12AE);
-    let t10 = t9 - ld(hx, 0xB12A2);
-    let t11 = ld(hx, 0xB12B2);
-    let t12 = t11 - ld(hx, 0xB12A6);
-    let t13 = ld(hx, 0xB12B6);
-    let t14 = t13 - ld(hx, 0xB12AA);
-    st(hx, 0xB12C2, t14);
-    st(hx, 0xB12BE, t12);
-    st(hx, 0xB12BA, t10);
-    let t15 = ld(hx, 0xB12A2);
-    let t16 = t15 * ld(hx, 0xC93E6);
-    let t17 = t16 + ld(hx, 0xB12BA);
-    st(hx, 0xB12BA, t17);
-    let t18 = ld(hx, 0xB12A6);
-    let t19 = t18 * ld(hx, 0xC93EA);
-    let t20 = t19 + ld(hx, 0xB12BE);
-    st(hx, 0xB12BE, t20);
-    let t21 = ld(hx, 0xB12AA);
-    let t22 = t21 * ld(hx, 0xC93EE);
-    let t23 = t22 + ld(hx, 0xB12C2);
-    st(hx, 0xB12C2, t23);
+    st_cell(&HEX.view_move[2], t8);
+    st_cell(&HEX.view_move[1], t5);
+    st_cell(&HEX.view_move[0], t2);
+    let t9 = ld_cell(&HEX.view_move[0]);
+    let t10 = t9 - ld_cell(&HEX.kept_move[0]);
+    let t11 = ld_cell(&HEX.view_move[1]);
+    let t12 = t11 - ld_cell(&HEX.kept_move[1]);
+    let t13 = ld_cell(&HEX.view_move[2]);
+    let t14 = t13 - ld_cell(&HEX.kept_move[2]);
+    st_cell(&HEX.move_change[2], t14);
+    st_cell(&HEX.move_change[1], t12);
+    st_cell(&HEX.move_change[0], t10);
+    let t15 = ld_cell(&HEX.kept_move[0]);
+    let t16 = t15 * ld_cell(&HEX.decay[0]);
+    let t17 = t16 + ld_cell(&HEX.move_change[0]);
+    st_cell(&HEX.move_change[0], t17);
+    let t18 = ld_cell(&HEX.kept_move[1]);
+    let t19 = t18 * ld_cell(&HEX.decay[1]);
+    let t20 = t19 + ld_cell(&HEX.move_change[1]);
+    st_cell(&HEX.move_change[1], t20);
+    let t21 = ld_cell(&HEX.kept_move[2]);
+    let t22 = t21 * ld_cell(&HEX.decay[2]);
+    let t23 = t22 + ld_cell(&HEX.move_change[2]);
+    st_cell(&HEX.move_change[2], t23);
 }
 
 /// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn drift_turned_x87(hx: usize, m: usize, t: usize, l: usize) {
-    let t0 = ld(hx, 0xB12C2);
-    let t1 = ld(hx, 0xB12BE);
-    let t2 = ld(hx, 0xB12BA);
-    let t3 = t2 * ld(m, 0);
-    let t4 = t1 * ld(m, 0x4);
-    let t5 = t0 * ld(m, 0x8);
+fn drift_turned_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+    let t0 = ld_cell(&HEX.move_change[2]);
+    let t1 = ld_cell(&HEX.move_change[1]);
+    let t2 = ld_cell(&HEX.move_change[0]);
+    let t3 = t2 * ld_cell(&m[0]);
+    let t4 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * ld_cell(&m[2]);
     let t6 = t4 + t5;
     let t7 = t3 + t6;
-    st(t, 0, t7);
-    let t8 = t2 * ld(m, 0xC);
-    let t9 = t1 * ld(m, 0x10);
-    let t10 = t0 * ld(m, 0x14);
+    st_cell(&t[0], t7);
+    let t8 = t2 * ld_cell(&m[3]);
+    let t9 = t1 * ld_cell(&m[4]);
+    let t10 = t0 * ld_cell(&m[5]);
     let t11 = t9 + t10;
     let t12 = t8 + t11;
-    st(t, 0x4, t12);
-    let t13 = t2 * ld(m, 0x18);
-    let t14 = t1 * ld(m, 0x1C);
-    let t15 = t0 * ld(m, 0x20);
+    st_cell(&t[1], t12);
+    let t13 = t2 * ld_cell(&m[6]);
+    let t14 = t1 * ld_cell(&m[7]);
+    let t15 = t0 * ld_cell(&m[8]);
     let t16 = t13 + t15;
     let t17 = t14 + t16;
-    let t18 = ld(t, 0x4);
-    let t19 = ld(t, 0);
-    st80(l, 0, t19);
-    st80(l, 0xA, t18);
-    st80(l, 0x14, t17);
+    let t18 = ld_cell(&t[1]);
+    let t19 = ld_cell(&t[0]);
+    st80_at(l, 0, t19);
+    st80_at(l, 10, t18);
+    st80_at(l, 20, t17);
 }
 
 /// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-fn drift_back_x87(hx: usize, m: usize, t: usize, l: usize) {
-    let t0 = bh::from_f80(ld80(l, 0x14));
-    let t1 = bh::from_f80(ld80(l, 0xA));
-    let t2 = bh::from_f80(ld80(l, 0));
-    let t3 = t2 * ld(m, 0);
-    let t4 = t1 * ld(m, 0x4);
-    let t5 = t0 * ld(m, 0x8);
+fn drift_back_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+    let t0 = bh::from_f80(ld80_at(l, 20));
+    let t1 = bh::from_f80(ld80_at(l, 10));
+    let t2 = bh::from_f80(ld80_at(l, 0));
+    let t3 = t2 * ld_cell(&m[0]);
+    let t4 = t1 * ld_cell(&m[1]);
+    let t5 = t0 * ld_cell(&m[2]);
     let t6 = t4 + t5;
     let t7 = t3 + t6;
-    st(t, 0, t7);
-    let t8 = t2 * ld(m, 0xC);
-    let t9 = t1 * ld(m, 0x10);
-    let t10 = t0 * ld(m, 0x14);
+    st_cell(&t[0], t7);
+    let t8 = t2 * ld_cell(&m[3]);
+    let t9 = t1 * ld_cell(&m[4]);
+    let t10 = t0 * ld_cell(&m[5]);
     let t11 = t9 + t10;
     let t12 = t8 + t11;
-    st(t, 0x4, t12);
-    let t13 = t2 * ld(m, 0x18);
-    let t14 = t1 * ld(m, 0x1C);
-    let t15 = t0 * ld(m, 0x20);
+    st_cell(&t[1], t12);
+    let t13 = t2 * ld_cell(&m[6]);
+    let t14 = t1 * ld_cell(&m[7]);
+    let t15 = t0 * ld_cell(&m[8]);
     let t16 = t13 + t15;
     let t17 = t14 + t16;
-    let t18 = ld(t, 0x4);
-    let t19 = ld(t, 0);
+    let t18 = ld_cell(&t[1]);
+    let t19 = ld_cell(&t[0]);
     let t20 = -t19;
-    st(hx, 0xB12DE, t20);
-    let t21 = t20 * ld(hx, 0xC93F6);
+    st_cell(&HEX.drift[0], t20);
+    let t21 = t20 * ld_cell(&HEX.result_k[0]);
     SHAPE_TILT.point[0].set_bits(bh::st(t21));
-    st(hx, 0xB12E2, t18);
-    let t22 = t18 * ld(hx, 0xC93FA);
+    st_cell(&HEX.drift[1], t18);
+    let t22 = t18 * ld_cell(&HEX.result_k[1]);
     SHAPE_TILT.point[1].set_bits(bh::st(t22));
-    st(hx, 0xB12E6, t17);
-    let t23 = t17 * ld(hx, 0xC93FE);
+    st_cell(&HEX.drift[2], t17);
+    let t23 = t17 * ld_cell(&HEX.result_k[2]);
     SHAPE_TILT.point[2].set_bits(bh::st(t23));
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_kept_x87(hx: usize, m: &MarksSettings, c: &MarksClock) {
+fn move_kept_x87(m: &MarksSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
-    let t1 = t0 - ld(hx, 0xB1296);
+    let t1 = t0 - ld_cell(&HEX.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t3 = ld_cell(&m.listener_car_place[1]);
-    let t4 = t3 - ld(hx, 0xB129A);
+    let t4 = t3 - ld_cell(&HEX.kept_place[1]);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t6 = ld_cell(&m.listener_car_place[2]);
-    let t7 = t6 - ld(hx, 0xB129E);
+    let t7 = t6 - ld_cell(&HEX.kept_place[2]);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-    st(hx, 0xB12AA, t8);
-    st(hx, 0xB12A6, t5);
-    st(hx, 0xB12A2, t2);
+    st_cell(&HEX.kept_move[2], t8);
+    st_cell(&HEX.kept_move[1], t5);
+    st_cell(&HEX.kept_move[0], t2);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -416,6 +385,49 @@ mod asm_differential {
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
     use crate::effects::typed_sync::{overlay, with_overlays};
+    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
+    use crate::session::{Bytes, Float};
+
+    /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
+    fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
+        with_overlays(mk, &[overlay(&HEX, WindscreenDropVars::START)], f)
+    }
+
+    /// The `N` floats at the test address `at`.
+    fn floats<const N: usize>(at: usize) -> [Float; N] {
+        std::array::from_fn(|i| {
+            let word = unsafe {
+                crate::pointers::host_at(at + 4 * i)
+                    .cast::<u32>()
+                    .read_unaligned()
+            };
+            Float::from_bits(word)
+        })
+    }
+
+    /// The floats written back to the test address `at`.
+    fn put_floats(at: usize, cells: &[Float]) {
+        for (i, c) in cells.iter().enumerate() {
+            unsafe {
+                crate::pointers::host_at(at + 4 * i)
+                    .cast::<u32>()
+                    .write_unaligned(c.bits());
+            }
+        }
+    }
+
+    /// The 30 bytes at the test address `at` as a buffer.
+    fn kept(at: usize) -> Bytes<30> {
+        Bytes::new(std::array::from_fn(|i| unsafe {
+            crate::pointers::host_at(at + i).read()
+        }))
+    }
+
+    fn put_kept(at: usize, kept: &Bytes<30>) {
+        for i in 0..30 {
+            unsafe { crate::pointers::host_at(at + i).write(kept.get(i)) };
+        }
+    }
 
     #[test]
     fn view_moved_x87_matches() {
@@ -423,7 +435,7 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0xA0,
-                    hi: 0xC93F2,
+                    hi: 0xC9402,
                     reads: &[
                         (0xA0, F32),
                         (0xB1296, F32),
@@ -464,8 +476,10 @@ mod asm_differential {
             &SPEC,
             |b| reference::view_moved_x87(b[0], b[1]),
             |b| {
-                with_settings(b[1], |m| {
-                    super::view_moved_x87(b[0], m, crate::effects::setup::clock_at(b[0]));
+                hex(b[0], || {
+                    with_settings(b[1], |m| {
+                        super::view_moved_x87(m, crate::effects::setup::clock_at(b[0]));
+                    });
                 });
             },
         );
@@ -476,8 +490,8 @@ mod asm_differential {
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
-                    lo: 0xB12BA,
-                    hi: 0xB12C6,
+                    lo: 0xB1252,
+                    hi: 0xC9402,
                     reads: &[(0xB12BA, F32), (0xB12BE, F32), (0xB12C2, F32)],
                     writes: &[],
                 },
@@ -515,7 +529,14 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::drift_turned_x87(b[0], b[1], b[2], b[3]),
-            |b| super::drift_turned_x87(b[0], b[1], b[2], b[3]),
+            |b| {
+                hex(b[0], || {
+                    let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
+                    super::drift_turned_x87(&m, &temps, &l);
+                    put_floats(b[2], &temps);
+                    put_kept(b[3], &l);
+                });
+            },
         );
     }
 
@@ -571,9 +592,18 @@ mod asm_differential {
             &SPEC,
             |b| reference::drift_back_x87(b[0], b[1], b[2], b[3]),
             |b| {
-                with_overlays(b[0], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
-                    super::drift_back_x87(b[0], b[1], b[2], b[3]);
-                });
+                with_overlays(
+                    b[0],
+                    &[
+                        overlay(&SHAPE_TILT, ShapeTilt::START),
+                        overlay(&HEX, WindscreenDropVars::START),
+                    ],
+                    || {
+                        let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
+                        super::drift_back_x87(&m, &temps, &l);
+                        put_floats(b[2], &temps);
+                    },
+                );
             },
         );
     }
@@ -584,7 +614,7 @@ mod asm_differential {
             operands: &[
                 Op::Base {
                     lo: 0xA0,
-                    hi: 0xB12AE,
+                    hi: 0xC9402,
                     reads: &[(0xA0, F32), (0xB1296, F32), (0xB129A, F32), (0xB129E, F32)],
                     writes: &[(0xB12A2, F32), (0xB12A6, F32), (0xB12AA, F32)],
                 },
@@ -601,8 +631,10 @@ mod asm_differential {
             &SPEC,
             |b| reference::move_kept_x87(b[0], b[1]),
             |b| {
-                with_settings(b[1], |m| {
-                    super::move_kept_x87(b[0], m, crate::effects::setup::clock_at(b[0]));
+                hex(b[0], || {
+                    with_settings(b[1], |m| {
+                        super::move_kept_x87(m, crate::effects::setup::clock_at(b[0]));
+                    });
                 });
             },
         );
