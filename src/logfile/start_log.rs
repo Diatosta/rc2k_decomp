@@ -94,7 +94,7 @@ pub fn start_log() -> Result<(), BadInput> {
             M.version[2].get() as i32,
             (M.version[3].get() & 0xFFFF) as i32,
         ],
-        platform_text: c_text(crate::pointers::GamePtr::new(M.version_addr() + 0x14))?,
+        platform_text: c_text(crate::pointers::GamePtr::to(&M.version).offset(0x14))?,
         memory,
         free_kb: free,
     };

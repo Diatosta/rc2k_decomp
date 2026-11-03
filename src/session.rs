@@ -581,13 +581,6 @@ pub struct Machine {
     pub window: Dword,           // hWnd
 }
 
-impl Machine {
-    /// The Windows version record (`OSVERSIONINFOA`, 148 bytes).
-    pub fn version_addr(&self) -> u32 {
-        crate::pointers::game_address(self.version.as_ptr())
-    }
-}
-
 pub static MACHINE: Machine = Machine {
     has_mmx: Dword::new(0),
     ignore_mmx: Dword::new(0),

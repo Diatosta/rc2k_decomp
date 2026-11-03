@@ -20,7 +20,7 @@ pub fn disable_new_players() {
         return;
     }
     log(
-        VIEWER_PANEL.text_addr(texts::NET_DISABLE_NEW_PLAYERS),
+        VIEWER_PANEL.text_ptr(texts::NET_DISABLE_NEW_PLAYERS),
         false,
         2,
     );

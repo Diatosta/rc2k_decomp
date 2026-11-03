@@ -56,7 +56,7 @@ pub fn posted_or_called(code: fn() -> u32) -> u32 {
 
 /// The Rust version.
 pub fn find_sessions() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_FIND_SESSIONS), true, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_FIND_SESSIONS), true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
     }

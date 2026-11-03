@@ -22,7 +22,7 @@ use rc2k_core::net::lists;
 /// The Rust version (see the header): the provider's GUID, the connection's address, its
 /// short name.
 pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
         && [&NET.sp_serial, &NET.sp_modem]

@@ -20,7 +20,7 @@ use rc2k_core::net::lists::{self, Found};
 
 /// The Rust version (see the header): the session (none at the end) and the flags.
 pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
     log_hex(flags, false);
     if let Some(d) = desc {
         log_bytes(d.name.as_bytes(), false, 2);

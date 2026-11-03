@@ -21,7 +21,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn find_connections() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_FIND_CONNECTIONS), true, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
     if NET.receive_done.get() == 1 || !open_lobby::open_lobby()? {
         return Ok(false);
     }

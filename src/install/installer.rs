@@ -461,7 +461,7 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refused> {
     match place {
-        0x415304 => Ok(Place::At(crate::install::end_text_line::end_text_line(
+        0x415304 => Ok(Place::from(crate::install::end_text_line::end_text_line(
             cursor.into().game(),
         ))),
         _ => Err(BadInput("a text action that is not one of the installer's").into()),

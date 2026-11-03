@@ -31,12 +31,18 @@ impl<const N: usize> Run for Bytes<N> {
 pub enum Place {
     /// Byte `.1` of a typed buffer.
     In(&'static dyn Run, usize),
-    /// A game address (a pointer from the game's data).
-    At(u32),
+    /// A game address (a pointer from the game's data), or a bounded place in a store.
+    At(GamePtr),
 }
 
 impl From<u32> for Place {
     fn from(at: u32) -> Self {
+        Place::At(GamePtr::new(at))
+    }
+}
+
+impl From<GamePtr> for Place {
+    fn from(at: GamePtr) -> Self {
         Place::At(at)
     }
 }
@@ -54,7 +60,7 @@ impl Place {
     pub fn add(self, n: u32) -> Place {
         match self {
             Place::In(b, at) => Place::In(b, at.wrapping_add(n as usize)),
-            Place::At(a) => Place::At(a.wrapping_add(n)),
+            Place::At(a) => Place::At(a.offset(n)),
         }
     }
 
@@ -73,7 +79,7 @@ impl Place {
                 Self::inside(b, at, len)?;
                 Ok((0..len).map(|k| b.get(at + k)).collect())
             }
-            Place::At(a) => GamePtr::new(a).read_bytes(len, what),
+            Place::At(a) => a.read_bytes(len, what),
         }
     }
 
@@ -93,7 +99,7 @@ impl Place {
                 }
                 Ok(())
             }
-            Place::At(a) => GamePtr::new(a).write_bytes(data, what),
+            Place::At(a) => a.write_bytes(data, what),
         }
     }
 
@@ -107,7 +113,7 @@ impl Place {
                     .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
-            Place::At(a) => crate::files::cstring(GamePtr::new(a), what),
+            Place::At(a) => crate::files::cstring(a, what),
         }
     }
 
@@ -119,7 +125,7 @@ impl Place {
                 Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
                 GamePtr::to(b).offset(at as u32)
             }
-            Place::At(a) => GamePtr::new(a),
+            Place::At(a) => a,
         }
     }
 

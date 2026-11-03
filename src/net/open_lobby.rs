@@ -36,7 +36,7 @@ fn get(at: u32) -> Result<u32, BadInput> {
 
 /// The Rust version.
 pub fn open_lobby() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DLOBBY), true, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_DLOBBY), true, 2);
     if co_create(&NET.clsid_lobby, &NET.iid_lobby2a, &NET.lobby) != 0 {
         return Ok(false);
     }

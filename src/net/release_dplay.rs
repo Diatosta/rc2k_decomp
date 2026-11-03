@@ -14,11 +14,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 /// The Rust version.
 pub fn release_dplay() {
     if NET.dplay.get() != 0 {
-        crate::logfile::log_write::log_at(
-            VIEWER_PANEL.text_addr(texts::NET_DESTROY_DPLAY),
-            true,
-            2,
-        );
+        crate::logfile::log_write::log_at(VIEWER_PANEL.text_ptr(texts::NET_DESTROY_DPLAY), true, 2);
         crate::net::dp_objects::release(NET.dplay.get());
         NET.dplay.set(0);
     }

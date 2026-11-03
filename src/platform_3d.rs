@@ -754,11 +754,8 @@ pub fn release_textures() {
 pub fn release_all_textures() {
     flush();
     let what = "the release text";
-    let text = crate::files::cstring(
-        crate::pointers::GamePtr::new(VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES)),
-        what,
-    )
-    .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    let text = crate::files::cstring(VIEWER_PANEL.text_ptr(texts::SVM_RELEASE_TEXTURES), what)
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     crate::logfile::write_line::log_text(&text, true, 2);
     release_pool(1);
     release_pool(0);

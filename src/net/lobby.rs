@@ -111,7 +111,7 @@ pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
 }
 
 /// `logfile::log_write_l<level>[_nl]` on the text at the address `text`.
-pub fn log(text: u32, newline: bool, level: u8) {
+pub fn log(text: impl Into<crate::place::Place>, newline: bool, level: u8) {
     crate::logfile::log_write::log_at(text, newline, level);
 }
 
@@ -177,9 +177,7 @@ pub fn copy_printable(
             let rest = Place::In(b, at).read(b.len().saturating_sub(at), "a name to copy")?;
             crate::strings::copy_printable::printable_from(&rest, room)?
         }
-        Place::At(a) => {
-            crate::strings::copy_printable::printable(crate::pointers::GamePtr::new(a), room)?
-        }
+        Place::At(a) => crate::strings::copy_printable::printable(a, room)?,
     };
     to.into().write(&bytes, "a printable name")?;
     Ok(())

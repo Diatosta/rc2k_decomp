@@ -29,7 +29,7 @@ use rc2k_core::net::record;
 /// host, Escape, or the car not finished: the link ends).
 pub fn lets_rally() -> Result<bool, Refused> {
     use crate::race::sound_tables;
-    log(VIEWER_PANEL.text_addr(texts::NET_LETS_RALLY), true, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_LETS_RALLY), true, 2);
     NET.racing.set(1);
     let own = &NET.player_block(NET.player.get()).record;
     RACE_STATE.settings.race_mode.set(1);

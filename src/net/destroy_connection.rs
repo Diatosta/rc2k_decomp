@@ -21,7 +21,7 @@ pub fn destroy_connection() -> Result<(), Refused> {
     if NET.dplay.get() != 0 {
         NET.session.set(0);
         crate::logfile::log_write::log_at(
-            VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION),
+            VIEWER_PANEL.text_ptr(texts::NET_DESTROY_CONNECTION),
             true,
             2,
         );

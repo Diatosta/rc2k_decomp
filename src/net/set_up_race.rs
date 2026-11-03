@@ -14,7 +14,7 @@
 //! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::lobby::{log, log_int_nl};
+use crate::net::lobby::{log_bytes, log_int_nl};
 use crate::net::store::NET;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -82,10 +82,10 @@ pub fn set_up_race() -> Result<(), Refused> {
     for (car, number) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.start_numbers) {
         car.start_slot_value.set(number.get());
     }
-    log(crate::pointers::game_address(RULE.as_ptr()), true, 1);
-    log(crate::pointers::game_address(START.as_ptr()), true, 1);
+    log_bytes(RULE.to_bytes(), true, 1);
+    log_bytes(START.to_bytes(), true, 1);
     for (label, value) in COUNTS {
-        log(crate::pointers::game_address(label.as_ptr()), false, 1);
+        log_bytes(label.to_bytes(), false, 1);
         let value = match value {
             Count::RaceCars => RACE_VIEW.race_cars.get(),
             Count::Players => RACE_VIEW.players.get(),
@@ -95,7 +95,7 @@ pub fn set_up_race() -> Result<(), Refused> {
         log_int_nl(value, 1);
     }
     { crate::race::stage_loading::load_stage() }?;
-    log(crate::pointers::game_address(COMPLETE.as_ptr()), true, 1);
-    log(crate::pointers::game_address(RULE_2.as_ptr()), true, 1);
+    log_bytes(COMPLETE.to_bytes(), true, 1);
+    log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())
 }

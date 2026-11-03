@@ -17,7 +17,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 /// The Rust version.
 pub fn init_connection(connection: u32) -> Result<bool, Refused> {
     log(
-        VIEWER_PANEL.text_addr(texts::NET_INIT_CONNECTION_INDEX),
+        VIEWER_PANEL.text_ptr(texts::NET_INIT_CONNECTION_INDEX),
         false,
         2,
     );
@@ -32,7 +32,7 @@ pub fn init_connection(connection: u32) -> Result<bool, Refused> {
             (!address.is_empty()).then_some(&address[..]),
         )
     };
-    log(VIEWER_PANEL.text_addr(texts::NET_INIT), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)
 }

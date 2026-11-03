@@ -94,7 +94,7 @@ pub static VIEWER_PANEL: InGroup = InGroup;
 /// its unaligned values.
 const TAIL: usize = 0x5C2CE8;
 
-/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_addr`).
+/// The texts in `unknown_3cc`, by IDA's address (for `ViewerPanelBlock::text_ptr`).
 pub mod texts {
     /// "SVM: Release all textures"
     pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
@@ -143,9 +143,9 @@ pub mod texts {
 impl ViewerPanelBlock {
     /// Where the byte at IDA `ida` is, inside the untyped tail `unknown_3cc` (the texts of
     /// `texts`, the unaligned values below).
-    pub fn text_addr(&self, ida: usize) -> u32 {
+    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((TAIL..TAIL + 4 * 167).contains(&ida));
-        self.unknown_3cc[0].addr() + (ida - TAIL) as u32
+        crate::pointers::GamePtr::to(&self.unknown_3cc).offset((ida - TAIL) as u32)
     }
 
     /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
@@ -280,14 +280,10 @@ mod tests {
             for (n, c) in v.unknown_3cc.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
-            let before: Vec<u8> = crate::pointers::GamePtr::new(v.text_addr(0x5C2CE8))
-                .read_bytes(24, "the tail")
-                .unwrap();
+            let before: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
             let value = 0x1122_3344 + k as u32;
             v.tail_write(ida, value);
-            let after: Vec<u8> = crate::pointers::GamePtr::new(v.text_addr(0x5C2CE8))
-                .read_bytes(24, "the tail")
-                .unwrap();
+            let after: Vec<u8> = v.text_ptr(0x5C2CE8).read_bytes(24, "the tail").unwrap();
             let mut want = before.clone();
             want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
             assert_eq!(after, want, "{ida:#x}");

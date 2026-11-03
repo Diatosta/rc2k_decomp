@@ -23,7 +23,7 @@ use rc2k_core::net::address::{self, Provider};
 
 /// The Rust version (see the header).
 pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_DPCA), true, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_DPCA), true, 2);
     if NET.lobby.get() == 0 {
         return Ok(false);
     }

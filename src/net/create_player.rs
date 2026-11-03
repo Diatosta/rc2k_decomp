@@ -19,7 +19,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version (see the header).
 pub fn create_player() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_CREATE_PLAYER), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_PLAYER), false, 2);
     let name = NET.player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(

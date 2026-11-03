@@ -37,7 +37,7 @@ pub fn posted_open_host() -> u32 {
 
 /// The Rust version.
 pub fn host_session() -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_HOST), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
     log_bytes(&NET.machine_name.read(), true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
@@ -56,7 +56,7 @@ pub fn host_session() -> Result<bool, Refused> {
     finish(
         posted_open_host,
         crate::net::create_group::create_group,
-        VIEWER_PANEL.text_addr(texts::NET_HOST_COMPLETE),
+        VIEWER_PANEL.text_ptr(texts::NET_HOST_COMPLETE),
     )
 }
 
@@ -66,10 +66,10 @@ pub fn host_session() -> Result<bool, Refused> {
 pub fn finish(
     posted: fn() -> u32,
     then: fn() -> Result<bool, Refused>,
-    done: u32,
+    done: crate::pointers::GamePtr,
 ) -> Result<bool, Refused> {
     let result = posted_or_called(posted);
-    log(VIEWER_PANEL.text_addr(texts::NET_OPEN), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {

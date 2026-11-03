@@ -21,12 +21,14 @@ pub fn keep_player_settings(cars: u32) -> Result<(), Refused> {
         return Err(BadInput("no saved cars").into());
     }
     for n in 0..PLAYERS {
-        let to = cars.wrapping_add(n * CAR_LEN);
+        // The saved cars lie in the savegame file's buffer (`saves::load_savegame`'s cursor).
+        let file = GamePtr::to(&crate::saves::write_savegame_slot::SAVE_GAMES.file);
+        let to = file.offset(cars.wrapping_add(n * CAR_LEN).wrapping_sub(file.addr()));
         let player = crate::menu::standings::player(n).get().to_le_bytes();
         let mut kept = Vec::new();
         rc2k_core::saves::cars::keep_settings(&player, &mut |at, b| kept.push((at, b)))?;
         for (at, b) in kept {
-            GamePtr::new(to.wrapping_add(at as u32)).write(b, "a saved car's settings")?;
+            to.offset(at as u32).write(b, "a saved car's settings")?;
         }
     }
     Ok(())

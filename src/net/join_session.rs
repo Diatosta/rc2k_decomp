@@ -28,7 +28,7 @@ fn join_group() -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn join_session(number: u32) -> Result<bool, Refused> {
-    log(VIEWER_PANEL.text_addr(texts::NET_JOIN_SESSION), false, 2);
+    log(VIEWER_PANEL.text_ptr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
     if NET.dplay.get() == 0 {
         return Ok(false);
@@ -45,6 +45,6 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
     finish(
         posted_open_join,
         join_group,
-        VIEWER_PANEL.text_addr(texts::NET_JOIN_COMPLETE),
+        VIEWER_PANEL.text_ptr(texts::NET_JOIN_COMPLETE),
     )
 }

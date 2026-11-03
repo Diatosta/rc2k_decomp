@@ -27,7 +27,7 @@ pub fn place_pieces() -> Result<(), Refused> {
         let (place, title) = if the_box == 0 {
             (title_box, true)
         } else {
-            (Place::At(the_box), the_box == title_box.game())
+            (Place::from(the_box), the_box == title_box.game())
         };
         crate::install::place_row::place_row(at(first), n, place, title, the_box)?;
     }
