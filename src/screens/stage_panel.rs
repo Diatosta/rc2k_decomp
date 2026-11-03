@@ -4,7 +4,7 @@
 //! and which best-time table the record rows use.
 
 use crate::errors::Refused;
-use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
+use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
 use crate::records::trakpak_entry::record_entry;
@@ -71,11 +71,10 @@ pub fn build_second_heading(record: u32) -> Result<(), Refused> {
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
 pub fn draw_stage_body(
     record: u32,
-    marker_palette: u32,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_stage_body_in(record, marker_palette, keep_entry_34, HEADING_FONT, canvas)
+    draw_stage_body_in(record, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
@@ -83,7 +82,6 @@ pub fn draw_stage_body(
 /// `stru_51E5C4`.
 pub fn draw_stage_body_in(
     record: u32,
-    marker_palette: u32,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
@@ -91,7 +89,7 @@ pub fn draw_stage_body_in(
     // Converted: `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
-    for call in marker_calls(record, marker_palette, sprite_table())? {
+    for call in marker_calls(record)? {
         set_marker_position(&call);
         canvas.blit_glyph(call)?;
     }

@@ -59,10 +59,9 @@ pub fn event_title() -> Result<u32, crate::errors::BadInput> {
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
 pub fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-    let (record, section) = event_stage()?;
+    let (record, _) = event_stage()?;
     draw_stage_heading(record, canvas)?;
-    // ebx, the markers' palette, still holds the section here.
-    draw_stage_body(record, section, false, canvas)?;
+    draw_stage_body(record, false, canvas)?;
     draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
 }
 

@@ -1,7 +1,8 @@
 //! The menu's buttons (converted 2026-10-20 from `screens::draw_button` 0x4688A1,
 //! `draw_button_highlighted` 0x468BBE and `draw_button_alt` 0x468EDD): a left end, a run of
 //! 32-pixel middle pieces and a right end. The pieces are placed here; drawing them is the
-//! caller's (`blit(sprite, x, y, palette)`, the palette always the button's x).
+//! caller's (`blit(sprite, x, y)`; the original hands each the button's x as its palette,
+//! which the sprites, direct colour, never look at).
 
 /// Where x is: the button's middle, its left edge, or where its right end piece goes.
 pub const ALIGN_CENTRE: u32 = 1;
@@ -41,8 +42,7 @@ pub enum Error<E> {
 struct Pen<'a, E> {
     x: i32,
     y: i32,
-    palette: u32,
-    blit: &'a mut dyn FnMut(u32, i32, i32, u32) -> Result<(), E>,
+    blit: &'a mut dyn FnMut(u32, i32, i32) -> Result<(), E>,
 }
 
 impl<E> Pen<'_, E> {
@@ -51,7 +51,7 @@ impl<E> Pen<'_, E> {
     }
 
     fn put_at(&mut self, sprite: u32, x: i32, y: i32) -> Result<(), Error<E>> {
-        (self.blit)(sprite, x, y, self.palette).map_err(Error::Draw)
+        (self.blit)(sprite, x, y).map_err(Error::Draw)
     }
 
     fn step(&mut self, by: i32) {
@@ -183,14 +183,9 @@ pub fn draw<E>(
     align: u32,
     sprites: [u32; 3],
     borrowed: Borrowed,
-    blit: &mut dyn FnMut(u32, i32, i32, u32) -> Result<(), E>,
+    blit: &mut dyn FnMut(u32, i32, i32) -> Result<(), E>,
 ) -> (i32, Result<(), Error<E>>) {
-    let mut pen = Pen {
-        x,
-        y,
-        palette: x as u32,
-        blit,
-    };
+    let mut pen = Pen { x, y, blit };
     let drawn = pen.button(kind, width, align, sprites, borrowed);
     (pen.x, drawn)
 }
@@ -216,7 +211,7 @@ mod tests {
             align,
             [1, 2, 3],
             Borrowed::default(),
-            &mut |s, x, _, _| {
+            &mut |s, x, _| {
                 drawn.push((s, x));
                 Ok(())
             },

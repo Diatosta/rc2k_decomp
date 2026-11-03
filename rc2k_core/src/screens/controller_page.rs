@@ -84,8 +84,8 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     }
     let sensitivity = c.sensitivity.wrapping_add(0x3A1);
     s.keep(Work::Seconds, sensitivity);
-    let out = s.string(Font::Value, sensitivity, 0x1BC, 0x126)?;
-    s.sprite(5, 0x1B8, 0x14C, out.after)?;
+    s.string(Font::Value, sensitivity, 0x1BC, 0x126)?;
+    s.sprite(5, 0x1B8, 0x14C)?;
     let (right, left) = (s.clip_edge(Edge::Right)?, s.clip_edge(Edge::Left)?);
     let a = c.first;
     let first_left = 0x1C0u32.wrapping_add(a).wrapping_sub(4);
@@ -96,12 +96,12 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     let t = 100u32.wrapping_sub(c.second);
     let second_left = 0x1BCu32.wrapping_add(t).wrapping_sub(4);
     let done = (|| {
-        s.sprite(3, 0x1BC, 0x14C, first_left)?;
+        s.sprite(3, 0x1BC, 0x14C)?;
         s.set_clip_edge(Edge::Right, 0x285u32.wrapping_sub(t).wrapping_sub(1))?;
         s.keep(Work::SecondRight, 0x285u32.wrapping_sub(t));
         s.set_clip_edge(Edge::Left, 0x1BCu32.wrapping_add(t))?;
         s.keep(Work::SecondLeft, second_left);
-        s.sprite(4, 0x1BC, 0x14C, second_left)
+        s.sprite(4, 0x1BC, 0x14C)
     })();
     s.set_clip_edge(Edge::Left, left)?;
     s.set_clip_edge(Edge::Right, right)?;
@@ -112,7 +112,7 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
         (6, second_left),
         (6, 0x285u32.wrapping_sub(t)),
     ] {
-        s.sprite(glyph, x as i32, 0x14C, second_left)?;
+        s.sprite(glyph, x as i32, 0x14C)?;
     }
     s.keep(Work::Buttons, c.buttons);
     let x = c.stick_x;
@@ -134,19 +134,19 @@ pub fn controller_page<S: Screen<Font = Font, Work = Work>>(
     };
     s.keep(Work::Place, place);
     let glyph = if c.buttons != 0 { 9 } else { 8 };
-    s.sprite(glyph, place as i32, 0x156, c.buttons)
+    s.sprite(glyph, place as i32, 0x156)
 }
 
 /// The band (only while `on`, `dword_7554E4` 1): sprite 0xA0 (the background picture) at
 /// (0, 0) with the clip's top and bottom at 0xCB and 0x1C6 for that one blit, then put back.
-pub fn background_band<S: Screen>(s: &mut S, on: bool, palette: u32) -> Result<(), S::Error> {
+pub fn background_band<S: Screen>(s: &mut S, on: bool) -> Result<(), S::Error> {
     if !on {
         return Ok(());
     }
     let (top, bottom) = (s.clip_edge(Edge::Top)?, s.clip_edge(Edge::Bottom)?);
     s.set_clip_edge(Edge::Top, 0xCB)?;
     s.set_clip_edge(Edge::Bottom, 0x1C6)?;
-    let drawn = s.sprite(0xA0, 0, 0, palette);
+    let drawn = s.sprite(0xA0, 0, 0);
     s.set_clip_edge(Edge::Bottom, bottom)?;
     s.set_clip_edge(Edge::Top, top)?;
     drawn

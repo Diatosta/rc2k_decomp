@@ -30,9 +30,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-/// What is left in ebx when the markers are drawn: 1 * 0x5C, from addressing menu item 1.
-const MARKER_PALETTE: u32 = 0x5C;
-
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
 pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
     let Some(sel) = selection()? else {
@@ -64,7 +61,7 @@ pub fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused
     item_1.set(table_title);
 
     build_second_heading(sel.record)?;
-    draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
+    draw_stage_body(sel.record, true, canvas)?;
     draw_records_for_group(sel.group, sel.record, canvas)
 }
 

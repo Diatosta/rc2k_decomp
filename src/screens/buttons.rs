@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::item_sprites_store::{ITEM_SPRITES, ItemSprite};
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -129,7 +128,6 @@ pub fn draw_button(
     DRAW_WORK.middle.set(sprites[2]);
     // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
-    let table = sprite_table();
     let borrowed = Borrowed {
         y: PLAIN.y.get() as i32,
         x: PLAIN.x.get() as i32,
@@ -146,7 +144,7 @@ pub fn draw_button(
         align,
         sprites,
         borrowed,
-        &mut |glyph, x, y, palette| canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table)),
+        &mut |glyph, x, y| canvas.blit_glyph(BlitCall::sprite(glyph, x, y)),
     );
     kind.x.set(end as u32);
     match drawn {
@@ -178,16 +176,20 @@ pub fn draw_item_button(
 }
 
 /// The other four: a button as wide as the item's text, measured with the item's font at
-/// +0x4C, plus 12. `measure_x` is the x the measuring is given: the caller's ecx.
+/// +0x4C, plus 12. The original measures from whatever x its caller left in ecx; a measured
+/// width does not depend on it, so it is measured from 0. Refused: a measuring font that
+/// does not only measure (it would draw the text at that x).
 pub fn draw_text_button(
     kind: &Kind,
     align: u32,
     item: &crate::menu::menus_store::MenuItem,
-    measure_x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let font = item.measuring_font.get().game_ptr();
-    let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
+    let font = item.measuring_font.get();
+    if font.object().mode.get() != rc2k_core::text::MODE_MEASURE {
+        return Err(crate::errors::BadInput("a text button's measuring font that draws").into());
+    }
+    let measured = measure_string_by_id_at(item.string.get(), font.game_ptr(), 0, canvas)?;
     draw_button(
         kind,
         rc2k_core::screens::buttons::text_width(measured.width),

@@ -543,14 +543,9 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::StepCarousel => Ok(crate::menu::step_carousel::step_carousel()?),
-        ScreenFn::DrawBackgroundBand => {
-            // The original's palette is the loop's leftover ebx (the saved highlight, a small
-            // number): never read, or it would fault. Null keeps that so.
-            crate::screens::draw_background_band::draw_background_band(
-                0,
-                &mut crate::text::draw_text::GameCanvas,
-            )
-        }
+        ScreenFn::DrawBackgroundBand => crate::screens::draw_background_band::draw_background_band(
+            &mut crate::text::draw_text::GameCanvas,
+        ),
         ScreenFn::GearingText => {
             { crate::screens::gearing_text::gearing_text() }?;
             Ok(())

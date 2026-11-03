@@ -113,9 +113,9 @@ pub fn volume<S: Screen<Font = Font, Work = Work>>(
     volumes: [u32; 8],
 ) -> Result<(), S::Error> {
     s.keep(Work::Seconds, id);
-    let mut palette = s.string(Font::Value, id, 0x1EA, 0x1B3)?.after;
+    s.string(Font::Value, id, 0x1EA, 0x1B3)?;
     for n in 0..8 {
-        s.sprite(0x19, 0x222, 0xDA + 0x1C * n, palette)?;
+        s.sprite(0x19, 0x222, 0xDA + 0x1C * n)?;
     }
     for (n, v) in volumes.into_iter().enumerate() {
         let percent = if v == 0 {
@@ -138,9 +138,9 @@ pub fn volume<S: Screen<Font = Font, Work = Work>>(
     }
     for n in 0..8 {
         let y = 0xD9 + 0x1C * n;
-        s.sprite(0x1B, 0x1E6, y, palette)?;
+        s.sprite(0x1B, 0x1E6, y)?;
         s.string(Font::Small, 0x547, 0x203, y + 4)?;
-        palette = s.string(Font::Small, 0x548, 0x2B7, y + 4)?.after;
+        s.string(Font::Small, 0x548, 0x2B7, y + 4)?;
     }
     Ok(())
 }
@@ -179,9 +179,8 @@ pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(
     title.push(0);
     s.store(Buffer::Cells, &title)?;
     s.draw(Font::Title, Buffer::Cells, 0x190, 0x14)?;
-    let mut palette = 0;
     for (id, x, y, font) in CHECKLIST_LINES {
-        palette = s.string(font, id, x, y)?.after;
+        s.string(font, id, x, y)?;
     }
     s.bar(Bar {
         x: 0x128,
@@ -191,7 +190,7 @@ pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(
         end_glyph: 0x87,
         percent,
     })?;
-    s.sprite(0x88, 0xEC, 0x1E2, palette)?;
+    s.sprite(0x88, 0xEC, 0x1E2)?;
     s.string(Font::Small, 0x4AE, 0x10A, 0x1E6)?;
     s.string(Font::Small, 0x4AF, 0x217, 0x1E6)?;
     s.keep(Work::CheckX, 0x190);
@@ -201,7 +200,7 @@ pub fn options_checklist<S: Screen<Font = Font, Work = Work>>(
         let v = t ^ 1;
         let glyph = 0x9E_u32.wrapping_add(v);
         s.keep(Work::Glyph, glyph);
-        s.sprite(glyph, 0x190, y as i32, v)?;
+        s.sprite(glyph, 0x190, y as i32)?;
         y += 0x1B;
         s.keep(Work::Scratch, y);
     }
@@ -243,10 +242,7 @@ mod tests {
         }
         fn string(&mut self, f: Font, id: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} s{id:x} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: id,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn string_bytes(&mut self, id: u32) -> Vec<u8> {
             format!("<{id:x}>").into_bytes()
@@ -254,8 +250,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, w: Work, v: u32) {
@@ -290,7 +286,7 @@ mod tests {
         let mut s = Record::default();
         options_checklist(&mut s, 1, 30, &[1, 0]).unwrap();
         assert_eq!(s.0[0], "Title \"<190> 2\\0\" 0x190 0x14");
-        assert!(s.0.contains(&"sprite 0x9e 0x190 0x82 0x0".to_string()));
-        assert!(s.0.contains(&"sprite 0x9f 0x190 0x9d 0x1".to_string()));
+        assert!(s.0.contains(&"sprite 0x9e 0x190 0x82".to_string()));
+        assert!(s.0.contains(&"sprite 0x9f 0x190 0x9d".to_string()));
     }
 }

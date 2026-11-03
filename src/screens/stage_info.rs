@@ -53,7 +53,6 @@ pub fn draw_stage_best_and_fastest(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas),
             best,
             top,
-            ARCADE_GAME.level.get(),
             CarRow::Second,
             crate::strings::append_time::show_hours(),
             units,
@@ -80,7 +79,6 @@ pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
     crate::screens::stage_panel::draw_stage_body_in(
         record,
-        ARCADE_GAME.level.get(),
         true,
         crate::gfx::typefaces::fonts::TIME,
         canvas,

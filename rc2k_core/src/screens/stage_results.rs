@@ -54,8 +54,6 @@ pub struct Fastest<T> {
     pub nation: u32,
     pub name: T,
     pub car: u32,
-    /// The first sprite's palette (what the original's ebx holds there).
-    pub palette: u32,
     /// The speed as formatted (no NUL).
     pub speed: Vec<u8>,
 }
@@ -103,14 +101,14 @@ pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
         let out = s.line(Font::Rank, &decimal(rank, Pad::None), 0xC8, y)?;
         y = out.y;
         s.keep(Work::RowY, y as u32);
-        s.sprite(flag_glyph(e.nation), 0xD2, y, out.after)?;
-        s.sprite(car_glyph(e.car), 0x1CC, y, out.after)?;
+        s.sprite(flag_glyph(e.nation), 0xD2, y)?;
+        s.sprite(car_glyph(e.car), 0x1CC, y)?;
         y = y.wrapping_add(0x19);
     }
     s.string(Font::Fastest, 0x1A2, 0x142, 0x1F1)?;
-    s.sprite(flag_glyph(fastest.nation), 0x14F, 0x1F1, fastest.palette)?;
-    let out = s.text(Font::Rows, fastest.name, 0x172, 0x1F1)?;
-    s.sprite(car_glyph(fastest.car), 0x225, 0x1F1, out.after)?;
+    s.sprite(flag_glyph(fastest.nation), 0x14F, 0x1F1)?;
+    s.text(Font::Rows, fastest.name, 0x172, 0x1F1)?;
+    s.sprite(car_glyph(fastest.car), 0x225, 0x1F1)?;
     s.line(Font::Rows, &fastest.speed, 0x262, 0x1F1)?;
     Ok(())
 }
@@ -132,7 +130,6 @@ mod tests {
             self.0.push(format!("{f:?} n{t} {x:#x} {y:#x}"));
             Ok(Drawn {
                 y: y + 1,
-                after: 0x500 + t,
                 ..Drawn::default()
             })
         }
@@ -147,7 +144,6 @@ mod tests {
             ));
             Ok(Drawn {
                 y,
-                after: 0x77,
                 ..Drawn::default()
             })
         }
@@ -174,8 +170,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, w: Work, v: u32) {
@@ -202,7 +198,6 @@ mod tests {
             nation: 3,
             name: 9,
             car: 2,
-            palette: 0,
             speed: b"99".to_vec(),
         };
         let mut s = Record::default();
@@ -217,7 +212,7 @@ mod tests {
         .unwrap();
         assert_eq!(s.0[1], "Rows n0 0xf0 0xf0");
         assert!(s.0.contains(&"keep Gap 100".to_string()));
-        assert!(s.0.contains(&"sprite 0x5c 0x1cc 0xf1 0x77".to_string()));
+        assert!(s.0.contains(&"sprite 0x5c 0x1cc 0xf1".to_string()));
         assert_eq!(s.0.last().unwrap(), "Rows \"99\\0\" 0x262 0x1f1");
         let mut s = Record::default();
         let mut code = |a: u32, _| format!("C{a}").into_bytes();

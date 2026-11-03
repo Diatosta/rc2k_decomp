@@ -89,16 +89,15 @@ pub fn duel_result<S: Screen<Font = Font, Work = Work>>(
         }
     }
     s.line(Font::Big, &players[0].speed, 0x135, 0x159)?;
-    let palette = s.line(Font::Big, &players[1].speed, 0x236, 0x159)?.after;
+    s.line(Font::Big, &players[1].speed, 0x236, 0x159)?;
     for (p, y) in order.iter().zip([0xD0, 0xE7]) {
-        s.sprite(flag_glyph(p.nation), 0x135, y, palette)?;
+        s.sprite(flag_glyph(p.nation), 0x135, y)?;
     }
-    let mut palette = 0;
     for (p, y) in order.iter().zip([0xD0, 0xE7]) {
-        palette = s.text(Font::Big, p.name, 0x152, y)?.after;
+        s.text(Font::Big, p.name, 0x152, y)?;
     }
     for (p, y) in order.iter().zip([0xCF, 0xE7]) {
-        s.sprite(car_glyph(p.car), 0x1FC, y, palette)?;
+        s.sprite(car_glyph(p.car), 0x1FC, y)?;
     }
     s.line(Font::Big, &time(f.best[0], show_hours), 0x135, 0x142)?;
     s.line(Font::Big, &time(f.best[1], show_hours), 0x236, 0x142)?;
@@ -129,10 +128,7 @@ mod tests {
         type Error = Invalid;
         fn text(&mut self, f: Font, t: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} n{t} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: 0x500 + t,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn store(&mut self, _: Buffer, b: &[u8]) -> Result<(), Invalid> {
             self.1 = b.to_vec();
@@ -143,10 +139,7 @@ mod tests {
                 "{f:?} {:?} {x:#x} {y:#x}",
                 String::from_utf8_lossy(&self.1)
             ));
-            Ok(Drawn {
-                after: 0x700 + x as u32,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn draw_time(&mut self, f: Font, _: Buffer, x: i32, y: i32) -> Result<(), Invalid> {
             self.0.push(format!(
@@ -168,8 +161,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, w: Work, v: u32) {
@@ -202,8 +195,8 @@ mod tests {
         duel_result(&mut s, &players, 0x300, b"stage\0", &f, false).unwrap();
         assert!(s.0.contains(&"Small s216 0xfd 0xd0".to_string()));
         assert!(s.0.contains(&"keep First 4".to_string()));
-        assert!(s.0.contains(&"sprite 0x1e 0x135 0xd0 0x936".to_string()));
-        assert!(s.0.contains(&"sprite 0x5d 0x1fc 0xcf 0x501".to_string()));
+        assert!(s.0.contains(&"sprite 0x1e 0x135 0xd0".to_string()));
+        assert!(s.0.contains(&"sprite 0x5d 0x1fc 0xcf".to_string()));
         assert!(s.0.contains(&"Big n2 0x152 0xd0".to_string()));
         assert_eq!(s.0.last().unwrap(), "Big \"2\\0\" 0x2c8 0x1cd");
     }

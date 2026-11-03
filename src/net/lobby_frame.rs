@@ -59,20 +59,14 @@ pub fn lobby_frame() -> Result<(), Refused> {
     copy_picture()?;
     let mut canvas = GameCanvas;
     let mut y = 0x6F;
-    // The blits are handed the palette (ebx) the drawing before them leaves: the text
-    // pointer a heading or a name leaves, or the text buffer.
-    let mut palette = 0;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
-        let out = {
-            crate::text::draw_string_by_id::draw_string_by_id_at(
-                id,
-                HEADING_FONT.game_ptr(),
-                x,
-                y as i32,
-                &mut canvas,
-            )
-        }?;
-        palette = out.text.addr();
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            id,
+            HEADING_FONT.game_ptr(),
+            x,
+            y as i32,
+            &mut canvas,
+        )?;
     }
     y += 0x1D;
     if NET.players.get() != 0 {
@@ -85,12 +79,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         for n in 0..NET.players.get() {
             let block = &NET.sorted[n as usize];
             let mut x = 0x18;
-            blit(
-                screens::flag_sprite(block.record.head.get(3)),
-                x,
-                y,
-                palette,
-            )?;
+            blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
             x += 0x28;
             let mut cursor = Cursor::text();
             cursor.string(&block.name);
@@ -100,22 +89,15 @@ pub fn lobby_frame() -> Result<(), Refused> {
             } else {
                 NAME_FONT
             };
-            let name = {
-                crate::text::draw_text::draw_text_at(
-                    font.game_ptr(),
-                    crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
-                    x as i32,
-                    y as i32,
-                    &mut canvas,
-                )
-            }?;
-            x += 0x14A;
-            blit(
-                screens::car_sprite(block.record.head.get(1)),
-                x,
-                y + 1,
-                name.text.addr(),
+            crate::text::draw_text::draw_text_at(
+                font.game_ptr(),
+                crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
+                x as i32,
+                y as i32,
+                &mut canvas,
             )?;
+            x += 0x14A;
+            blit(screens::car_sprite(block.record.head.get(1)), x, y + 1)?;
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
             use std::sync::atomic::Ordering::Relaxed;
@@ -169,8 +151,6 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 )
             }?;
             SHOW_HOURS.store(kept_hours, Relaxed);
-            // The next row's blit gets the text buffer's address.
-            palette = TEXT_BUFFER.text.addr();
             y = y.wrapping_add(NAME_FONT.object().line_height.get());
         }
     }

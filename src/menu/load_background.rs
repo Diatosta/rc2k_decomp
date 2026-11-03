@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
 use crate::gfx::screen_state::SCREEN_MODE;
 
 use crate::gfx::convert_picture::convert_picture_now;
@@ -28,10 +27,8 @@ const FRAME_SPRITE: u32 = 0xA0;
 
 // ---- Rust version ----
 
-/// `palette` is ebx at entry.
 pub fn load_background(
     path: &dyn crate::session::TextPlace,
-    palette: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Whether the file was read is not looked at.
@@ -39,6 +36,6 @@ pub fn load_background(
     convert_picture_now()?;
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
-    { canvas.blit_glyph(BlitCall::new(FRAME_SPRITE, 0, 0, palette, sprite_table())) }?;
+    { canvas.blit_glyph(BlitCall::sprite(FRAME_SPRITE, 0, 0)) }?;
     Ok(())
 }

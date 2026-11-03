@@ -132,10 +132,8 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
     for (row, r) in rows.iter().enumerate() {
         s.spaced(Font::Small, &r.speed, 0x25A + dx, y(row))?;
     }
-    let line = s.buffer_address(Buffer::Line);
-    let mut palette = line;
     for (row, r) in rows.iter().enumerate() {
-        s.sprite(flag_glyph(r.nation), 0x7F + dx, y(row), palette)?;
+        s.sprite(flag_glyph(r.nation), 0x7F + dx, y(row))?;
     }
     for (row, r) in rows.iter().enumerate() {
         let none = if row == 0 && layout.first_time_signed {
@@ -144,7 +142,7 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
             r.time == NO_TIME
         };
         if none {
-            palette = s.string(Font::Small, 0x4FA, 0x1B8, y(row))?.after;
+            s.string(Font::Small, 0x4FA, 0x1B8, y(row))?;
         } else {
             let x = if row == 2 {
                 layout.third_time_x
@@ -152,13 +150,12 @@ pub fn players_results<S: Screen<Font = Font, Work = Work>>(
                 0x1E4 + dx
             };
             s.time_line(Font::Small, &time(r.time, page.show_hours), x, y(row))?;
-            palette = line;
         }
     }
     for (row, r) in rows.iter().enumerate() {
-        s.sprite(car_glyph(r.car), 0x141 + dx, y(row), palette)?;
+        s.sprite(car_glyph(r.car), 0x141 + dx, y(row))?;
         if row == 2 && layout.third_row_extra {
-            s.sprite(page.extra_glyph, 0x141 + dx, y(row), palette)?;
+            s.sprite(page.extra_glyph, 0x141 + dx, y(row))?;
         }
     }
     let first = rows[0].time;
@@ -204,15 +201,14 @@ pub fn standings<S: Screen<Font = Font, Work = Work>>(
         s.string(Font::Rows, id, x, 0xE7)?;
     }
     let y = |row: usize| 0xFE + 0x17 * row as i32;
-    let mut palette = 0;
     for (row, r) in rows.iter().enumerate() {
-        palette = s.text(Font::Rows, r.name, 0x132, y(row))?.after;
+        s.text(Font::Rows, r.name, 0x132, y(row))?;
     }
     for (row, r) in rows.iter().enumerate() {
-        s.sprite(flag_glyph(r.nation), 0x114, y(row), palette)?;
+        s.sprite(flag_glyph(r.nation), 0x114, y(row))?;
     }
     for (row, r) in rows.iter().enumerate() {
-        s.sprite(car_glyph(r.car), 0x1DA, y(row), palette)?;
+        s.sprite(car_glyph(r.car), 0x1DA, y(row))?;
     }
     for row in 0..rows.len() {
         s.string(Font::Rows, 0x4FE + row as u32, 0xEA, y(row))?;
@@ -265,10 +261,7 @@ mod tests {
         }
         fn string(&mut self, f: Font, id: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} s{id:x} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: 0x900 + id,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn string_bytes(&mut self, _: u32) -> Vec<u8> {
             unreachable!()
@@ -276,8 +269,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, w: Work, v: u32) {
@@ -323,11 +316,11 @@ mod tests {
         };
         let mut s = Record::default();
         players_results(&mut s, &WITHOUT_POINTS, &page, &rows).unwrap();
-        assert!(s.0.contains(&"sprite 0x1c 0x9d 0xfe 0x1000".to_string()));
+        assert!(s.0.contains(&"sprite 0x1c 0x9d 0xfe".to_string()));
         assert!(s.0.contains(&"Small s4fa 0x1b8 0x115".to_string()));
         // The third row's time last: its palette is the line buffer.
-        assert!(s.0.contains(&"sprite 0x46 0x15f 0x12c 0x1000".to_string()));
-        assert!(s.0.contains(&"sprite 0x77 0x15f 0x12c 0x1000".to_string()));
+        assert!(s.0.contains(&"sprite 0x46 0x15f 0x12c".to_string()));
+        assert!(s.0.contains(&"sprite 0x77 0x15f 0x12c".to_string()));
         assert!(s.0.contains(&"keep Gap 500".to_string()));
         assert!(!s.0.iter().any(|l| l.contains("0x2bb")));
         let mut s = Record::default();

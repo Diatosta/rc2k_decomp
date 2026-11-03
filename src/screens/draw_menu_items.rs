@@ -1,7 +1,7 @@
 //! `screens::draw_menu_items` (0x471D0A): draws the items of a menu, each a picture or a
 //! button with a text, the highlighted one with pulsing colours.
 //!
-//! In:  edi = the menu; ebx and ecx are used as they come (see below)
+//! In:  edi = the menu; ebx and ecx are handed on as they come (see below)
 //! Out: every register preserved
 //! Items are 0x5C bytes after a 4-byte head and end with -1; the first is drawn without
 //! being checked for the end. An item is the highlighted one when its type (+0x10) equals
@@ -18,7 +18,8 @@
 //! 0xFFFFFFAA. The sprite's palette is the sprite number itself for a plain item and, for
 //! a highlighted one, whatever ebx holds: the font of the item before, or the caller's ebx
 //! for the first item. The measuring of the text buttons is given ecx as its x: the text x
-//! of the item before, or the caller's ecx.
+//! of the item before, or the caller's ecx. Neither is looked at (the sprites are direct
+//! colour, a measured width does not depend on its x), so neither is passed here.
 //!
 //! The text (string +0x14, `draw_menu_item_text` with the spacing flag at +0x58) goes at the
 //! item's +0 and +4 minus 3 for the three button kinds (4 further left for the right-aligned
@@ -46,11 +47,8 @@ const ITEM_LIMIT: u32 = 256;
 
 // ---- Rust version ----
 
-/// `ebx` and `ecx` are those registers at entry.
 pub fn draw_menu_items(
     menu: crate::menu::menus_store::MenuId,
-    ebx: u32,
-    ecx: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let all = menu.items();
@@ -91,13 +89,7 @@ pub fn draw_menu_items(
     let mut screen = MenuScreen::new(canvas);
     screen.menu_items = all;
     let line = &crate::screens::text_buffers_store::TEXT_BUFFERS.line;
-    rc2k_core::screens::menus::items(
-        &mut screen,
-        &list,
-        LOOP_FLAGS.item.get(),
-        since_key,
-        ebx,
-        ecx,
-        &|n| line.get(n),
-    )
+    rc2k_core::screens::menus::items(&mut screen, &list, LOOP_FLAGS.item.get(), since_key, &|n| {
+        line.get(n)
+    })
 }

@@ -2,8 +2,8 @@
 //! clocks, in two columns of eight: `dword_75AB60[0 .. 16]`, left column first in each row.
 //!
 //! In:  nothing
-//! Out: what the last `draw_text` leaves: carry, eax = 0, ebx = after the text's NUL,
-//! ecx = 441, edx = 452; esi, edi and ebp preserved
+//! Out: what the last `draw_text` leaves (carry, eax = 0, ebx = after the text's NUL,
+//! ecx = 441, edx = 452), which its one caller does not read; esi, edi and ebp preserved
 //! Rows are at y = 110 .. 284 in steps of 29, and a last one at 452; columns at x = 106 and
 //! 441.
 //!
@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::read_all;
-use crate::text::draw_text::{Canvas, Outcome};
+use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
@@ -22,18 +22,12 @@ const COUNT: usize = 16;
 
 // ---- Rust version ----
 
-/// Returns what the last `draw_text` returned.
-pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
+pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::service::repair_times`.
     let times: [u32; COUNT] = read_all(&MENU_STATE.driver_stats.repair_times);
-    let (last, x) = rc2k_core::screens::service::repair_times(
+    rc2k_core::screens::service::repair_times(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas),
         &times,
     )?;
-    Ok(Outcome {
-        too_wide: last.too_wide,
-        text: crate::pointers::GamePtr::new(last.after),
-        x,
-        y: last.y,
-    })
+    Ok(())
 }

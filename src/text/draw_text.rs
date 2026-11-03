@@ -110,7 +110,7 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
         &mut self.kerning
     }
     fn blit(&mut self, font: &Font, glyph: u32, x: i32, y: i32) -> Result<(), AdaptError> {
-        let call = BlitCall::new(glyph, x, y, font.palette, font.glyph_table);
+        let call = BlitCall::glyph(glyph, x, y, font.palette, font.glyph_table);
         { self.canvas.blit_glyph(call) }.map_err(AdaptError::Refused)
     }
 }

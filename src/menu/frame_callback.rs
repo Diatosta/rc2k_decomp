@@ -64,27 +64,19 @@ pub fn copy_picture() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `menu::draw_menu` (0x4746B7) with `palette` and `measure_x` as ebx and ecx.
-pub fn draw_menu(
-    menu: crate::menu::menus_store::MenuId,
-    palette: u32,
-    measure_x: u32,
-) -> Result<(), Refused> {
-    crate::menu::draw_menu::draw_menu(menu, palette, measure_x, &mut GameCanvas)
+/// `menu::draw_menu` (0x4746B7) on the game's canvas.
+pub fn draw_menu(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+    crate::menu::draw_menu::draw_menu(menu, &mut GameCanvas)
 }
 
-/// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry. Returns whether the
+/// `menu` is edi at entry. Returns whether the
 /// frame was made (the original's clear carry).
-pub fn frame_callback(
-    menu: crate::menu::menus_store::MenuId,
-    palette: u32,
-    measure_x: u32,
-) -> Result<bool, Refused> {
+pub fn frame_callback(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
     if lock_failed() {
         return Ok(false);
     }
     copy_picture()?;
-    draw_menu(menu, palette, measure_x)?;
+    draw_menu(menu)?;
     run_listed(DRAW_LIST)?;
     unlock_surface();
     LIGHT_STATE.scene_state.set_bits(4u32);

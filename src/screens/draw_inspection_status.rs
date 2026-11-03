@@ -51,10 +51,10 @@ pub fn inspection_status(
     Ok((condition, last.map(|n| PARTS[n])))
 }
 
-/// `icon_palette` is what the caller has in ebx. Refuses a missing player. The carry of
+/// Refuses a missing player. The carry of
 /// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
 /// the original leaves.
-pub fn draw_inspection_status(icon_palette: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_inspection_status(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
@@ -66,7 +66,6 @@ pub fn draw_inspection_status(icon_palette: u32, canvas: &mut dyn Canvas) -> Res
             rc2k_core::screens::inspection::Work,
         >::new(canvas),
         condition,
-        icon_palette,
     )?;
     Ok(out.too_wide)
 }

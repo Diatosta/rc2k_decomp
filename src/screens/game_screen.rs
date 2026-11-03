@@ -52,9 +52,8 @@ pub trait GameText: Copy {
     -> Result<Drawn, Refused>;
     /// A buffer of the game's.
     fn of_buffer(at: u32) -> Self;
-    /// Measured in `font` from x: its widest line's width and its line count.
-    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas)
-    -> Result<(u32, u32), Refused>;
+    /// Measured in `font` from x: its widest line's width.
+    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
 }
 
 impl GameText for u32 {
@@ -68,7 +67,6 @@ impl GameText for u32 {
         let out = draw_text_at(font, GamePtr::new(self), x, y, canvas)?;
         Ok(Drawn {
             y: out.y,
-            after: out.text.addr(),
             too_wide: out.too_wide,
         })
     }
@@ -77,14 +75,9 @@ impl GameText for u32 {
         at
     }
 
-    fn measure(
-        self,
-        font: GamePtr,
-        x: i32,
-        canvas: &mut dyn Canvas,
-    ) -> Result<(u32, u32), Refused> {
+    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         let m = crate::text::measure_text::measure_text_at(font, GamePtr::new(self), x, canvas)?;
-        Ok((m.width, m.lines))
+        Ok(m.width)
     }
 }
 
@@ -152,7 +145,6 @@ impl GameText for HeldText {
                 let out = draw_text_at(font, at, x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
-                    after: out.text.addr(),
                     too_wide: out.too_wide,
                 })
             }
@@ -162,7 +154,6 @@ impl GameText for HeldText {
                     y: out.y,
                     // Where the text after it starts, in the text (no caller of a held
                     // text reads it: the names' draws keep only the y).
-                    after: out.next as u32,
                     too_wide: out.too_wide,
                 })
             }
@@ -173,20 +164,15 @@ impl GameText for HeldText {
         HeldText::Game(at)
     }
 
-    fn measure(
-        self,
-        font: GamePtr,
-        x: i32,
-        canvas: &mut dyn Canvas,
-    ) -> Result<(u32, u32), Refused> {
+    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         match self {
             HeldText::Game(at) => at.measure(font, x, canvas),
             HeldText::Place(at) => {
                 let m = crate::text::measure_text::measure_text_at(font, at, x, canvas)?;
-                Ok((m.width, m.lines))
+                Ok(m.width)
             }
             HeldText::Held(h) => {
-                crate::text::measure_text::measure_bytes_at(font, &h.with_nul(), x, canvas)
+                Ok(crate::text::measure_text::measure_bytes_at(font, &h.with_nul(), x, canvas)?.0)
             }
         }
     }
@@ -196,7 +182,6 @@ pub struct GameScreen<'a, F, W, T = u32> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
     pub menu_items: &'static [crate::menu::menus_store::MenuItem],
-    sprites: u32,
     family: PhantomData<(F, W, T)>,
 }
 
@@ -205,7 +190,6 @@ impl<'a, F, W, T> GameScreen<'a, F, W, T> {
         Self {
             canvas,
             menu_items: &[],
-            sprites: crate::gfx::blit_marker_pair::sprite_table(),
             family: PhantomData,
         }
     }
@@ -287,7 +271,6 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         let out = { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
         Ok(Drawn {
             y: out.y,
-            after: out.text.addr(),
             too_wide: out.too_wide,
         })
     }
@@ -305,8 +288,8 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         Ok(crate::strings::text_from_ids::text_from_ids(first, count)?)
     }
 
-    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
-        let call = BlitCall::new(glyph, x, y, palette, self.sprites);
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Refused> {
+        let call = BlitCall::sprite(glyph, x, y);
         self.canvas.blit_glyph(call)
     }
 
@@ -355,7 +338,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         }
     }
 
-    fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<(u32, u32), Refused> {
+    fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<u32, Refused> {
         let m = {
             crate::text::measure_string_by_id::measure_string_by_id_at(
                 id,
@@ -364,10 +347,10 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
                 self.canvas,
             )
         }?;
-        Ok((m.width, m.lines))
+        Ok(m.width)
     }
 
-    fn measure(&mut self, font: F, text: T, x: i32) -> Result<(u32, u32), Refused> {
+    fn measure(&mut self, font: F, text: T, x: i32) -> Result<u32, Refused> {
         text.measure(font_of(font), x, self.canvas)
     }
 
@@ -791,7 +774,6 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
         &mut self,
         button: rc2k_core::screens::menus::TextButton,
         n: usize,
-        x: u32,
     ) -> Result<(), Refused> {
         use crate::screens::buttons::{ALIGN_CENTRE, ALIGN_RIGHT, ALT, HIGHLIGHTED, PLAIN};
         use rc2k_core::screens::menus::TextButton;
@@ -801,13 +783,7 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             TextButton::HighlightedRight => (&HIGHLIGHTED, ALIGN_RIGHT),
             TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
         };
-        crate::screens::buttons::draw_text_button(
-            kind,
-            align,
-            self.menu_item(n)?,
-            x as i32,
-            self.canvas,
-        )
+        crate::screens::buttons::draw_text_button(kind, align, self.menu_item(n)?, self.canvas)
     }
     fn blended(&mut self, since_key: u32, a: MenuFont, b: MenuFont) -> Result<MenuFont, Refused> {
         use crate::text::blend_font::blend_font;

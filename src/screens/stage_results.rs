@@ -179,11 +179,6 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             crate::records::stages_store::STAGE_TABLES.record_text(fastest, name),
         ),
         car: get(fastest + car)?,
-        palette: if both_off == 1 {
-            CAPTIONS.shown_group.get()
-        } else {
-            both_off
-        },
         speed,
     };
     let seal_fault = crate::menu::event_flow::Fault::default();

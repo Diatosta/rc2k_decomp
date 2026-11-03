@@ -413,7 +413,7 @@ impl Callee {
             Self::NoOp => {}
             Self::LoadBackground => {
                 let path = c.text.ok_or(BadInput("a background with no path named"))?;
-                crate::menu::load_background::load_background(path(), c.palette, &mut GameCanvas)?;
+                crate::menu::load_background::load_background(path(), &mut GameCanvas)?;
                 c.carry = false;
             }
             Self::PrepareScene => prepare_scene(c),
@@ -558,12 +558,10 @@ fn set_lists(screen: &Screen, lists: &[List]) {
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-fn run_frame(callback: usize, menu: MenuId, c: &Carried) -> Result<(), Refused> {
+fn run_frame(callback: usize, menu: MenuId) -> Result<(), Refused> {
     let frame = || match callback {
-        FRAME_CALLBACK => crate::menu::frame_callback::frame_callback(menu, c.palette, c.measure_x),
-        INSPECTION_FRAME => {
-            crate::menu::inspection_frame::inspection_frame(menu, c.palette, c.measure_x)
-        }
+        FRAME_CALLBACK => crate::menu::frame_callback::frame_callback(menu),
+        INSPECTION_FRAME => crate::menu::inspection_frame::inspection_frame(menu),
         _ => Err(BadInput("a screen with a frame callback of no menu's").into()),
     };
     match crate::platform::run_frame_now(frame) {
@@ -616,7 +614,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                     LOOP_FLAGS.back.set(0u32);
                 }
                 run(screen.background, &mut c)?;
-                crate::menu::draw_frame::draw_frame(menu, c.palette, c.measure_x)?;
+                crate::menu::draw_frame::draw_frame(menu)?;
                 update_blink();
                 c.arg = CLOCKS.frame.get();
                 CLOCKS.setup_time.set(c.arg);
@@ -624,7 +622,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                 run(screen.before_first_frame, &mut c)?;
                 c.arg = (callback + crate::framework::IMAGE_BASE) as u32;
                 set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
-                run_frame(callback, menu, &c)?;
+                run_frame(callback, menu)?;
                 if screen.late_highlight {
                     CAPTIONS.screen_left.set(0);
                     c.palette = (screen.saved_item)().get();
@@ -666,7 +664,7 @@ pub fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> 
                     run(screen.before_frame, &mut c)?;
                     c.arg = (later_callback + crate::framework::IMAGE_BASE) as u32;
                     set_lists(screen, screen.lists);
-                    run_frame(later_callback, menu, &c)?;
+                    run_frame(later_callback, menu)?;
                     c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
                     PHYSICS.scene_clock.set(c.arg);
                     match run(screen.each_frame, &mut c)? {

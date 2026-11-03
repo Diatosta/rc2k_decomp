@@ -74,17 +74,16 @@ pub fn championship_table<S: Screen<Font = Font, Work = Work>>(
     event_mode_13: bool,
     rows: &[Row<S::Text>; 10],
 ) -> Result<(), S::Error> {
-    let mut palette = 0;
     for (id, x, font) in [
         (0x484u32, 0x73, Font::Position),
         (0x485, 0x9C, Font::Text),
         (0x4F9, 0x2DE, Font::Text),
     ] {
-        palette = s.string(font, id, x, 0xDC)?.after;
+        s.string(font, id, x, 0xDC)?;
     }
     let flags = if event_mode_13 { 0x90 } else { 0x8A };
     for n in 0..6u32 {
-        s.sprite(flags + n, 0x196 + 0x36 * n as i32, 0x8C, palette)?;
+        s.sprite(flags + n, 0x196 + 0x36 * n as i32, 0x8C)?;
     }
     s.keep(Work::Position, first);
     s.keep(Work::End, first.wrapping_add(10));
@@ -109,8 +108,8 @@ pub fn championship_table<S: Screen<Font = Font, Work = Work>>(
         }
         let total = s.line(font, &decimal(r.total, Pad::None), 0x2DE, y)?;
         y = total.y;
-        s.sprite(flag_glyph(r.nation), 0x7E, y, total.after)?;
-        s.sprite(car_glyph(r.car), 0x154, y, total.after)?;
+        s.sprite(flag_glyph(r.nation), 0x7E, y)?;
+        s.sprite(car_glyph(r.car), 0x154, y)?;
         y = y.wrapping_add(0x19);
         s.keep(Work::Position, first.wrapping_add(n + 1));
     }

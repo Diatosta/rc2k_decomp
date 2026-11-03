@@ -346,7 +346,7 @@ mod tests {
         fn strings(&mut self, first: u32, n: u32) -> Result<Vec<u8>, Invalid> {
             Ok(format!("d{first:x}x{n}\0").into_bytes())
         }
-        fn sprite(&mut self, _: u32, _: i32, _: i32, _: u32) -> Result<(), Invalid> {
+        fn sprite(&mut self, _: u32, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
         }
         fn keep(&mut self, w: Work, v: u32) {

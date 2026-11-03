@@ -35,9 +35,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-/// What is left in ebx when the markers are drawn: 1 * 0x5C, from addressing menu item 1.
-const MARKER_PALETTE: u32 = 0x5C;
-
 use crate::menu::event_flow::StageTable;
 const GROUP_1_TIMES: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // g_stageBestTimesAlt
 const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8
@@ -62,7 +59,7 @@ pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Ref
         return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }
     build_second_heading(sel.record)?;
-    draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
+    draw_stage_body(sel.record, true, canvas)?;
     let best = crate::screens::stage_panel::best_of(table, dword(sel.record.wrapping_add(0x3C))?)?;
     draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
 }

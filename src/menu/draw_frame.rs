@@ -1,7 +1,7 @@
 //! `menu::draw_frame` (0x47C420): draws a menu once, without the 3D scene and without
 //! showing the frame: what a screen loop does when it has set a screen up.
 //!
-//! In:  edi = the menu; ebx, ecx as they come (`draw_menu` uses them)
+//! In:  edi = the menu
 //! Out: every register preserved
 //! Makes the menu the current one (`dword_75558D`). Unless the game is quitting:
 //! `copy_picture_to_surface` (the background), lock the surface, and if that worked `draw_menu`,
@@ -14,12 +14,8 @@ use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- Rust version ----
 
-/// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry.
-pub fn draw_frame(
-    menu: crate::menu::menus_store::MenuId,
-    palette: u32,
-    measure_x: u32,
-) -> Result<(), Refused> {
+/// `menu` is edi at entry.
+pub fn draw_frame(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
     LOOP_FLAGS.menu.set(menu);
     if crate::menu::screen_loop::quitting() {
         return Ok(());
@@ -28,7 +24,7 @@ pub fn draw_frame(
     if lock_failed() {
         return Ok(());
     }
-    draw_menu(menu, palette, measure_x)?;
+    draw_menu(menu)?;
     crate::menu::run_draw_list::run_draw_list()?;
     crate::platform::unlock_surface();
     Ok(())

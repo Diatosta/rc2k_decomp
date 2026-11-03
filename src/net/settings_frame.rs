@@ -63,13 +63,10 @@ pub fn settings_frame() -> Result<(), Refused> {
     let width = measured.width;
     // Converted: `rc2k_core::net::screens::last_item` (and the frame's sprites).
     let (tiles, text_x) = screens::last_item(width)?;
-    // Each blit gets the palette the one before leaves (the first, the measuring's lines).
-    let mut palette = measured.lines;
     let mut at = screens::LAST_ITEM_RIGHT;
     let mut piece = |glyph: u32, step: u32| -> Result<(), Refused> {
         at = at.wrapping_sub(step);
-        palette = blit(glyph, at, 0x21D, palette)?;
-        Ok(())
+        blit(glyph, at, 0x21D)
     };
     piece(screens::RIGHT_END, screens::END_WIDTH)?;
     // Counted down with `dec` / `jnz`: at least once.

@@ -53,16 +53,11 @@ pub fn stage_result<S: Screen<Font = Font, Work = Work>>(
     }
     heading(s)?;
     s.line(Font::Values, &time(p.time, show_hours), 0x1FE, 0xFC)?;
-    let out = s.line(Font::Values, &p.speed, 0x1FE, 0x12A)?;
-    s.sprite(flag_glyph(p.nation), 0x1FE, 0xCF, out.after)?;
+    s.line(Font::Values, &p.speed, 0x1FE, 0x12A)?;
+    s.sprite(flag_glyph(p.nation), 0x1FE, 0xCF)?;
     s.text(Font::Values, p.name, 0x221, 0xCF)?;
-    let (width, lines) = s.measure(Font::Measure, p.name, 0x221)?;
-    s.sprite(
-        car_glyph(p.car),
-        (width as i32).wrapping_add(0x221),
-        0xCF,
-        lines,
-    )?;
+    let width = s.measure(Font::Measure, p.name, 0x221)?;
+    s.sprite(car_glyph(p.car), (width as i32).wrapping_add(0x221), 0xCF)?;
     Ok(())
 }
 
@@ -113,19 +108,16 @@ pub fn rally_result<S: Screen<Font = Font, Work = Work>>(
     }
     s.line(Font::Values, &time(f.best, show_hours), 0x18C, 0x142)?;
     s.line(Font::Values, &p.speed, 0x18C, 0x159)?;
-    let mut palette = 0;
     for (v, y) in f
         .column
         .into_iter()
         .zip([0x12B, 0x142, 0x159, 0x187, 0x19F, 0x1CD])
     {
-        palette = s
-            .line(Font::Values, &decimal(v, Pad::None), 0x21C, y)?
-            .after;
+        s.line(Font::Values, &decimal(v, Pad::None), 0x21C, y)?;
     }
-    s.sprite(flag_glyph(p.nation), 0x146, 0xE7, palette)?;
-    let out = s.text(Font::Name, p.name, 0x168, 0xE7)?;
-    s.sprite(car_glyph(p.car), 0x1FE, 0xE7, out.after)?;
+    s.sprite(flag_glyph(p.nation), 0x146, 0xE7)?;
+    s.text(Font::Name, p.name, 0x168, 0xE7)?;
+    s.sprite(car_glyph(p.car), 0x1FE, 0xE7)?;
     Ok(())
 }
 
@@ -145,10 +137,7 @@ mod tests {
         type Error = Invalid;
         fn text(&mut self, f: Font, t: u32, x: i32, y: i32) -> Result<Drawn, Invalid> {
             self.0.push(format!("{f:?} n{t} {x:#x} {y:#x}"));
-            Ok(Drawn {
-                after: 0x500,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn store(&mut self, _: Buffer, b: &[u8]) -> Result<(), Invalid> {
             self.1 = b.to_vec();
@@ -159,10 +148,7 @@ mod tests {
                 "{f:?} {:?} {x:#x} {y:#x}",
                 String::from_utf8_lossy(&self.1)
             ));
-            Ok(Drawn {
-                after: 0x700 + self.1.len() as u32,
-                ..Drawn::default()
-            })
+            Ok(Drawn { ..Drawn::default() })
         }
         fn draw_time(&mut self, _: Font, _: Buffer, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
@@ -180,8 +166,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, _: Work, _: u32) {
@@ -193,9 +179,9 @@ mod tests {
         fn fatal(&mut self, _: u32, m: &'static str) -> Invalid {
             Invalid(m)
         }
-        fn measure(&mut self, f: Font, t: u32, x: i32) -> Result<(u32, u32), Invalid> {
+        fn measure(&mut self, f: Font, t: u32, x: i32) -> Result<u32, Invalid> {
             self.0.push(format!("measure {f:?} n{t} {x:#x}"));
-            Ok((40, 1))
+            Ok(40)
         }
     }
 
@@ -220,8 +206,8 @@ mod tests {
         )
         .unwrap();
         assert_eq!(s.0[3], "heading");
-        assert!(s.0.contains(&"sprite 0x1e 0x1fe 0xcf 0x704".to_string()));
-        assert_eq!(s.0.last().unwrap(), "sprite 0x5c 0x249 0xcf 0x1");
+        assert!(s.0.contains(&"sprite 0x1e 0x1fe 0xcf".to_string()));
+        assert_eq!(s.0.last().unwrap(), "sprite 0x5c 0x249 0xcf");
         let f = RallyFigures {
             position: 3,
             best: 1000,
@@ -231,7 +217,7 @@ mod tests {
         let none = Player { time: NO_TIME, ..p };
         rally_result(&mut s, &mut |_: &mut Record| Ok(()), &none, &f, false).unwrap();
         assert!(s.0.contains(&"Values s513 0x1cf 0xe7".to_string()));
-        assert!(s.0.contains(&"sprite 0x1e 0x146 0xe7 0x702".to_string()));
-        assert_eq!(s.0.last().unwrap(), "sprite 0x5c 0x1fe 0xe7 0x500");
+        assert!(s.0.contains(&"sprite 0x1e 0x146 0xe7".to_string()));
+        assert_eq!(s.0.last().unwrap(), "sprite 0x5c 0x1fe 0xe7");
     }
 }

@@ -22,16 +22,12 @@ pub fn sprite_table() -> u32 {
 // ---- Rust version ----
 
 /// The two blitter calls the original makes for `object`.
-pub fn marker_calls(
-    object: u32,
-    palette: u32,
-    table: u32,
-) -> Result<[BlitCall; 2], crate::errors::BadInput> {
+pub fn marker_calls(object: u32) -> Result<[BlitCall; 2], crate::errors::BadInput> {
     let object = crate::pointers::GamePtr::new(object);
     let coord = |at: u32| object.offset(at).read::<i32>("a marker object\'s position");
     Ok([
-        BlitCall::new(FIRST_GLYPH, coord(0x44)?, coord(0x48)?, palette, table),
-        BlitCall::new(SECOND_GLYPH, coord(0x4C)?, coord(0x50)?, palette, table),
+        BlitCall::sprite(FIRST_GLYPH, coord(0x44)?, coord(0x48)?),
+        BlitCall::sprite(SECOND_GLYPH, coord(0x4C)?, coord(0x50)?),
     ])
 }
 

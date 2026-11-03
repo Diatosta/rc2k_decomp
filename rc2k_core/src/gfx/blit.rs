@@ -203,7 +203,7 @@ pub fn blit_glyph(
     let marker = record.u32_le(0).ok_or(PAST)?;
     let byte = |at: usize| record.byte(at).map(i32::from).ok_or(PAST);
     let word = |at: usize| Ok::<_, Invalid>(byte(at)? | byte(at + 1)? << 8);
-    let (x_offset, y_offset, width, height, data, format) = if marker < 0xFFFF_FFFC {
+    let (x_offset, y_offset, width, height, data, format) = if !direct_colour(marker) {
         let format = match surface.bits {
             16 => Format::Palette16,
             32 => Format::Palette32,
@@ -437,6 +437,12 @@ pub fn blit_glyph(
         }
         row = row.wrapping_add(pitch as u32);
     }
+}
+
+/// Whether a record starting with `marker` holds its pixels as they are (an extended
+/// record), not as palette indices.
+pub fn direct_colour(marker: u32) -> bool {
+    marker >= 0xFFFF_FFFC
 }
 
 #[cfg(test)]

@@ -138,8 +138,8 @@ pub enum TextButton {
 pub trait MenuScreen: Screen<Work = Work> {
     /// Item `n`'s own button (`screens::draw_item_button`).
     fn own_button(&mut self, n: usize) -> Result<(), Self::Error>;
-    /// A button as wide as item `n`'s text, measured from x (`screens::draw_text_button`).
-    fn text_button(&mut self, button: TextButton, n: usize, x: u32) -> Result<(), Self::Error>;
+    /// A button as wide as item `n`'s text (`screens::draw_text_button`).
+    fn text_button(&mut self, button: TextButton, n: usize) -> Result<(), Self::Error>;
     /// The font blended between two by the time since the last key (`text::blend_font`).
     fn blended(
         &mut self,
@@ -152,17 +152,19 @@ pub trait MenuScreen: Screen<Work = Work> {
 }
 
 /// The items. `current` is the highlighted item's kind (`dword_755525`), `since_key` the
-/// time since the last key (0 while the blink is off); `ebx`, `ecx` the registers at entry:
-/// a highlighted sprite's palette is ebx, the text buttons' measuring x ecx, which each item
-/// leaves as its font and text x for the next. `after` as for `item_text`.
-#[allow(clippy::too_many_arguments)] // the original's registers and three variables
+/// time since the last key (0 while the blink is off). `after` as for `item_text`.
+///
+/// The original hands each sprite a palette (its own number, or for the highlighted item
+/// the font of the item before, or for the first the caller's ebx) and each text button's
+/// measuring an x (the text x of the item before, or the caller's ecx). Neither is looked
+/// at: the menu sprites are direct colour (`gfx::build_menu_sprites` checks) and a measured
+/// width does not depend on where the measuring starts (`screens::buttons` checks the
+/// measuring font only measures).
 pub fn items<S: MenuScreen>(
     s: &mut S,
     items: &[Item<S::Font>],
     current: u32,
     since_key: u32,
-    mut ebx: u32,
-    mut ecx: u32,
     after: &dyn Fn(usize) -> u8,
 ) -> Result<(), S::Error> {
     for (n, it) in items.iter().enumerate() {
@@ -176,17 +178,17 @@ pub fn items<S: MenuScreen>(
             match it.behind {
                 NOTHING | NOTHING_EITHER => {}
                 OWN_BUTTON => s.own_button(n)?,
-                RIGHT_BUTTON => s.text_button(TextButton::Right, n, ecx)?,
-                CENTRED_BUTTON => s.text_button(TextButton::Centred, n, ecx)?,
-                _ => s.sprite(it.sprite, it.x as i32, it.y as i32, it.sprite)?,
+                RIGHT_BUTTON => s.text_button(TextButton::Right, n)?,
+                CENTRED_BUTTON => s.text_button(TextButton::Centred, n)?,
+                _ => s.sprite(it.sprite, it.x as i32, it.y as i32)?,
             }
         } else if it.sprite != NOTHING_EITHER {
             match it.behind {
                 NOTHING => {}
                 OWN_BUTTON => s.own_button(n)?,
-                RIGHT_BUTTON => s.text_button(TextButton::HighlightedRight, n, ecx)?,
-                CENTRED_BUTTON => s.text_button(TextButton::HighlightedCentred, n, ecx)?,
-                _ => s.sprite(it.sprite, it.x as i32, it.y as i32, ebx)?,
+                RIGHT_BUTTON => s.text_button(TextButton::HighlightedRight, n)?,
+                CENTRED_BUTTON => s.text_button(TextButton::HighlightedCentred, n)?,
+                _ => s.sprite(it.sprite, it.x as i32, it.y as i32)?,
             }
         }
         let is_button = matches!(it.behind, OWN_BUTTON | RIGHT_BUTTON | CENTRED_BUTTON);
@@ -207,7 +209,6 @@ pub fn items<S: MenuScreen>(
         };
         let value = s.font_value(font);
         item_text(s, it.id, font, value, x as i32, y as i32, it.spaced, after)?;
-        (ebx, ecx) = (value, x);
     }
     Ok(())
 }
@@ -258,8 +259,8 @@ mod tests {
         fn strings(&mut self, _: u32, _: u32) -> Result<Vec<u8>, Invalid> {
             unreachable!()
         }
-        fn sprite(&mut self, g: u32, x: i32, y: i32, p: u32) -> Result<(), Invalid> {
-            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x} {p:#x}"));
+        fn sprite(&mut self, g: u32, x: i32, y: i32) -> Result<(), Invalid> {
+            self.0.push(format!("sprite {g:#x} {x:#x} {y:#x}"));
             Ok(())
         }
         fn keep(&mut self, _: Work, v: u32) {
@@ -314,8 +315,8 @@ mod tests {
             self.0.push(format!("own {n}"));
             Ok(())
         }
-        fn text_button(&mut self, b: TextButton, n: usize, x: u32) -> Result<(), Invalid> {
-            self.0.push(format!("{b:?} {n} {x}"));
+        fn text_button(&mut self, b: TextButton, n: usize) -> Result<(), Invalid> {
+            self.0.push(format!("{b:?} {n}"));
             Ok(())
         }
         fn blended(&mut self, since: u32, a: u32, b: u32) -> Result<u32, Invalid> {
@@ -349,7 +350,7 @@ mod tests {
             item(4, CENTRED_BUTTON, NOTHING_EITHER),
         ];
         let mut s = Record::default();
-        items(&mut s, &list, 3, 7, 0x77, 0x88, &|_| 0).unwrap();
+        items(&mut s, &list, 3, 7, &|_| 0).unwrap();
         let keep: Vec<_> =
             s.0.iter()
                 .filter(|l| !l.starts_with("keep"))
@@ -358,15 +359,15 @@ mod tests {
         assert_eq!(
             keep,
             [
-                "sprite 0x40 0xa 0x14 0x40",
+                "sprite 0x40 0xa 0x14",
                 "5 s1 30 40",
-                "Right 1 30",
+                "Right 1",
                 "5 s1 6 17",
-                // Highlighted: ebx is the item before's font, the font blended.
-                "sprite 0x41 0xa 0x14 0x3ed",
+                // Highlighted: the font blended.
+                "sprite 0x41 0xa 0x14",
                 "blend 7 5 6",
                 "99 s1 30 40",
-                "Centred 3 30",
+                "Centred 3",
                 "5 s1 10 17",
             ]
         );

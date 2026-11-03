@@ -117,7 +117,7 @@ pub fn blit_glyph(
     record: &Glyphs,
     x: i32,
     y: i32,
-    palette: u32,
+    palette: Option<u32>,
     surface: &Surface,
     clip: &Clip,
     scratch: &mut Scratch,
@@ -130,14 +130,18 @@ pub fn blit_glyph(
         top_skip: scratch.top_skip,
         rows_left: scratch.rows_left,
     };
-    // The palette read inside its allocation, and only when a colour is looked up (some
-    // callers pass a leftover value for glyphs that never need one, as the original never
-    // reads it then); an entry outside answers 0 here and the blit is refused afterwards
-    // (the core's colour has no failure).
+    // The palette read inside its allocation, and only when a colour is looked up (the
+    // sprites have none: the original hands them leftover values it never reads, as their
+    // records are direct colour); an entry outside, or a lookup with no palette, answers 0
+    // here and the blit is refused afterwards (the core's colour has no failure).
     let colours = std::cell::OnceCell::new();
     let past_palette = std::cell::Cell::new(false);
     let colour = |n: u8| {
         let at = 4 * n as usize;
+        let Some(palette) = palette else {
+            past_palette.set(true);
+            return 0;
+        };
         let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(palette, "a palette")) else {
             past_palette.set(true);
             return 0;
@@ -170,7 +174,12 @@ pub fn blit_glyph(
         return Err(BadInput("a read past a glyph's record").into());
     };
     if past_palette.get() {
-        return Err(BadInput("a colour past a palette's allocation").into());
+        return Err(BadInput(if palette.is_some() {
+            "a colour past a palette's allocation"
+        } else {
+            "a palette-indexed glyph drawn with no palette"
+        })
+        .into());
     }
     *scratch = Scratch {
         left_skip: work.left_skip,
@@ -203,7 +212,7 @@ pub fn blit_glyph_on_surface(
     table: u32,
     x: i32,
     y: i32,
-    palette: u32,
+    palette: Option<u32>,
 ) -> Result<Exit, Refused> {
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
@@ -243,21 +252,36 @@ pub struct BlitCall {
     pub glyph: u32,
     pub x: i32,
     pub y: i32,
-    pub palette: u32,
+    /// A font's palette (a glyph store handle); none for the sprite table's sprites, which
+    /// are direct colour (`gfx::build_menu_sprites` checks).
+    pub palette: Option<u32>,
     pub table: u32,
     /// `g_clipRight` at the time of the call: one caller narrows it around a blit.
     pub clip_right: i32,
 }
 
 impl BlitCall {
-    /// A call made now, with the clip rectangle as the game has it at this moment.
-    pub fn new(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
+    /// A call made now, with the clip rectangle as the game has it at this moment: glyph
+    /// `glyph` of a font's table with its palette.
+    pub fn glyph(glyph: u32, x: i32, y: i32, palette: u32, table: u32) -> Self {
         Self {
             glyph,
             x,
             y,
-            palette,
+            palette: Some(palette),
             table,
+            clip_right: clip().right,
+        }
+    }
+
+    /// Sprite `glyph` of the sprite table (`g_spriteTable`), made now.
+    pub fn sprite(glyph: u32, x: i32, y: i32) -> Self {
+        Self {
+            glyph,
+            x,
+            y,
+            palette: None,
+            table: crate::gfx::blit_marker_pair::sprite_table(),
             clip_right: clip().right,
         }
     }

@@ -33,6 +33,25 @@ pub fn build_menu_sprites(sprite_table: &crate::session::Dword) -> Result<(), Re
     )?;
     sprite_table.set(SHEET.table.get());
     end_glyph_tables()?;
+    all_direct_colour(SHEET.table.get())
+}
+
+/// Refuses a sprite table with a record whose pixels go through a palette: the sprites are
+/// drawn with none (`gfx::blit_glyph::BlitCall::sprite`; the original hands them leftover
+/// values it never reads).
+fn all_direct_colour(table: u32) -> Result<(), Refused> {
+    use rc2k_core::strings::bytes::Bytes as _;
+    let surface = crate::gfx::surface::surface();
+    let records = crate::gfx::glyph_store::bytes(table, "the menus' sprite table")?;
+    let count = records.u32_le(0).unwrap_or(0) / 4;
+    for glyph in 0..count {
+        let record = crate::gfx::blit_glyph::glyph_record(&surface, table, glyph)?;
+        if !rc2k_core::gfx::blit::direct_colour(record.u32_le(0).unwrap_or(0)) {
+            return Err(
+                crate::errors::BadInput("a menu sprite whose pixels need a palette").into(),
+            );
+        }
+    }
     Ok(())
 }
 

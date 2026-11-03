@@ -3,7 +3,7 @@
 //! time available and left, or the overrun and its penalty); 2026-10-21 the layout of
 //! `screens::draw_service_area` 0x4A5FA2 (its title, labels, damage bars and sprites).
 
-use crate::screens::screen::{Drawn, Screen};
+use crate::screens::screen::Screen;
 use crate::strings::format::clock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,17 +31,13 @@ pub enum Work {
 const COLUMNS: [i32; 2] = [0x6A, 0x1B9];
 const ROWS: [i32; 8] = [0x6E, 0x8B, 0xA8, 0xC5, 0xE2, 0xFF, 0x11C, 0x1C4];
 
-/// The sixteen times (`dword_75AB60`); what the last text left, and its x.
-pub fn repair_times<S: Screen<Font = Font>>(
-    s: &mut S,
-    times: &[u32; 16],
-) -> Result<(Drawn, i32), S::Error> {
-    let mut last = (Drawn::default(), 0);
+/// The sixteen times (`dword_75AB60`).
+pub fn repair_times<S: Screen<Font = Font>>(s: &mut S, times: &[u32; 16]) -> Result<(), S::Error> {
     for (i, &t) in times.iter().enumerate() {
         let (x, y) = (COLUMNS[i % 2], ROWS[i / 2]);
-        last = (s.line(Font::Times, &clock(t), x, y)?, x);
+        s.line(Font::Times, &clock(t), x, y)?;
     }
-    Ok(last)
+    Ok(())
 }
 
 /// The free time the service area gives (`service::state::FREE_SERVICE_TIME`).

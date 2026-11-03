@@ -75,12 +75,8 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
     if flags & screens::CENTRED != 0 {
         crate::net::store::BUTTON.x.set(place.text_x);
     }
-    // The blits are handed the palette the measuring and each blit before leave in ebx
-    // (the sprites are drawn as they are).
-    let mut palette = measured.lines;
-    let mut blit = |glyph: u32, at: u32| -> Result<(), Refused> {
-        palette = crate::net::lobby::blit(glyph, at, crate::net::store::BUTTON.y.get(), palette)?;
-        Ok(())
+    let blit = |glyph: u32, at: u32| -> Result<(), Refused> {
+        crate::net::lobby::blit(glyph, at, crate::net::store::BUTTON.y.get())
     };
     let mut left = place.left;
     blit(screens::LEFT_END, left)?;

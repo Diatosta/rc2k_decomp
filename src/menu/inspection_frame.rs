@@ -7,7 +7,7 @@
 //! show the frame. A set carry after either lock, the scene's beginning or the showing ends
 //! it there (carry set), with what was locked left locked; else the carry is cleared.
 //!
-//! In:  edi = the menu; ebx, ecx as they come (`draw_menu` uses them)
+//! In:  edi = the menu
 //! Out: carry = the frame could not be made; every register kept (`pusha` .. `popa`)
 //! The draw and overlay lists' functions get the registers as the one before left them.
 //! The surface and the showing are the platform's, as in `frame_callback`.
@@ -23,13 +23,8 @@ const DRAW_LIST: &ListCell = &SCREEN_FLOW.draw_list; // g_drawList
 const SCENE_LIST: &ListCell = &SCREEN_FLOW.scene_list; // g_sceneList
 const OVERLAY_LIST: &ListCell = &SCREEN_FLOW.overlay_list; // g_overlayList
 
-/// The Rust version, `menu`, `palette` and `measure_x` being edi, ebx and ecx at entry:
-/// whether the frame was made.
-pub fn inspection_frame(
-    menu: crate::menu::menus_store::MenuId,
-    palette: u32,
-    measure_x: u32,
-) -> Result<bool, Refused> {
+/// The Rust version, `menu` being edi at entry: whether the frame was made.
+pub fn inspection_frame(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
     if lock_failed() {
         return Ok(false);
     }
@@ -43,7 +38,7 @@ pub fn inspection_frame(
     if lock_failed() {
         return Ok(false);
     }
-    draw_menu(menu, palette, measure_x)?;
+    draw_menu(menu)?;
     run_listed(OVERLAY_LIST)?;
     unlock_surface();
     Ok(show_frame_now())

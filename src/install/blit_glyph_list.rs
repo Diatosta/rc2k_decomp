@@ -36,7 +36,7 @@ pub fn blit_glyph_list(
                 x as i32,
                 y as i32,
                 // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
-                rd(record.add(0xC)),
+                Some(rd(record.add(0xC))),
             )
         }?;
     }

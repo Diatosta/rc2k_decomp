@@ -49,7 +49,6 @@ pub enum Marker {
 /// Puts the bar in the bar globals and draws the marker.
 fn place(
     canvas: &mut dyn Canvas,
-    palette_at_start: u32,
     (x, y, glyph): (i32, i32, u32),
     percent: i32,
 ) -> Result<(), Refused> {
@@ -62,16 +61,14 @@ fn place(
         ..Bar::read()
     }
     .write();
-    { blit_bar_marker(palette_at_start, &mut |call| canvas.blit_glyph(call)) }?;
+    { blit_bar_marker(&mut |call| canvas.blit_glyph(call)) }?;
     Ok(())
 }
 
-/// `palette` (the original's ebx) goes to the blitter as the palette when the percentage
-/// is 0 or less, and `player` (edi) is the player for the upper bars. What the original
+/// `player` (edi) is the player for the upper bars. What the original
 /// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
 pub fn draw_marker(
     marker: Marker,
-    palette: u32,
     player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
@@ -110,6 +107,6 @@ pub fn draw_marker(
             y,
             glyph,
             percent,
-        } => place(canvas, palette, (x, y, glyph), percent),
+        } => place(canvas, (x, y, glyph), percent),
     }
 }

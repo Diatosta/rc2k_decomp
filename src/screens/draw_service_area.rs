@@ -30,7 +30,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
@@ -102,21 +101,15 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     let field = |at: u32| player.get().word(at as usize) as i32;
-    // ebx as the original has it: the sprites get it as their palette.
-    let mut ebx = 0u32;
     let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
-                ebx = draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?
-                    .text
-                    .addr();
+                draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
             }
             AreaStep::LabelIf(car_offset, id, font, x, y) => {
                 if field(car_offset) != 0 {
-                    ebx = draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?
-                        .text
-                        .addr();
+                    draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
                 }
             }
             AreaStep::DamageBar(x, y, car_offset) => {
@@ -132,7 +125,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                 blit_bar(&mut |call| canvas.blit_glyph(call))?;
             }
             AreaStep::Sprite(glyph, x, y) => {
-                canvas.blit_glyph(BlitCall::new(glyph, x, y, ebx, sprite_table()))?;
+                canvas.blit_glyph(BlitCall::sprite(glyph, x, y))?;
             }
         }
     }
@@ -145,9 +138,8 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let (x, y) = TYRE_AT;
     draw_string_by_id_at(setting, font_of(AreaFont::Small).game_ptr(), x, y, canvas)?;
 
-    // The markers get the car in edi and, as their palette, the ebx the repair times leave.
-    let times = draw_repair_times(canvas)?;
-    let palette = times.text.addr();
+    // The markers get the car in edi.
+    draw_repair_times(canvas)?;
     for marker in [
         draw_brake_balance_marker::MARKER,
         draw_steering_sensitivity_marker::MARKER,
@@ -156,7 +148,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         draw_ride_height_marker::MARKER,
         draw_suspension_stiffness_marker::MARKER,
     ] {
-        draw_marker(marker, palette, player, canvas)?;
+        draw_marker(marker, player, canvas)?;
     }
-    draw_inspection_status(palette, canvas)
+    draw_inspection_status(canvas)
 }

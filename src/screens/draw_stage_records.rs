@@ -110,7 +110,7 @@ pub fn draw_records_rows(
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         // Without it the original reads through a null pointer after drawing the first row.
-        let Some((record, sub)) = selected_record()? else {
+        let Some((record, _)) = selected_record()? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
@@ -141,12 +141,10 @@ pub fn draw_records_rows(
         } else {
             CarRow::Second
         };
-        // The top speed's flag takes the selection's third value as its palette (ebx).
         rc2k_core::screens::stage_panel::records(
             &mut PanelScreen::new(canvas),
             best,
             top,
-            sub,
             car_row,
             show_hours(),
             units(),
