@@ -56,19 +56,14 @@ mod tests {
         assert_eq!(mine, &image[..]);
     }
 
-    /// The NEC layout's tables are named by the image's addresses and resolve to them.
+    /// The NEC layout's pointers name the offsets `input::store::layout_table` uses.
     #[test]
-    fn the_nec_layouts_tables_resolve() {
-        let layout = KEYBOARD_TABLES.nec_layout.addr();
+    fn the_nec_layouts_tables_are_where_the_store_says() {
         let image = crate::moved::image_bytes(0x4F0E10, 0x14);
-        for (at, ida) in [(4, 0x4F0E24), (8, 0x4F0EA4), (0x10, 0x4F0F24)] {
+        for (at, offset) in [(4, 0x14), (8, 0x94), (0x10, 0x114)] {
             let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(name as usize, ida);
-            assert_eq!(
-                crate::input::store::layout_table(layout, at as u32),
-                Ok(KeyboardTables::home() as u32 + (ida - KeyboardTables::START) as u32)
-            );
+            assert_eq!(name as usize, 0x4F0E10 + offset);
         }
-        assert_eq!(crate::input::store::layout_table(layout, 0xC), Ok(0));
+        assert_eq!(u32::from_le_bytes(image[0xC..0x10].try_into().unwrap()), 0);
     }
 }

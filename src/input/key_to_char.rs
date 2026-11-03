@@ -5,7 +5,8 @@
 //! Out: al = the character, 0 if the key types none; carry = (al == 0), zero = (al == 1);
 //!      ebx, ecx, edx, esi, edi, ebp preserved. The rest of eax: untouched for a key release
 //!      (bit 7 set); else zero, except ah = the dead key that was stored or used.
-//! The layout is a block of four pointers (`dword_4F07D4` points at the current one): +0 a
+//! The layout is a block of four tables (`dword_4F07D4` points at the current one in the
+//! original; here a `LayoutId` handle, the tables found by `input::store::layout_table`): +0 a
 //! list of dead keys {key, plain, shifted} ended by a 0 key, +4 the plain table, +8 the
 //! shifted one, +0xC the one used while `byte_4F6B40` is down (read as AltGr). A dead key is
 //! stored in `byte_4F6AD0`; the next key is then looked up, by its plain character, in the
@@ -16,7 +17,10 @@
 //! null); lists without an end within 256 entries.
 
 use crate::errors::BadInput;
-use crate::input::store::{DEVICES, KEYBOARD, KEYBOARD_FILE};
+use crate::input::store::{
+    DEVICES, KEYBOARD, KEYBOARD_FILE, LayoutId, LayoutTable, current_layout, layout_table,
+    set_current_layout,
+};
 
 // ---- game data ----
 
@@ -57,23 +61,19 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
         down(LEFT_SHIFT),
         down(RIGHT_SHIFT),
     );
-    let layout: u32 = match switched {
-        Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr(),
-        Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr(),
-        None => KEYBOARD_FILE.layout.get(),
+    let layout = match switched {
+        Some(Switch::First) => LayoutId::File(0),
+        Some(Switch::Second) => LayoutId::File(1),
+        None => current_layout()?.ok_or(BadInput("no keyboard layout"))?,
     };
-    if layout == 0 {
-        return Err(BadInput("no keyboard layout"));
-    }
-    // The built-in layouts name their tables by IDA's addresses (`layout_table`); a keyboard
-    // file's layout's are given as places.
-    let table = |at: u32| -> Result<Option<GameBytes>, BadInput> {
-        let p = crate::input::store::layout_table(layout, at)?;
-        (p != 0)
-            .then(|| GamePtr::new(p).bytes("a keyboard layout's table"))
-            .transpose()
-    };
-    let tables = [table(0)?, table(4)?, table(8)?, table(0xC)?];
+    // Each table by the layout's handle (`layout_table`).
+    let table = |t: LayoutTable| layout_table(layout, t);
+    let tables = [
+        table(LayoutTable::DeadKeys)?,
+        table(LayoutTable::Plain)?,
+        table(LayoutTable::Shifted)?,
+        table(LayoutTable::AltGr)?,
+    ];
     fn as_bytes(t: &Option<GameBytes>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
         t.as_ref()
             .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
@@ -93,7 +93,7 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
         DEVICES.dead_key.get(),
     )?;
     if switched.is_some() {
-        KEYBOARD_FILE.layout.set(layout);
+        set_current_layout(layout);
     }
     if let Some(pending) = typed.pending {
         DEVICES.dead_key.set(pending);

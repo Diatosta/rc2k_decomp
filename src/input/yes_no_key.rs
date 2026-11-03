@@ -13,7 +13,7 @@
 
 use crate::errors::BadInput;
 use crate::input::key_to_char::{has_layout, key_to_char};
-use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
+use crate::input::store::{KEYBOARD, KEYBOARD_FILE, LayoutId, set_current_layout};
 use crate::input::take_key::take_key;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::TEXT_LEN;
@@ -37,9 +37,7 @@ pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     let own_layout = KEYBOARD_FILE.mode.get() == 2;
     let layout = KEYBOARD_FILE.layout.get();
     if own_layout {
-        KEYBOARD_FILE
-            .layout
-            .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
+        set_current_layout(LayoutId::File(0));
     }
     let character = key_to_char(eax);
     if own_layout {

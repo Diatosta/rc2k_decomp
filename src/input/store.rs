@@ -118,15 +118,19 @@ pub struct KeyboardFile {
     pub mode: Byte,
     /// `byte_4F07D3`: the layout the file picks (times 0x14 from `layouts`).
     pub chosen: Byte,
-    /// `g_keyboardLayout` (`dword_4F07D4`): the current layout block's address.
+    /// `g_keyboardLayout` (`dword_4F07D4`): the current layout, `LayoutId::cell` (0: none).
     pub layout: Dword,
     /// 0x4F07D8 .. 0x4F07F8: the rest of the file's head.
     pub _head: Bytes<0x20>,
-    /// `dword_4F07F8` and `unk_4F080C`: the file's two layout blocks (the file holds
-    /// offsets; `load_language` makes them addresses).
+    /// `dword_4F07F8` and `unk_4F080C`: the file's two layout blocks (offsets into the
+    /// file from the first block, kept as loaded; `layout_table` resolves them).
     pub layouts: [KeyLayout; 2],
     /// 0x4F0820 .. 0x4F0BC8: the tables the layouts point into.
     pub tables: Bytes<0x3A8>,
+}
+
+impl KeyboardFile {
+    pub const LEN: u32 = size_of::<Self>() as u32;
 }
 
 pub static KEYBOARD_FILE: KeyboardFile = KeyboardFile {
@@ -473,28 +477,135 @@ pub static KEYBOARD: Keyboard = {
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 
-/// The table at `at` (0 .. 0x10) of the keyboard layout block at `layout`, as an address, 0
-/// for none. The built-in layouts' (this one's and the NEC's, `strings::keyboard_tables`)
-/// tables are named by IDA's addresses, which are not addresses of the program's memory; a
-/// keyboard file's layout holds the real places (`strings::load_language`).
-pub fn layout_table(layout: u32, at: u32) -> Result<u32, crate::errors::BadInput> {
-    let p: u32 = crate::pointers::GamePtr::new(layout)
+/// A keyboard layout, by handle (`g_keyboardLayout`, the current one, kept in
+/// `KEYBOARD_FILE.layout` as `LayoutId::cell`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutId {
+    /// The built-in layout (`KEYBOARD.built_in_layout`).
+    BuiltIn,
+    /// One of the keyboard file's layout blocks (the file holds two; `chosen` may name more).
+    File(u8),
+    /// The built-in NEC layout (`strings::keyboard_tables`).
+    Nec,
+}
+
+/// One table of a layout, in the order of the layout block's pointers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutTable {
+    DeadKeys,
+    Plain,
+    Shifted,
+    AltGr,
+    KeyNames,
+}
+
+/// Where the file's layout blocks start in `KEYBOARD_FILE` (0x4F07F8 - 0x4F07C8); the file's
+/// table offsets count from here.
+const FILE_LAYOUTS: u32 = 0x30;
+/// A layout block's size: five table pointers.
+const LAYOUT_LEN: u32 = 0x14;
+
+impl LayoutId {
+    /// The value kept in `KEYBOARD_FILE.layout`: 0 stands for no layout.
+    pub fn cell(self) -> u32 {
+        match self {
+            Self::BuiltIn => 1,
+            Self::Nec => 2,
+            Self::File(n) => 0x10 + n as u32,
+        }
+    }
+
+    fn from_cell(cell: u32) -> Result<Option<Self>, BadInput> {
+        match cell {
+            0 => Ok(None),
+            1 => Ok(Some(Self::BuiltIn)),
+            2 => Ok(Some(Self::Nec)),
+            0x10..=0x10F => Ok(Some(Self::File((cell - 0x10) as u8))),
+            _ => Err(BadInput("a keyboard layout that is not one of the handles")),
+        }
+    }
+}
+
+impl LayoutTable {
+    fn at(self) -> u32 {
+        match self {
+            Self::DeadKeys => 0,
+            Self::Plain => 4,
+            Self::Shifted => 8,
+            Self::AltGr => 0xC,
+            Self::KeyNames => 0x10,
+        }
+    }
+}
+
+/// The current layout, none before `load_language` sets one.
+pub fn current_layout() -> Result<Option<LayoutId>, BadInput> {
+    LayoutId::from_cell(KEYBOARD_FILE.layout.get())
+}
+
+pub fn set_current_layout(layout: LayoutId) {
+    KEYBOARD_FILE.layout.set(layout.cell());
+}
+
+/// Where a file layout's table starts in `KEYBOARD_FILE`: the offset the file holds (0 for
+/// none), kept as loaded and resolved here. Only the file's two blocks have their offsets
+/// made places in the original; a block past them holds raw numbers.
+pub fn file_table_offset(layout: u8, table: LayoutTable) -> Result<Option<u32>, BadInput> {
+    let at = FILE_LAYOUTS + layout as u32 * LAYOUT_LEN + table.at();
+    if at + 4 > KeyboardFile::LEN {
+        return Err(BadInput("a keyboard layout past the keyboard file"));
+    }
+    let offset: u32 = GamePtr::to(&KEYBOARD_FILE)
         .offset(at)
         .read("a keyboard layout's table")?;
-    if (KEYBOARD_IDA..KEYBOARD_IDA + KEYBOARD_LEN).contains(&(p as usize)) {
-        return crate::moved::named_in(
-            p,
-            KEYBOARD_IDA,
-            KEYBOARD_LEN,
-            "a keyboard table off the built-in layout",
-        );
+    if offset == 0 {
+        return Ok(None);
     }
-    let nec = crate::strings::keyboard_tables::KeyboardTables::START;
-    let nec_len = crate::strings::keyboard_tables::KeyboardTables::LEN;
-    if (nec..nec + nec_len).contains(&(p as usize)) {
-        return crate::moved::named_in(p, nec, nec_len, "a keyboard table off the NEC layout");
+    if layout > 1 {
+        return Err(BadInput("a keyboard layout past the file's two blocks"));
     }
-    Ok(p)
+    let start = FILE_LAYOUTS.wrapping_add(offset);
+    if start >= KeyboardFile::LEN {
+        return Err(BadInput("a keyboard table outside the keyboard file"));
+    }
+    Ok(Some(start))
+}
+
+/// The bytes of a layout's table, none when the layout has none. A file's tables are found
+/// by their offsets into the file (`strings::load_language`); the built-in layouts' by their
+/// typed stores.
+pub fn layout_table(
+    layout: LayoutId,
+    table: LayoutTable,
+) -> Result<Option<crate::pointers::GameBytes>, BadInput> {
+    use crate::strings::keyboard_tables::KEYBOARD_TABLES;
+    const WHAT: &str = "a keyboard layout's table";
+    let start = match (layout, table) {
+        (LayoutId::File(n), t) => {
+            let Some(start) = file_table_offset(n, t)? else {
+                return Ok(None);
+            };
+            return GamePtr::to(&KEYBOARD_FILE)
+                .offset(start)
+                .bytes(WHAT)
+                .map(Some);
+        }
+        (_, LayoutTable::DeadKeys | LayoutTable::AltGr) => return Ok(None),
+        (LayoutId::BuiltIn, LayoutTable::Plain) => GamePtr::to(&KEYBOARD.plain),
+        (LayoutId::BuiltIn, LayoutTable::Shifted) => GamePtr::to(&KEYBOARD.shifted),
+        (LayoutId::BuiltIn, LayoutTable::KeyNames) => GamePtr::to(&KEYBOARD.key_names),
+        // The NEC layout's tables follow its block, at the offsets its pointers name.
+        (LayoutId::Nec, LayoutTable::Plain) => {
+            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x14)
+        }
+        (LayoutId::Nec, LayoutTable::Shifted) => {
+            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x94)
+        }
+        (LayoutId::Nec, LayoutTable::KeyNames) => {
+            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x114)
+        }
+    };
+    start.bytes(WHAT).map(Some)
 }
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
@@ -700,26 +811,41 @@ mod tests {
     }
 
     #[test]
-    fn the_built_in_layouts_tables_resolve() {
+    fn the_layout_handles_resolve() {
         let _g = crate::store::test_lock();
-        let layout = KEYBOARD.built_in_layout.dead_keys.addr();
-        let image = image_bytes(0x4F7FDC, 0x14);
-        for (at, ida) in [(4, 0x4F806C), (8, 0x4F80EC), (0x10, 0x4F816C)] {
-            let name = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            assert_eq!(name as usize, ida);
-            assert_eq!(
-                layout_table(layout, at as u32),
-                Ok(keyboard_addr() + (ida - KEYBOARD_IDA) as u32)
-            );
+        for l in [
+            LayoutId::BuiltIn,
+            LayoutId::Nec,
+            LayoutId::File(0),
+            LayoutId::File(1),
+        ] {
+            assert_eq!(LayoutId::from_cell(l.cell()), Ok(Some(l)));
         }
-        // The dead keys' list and the AltGr table are not named.
-        assert_eq!(layout_table(layout, 0xC), Ok(0));
-        // A place that is not a name is kept as it is.
-        let place = KEYBOARD_FILE.tables.addr();
-        KEYBOARD_FILE.layouts[0].plain.set(place);
-        let file_layout = KEYBOARD_FILE.layouts[0].dead_keys.addr();
-        assert_eq!(layout_table(file_layout, 4), Ok(place));
+        assert_eq!(LayoutId::from_cell(0), Ok(None));
+        assert!(LayoutId::from_cell(3).is_err());
+        for l in [LayoutId::BuiltIn, LayoutId::Nec] {
+            assert!(layout_table(l, LayoutTable::DeadKeys).unwrap().is_none());
+            assert!(layout_table(l, LayoutTable::AltGr).unwrap().is_none());
+            for t in [
+                LayoutTable::Plain,
+                LayoutTable::Shifted,
+                LayoutTable::KeyNames,
+            ] {
+                assert!(layout_table(l, t).unwrap().is_some());
+            }
+        }
+        // A file's table is its offset from the first block; 0 is none.
+        let saved = KEYBOARD_FILE.layouts[0].plain.get();
+        KEYBOARD_FILE.layouts[0].plain.set(0x10u32);
+        assert_eq!(
+            file_table_offset(0, LayoutTable::Plain),
+            Ok(Some(FILE_LAYOUTS + 0x10))
+        );
         KEYBOARD_FILE.layouts[0].plain.set(0u32);
+        assert_eq!(file_table_offset(0, LayoutTable::Plain), Ok(None));
+        KEYBOARD_FILE.layouts[0].plain.set(0x1000u32);
+        assert!(file_table_offset(0, LayoutTable::Plain).is_err());
+        KEYBOARD_FILE.layouts[0].plain.set(saved);
     }
 
     #[test]

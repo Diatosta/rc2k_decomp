@@ -40,7 +40,9 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::gfx::glyph_tables::TABLES;
-use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
+use crate::input::store::{
+    KEYBOARD_FILE, LayoutId, LayoutTable, file_table_offset, set_current_layout,
+};
 use crate::install::vars::INSTALLER_RUN;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::pointers::GamePtr;
@@ -145,9 +147,7 @@ fn correct_lexicon() -> Result<(), BadInput> {
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     compile()?;
     use_lexicon();
-    KEYBOARD_FILE
-        .layout
-        .set(KEYBOARD.built_in_layout.dead_keys.addr());
+    set_current_layout(LayoutId::BuiltIn);
     KEYBOARD_FILE.built_in.set(1);
     KEYBOARD_FILE.mode.set(1);
 
@@ -183,31 +183,17 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         if &KEYBOARD_FILE.magic.read() != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
-        let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr();
-        for layout in &KEYBOARD_FILE.layouts {
-            for table in [
-                &layout.dead_keys,
-                &layout.plain,
-                &layout.shifted,
-                &layout.alt_gr,
-                &layout.key_names,
-            ] {
-                let offset = table.get();
-                if offset != 0 {
-                    table.set(offset.wrapping_add(layouts));
-                }
-            }
-        }
-        let chosen = KEYBOARD_FILE.chosen.get() as u32 * 0x14;
-        let layout = layouts.wrapping_add(chosen);
-        KEYBOARD_FILE.layout.set(layout);
+        // The layouts' table offsets stay as loaded; `layout_table` resolves them.
+        let chosen = KEYBOARD_FILE.chosen.get();
+        set_current_layout(LayoutId::File(chosen));
         if KEYBOARD_FILE.kind.get() == 0x0C {
-            let fourth = GamePtr::new(layout + 0x10).read::<u32>("a keyboard layout")?;
-            if fourth == 0 {
+            let Some(fourth) = file_table_offset(chosen, LayoutTable::KeyNames)? else {
                 return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
-            }
+            };
             for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
-                GamePtr::new(fourth.wrapping_add(at)).write::<u16>(value, "a keyboard table")?;
+                GamePtr::to(&KEYBOARD_FILE)
+                    .offset(fourth.wrapping_add(at))
+                    .write::<u16>(value, "a keyboard table")?;
             }
         }
     }
@@ -221,7 +207,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
             0x30,
             "the NEC keyboard head",
         )?;
-        KEYBOARD_FILE.layout.set(KEYBOARD_TABLES.nec_layout.addr());
+        set_current_layout(LayoutId::Nec);
         INSTALLER_RUN.first_drive.set(0x61u32);
     }
 
