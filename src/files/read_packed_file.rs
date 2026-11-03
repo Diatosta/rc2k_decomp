@@ -35,9 +35,9 @@ pub struct Outcome {
 impl Outcome {
     /// What `files::read_file` leaves on a read of `path`: eax the bytes read (`path` when
     /// it did not get that far), carry a failure, zero success.
-    pub fn of_read(path: u32, got: &ReadResult) -> Self {
+    pub fn of_read(path: GamePtr, got: &ReadResult) -> Self {
         Self {
-            eax: got.bytes_read.unwrap_or(path),
+            eax: got.bytes_read.unwrap_or(path.addr()),
             carry: !got.ok,
             zero: got.ok,
         }
@@ -45,26 +45,14 @@ impl Outcome {
 }
 
 /// `files::read_file`'s call (the path, the buffer, its bytes; the offset 0).
-pub type Read<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<ReadResult, Refused>;
-
-/// In the game: `files::read_file` in Rust.
-pub fn game_read(path: u32, buffer: u32, bytes: u32) -> Result<ReadResult, Refused> {
-    Ok(crate::files::read_file::read_file(
-        crate::pointers::GamePtr::new(path),
-        crate::pointers::GamePtr::new(buffer),
-        bytes,
-        0,
-    )?)
-}
-
-fn get(at: u32) -> Result<u32, crate::errors::BadInput> {
-    GamePtr::new(at).read::<u32>("a packed file's mark")
+pub fn read(path: GamePtr, buffer: GamePtr, bytes: u32) -> Result<ReadResult, Refused> {
+    Ok(crate::files::read_file::read_file(path, buffer, bytes, 0)?)
 }
 
 /// The unpacking of a file of `size` bytes read into the buffer of `room`: the bytes
 /// written (from the buffer's start). Converted: `rc2k_core::files::packed::unpack`.
-pub fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
-    let at = GamePtr::new(buffer);
+pub fn unpack(buffer: GamePtr, room: u32, size: u32) -> Result<u32, Refused> {
+    let at = buffer;
     let mut bytes = at.read_bytes(room as usize, "a packed file's buffer")?;
     let written = rc2k_core::files::packed::unpack(&mut bytes, size as usize)? as u32;
     at.write_bytes(&bytes, "a packed file's buffer")?;
@@ -73,7 +61,7 @@ pub fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
 
 /// `files::read_packed_file` (see the header): the file at `path` into `buffer` of `room`
 /// bytes.
-pub fn read_packed_file(path: u32, buffer: u32, room: u32, read: Read) -> Result<Outcome, Refused> {
+pub fn read_packed_file(path: GamePtr, buffer: GamePtr, room: u32) -> Result<Outcome, Refused> {
     let got = Outcome::of_read(path, &read(path, buffer, room)?);
     // A failed read leaves zero clear (`Outcome::of_read`), as a file not "SQSL" does.
     let failed = Outcome {
@@ -84,7 +72,7 @@ pub fn read_packed_file(path: u32, buffer: u32, room: u32, read: Read) -> Result
     if got.carry {
         return Ok(failed);
     }
-    if get(buffer)? != MAGIC {
+    if buffer.read::<u32>("a packed file's mark")? != MAGIC {
         return Ok(failed);
     }
     let bytes = unpack(buffer, room, got.eax)?;

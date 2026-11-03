@@ -159,16 +159,15 @@ fn take_scene_points() -> Result<(), BadInput> {
 /// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
 pub fn load_level() -> Result<(), Refused> {
-    use crate::files::{read_level_file, read_packed_file};
+    use crate::files::read_level_file;
     set_cdat_number(0);
     crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
     load_log(0);
+    // The course memory is a region of its own (`level_init::take_course_memory`).
     let out = read_level_file::read_level_file(
-        crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr(),
-        COURSE_LISTS.course_memory.bits(),
+        crate::pointers::GamePtr::to(&crate::race::level_paths_store::LEVEL_PATHS.cdat_src),
+        crate::pointers::GamePtr::new(COURSE_LISTS.course_memory.bits()),
         COURSE_LISTS.first_part.bits(),
-        &mut read_level_file::game_exists,
-        &mut read_packed_file::game_read,
     )?;
     crate::files::state::BYTES_READ.store(out.eax, std::sync::atomic::Ordering::Relaxed);
     if out.carry {
