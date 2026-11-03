@@ -73,7 +73,7 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             DRAW_WORK.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+        if clip_quad()? {
             return Ok(());
         }
         draw_fan();

@@ -50,7 +50,7 @@ pub fn draw_rain_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
             return Ok(());
         }
         project();
-        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+        if clip_quad()? {
             return Ok(());
         }
         draw_fan();

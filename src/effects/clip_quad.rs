@@ -10,11 +10,12 @@
 //! the quad; `g_polygonVertexCount` and `dword_93CC94` their number; CF clear. Other
 //! settings: CF clear, nothing changed.
 //!
-//! In:  the quad (the original's ebp; `g_marksSettings`)
+//! In:  the quad (the original's ebp: `g_polygonVertices` at every call; `g_marksSettings`)
 //! Out: the result: true when all is outside (the original's CF); no caller reads a
 //!      register it leaves
 //!
-//! Eight callers, each `jb` after it. Refuses null settings or quad.
+//! Eight callers, each `jb` after it. Refuses null settings (a null quad, refused before,
+//! cannot come: the quad is the vertices' own).
 
 use crate::effects::clip::{CLIP, GLOW};
 use crate::errors::{BadInput, Refused};
@@ -30,17 +31,20 @@ const EDGES: [(usize, u32, bool); 4] = [
     (0, 0, false), // 4: g_marksScreenMiddleX
 ];
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
+fn get(a: GamePtr) -> Result<u32, BadInput> {
+    a.read("a quad's vertex field")
 }
 
 /// The Rust version (see the header): whether all the quad is outside (the original's CF).
-pub fn clip_quad(q: u32) -> Result<bool, Refused> {
+/// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
+/// the clipped polygon (six at most) goes back there.
+pub fn clip_quad() -> Result<bool, Refused> {
     {
         let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
-        if settings == 0 || q == 0 {
-            return Err(BadInput("null marks settings or quad").into());
+        if settings == 0 {
+            return Err(BadInput("null marks settings").into());
         }
+        let q = GamePtr::to(&crate::d3d::vertices_store::VERTICES.vertices);
         let marks = crate::effects::setup::marks()?;
         let mode = marks.marks_layout.get();
         if !(1..=4).contains(&mode) {
@@ -51,7 +55,7 @@ pub fn clip_quad(q: u32) -> Result<bool, Refused> {
         // The test of vertex k: inside.
         let t = |k: u32| -> Result<_, Refused> {
             Ok({
-                let v = get(q + 0x20 * k + coord)? as i32;
+                let v = get(q.offset(0x20 * k + coord))? as i32;
                 if below {
                     line as i32 >= v
                 } else {
@@ -97,11 +101,12 @@ pub fn clip_quad(q: u32) -> Result<bool, Refused> {
         } else {
             return Ok(false);
         }
-        let work = crate::pointers::game_address(CLIP.vertices.as_ptr());
+        let work = GamePtr::to(&CLIP.vertices);
         let mut ebx = 0u32;
         let mut k = edi;
         loop {
-            GamePtr::new(q + k).copy_to(GamePtr::new(work + ebx), 0x20, "a clipped vertex")?;
+            q.offset(k)
+                .copy_to(work.offset(ebx), 0x20, "a clipped vertex")?;
             ebx += 0x20;
             if k == esi {
                 break;
@@ -112,25 +117,25 @@ pub fn clip_quad(q: u32) -> Result<bool, Refused> {
         let d = (edi.wrapping_sub(0x20)) & 0x7F;
         let other = 4 - coord;
         for (inside, outside) in [(esi, c), (edi, d)] {
-            let (s, o) = (q + inside, q + outside);
+            let (s, o) = (q.offset(inside), q.offset(outside));
             let pairs = [
-                [get(s + other)?, get(o + other)?],
-                [get(s + 0x18)?, get(o + 0x18)?],
-                [get(s + 0x1C)?, get(o + 0x1C)?],
+                [get(s.offset(other))?, get(o.offset(other))?],
+                [get(s.offset(0x18))?, get(o.offset(0x18))?],
+                [get(s.offset(0x1C))?, get(o.offset(0x1C))?],
             ];
-            let v = x87::clip_lerp3(line, get(o + coord)?, get(s + coord)?, pairs);
-            let w = work + ebx;
-            let put = |off: u32, x: u32| GamePtr::new(w + off).write::<u32>(x, "a mark's field");
+            let v = x87::clip_lerp3(line, get(o.offset(coord))?, get(s.offset(coord))?, pairs);
+            let w = work.offset(ebx);
+            let put = |off: u32, x: u32| w.offset(off).write::<u32>(x, "a mark's field");
             put(coord, line)?;
             put(other, v[0])?;
             put(0x18, v[1])?;
             put(0x1C, v[2])?;
             for off in [8u32, 0xC, 0x10, 0x14] {
-                put(off, get(o + off)?)?;
+                put(off, get(o.offset(off))?)?;
             }
             ebx += 0x20;
         }
-        GamePtr::new(work).copy_to(GamePtr::new(q), ebx as usize, "the clipped polygon")?;
+        work.copy_to(q, ebx as usize, "the clipped polygon")?;
         let count = ebx >> 5;
         DRAW.polygon_vertex_count.set_bits(count);
         GLOW.clip_count.set(count);

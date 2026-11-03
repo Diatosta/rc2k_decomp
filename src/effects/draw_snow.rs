@@ -141,7 +141,7 @@ pub fn draw_snow() -> Result<(), Refused> {
                         .v
                         .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(crate::d3d::vertices_store::piece_addr())? {
+                if !clip_quad()? {
                     draw_fan();
                     SNOW.drawn.set(SNOW.drawn.get().wrapping_add(1));
                     DRAW.polygon_vertex_count.set_bits(4u32);

@@ -62,7 +62,7 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
             }
         }
         ribbon();
-        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+        if clip_quad()? {
             return Ok(());
         }
         draw_fan();

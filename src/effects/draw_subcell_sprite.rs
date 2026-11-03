@@ -85,7 +85,7 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].v.set_bits(v);
     }
     square();
-    if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+    if clip_quad()? {
         return Ok(());
     }
     draw_fan();
