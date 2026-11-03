@@ -62,7 +62,11 @@ pub fn share_all_cars() -> Result<(), Refused> {
     keep_lead_car_values();
     for (n, (block, record, sound)) in cars()?.into_iter().enumerate() {
         RACE_WORK.current_car.set(n as u32);
-        share_car_state(block, record, sound)?;
+        share_car_state(
+            crate::physics::car_store::Car::at(block),
+            record,
+            crate::sound::store::SoundObject::at(sound)?,
+        )?;
     }
     let first_record = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
     MARKS_SETTINGS.sound_objects_shown.set_bits(0u32);
