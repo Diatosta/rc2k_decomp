@@ -18,7 +18,8 @@
 //! `DI_OK` (0) or a `DIERR_` the way DirectInput would.
 
 use crate::input::types::{
-    DiDevCaps, DiDeviceInstance, DiDeviceObjectInstance, DiEffectInfo, DiJoyState,
+    DiDevCaps, DiDeviceInstance, DiDeviceObjectInstance, DiEffectInfo, DiJoyState, DiPropDword,
+    DiPropRange, Guid,
 };
 use std::collections::HashMap;
 use std::mem::size_of;
@@ -279,14 +280,22 @@ fn id_of(this: u32) -> u32 {
     if place < POOL as u32 { place } else { u32::MAX }
 }
 
-/// A value the game passes by address (ended when the address is outside its memory).
-fn arg<T: Copy>(at: u32) -> T {
-    crate::pointers::read_or_end(at, "a DirectInput method's argument")
-}
-
-/// A value written where the game asked (ended when the address is outside its memory).
-fn put<T: Copy>(at: u32, value: T) {
-    crate::pointers::write_or_end(at, value, "a DirectInput method's result");
+/// A made object's handle put where the game's method call would have put it: `Ok` its
+/// handle into `cell`; a failure but `DIERR_INVALIDPARAM` (which touched nothing) leaves
+/// 0 there, as DirectInput's methods do. The `HRESULT`.
+pub fn store(cell: &crate::session::Dword, made: Result<u32, i32>) -> i32 {
+    match made {
+        Ok(handle) => {
+            cell.set(handle);
+            DI_OK
+        }
+        Err(hr) => {
+            if hr != DIERR_INVALIDPARAM {
+                cell.set(0);
+            }
+            hr
+        }
+    }
 }
 
 /// A new object, in the lowest free place: its handle (0 when the pool is full).
@@ -309,20 +318,19 @@ fn alive(s: &State, this: u32) -> bool {
 }
 
 /// `QueryInterface`: a device's `IDirectInputDevice2A` (itself, one reference more).
-pub fn query_interface(this: u32, iid: u32, out: u32) -> i32 {
+/// The interface's object handle (`Err(E_NOINTERFACE)`: none, the game's out cell 0).
+pub fn query_interface(this: u32, iid: &Guid) -> Result<u32, i32> {
     with(|s| {
-        if !alive(s, this) || out == 0 {
-            return DIERR_INVALIDPARAM;
+        if !alive(s, this) {
+            return Err(DIERR_INVALIDPARAM);
         }
         let id = id_of(this);
         let is_device = matches!(s.entries.get(&id).map(|e| &e.what), Some(Kind2::Device(_)));
-        if is_device && iid != 0 && arg::<[u8; 16]>(iid) == device2_iid() {
+        if is_device && *iid == device2_iid() {
             s.entries.get_mut(&id).unwrap().refs += 1;
-            put(out, this);
-            DI_OK
+            Ok(this)
         } else {
-            put(out, 0u32);
-            E_NOINTERFACE
+            Err(E_NOINTERFACE)
         }
     })
 }
@@ -378,41 +386,33 @@ pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
     }
 }
 
-pub fn create_device(this: u32, guid: u32, out: u32, _outer: u32) -> i32 {
-    if out == 0 || guid == 0 {
-        return DIERR_INVALIDPARAM;
-    }
-    let wanted: [u8; 16] = arg(guid);
+/// The device `wanted` (its instance GUID) made: its object handle (`Err(DEVICENOTREG)`
+/// when the backend has none; the game's out cell 0 then).
+pub fn create_device(this: u32, wanted: &Guid) -> Result<u32, i32> {
     let devices = backend(|b| b.devices()).unwrap_or_default();
-    let Some(device) = devices.iter().position(|d| d.instance == wanted) else {
-        put(out, 0u32);
-        return DIERR_DEVICENOTREG;
+    let Some(device) = devices.iter().position(|d| d.instance == *wanted) else {
+        return Err(DIERR_DEVICENOTREG);
     };
     with(|s| {
         if !alive(s, this) {
-            return DIERR_INVALIDPARAM;
+            return Err(DIERR_INVALIDPARAM);
         }
-        let at = make(
+        Ok(make(
             s,
             Kind2::Device(Device {
                 device,
                 acquired: false,
                 axes: [Axis::default(); 6],
             }),
-        );
-        put(out, at);
-        DI_OK
+        ))
     })
 }
 
-/// `EnumDevices`' callback: (its `DIDEVICEINSTANCEA`, the context) -> 0 to stop.
-pub type EnumDevicesCallback = fn(u32, u32) -> u32;
-
+/// `EnumDevices`' callback: its `DIDEVICEINSTANCEA` -> 0 to stop.
 pub fn enum_devices(
     _this: u32,
     kind: u32,
-    callback: EnumDevicesCallback,
-    context: u32,
+    mut callback: impl FnMut(&DiDeviceInstance) -> u32,
     _flags: u32,
 ) -> i32 {
     // joysticks only (DIDEVTYPE_JOYSTICK, or all)
@@ -422,7 +422,7 @@ pub fn enum_devices(
     let devices = backend(|b| b.devices()).unwrap_or_default();
     for d in &devices {
         let instance = device_instance(d);
-        if callback(crate::pointers::game_address(&raw const instance), context) == 0 {
+        if callback(&instance) == 0 {
             break;
         }
     }
@@ -446,61 +446,33 @@ fn device_of(this: u32) -> Option<(usize, DeviceInfo)> {
     Some((device, info))
 }
 
-pub fn get_capabilities(this: u32, caps: u32) -> i32 {
+/// `GetCapabilities` for a caller whose `DIDEVCAPS` is `size` bytes: the capabilities, their
+/// size field `size`. DirectInput stores as much of them as `size` says (`caps_bytes`).
+pub fn get_capabilities(this: u32, size: u32) -> Result<DiDevCaps, i32> {
     let Some((_, d)) = device_of(this) else {
-        return DIERR_INVALIDPARAM;
+        return Err(DIERR_INVALIDPARAM);
     };
-    if caps == 0 {
-        return DIERR_INVALIDPARAM;
-    }
-    let size: u32 = arg(caps);
-    {
-        let full = DiDevCaps {
-            size,
-            flags: 1 | if d.force { 0x100 } else { 0 },
-            dev_type: 0x104,
-            axes: d.axes.count_ones(),
-            buttons: d.buttons,
-            hats: d.hats,
-            ff_sample_period: 0,
-            ff_min_time_resolution: 0,
-            firmware_revision: 0,
-            hardware_revision: 0,
-            ff_driver_version: 0,
-        };
-        // as much as the caller's size says, its size kept
-        let room = (size as usize).min(size_of::<DiDevCaps>());
-        if room > 4 {
-            let mut bytes = [0u8; size_of::<DiDevCaps>()];
-            for (place, value) in bytes.as_chunks_mut::<4>().0.iter_mut().zip([
-                full.size,
-                full.flags,
-                full.dev_type,
-                full.axes,
-                full.buttons,
-                full.hats,
-                full.ff_sample_period,
-                full.ff_min_time_resolution,
-                full.firmware_revision,
-                full.hardware_revision,
-                full.ff_driver_version,
-            ]) {
-                *place = value.to_le_bytes();
-            }
-            if let Err(e) = crate::pointers::GamePtr::new(caps + 4)
-                .write_bytes(&bytes[4..room], "DirectInput's capabilities")
-            {
-                crate::fatal::raise::end("input::get_capabilities", e);
-            }
-        }
-    }
-    DI_OK
+    Ok(DiDevCaps {
+        size,
+        flags: 1 | if d.force { 0x100 } else { 0 },
+        dev_type: 0x104,
+        axes: d.axes.count_ones(),
+        buttons: d.buttons,
+        hats: d.hats,
+        ff_sample_period: 0,
+        ff_min_time_resolution: 0,
+        firmware_revision: 0,
+        hardware_revision: 0,
+        ff_driver_version: 0,
+    })
 }
 
-/// `EnumObjects`' callback: (its `DIDEVICEOBJECTINSTANCEA`, the context) -> 0 to stop.
-pub type EnumObjectsCallback = fn(u32, u32) -> u32;
-
-pub fn enum_objects(this: u32, callback: EnumObjectsCallback, context: u32, _flags: u32) -> i32 {
+/// `EnumObjects`' callback gets each `DIDEVICEOBJECTINSTANCEA` and answers 0 to stop.
+pub fn enum_objects(
+    this: u32,
+    mut callback: impl FnMut(&DiDeviceObjectInstance) -> u32,
+    _flags: u32,
+) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
@@ -519,7 +491,7 @@ pub fn enum_objects(this: u32, callback: EnumObjectsCallback, context: u32, _fla
             name: [0; 260],
             rest: [0; 24],
         };
-        if callback(crate::pointers::game_address(&raw const object), context) == 0 {
+        if callback(&object) == 0 {
             break;
         }
     }
@@ -536,12 +508,17 @@ fn axes_named(how: u32, object: u32) -> Vec<usize> {
     }
 }
 
-pub fn set_property(this: u32, what: u32, header: u32) -> i32 {
-    if header == 0 {
-        return DIERR_INVALIDPARAM;
-    }
-    let read = |n: u32| arg::<u32>(header + 4 * n);
-    let (object, how) = (read(2), read(3));
+/// A property of a device, as `SetProperty` takes it (`DIPROP_RANGE` 4, `DIPROP_DEADZONE` 5,
+/// `DIPROP_SATURATION` 6, `DIPROP_FFGAIN` 7, `DIPROP_AUTOCENTER` 9).
+pub enum Property<'a> {
+    Range(&'a DiPropRange),
+    DeadZone(&'a DiPropDword),
+    Saturation(&'a DiPropDword),
+    FfGain(&'a DiPropDword),
+    AutoCenter(&'a DiPropDword),
+}
+
+pub fn set_property(this: u32, property: Property) -> i32 {
     let device = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) => Some(d.device),
         _ => None,
@@ -549,39 +526,45 @@ pub fn set_property(this: u32, what: u32, header: u32) -> i32 {
     let Some(device) = device else {
         return DIERR_INVALIDPARAM;
     };
-    match what {
-        // DIPROP_RANGE: lMin, lMax
-        4..=6 => with(|s| {
-            let Some(Kind2::Device(d)) = s.entries.get_mut(&id_of(this)).map(|e| &mut e.what)
-            else {
-                return DIERR_INVALIDPARAM;
+    match property {
+        Property::Range(_) | Property::DeadZone(_) | Property::Saturation(_) => {
+            let header = match &property {
+                Property::Range(r) => &r.header,
+                Property::DeadZone(w) | Property::Saturation(w) => &w.header,
+                _ => unreachable!("the arm is the three that name axes"),
             };
-            let axes = axes_named(how, object);
-            if axes.is_empty() {
-                return DIERR_INVALIDPARAM;
-            }
-            for a in axes {
-                match what {
-                    4 => {
-                        d.axes[a].min = read(4) as i32;
-                        d.axes[a].max = read(5) as i32;
-                    }
-                    5 => d.axes[a].dead = read(4).min(10000),
-                    _ => d.axes[a].saturation = read(4).min(10000),
+            let (object, how) = (header.object, header.how);
+            with(|s| {
+                let Some(Kind2::Device(d)) = s.entries.get_mut(&id_of(this)).map(|e| &mut e.what)
+                else {
+                    return DIERR_INVALIDPARAM;
+                };
+                let axes = axes_named(how, object);
+                if axes.is_empty() {
+                    return DIERR_INVALIDPARAM;
                 }
-            }
-            DI_OK
-        }),
-        // DIPROP_FFGAIN, DIPROP_AUTOCENTER
-        7 => {
-            backend(|b| b.gain(device, read(4).min(10000)));
+                for a in axes {
+                    match &property {
+                        Property::Range(r) => {
+                            d.axes[a].min = r.min;
+                            d.axes[a].max = r.max;
+                        }
+                        Property::DeadZone(w) => d.axes[a].dead = w.data.min(10000),
+                        Property::Saturation(w) => d.axes[a].saturation = w.data.min(10000),
+                        _ => {}
+                    }
+                }
+                DI_OK
+            })
+        }
+        Property::FfGain(w) => {
+            backend(|b| b.gain(device, w.data.min(10000)));
             DI_OK
         }
-        9 => {
-            backend(|b| b.centring(device, read(4) != 0));
+        Property::AutoCenter(w) => {
+            backend(|b| b.centring(device, w.data != 0));
             DI_OK
         }
-        _ => DIERR_UNSUPPORTED,
     }
 }
 
@@ -638,22 +621,23 @@ fn scaled(raw: i32, a: &Axis) -> i32 {
     (centre + n.signum() * m * half).round() as i32
 }
 
-pub fn get_device_state(this: u32, size: u32, out: u32) -> i32 {
+/// `GetDeviceState` for a buffer of `size` bytes: the `DIJOYSTATE`.
+pub fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
     let state = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) => Some((d.device, d.acquired, d.axes)),
         _ => None,
     });
     let Some((device, acquired, axes)) = state else {
-        return DIERR_INVALIDPARAM;
+        return Err(DIERR_INVALIDPARAM);
     };
     if !acquired {
-        return DIERR_NOTACQUIRED;
+        return Err(DIERR_NOTACQUIRED);
     }
-    if out == 0 || size < 0x50 {
-        return DIERR_INVALIDPARAM;
+    if size < 0x50 {
+        return Err(DIERR_INVALIDPARAM);
     }
     let reading = backend(|b| b.read(device)).unwrap_or_default();
-    let state = DiJoyState {
+    Ok(DiJoyState {
         axes: std::array::from_fn(|n| scaled(reading.axes[n], &axes[n])),
         sliders: [0; 2],
         hats: reading.hats,
@@ -664,9 +648,7 @@ pub fn get_device_state(this: u32, size: u32, out: u32) -> i32 {
                 0
             }
         }),
-    };
-    put(out, state);
-    DI_OK
+    })
 }
 
 /// `SetDataFormat`: the game asks for `c_dfDIJoystick`, the state `get_device_state` gives.
@@ -687,10 +669,8 @@ pub fn poll(this: u32) -> i32 {
     })
 }
 
-/// `EnumEffects`' callback: (its `DIEFFECTINFOA`, the context) -> 0 to stop.
-pub type EnumEffectsCallback = fn(u32, u32) -> u32;
-
-pub fn enum_effects(this: u32, callback: EnumEffectsCallback, context: u32, kind: u32) -> i32 {
+/// `EnumEffects`' callback gets each `DIEFFECTINFOA` and answers 0 to stop.
+pub fn enum_effects(this: u32, mut callback: impl FnMut(&DiEffectInfo) -> u32, kind: u32) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
@@ -714,90 +694,93 @@ pub fn enum_effects(this: u32, callback: EnumEffectsCallback, context: u32, kind
             dynamic_params: 0x1E5,
             name,
         };
-        if callback(crate::pointers::game_address(&raw const info), context) == 0 {
+        if callback(&info) == 0 {
             break;
         }
     }
     DI_OK
 }
 
+/// What the stand-in takes from a `DIEFFECT`, read out of the game's record by the caller:
+/// duration, gain, the first direction (when the record has directions for an axis), the
+/// envelope's attack level, attack time, fade level and fade time (when it has one) and the
+/// type-specific dwords (when it has them).
+#[derive(Clone, Debug, Default)]
+pub struct EffectParameters {
+    pub duration: u32,
+    pub gain: u32,
+    pub direction: Option<i32>,
+    pub envelope: Option<[u32; 4]>,
+    pub type_specific: Option<Vec<i32>>,
+}
+
 /// The parts of a `DIEFFECT` that `flags` name, into `e`.
-fn take_parameters(e: &mut Effect, at: u32, flags: u32) {
+fn take_parameters(e: &mut Effect, p: &EffectParameters, flags: u32) {
+    // DIEP_DURATION 1, DIEP_GAIN 4, DIEP_DIRECTION 0x40, DIEP_ENVELOPE 0x80,
+    // DIEP_TYPESPECIFICPARAMS 0x100
+    if flags & 1 != 0 {
+        e.duration = p.duration;
+    }
+    if flags & 4 != 0 {
+        e.gain = p.gain.min(10000);
+    }
+    if flags & 0x40 != 0
+        && let Some(direction) = p.direction
     {
-        let read = |n: u32| arg::<u32>(at + 4 * n);
-        // DIEP_DURATION 1, DIEP_GAIN 4, DIEP_DIRECTION 0x40, DIEP_ENVELOPE 0x80,
-        // DIEP_TYPESPECIFICPARAMS 0x100
-        if flags & 1 != 0 {
-            e.duration = read(2);
-        }
-        if flags & 4 != 0 {
-            e.gain = read(4).min(10000);
-        }
-        if flags & 0x40 != 0 {
-            let directions = read(9);
-            if directions != 0 && read(7) > 0 {
-                e.direction = arg(directions);
-            }
-        }
-        if flags & 0x80 != 0 {
-            let envelope = read(10);
-            e.envelope = (envelope != 0).then(|| {
-                // DIENVELOPE: dwSize, dwAttackLevel, dwAttackTime, dwFadeLevel, dwFadeTime
-                [1, 2, 3, 4].map(|n| arg(envelope + 4 * n))
-            });
-        }
-        if flags & 0x100 != 0 {
-            let (size, params) = (read(11), read(12));
-            if params != 0 {
-                e.params = (0..size / 4).map(|n| arg(params + 4 * n)).collect();
-            }
-        }
+        e.direction = direction;
+    }
+    if flags & 0x80 != 0 {
+        e.envelope = p.envelope;
+    }
+    if flags & 0x100 != 0
+        && let Some(params) = &p.type_specific
+    {
+        e.params = params.clone();
     }
 }
 
 const ALL_PARAMETERS: u32 = 0x1FF;
 const DIEP_START: u32 = 0x2000_0000;
 
-pub fn create_effect(this: u32, guid: u32, effect: u32, out: u32, _outer: u32) -> i32 {
-    {
-        if guid == 0 || out == 0 {
-            return DIERR_INVALIDPARAM;
-        }
-        let Some(kind) = Kind::of_guid(&arg::<[u8; 16]>(guid)) else {
-            put(out, 0u32);
-            return DIERR_DEVICENOTREG;
-        };
-        let Some((device, d)) = device_of(this) else {
-            return DIERR_INVALIDPARAM;
-        };
-        if !d.force {
-            put(out, 0u32);
-            return DIERR_UNSUPPORTED;
-        }
-        let mut e = Effect {
-            kind,
-            duration: u32::MAX,
-            gain: 10000,
-            ..Default::default()
-        };
-        if effect != 0 {
-            take_parameters(&mut e, effect, ALL_PARAMETERS);
-        }
-        let at = with(|s| {
-            make(
-                s,
-                Kind2::Effect(EffectObject {
-                    device,
-                    effect: e.clone(),
-                    playing: false,
-                }),
-            )
-        });
-        let id = id_of(at);
-        backend(|b| b.effect(device, id, &e, false, false));
-        put(out, at);
-        DI_OK
+/// An effect of the GUID `guid` made, with `parameters` when the caller gives a `DIEFFECT`:
+/// its object handle (`Err(DEVICENOTREG)` for an unknown kind, `Err(UNSUPPORTED)` on a
+/// device without force feedback; the game's out cell 0 then).
+pub fn create_effect(
+    this: u32,
+    guid: &Guid,
+    parameters: Option<&EffectParameters>,
+) -> Result<u32, i32> {
+    let Some(kind) = Kind::of_guid(guid) else {
+        return Err(DIERR_DEVICENOTREG);
+    };
+    let Some((device, d)) = device_of(this) else {
+        return Err(DIERR_INVALIDPARAM);
+    };
+    if !d.force {
+        return Err(DIERR_UNSUPPORTED);
     }
+    let mut e = Effect {
+        kind,
+        duration: u32::MAX,
+        gain: 10000,
+        ..Default::default()
+    };
+    if let Some(p) = parameters {
+        take_parameters(&mut e, p, ALL_PARAMETERS);
+    }
+    let at = with(|s| {
+        make(
+            s,
+            Kind2::Effect(EffectObject {
+                device,
+                effect: e.clone(),
+                playing: false,
+            }),
+        )
+    });
+    let id = id_of(at);
+    backend(|b| b.effect(device, id, &e, false, false));
+    Ok(at)
 }
 
 // IDirectInputEffect: 0 QueryInterface, 1 AddRef, 2 Release, 3 Initialize, 4 GetEffectGuid,
@@ -824,12 +807,9 @@ fn change_effect(this: u32, f: impl FnOnce(&mut EffectObject) -> bool) -> i32 {
     }
 }
 
-pub fn set_parameters(this: u32, effect: u32, flags: u32) -> i32 {
-    if effect == 0 {
-        return DIERR_INVALIDPARAM;
-    }
+pub fn set_parameters(this: u32, parameters: &EffectParameters, flags: u32) -> i32 {
     change_effect(this, |e| {
-        take_parameters(&mut e.effect, effect, flags);
+        take_parameters(&mut e.effect, parameters, flags);
         let start = flags & DIEP_START != 0;
         if start {
             e.playing = true;

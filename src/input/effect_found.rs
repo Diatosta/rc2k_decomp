@@ -12,20 +12,11 @@
 //! Caller: DirectInput, from `input::begin_force`.
 
 use crate::errors::BadInput;
-use crate::field;
 use crate::input::types::{DiEffectInfo, InputDevice};
-use crate::pointers::GamePtr;
 
-/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`; the
-/// context is the device record's handle (`Devices::handle_of`).
-pub fn callback(info: u32, context: u32) -> u32 {
-    let Some(record) = crate::input::store::device_of(context) else {
-        crate::input::devices::refused_here(
-            "input::effect_found",
-            BadInput("an effect listing's context that is no device record"),
-        );
-        return 0;
-    };
+/// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`, the
+/// device record the effects are listed for.
+pub fn callback(info: &DiEffectInfo, record: &InputDevice) -> u32 {
     match effect_found(info, record) {
         Ok(eax) => eax,
         Err(e) => {
@@ -35,25 +26,15 @@ pub fn callback(info: u32, context: u32) -> u32 {
     }
 }
 
-/// A dword of the listed effect at `at`: DirectInput's emulation holds it in a local of its
-/// own, which is no allocation of the game's (a slice when the callback takes one).
-fn listed_dword(at: u32) -> u32 {
-    crate::pointers::read_or_end(at, "a listed effect")
-}
-
 /// The Rust version: eax.
-pub fn effect_found(info: u32, record: &InputDevice) -> Result<u32, BadInput> {
+pub fn effect_found(info: &DiEffectInfo, record: &InputDevice) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::force::take_listed`.
     use rc2k_core::input::force::{Found, Listed, take_listed};
-    let guid = |at: u32| GamePtr::new(at).read::<[u8; 16]>("an effect's GUID");
-    // `info` is the `DIEFFECTINFOA` the emulation lists, alive for this call.
-    let listed = {
-        Listed {
-            guid: guid(info + field!(DiEffectInfo, guid))?,
-            eff_type: listed_dword(info + field!(DiEffectInfo, eff_type)),
-            static_params: listed_dword(info + field!(DiEffectInfo, static_params)),
-            dynamic_params: listed_dword(info + field!(DiEffectInfo, dynamic_params)),
-        }
+    let listed = Listed {
+        guid: info.guid,
+        eff_type: info.eff_type,
+        static_params: info.static_params,
+        dynamic_params: info.dynamic_params,
     };
     for e in &record.effects {
         let mut f = Found {

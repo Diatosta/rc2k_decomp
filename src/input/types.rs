@@ -76,7 +76,9 @@ impl DiEnvelope {
 }
 
 /// DirectInput's `DIEFFECT` (DirectX 5: 0x34 bytes). Its pointers (`axes`, `directions`,
-/// `envelope`, `type_specific`) hold game addresses, which the DirectInput stand-in reads.
+/// `envelope`, `type_specific`) hold game addresses, kept as the game's layout; the
+/// DirectInput stand-in is given the parts (`effect_objects::parameters_of`) and takes only
+/// whether each pointer is set.
 #[repr(C)]
 pub struct DiEffect {
     pub size: Dword,
@@ -305,6 +307,26 @@ pub struct DiJoyState {
     pub sliders: [i32; 2],
     pub hats: [u32; 4],
     pub buttons: [u8; 32],
+}
+
+impl DiJoyState {
+    /// The state as the dwords of `g_deviceState`.
+    pub fn dwords(&self) -> [u32; 20] {
+        let mut out = [0u32; 20];
+        let head = self
+            .axes
+            .iter()
+            .map(|&v| v as u32)
+            .chain(self.sliders.iter().map(|&v| v as u32))
+            .chain(self.hats);
+        for (place, v) in out.iter_mut().zip(head) {
+            *place = v;
+        }
+        for (place, b) in out[12..].iter_mut().zip(self.buttons.as_chunks::<4>().0) {
+            *place = u32::from_le_bytes(*b);
+        }
+        out
+    }
 }
 
 const _: () = assert!(size_of::<Controller>() == 0x50);

@@ -73,14 +73,14 @@ pub fn make_effect(record: &InputDevice, effect: &ForceEffect, n: u32) -> Result
     // The effect's function with a change of 1, ecx the effect's number, edx 0.
     crate::input::effect_changes::effect_change_at(e.change.get(), record, e, 1, n, 0)?;
     if e.found.get() == 1 {
-        // The GUID, the `DIEFFECT` and the object's cell by address, as DirectInput takes them.
-        crate::input::di_objects::create_effect(
+        // The GUID and the `DIEFFECT`'s parts, as DirectInput takes them; the object's
+        // cell as `CreateEffect` leaves it.
+        let made = crate::input::di_objects::create_effect(
             record.device.get(),
-            GamePtr::to(&e.guid).addr(),
-            GamePtr::to(&e.effect).addr(),
-            e.object.addr(),
-            0,
+            &e.guid.read(),
+            Some(&crate::input::effect_objects::parameters_of(e)),
         );
+        crate::input::di_objects::store(&e.object, made);
     }
     Ok(())
 }

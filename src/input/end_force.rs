@@ -20,8 +20,11 @@ pub fn end_force(record: &InputDevice) -> Result<(), crate::errors::BadInput> {
     if at(entry_of(record), field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
-    let prop = crate::input::begin_force::dword_property(1)?;
-    crate::input::di_objects::set_property(record.device.get(), 9, prop);
+    let prop = crate::input::begin_force::dword_property(1);
+    crate::input::di_objects::set_property(
+        record.device.get(),
+        crate::input::di_objects::Property::AutoCenter(&prop),
+    );
     for e in &record.effects {
         crate::input::effect_objects::release_effect(e);
         e.found.set(0);

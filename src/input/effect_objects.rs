@@ -15,8 +15,39 @@
 //! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's
 //! in the standalone program, `input::di_objects`).
 
+use crate::input::di_objects::EffectParameters;
 use crate::input::types::ForceEffect;
-use crate::pointers::GamePtr;
+
+/// What the DirectInput stand-in takes from the effect's `DIEFFECT`. Its pointers
+/// (`directions`, `envelope`, `type_specific`) say whether the part is there; they always
+/// point at the effect's own arrays (`effect_changes`, `make_effect`), so those are read.
+pub fn parameters_of(effect: &ForceEffect) -> EffectParameters {
+    let d = &effect.effect;
+    let specific = d.type_specific_size.get() / 4;
+    EffectParameters {
+        duration: d.duration.get(),
+        gain: d.gain.get(),
+        direction: (d.directions.get() != 0 && d.axes_count.get() > 0)
+            .then(|| effect.directions[0].get() as i32),
+        envelope: (d.envelope.get() != 0).then(|| {
+            let e = &effect.envelope;
+            [
+                e.attack_level.get(),
+                e.attack_time.get(),
+                e.fade_level.get(),
+                e.fade_time.get(),
+            ]
+        }),
+        type_specific: (d.type_specific.get() != 0).then(|| {
+            effect
+                .type_specific
+                .iter()
+                .take(specific as usize)
+                .map(|v| v.get() as i32)
+                .collect()
+        }),
+    }
+}
 
 /// `release_effect`'s Rust version.
 pub fn release_effect(effect: &ForceEffect) {
@@ -41,8 +72,7 @@ pub fn start_effect(effect: &ForceEffect) {
 pub fn set_effect_parameters(effect: &ForceEffect, flags: u32) {
     let object = effect.object.get();
     if object != 0 {
-        // The `DIEFFECT` is handed on by address (the DirectInput stand-in reads it).
-        crate::input::di_objects::set_parameters(object, GamePtr::to(&effect.effect).addr(), flags);
+        crate::input::di_objects::set_parameters(object, &parameters_of(effect), flags);
     }
 }
 

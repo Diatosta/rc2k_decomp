@@ -34,13 +34,6 @@ pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
         .read("a device record's dword")
 }
 
-/// Writes a dword at `record` (as `at`).
-pub fn put(record: u32, offset: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(record)
-        .offset(offset)
-        .write(v, "a device record's dword")
-}
-
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
 pub fn record_bytes(record: &InputDevice) -> Result<rc2k_core::input::devices::Record, BadInput> {
     GamePtr::to(record).read("a device record")

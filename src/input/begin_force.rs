@@ -15,36 +15,29 @@
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the
 //! device's own.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::field;
-use crate::input::devices::{at, put};
+use crate::input::devices::at;
+use crate::input::di_objects::{Property, set_property};
+
 use crate::input::di_harness::{entry_of, fatal};
-use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
 const USING_TEXT_RVA: &std::ffi::CStr = c"INP: using force feedback"; // aInpUsingForceF
-const DIPROP_FFGAIN: u32 = 7;
-const DIPROP_AUTOCENTER: u32 = 9;
 
-/// The `DIPROPDWORD` for the whole device with `data`: its address.
-pub fn dword_property(data: u32) -> Result<u32, BadInput> {
-    let prop = DEVICES.dword_property.addr();
-    put(
-        prop,
-        field!(DiPropDword, header.size),
-        size_of::<DiPropDword>() as u32,
-    )?;
-    put(
-        prop,
-        field!(DiPropDword, header.header_size),
-        size_of::<DiPropHeader>() as u32,
-    )?;
-    put(prop, field!(DiPropDword, header.object), 0)?;
-    put(prop, field!(DiPropDword, header.how), 0)?;
-    put(prop, field!(DiPropDword, data), data)?;
-    Ok(prop)
+/// The `DIPROPDWORD` for the whole device with `data`.
+pub fn dword_property(data: u32) -> DiPropDword {
+    DiPropDword {
+        header: DiPropHeader {
+            size: size_of::<DiPropDword>() as u32,
+            header_size: size_of::<DiPropHeader>() as u32,
+            object: 0,
+            how: 0,
+        },
+        data,
+    }
 }
 
 /// The Rust version (see the header).
@@ -57,19 +50,20 @@ pub fn begin_force(record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     // Converted: `rc2k_core::input::acquire::gain`.
     let Some(gain) = gain(record.strength.get()) else {
-        crate::input::di_objects::set_property(device, DIPROP_AUTOCENTER, dword_property(1)?);
+        set_property(device, Property::AutoCenter(&dword_property(1)));
         return Ok(());
     };
-    if crate::input::di_objects::set_property(device, DIPROP_AUTOCENTER, dword_property(0)?) != 0 {
+    if set_property(device, Property::AutoCenter(&dword_property(0))) != 0 {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(gain)?;
-    if crate::input::di_objects::set_property(device, DIPROP_FFGAIN, gain) != 0 {
+    if set_property(device, Property::FfGain(&dword_property(gain))) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = crate::input::effect_found::callback;
-    // The record goes to the callback as its handle.
-    crate::input::di_objects::enum_effects(device, found, DEVICES.handle_of(record)?, 0);
+    crate::input::di_objects::enum_effects(
+        device,
+        |info| crate::input::effect_found::callback(info, record),
+        0,
+    );
     for (n, effect) in record.effects.iter().enumerate() {
         crate::input::make_effect::make_effect(record, effect, n as u32)?;
     }

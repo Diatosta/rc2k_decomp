@@ -16,6 +16,10 @@ pub fn list_joysticks() {
     if DEVICES.no_joysticks.get() != 0 {
         return;
     }
-    let found = crate::input::joystick_found::callback;
-    crate::input::di_objects::enum_devices(DEVICES.direct_input.get(), 4, found, 0, 1);
+    crate::input::di_objects::enum_devices(
+        DEVICES.direct_input.get(),
+        4,
+        crate::input::joystick_found::callback,
+        1,
+    );
 }

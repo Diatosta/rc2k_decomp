@@ -29,13 +29,14 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::field;
-use crate::input::devices::{Deferred, at, put};
+use crate::input::devices::{Deferred, at};
 use crate::input::di_harness::{JOYSTICK_FORMAT_RVA, a, entry_of, fatal};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::session::MACHINE;
 use rc2k_core::input::acquire::{
@@ -50,10 +51,6 @@ const AXMODE_RVA: &std::ffi::CStr = c"axmode="; // aAxmode "axmode="
 const AXCODE_RVA: &std::ffi::CStr = c"axcode="; // aAxcode "axcode="
 const DZ_RVA: &std::ffi::CStr = c"dz="; // aDz "dz="
 const FF_RVA: &std::ffi::CStr = c"ff="; // aFf "ff="
-
-const DIPROP_RANGE: u32 = 4;
-const DIPROP_DEADZONE: u32 = 5;
-const DIPROP_SATURATION: u32 = 6;
 
 const NO_OBJECT: FatalError = FatalError {
     code: 0x8023_8311,
@@ -137,67 +134,54 @@ fn axis(record: &D, n: usize) -> u32 {
 }
 
 /// The ranges, dead zones and saturation.
-fn properties(record: &D) -> Result<(), BadInput> {
+fn properties(record: &D) {
+    use crate::input::di_objects::{Property, set_property};
     let device = record.device.get();
-    let set =
-        |what: u32, prop: u32| crate::input::di_objects::set_property(device, what, prop) as u32;
-    let (header, object, how) = (
-        size_of::<DiPropHeader>() as u32,
-        field!(R, header.object),
-        field!(R, header.how),
+    let header = |object: u32, how: u32| DiPropHeader {
+        size: 0,
+        header_size: size_of::<DiPropHeader>() as u32,
+        object,
+        how,
+    };
+    let range = |object: u32, how: u32, min: i32, max: i32| R {
+        header: DiPropHeader {
+            size: size_of::<R>() as u32,
+            ..header(object, how)
+        },
+        min,
+        max,
+    };
+    let dword = |how: u32, data: u32| W {
+        header: DiPropHeader {
+            size: size_of::<W>() as u32,
+            ..header(0, how)
+        },
+        data,
+    };
+    set_property(device, Property::Range(&range(0, 0, -256, 0)));
+    set_property(
+        device,
+        Property::Range(&range(axis(record, 1), 1, -256, 0x100)),
     );
-    let range = DEVICES.range_property.addr();
-    put(range, field!(R, header.size), size_of::<R>() as u32)?;
-    put(range, field!(R, header.header_size), header)?;
-    put(range, object, 0)?;
-    put(range, how, 0)?;
-    put(range, field!(R, min), (-256i32) as u32)?;
-    put(range, field!(R, max), 0)?;
-    set(DIPROP_RANGE, range);
-    put(range, object, axis(record, 1))?;
-    put(range, how, 1)?;
-    put(range, field!(R, min), (-256i32) as u32)?;
-    put(range, field!(R, max), 0x100)?;
-    set(DIPROP_RANGE, range);
     // Converted: `rc2k_core::input::acquire` (`axis_offset`, `two_axes`,
     // `dead_zone_value`, `saturation`).
     let two_axes = two_axes(record.kind.get());
     if two_axes {
-        put(range, object, axis(record, 0))?;
-        set(DIPROP_RANGE, range);
+        set_property(
+            device,
+            Property::Range(&range(axis(record, 0), 1, -256, 0x100)),
+        );
     }
-    let dword = DEVICES.dword_property.addr();
-    let start = |data: Option<u32>| -> Result<(), BadInput> {
-        put(dword, field!(W, header.size), size_of::<W>() as u32)?;
-        put(dword, field!(W, header.header_size), header)?;
-        put(dword, field!(W, header.object), 0)?;
-        put(dword, field!(W, header.how), 0)?;
-        if let Some(data) = data {
-            put(dword, field!(W, data), data)?;
-        }
-        Ok(())
-    };
-    start(Some(0))?;
-    set(DIPROP_DEADZONE, dword);
-    // (sic) the range's object, not the dead zone's
-    put(range, object, axis(record, 1))?;
-    put(dword, field!(W, header.how), 1)?;
-    put(
-        dword,
-        field!(W, data),
-        dead_zone_value(record.dead_zone.get()),
-    )?;
-    set(DIPROP_DEADZONE, dword);
+    set_property(device, Property::DeadZone(&dword(0, 0)));
+    // (sic) the dead zone's object stays 0: the range's object was meant
+    let dead_zone = dword(1, dead_zone_value(record.dead_zone.get()));
+    set_property(device, Property::DeadZone(&dead_zone));
     if two_axes {
-        put(range, object, axis(record, 0))?;
-        set(DIPROP_DEADZONE, dword);
+        set_property(device, Property::DeadZone(&dead_zone));
     }
-    start(None)?;
     if let Some(data) = saturation(record.dead_zone.get(), record.end_zone.get()) {
-        put(dword, field!(W, data), data)?;
-        set(DIPROP_SATURATION, dword);
+        set_property(device, Property::Saturation(&dword(0, data)));
     }
-    Ok(())
 }
 
 /// The Rust version (see the header).
@@ -218,22 +202,15 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
         Acquire::Acquire => {}
     }
     settings(record, entry)?;
-    let hr = crate::input::di_objects::create_device(
-        DEVICES.direct_input.get(),
-        entry + field!(C, instance),
-        record.device.addr(),
-        0,
-    ) as u32;
-    if hr != 0 {
+    let instance: [u8; 16] =
+        GamePtr::new(entry + field!(C, instance)).read("a controller's GUID")?;
+    let made = crate::input::di_objects::create_device(DEVICES.direct_input.get(), &instance);
+    if crate::input::di_objects::store(&record.device, made) != 0 {
         return Err(NO_OBJECT.into());
     }
     let device = record.device.get();
-    if crate::input::di_objects::query_interface(
-        device,
-        INPUT_GUIDS.device2.addr(),
-        DEVICES.new_joystick2.addr(),
-    ) != 0
-    {
+    let made = crate::input::di_objects::query_interface(device, &INPUT_GUIDS.device2.read());
+    if crate::input::di_objects::store(&DEVICES.new_joystick2, made) != 0 {
         return Err(fatal(0x8023_8318).into());
     }
     crate::input::di_objects::release(device);
@@ -246,7 +223,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
     if crate::input::di_objects::set_cooperative_level(device, MACHINE.window.get(), 5) != 0 {
         return Err(fatal(0x8023_8313).into());
     }
-    properties(record)?;
+    properties(record);
     if at(entry, field!(C, force_feedback))? == 1 {
         crate::input::begin_force::begin_force(record)?;
     }

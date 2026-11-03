@@ -393,16 +393,6 @@ impl Devices {
         ))
     }
 
-    /// The handle of one of the two records (`DEVICE_TAG | n`), for a context DirectInput
-    /// hands back.
-    pub fn handle_of(&self, record: &InputDevice) -> Result<u32, BadInput> {
-        self.records
-            .iter()
-            .position(|r| std::ptr::eq(r, record))
-            .map(|n| DEVICE_TAG | n as u32)
-            .ok_or(BadInput("a record that is none of the two device records"))
-    }
-
     /// Key `key`'s state in that table (the window's messages write it: 0xFF down).
     pub fn set_key_state(&self, key: u8, state: u8) {
         let key = key as usize;

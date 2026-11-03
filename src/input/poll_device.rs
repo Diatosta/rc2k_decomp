@@ -48,16 +48,18 @@ pub fn poll_device(record: &InputDevice) -> Result<(), Refused> {
         return Ok(());
     }
     crate::input::di_objects::poll(device);
-    let failed = {
-        crate::input::di_objects::get_device_state(
-            device,
-            STATE_LEN as u32,
-            DEVICES.device_state[0].addr(),
-        ) as u32
+    let failed = match crate::input::di_objects::get_device_state(device, STATE_LEN as u32) {
+        Ok(state) => {
+            for (cell, v) in DEVICES.device_state.iter().zip(state.dwords()) {
+                cell.set(v);
+            }
+            false
+        }
+        Err(_) => true,
     };
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
     // and writes the record from there (sic) until the `popa`.
-    if failed != 0 {
+    if failed {
         crate::input::di_objects::acquire(device);
         GamePtr::to(record).copy_to(
             GamePtr::to(&DEVICES.device_state),

@@ -22,55 +22,43 @@ use crate::field;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
-use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
+use crate::input::types::{Controller, DiDeviceInstance};
 use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(
-    instance: u32,
+    instance: &DiDeviceInstance,
     entry: &'static crate::session::Bytes<{ crate::input::store::CONTROLLER_LEN }>,
 ) -> Result<bool, BadInput> {
+    use crate::input::di_objects as di;
     let input = DEVICES.direct_input.get();
-    let ok = |hr: u32| hr == 0;
-    if !ok(crate::input::di_objects::create_device(
-        input,
-        instance + field!(DiDeviceInstance, instance),
-        DEVICES.new_joystick.addr(),
-        0,
-    ) as u32)
-    {
+    let made = di::create_device(input, &instance.instance);
+    if di::store(&DEVICES.new_joystick, made) != 0 {
         return Ok(false);
     }
     let device = DEVICES.new_joystick.get();
-    if !ok(crate::input::di_objects::query_interface(
-        device,
-        INPUT_GUIDS.device2.addr(),
-        DEVICES.new_joystick2.addr(),
-    ) as u32)
-    {
+    let made = di::query_interface(device, &INPUT_GUIDS.device2.read());
+    if di::store(&DEVICES.new_joystick2, made) != 0 {
         return Ok(false);
     }
     let device2 = DEVICES.new_joystick2.get();
-    if !ok(crate::input::di_objects::set_data_format(device2, a(JOYSTICK_FORMAT_RVA)) as u32) {
+    if di::set_data_format(device2, a(JOYSTICK_FORMAT_RVA)) != 0 {
         return Ok(false);
     }
-    if !ok(crate::input::di_objects::set_cooperative_level(device2, MACHINE.window.get(), 5) as u32)
-    {
+    if di::set_cooperative_level(device2, MACHINE.window.get(), 5) != 0 {
         return Ok(false);
     }
-    DEVICES.joystick_caps.set_u32(0, CAPS_LEN as u32);
-    if !ok(crate::input::di_objects::get_capabilities(device2, DEVICES.joystick_caps.addr()) as u32)
-    {
+    let Ok(caps) = di::get_capabilities(device2, CAPS_LEN as u32) else {
         return Ok(false);
-    }
-    let found = crate::input::axis_found::callback;
-    crate::input::di_objects::enum_objects(device2, found, entry.addr(), 0);
-    // `instance` is the `DIDEVICEINSTANCEA` the emulation lists, alive for this call.
-    let dev_type: u32 = GamePtr::new(instance + field!(DiDeviceInstance, dev_type))
-        .read("a listed device's type")?;
-    let guid: [u8; 16] = GamePtr::new(instance + field!(DiDeviceInstance, instance))
-        .read("a listed device's GUID")?;
+    };
+    di::enum_objects(
+        device2,
+        |object| crate::input::axis_found::callback(object, entry),
+        0,
+    );
+    let dev_type = instance.dev_type;
+    let guid = instance.instance;
     entry.set_u32(field!(Controller, dev_type) as usize, dev_type);
     GamePtr::to(entry)
         .offset(field!(Controller, instance))
@@ -88,18 +76,17 @@ fn look_over(
     // room 0x19 is never refused
     let _ = {
         crate::strings::copy_printable::copy_printable(
-            crate::pointers::GamePtr::new(instance + field!(DiDeviceInstance, instance_name)),
+            GamePtr::to(&instance.instance_name),
             to,
             NAME_ROOM,
         )
     };
     KEEP_CASE.store(kept, Relaxed);
-    let caps = |offset: u32| DEVICES.joystick_caps.get_u32(offset as usize);
     let f = rc2k_core::input::joystick::found(
-        caps(field!(DiDevCaps, flags)),
-        caps(field!(DiDevCaps, axes)),
-        caps(field!(DiDevCaps, buttons)),
-        caps(field!(DiDevCaps, hats)),
+        caps.flags,
+        caps.axes,
+        caps.buttons,
+        caps.hats,
         DEVICES.no_force_feedback.get(),
     );
     entry.set_u32(field!(Controller, caps_flags) as usize, f.caps_flags);
@@ -116,8 +103,8 @@ fn look_over(
 
 /// The Rust version: eax.
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
-pub fn callback(instance: u32, context: u32) -> u32 {
-    match joystick_found(instance, context) {
+pub fn callback(instance: &DiDeviceInstance) -> u32 {
+    match joystick_found(instance) {
         Ok(eax) => eax,
         Err(e) => {
             crate::input::devices::refused_here("input::joystick_found", e);
@@ -126,7 +113,7 @@ pub fn callback(instance: u32, context: u32) -> u32 {
     }
 }
 
-pub fn joystick_found(instance: u32, _context: u32) -> Result<u32, BadInput> {
+pub fn joystick_found(instance: &DiDeviceInstance) -> Result<u32, BadInput> {
     let count = DEVICES.controller_count.get();
     if count >= CONTROLLERS {
         return Ok(0);
