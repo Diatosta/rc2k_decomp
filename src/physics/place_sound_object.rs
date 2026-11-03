@@ -32,9 +32,10 @@ pub fn place_sound_object() -> Result<(), Refused> {
         CONTACT_WORK.face_object.get(),
         |thing| OBJECT_TABLES.object_kind(thing),
         |kind| {
-            trap.byte(
-                crate::scene::polygon::materials_addr() + 0x24 + (0x80 * kind as usize) as u32,
-                "an object material's record",
+            trap.keep(
+                crate::scene::polygon::materials_ptr()
+                    .offset(0x24 + (0x80 * kind as usize) as u32)
+                    .read::<u8>("an object material's record"),
             )
         },
         |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),

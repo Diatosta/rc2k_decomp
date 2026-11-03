@@ -20,7 +20,7 @@
 //! Refuses what `drive_computer_car` refuses (before anything).
 
 use crate::drive::drive_computer_car::drive_computer_car;
-use crate::drive::next_camera_view::next_camera_view;
+use crate::drive::next_camera_view::next_view_at;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -88,7 +88,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
             CAR.lights_on.set(flipped(CAR.lights_on.get()));
         }
         if pressed & VIEW_BIT != 0 {
-            next_camera_view(crate::physics::car_store::car_addr())?;
+            next_view_at(&CAR, &RACE_VIEW.players, &CAR.step_clock)?;
         }
     }
     if !computer() {

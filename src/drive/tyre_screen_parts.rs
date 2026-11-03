@@ -29,9 +29,9 @@ pub fn tyre_screen_parts() -> Result<(), Refused> {
         set(&VIEWER_PANEL.texture_rect, uv); // dword_5C2A1C
         set(&VIEWER_PANEL.screen_rect, rect); // dword_5C2A0C
         {
-            crate::drive::tyre_quad::tyre_quad(
-                VIEWER_PANEL.texture_rect[0].addr(),
-                VIEWER_PANEL.screen_rect[0].addr(),
+            crate::drive::tyre_quad::tyre_quad_cells(
+                &VIEWER_PANEL.texture_rect,
+                &VIEWER_PANEL.screen_rect,
                 0xFF_FFFF,
             )
         }?;

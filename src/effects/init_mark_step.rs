@@ -51,12 +51,13 @@ pub fn init_mark_step() -> Result<(), Refused> {
             crate::race::mud::car_file_number(crate::race::blocks_store::own_car().car_kind.bits());
         MARKS_SETTINGS.mark_car_file_number.set_bits(file);
         for n in 0..count {
-            let kind = GamePtr::new(block(n) + 0x24).read::<i32>("a mark's field")?;
+            let kind = crate::physics::car_store::Car::at(block(n)).car_kind.get() as i32;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
-            let row = (LIGHT_RECORDS.record_addr(0) as usize + 0x6C + race::kind_row(kind)) as u32;
+            let row =
+                GamePtr::to(&LIGHT_RECORDS.records).offset((0x6C + race::kind_row(kind)) as u32);
             let bad = crate::effects::Sticky::default();
             let fields = race::car_fields(n, |offset| {
-                bad.take(GamePtr::new(row + offset as u32).read::<u32>("a mark's field"))
+                bad.take(row.offset(offset as u32).read::<u32>("a mark's field"))
             });
             bad.done()?;
             for (field, v) in fields {

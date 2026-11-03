@@ -13,26 +13,22 @@
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::physics::car_store::Car;
 use crate::session::Dword;
 use rc2k_core::drive::camera_views::CameraView;
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a car's block")
-}
-
-/// The Rust version on the block at `s`, the step count `step`.
+/// The Rust version on the block `car`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
-pub fn set_view_at(s: u32, step: &Dword) -> Result<(), BadInput> {
+pub fn set_view_at(car: &Car, step: &Dword) -> Result<(), BadInput> {
     let mut v = CameraView {
-        wanted: GamePtr::new(s.wrapping_add(0x688)).read("a car's block")?,
+        wanted: car.camera_blend_view.get(),
         ..CameraView::default()
     };
     v.take_wanted(step.bits());
-    put(s + 0x684, v.view)?;
-    put(s + 0x694, v.held)?;
-    put(s + 0x69C, v.w69c)?;
-    put(s + 0x698, v.w698)?;
-    put(s + 0x690, v.taken_at)?;
+    car.camera_view.set(v.view);
+    car.camera_switch_active.set(v.held);
+    car.camera_switch_share.set_bits(v.w69c);
+    car.camera_switch_length.set(v.w698);
+    car.camera_switch_clock.set(v.taken_at);
     Ok(())
 }

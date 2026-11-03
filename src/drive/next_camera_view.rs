@@ -11,41 +11,31 @@
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
-use crate::physics::car_store::CAR;
-use crate::pointers::GamePtr;
+use crate::physics::car_store::{CAR, Car};
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
-fn at(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a car's block")
-}
-
-/// The Rust version on block `s`, the players `players`, the step count `step`.
+/// The Rust version on block `car`, the players `players`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
 /// The eax it leaves is read by no caller (liveness: not live after either call).
-pub fn next_view_at(s: u32, players: &Dword, step: &Dword) -> Result<(), BadInput> {
-    if at(s + 0x694)? != 0 {
+pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadInput> {
+    if car.camera_switch_active.get() != 0 {
         return Ok(());
     }
-    let reading = crate::scene::reading::Reading::new();
     let view = next_view(
-        at(s + 0x684)?,
-        || reading.read::<u32>(s.wrapping_add(0x24), "a car's block"),
+        car.camera_view.get(),
+        || car.car_kind.get(),
         |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
         || players.bits(),
     );
-    reading.finish()?;
-    put(s.wrapping_add(0x688), view)?;
-    set_view_at(s, step)
+    car.camera_blend_view.set(view);
+    set_view_at(car, step)
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a car's block")
-}
-
-/// The Rust version.
+/// The Rust version, on the block at `s`.
 pub fn next_camera_view(s: u32) -> Result<(), BadInput> {
-    next_view_at(s, &RACE_VIEW.players, &CAR.step_clock)
+    let car = crate::race::blocks_store::block_at(s, "a car's block")?;
+    next_view_at(car, &RACE_VIEW.players, &CAR.step_clock)
 }

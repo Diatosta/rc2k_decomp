@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 
@@ -34,15 +33,19 @@ pub fn car_input_words() -> Result<(), Refused> {
         PHYSICS.input_words[k].set(*v);
     }
     if crate::net::store::NET.session.get() != 0 {
-        let block = RACE_WORK.car_block(car as usize).wrapping_add(0xFD0);
-        for k in 0..4u32 {
-            let at = GamePtr::new(block.wrapping_add(4 * k));
+        let block = crate::race::blocks_store::block_at(
+            RACE_WORK.car_block(car as usize),
+            "a car's block",
+        )?;
+        // +0xFD0: the second half of `unknown_fc0`.
+        for k in 0..4usize {
+            let at = &block.unknown_fc0[4 + k];
             match replay_words(car, crate::net::store::NET.player.get()) {
                 ReplayWords::FromBlock => {
-                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?);
+                    PHYSICS.input_words[k].set(at.get());
                 }
                 ReplayWords::IntoBlock => {
-                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?;
+                    at.set(PHYSICS.input_words[k].get());
                 }
             }
         }

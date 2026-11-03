@@ -13,13 +13,10 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks() -> Result<(), BadInput> {
-    let at = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-        .block_cameras
-        .addr())
-    .wrapping_add(rc2k_core::drive::replay_frames::marks_offset(
-        REPLAY_VIEW.replay_block.get(),
-    ));
-    let marks: [u32; 2] = GamePtr::new(at).read("the replay frame's marks")?;
+    let at = GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras).offset(
+        rc2k_core::drive::replay_frames::marks_offset(REPLAY_VIEW.replay_block.get()),
+    );
+    let marks: [u32; 2] = at.read("the replay frame's marks")?;
     for (k, mark) in marks.into_iter().enumerate() {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[k].set(mark);
     }

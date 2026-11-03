@@ -19,7 +19,6 @@ use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
 use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::{MARKS_SETTINGS, MarkCar};
 use crate::race::mud::car_file_number;
 use crate::race::work_store::RACE_WORK;
@@ -42,7 +41,7 @@ fn refusal() -> Result<Option<&'static str>, BadInput> {
         if block == 0 || sound == 0 {
             return Ok(Some("a null car block, record or sound object"));
         }
-        let n = car_file_number(GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?);
+        let n = car_file_number(crate::physics::car_store::Car::at(block).car_kind.get());
         if let Err(e) = sharing::check_light_record(n) {
             return Ok(Some(e.0));
         }

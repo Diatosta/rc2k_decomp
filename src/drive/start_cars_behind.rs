@@ -29,7 +29,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
+use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
@@ -40,8 +40,9 @@ use rc2k_core::drive::pace_cars::{
     wanted_gap,
 };
 
-fn at(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a car's block")
+/// The block of the car in start slot `slot`, or the refusal for none.
+fn car(slot: u32) -> Result<&'static Car, BadInput> {
+    crate::race::blocks_store::block_at(block(slot), "a car's block")
 }
 
 /// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
@@ -141,8 +142,8 @@ pub fn start_cars_behind() -> Result<(), Refused> {
     RACE_TABLES.pace_gap_sum.set(sum);
     'moves: {
         if lead.mode2_behind.get() != 0 {
-            let car = lead.pace_cars[0].get();
-            let gone = at(block(car) + 0x98)?.wrapping_sub(lead.checkpoint.get());
+            let c = lead.pace_cars[0].get();
+            let gone = car(c)?.checkpoint.get().wrapping_sub(lead.checkpoint.get());
             if passed(gone, RACE_TABLES.pace_pass_gap.get()) {
                 let to = lead
                     .checkpoint
@@ -151,7 +152,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                 if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
                     break 'moves;
                 }
-                clear_car(car)?;
+                clear_car(c)?;
                 lead.pace_cars[0].set(lead.pace_cars[1].get());
                 lead.pace_starts[0].set(lead.pace_starts[1].get());
                 let start = RACE_TABLES
@@ -181,8 +182,8 @@ pub fn start_cars_behind() -> Result<(), Refused> {
         {
             break 'moves;
         }
-        let car = lead.pace_cars[1].get();
-        let ahead = lead.checkpoint.get().wrapping_sub(at(block(car) + 0x98)?);
+        let c = lead.pace_cars[1].get();
+        let ahead = lead.checkpoint.get().wrapping_sub(car(c)?.checkpoint.get());
         if !passed(ahead, RACE_TABLES.pace_pass_gap.get()) {
             break 'moves;
         }
@@ -193,7 +194,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
         if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
             break 'moves;
         }
-        clear_car(car)?;
+        clear_car(c)?;
         lead.pace_starts[1].set(lead.pace_starts[0].get());
         lead.pace_cars[1].set(lead.pace_cars[0].get());
         let start = RACE_TABLES
@@ -223,17 +224,15 @@ pub fn start_cars_behind() -> Result<(), Refused> {
         // left (the original's register, read again for the second car).
         let mut edx = lead.checkpoint_offset[1].get();
         for slot in [&lead.pace_cars[1], &lead.pace_cars[0]] {
-            let b = block(slot.get());
-            let reading = crate::scene::reading::Reading::new();
-            let is_ahead = ahead_of_lead(lead_checkpoint, at(b + 0x98)?, edx, || {
-                reading.read::<u32>(b.wrapping_add(0x624), "a car's block")
+            let b = car(slot.get())?;
+            let is_ahead = ahead_of_lead(lead_checkpoint, b.checkpoint.get(), edx, || {
+                b.checkpoint_offset[1].get()
             });
-            reading.finish()?;
             edx = if is_ahead {
-                crate::drive::note_gap_ahead::note_gap_ahead(b)?
+                crate::drive::note_gap_ahead::note_gap_ahead(b)
             } else {
                 behind = behind.wrapping_sub(1);
-                crate::drive::note_gap_behind::note_gap_behind(b)?
+                crate::drive::note_gap_behind::note_gap_behind(b)
             };
         }
         lead.mode2_place.set(behind);
@@ -268,19 +267,19 @@ pub fn start_cars_behind() -> Result<(), Refused> {
     for car in &CAR_BLOCKS.cars[..4] {
         car.pace_push.set_bits(0);
     }
-    let first = block(lead.pace_cars[0].get());
-    let second = block(lead.pace_cars[1].get());
-    let apart = at(first + 0x98)?.wrapping_sub(at(second + 0x98)?);
+    let first = car(lead.pace_cars[0].get())?;
+    let second = car(lead.pace_cars[1].get())?;
+    let apart = first.checkpoint.get().wrapping_sub(second.checkpoint.get());
     lead.pace_apart.set(apart);
     let Some(push) = push_apart(apart) else {
         return Ok(());
     };
-    let put = |a: u32, v: u32| GamePtr::new(a).write(v, "a car's block");
-    put(first + 0x674, push)?;
-    put(second + 0x674, push.wrapping_neg())?;
+    first.pace_push.set_bits(push);
+    second.pace_push.set_bits(push.wrapping_neg());
     let k = RACE_TABLES.pace_push_scale.bits();
     for b in [first, second] {
-        put(b + 0x674, x87::int_times(at(b + 0x674)? as i32, k))?;
+        b.pace_push
+            .set_bits(x87::int_times(b.pace_push.bits() as i32, k));
     }
     Ok(())
 }

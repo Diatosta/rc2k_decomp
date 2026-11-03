@@ -6,11 +6,11 @@
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x437364, 0x437390).
 
 use crate::drive::note_gaps::note_gap_at;
-use crate::errors::BadInput;
+use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 
 /// The Rust version.
-pub fn note_gap_behind(car: u32) -> Result<u32, BadInput> {
+pub fn note_gap_behind(car: &Car) -> u32 {
     note_gap_at(
         car,
         &CAR_BLOCKS.cars[0].checkpoint,

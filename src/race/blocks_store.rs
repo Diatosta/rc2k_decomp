@@ -142,6 +142,15 @@ pub fn car_of(handle: u32) -> Option<&'static Car> {
     (block_of(handle) != 0).then(|| &CAR_BLOCKS.cars[(handle ^ BLOCK_TAG) as usize])
 }
 
+/// The block at `address` (what `block_of` or `RACE_WORK.car_block` gave), or the refusal
+/// `what` for 0 (the original's read at a small offset from 0 fails).
+pub fn block_at(address: u32, what: &'static str) -> Result<&'static Car, crate::errors::BadInput> {
+    if address == 0 {
+        return Err(crate::errors::BadInput(what));
+    }
+    Ok(Car::at(address))
+}
+
 /// `own_car_number`'s block.
 pub fn own_car() -> &'static Car {
     &CAR_BLOCKS.cars[own_car_number()]

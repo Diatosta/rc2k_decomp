@@ -2,15 +2,14 @@
 //! (esi) checkpoint (+0x98) against the lead car's (car block 0's +0x98, `dword_70F484`),
 //! the difference plus one kept when below the smallest so far (unsigned).
 
-use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::physics::car_store::Car;
 use crate::session::Dword;
 
 /// edx = (behind: lead - car, else car - lead) + 1; into `best` when below it.
 // Converted: `rc2k_core::drive::places::note_gap`.
 /// The gap (edx), which `drive::start_cars_behind` reads.
-pub fn note_gap_at(car: u32, lead: &Dword, best: &Dword, behind: bool) -> Result<u32, BadInput> {
-    let mine: u32 = GamePtr::new(car.wrapping_add(0x98)).read("a car's block")?;
+pub fn note_gap_at(car: &Car, lead: &Dword, best: &Dword, behind: bool) -> u32 {
+    let mine: u32 = car.checkpoint.get();
     let theirs: u32 = lead.bits();
     let was: u32 = best.bits();
     let mut now = was;
@@ -18,5 +17,5 @@ pub fn note_gap_at(car: u32, lead: &Dword, best: &Dword, behind: bool) -> Result
     if now != was {
         best.set_bits(now);
     }
-    Ok(edx)
+    edx
 }

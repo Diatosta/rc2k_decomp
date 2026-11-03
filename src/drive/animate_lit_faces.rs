@@ -32,7 +32,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -133,12 +132,9 @@ fn animate_faces() -> Result<(), Refused> {
             let step = pace(d);
             CONTACT_WORK.lit_face_pace.set(step);
             let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
-            let kind: u8 = GamePtr::new(
-                (crate::scene::polygon::materials_addr())
-                    .wrapping_add(0x1C)
-                    .wrapping_add(kind_of.wrapping_mul(0x80)),
-            )
-            .read("an object's material")?;
+            let kind: u8 = crate::scene::polygon::materials_ptr()
+                .offset(0x1C_u32.wrapping_add(kind_of.wrapping_mul(0x80)))
+                .read("an object's material")?;
             match kind {
                 1 | 9 => {
                     blink(&mut bytes, |n| {

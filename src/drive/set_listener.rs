@@ -28,7 +28,6 @@ use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
@@ -64,9 +63,12 @@ fn figures() -> Result<[i32; 6], Refused> {
 pub fn set_listener() -> Result<(), Refused> {
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
-    let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
-    let place: [u32; 3] = GamePtr::new(s.wrapping_add(0x134)).read("a car's block")?;
-    let strength: u32 = GamePtr::new(s.wrapping_add(0xABC)).read("a car's block")?;
+    let s = crate::race::blocks_store::block_at(
+        RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize),
+        "a car's block",
+    )?;
+    let place: [u32; 3] = crate::session::read_all(&s.position);
+    let strength: u32 = s.marks_count.get();
     MARKS_SETTINGS.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
     MARKS_SETTINGS.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
     MARKS_SETTINGS.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
