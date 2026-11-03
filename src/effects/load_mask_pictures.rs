@@ -18,7 +18,6 @@ use crate::effects::mask_store::{
 };
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const NAMES: i32 = 6;
@@ -97,7 +96,10 @@ fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refuse
             0,
             4 * COPIED as usize,
         )?);
-        read(GamePtr::new(GROUND_NAMES.ground_path.get()))?;
+        read(
+            crate::pointers::GamePtr::to(&GROUND_NAMES.names)
+                .offset(GROUND_NAMES.ground_path.get()),
+        )?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
                 let n = ((y << 8).wrapping_add(x) * 4) as usize;
@@ -135,9 +137,7 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         }
         name += 1;
     }
-    GROUND_NAMES
-        .ground_path
-        .set(GROUND_NAMES.names.addr() + name as u32);
+    GROUND_NAMES.ground_path.set(name as u32);
     // The masks and the picture copy are Rust's (phase 12), counted on their lists
     // as the game's blocks were.
     for (mask, list) in [

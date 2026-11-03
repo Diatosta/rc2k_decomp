@@ -18,8 +18,18 @@ use crate::session::{read_bits, write_bits};
 const WORK_LEN: u32 = 0x80000;
 const MOST_ROWS: u32 = 0x1000;
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
+/// The dword at byte `at` of the runs' table (`MASKS.run_table`; the runs, and the shapes'
+/// `rows`, are offsets in it).
+pub fn run_get(at: u32) -> Result<u32, BadInput> {
+    let bytes = MASKS.run_table.read_at(at as usize, 4, "the mask runs")?;
+    Ok(u32::from_le_bytes(bytes.try_into().expect("four bytes")))
+}
+
+/// `v` put at byte `at` of the runs' table.
+fn run_put(at: u32, v: u32) -> Result<(), BadInput> {
+    MASKS
+        .run_table
+        .write_at(at as usize, &v.to_le_bytes(), "the mask runs")
 }
 
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
@@ -154,9 +164,7 @@ pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
 /// Refuses `triangles` runs or `rows` spans (`None`: away) past their room.
 pub fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     let runs: u32 = MASKS.runs.get();
-    let start = MASKS.run_table.addr();
-    let end = start + 0x2000;
-    if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
+    if runs as u64 + 16 * triangles as u64 > 0x2000 {
         return Err(BadInput("mask runs past their table").into());
     }
     room(MASKS.cursor.get(), rows)
@@ -193,7 +201,7 @@ pub fn span_triangle(at: u32) -> Result<(), Refused> {
         MASKS.status_word.set(status);
         write_bits(&MASKS.triangle, t);
         MASKS.runs.set(runs + 16);
-        put(runs, cursor)?;
+        run_put(runs, cursor)?;
         let mut to = cursor;
         MASKS.split.set_bits(split);
         for half in halves {
@@ -205,8 +213,8 @@ pub fn span_triangle(at: u32) -> Result<(), Refused> {
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
         MARKS_WORK.scratch.set(first);
-        put(runs + 4, first)?;
-        put(runs + 8, count)?;
+        run_put(runs + 4, first)?;
+        run_put(runs + 8, count)?;
         MASKS
             .spans_total
             .set(MASKS.spans_total.get().wrapping_add(count));

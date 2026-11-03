@@ -9,7 +9,7 @@ pub struct Shape {
     pub step: Dword,
     /// 0x4: the shape's count of ring quads (0x80)
     pub count: Dword,
-    /// 0x8: the address of its runs of rows (`span_ring` puts the runs' place here)
+    /// 0x8: the offset in `run_table` of its runs of rows (`span_ring` puts the runs' place here; the original kept the address)
     pub rows: Dword,
     /// 0xC: its middle (x, y)
     pub middle: [Float; 2],
@@ -49,7 +49,7 @@ pub struct MaskVars {
     pub ends: [Float; 5],
     /// 0x82E41E: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_82e41e: Bytes<4>,
-    /// 0x82E422: `g_marksRingCorners`: the corner table in use
+    /// 0x82E422: `g_marksRingCorners`: the corner table in use (its number, 0 for A and 1 for B; the original kept the address)
     pub ring_corners: Dword,
     /// 0x82E426: `g_marksCornersA`: 0x81 entries of two corners
     pub corners_a: Bytes<3096>,
@@ -80,7 +80,7 @@ pub struct MaskVars {
     /// 0x82FD0E: `g_marksMaskCursor` (since phase 12 a byte offset in `MASK_WORK`, as are
     /// the runs' span places)
     pub cursor: Dword,
-    /// 0x82FD12: `g_marksMaskRuns`: where the next run goes
+    /// 0x82FD12: `g_marksMaskRuns`: where the next run goes (a byte offset in `run_table`; the original kept the address)
     pub runs: Dword,
     /// 0x82FD16: `g_marksEdge`: y0, y1, the left and right x at y0, at y1
     pub edge: [Dword; 6],

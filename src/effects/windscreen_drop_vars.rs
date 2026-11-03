@@ -33,7 +33,7 @@ pub struct WindscreenDropVars {
     pub ease: Float,
     /// 0x81622E: `dword_81622E`: the steps since the last look (`windscreen_drops_step`)
     pub steps: Dword,
-    /// 0x816232: `dword_816232`: where the next sprite goes (`windscreen_drops_frame`)
+    /// 0x816232: `dword_816232`: where the next sprite goes: its byte offset in the batch's records (the original kept the address; `windscreen_drops_frame`)
     pub buffer: Dword,
     /// 0x816236: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_816236: Bytes<4>,

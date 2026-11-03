@@ -15,23 +15,16 @@ pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 
-/// A table the image holds by IDA's address (the pointer lists at 0x9152F6): where it is
-/// in `PROFILE_TABLES`. Stops the program for an address outside them.
-fn ida_table(ida: u32) -> u32 {
+/// A table the image holds by IDA's address (the pointer lists at 0x9152F6): the table in
+/// `PROFILE_TABLES` it names. Stops the program for an address that is not a table's start.
+fn ida_table(ida: u32) -> &'static ProfileTable {
     let (start, len) = (ProfileTables::START, ProfileTables::LEN);
     assert!(
-        (start..start + len).contains(&(ida as usize)),
+        (start..start + len).contains(&(ida as usize))
+            && (ida as usize - start).is_multiple_of(0x800),
         "a pointer of the marks' data names {ida:#x}, outside the profile tables"
     );
-    crate::pointers::game_address(PROFILE_TABLES.tables.as_ptr()) + (ida as usize - start) as u32
-}
-
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a game field")
-}
-
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
+    &PROFILE_TABLES.tables[(ida as usize - start) / 0x800]
 }
 
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
@@ -41,18 +34,14 @@ fn work(n: usize, v: u32) {
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the
 /// second half's first, already a float), the first half made floats.
-fn differences(table: u32) -> Result<(), Refused> {
-    {
-        for n in 0..0x100 {
-            let p = table + 0x400 + 4 * n;
-            put(
-                p,
-                x87::int_less_int(get(p - 0x3FC)? as i32, get(p - 0x400)? as i32),
-            )?;
-            put(p - 0x400, x87::from_int(get(p - 0x400)? as i32))?;
-        }
+fn differences(table: &ProfileTable) {
+    for n in 0..0x100 {
+        table[0x100 + n].set(x87::int_less_int(
+            table[n + 1].get() as i32,
+            table[n].get() as i32,
+        ));
+        table[n].set(x87::from_int(table[n].get() as i32));
     }
-    Ok(())
 }
 
 /// The once-only tables.
@@ -61,55 +50,49 @@ fn make_tables() -> Result<(), Refused> {
         for k in 0..3 {
             let t = ida_table(PROFILE_LISTS.ramps[k].get());
             let step = x87::int_less_int_over(
-                get(t + 4)? as i32,
-                get(t)? as i32,
+                t[1].get() as i32,
+                t[0].get() as i32,
                 DRAW_FRAME.profile_steps[0].bits(),
             );
             work(2, step);
-            let mut v = x87::from_int(get(t)? as i32);
+            let mut v = x87::from_int(t[0].get() as i32);
             work(0, v);
-            for n in 0..0x100 {
-                put(t + 4 * n, x87::to_int(v) as u32)?;
+            for cell in t.iter().take(0x100) {
+                cell.set(x87::to_int(v) as u32);
                 v = x87::add(v, step);
                 work(0, v);
             }
-            differences(t)?;
+            differences(t);
         }
         for k in 0..8 {
             let t = ida_table(PROFILE_LISTS.sines[k].get());
-            let p: [u32; 4] = crate::effects::try_from_fn(|i__| {
-                let i = [0, 1, 2, 3][i__];
-                Ok(x87::loaded(get(t + 4 * i)?))
-            })?;
+            let p: [u32; 4] = std::array::from_fn(|i| x87::loaded(t[i].get()));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v);
             }
             let mut a = p[0];
-            for n in 0..0x100 {
-                put(t + 4 * n, x87::sine_times_plus_to_int(a, p[2], p[1]) as u32)?;
+            for cell in t.iter().take(0x100) {
+                cell.set(x87::sine_times_plus_to_int(a, p[2], p[1]) as u32);
                 a = x87::add(a, p[3]);
                 work(3, a);
             }
-            differences(t)?;
+            differences(t);
         }
         for k in 0..2 {
             let t = ida_table(PROFILE_LISTS.curves[k].get());
-            let mut x = x87::loaded(get(t)?);
+            let mut x = x87::loaded(t[0].get());
             work(7, x);
-            let step = x87::sub_div(get(t + 4)?, get(t)?, DRAW_FRAME.profile_steps[1].bits());
+            let step = x87::sub_div(t[1].get(), t[0].get(), DRAW_FRAME.profile_steps[1].bits());
             work(8, step);
-            let (scale, top) = (x87::loaded(get(t + 8)?), x87::loaded(get(t + 12)?));
+            let (scale, top) = (x87::loaded(t[2].get()), x87::loaded(t[3].get()));
             work(9, scale);
             work(10, top);
-            for n in 0..0x100 {
-                put(
-                    t + 4 * n,
-                    x87::negated_square_times_plus_to_int(x, scale, top) as u32,
-                )?;
+            for cell in t.iter().take(0x100) {
+                cell.set(x87::negated_square_times_plus_to_int(x, scale, top) as u32);
                 x = x87::add(x, step);
                 work(7, x);
             }
-            differences(t)?;
+            differences(t);
         }
     }
     Ok(())

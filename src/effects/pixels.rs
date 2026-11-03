@@ -6,6 +6,7 @@
 use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
+use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -131,7 +132,7 @@ pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
 fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
     {
         let e = entries.wrapping_add(index.wrapping_mul(16));
-        let (spans, row, count) = (get(e)?, get(e + 4)? as i32, get(e + 8)? as i32);
+        let (spans, row, count) = (run_get(e)?, run_get(e + 4)? as i32, run_get(e + 8)? as i32);
         if count > 0 && (row < 0 || row + count > 0x80) {
             return Err(BadInput("pixel rows outside the table").into());
         }
@@ -157,7 +158,7 @@ pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
     {
         rows_fit(entries, index)?;
         let e = entries.wrapping_add(index.wrapping_mul(16));
-        let (spans, row, count) = (get(e)?, get(e + 4)?, get(e + 8)?);
+        let (spans, row, count) = (run_get(e)?, run_get(e + 4)?, run_get(e + 8)?);
         MASKS.pixel[1].set(row);
         let table: u32 = MASKS.pixel_table.get();
         let mut at = row.wrapping_mul(0x400).wrapping_add(table);

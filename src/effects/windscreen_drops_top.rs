@@ -74,7 +74,7 @@ fn point_turned(p: u32) {
 /// The Rust version (see the header).
 pub fn windscreen_drops_top() -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
-    HEX.buffer.set(WINDSCREEN_DROP_BATCH.records.addr());
+    HEX.buffer.set(0);
     frame_axes(m);
     let w = &WINDSCREEN_DROP_WORK.axes;
     let (a0, a1, a2) = (&w[0..3], &w[3..6], &w[6..9]);
@@ -108,12 +108,9 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
     if WINDSCREEN_DROP_STATE.rate.bits() != 0 {
         crate::effects::windscreen_drops_frame::windscreen_drops_frame()?;
         let at_now: u32 = HEX.buffer.get();
-        if at_now != WINDSCREEN_DROP_BATCH.records.addr() {
-            let quads = x87::int_over_int_to_int(
-                at_now.wrapping_sub(WINDSCREEN_DROP_BATCH.records.addr()) as i32,
-                HEX.per_vertex.get() as i32,
-            ) as u32;
-            HEX.buffer.set(WINDSCREEN_DROP_BATCH.records.addr());
+        if at_now != 0 {
+            let quads = x87::int_over_int_to_int(at_now as i32, HEX.per_vertex.get() as i32) as u32;
+            HEX.buffer.set(0);
             WINDSCREEN_DROP_BATCH
                 .index_count
                 .set(quads.wrapping_mul(12));

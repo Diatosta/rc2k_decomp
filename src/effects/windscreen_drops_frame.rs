@@ -26,17 +26,17 @@ use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
+/// The dword at byte `e` of the items.
+fn get(e: u32) -> u32 {
+    HEX.items.get_u32(e as usize)
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
+fn put(e: u32, v: u32) {
+    HEX.items.set_u32(e as usize, v);
 }
 
 /// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `flt_814772`, `flt_814776`.
@@ -106,31 +106,31 @@ pub fn windscreen_drops_frame() -> Result<(), Refused> {
         WINDSCREEN_DROP_STATE.live.set_bits(0u32);
         let base = HEX.items.addr();
         for n in 0..ITEMS {
-            let e = base + n * ITEM_LEN;
-            if get(e)? != 1 {
+            let e = n * ITEM_LEN;
+            if get(e) != 1 {
                 continue;
             }
             WINDSCREEN_DROP_STATE
                 .live
                 .set(WINDSCREEN_DROP_STATE.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
-                let x = x87::to_int(get(e + 0x14)?);
+                let x = x87::to_int(get(e + 0x14));
                 MARKS_WORK.scratch.set(x as u32);
                 drift_cell(4 * (((x as u32) >> 3) & 0xFF));
-                drift_move(4 * get(e + 4)?, e);
+                drift_move(4 * get(e + 4), base + e);
             }
-            let x = x87::to_int(get(e + 0x14)?);
-            let z = x87::to_int(get(e + 0x18)?);
+            let x = x87::to_int(get(e + 0x14));
+            let z = x87::to_int(get(e + 0x18));
             WINDSCREEN_DROP_WORK.whole[0].set(x as u32);
             WINDSCREEN_DROP_WORK.whole[1].set(z as u32);
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
-                put(e, 0)?;
+                put(e, 0);
                 continue;
             }
-            let shape = get(e + 4)?;
+            let shape = get(e + 4);
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
             if EDGE_MASK.mask.get(cell as usize) != 0 {
-                put(e, 0)?;
+                put(e, 0);
                 continue;
             }
             sprite_depth();
@@ -138,13 +138,17 @@ pub fn windscreen_drops_frame() -> Result<(), Refused> {
                 continue;
             }
             let inverse_depth = sprite_corners(shape.wrapping_mul(0x48));
-            sprite_project(HEX.buffer.get(), inverse_depth);
+            sprite_project(
+                WINDSCREEN_DROP_BATCH
+                    .records
+                    .addr()
+                    .wrapping_add(HEX.buffer.get()),
+                inverse_depth,
+            );
             let next = HEX.buffer.get().wrapping_add(0xC0);
             HEX.buffer.set(next);
-            if next as usize
-                == (WINDSCREEN_DROP_BATCH.records.addr() + BUFFER_BYTES as u32) as usize
-            {
-                HEX.buffer.set(WINDSCREEN_DROP_BATCH.records.addr());
+            if next as usize == BUFFER_BYTES {
+                HEX.buffer.set(0);
                 WINDSCREEN_DROP_BATCH.index_count.set(0x300);
                 WINDSCREEN_DROP_BATCH.vertex_count.set(0x180);
                 draw_batch()?;

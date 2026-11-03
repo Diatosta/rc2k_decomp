@@ -13,7 +13,7 @@ use crate::session::{Bytes, Dword, Shared};
 pub struct GroundNames {
     /// +0x0: `g_marksGround`: which of the six names (0 .. 5)
     pub ground: Dword,
-    /// +0x4: `g_marksGroundPath`: the address of the chosen name (set by `load_mask_pictures`)
+    /// +0x4: `g_marksGroundPath`: the offset of the chosen name in `names` (the original kept its address; set by `load_mask_pictures`)
     pub ground_path: Dword,
     /// +0x8: `aFilesMSnow1Pcx` ..: `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then zeros
     pub names: Bytes<158>,

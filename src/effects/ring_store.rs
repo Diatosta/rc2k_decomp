@@ -9,11 +9,11 @@ pub struct RingWork {
     pub list: Bytes<16>,
     /// 0x935630: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_935630: Bytes<48>,
-    /// 0x935660: `g_marksRingCursor`: the ring's next entry to take (an address).
+    /// 0x935660: `g_marksRingCursor`: the ring's next entry to take (an entry number + 1, 0 none; see `ring_entries`).
     pub cursor: Dword,
     /// 0x935664: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_935664: Bytes<4>,
-    /// 0x935668: `g_marksRingBlock`: the ring's 0x25000 bytes (an address).
+    /// 0x935668: `g_marksRingBlock`: the ring's first entry (an entry number + 1, as the entries' links; the original kept the 0x25000-byte block's address).
     pub block: Dword,
     /// 0x93566C: Not named: 4 bytes (a gap, or unreferenced data).
     pub _gap_93566c: Bytes<4>,
