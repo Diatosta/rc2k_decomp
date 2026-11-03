@@ -71,6 +71,13 @@ impl ObjectFileNumbers {
         self.unknown_14[0].addr() + (ida - 0x60AD34) as u32
     }
 
+    /// The text at game address `at` (one the object names' cells keep: `text_addr`'s),
+    /// bounded as `text_ptr`.
+    pub fn text_at(&self, at: u32) -> crate::pointers::GamePtr {
+        let texts = self.text_ptr(0x60AD34);
+        texts.offset(at.wrapping_sub(texts.addr()))
+    }
+
     /// `text_addr` as a pointer bounded by the untyped bytes `unknown_14` hold the texts in.
     pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((0x60AD34..0x60AF04).contains(&ida));

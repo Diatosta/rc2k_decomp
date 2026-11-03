@@ -27,9 +27,9 @@ pub fn number_places() -> [crate::place::Place; 9] {
         Place::from(&p.cdat_src_2).add(0xD),
         Place::from(&p.localdat_src).add(0xD),
         Place::from(&p.localdat_files).add(0x12),
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A).into(),
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B).into(),
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C).into(),
+        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_A).into(),
+        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_B).into(),
+        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_C).into(),
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -115,10 +115,10 @@ pub fn load_texture_info() -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = crate::race::course_places::read_file_into_info;
-    read(FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
-    read(FILE_NUMBERS.text_addr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
+    read(FILE_NUMBERS.text_ptr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
+    read(FILE_NUMBERS.text_ptr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
     read(
-        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B),
+        FILE_NUMBERS.text_ptr(texts::TEXTURE_INFO_B),
         0x1F_4000,
         0x1F_4000,
     )?;

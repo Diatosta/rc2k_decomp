@@ -133,8 +133,11 @@ pub fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<(), Ref
                 }
             }
             Call::Load(name, second, texture) => {
-                if let Err(e) = load_picture_to_texture_in_game(name.game(), second.game(), texture)
-                {
+                if let Err(e) = load_picture_to_texture_in_game(
+                    name.game_ptr(),
+                    Some(second.game_ptr()),
+                    texture,
+                ) {
                     refused.get_or_insert(e);
                 }
             }

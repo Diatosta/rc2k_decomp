@@ -76,8 +76,8 @@ fn piece_address() -> u32 {
 /// (eax, ecx), the system texture (ebx), where on the sheet the icon is (edx, esi) and
 /// where on the texture it goes (edi, ebp).
 pub struct CarIcon {
-    pub sheet: u32,
-    pub alpha_sheet: u32,
+    pub sheet: crate::pointers::GamePtr,
+    pub alpha_sheet: crate::pointers::GamePtr,
     pub texture: u32,
     pub sheet_x: u32,
     pub sheet_y: u32,
@@ -97,9 +97,8 @@ pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
         target_y: icon.target_y,
         piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
     });
-    keep_second_picture(&record, icon.alpha_sheet)?;
-    let (pixels, width, height, _) =
-        read_texture_picture(crate::pointers::GamePtr::new(icon.sheet))?;
+    keep_second_picture(&record, Some(icon.alpha_sheet))?;
+    let (pixels, width, height, _) = read_texture_picture(icon.sheet)?;
     ready_picture(&record, pixels, width, height)?;
     let across = halvings_apart(
         &record,

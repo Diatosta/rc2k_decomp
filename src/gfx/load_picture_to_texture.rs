@@ -21,21 +21,21 @@ use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
 /// `upload` gets the texture and what the reading left: the pixels, the width and the
 /// height.
 pub fn load_picture_to_texture(
-    path: u32,
-    second: u32,
+    path: crate::pointers::GamePtr,
+    second: Option<crate::pointers::GamePtr>,
     texture: u32,
     upload: &mut dyn FnMut(u32, u32, u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let record = Record::of(texture)?;
     keep_second_picture(&record, second)?;
-    let (pixels, width, height, _) = read_texture_picture(crate::pointers::GamePtr::new(path))?;
+    let (pixels, width, height, _) = read_texture_picture(path)?;
     upload(texture, pixels, width, height)
 }
 
 /// With the Rust upload into the game's textures.
 pub fn load_picture_to_texture_in_game(
-    path: u32,
-    second: u32,
+    path: crate::pointers::GamePtr,
+    second: Option<crate::pointers::GamePtr>,
     texture: u32,
 ) -> Result<(), Refused> {
     load_picture_to_texture(

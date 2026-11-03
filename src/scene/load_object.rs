@@ -173,16 +173,20 @@ pub fn load_object() -> Result<(), Refused> {
     set_object_file_names(kind)?;
     let name = FILE_NUMBERS.object_ro3_number.bits();
     // The file read is the `.ro3` one, whatever the name's last character was.
-    GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
+    FILE_NUMBERS
+        .text_at(name.wrapping_add(7))
+        .write(b'3', "an object's file name")?;
     BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
     read_whole_file_bytes(
-        GamePtr::new(FILE_NUMBERS.object_ro3_path.bits()),
+        FILE_NUMBERS.text_at(FILE_NUMBERS.object_ro3_path.bits()),
         crate::scene::objects::file(),
     )?;
     if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
         return Ok(());
     }
-    GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
+    FILE_NUMBERS
+        .text_at(name.wrapping_add(7))
+        .write(b'3', "an object's file name")?;
     if slot <= 0x40 {
         list_object_textures()?;
     }
