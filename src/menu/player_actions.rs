@@ -112,18 +112,16 @@ pub fn next_replay_range() -> Result<(), BadInput> {
 pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
     let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
     MENU_STATE.menus.caption_choice.set(choice);
-    let mut cursor = crate::screens::text_buffers_store::TEXT_BUFFERS
-        .caption
-        .addr();
+    let mut cursor = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let fault = crate::menu::event_flow::Fault::default();
     let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |text| {
-        fault.ok(GamePtr::new(cursor).write_bytes(text, "the caption"));
-        cursor += text.len() as u32;
+        fault.ok(cursor.write_bytes(text, "the caption"));
+        cursor = cursor.offset(text.len() as u32);
     })?;
     fault.check()?;
-    GamePtr::new(cursor).write::<u8>(0, "the caption")?;
-    Ok((eax, cursor + 1))
+    cursor.write::<u8>(0, "the caption")?;
+    Ok((eax, cursor.addr() + 1))
 }
 
 pub fn leave_with_carry() {

@@ -18,9 +18,13 @@ use crate::menu::event_store::EVENT_STATE;
 pub fn next_record_kind() -> Result<u32, Refused> {
     let section: u32 = EVENT_STATE.section.get();
     let index: u32 = EVENT_STATE.index.get();
-    let table =
-        crate::pointers::GamePtr::new(crate::records::stages_store::STAGE_TABLES.championship())
-            .bytes("the championship's stage table")?;
+    // The scan may run on past the 66 records (to `championship_end` and the event tables):
+    // bounded by the whole store.
+    let table = crate::pointers::GamePtr::to(&crate::records::stages_store::STAGE_TABLES)
+        .offset(
+            std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
+        )
+        .bytes("the championship's stage table")?;
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
     DRAW_WORK.figure.set(kind);

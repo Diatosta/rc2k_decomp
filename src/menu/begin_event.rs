@@ -27,11 +27,10 @@ const MOST_DRIVERS: u32 = 0x400;
 const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 /// The drivers' count (with the first), or `None` without their end.
 pub fn drivers() -> Result<Option<u32>, BadInput> {
-    let first = crate::menu::drivers_store::DRIVERS.first();
+    // The walk ends on the -1 right after the table (`DRIVERS.end`): bounded by the store.
+    let drivers = crate::pointers::GamePtr::to(&crate::menu::drivers_store::DRIVERS);
     for n in 1..MOST_DRIVERS {
-        if crate::pointers::GamePtr::new(first + n * DRIVER_LEN).read::<u32>("a driver")?
-            == u32::MAX
-        {
+        if drivers.offset(n * DRIVER_LEN).read::<u32>("a driver")? == u32::MAX {
             return Ok(Some(n));
         }
     }
