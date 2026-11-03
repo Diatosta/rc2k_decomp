@@ -16,12 +16,28 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::object_store::OBJECT_WORK;
-fn sort_list() -> u32 {
-    crate::scene::faces_store::FACES.sort_entries[0].addr()
+
+/// A list of the faces store at byte `off` of it, bounded by the whole buffers block: a
+/// flare's entry is read as a description of 0x3C bytes, past its own 8
+/// (`scene::draw_described_object`), and the sort list's last entries past the store.
+fn faces_list(off: usize) -> crate::pointers::GamePtr {
+    use crate::race::buffers_store::{BUFFERS, Buffers};
+    crate::pointers::GamePtr::to(&BUFFERS)
+        .offset((core::mem::offset_of!(Buffers, faces) + off) as u32)
 }
 
-fn depth_list() -> u32 {
-    crate::scene::faces_store::FACES.depth_entries[0].addr()
+fn sort_list() -> crate::pointers::GamePtr {
+    faces_list(core::mem::offset_of!(
+        crate::scene::faces_store::Faces,
+        sort_entries
+    ))
+}
+
+fn depth_list() -> crate::pointers::GamePtr {
+    faces_list(core::mem::offset_of!(
+        crate::scene::faces_store::Faces,
+        depth_entries
+    ))
 }
 
 /// The Rust version (see the header).

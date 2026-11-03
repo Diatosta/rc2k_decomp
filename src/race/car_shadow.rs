@@ -89,8 +89,8 @@ pub fn shadow_angles() -> Result<(), Refused> {
         if count >= 2 {
             // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
             crate::race::sorting::sort_records::<8>(
-                records,
-                records + 0x20 * count - 0x20,
+                crate::pointers::GamePtr::to(&SHADOW_SKIDS.shadow_points),
+                count,
                 3,
                 rc2k_core::race::quick_sort::Order::Up,
             )?;

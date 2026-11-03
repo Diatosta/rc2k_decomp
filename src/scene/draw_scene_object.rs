@@ -86,8 +86,11 @@ pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Re
 
 /// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
 /// `scene::draw_described_object`, given `description`, esi at the original's entry: the
-/// object's description, read only on that way, the scene's mode 1 or 2).
-pub fn draw_scene_object_in_game(description: u32) -> Result<(), Refused> {
+/// object's description, read only on that way, the scene's mode 1 or 2; `None` where the
+/// original's esi is 0).
+pub fn draw_scene_object_in_game(
+    description: Option<crate::pointers::GamePtr>,
+) -> Result<(), Refused> {
     draw_scene_object(&mut |way| match way {
         Way::Shown => draw_shown_object(&mut || draw_object_in_game()).map(|_| ()),
         Way::Described => crate::scene::draw_described_object::draw_described_object(description),

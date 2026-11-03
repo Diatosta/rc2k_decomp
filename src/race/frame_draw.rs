@@ -19,7 +19,7 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::matrices_store::MATRICES;
+use crate::race::matrices_store::{MATRICES, SceneMatrices};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::panel_clock_store::PANEL_CLOCK;
@@ -1292,18 +1292,13 @@ pub fn gather_lamps() -> Result<(), Refused> {
 /// entries by their first dword, the largest first) from its first entry to its last.
 /// Refuses (before anything) a sort that would go past the
 /// list.
-/// `entries` the list's address.
-pub fn sort_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
+/// `entries` the list.
+pub fn sort_entries(count: &crate::session::Dword, entries: GamePtr) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
     use rc2k_core::race::quick_sort::Order;
     {
         let n: u32 = count.get();
-        if n < 2 {
-            return Ok(());
-        }
-        let first = entries;
-        let last = n.wrapping_mul(8).wrapping_add(first).wrapping_sub(8);
-        crate::race::sorting::sort_records::<2>(first, last, 0, Order::Down)
+        crate::race::sorting::sort_records::<2>(entries, n, 0, Order::Down)
     }
 }
 
@@ -2009,9 +2004,9 @@ pub fn draw_sky() -> Result<(), Refused> {
     crate::scene::glow_render_states::glow_render_states();
     LIGHT_WORK.light_kind.set(0u32);
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(
-        MATRICES.made_object_matrix[0].addr() + 0x40,
-    )?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
+        core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
+    )))?;
     crate::race::flush_draw_batch::flush_draw_batch()?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     LIGHT_STATE.view_kind.set_bits(0);
@@ -2173,7 +2168,9 @@ pub fn draw_slot_object(slot: u32) -> Result<(), Refused> {
     );
     start_kept_reflections()?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
+        core::mem::offset_of!(SceneMatrices, turned_matrix),
+    )))?;
     end_kept_reflections();
     Ok(())
 }
@@ -2658,8 +2655,8 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
 /// `race::draw_flare` (0x455189): flare `flare` (ebx) of the six flare tables back into
 /// `dword_63501C` .., `dword_635038`, `dword_635054`, `g_objectNumber`; `dword_6365C8` 2,
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
-/// `esi` the esi at entry: the list entry's address). Every register kept.
-pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
+/// `esi` the esi at entry: the list entry). Every register kept.
+pub fn draw_flare(flare: u32, esi: GamePtr) -> Result<(), Refused> {
     for (table, to) in [
         (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
         (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
@@ -2679,7 +2676,7 @@ pub fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
     place_object_matrix()?;
     LIGHT_WORK.light_kind.set(0u32);
     // The `popa` and `pusha` between: the drawing gets the esi it had at entry.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(esi)
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(esi))
 }
 
 /// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (ebx; `g_lamps`): its point (`g_scenePoints`)
@@ -2702,7 +2699,9 @@ pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
     LIGHT_WORK.light_kind.set(0u32);
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`dword_6365C8` is 2 here,
     // so it always ends by placing the object).
-    crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
+        core::mem::offset_of!(SceneMatrices, turned_matrix),
+    )))
 }
 
 /// `race::draw_list_entry` (0x454FF0): the entry at `at` (esi; its number in ecx is read by
@@ -2713,7 +2712,7 @@ pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
 /// 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a lamp, each by its low 24 bits; then `dword_6365C8` 0. Every register kept. Refuses (before
 /// anything) a word of 0x4000000 or more (the original would take it for a face far past
 /// the table).
-pub fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
+pub fn draw_list_entry(at: GamePtr, ebx: u32) -> Result<(), Refused> {
     let word = ebx & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
@@ -2753,21 +2752,28 @@ pub fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
 /// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
 /// entry of the list (`count` its count, `entries` its 8-byte entries) by
 /// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
-/// `entries` the list's address.
-pub fn draw_entries(count: &crate::session::Dword, entries: u32) -> Result<(), Refused> {
+/// `entries` the list.
+pub fn draw_entries(count: &crate::session::Dword, entries: GamePtr) -> Result<(), Refused> {
     let n: u32 = count.get();
     let list = entries;
     let trap = Trap::new();
     let too_big = (0..n).any(|k| {
-        trap.read::<u32>(list + 8 * k + 4, "a draw list entry") & 0x7FFF_FFFF >= 0x400_0000
+        trap.read_at::<u32>(list.offset(8 * k + 4), "a draw list entry") & 0x7FFF_FFFF >= 0x400_0000
     });
     trap.finish()?;
     if too_big {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
     for k in 0..n {
-        let at = list + 8 * k;
-        draw_list_entry(at, get(at + 4)?)?;
+        let at = list.offset(8 * k);
+        draw_list_entry(at, at.offset(4).read::<u32>("a draw list entry")?)?;
     }
     Ok(())
+}
+
+/// The scene matrices from byte `off` on, as the esi the original leaves for a drawing
+/// (`scene::draw_described_object` reads a description there): bounded by the whole
+/// store, since a description's 0x3C bytes run past one matrix.
+fn matrices_at(off: usize) -> GamePtr {
+    GamePtr::to(&MATRICES).offset(off as u32)
 }

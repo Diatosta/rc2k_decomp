@@ -46,8 +46,9 @@ fn check_object(object: u32) -> Result<(), Refused> {
 /// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
 /// unreached `sub_49081A`), nor do its two calls read what it had in them: the matrix's
 /// placing reads no register, and the drawing only esi, which it is given.
-pub fn draw_described_object(d: u32) -> Result<(), Refused> {
-    draw_description(&|len| GamePtr::new(d).read_bytes(len, "a described object"))
+pub fn draw_described_object(d: Option<GamePtr>) -> Result<(), Refused> {
+    let d = d.ok_or(BadInput("a described object without its description"))?;
+    draw_description(&|len| d.read_bytes(len, "a described object"))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
@@ -155,7 +156,7 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         LIGHT_WORK.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(record.addr())?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(record))?;
     end();
     Ok(())
 }

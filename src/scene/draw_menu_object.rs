@@ -48,6 +48,6 @@ pub fn draw_menu_object_in_game() -> Result<(), Refused> {
             make_object_matrix();
             Ok(())
         }
-        Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(0),
+        Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(None),
     })
 }

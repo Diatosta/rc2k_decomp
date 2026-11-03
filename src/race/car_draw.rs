@@ -41,6 +41,14 @@ fn turned() -> &'static [Float] {
 fn lit() -> &'static [Float] {
     &MATRICES.lit_matrix // g_litMatrix
 }
+/// `g_litMatrix` as the esi the drawing gets (a description read there runs past the
+/// matrix: bounded by the whole store).
+fn lit_place() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&MATRICES)
+        .offset(
+            core::mem::offset_of!(crate::race::matrices_store::SceneMatrices, lit_matrix) as u32,
+        )
+}
 fn made() -> &'static [Float] {
     &MATRICES.made_object_matrix // g_madeObjectMatrix
 }
@@ -369,7 +377,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
     );
     car_body_matrix();
     crate::race::frame_draw::start_kept_reflections()?;
-    crate::scene::draw_scene_object::draw_scene_object_in_game(lit()[0].addr())?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place()))?;
     crate::race::frame_draw::end_kept_reflections();
     LIGHT_WORK.light_kind_extra.set(1);
     if below(FRAME_WORK.car_depth.bits(), 0x3C_0000) {
@@ -382,7 +390,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
                 .set(FRAME_SWITCHES.object_number.bits().wrapping_add(1));
             if OBJECT_WORK.car_switches.bits() & bit != 0 {
                 car_part_matrix(matrix);
-                crate::scene::draw_scene_object::draw_scene_object_in_game(lit()[0].addr())?;
+                crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place()))?;
             }
         }
     }
