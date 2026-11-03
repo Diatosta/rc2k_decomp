@@ -21,23 +21,19 @@ use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::search`).
-fn find_name() -> u32 {
+fn find_name() -> crate::pointers::GamePtr {
     crate::files::search::found_name_place()
 }
 
 /// The files of `pattern` (eax) added to the files' table.
 pub fn list_files(pattern: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let pattern: u32 = pattern.into().game();
     let pattern = resolve_path(pattern)?;
     if find_first(pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
             let name = made_name(|at| {
-                let (cursor, _) = crate::files::append_directory::append_directory(
-                    crate::pointers::GamePtr::new(pattern),
-                    crate::pointers::GamePtr::new(at),
-                )?;
-                Ok(append_byte(str_append(find_name(), cursor.addr()), 0).game())
+                let (cursor, _) = crate::files::append_directory::append_directory(pattern, at)?;
+                Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
             })?;
             let used = FILES.with(|t| t.push(name))?;
             INSTALLER_RUN.file_cursor.set(used);

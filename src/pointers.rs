@@ -821,6 +821,11 @@ impl LentBytes {
         self.game
     }
 
+    /// The bytes as a place bounded by them.
+    pub fn ptr(&self) -> GamePtr {
+        GamePtr::new(self.game).limited(self.len as u32)
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }

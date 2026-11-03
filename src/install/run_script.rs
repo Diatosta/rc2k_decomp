@@ -26,9 +26,11 @@ use rc2k_core::install::script::{self, Op};
 
 /// The script at `script` (ebx) run.
 pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let script: u32 = script.into().game();
     use crate::install as i;
-    let mut cursor = script;
+    // Bounded by the script's allocation, not by the field it starts in: the uninstall
+    // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
+    // after it, as the original reads it.
+    let mut cursor = Place::from(crate::pointers::GamePtr::new(script.into().game()));
     let mut end = Place::from(&INSTALLER_PATHS.script_path);
     wb(end, 0);
     let mut stack: Vec<Place> = Vec::new();
@@ -41,7 +43,7 @@ pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused>
             return Err(BadInput("a script with no end in 0x10000 bytes").into());
         }
         let op = rb(cursor);
-        cursor = cursor.wrapping_add(1);
+        cursor = cursor.add(1);
         match Op::of(op) {
             Op::Folder => {
                 stack.push(end);
@@ -76,14 +78,13 @@ pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused>
             }
             Op::Media => {
                 let n = rb(cursor);
-                cursor = cursor.wrapping_add(1);
+                cursor = cursor.add(1);
                 if !script::skipped(n, media) {
                     continue;
                 }
-                let words =
-                    crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;
+                let words = cursor.game_ptr().bytes("the installer's script")?;
                 let past = script::skip(&words, 0, &mut guard)?;
-                cursor = cursor.wrapping_add(past as u32);
+                cursor = cursor.add(past as u32);
             }
             Op::Nothing => {}
             Op::End => {

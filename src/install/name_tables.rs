@@ -30,8 +30,8 @@ pub static FOLDERS: Owned<NameTable> = Owned::new("no installer folders table");
 pub static FILES: Owned<NameTable> = Owned::new("no installer files table");
 
 /// The text at `at` (the game's memory) up to its NUL.
-pub fn text_at(at: u32) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(crate::pointers::GamePtr::new(at), "an installer name")
+pub fn text_at(at: crate::pointers::GamePtr) -> Result<Vec<u8>, BadInput> {
+    crate::files::cstring(at, "an installer name")
 }
 
 /// Name `index` of `table` written at `cursor` (the game's memory) without a NUL, as
@@ -51,10 +51,12 @@ pub fn append_name(
 
 /// A name made by the game's text helpers (which write at an address) in a lent buffer:
 /// `make` writes it from the cursor it is given and gives the cursor past its NUL.
-pub fn made_name(make: impl FnOnce(u32) -> Result<u32, Refused>) -> Result<Vec<u8>, Refused> {
+pub fn made_name(
+    make: impl FnOnce(crate::pointers::GamePtr) -> Result<crate::pointers::GamePtr, Refused>,
+) -> Result<Vec<u8>, Refused> {
     let lent = crate::pointers::LentBytes::from_vec(vec![0u8; 0x400]);
-    let end = make(lent.addr())?;
-    let len = end.wrapping_sub(lent.addr()) as usize;
+    let end = make(lent.ptr())?;
+    let len = end.addr().wrapping_sub(lent.addr()) as usize;
     let buffer = lent.to_vec();
     match len.checked_sub(1) {
         Some(n) if len <= buffer.len() => Ok(buffer[..n].to_vec()),

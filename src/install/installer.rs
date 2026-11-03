@@ -208,8 +208,10 @@ pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens.
-pub fn resolve_path(path: impl Into<Place>) -> Result<u32, Refused> {
-    Ok(crate::files::resolve_path::resolve_path_at(path.into().game_ptr())?.addr())
+pub fn resolve_path(path: impl Into<Place>) -> Result<crate::pointers::GamePtr, Refused> {
+    Ok(crate::files::resolve_path::resolve_path_at(
+        path.into().game_ptr(),
+    )?)
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
@@ -462,9 +464,7 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refused> {
     match place {
-        0x415304 => Ok(Place::from(crate::install::end_text_line::end_text_line(
-            cursor.into().game(),
-        ))),
+        0x415304 => Ok(crate::install::end_text_line::end_text_line(cursor.into())),
         _ => Err(BadInput("a text action that is not one of the installer's").into()),
     }
 }

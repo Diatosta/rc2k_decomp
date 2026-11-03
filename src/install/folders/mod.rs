@@ -55,9 +55,9 @@ pub trait Folders {
     /// Whether a folder in that form has a name the system refuses.
     fn bad_name(folder: &[u8]) -> Result<bool, BadInput>;
 
-    /// The folder at game address `at` (that form) and those above it made; whether it
+    /// The folder at `at` (that form) and those above it made; whether it
     /// worked.
-    fn make(at: u32) -> Result<bool, Refused>;
+    fn make(at: crate::place::Place) -> Result<bool, Refused>;
 
     /// The room where the folder (that form) would go.
     fn room(folder: &[u8]) -> Room;

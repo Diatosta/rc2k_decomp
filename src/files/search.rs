@@ -135,8 +135,8 @@ pub fn found_attributes() -> u32 {
 }
 
 /// Where the record's name is (a game address: the installer appends it by address).
-pub fn found_name_place() -> u32 {
-    FIND_DATA.addr() + NAME_AT as u32
+pub fn found_name_place() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&FIND_DATA).offset(NAME_AT as u32)
 }
 
 #[cfg(test)]

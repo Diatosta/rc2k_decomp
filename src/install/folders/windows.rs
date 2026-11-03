@@ -26,7 +26,7 @@ impl Folders for Windows {
         Ok(rc2k_core::install::paths::bad_folder_name(folder)?)
     }
 
-    fn make(at: u32) -> Result<bool, Refused> {
+    fn make(at: crate::place::Place) -> Result<bool, Refused> {
         crate::install::make_folders::walk(at)
     }
 
