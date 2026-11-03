@@ -10,7 +10,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where the pixel goes and how wide it is.
@@ -40,10 +39,7 @@ pub fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused
     let pixel = if components == 0 {
         0
     } else {
-        components_to_pixel(
-            &GamePtr::new(format).read::<PixelFormat>("the surface's format")?,
-            components,
-        )
+        components_to_pixel(&crate::gfx::pixel_format::layout(format)?, components)
     };
     let (at, wide) = place(x, y)?;
     if wide == 2 {

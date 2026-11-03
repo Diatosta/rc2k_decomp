@@ -327,12 +327,12 @@ fn start() {
     crate::gfx::typefaces::FONTS.objects[56]
         .palette
         .set(crate::gfx::fonts_store::FONTS.palette_sheet[0].addr());
-    // `g_surface.format` (0x4F49B8): the image points it at the format record's old
-    // place; the record is in `session::SCREEN` now (the platform sets it again at
+    // `g_surface.format` (0x4F49B8): the image points it at the format record; the
+    // record is `session::SCREEN`'s, named by its handle (the platform sets it again at
     // every lock).
     crate::gfx::screen_state::DRAW_SURFACE
         .format
-        .set(crate::session::SCREEN.format_addr());
+        .set(crate::gfx::pixel_format::SCREEN_FORMAT);
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time();
     rust("math::seed_random");

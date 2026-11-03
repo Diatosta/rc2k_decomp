@@ -43,7 +43,6 @@ use crate::gfx::glyph_store;
 use crate::gfx::pcx::PCX;
 use crate::gfx::picture::{read_bytes, with_buffer, with_picture, write_bytes};
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
@@ -313,7 +312,7 @@ pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result
             if layout == 0 {
                 return Err(BadInput("no pixel layout for a sheet of components").into());
             }
-            let layout: PixelFormat = GamePtr::new(layout).read("a sheet's pixel layout")?;
+            let layout = crate::gfx::pixel_format::layout(layout)?;
             pixel_size = direct_pixel_size(&layout);
             format = Some(layout);
         }

@@ -9,11 +9,9 @@ use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
-use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 use crate::session::{Dword, Shared};
 use crate::strings::compile_lexicon::LEXICON;
@@ -59,7 +57,7 @@ pub fn begin_glyph_tables() -> Result<(), Refused> {
     PICTURE.width.set(800u32);
     PICTURE.height.set(600u32);
     PICTURE.row_bytes.set(0xFFFF_FFFDu32);
-    DECODER.format.set(surface_format_addr());
+    DECODER.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
     let bytes = LEXICON
         .kilobytes
         .get()
@@ -99,7 +97,7 @@ pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
     if format == 0 {
         return Err(BadInput("no pixel layout for the palette"));
     }
-    let format: PixelFormat = GamePtr::new(format).read("the palette's pixel layout")?;
+    let format = crate::gfx::pixel_format::layout(format)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for entry in 0..256 {
         let components: u32 = DECODER.palette[entry].get();

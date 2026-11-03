@@ -25,7 +25,6 @@ use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
     alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
 use crate::pointers::GamePtr;
@@ -91,11 +90,10 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     rewind_list(list)?;
     begin_glyph_tables()?;
     DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
-    // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
-    let format = crate::gfx::texture_upload::TEXTURE_TABLES
-        .kind(3)
-        .wrapping_add(8);
-    DECODER.format.set(format);
+    // The textures' 8888 kind's description (`kinds[3]`): its pixel layout (8 bytes in).
+    DECODER
+        .format
+        .set(crate::gfx::pixel_format::texture_kind_format(3));
     let palette_a = crate::gfx::build_fonts::palette_place(list)?;
     FONTS.game_fonts[0].update(|f| f.palette = palette_a);
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
@@ -131,7 +129,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     if to == 0 || layout == 0 {
         return Err(BadInput("no place for the second palette, or no pixel layout").into());
     }
-    let layout: PixelFormat = GamePtr::new(layout).read("the palette's pixel layout")?;
+    let layout = crate::gfx::pixel_format::layout(layout)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for n in 0..256usize {
         // Converted: `rc2k_core::gfx::pixels::brighter`.

@@ -81,7 +81,8 @@ pub struct DrawSurface {
     pub row_bytes: Dword,
     /// 0x4F49B4: `g_surface.row_dwords`: dwords a row.
     pub row_dwords: Dword,
-    /// 0x4F49B8: `g_surface.format`: the pixel format record (a pointer).
+    /// 0x4F49B8: `g_surface.format`: the pixel format record, by handle
+    /// (`gfx::pixel_format::layout`; the original keeps its address).
     pub format: Dword,
     /// 0x4F49BC: `g_surface.pitch`: the row pitch.
     pub pitch: Dword,

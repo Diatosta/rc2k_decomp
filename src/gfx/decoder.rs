@@ -41,7 +41,7 @@ pub struct Decoder {
     /// `g_decodedRowGap` (`dword_519144`): the stride less a row's bytes.
     pub row_gap: Dword,
     /// `g_glyphPixelFormat` (`dword_519148`): the pixel layout a sheet of components is
-    /// coded in (a pointer to a pixel format record).
+    /// coded in (a pixel format record by handle: `gfx::pixel_format::layout`).
     pub format: Dword,
     /// `g_sheetBackdrop` (`dword_51914C`).
     pub backdrop: Dword,

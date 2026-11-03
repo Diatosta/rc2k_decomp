@@ -20,7 +20,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::gfx::modes::MODES;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::pixel_format::surface_format_addr;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
 use crate::system::find_entry::entries;
@@ -44,7 +43,7 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
         flags,
         entries(MODES.sizes_addr() as u32, SIZE_COUNT),
         entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
-        surface_format_addr(),
+        crate::gfx::pixel_format::SCREEN_FORMAT,
         pixels,
     )
     .map_err(|e| {

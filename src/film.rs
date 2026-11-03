@@ -594,8 +594,7 @@ fn blit(p: &Picture) {
     let pitch = s.pitch.get();
     let pixels = s.pixels.get();
     // masks: blue, green, red, alpha
-    let format = crate::session::SCREEN.format_addr() + 4;
-    let mask = |n: u32| crate::pointers::read_or_end::<u32>(format + 4 * n, "the screen's format");
+    let mask = |n: u32| crate::session::SCREEN.format[1 + n as usize].get();
     let (mb, mg, mr) = (mask(0), mask(1), mask(2));
     if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
         return;

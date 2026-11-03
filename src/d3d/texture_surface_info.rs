@@ -23,7 +23,7 @@ pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> 
         get(record + 4),
         get(record + 8),
         get(kind + 4),
-        kind.wrapping_add(8),
+        crate::gfx::pixel_format::texture_description_format(kind),
         get(d + 0x10),
         get(d + 0x24),
     );

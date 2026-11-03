@@ -204,6 +204,23 @@ impl Textures {
         self.descriptions[k].addr()
     }
 
+    /// Kind `n`'s description's number in `descriptions` (None: none). A value that is no
+    /// handle ends the program, as `kind`.
+    pub fn kind_index(&self, n: usize) -> Option<usize> {
+        let handle = self.kinds[n].get();
+        if handle == 0 {
+            return None;
+        }
+        let k = (handle ^ FORMAT_TAG) as usize;
+        if k >= self.descriptions.len() {
+            crate::fatal::raise::end(
+                "gfx::texture_upload::kind_index",
+                BadInput("a texture kind's handle that names none"),
+            );
+        }
+        Some(k)
+    }
+
     /// The kinds table's entry `n`, read where the original reads it (not checked against
     /// the table: a kind past it reads on into the descriptions' bytes).
     pub fn kind_entry(&self, n: usize) -> u32 {

@@ -55,7 +55,7 @@ pub struct MapVars {
     pub key_path: Loose,
     /// `g_mapPixelBytes` (`0x5BE9A5`): bytes a pixel.
     pub pixel_bytes: Loose,
-    /// `g_mapPixelFormat` (`0x5BE9A9`): the pixel format's place.
+    /// `g_mapPixelFormat` (`0x5BE9A9`): the pixel format, by handle (`gfx::pixel_format::layout`).
     pub format: Loose,
     /// `dword_5BE9AD`: the surface's gap after a row (`blit_map_tiles`).
     pub row_gap: Loose,
@@ -113,7 +113,8 @@ fn take_format() -> Result<(u32, PixelFormat), BadInput> {
     let description = GamePtr::new(kind);
     let bytes = description.offset(4).read::<u32>("a map word")?;
     MAP.pixel_bytes.set(bytes);
-    MAP.format.set(kind + 8);
+    MAP.format
+        .set(crate::gfx::pixel_format::texture_kind_format(3));
     let format = description
         .offset(8)
         .read::<PixelFormat>("the map's pixel format")?;

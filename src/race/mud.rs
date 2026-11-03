@@ -28,8 +28,7 @@ pub fn car_file_number(car: u32) -> u32 {
 /// is the row's address's, and that is what the conversion gets.
 pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     let (_, pixel) = raw_pixel(x, y)?;
-    let format = GamePtr::new(DRAW_SURFACE.format.get())
-        .read::<crate::gfx::pixel_format::PixelFormat>("the surface's pixel format")?;
+    let format = crate::gfx::pixel_format::layout(DRAW_SURFACE.format.get())?;
     Ok(crate::gfx::pixel_to_components::pixel_to_components(
         &format, pixel,
     ))

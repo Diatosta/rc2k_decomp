@@ -20,7 +20,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::rescale_picture::RESCALE;
 
 // ---- game data ----
@@ -37,7 +36,7 @@ const ROW_GAP: usize = 0x2C;
 
 /// `surface` is where the twelve dwords of a surface's description are.
 pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refused> {
-    use crate::pointers::{GamePtr, write_or_end};
+    use crate::pointers::write_or_end;
     let field = |offset: usize| {
         surface
             .offset(offset as u32)
@@ -56,7 +55,7 @@ pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refus
     let _ = fill_row_table(0, DECODER.stride.get(), from_height);
     // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
     // components variable, the last left there with its fourth byte as it was.
-    let format: PixelFormat = GamePtr::new(field(FORMAT)?).read("the surface's format")?;
+    let format = crate::gfx::pixel_format::layout(field(FORMAT)?)?;
     let words = field(BITS)? == 0x10;
     // Where the next pixel goes (a game address).
     let mut out = field(PIXELS)?;

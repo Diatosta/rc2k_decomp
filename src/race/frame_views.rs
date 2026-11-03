@@ -177,7 +177,6 @@ pub fn copy_mirror_picture() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{copy_picture, copied_any}` (eax carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    use crate::gfx::pixel_format::PixelFormat;
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
         DRAW.mirror_picture.get(),
@@ -196,7 +195,7 @@ pub fn copy_mirror_picture() -> Result<(), Refused> {
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
         }
-        let format = GamePtr::new(format).read::<PixelFormat>("a surface's pixel format")?;
+        let format = crate::gfx::pixel_format::layout(format)?;
         let format = &format;
         let screen = crate::gfx::pixel_format::surface_format()?;
         let copy = PictureCopy {

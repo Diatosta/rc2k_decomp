@@ -494,14 +494,6 @@ pub struct Screen {
     pub format: [Dword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
 }
 
-impl Screen {
-    /// Where the pixel format record is (a Windows-style record the game's code reads and
-    /// writes by address).
-    pub fn format_addr(&self) -> u32 {
-        crate::pointers::game_address(self.format.as_ptr())
-    }
-}
-
 pub static SCREEN: Screen = Screen {
     width: Dword::new(0),
     height: Dword::new(0),

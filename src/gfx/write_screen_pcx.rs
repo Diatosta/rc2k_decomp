@@ -26,7 +26,6 @@ use crate::files::stream::{Stream, with_stream};
 use crate::files::write_stream_block::write_stream_all;
 use crate::files::write_stream_byte::write_stream_byte;
 use crate::gfx::pcx::PCX;
-use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::shots::SHOTS;
 use crate::pointers::GamePtr;
@@ -78,8 +77,7 @@ fn rows(stream: &mut Stream) -> Result<bool, Refused> {
     let width = DRAW_SURFACE.width.get();
     let mut y = 0u32;
     loop {
-        let format: PixelFormat =
-            GamePtr::new(DRAW_SURFACE.format.get()).read("the surface's format")?;
+        let format = crate::gfx::pixel_format::layout(DRAW_SURFACE.format.get())?;
         // The row's pixels, as the original reads them (none for other sizes).
         let bits = DRAW_SURFACE.bits_per_pixel.get();
         let pixels = match bits {

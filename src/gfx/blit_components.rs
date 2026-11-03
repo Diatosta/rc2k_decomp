@@ -15,7 +15,6 @@
 //! bits), and no surface, format, piece or picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::service::harness::Region;
 
@@ -87,7 +86,7 @@ pub fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
     }
     let [x, y, width, height] =
         GamePtr::new(p.rectangle).read::<[u32; 4]>("a piece's rectangle")?;
-    let format: PixelFormat = GamePtr::new(to.format).read("a surface's format")?;
+    let format = crate::gfx::pixel_format::layout(to.format)?;
     let mut target =
         p.y.wrapping_mul(to.pitch)
             .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
