@@ -146,7 +146,7 @@ pub fn parse_avi(b: &[u8]) -> Result<Avi, String> {
     let mut video_stream: Option<u32> = None;
     let mut stream = 0u32;
     let mut scale_rate: Option<(u32, u32)> = None;
-    walk(b, 12, b.len(), &mut |id, data, at, len| match id {
+    walk(b, 12, b.len(), 0, &mut |id, data, at, len| match id {
         b"avih" => {
             avi.frame_us = le32(data, 0).unwrap_or(0);
             avi.width = le32(data, 32).unwrap_or(0);
@@ -193,9 +193,15 @@ pub fn parse_avi(b: &[u8]) -> Result<Avi, String> {
 /// What `walk` calls for a chunk: its id, its bytes, their place and length.
 type Visit<'a> = dyn FnMut(&[u8; 4], &[u8], usize, usize) + 'a;
 
-/// Walks the chunks from `at` to `end`, going into `LIST`s; `f` gets each chunk's id, its
-/// bytes, their place and length.
-fn walk(b: &[u8], mut at: usize, end: usize, f: &mut Visit) -> Result<(), String> {
+/// The most lists inside one another an AVI may have (its own have 3).
+const MOST_LIST_DEPTH: usize = 16;
+
+/// Walks the chunks from `at` to `end`, `depth` lists down, going into `LIST`s; `f` gets each
+/// chunk's id, its bytes, their place and length.
+fn walk(b: &[u8], mut at: usize, end: usize, depth: usize, f: &mut Visit) -> Result<(), String> {
+    if depth > MOST_LIST_DEPTH {
+        return Err(format!("lists nested more than {MOST_LIST_DEPTH} deep"));
+    }
     while at + 8 <= end {
         let id: [u8; 4] = b[at..at + 4].try_into().unwrap();
         let len = le32(b, at + 4).unwrap() as usize;
@@ -205,7 +211,7 @@ fn walk(b: &[u8], mut at: usize, end: usize, f: &mut Visit) -> Result<(), String
             .filter(|&e| e <= b.len())
             .ok_or_else(|| format!("chunk {} past the file's end", String::from_utf8_lossy(&id)))?;
         if &id == b"LIST" || &id == b"RIFF" {
-            walk(b, data_at + 4, data_end, f)?;
+            walk(b, data_at + 4, data_end, depth + 1, f)?;
         } else {
             f(&id, &b[data_at..data_end], data_at, len);
         }
@@ -251,16 +257,24 @@ impl FrameHead {
     }
 
     /// Plane `p` as `count` values of `T` (sound samples); None for an empty or
-    /// misaligned plane.
+    /// misaligned plane, or one smaller than that.
     fn values<T: Copy>(&self, p: usize, count: usize) -> Option<&[T]> {
         let at = self.data[p].cast::<T>();
-        if at.is_null() || !at.is_aligned() {
+        if at.is_null() || !at.is_aligned() || !sound_plane_holds::<T>(self.linesize[0], count) {
             return None;
         }
-        // SAFETY: as `plane`: a sound plane holds `nb_samples` samples (of every channel
-        // for an interleaved format).
+        // SAFETY: as `plane`: each sound plane holds `linesize[0]` bytes, checked above.
         Some(unsafe { std::slice::from_raw_parts(at, count) })
     }
+}
+
+/// Whether a sound plane of `linesize` bytes (FFmpeg gives every sound plane the size of the
+/// first) holds `count` values of `T`.
+fn sound_plane_holds<T>(linesize: i32, count: usize) -> bool {
+    let room = usize::try_from(linesize).unwrap_or(0);
+    count
+        .checked_mul(size_of::<T>())
+        .is_some_and(|bytes| bytes <= room)
 }
 
 /// A decoder of FFmpeg's, with its parser when the stream is not cut into frames.
@@ -286,22 +300,23 @@ impl Decoder {
                 avcodec_free_context(&raw mut c);
                 return Err(format!("{name:?} does not open"));
             }
-            let parser = match parser {
-                Some(id) => {
-                    let p = av_parser_init(id);
-                    if p.is_null() {
-                        return Err(format!("FFmpeg has no parser for {name:?}"));
-                    }
-                    p
-                }
-                None => std::ptr::null_mut(),
-            };
-            Ok(Self {
+            // Made whole before anything more can fail: `drop` frees what is there.
+            let mut made = Self {
                 context,
                 packet: av_packet_alloc(),
                 frame: av_frame_alloc(),
-                parser,
-            })
+                parser: std::ptr::null_mut(),
+            };
+            if made.packet.is_null() || made.frame.is_null() {
+                return Err(format!("{name:?}: out of memory"));
+            }
+            if let Some(id) = parser {
+                made.parser = av_parser_init(id);
+                if made.parser.is_null() {
+                    return Err(format!("FFmpeg has no parser for {name:?}"));
+                }
+            }
+            Ok(made)
         }
     }
 
@@ -390,7 +405,8 @@ impl Decoder {
 
 impl Drop for Decoder {
     fn drop(&mut self) {
-        // SAFETY: the objects `open` made, each freed once by its own function.
+        // SAFETY: the objects `open` made, each freed once by its own function (the frame's,
+        // the packet's and the context's take a null one).
         unsafe {
             if !self.parser.is_null() {
                 av_parser_close(self.parser);
@@ -663,15 +679,15 @@ fn open(path: &str) -> Result<Film, String> {
         let mut decoder = Decoder::open(c"mpeg1video", Some(MPEG1VIDEO))?;
         let packets = decoder.cut(&video);
         let sound = match mpeg_audio_format(&audio) {
-            Some((hz, channels)) if !audio.is_empty() => {
-                let mut sound = Decoder::open(c"mp2", Some(MP2))?;
-                let mut pcm = Vec::new();
-                for packet in sound.cut(&audio) {
-                    sound.decode(Some(&packet), &mut |f| samples(f, channels, &mut pcm))?;
+            Some((hz, channels)) if !audio.is_empty() => match decoded_sound(&audio, channels) {
+                Ok(pcm) => Some((pcm, hz, channels)),
+                Err(why) => {
+                    log(&format!(
+                        "gfx::play_film: {path}: played without sound: {why}"
+                    ));
+                    None
                 }
-                sound.decode(None, &mut |f| samples(f, channels, &mut pcm))?;
-                Some((pcm, hz, channels))
-            }
+            },
             _ => None,
         };
         return Ok(Film {
@@ -693,6 +709,17 @@ fn open(path: &str) -> Result<Film, String> {
         });
     }
     Err("neither an AVI nor an MPEG program stream".into())
+}
+
+/// An MPEG audio stream of `channels` decoded, 16-bit, interleaved.
+fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
+    let mut sound = Decoder::open(c"mp2", Some(MP2))?;
+    let mut pcm = Vec::new();
+    for packet in sound.cut(audio) {
+        sound.decode(Some(&packet), &mut |f| samples(f, channels, &mut pcm))?;
+    }
+    sound.decode(None, &mut |f| samples(f, channels, &mut pcm))?;
+    Ok(pcm)
 }
 
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
@@ -739,7 +766,8 @@ pub fn play_film(path: u32) -> bool {
     eax == 0
 }
 
-/// The film's sound playing through SDL (stopped when dropped).
+/// The film's sound playing through SDL (stopped when dropped, and SDL's audio given back:
+/// each start takes it once).
 struct Sound(*mut sdl3_sys::everything::SDL_AudioStream);
 
 impl Sound {
@@ -763,6 +791,7 @@ impl Sound {
                 std::ptr::null_mut(),
             );
             if stream.is_null() {
+                SDL_QuitSubSystem(SDL_INIT_AUDIO);
                 return None;
             }
             SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32);
@@ -775,8 +804,13 @@ impl Sound {
 
 impl Drop for Sound {
     fn drop(&mut self) {
-        // SAFETY: the stream `start` opened, destroyed once.
-        unsafe { sdl3_sys::everything::SDL_DestroyAudioStream(self.0) };
+        use sdl3_sys::everything::*;
+        // SAFETY: the stream `start` opened, destroyed once; the audio it started, given
+        // back once.
+        unsafe {
+            SDL_DestroyAudioStream(self.0);
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
     }
 }
 
@@ -907,5 +941,46 @@ mod tests {
         assert_eq!(&avi.codec, b"IV41");
         assert_eq!(avi.frames.len(), 2);
         assert_eq!(avi.frames[1].1, 0);
+    }
+
+    /// `LIST`s inside one another `depth` times, around nothing.
+    fn nested_lists(depth: usize) -> Vec<u8> {
+        let mut inner = Vec::new();
+        for _ in 0..depth {
+            let mut list = b"LIST".to_vec();
+            list.extend((inner.len() as u32 + 4).to_le_bytes());
+            list.extend(b"rec ");
+            list.extend(inner);
+            inner = list;
+        }
+        let mut riff = b"RIFF".to_vec();
+        riff.extend((inner.len() as u32 + 4).to_le_bytes());
+        riff.extend(b"AVI ");
+        riff.extend(inner);
+        riff
+    }
+
+    #[test]
+    fn refuses_lists_nested_too_deep() {
+        let deep = nested_lists(super::MOST_LIST_DEPTH + 1);
+        let why = super::parse_avi(&deep).err().unwrap();
+        assert!(why.contains("nested"), "{why}");
+        // At the limit the walk goes on (and finds no video).
+        let at_limit = nested_lists(super::MOST_LIST_DEPTH);
+        let why = super::parse_avi(&at_limit).err().unwrap();
+        assert!(why.contains("no video"), "{why}");
+        // Far too deep: refused, not a stack overflow.
+        assert!(super::parse_avi(&nested_lists(1_000)).is_err());
+    }
+
+    #[test]
+    fn a_sound_plane_must_hold_the_samples() {
+        assert!(super::sound_plane_holds::<i16>(2304, 1152));
+        assert!(!super::sound_plane_holds::<i16>(2304, 1153));
+        assert!(super::sound_plane_holds::<f32>(4608, 1152));
+        assert!(!super::sound_plane_holds::<f32>(2304, 1152));
+        assert!(!super::sound_plane_holds::<i16>(-1, 1));
+        assert!(!super::sound_plane_holds::<i16>(i32::MAX, usize::MAX));
+        assert!(super::sound_plane_holds::<i16>(0, 0));
     }
 }
