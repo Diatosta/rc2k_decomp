@@ -453,7 +453,7 @@ mod asm_differential {
                 put(
                     b[1],
                     super::sum_status(at(b[0], 0), at(b[0], 4), at(b[0], 8)),
-                )
+                );
             },
         );
     }
@@ -516,7 +516,7 @@ mod asm_differential {
                 put(
                     b[1],
                     super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), None),
-                )
+                );
             },
         );
     }
