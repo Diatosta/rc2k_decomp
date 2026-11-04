@@ -11,8 +11,8 @@ use crate::session::Dword;
 pub enum Target {
     /// A game variable.
     Global(&'static Dword),
-    /// A dword of the current player, by offset.
-    CarField(u32),
+    /// A setup value of the current player's car.
+    CarField(rc2k_core::menu::player::SetupField),
 }
 
 /// One step down stops at 0 (a value that is already negative goes on down, as in the
@@ -28,12 +28,14 @@ pub struct Stepper {
 fn with_target(stepper: Stepper, f: impl FnOnce(u32) -> u32) -> Result<(), BadInput> {
     match stepper.target {
         Target::Global(cell) => cell.set(f(cell.get())),
-        Target::CarField(offset) => {
+        Target::CarField(field) => {
             let player = current_player().ok_or(BadInput(
                 "no current player object: the original reads through null",
             ))?;
-            let next = f(player.get().word(offset as usize));
-            player.update(|q| q.store(&[(offset as usize, next)]));
+            player.update(|q| {
+                let value = field.of(q);
+                *value = f(*value);
+            });
         }
     }
     Ok(())

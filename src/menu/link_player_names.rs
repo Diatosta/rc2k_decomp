@@ -9,15 +9,15 @@
 //! original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::player_names::{CAR_NAME, CAR_NAME_POINTER, cars, name, name_bytes};
+use crate::menu::player_names::{cars, name, name_bytes};
 
 // ---- Rust version ----
 
 pub fn link_player_names() -> Result<(), BadInput> {
     for (player, car) in cars().iter().enumerate() {
         car.update(|p| {
-            p.store(&[(CAR_NAME_POINTER, name(player))]);
-            p.store_bytes(CAR_NAME, &name_bytes(player));
+            p.name = name(player);
+            p.name_copy = name_bytes(player);
         });
     }
     Ok(())

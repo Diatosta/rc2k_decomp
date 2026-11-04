@@ -100,26 +100,26 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let field = |at: u32| player.get().word(at as usize) as i32;
+    let car = player.get();
     let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
                 draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
             }
-            AreaStep::LabelIf(car_offset, id, font, x, y) => {
-                if field(car_offset) != 0 {
+            AreaStep::LabelIfClass(id, font, x, y) => {
+                if car.class != 0 {
                     draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
                 }
             }
-            AreaStep::DamageBar(x, y, car_offset) => {
+            AreaStep::DamageBar(x, y, part) => {
                 Bar {
                     x,
                     y,
                     width,
                     fill_glyph,
                     end_glyph,
-                    percent: field(car_offset),
+                    percent: car.damage[part] as i32,
                 }
                 .write();
                 blit_bar(&mut |call| canvas.blit_glyph(call))?;

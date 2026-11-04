@@ -12,7 +12,7 @@ use crate::service::setup_values::{Stepper, Target};
 // ---- Rust version: `setup_values::step` with this ----
 
 pub const STEPPER: Stepper = Stepper {
-    target: Target::CarField(0x11C),
+    target: Target::CarField(rc2k_core::menu::player::SetupField::SteeringSensitivity),
     max: 100,
     up: false,
 };

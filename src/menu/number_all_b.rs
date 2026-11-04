@@ -18,6 +18,6 @@ pub fn number_all_b() -> Result<Numbered, Refused> {
     let which = Numbering::All { grouped };
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::Numbering;
-    let numbered = number_table(Which::B, which, 0x148)?;
+    let numbered = number_table(Which::B, which, |p| &mut p.number_all_b)?;
     Ok(numbered)
 }

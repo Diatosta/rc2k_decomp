@@ -12,5 +12,5 @@ use crate::screens::setup_markers::{LEFT_X, Marker};
 pub const MARKER: Marker = Marker::Upper {
     item: 0x10,
     x: LEFT_X,
-    car_offset: 0x11C,
+    in_car: rc2k_core::menu::player::SetupField::SteeringSensitivity,
 };

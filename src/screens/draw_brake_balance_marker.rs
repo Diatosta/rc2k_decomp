@@ -12,5 +12,5 @@ use crate::screens::setup_markers::{Marker, RIGHT_X};
 pub const MARKER: Marker = Marker::Upper {
     item: 0x11,
     x: RIGHT_X,
-    car_offset: 0x110,
+    in_car: rc2k_core::menu::player::SetupField::BrakeBalance,
 };

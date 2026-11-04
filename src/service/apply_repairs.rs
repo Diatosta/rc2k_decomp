@@ -41,7 +41,7 @@ use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
-// Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
+// Converted: `rc2k_core::service::workshop` (the items, the order, the car's fields).
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
 // ---- Rust version ----
 
@@ -88,11 +88,11 @@ impl Workshop for Game<'_> {
     fn set_flag(&mut self, item: u32, value: u32) {
         set_repair_flag(item, value);
     }
-    fn car(&mut self, offset: u32) -> u32 {
-        self.player.get().word(offset as usize)
+    fn car(&mut self) -> rc2k_core::menu::player::Player {
+        self.player.get()
     }
-    fn set_car(&mut self, offset: u32, value: u32) {
-        self.player.update(|q| q.store(&[(offset as usize, value)]));
+    fn update_car(&mut self, change: impl FnOnce(&mut rc2k_core::menu::player::Player)) {
+        self.player.update(change);
     }
     fn set_working(&mut self) {
         MENU_STATE.menus.service_flag.set(1u32);

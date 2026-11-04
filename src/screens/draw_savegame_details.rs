@@ -96,7 +96,12 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                 ),
                 nation: p.nationality,
                 car: p.car_number,
-                numbers: [p.field_14c, p.field_150, p.field_144, p.field_148],
+                numbers: [
+                    p.number_standings_a,
+                    p.number_all_a,
+                    p.number_standings_b,
+                    p.number_all_b,
+                ],
                 shown: [p.stage_points[6] != 0, p.overall_points[6] != 0],
             })
         };

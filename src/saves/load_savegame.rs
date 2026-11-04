@@ -32,7 +32,7 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::go_back;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::pointers::GamePtr;
-use crate::saves::gather_savegame::{CAR_LEN, NAME_LEN, NAME_OFFSET, RECORDS_LEN, cars, head};
+use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::{SAVE_GAMES, SLOTS};
@@ -90,11 +90,10 @@ pub fn load_savegame() -> Result<(), Refused> {
         // The file's own pointer is not to be trusted: the game's stays (a save's holds the
         // same place, unless the file was damaged).
         car.update(|p| p.name = name);
-        let bytes = car.get().to_le_bytes();
-        GamePtr::new(name).write_bytes(
-            &bytes[NAME_OFFSET as usize..NAME_OFFSET as usize + NAME_LEN],
-            "a player's name",
-        )?;
+        crate::menu::player_names::set_name_bytes(
+            crate::menu::player_names::name_index(name)?,
+            &car.get().name_copy,
+        );
         cursor = cursor.offset(CAR_LEN as u32);
     }
     cursor.copy_to(
@@ -102,8 +101,12 @@ pub fn load_savegame() -> Result<(), Refused> {
         RECORDS_LEN,
         "the saved drivers",
     )?;
-    SCREEN_FLOW.start_section.set(cars[0].get().field_14);
-    SCREEN_FLOW.start_section_a8.set(cars[0].get().field_274);
+    SCREEN_FLOW
+        .start_section
+        .set(cars[0].get().saved_start_section);
+    SCREEN_FLOW
+        .start_section_a8
+        .set(cars[0].get().saved_start_section_a8);
 
     match resume(crate::menu::next_record_kind::next_record_kind()?) {
         Resume::NextSection => {

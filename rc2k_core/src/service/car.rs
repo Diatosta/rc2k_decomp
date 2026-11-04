@@ -36,6 +36,13 @@ const TYRE_DAMAGE: usize = 13;
 const CAR_DAMAGE: [usize; 8] = [0, 2, 3, 4, 6, 7, 8, 10];
 
 impl Player {
+    /// The part's run of wear dwords zeroed (`service::apply_repairs` before the work is
+    /// shown).
+    pub fn clear_wear(&mut self, part: Part) {
+        let (first, dwords, _) = part.places();
+        self.wear_17c[first..first + dwords].fill(0);
+    }
+
     /// `service::repair_body` and the four others.
     pub fn repair(&mut self, part: Part) {
         let (first, dwords, damage) = part.places();

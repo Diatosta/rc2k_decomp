@@ -35,6 +35,7 @@ use crate::service::{
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
 use crate::session::{CLOCKS, Dword};
+use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
 
@@ -43,8 +44,8 @@ pub const KEY_CONFIRM: u8 = 0x1C;
 pub struct SimplePage {
     pub down: Stepper,
     pub up: Stepper,
-    /// Offset of the value in the player.
-    pub car_offset: u32,
+    /// The value in the player's car.
+    pub in_car: SetupField,
 }
 
 /// A page whose value costs service time to change.
@@ -55,8 +56,8 @@ pub struct ChangePage {
     pub change: Change,
     /// The chosen value as it was when the edit started.
     pub entry: &'static Dword,
-    /// Where the car has this value, for the pages that compare with it.
-    pub car_offset: Option<u32>,
+    /// The car's value, for the pages that compare with it.
+    pub in_car: Option<SetupField>,
     /// The page's menu item (the self-tests highlight it).
     pub item: u32,
 }
@@ -64,19 +65,19 @@ pub struct ChangePage {
 pub const STEERING_SENSITIVITY: SimplePage = SimplePage {
     down: step_steering_sensitivity_down::STEPPER,
     up: step_steering_sensitivity_up::STEPPER,
-    car_offset: 0x11C,
+    in_car: SetupField::SteeringSensitivity,
 };
 pub const BRAKE_BALANCE: SimplePage = SimplePage {
     down: step_brake_balance_down::STEPPER,
     up: step_brake_balance_up::STEPPER,
-    car_offset: 0x110,
+    in_car: SetupField::BrakeBalance,
 };
 pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
     entry: &MENU_STATE.driver_stats.setups[0].start,
-    car_offset: None,
+    in_car: None,
     item: 0xE,
 };
 pub const TYRE: ChangePage = ChangePage {
@@ -84,7 +85,7 @@ pub const TYRE: ChangePage = ChangePage {
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
     entry: &MENU_STATE.driver_stats.setups[1].start,
-    car_offset: None,
+    in_car: None,
     item: 0xF,
 };
 pub const RIDE_HEIGHT: ChangePage = ChangePage {
@@ -92,7 +93,7 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
     entry: &MENU_STATE.driver_stats.setups[2].start,
-    car_offset: Some(0x114),
+    in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
 pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
@@ -100,7 +101,7 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
     entry: &MENU_STATE.driver_stats.setups[3].start,
-    car_offset: Some(0x118),
+    in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };
 
@@ -154,8 +155,8 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
     if !marks_ended() {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
-    let installed_in_car = match page.car_offset {
-        Some(offset) => Some((player()?, offset as usize)),
+    let installed_in_car = match page.in_car {
+        Some(field) => Some((player()?, field)),
         None => None,
     };
 
@@ -170,7 +171,7 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         chosen: page.change.chosen.get(),
         installed: page.change.installed.get(),
         entry: page.entry.get(),
-        in_car: installed_in_car.map(|(p, at)| p.get().word(at)),
+        in_car: installed_in_car.map(|(p, field)| field.get(p.get())),
     };
     let c = rc2k_core::service::repairs::confirm_change(
         &mut f,

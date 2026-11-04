@@ -15,6 +15,6 @@ pub fn number_standings_a(class: u32) -> Result<Numbered, Refused> {
     let which = Numbering::Group(class);
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::Numbering;
-    let numbered = number_table(Which::A, which, 0x14C)?;
+    let numbered = number_table(Which::A, which, |p| &mut p.number_standings_a)?;
     Ok(numbered)
 }

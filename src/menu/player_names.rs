@@ -5,9 +5,6 @@ use crate::menu::players_store::PLAYER_TABLE;
 
 pub const PLAYERS: usize = 4;
 pub const NAME_LEN: usize = 0x20;
-/// In a player: the address of its player's name, and a copy of the name.
-pub const CAR_NAME_POINTER: usize = 0x18;
-pub const CAR_NAME: usize = 0x124;
 
 /// Where player `player`'s name is (the address the cars keep).
 pub fn name(player: usize) -> u32 {
@@ -30,6 +27,21 @@ pub fn name_ptr(player: usize) -> crate::pointers::GamePtr {
 }
 
 /// Player `player`'s name, the whole 0x20 bytes.
+/// The player's name whose start a record's name pointer is; refused for any other
+/// address.
+pub fn name_index(name_at: u32) -> Result<usize, crate::errors::BadInput> {
+    index_of(name_at).ok_or(crate::errors::BadInput(
+        "a name pointer off the players' names",
+    ))
+}
+
+/// Player `player`'s name replaced.
+pub fn set_name_bytes(player: usize, name: &[u8; NAME_LEN]) {
+    for (i, &b) in name.iter().enumerate() {
+        NAME_BUFFERS.player_names.set(player * NAME_LEN + i, b);
+    }
+}
+
 pub fn name_bytes(player: usize) -> [u8; NAME_LEN] {
     std::array::from_fn(|i| NAME_BUFFERS.player_names.get(player * NAME_LEN + i))
 }

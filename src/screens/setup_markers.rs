@@ -43,7 +43,11 @@ pub enum Marker {
     },
     /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
     /// While its item is being edited it blinks.
-    Upper { item: u32, x: i32, car_offset: u32 },
+    Upper {
+        item: u32,
+        x: i32,
+        in_car: rc2k_core::menu::player::SetupField,
+    },
 }
 
 /// Puts the bar in the bar globals and draws the marker.
@@ -89,7 +93,7 @@ pub fn draw_marker(
         match marker {
             Marker::Always { percent, .. } => read(percent),
             Marker::Lower { chosen, .. } => read(chosen),
-            Marker::Upper { car_offset, .. } => Ok(player.get().word(car_offset as usize) as i32),
+            Marker::Upper { in_car, .. } => Ok(in_car.get(player.get()) as i32),
         }
     };
     let installed = || match marker {

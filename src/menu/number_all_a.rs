@@ -19,7 +19,7 @@ pub fn number_all_a() -> Result<Numbered, Refused> {
     let which = Numbering::All { grouped };
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::Numbering;
-    let numbered = number_table(Which::A, which, 0x150)?;
+    let numbered = number_table(Which::A, which, |p| &mut p.number_all_a)?;
     EVENT_STATE.count_a.set(numbered.last_number);
     Ok(numbered)
 }

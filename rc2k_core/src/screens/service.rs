@@ -114,10 +114,10 @@ pub enum AreaFont {
 pub enum AreaStep {
     /// (string, font, x, y)
     Label(u32, AreaFont, i32, i32),
-    /// (offset in the player, string, font, x, y): drawn only if that dword is not 0.
-    LabelIf(u32, u32, AreaFont, i32, i32),
-    /// (x, y, offset in the player of the percentage)
-    DamageBar(i32, i32, u32),
+    /// (string, font, x, y): drawn only if the car's class (player +0x90) is not 0.
+    LabelIfClass(u32, AreaFont, i32, i32),
+    /// (x, y, the part whose damage is the percentage: `Player::damage`'s index)
+    DamageBar(i32, i32, usize),
     /// (glyph of the sprite table, x, y): drawn with the palette the last label left.
     Sprite(u32, i32, i32),
 }
@@ -145,27 +145,27 @@ pub fn area_title(before: &[u8], index: u32, after: &[u8]) -> Vec<u8> {
 
 pub const AREA_STEPS: [AreaStep; 83] = [
     AreaStep::Label(0x488, AreaFont::Heading, 400, 68),
-    AreaStep::DamageBar(236, 100, 0xD4),
-    AreaStep::DamageBar(571, 100, 0xD8),
-    AreaStep::DamageBar(236, 129, 0xDC),
-    AreaStep::DamageBar(571, 129, 0xE0),
-    AreaStep::DamageBar(236, 158, 0xE4),
-    AreaStep::DamageBar(571, 158, 0xE8),
-    AreaStep::DamageBar(236, 187, 0xEC),
-    AreaStep::DamageBar(571, 187, 0xF0),
-    AreaStep::DamageBar(236, 216, 0xF4),
-    AreaStep::DamageBar(571, 216, 0xF8),
-    AreaStep::DamageBar(236, 245, 0xFC),
-    AreaStep::DamageBar(571, 245, 0x100),
-    AreaStep::DamageBar(236, 274, 0x104),
-    AreaStep::DamageBar(571, 274, 0x108),
+    AreaStep::DamageBar(236, 100, 0),
+    AreaStep::DamageBar(571, 100, 1),
+    AreaStep::DamageBar(236, 129, 2),
+    AreaStep::DamageBar(571, 129, 3),
+    AreaStep::DamageBar(236, 158, 4),
+    AreaStep::DamageBar(571, 158, 5),
+    AreaStep::DamageBar(236, 187, 6),
+    AreaStep::DamageBar(571, 187, 7),
+    AreaStep::DamageBar(236, 216, 8),
+    AreaStep::DamageBar(571, 216, 9),
+    AreaStep::DamageBar(236, 245, 10),
+    AreaStep::DamageBar(571, 245, 11),
+    AreaStep::DamageBar(236, 274, 12),
+    AreaStep::DamageBar(571, 274, 13),
     AreaStep::Label(0x492, AreaFont::Label, 106, 97),
     AreaStep::Label(0x499, AreaFont::Label, 441, 97),
     AreaStep::Label(0x493, AreaFont::Label, 106, 126),
     AreaStep::Label(0x49A, AreaFont::Label, 441, 126),
     AreaStep::Label(0x494, AreaFont::Label, 106, 155),
     AreaStep::Label(0x49B, AreaFont::Label, 441, 155),
-    AreaStep::LabelIf(0x90, 0x578, AreaFont::Small, 319, 159),
+    AreaStep::LabelIfClass(0x578, AreaFont::Small, 319, 159),
     AreaStep::Label(0x495, AreaFont::Label, 106, 184),
     AreaStep::Label(0x49C, AreaFont::Label, 441, 184),
     AreaStep::Label(0x496, AreaFont::Label, 106, 213),

@@ -37,8 +37,7 @@ pub fn head() -> [&'static Dword; 7] {
         &MENU_STATE.menus.class_mode,
     ]
 }
-pub use rc2k_core::saves::savegame::NAME_AT as NAME_OFFSET;
-pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, NAME_LEN, RECORDS_LEN};
+pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
 /// The four players, if every one has its pointer at +0x18.
 pub fn cars()
@@ -54,7 +53,7 @@ pub fn cars()
 // ---- Rust version ----
 
 pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
-    use rc2k_core::saves::savegame::{CAR0_A, CAR0_B, RECORDS_AT, car_at};
+    use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
     let cars = cars()?;
     for (n, at) in head().into_iter().enumerate() {
         buffer
@@ -62,14 +61,14 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
             .write(at.get(), "the savegame's head")?;
     }
     cars[0].update(|p| {
-        p.store(&[
-            (CAR0_A as usize, SCREEN_FLOW.start_section.get()),
-            (CAR0_B as usize, SCREEN_FLOW.start_section_a8.get()),
-        ]);
+        p.saved_start_section = SCREEN_FLOW.start_section.get();
+        p.saved_start_section_a8 = SCREEN_FLOW.start_section_a8.get();
     });
     for (n, car) in cars.iter().enumerate() {
-        let name = GamePtr::new(car.get().name).read_bytes(NAME_LEN, "a player's name")?;
-        car.update(|p| p.store_bytes(NAME_OFFSET as usize, &name));
+        let name = crate::menu::player_names::name_bytes(crate::menu::player_names::name_index(
+            car.get().name,
+        )?);
+        car.update(|p| p.name_copy = name);
         buffer
             .offset(car_at(n) as u32)
             .write_bytes(&car.get().to_le_bytes(), "a player's record")?;

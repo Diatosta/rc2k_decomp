@@ -9,7 +9,7 @@
 //! Refuses a missing player.
 
 use crate::errors::BadInput;
-use crate::menu::player_names::{CAR_NAME, cars, name_bytes};
+use crate::menu::player_names::{cars, name_bytes};
 
 // ---- Rust version ----
 
@@ -17,9 +17,10 @@ use crate::menu::player_names::{CAR_NAME, cars, name_bytes};
 pub fn store_player_names(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
     for (player, car) in cars().iter().enumerate() {
         let name = name_bytes(player);
-        car.update(|p| p.store_bytes(CAR_NAME, &name));
+        car.update(|p| p.name_copy = name);
+        // Logged up to its NUL, read on past the copy's room as the original reads.
         let bytes = car.get().to_le_bytes();
-        let copy = &bytes[CAR_NAME..];
+        let copy = &bytes[std::mem::offset_of!(rc2k_core::menu::player::Player, name_copy)..];
         let end = copy.iter().position(|&b| b == 0).unwrap_or(copy.len());
         log(&copy[..end]);
     }

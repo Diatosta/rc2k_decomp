@@ -336,12 +336,12 @@ pub struct Numbered {
 
 /// The numbering of a standings table (`number_all_*`, `number_standings_*`): each entry
 /// `which` counts numbered in turn, its position set and, for a player's, the player's
-/// record's dword at `record_at`. Refused, before any write, when a counted entry's player
-/// is past 4 or not there.
+/// `number` field. Refused, before any write, when a counted entry's player is past 4 or
+/// not there.
 pub fn number_table(
     table: Which,
     which: rc2k_core::menu::standings::Numbering,
-    record_at: u32,
+    number: fn(&mut rc2k_core::menu::player::Player) -> &mut u32,
 ) -> Result<Numbered, Refused> {
     let walked: Vec<(u32, u32)> = match table {
         Which::A => walked_entries_a()?
@@ -368,7 +368,7 @@ pub fn number_table(
         last_number = n;
         if p != 0 {
             let record = player(p - 1);
-            record.update(|q| q.store(&[(record_at as usize, n)]));
+            record.update(|q| *number(q) = n);
         }
     }
     let set = |n: usize| numbers[n];

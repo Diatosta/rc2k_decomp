@@ -25,7 +25,9 @@ pub struct Player {
     pub view: u32,
     /// The second view (`dword_7589DA`: bonnet, bumper, chase 1 .. 3; 5 is made 0).
     pub second_view: u32,
-    pub field_14: u32,
+    /// The section a saved game starts at (`SCREEN_FLOW.start_section`; player 0's, kept
+    /// in the saved game).
+    pub saved_start_section: u32,
     /// The player's name (a place in `g_playerNames`).
     pub name: u32,
     pub keys: [u8; 12],
@@ -83,10 +85,12 @@ pub struct Player {
     pub steering_sensitivity: u32,
     pub gear_ratio: u32,
     pub name_copy: [u8; 32],
-    pub field_144: u32,
-    pub field_148: u32,
-    pub field_14c: u32,
-    pub field_150: u32,
+    /// The player's numbers in the standings (`menu::number_standings_b`, `number_all_b`,
+    /// `number_standings_a`, `number_all_a`).
+    pub number_standings_b: u32,
+    pub number_all_b: u32,
+    pub number_standings_a: u32,
+    pub number_all_a: u32,
     /// The co-driver's sex, from the player details page: 0 male, 1 female (strings
     /// 0x18A, 0x18B).
     pub codriver_sex: u32,
@@ -115,7 +119,9 @@ pub struct Player {
     pub gap_20c: [u8; 64],
     pub field_24c: [u32; 8],
     pub gap_26c: [u8; 8],
-    pub field_274: u32,
+    /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
+    /// saved game).
+    pub saved_start_section_a8: u32,
     pub flags_278: u32,
     pub gap_27c: u32,
     /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
@@ -139,7 +145,7 @@ impl Player {
         word(0x8, self.car_number);
         word(0xc, self.view);
         word(0x10, self.second_view);
-        word(0x14, self.field_14);
+        word(0x14, self.saved_start_section);
         word(0x18, self.name);
         word(0x28, self.race_number);
         word(0x2c, self.controller);
@@ -171,10 +177,10 @@ impl Player {
         word(0x118, self.suspension_stiffness);
         word(0x11c, self.steering_sensitivity);
         word(0x120, self.gear_ratio);
-        word(0x144, self.field_144);
-        word(0x148, self.field_148);
-        word(0x14c, self.field_14c);
-        word(0x150, self.field_150);
+        word(0x144, self.number_standings_b);
+        word(0x148, self.number_all_b);
+        word(0x14c, self.number_standings_a);
+        word(0x150, self.number_all_a);
         word(0x154, self.codriver_sex);
         word(0x158, self.map_area);
         word(0x15c, self.rear_mirror);
@@ -194,7 +200,7 @@ impl Player {
         for (k, &v) in self.field_24c.iter().enumerate() {
             word(0x24c + 4 * k, v);
         }
-        word(0x274, self.field_274);
+        word(0x274, self.saved_start_section_a8);
         word(0x278, self.flags_278);
         word(0x27c, self.gap_27c);
         word(0x280, self.controller_sensitivity);
@@ -273,7 +279,7 @@ impl Player {
             car_number: word(&b, 0x8),
             view: word(&b, 0xc),
             second_view: word(&b, 0x10),
-            field_14: word(&b, 0x14),
+            saved_start_section: word(&b, 0x14),
             name: word(&b, 0x18),
             keys: bytes::<0xc>(&b, 0x1c),
             race_number: word(&b, 0x28),
@@ -304,10 +310,10 @@ impl Player {
             steering_sensitivity: word(&b, 0x11c),
             gear_ratio: word(&b, 0x120),
             name_copy: bytes::<0x20>(&b, 0x124),
-            field_144: word(&b, 0x144),
-            field_148: word(&b, 0x148),
-            field_14c: word(&b, 0x14c),
-            field_150: word(&b, 0x150),
+            number_standings_b: word(&b, 0x144),
+            number_all_b: word(&b, 0x148),
+            number_standings_a: word(&b, 0x14c),
+            number_all_a: word(&b, 0x150),
             codriver_sex: word(&b, 0x154),
             map_area: word(&b, 0x158),
             rear_mirror: word(&b, 0x15c),
@@ -323,7 +329,7 @@ impl Player {
             gap_20c: bytes::<0x40>(&b, 0x20c),
             field_24c: words::<8>(&b, 0x24c),
             gap_26c: bytes::<0x8>(&b, 0x26c),
-            field_274: word(&b, 0x274),
+            saved_start_section_a8: word(&b, 0x274),
             flags_278: word(&b, 0x278),
             gap_27c: word(&b, 0x27c),
             controller_sensitivity: word(&b, 0x280),
@@ -433,6 +439,34 @@ impl Player {
     pub fn change(&mut self, s: Setting, up: bool) {
         let v = self.setting(s);
         *v = stepped(s, *v, up);
+    }
+}
+
+/// A car setup value the player's record keeps (the service pages', the setup files').
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SetupField {
+    Tyre,
+    BrakeBalance,
+    RideHeight,
+    Stiffness,
+    SteeringSensitivity,
+    GearRatio,
+}
+
+impl SetupField {
+    pub fn of(self, p: &mut Player) -> &mut u32 {
+        match self {
+            SetupField::Tyre => &mut p.tyre,
+            SetupField::BrakeBalance => &mut p.brake_balance,
+            SetupField::RideHeight => &mut p.ride_height,
+            SetupField::Stiffness => &mut p.suspension_stiffness,
+            SetupField::SteeringSensitivity => &mut p.steering_sensitivity,
+            SetupField::GearRatio => &mut p.gear_ratio,
+        }
+    }
+
+    pub fn get(self, mut p: Player) -> u32 {
+        *self.of(&mut p)
     }
 }
 

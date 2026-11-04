@@ -14,20 +14,16 @@ use crate::errors::BadInput;
 use crate::input::store::DEVICES;
 use crate::menu::player_names::cars;
 
-// ---- game data ----
-
-const CAR_CONTROLLER: u32 = 0x2C;
-
 // ---- Rust version ----
 
 pub fn drop_missing_controllers() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::steps::kept_controller`.
     let most = DEVICES.controller_count.get();
     for car in cars() {
-        let c = car.get().word(CAR_CONTROLLER as usize);
+        let c = car.get().controller;
         let kept = rc2k_core::menu::steps::kept_controller(c, most);
         if kept != c {
-            car.update(|p| p.store(&[(CAR_CONTROLLER as usize, kept)]));
+            car.update(|p| p.controller = kept);
         }
     }
     Ok(())

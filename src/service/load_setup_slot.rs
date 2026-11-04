@@ -68,15 +68,17 @@ pub fn load_setup_slot() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
     let v = SetupValues::from_file(&SET_UPS.file.read());
-    let in_car = |offset: u32, v: u32| player.update(|q| q.store(&[(offset as usize, v)]));
+    let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
+        player.update(|q| *field.of(q) = v);
+    };
     TYRE.change.chosen.set(v.tyre);
-    in_car(BRAKE_BALANCE.car_offset, v.brake_balance);
+    in_car(BRAKE_BALANCE.in_car, v.brake_balance);
     RIDE_HEIGHT.change.chosen.set(v.ride_height);
     SUSPENSION_STIFFNESS
         .change
         .chosen
         .set(v.suspension_stiffness);
-    in_car(STEERING_SENSITIVITY.car_offset, v.steering_sensitivity);
+    in_car(STEERING_SENSITIVITY.in_car, v.steering_sensitivity);
     GEAR_RATIO.change.chosen.set(v.gear_ratio);
 
     // The original clears both tables again here, this time checking each entry for the
