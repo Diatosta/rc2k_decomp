@@ -819,18 +819,23 @@ impl CueLists {
 }
 
 impl CueLists {
-    /// Where cue `cue`'s list of sounds is. The table keeps IDA's addresses as the lists' names
-    /// (phase 13: `moved::point_into_homes` passes them over); a value off the lists is refused.
-    pub fn list_of(cue: u32) -> Result<u32, crate::errors::BadInput> {
+    /// Cue `cue`'s list of sounds, a place in the whole block (the list runs to a -1).
+    pub fn list(cue: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         let cell = CUE_LISTS
             .table
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
-        named(cell.get(), Self::START, Self::LEN, Self::home())
+        let at = cell.get() as usize;
+        if !(Self::START..Self::START + Self::LEN).contains(&at) {
+            return Err(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            ));
+        }
+        Ok(crate::pointers::GamePtr::to(&CUE_LISTS).offset((at - Self::START + 8) as u32))
     }
 }
 
-/// The car sound kinds' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
+/// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
 #[repr(C, align(16))]
 pub struct SoundKinds {
     /// 0x514F90: `g_carSoundKinds`: a pointer to each sound kind's record (`sound::car_engine_state`).
@@ -1301,13 +1306,26 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
 };
 
 impl SoundKinds {
-    /// Where kind `n`'s record is.
-    pub fn record_of(n: u32) -> Result<u32, crate::errors::BadInput> {
+    /// Kind `n`'s record (0x88 bytes; the original kept its address), a place in the whole
+    /// block: the sets in the record are read by offset from it. The kind past the table, or
+    /// a table entry off the records, is refused.
+    pub fn record(n: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         let cell = SOUND_KINDS
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        named(cell.get(), Self::START, Self::LEN, Self::home())
+        let at = cell.get() as usize;
+        if !(Self::START..Self::START + Self::LEN).contains(&at) {
+            return Err(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            ));
+        }
+        Ok(crate::pointers::GamePtr::to(&SOUND_KINDS).offset((at - Self::START) as u32))
+    }
+
+    /// The computers' cars' set (40 bytes).
+    pub fn computers_set() -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::to(&SOUND_KINDS.computers)
     }
 
     pub const START: usize = 0x514F90;
@@ -1336,12 +1354,19 @@ pub static SURFACE_SETS: SurfaceSets = SurfaceSets {
 };
 
 impl SurfaceSets {
-    /// Where set `n`'s list is.
-    pub fn set_of(n: usize) -> Result<u32, crate::errors::BadInput> {
+    /// Surface sound set `n`'s list (the original kept its address), a place in the whole
+    /// block: the list runs on in the lists after it as far as the sets read.
+    pub fn set(n: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         let cell = SURFACE_SETS.sets.get(n).ok_or(crate::errors::BadInput(
             "a surface sound set past the table",
         ))?;
-        named(cell.get(), Self::START, Self::LEN, Self::home())
+        let at = cell.get() as usize;
+        if !(Self::START..Self::START + Self::LEN).contains(&at) {
+            return Err(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            ));
+        }
+        Ok(crate::pointers::GamePtr::to(&SURFACE_SETS).offset((at - Self::START + 12) as u32))
     }
 
     pub const START: usize = 0x51639C;
@@ -3005,10 +3030,10 @@ mod tests {
     fn cuelists_starts_as_the_games() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
-            let at = CueLists::list_of(cue).unwrap() as usize;
+            let at = CueLists::list(cue).unwrap().addr() as usize;
             assert!(at >= CueLists::home() + 113 * 4);
         }
-        assert!(CueLists::list_of(113).is_err());
+        assert!(CueLists::list(113).is_err());
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
@@ -3038,10 +3063,16 @@ mod tests {
     #[test]
     fn surfacesets_starts_as_the_games() {
         for n in 0..14 {
-            assert!(SurfaceSets::set_of(n).unwrap() as usize >= SurfaceSets::home() + 14 * 4);
+            let set = SurfaceSets::set(n).unwrap();
+            assert!(set.addr() as usize >= SurfaceSets::home() + 14 * 4);
+            // The shortest set: its mode dword and a first sound.
+            set.offset(4).read::<u32>("a set").unwrap();
         }
         for n in 0..36 {
-            assert!(SoundKinds::record_of(n).unwrap() as usize >= SoundKinds::home() + 36 * 4);
+            let record = SoundKinds::record(n).unwrap();
+            assert!(record.addr() as usize >= SoundKinds::home() + 36 * 4);
+            // The longest reads: the throttle and speed sets' last dword (+0x60 + 0x24).
+            record.offset(0x60 + 0x24).read::<u32>("a set").unwrap();
         }
         let size = size_of::<SurfaceSets>();
         assert!(

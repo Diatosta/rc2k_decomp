@@ -9,7 +9,7 @@
 //! (`sound::stop_sound`). Then the request: the sound, +4 the rate as a float, +8
 //! `flt_516398` (`fld` / `fstp`), the place +0x2C .. +0x34, and
 //! `sound::play_placed_sound` (a tail jump). Two callers, `sound::surface_sounds`.
-//! Refuses (before anything) a null set, a set of eight with +0xC
+//! Refuses (before anything) a set of eight with +0xC
 //! over 1, and a sound past the sample records.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
@@ -29,16 +29,12 @@ use rc2k_core::sound::surfaces;
 /// Object `o`'s sound of the surface's sound `set`, through `request`.
 pub fn surface_sound(
     o: &crate::sound::store::SoundObject,
-    set: u32,
+    set: GamePtr,
     request: &SoundRequest,
 ) -> Result<(), Refused> {
-    if set == 0 {
-        return Err(BadInput("no set").into());
-    }
     let object = o;
     let o = GamePtr::to(o);
     let w = |at: u32| o.offset(at).read::<u32>("a sound object's dword");
-    let set = GamePtr::new(set);
     // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = set.read::<u32>("a sound set")? == 1;
     let late = std::cell::Cell::new(None);

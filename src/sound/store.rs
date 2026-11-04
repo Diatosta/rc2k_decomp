@@ -219,11 +219,21 @@ pub struct SoundObject {
     pub cue_queue: CueQueue,
 }
 
+/// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
+pub fn current_object() -> &'static SoundObject {
+    &RACE_SOUNDS.objects[(crate::race::work_store::RACE_WORK.current_car.get() & 7) as usize]
+}
+
 impl SoundObject {
-    /// The object at `address`, as the game's tables and the physics hold it (a number),
-    /// when all of it lies in one region of the game's memory.
-    pub fn at<'a>(address: u32) -> Result<&'a SoundObject, crate::errors::BadInput> {
-        crate::pointers::GamePtr::new(address).record::<SoundObject>("a sound object")
+    /// Race sound object `n` (the original kept its address in `g_raceSoundObjects`),
+    /// refused past the eight.
+    pub fn number(n: u32) -> Result<&'static SoundObject, crate::errors::BadInput> {
+        RACE_SOUNDS
+            .objects
+            .get(n as usize)
+            .ok_or(crate::errors::BadInput(
+                "a race sound object past the eight",
+            ))
     }
 
     /// The timed slot the image names by its offset in the object (the core's lists of
@@ -1102,6 +1112,12 @@ mod tests {
         }
         assert_eq!(stream, image_bytes(CAR_STREAM_IDA, 12));
         assert_eq!(core::mem::size_of::<CarStream>(), 12);
+    }
+
+    #[test]
+    fn objects_are_by_number_within_the_eight() {
+        assert!(SoundObject::number(7).is_ok());
+        assert!(SoundObject::number(8).is_err());
     }
 
     #[test]

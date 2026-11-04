@@ -14,11 +14,6 @@
 use crate::errors::Refused;
 use crate::sound::sets_store::{RACE_SOUND_SETS, SoundRequest};
 
-/// Object `n`'s address (`g_raceSoundObjects[n]`); `n` is under 8 (every caller checks).
-pub fn object(n: u32) -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[n as usize].get()
-}
-
 /// The request (`g_raceSoundRequest`), the sound command's words.
 pub fn request() -> &'static SoundRequest {
     &RACE_SOUND_SETS.request

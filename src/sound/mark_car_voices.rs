@@ -15,22 +15,21 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::work_store::RACE_WORK;
-use crate::sound::store::RACE_SOUNDS;
-use crate::sound::turn_parts::object;
+use crate::sound::store::{RACE_SOUNDS, SoundObject};
 
 // ---- Rust version ----
 
 /// The (object, car) pairs in use, or a refusal.
-fn pairs() -> Result<Vec<(u32, u32)>, BadInput> {
+fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
     let count = RACE_SOUNDS.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
-    let pairs: Vec<(u32, u32)> = (0..count as usize)
-        .map(|n| (object(n as u32), RACE_WORK.car_block(n)))
-        .collect();
-    if pairs.iter().any(|&(o, c)| o == 0 || c == 0) {
-        return Err(BadInput("a null sound object or car"));
+    let pairs = (0..count as usize)
+        .map(|n| Ok((SoundObject::number(n as u32)?, RACE_WORK.car_block(n))))
+        .collect::<Result<Vec<_>, BadInput>>()?;
+    if pairs.iter().any(|&(_, c)| c == 0) {
+        return Err(BadInput("a null car"));
     }
     Ok(pairs)
 }
@@ -40,8 +39,7 @@ pub fn mark_car_voices() -> Result<(), Refused> {
     if RACE_SOUNDS.mark_car_voices.get() != 1 {
         return Ok(());
     }
-    for (n, (object, car)) in pairs()?.into_iter().enumerate() {
-        let o = crate::sound::store::SoundObject::at(object)?;
+    for (n, (o, car)) in pairs()?.into_iter().enumerate() {
         let kind = crate::race::trap::car_at(car)?.driver_kind.get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
         o.in_use.set(sounds);

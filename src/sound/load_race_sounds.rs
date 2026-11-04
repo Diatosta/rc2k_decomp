@@ -61,21 +61,15 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
 /// objects; dword_75B108 the replay switch.
 pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
     use crate::sound::store::RACE_SOUNDS as R;
-    let object = |number: &Dword| -> Result<usize, BadInput> {
+    let object = |number: &Dword| -> Result<u32, BadInput> {
         let number = number.get();
         if number >= OBJECTS {
             return Err(BadInput("a car's number past the sound objects"));
         }
-        match R.table[number as usize].get() {
-            0 => Err(BadInput("no sound object for a car")),
-            object => Ok(object as usize),
-        }
+        Ok(number)
     };
     let (first, second) = (object(&R.player_cars[0])?, object(&R.player_cars[1])?);
-    let kind = |object: usize| match crate::sound::store::SoundObject::at(object as u32)?
-        .kind
-        .get()
-    {
+    let kind = |object: u32| match crate::sound::store::SoundObject::number(object)?.kind.get() {
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
@@ -101,11 +95,11 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
         }) as u32
     };
     let (a, b) = voices(
-        crate::sound::store::SoundObject::at(first as u32)?
+        crate::sound::store::SoundObject::number(first)?
             .cue_queue
             .first
             .get(),
-        crate::sound::store::SoundObject::at(second as u32)?
+        crate::sound::store::SoundObject::number(second)?
             .cue_queue
             .first
             .get(),

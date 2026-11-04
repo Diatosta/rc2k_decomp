@@ -9,25 +9,18 @@
 //! Caller: `sub_43DC72` (its tail). Refuses (before anything) a null sound object when it
 //! would be written (the original writes near address 0).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
-/// The Rust version on the car number, the object table and the word at these places.
+/// The Rust version on the current car's sound object and the word at this place.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
 pub fn gear_change_sound_at(
-    current: &Dword,
-    table: &[Dword; 8],
+    o: &crate::sound::store::SoundObject,
     word: &Dword,
 ) -> Result<(), Refused> {
-    let object = table[(current.get() & 7) as usize].get();
     if let Some(change) = gear_change(word.get()) {
-        if object == 0 {
-            return Err(BadInput("a null sound object").into());
-        }
-        let o = crate::sound::store::SoundObject::at(object)?;
         match change {
             GearChange::Up => o.slots[2].start.set(1),
             GearChange::Down => o.slots[3].start.set(1),
@@ -39,9 +32,5 @@ pub fn gear_change_sound_at(
 
 /// The Rust version.
 pub fn gear_change_sound() -> Result<(), Refused> {
-    gear_change_sound_at(
-        &RACE_WORK.current_car,
-        &crate::sound::store::RACE_SOUNDS.table,
-        &CAR.gear_changed,
-    )
+    gear_change_sound_at(crate::sound::store::current_object(), &CAR.gear_changed)
 }

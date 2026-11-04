@@ -24,22 +24,29 @@ use crate::race::mud::car_file_number;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::sharing;
 
-fn cars() -> Result<[(u32, &'static MarkCar, u32); 8], BadInput> {
+fn cars() -> Result<
+    [(
+        u32,
+        &'static MarkCar,
+        &'static crate::sound::store::SoundObject,
+    ); 8],
+    BadInput,
+> {
     let records = RACE_WORK.car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
         (
             RACE_WORK.car_block(n),
             records[n],
-            crate::sound::store::RACE_SOUNDS.table[n].get(),
+            &crate::sound::store::RACE_SOUNDS.objects[n],
         )
     }))
 }
 
 /// The refusals, worked out before anything is written.
 fn refusal() -> Result<Option<&'static str>, BadInput> {
-    for (block, _, sound) in cars()? {
-        if block == 0 || sound == 0 {
-            return Ok(Some("a null car block, record or sound object"));
+    for (block, _, _) in cars()? {
+        if block == 0 {
+            return Ok(Some("a null car block or record"));
         }
         let n = car_file_number(crate::physics::car_store::Car::at(block).car_kind.get());
         if let Err(e) = sharing::check_light_record(n) {
@@ -62,11 +69,7 @@ pub fn share_all_cars() -> Result<(), Refused> {
     keep_lead_car_values();
     for (n, (block, record, sound)) in cars()?.into_iter().enumerate() {
         RACE_WORK.current_car.set(n as u32);
-        share_car_state(
-            crate::physics::car_store::Car::at(block),
-            record,
-            crate::sound::store::SoundObject::at(sound)?,
-        )?;
+        share_car_state(crate::physics::car_store::Car::at(block), record, sound)?;
     }
     let first_record = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
     MARKS_SETTINGS.sound_objects_shown.set_bits(0u32);

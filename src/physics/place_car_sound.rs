@@ -10,27 +10,18 @@
 //!
 //! Caller: `sub_441324` (its tail). Refuses (before anything) a null sound object.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
-fn object() -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
-}
-
 /// The exact x87 version (for `physics::sound_on_bit`).
 pub fn place_car_sound() -> Result<(), Refused> {
-    let o = object();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+    let so = crate::sound::store::current_object();
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [

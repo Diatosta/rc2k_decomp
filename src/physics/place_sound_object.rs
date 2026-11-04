@@ -41,25 +41,16 @@ pub fn place_sound_object() -> Result<(), Refused> {
         |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
     )?;
     trap.finish()?;
-    let scratch = RACE_SOUND_SPOTS.band_scratch.get();
     let b = band_value_plain(TWIN);
     if b == 0 {
         return Ok(());
     }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
-            return Err(e);
-        }
-    };
     let offset = Some(
         CONTACT_WORK
             .object_point_offset
             .each_ref()
             .map(super::super::session::Dword::bits),
     );
-    cue_plain(o, FIRST, sound, b, offset);
+    cue_plain(object(), FIRST, sound, b, offset)?;
     Ok(())
 }

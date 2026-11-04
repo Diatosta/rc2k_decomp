@@ -42,11 +42,6 @@ impl Trap {
         }
     }
 
-    /// The dword at `a`.
-    pub fn dword(&self, a: u32, what: &str) -> u32 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u32>(what))
-    }
-
     /// Whether a refusal has been kept.
     pub fn failed(&self) -> bool {
         self.0.get().is_some()

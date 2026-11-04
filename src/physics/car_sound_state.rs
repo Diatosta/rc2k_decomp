@@ -27,11 +27,9 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
-use crate::sound::store::RACE_SOUNDS;
 
 fn get(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
@@ -48,10 +46,6 @@ fn shares(so: &crate::sound::store::SoundObject) {
     x87_2(so);
 }
 
-fn object() -> u32 {
-    RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
-}
-
 fn listener() -> u32 {
     if RACE_VIEW.players.get() == 1 {
         RACE_VIEW.view_block(0)
@@ -62,15 +56,11 @@ fn listener() -> u32 {
 
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state() -> Result<(), Refused> {
-    let o = object();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
     let l = listener();
     if l == 0 {
         return Err(BadInput("a null view block").into());
     }
-    let so = crate::sound::store::SoundObject::at(o)?;
+    let so = crate::sound::store::current_object();
     so.new_revs.set(1);
     so.revs.set(CAR.engine_sound_revs.get());
     let w = CAR.wheel_surface_a[4].get();

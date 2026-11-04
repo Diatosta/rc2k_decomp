@@ -23,14 +23,6 @@ pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bo
     Ok((e, e != NOT_LISTED))
 }
 
-/// A sound object, refused when null.
-pub fn sound_object(object: u32) -> Result<u32, Invalid> {
-    if object == 0 {
-        return Err(Invalid("a null sound object"));
-    }
-    Ok(object)
-}
-
 /// Where a cue goes in the object's queue (the original's eax for
 /// `physics::queue_sound_cue`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,14 +39,14 @@ pub const READY: u32 = 1;
 pub const QUEUE_OFFSET: u32 = 0x298;
 
 /// `physics::cue_car_sound` and `_last`: for `which` 0 or 1 (unsigned; else nothing), the
-/// car `car_of(which)` (past 7 refused), its sound object `object_of(car)` (null
-/// refused), its +8 `ready_of(object)`: the object when that is `READY`.
-pub fn cue_object(
+/// car `car_of(which)` (past 7 refused), its sound object `object_of(car)` (a handle of
+/// the caller's, never null), its +8 `ready_of(object)`: the object when that is `READY`.
+pub fn cue_object<O: Copy>(
     which: u32,
     car_of: impl FnOnce(u32) -> u32,
-    object_of: impl FnOnce(u32) -> u32,
-    ready_of: impl FnOnce(u32) -> u32,
-) -> Result<Option<u32>, Invalid> {
+    object_of: impl FnOnce(u32) -> O,
+    ready_of: impl FnOnce(O) -> u32,
+) -> Result<Option<O>, Invalid> {
     if which > 1 {
         return Ok(None);
     }
@@ -62,7 +54,7 @@ pub fn cue_object(
     if car > 7 {
         return Err(Invalid("a car past 7"));
     }
-    let object = sound_object(object_of(car))?;
+    let object = object_of(car);
     Ok((ready_of(object) == READY).then_some(object))
 }
 
@@ -70,18 +62,11 @@ pub fn cue_object(
 /// sound 0xE5 to play): (offset, value) in the original's order.
 pub const CUE_E5: [(u32, u32); 3] = [(0x24C, 0xE5), (0x250, 0), (0x10, 1)];
 
-/// `physics::sound_cue_e5`: the current car's sound object (`object_of(car & 7)`, null
-/// refused) when the car is listed; none when not; a car past 7 refused first.
-pub fn cue_e5_object(
-    car: u32,
-    entry: impl FnOnce(u32) -> u32,
-    object_of: impl FnOnce(u32) -> u32,
-) -> Result<Option<u32>, Invalid> {
+/// `physics::sound_cue_e5`: the current car's sound object number (`car & 7`) when the
+/// car is listed; none when not; a car past 7 refused first.
+pub fn cue_e5_object(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<Option<u32>, Invalid> {
     let (_, listed) = listed_entry(car, entry)?;
-    if !listed {
-        return Ok(None);
-    }
-    sound_object(object_of(car & 7)).map(Some)
+    Ok(listed.then_some(car & 7))
 }
 
 #[cfg(test)]
@@ -99,15 +84,13 @@ mod tests {
     fn cues() {
         assert_eq!(cue_object(2, |_| unreachable!(), |_| 0, |_| 0), Ok(None));
         assert!(cue_object(1, |_| 8, |_| 0, |_| 0).is_err());
-        assert!(cue_object(0, |_| 3, |_| 0, |_| 0).is_err());
         assert_eq!(
             cue_object(0, |w| w + 3, |c| c * 0x100, |_| READY),
             Ok(Some(0x300))
         );
         assert_eq!(cue_object(1, |w| w + 3, |c| c * 0x100, |_| 0), Ok(None));
-        assert_eq!(cue_e5_object(2, |_| NOT_LISTED, |_| 0), Ok(None));
-        assert!(cue_e5_object(2, |_| 0, |_| 0).is_err());
-        assert_eq!(cue_e5_object(2, |_| 0, |c| c + 0x40), Ok(Some(0x42)));
-        assert!(cue_e5_object(9, |_| 0, |_| 1).is_err());
+        assert_eq!(cue_e5_object(2, |_| NOT_LISTED), Ok(None));
+        assert_eq!(cue_e5_object(2, |_| 0), Ok(Some(2)));
+        assert!(cue_e5_object(9, |_| 0).is_err());
     }
 }

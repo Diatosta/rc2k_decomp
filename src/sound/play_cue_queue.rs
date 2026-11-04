@@ -21,21 +21,17 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the
-/// queue in the game's memory meanwhile. Object `o`'s queue of cues: the next one played
+/// queue in the game's memory meanwhile. Object `so`'s queue of cues: the next one played
 /// when it is due.
-pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
+pub fn play_cue_queue(so: &crate::sound::store::SoundObject) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
     let in_use = so.in_use.get() == 1;
     let q = GamePtr::to(&so.cue_queue);
     let mut queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);

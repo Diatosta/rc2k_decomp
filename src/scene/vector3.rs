@@ -46,13 +46,6 @@ fn dot(a: *const u8, b: *const u8, o: *mut u8) {
     fstp80(o, 0x0, t10);
 }
 
-/// The floats written at `at`.
-pub fn write_floats(at: u32, v: &[f32]) {
-    for (n, x) in v.iter().enumerate() {
-        crate::pointers::write_or_end::<f32>(at + 4 * n as u32, *x, "scene::vector3's operand");
-    }
-}
-
 /// `fld a; fcos; fcomp b; fstsw`: the status word's C0 .. C2 (0x700).
 fn cosine_against(a: u32, b: u32) -> u32 {
     let mut status = 0u16;

@@ -8,7 +8,6 @@
 //! the bit is cleared after the check).
 
 use crate::errors::Refused;
-use crate::physics::car_sounds::object;
 use crate::physics::car_store::CAR;
 use crate::physics::place_car_sound::place_car_sound;
 use rc2k_core::physics::parts::take_bit;
@@ -20,7 +19,6 @@ pub fn sound_on_bit(cl: u32) -> Result<(), Refused> {
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    object()?;
     CAR.parts_present.set(cleared);
     { place_car_sound() }?;
     Ok(())

@@ -31,7 +31,7 @@ use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
 
-/// The surface of the wheel picked (of object `o`), its set and `sound::surface_sound`
+/// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
 fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
@@ -56,16 +56,15 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
     }
     let pair = surfaces::set_pair(surface, |n| STAGE_SOUNDS.surface_sets[n as usize].get())
         .map_err(BadInput::from)?;
-    let set = crate::sound::sets_store::SurfaceSets::set_of(second + 2 * pair as usize)?;
+    let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
     crate::sound::surface_sound::surface_sound(o, set, request)
 }
 
-/// The wheels' surface sounds of object `o`, through `request`.
-pub fn surface_sounds(o: u32, request: &SoundRequest) -> Result<(), Refused> {
-    if o == 0 {
-        return Err(BadInput("no object").into());
-    }
-    let so = SoundObject::at(o)?;
+/// The wheels' surface sounds of object `so`, through `request`.
+pub fn surface_sounds(
+    so: &crate::sound::store::SoundObject,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     x87_3(so, &SURFACE_SOUNDS);
     one(so, request, 0)?;
     x87_4(so, &SURFACE_SOUNDS);

@@ -49,7 +49,6 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::Dword;
 use crate::session::MACHINE;
 use crate::session::SCREEN;
-use crate::sound::store::RACE_SOUNDS;
 use crate::sound::store::STAGE_SOUNDS;
 
 /// A dword at game address `a` (frame words and matrices).
@@ -369,7 +368,7 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
         let mut plan = Vec::new();
         for car in 0..cars {
             let b: u32 = RACE_WORK.car_block(car as usize);
-            let o: u32 = RACE_SOUNDS.table[(car & 7) as usize].get();
+            let object = crate::sound::store::SoundObject::number(car & 7)?;
             let mut wake = false;
             for slot in 0..6usize {
                 if b == 0 {
@@ -392,14 +391,10 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
                 }
                 let view: u32 = FRAME_WORK.listed_car_sounds[current as usize].bits();
                 if view != u32::MAX {
-                    if o == 0 {
-                        return Err(BadInput("a null sound object").into());
-                    }
                     wake = true;
                 }
             }
             if wake {
-                let object = crate::sound::store::SoundObject::at(o)?;
                 plan.push(&object.slot_c.start);
                 plan.push(&object.new_revs);
             }

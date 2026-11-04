@@ -136,6 +136,13 @@ pub(crate) fn cells(block: &mut [u32]) -> &[std::cell::Cell<u32>] {
     std::cell::Cell::from_mut(block).as_slice_of_cells()
 }
 
+/// A place in the game's memory.
+impl Base for crate::pointers::GamePtr {
+    fn address(self) -> usize {
+        self.addr() as usize
+    }
+}
+
 impl Base for usize {
     fn address(self) -> usize {
         self

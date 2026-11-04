@@ -35,7 +35,7 @@ pub struct Vars {
     pub count: &'static Dword,
     pub devices: &'static [Dword; 2],
     pub views: &'static [Dword; 2],
-    pub objects: &'static [Dword; 8],
+    pub objects: &'static [crate::sound::store::SoundObject; 8],
     pub two_devices: &'static Dword,
 }
 
@@ -48,7 +48,7 @@ impl Vars {
             count: &RACE_SOUNDS.count,
             devices: &DEVICES.input_devices,
             views: &RACE_VIEW.view_blocks,
-            objects: &RACE_SOUNDS.table,
+            objects: &RACE_SOUNDS.objects,
             two_devices: &DEVICES.two_devices_one_player,
         }
     }
@@ -81,8 +81,7 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
             let object = v
                 .objects
                 .get(load.car as usize)
-                .ok_or(BadInput("a car past the sound objects' table"))?
-                .get();
+                .ok_or(BadInput("a car past the sound objects' table"))?;
             let device = device_of(load.device).ok_or(BadInput("a load on a null device"))?;
             crate::input::update_car_effects::update_car_effects(load.view, object, device)?;
         }

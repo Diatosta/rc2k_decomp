@@ -28,10 +28,8 @@ use crate::physics::gear_change_sound::gear_change_sound;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
-use crate::sound::store::RACE_SOUNDS;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -70,10 +68,6 @@ fn run_at() {
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub fn engine_sound() -> Result<(), Refused> {
-    let o = RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
-    if o == 0 {
-        return Err(crate::errors::BadInput("a null sound object").into());
-    }
     if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }

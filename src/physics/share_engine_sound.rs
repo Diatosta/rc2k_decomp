@@ -10,20 +10,14 @@
 //! Caller: `sub_43B635` (0x43B99F), every physics step. Refuses (before anything) a null
 //! sound object.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::engine::shares_figures;
 
 /// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
 pub fn share_engine_sound() -> Result<(), Refused> {
-    let table = &crate::sound::store::RACE_SOUNDS.table;
-    let o = table[(RACE_WORK.current_car.get() & 7) as usize].get();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+    let so = crate::sound::store::current_object();
     if shares_figures(
         CAR.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),

@@ -25,20 +25,11 @@ pub fn place_sound_e1_other() -> Result<(), Refused> {
     if !listed(CONTACT_WORK.other_car_number.get())? && !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
-    let scratch = RACE_SOUND_SPOTS.band_scratch.get();
     let b = band_value_plain(TWIN);
     if b == 0 {
         return Ok(());
     }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
-            return Err(e);
-        }
-    };
     RACE_SOUND_SPOTS.sound_scratch_b.set(b);
-    cue_plain(o, FIRST, SOUND_E1, b, None);
+    cue_plain(object(), FIRST, SOUND_E1, b, None)?;
     Ok(())
 }

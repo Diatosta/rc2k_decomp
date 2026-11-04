@@ -21,8 +21,7 @@ pub fn place_sound_e5() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
-    let o = object()?;
     let b = band_value_plain(TWIN);
-    cue_plain(o, SECOND, SOUND_E5, b, None);
+    cue_plain(object(), SECOND, SOUND_E5, b, None)?;
     Ok(())
 }

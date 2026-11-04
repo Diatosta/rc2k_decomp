@@ -12,7 +12,6 @@ use crate::errors::Refused;
 use crate::physics::car_sounds::{listed, object, place, put};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::band_value;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
@@ -21,22 +20,14 @@ pub fn place_sound_e1() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
-    let scratch = RACE_SOUND_SPOTS.band_scratch.bits();
     let b = band_value(TWIN);
     if b == 0 {
         return Ok(());
     }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
-            return Err(e);
-        }
-    };
-    put(o + 0x238, 0xE1);
-    put(o + 0x23C, b);
-    place(o, 0x240, None);
-    put(o + 0x10, 1);
+    let o = object();
+    put(o, 0x238, 0xE1)?;
+    put(o, 0x23C, b)?;
+    place(o, 0x240, None)?;
+    put(o, 0x10, 1)?;
     Ok(())
 }

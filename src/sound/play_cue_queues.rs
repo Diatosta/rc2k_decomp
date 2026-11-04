@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::sound::store::RACE_SOUNDS;
-use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
@@ -28,11 +27,11 @@ pub fn play_cue_queues() -> Result<(), Refused> {
         || RACE_SOUNDS.player_cars[1].get(),
         RACE_SOUNDS.one_player.get(),
     );
-    if cars.iter().any(|&n| n > 7 || object(n) == 0) {
-        return Err(BadInput("a player's car past 7 or without a sound object").into());
+    if cars.iter().any(|&n| n > 7) {
+        return Err(BadInput("a player's car past 7").into());
     }
     for n in cars {
-        crate::sound::play_cue_queue::play_cue_queue(object(n))?;
+        crate::sound::play_cue_queue::play_cue_queue(crate::sound::store::SoundObject::number(n)?)?;
     }
     Ok(())
 }

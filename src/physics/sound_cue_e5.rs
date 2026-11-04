@@ -12,28 +12,19 @@ use crate::errors::Refused;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
+use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::sound_cue_e5's operand");
-}
-
-/// The core: the car number, the listed table, the sound objects at these places.
+/// The core: the car number and the listed table; the object is the car's number
+/// (`g_raceSoundObjects[car & 7]`).
 // Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
-pub fn sound_cue_e5_at(
-    current: &Dword,
-    listed: &[Dword; 8],
-    objects: &[Dword; 8],
-) -> Result<(), Refused> {
+pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refused> {
     // `cue_e5_object` refuses a car past 7 before it asks for its entry.
-    let object = cue_e5_object(
-        current.get(),
-        |car| listed[car as usize].get(),
-        |slot| objects[slot as usize].get(),
-    )?;
-    if let Some(object) = object {
+    let object = cue_e5_object(current.get(), |car| listed[car as usize].get())?;
+    if let Some(number) = object {
+        let o = SoundObject::number(number)?;
         for (offset, v) in CUE_E5 {
-            put(object + offset, v);
+            crate::physics::car_sounds::put(o, offset, v)?;
         }
     }
     Ok(())
@@ -41,9 +32,5 @@ pub fn sound_cue_e5_at(
 
 /// The Rust version.
 pub fn sound_cue_e5() -> Result<(), Refused> {
-    sound_cue_e5_at(
-        &RACE_WORK.current_car,
-        &FRAME_WORK.listed_car_sounds,
-        &crate::sound::store::RACE_SOUNDS.table,
-    )
+    sound_cue_e5_at(&RACE_WORK.current_car, &FRAME_WORK.listed_car_sounds)
 }

@@ -13,18 +13,17 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::engine::{computers, placed_slots};
 
 // ---- Rust version ----
 
-/// The timed slots of object `o`, through `request`.
-pub fn car_slot_sounds(o: u32, request: &SoundRequest) -> Result<(), Refused> {
-    if o == 0 {
-        return Err(BadInput("no object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+/// The timed slots of object `so`, through `request`.
+pub fn car_slot_sounds(
+    so: &crate::sound::store::SoundObject,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(so.sound_offset.get()) {
         return Ok(());

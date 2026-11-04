@@ -14,7 +14,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};
 use crate::sound::sets_store::SoundRequest;
 
@@ -22,13 +22,12 @@ use crate::sound::sets_store::SoundRequest;
 
 /// Converted: `rc2k_core::sound::cars::one_off`.
 ///
-/// The waiting hit sound of object `o`, through `request`.
-pub fn car_hit_sound(o: u32, request: &SoundRequest) -> Result<(), Refused> {
+/// The waiting hit sound of object `so`, through `request`.
+pub fn car_hit_sound(
+    so: &crate::sound::store::SoundObject,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
-    if o == 0 {
-        return Err(BadInput("no object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
     let mut waiting = so.hit_sound.get();
     let taken = one_off(
         &mut waiting,

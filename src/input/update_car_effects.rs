@@ -60,16 +60,15 @@ struct Last {
 }
 
 /// Exactly as the original (the x87 at its precision), the angle written to `scratch`.
-/// `view` the view block, `object` the car's sound object, `device` the device's record;
+/// `view` the view block, `o` the car's sound object, `device` the device's record;
 /// the requests through `input::set_effect`.
 fn update_car_effects_with(
     view: u32,
-    object: u32,
+    o: &crate::sound::store::SoundObject,
     device: &InputDevice,
     scratch: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let r = &mut Last::default();
-    let o = crate::sound::store::SoundObject::at(object)?;
     let surface = o.surface.get();
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
@@ -198,7 +197,11 @@ fn update_car_effects_with(
 /// The car's force feedback for the frame (the original's x87 arithmetic). The
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
-pub fn update_car_effects(view: u32, object: u32, device: &InputDevice) -> Result<(), Refused> {
+pub fn update_car_effects(
+    view: u32,
+    object: &crate::sound::store::SoundObject,
+    device: &InputDevice,
+) -> Result<(), Refused> {
     update_car_effects_with(view, object, device, &crate::session::MACHINE.scratch)
 }
 

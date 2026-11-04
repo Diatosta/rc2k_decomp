@@ -13,18 +13,21 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::vector3::write_floats;
 use crate::session::Dword;
+use crate::sound::store::SoundObject;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
-pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::car_sounds's operand");
+/// `v` as the dword at +`at` of the sound object `o`.
+pub fn put(o: &SoundObject, at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::to(o)
+        .offset(at)
+        .write::<u32>(v, "a sound object's dword")
 }
 
 /// Whether car `car` (a number) is listed; refused past 7.
@@ -35,19 +38,14 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
     Ok(FRAME_WORK.listed_car_sounds[car as usize].get() != u32::MAX)
 }
 
-/// The current car's sound object; refused when null.
-pub fn object() -> Result<u32, Refused> {
-    let o =
-        crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    Ok(o)
+/// The current car's sound object.
+pub fn object() -> &'static SoundObject {
+    crate::sound::store::current_object()
 }
 
 /// The place (with `offset` added to the car's, when given), turned and scaled, into
 /// the object at +`at` .. +`at` + 8.
-pub fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
+pub fn place(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result<(), BadInput> {
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
@@ -62,13 +60,14 @@ pub fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
     let out = rotate_point(&MATRICES.view_turn_matrix, [part(0), part(1), part(2)]);
     let k = NUMBERS.one_over_65536.bits();
     for (n, e) in out.iter().enumerate() {
-        put(o + at + 4 * n as u32, rounded(ext_times(*e, k)));
+        put(o, at + 4 * n as u32, rounded(ext_times(*e, k)))?;
     }
+    Ok(())
 }
 
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the object at
 /// +`at` .. +`at` + 8.
-pub fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
+pub fn place_plain(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result<(), BadInput> {
     let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&CAR.position),
@@ -77,17 +76,28 @@ pub fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
         &std::array::from_fn(|n| f32::from_bits(MATRICES.view_turn_matrix[n].bits())),
         f32::from_bits(NUMBERS.one_over_65536.bits()),
     );
-    write_floats(o + at, &p);
+    for (n, x) in p.iter().enumerate() {
+        GamePtr::to(o)
+            .offset(at + 4 * n as u32)
+            .write::<f32>(*x, "a sound object's float")?;
+    }
+    Ok(())
 }
 
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
 /// (with `offset`), the object told to play.
 // Converted: `rc2k_core::physics::sound_places`.
-pub fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32; 3]>) {
-    put(o + slot.sound, sound);
-    put(o + slot.band, band);
-    place_plain(o, slot.place, offset);
-    put(o + PLAYING, PLAY);
+pub fn cue_plain(
+    o: &SoundObject,
+    slot: Slot,
+    sound: u32,
+    band: u32,
+    offset: Option<[u32; 3]>,
+) -> Result<(), BadInput> {
+    put(o, slot.sound, sound)?;
+    put(o, slot.band, band)?;
+    place_plain(o, slot.place, offset)?;
+    put(o, PLAYING, PLAY)
 }
 
 /// `fild car; fisub listener`, as an 80-bit value.

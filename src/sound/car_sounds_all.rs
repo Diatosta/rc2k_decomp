@@ -22,7 +22,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, st};
 use crate::sound::store::{RACE_SOUNDS, SoundObject};
-use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
@@ -36,15 +35,12 @@ pub fn car_sounds_all() -> Result<(), Refused> {
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    if (0..count).any(|n| object(n) == 0) {
-        return Err(BadInput("a null sound object").into());
-    }
     // Converted: `rc2k_core::sound::turn::Nearest` (the choice; `car_sounds` keeps the
     // registers it is held in).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {
-        let o = SoundObject::at(object(n))?;
+        let o = SoundObject::number(n)?;
         if o.in_use.get() != 1 {
             continue;
         }
@@ -66,7 +62,7 @@ pub fn car_sounds_all() -> Result<(), Refused> {
         if (n as i32) < 0 {
             continue;
         }
-        let o = SoundObject::at(object(n))?;
+        let o = SoundObject::number(n)?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
         crate::sound::car_sounds::car_sounds(n)?;

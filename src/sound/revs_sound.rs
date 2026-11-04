@@ -15,49 +15,45 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87_float::{ld, st};
 use crate::pointers::GamePtr;
 use crate::scene::x87_mem::fld;
 use crate::session::Cell32;
-use crate::sound::sets_store::SOUND_KINDS;
 use crate::sound::sets_store::SoundRequest;
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 // ---- Rust version ----
 
-/// The engine's sound for object `o` of sound kind `kind`, through `request`.
-pub fn revs_sound(o: u32, kind: u32, request: &SoundRequest) -> Result<(), Refused> {
-    if o == 0 {
-        return Err(BadInput("no object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
+/// The engine's sound for object `so` of sound kind number `kind`, through `request`.
+pub fn revs_sound(
+    so: &crate::sound::store::SoundObject,
+    kind: u32,
+    request: &SoundRequest,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::engine` (`computers`, `revs_sound_number`,
     // `revs_stopped`).
     let object = so.sound_offset.get();
     let set = if computers(object) {
-        SOUND_KINDS.computers.addr()
+        crate::sound::sets_store::SoundKinds::computers_set()
     } else {
-        if kind == 0 {
-            return Err(BadInput("no sound kind").into());
-        }
-        kind + 0x10
+        crate::sound::sets_store::SoundKinds::record(kind)?.offset(0x10)
     };
-    let sound = revs_sound_number(object, GamePtr::new(set).read::<u32>("a sound set")?);
+    let sound = revs_sound_number(object, set.read::<u32>("a sound set")?);
     request.sound.set(sound);
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    x87_1(so, set as usize, &request.pitch, 0x18, 0x10);
+    x87_1(so, set, &request.pitch, 0x18, 0x10);
     if so.view_flag.get() == 0 {
         x87_2(
             so,
-            set as usize,
+            set,
             &crate::sound::store::SURFACE_SOUNDS,
             &request.volume,
         );
     } else {
-        x87_1(so, set as usize, &request.volume, 0x24, 0x1C);
+        x87_1(so, set, &request.volume, 0x24, 0x1C);
     }
     x87_3(so, &request.place);
     crate::sound::turn_parts::placed(request)
@@ -70,7 +66,7 @@ pub fn revs_sound(o: u32, kind: u32, request: &SoundRequest) -> Result<(), Refus
 /// `out = ([bx + 0x100] * [bp + o1]) + [bp + o2]` (`out` the request's +4 or +8)
 fn x87_1(
     bx: &crate::sound::store::SoundObject,
-    bp: usize,
+    bp: GamePtr,
     out: &impl Cell32,
     o1: usize,
     o2: usize,
@@ -88,7 +84,7 @@ fn x87_1(
 /// `volume = (([bx + 0x100] * [bp + 0x24]) + [bp + 0x1C]) * [sf + 0x28]` (the request's +8)
 fn x87_2(
     bx: &crate::sound::store::SoundObject,
-    bp: usize,
+    bp: GamePtr,
     sf: &crate::sound::store::SurfaceSounds,
     volume: &impl Cell32,
 ) {
@@ -160,7 +156,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        a[1],
+                        crate::pointers::GamePtr::new(a[1] as u32),
                         &HostCell(a[2] + 4),
                         0x18,
                         0x10,
@@ -195,7 +191,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        a[1],
+                        crate::pointers::GamePtr::new(a[1] as u32),
                         unsafe {
                             &*(crate::pointers::host_at(a[2])
                                 as *const crate::sound::store::SurfaceSounds)
@@ -228,7 +224,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        a[1],
+                        crate::pointers::GamePtr::new(a[1] as u32),
                         &HostCell(a[2] + 8),
                         0x24,
                         0x1C,

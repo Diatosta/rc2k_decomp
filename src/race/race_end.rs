@@ -145,20 +145,15 @@ pub fn wait_for_commands() {
 /// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
 /// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept; the
 /// commands' registers but those the audio thread reads (command 2's eax) go as 0.
-/// Refuses, before anything, a sound object missing (the original writes through 0).
 pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
-    let objects: Vec<u32> = v.objects.iter().map(crate::session::Dword::get).collect();
-    if objects.contains(&0) {
-        return Err(crate::errors::BadInput("a race sound object missing").into());
-    }
     wait_for_commands();
     command(7, 0);
     command(0xA, 7);
     wait_for_commands();
     crate::sound::hold_sounds_back::hold_sounds_back();
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    for &o in &objects {
-        reset_object(crate::sound::store::SoundObject::at(o)?);
+    for o in &crate::sound::store::RACE_SOUNDS.objects {
+        reset_object(o);
     }
     clear_stage_flags();
     for voice in v.voices.iter() {
@@ -173,17 +168,15 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Where `reset_race_sounds` finds the sound objects' table and the voices (the game's,
+/// Where `reset_race_sounds` finds the voices (the game's,
 /// or a test's: the audio thread reads the game's).
 pub struct SoundVars {
-    pub objects: &'static [crate::session::Dword; 8],
     pub voices: &'static [[crate::session::Dword; 20]; 72],
 }
 
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            objects: &crate::sound::store::RACE_SOUNDS.table,
             voices: &SPOT_VOICES.voices,
         }
     }

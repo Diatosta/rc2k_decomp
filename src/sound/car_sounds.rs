@@ -16,7 +16,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
@@ -25,22 +24,18 @@ pub fn car_sounds(n: u32) -> Result<(), Refused> {
     if n > 7 {
         return Err(BadInput("a car's sound object past 7").into());
     }
-    let object = object(n);
-    if object == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
+    let so = crate::sound::store::SoundObject::number(n)?;
     let request = crate::sound::turn_parts::request();
-    let kind = crate::sound::car_engine_state::car_engine_state(object)?;
-    let so = crate::sound::store::SoundObject::at(object)?;
+    let kind = crate::sound::car_engine_state::car_engine_state(so)?;
     request.pitch_factor.set(so.pitch_factor.bits());
     request.volume_factor.set(so.volume_factor.bits());
     use crate::sound::*;
-    revs_sound::revs_sound(object, kind, request)?;
-    throttle_sound::throttle_sound(object, kind, request)?;
-    speed_sound::speed_sound(object, kind, request)?;
-    surface_sounds::surface_sounds(object, request)?;
-    car_slot_sounds::car_slot_sounds(object, request)?;
-    car_hit_sound::car_hit_sound(object, request)?;
-    car_cue_sound::car_cue_sound(object, request)?;
-    car_gear_sounds::car_gear_sounds(object, request)
+    revs_sound::revs_sound(so, kind, request)?;
+    throttle_sound::throttle_sound(so, kind, request)?;
+    speed_sound::speed_sound(so, kind, request)?;
+    surface_sounds::surface_sounds(so, request)?;
+    car_slot_sounds::car_slot_sounds(so, request)?;
+    car_hit_sound::car_hit_sound(so, request)?;
+    car_cue_sound::car_cue_sound(so, request)?;
+    car_gear_sounds::car_gear_sounds(so, request)
 }

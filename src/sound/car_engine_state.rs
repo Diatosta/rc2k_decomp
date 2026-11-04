@@ -50,13 +50,14 @@ use crate::session::MACHINE;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
-/// The kind of object `o` (its +4), or a refusal.
+/// The kind of object `o` (its +4, a number into the kinds' table), or a refusal.
 pub fn kind_of(o: &crate::sound::store::SoundObject) -> Result<u32, BadInput> {
     let n = o.kind.get();
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
-    crate::sound::sets_store::SoundKinds::record_of(n)
+    crate::sound::sets_store::SoundKinds::record(n)?;
+    Ok(n)
 }
 
 // ---- Rust version ----
@@ -98,18 +99,15 @@ impl Words for Object {
     }
 }
 
-/// The object `o` brought up to date; its sound kind returned (the original's edi).
-pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
+/// The object `so` brought up to date; its sound kind's number returned (the original's edi
+/// held the record's address).
+pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    let so = crate::sound::store::SoundObject::at(o)?;
     let kind = kind_of(so)?;
+    let record = crate::sound::sets_store::SoundKinds::record(kind)?;
     let mut object = Object::new(so);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
-    let di = kind;
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || {
         crate::race::replay_file_store::REPLAY_FILE
@@ -131,12 +129,12 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
         &mut left,
     );
     object.check()?;
-    x87_1(so, di as usize);
+    x87_1(so, record);
     object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
     x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
     let flags_failed = std::cell::Cell::new(None);
     let flags = || {
-        GamePtr::new(kind)
+        record
             .read::<u32>("a sound kind's flags")
             .unwrap_or_else(|e| {
                 flags_failed.set(Some(e));
@@ -171,7 +169,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[bx + 0x100] = (int [bx + 0x14] - [di + 4]) * [di + 0xC]`
-fn x87_1(bx: &crate::sound::store::SoundObject, di: usize) {
+fn x87_1(bx: &crate::sound::store::SoundObject, di: GamePtr) {
     let t0 = int(bx.revs.get() as i32);
     let t1 = fld(di, 4);
     let t2 = t0 - t1;
@@ -299,7 +297,7 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        a[1],
+                        crate::pointers::GamePtr::new(a[1] as u32),
                     );
                 },
             },
