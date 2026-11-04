@@ -126,17 +126,16 @@ pub fn find_shared_voice(record: &SampleRecord, count: u32) -> u32 {
     .unwrap_or(0)
 }
 
-/// `audio::fill_voice`: the voice `at` for the record (`record` is its address), from the
+/// `audio::fill_voice`: the voice `at` for the record (`record` its sample record), from the
 /// sample file or, with `shared`, from that voice.
 pub fn fill_voice(
     at: u32,
-    record_at: u32,
+    record: SampleRecord,
     shared: u32,
     file: &SampleFile,
     sound_mode: u32,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::fill_voice`.
-    let record: SampleRecord = GamePtr::new(record_at).read("a sample record")?;
     let from_file = rc2k_core::audio::voices::FileSample {
         data: file.data,
         length: file.length,

@@ -9,8 +9,6 @@
 //! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
 //! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::strings::text_from_ids::text;
-
 /// IDA's address of the switch.
 pub const DEVELOPER_START: usize = 0x529D94;
 
@@ -28,13 +26,12 @@ const NAME_ROOM: u32 = 0x40;
 
 /// `sub_410848`: the computer's name with its NUL at game address `to` (0x40 bytes), if
 /// it can be had.
-pub fn computer_name(to: u32) -> bool {
+pub fn computer_name(to: crate::pointers::GamePtr) -> bool {
     let Some(mut name) = crate::os::computer_name(NAME_ROOM) else {
         return false;
     };
     name.push(0);
-    crate::pointers::GamePtr::new(to)
-        .write_bytes(&name, "the computer's name")
+    to.write_bytes(&name, "the computer's name")
         .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
     true
 }
@@ -42,13 +39,13 @@ pub fn computer_name(to: u32) -> bool {
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
     DEVELOPER.set(0);
-    let at = crate::pointers::game_address(text());
+    let at = crate::strings::text_from_ids::text_at();
     computer_name(at);
     // Converted: `rc2k_core::system::machine::developer`.
-    let (yes, _) = rc2k_core::system::machine::developer(crate::pointers::read_or_end(
-        at,
-        "the computer's name",
-    ));
+    let (yes, _) = rc2k_core::system::machine::developer(
+        at.read("the computer's name")
+            .unwrap_or_else(|e| crate::fatal::raise::end("the computer's name", e)),
+    );
     if yes {
         DEVELOPER.set(1);
     }

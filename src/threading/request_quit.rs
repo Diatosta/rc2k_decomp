@@ -22,18 +22,18 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- Rust version ----
 
-/// `requested` is the shutdown switch; `start` starts the thread of the slot at the address
+/// `requested` is the shutdown switch; `start` starts the thread of the slot of the number
 /// it is given.
 pub fn request_quit_with(
     requested: &AtomicU32,
-    start: &mut dyn FnMut(u32) -> Result<(), FatalError>,
+    start: &mut dyn FnMut(usize) -> Result<(), FatalError>,
 ) -> Result<(), FatalError> {
     // Converted: `rc2k_core::threading::starts_shutdown`.
     use rc2k_core::threading::{QUITTING, starts_shutdown};
     if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
     }
-    start((crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN)) as u32)
+    start(crate::threading::thread_slot::SHUTDOWN)
 }
 
 pub fn request_quit() -> Result<(), FatalError> {

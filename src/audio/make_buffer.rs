@@ -39,6 +39,8 @@ pub struct BufferDescription {
     pub flags: u32,
     pub bytes: u32,
     pub reserved: u32,
+    /// The wave format's address (the original kept it). Not used: nothing reads it, the
+    /// format goes to the platform as a value.
     pub format: u32,
 }
 
@@ -85,7 +87,7 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
                 flags,
                 bytes: v.length,
                 reserved: 0,
-                format: AUDIO.wave_format.addr(),
+                format: 0,
             });
             v.buffer = crate::platform_sound::create_sound_buffer(
                 flags,

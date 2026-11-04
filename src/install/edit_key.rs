@@ -29,7 +29,9 @@ use crate::place::Place;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
 
 /// The font of an edit record's kind.
-pub fn edit_font(record: EditField) -> Result<u32, crate::errors::BadInput> {
+pub fn edit_font(
+    record: EditField,
+) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
     let kind = record.font_kind() as u32;
     let font = InstallerPages::kind_font(5 + 8 * kind) as u32;
     crate::install::vars::InstallerPages::font_of(font)
@@ -87,10 +89,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
                     // The folder's default by the system's rules (`install::folders`).
                     use crate::install::folders::{Folders, Native};
                     match <Native as Folders>::first_folder() {
-                        Some(first)
-                            if text.game()
-                                == crate::install::vars::INSTALLER_PATHS.typed.addr() =>
-                        {
+                        Some(first) if crate::install::folders::is_folder_field(text.game()) => {
                             crate::install::run_installer::put_typed(&first);
                         }
                         _ => {

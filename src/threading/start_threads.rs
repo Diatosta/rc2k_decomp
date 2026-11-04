@@ -18,10 +18,10 @@ pub const SLOTS: [usize; 3] = [
     crate::threading::thread_slot::NET,
 ];
 
-/// Each slot's start, by its address.
-pub fn start_threads(start: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refused> {
+/// Each slot's start, by its number.
+pub fn start_threads(start: &mut dyn FnMut(usize) -> Result<(), Refused>) -> Result<(), Refused> {
     for slot in SLOTS {
-        start((crate::threading::thread_slot::slot(slot)) as u32)?;
+        start(slot)?;
     }
     Ok(())
 }

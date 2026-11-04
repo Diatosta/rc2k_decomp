@@ -19,9 +19,7 @@ use crate::pointers::GamePtr;
 const BUFFER_LEN: usize = 0x100; // up to the path buffer at 0x94E9B0
 
 pub fn buffer() -> GamePtr {
-    GamePtr::new(crate::pointers::game_address(
-        crate::files::state::PATHS.ptr(),
-    ))
+    GamePtr::to(&crate::files::state::PATHS)
 }
 
 // ---- Rust version ----

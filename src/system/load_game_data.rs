@@ -70,7 +70,7 @@ pub enum Call {
     /// The user's name to this place.
     UserName(crate::pointers::GamePtr),
     /// The computer's name to this place.
-    ComputerName(u32),
+    ComputerName(crate::pointers::GamePtr),
     /// A random number under this.
     RandomBelow(u32),
     ReadSavegameSlot(u32),
@@ -150,7 +150,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
 
     if NET.machine_name.get(0) == 0 {
         let place = crate::pointers::GamePtr::to(&NET.machine_name);
-        outside(Call::ComputerName(place.addr()))?;
+        outside(Call::ComputerName(place))?;
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
         if NET.machine_name.get(0) == 0 {
             default_name(

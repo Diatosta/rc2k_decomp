@@ -22,23 +22,23 @@ struct Globals {
     pct: Vec<u8>,
 }
 
-fn text_at(addr: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(GamePtr::new(addr as u32), what)
+fn text_at(at: GamePtr, what: &str) -> Result<Vec<u8>, BadInput> {
+    crate::files::cstring(at, what)
 }
 
 fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
         a: text_at(
-            (crate::pointers::game_address(crate::files::state::base_directory())) as usize,
+            crate::files::state::base_directory_place(),
             "the base directory",
         )?, // g_baseDirectory
         b: text_at(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr() as usize,
+            GamePtr::to(&crate::install::installer::INSTALL_TEXTS.base_b),
             "the second base directory",
         )?,
         pct: text_at(
-            (crate::pointers::game_address(crate::files::state::locale_directory())) as usize,
+            crate::files::state::locale_directory_place(),
             "the locale directory",
         )?, // g_localeDirectory: replaces each '%'
     })

@@ -398,16 +398,14 @@ impl InstallerPages {
     /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
     /// as names, `moved::point_into_homes` passes them over). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
-    pub fn font_of(index: u32) -> Result<u32, crate::errors::BadInput> {
+    pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
         let cell = INSTALLER_PAGES
             .fonts
             .get(index as usize)
             .ok_or(crate::errors::BadInput("a page font past the table"))?;
-        crate::gfx::typefaces::FontId::try_at(cell.get() as usize)
-            .map(crate::gfx::typefaces::FontId::addr)
-            .ok_or(crate::errors::BadInput(
-                "a page font that is no font object",
-            ))
+        crate::gfx::typefaces::FontId::try_at(cell.get() as usize).ok_or(crate::errors::BadInput(
+            "a page font that is no font object",
+        ))
     }
 
     /// What dword `value` read at game address `at` means: a slot of `PAGE_LINKS` keeps IDA's
@@ -554,7 +552,7 @@ mod tests {
             let ida = u32::from_le_bytes(image[..4].try_into().unwrap()) as usize;
             let font = crate::gfx::typefaces::FontId::try_at(ida).unwrap();
             assert_eq!(font.ida(), ida);
-            assert_eq!(InstallerPages::font_of(n as u32).unwrap(), font.addr());
+            assert_eq!(InstallerPages::font_of(n as u32).unwrap(), font);
         }
     }
 

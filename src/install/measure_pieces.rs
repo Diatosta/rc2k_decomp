@@ -23,7 +23,7 @@ use crate::install::vars::InstallerPages;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font_of(index: u32) -> Result<u32, BadInput> {
+fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
     crate::install::vars::InstallerPages::font_of(index)
 }
 

@@ -300,7 +300,7 @@ pub fn draw_string(id: u32, font: crate::pointers::GamePtr, x: u32, y: u32) -> R
 /// `text::draw_text` (0x4023D5): `text` in `font` at (x, y); the font object written back
 /// when the drawing changed it.
 pub fn draw_text(
-    font: u32,
+    font: crate::gfx::typefaces::FontId,
     text: impl Into<crate::place::Place>,
     x: u32,
     y: u32,
@@ -308,7 +308,7 @@ pub fn draw_text(
     let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
-    let at = crate::pointers::GamePtr::new(font);
+    let at = font.game_ptr();
     let mut copy = at.read::<Font>("a font object")?;
     crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
     if copy != at.read::<Font>("a font object")? {
@@ -319,30 +319,29 @@ pub fn draw_text(
 
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
 pub fn measure_text(
-    font: u32,
+    font: crate::gfx::typefaces::FontId,
     text: impl Into<crate::place::Place>,
     x: u32,
 ) -> Result<(u32, u32), Refused> {
     let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     let m = {
-        crate::text::measure_text::measure_text_at(
-            crate::pointers::GamePtr::new(font),
-            text,
-            x as i32,
-            &mut GameCanvas,
-        )
+        crate::text::measure_text::measure_text_at(font.game_ptr(), text, x as i32, &mut GameCanvas)
     }?;
     Ok((m.width, m.outcome.y as u32))
 }
 
 /// `text::measure_string_by_id` (0x40232C), ecx `x`: (the widest line, the last line's y).
-pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused> {
+pub fn measure_string(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
-            crate::pointers::GamePtr::new(font),
+            font.game_ptr(),
             x as i32,
             &mut GameCanvas,
         )

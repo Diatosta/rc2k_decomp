@@ -40,7 +40,10 @@ impl ThreadSlot {
 
 /// Slot `n`, checked against the slots' region.
 pub fn slot_ref(n: usize) -> Result<&'static ThreadSlot, BadInput> {
-    GamePtr::new((slot(n)) as u32).record::<ThreadSlot>("a thread slot")
+    assert!(n < SLOT_COUNT);
+    GamePtr::to(&SLOTS)
+        .offset((n * SLOT_LEN) as u32)
+        .record::<ThreadSlot>("a thread slot")
 }
 
 /// The slot of the input thread, the audio thread, the network receive thread and the
@@ -70,12 +73,6 @@ pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
     }
-}
-
-/// The address of slot `n`.
-pub fn slot(n: usize) -> usize {
-    assert!(n < SLOT_COUNT);
-    (SLOTS.addr() + (n * SLOT_LEN) as u32) as usize
 }
 
 #[cfg(test)]

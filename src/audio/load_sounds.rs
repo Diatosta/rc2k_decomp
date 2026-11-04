@@ -71,7 +71,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
     ) -> Result<(), Refused> {
         use crate::audio::*;
         let record = self.record_at(at.sound);
-        fill_voice::fill_voice_in_game(voice_at, record, shared)?;
+        fill_voice::fill_voice_in_game(voice_at, self.record(at.sound), shared)?;
         let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
         update_voice(voice_at, |v| samples::prepare_sample(v, mode))?;
         update_voice(voice_at, keep_sample::keep_sample)?;

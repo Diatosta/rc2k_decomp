@@ -126,7 +126,7 @@ pub fn start_stream(s: &mut AudioStream, path: crate::pointers::GamePtr) -> Resu
         flags: 0x80,
         bytes: s.bytes,
         reserved: 0,
-        format: AUDIO.wave_format.addr(),
+        format: 0,
     });
     s.buffer = crate::platform_sound::create_sound_buffer(
         0x80,

@@ -24,7 +24,7 @@ use crate::place::Place;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
-fn font(index: u32) -> Result<u32, BadInput> {
+fn font(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
     crate::install::vars::InstallerPages::font_of(index)
 }
 
@@ -46,7 +46,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
             Way::String { font_kind } => {
                 draw_string(
                     piece.text_id() as u32,
-                    crate::pointers::GamePtr::new(font(colour(first, font_kind))?),
+                    font(colour(first, font_kind))?.game_ptr(),
                     x,
                     y,
                 )?;

@@ -16,26 +16,21 @@
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};
 
-// ---- slot layout ----
-
-const ROUTINE: usize = 0;
-const THREAD_ID: usize = 4;
-const HANDLE: usize = 8;
-const FLAG: usize = 0xC;
 // ---- Rust version ----
 
-/// The thread of the slot at game address `slot` started.
-pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
+/// The thread of slot number `slot` started.
+pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
     let what = "a thread slot";
-    crate::pointers::check_or_end(slot, 0x10, what);
-    crate::pointers::write_or_end(slot + FLAG as u32, 0u8, what);
+    let slot = crate::threading::thread_slot::slot_ref(slot)
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    slot.flag.set(0);
     // The slot holds the routine as the image did, an IDA address: the thread's
     // parameter, `run_routine` finds its Rust version by it.
-    let routine = crate::pointers::read_or_end::<u32>(slot + ROUTINE as u32, what) as usize;
+    let routine = slot.routine.get() as usize;
     // The thread's id goes into the slot before the thread can look for its slot, as
     // the original's `CreateThread` put it there.
     let id = crate::sync::new_thread_id();
-    crate::pointers::write_or_end(slot + THREAD_ID as u32, id, what);
+    slot.thread_id.set(id);
     let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
         run_routine(routine as u32);
     }) else {
@@ -44,7 +39,7 @@ pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
             message: "",
         });
     };
-    crate::pointers::write_or_end(slot + HANDLE as u32, handle, what);
+    slot.handle.set(handle);
     Ok(())
 }
 

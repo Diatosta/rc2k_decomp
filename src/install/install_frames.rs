@@ -77,7 +77,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
         text.push(0);
         TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;
         draw_text(
-            FONT.addr(),
+            FONT,
             &TEXT_BUFFER.text,
             x.wrapping_add(0xC8),
             INSTALLER_PAGES.bar.get_u32(4).wrapping_add(2),
