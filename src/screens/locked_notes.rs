@@ -2,7 +2,7 @@
 //! open (stream A, part F1, 2026-10-18).
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::arcade_store::{ARCADE_GAME, Arcade};
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::race::state_store::RACE_STATE;
@@ -39,8 +39,11 @@ pub fn note_locked_stage() -> Result<(), Refused> {
         CHEAT_VARS.cheats.get(),
         LOOP_FLAGS.item.get(),
         |index| {
-            fault.read::<u8>(
-                (ARCADE_GAME.levels_won.addr()).wrapping_add(index),
+            fault.read_at::<u8>(
+                // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
+                crate::pointers::GamePtr::to(&ARCADE_GAME)
+                    .offset(core::mem::offset_of!(Arcade, levels_won) as u32)
+                    .offset(index),
                 "a stage\'s lock",
             )
         },

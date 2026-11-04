@@ -2,7 +2,7 @@
 //! answer.
 //!
 //! In:  nothing
-//! Out: eax as `strings::append_string_by_id` leaves it, ebx = after the NUL
+//! Out: nothing (the original left eax and ebx = after the NUL; no caller reads them)
 //!
 //! String 0x56B + `g_yesNoAnswer` (0x56B "não", 0x56C "sim", by the language file) and a NUL into
 //! `g_captionText`, from which `screens::draw_highlighted_caption` draws the button. In the
@@ -21,22 +21,22 @@ const FIRST: u32 = 0x56B;
 
 // ---- Rust version ----
 
-/// Returns eax and ebx as the original leaves them.
-pub fn yes_no_caption() -> Result<(u32, u32), Refused> {
+/// Puts the answer's caption in the caption buffer.
+pub fn yes_no_caption() -> Result<(), Refused> {
     let id = MENU_PAGES.yes_no_answer.get().wrapping_add(FIRST);
     let mut text = Vec::new();
-    let eax = append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
+    append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
     let caption =
         crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
     caption.write_bytes(&text, "the caption")?;
-    Ok((eax, caption.addr() + text.len() as u32))
+    Ok(())
 }
 
 /// The Rust version the typed tables run (what it leaves in registers is read by
 /// none of its callers).
 pub fn run() -> Result<(), Refused> {
-    let (_eax, _ebx) = { yes_no_caption() }?;
+    yes_no_caption()?;
     Ok(())
 }

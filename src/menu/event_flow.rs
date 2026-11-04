@@ -66,6 +66,11 @@ impl Fault {
         self.ok(crate::pointers::GamePtr::new(p).read::<T>(what))
     }
 
+    /// A `T` at the place `at`.
+    pub fn read_at<T: Copy + Default>(&self, at: crate::pointers::GamePtr, what: &str) -> T {
+        self.ok(at.read::<T>(what))
+    }
+
     pub fn check(&self) -> Result<(), BadInput> {
         self.0.take().map_or(Ok(()), Err)
     }

@@ -1360,18 +1360,12 @@ impl StageTables {
         )
     }
 
-    /// The text at `off` in the record at `record` (a game address the screens compute as
-    /// the original does, a record number past a table runs on into the next): a pointer
-    /// bounded by these tables, so a read off them is refused.
-    pub fn record_text(&self, record: u32, off: u32) -> crate::pointers::GamePtr {
-        self.place_at(record.wrapping_add(off))
-    }
-
-    /// The place at game address `at` (a table or record the game keeps by address),
-    /// bounded by these tables.
-    pub fn place_at(&self, at: u32) -> crate::pointers::GamePtr {
-        let tables = crate::pointers::GamePtr::to(self);
-        tables.offset(at.wrapping_sub(tables.addr()))
+    /// The text at `off` in `row` of these tables (a record number past a table runs on
+    /// into the next): a pointer bounded by these tables, so a read off them is refused.
+    pub fn record_text<T>(&self, row: &T, off: u32) -> crate::pointers::GamePtr {
+        let within =
+            (std::ptr::from_ref(row) as usize).wrapping_sub(std::ptr::from_ref(self) as usize);
+        crate::pointers::GamePtr::to(self).offset((within as u32).wrapping_add(off))
     }
 
     /// The championship's records (`g_recordTable`).
@@ -1465,7 +1459,10 @@ impl RecordRef {
 
     /// The place of its byte `off` (the fastest's name at +0x54; the bests' writes).
     pub fn text(self, off: u32) -> crate::pointers::GamePtr {
-        STAGE_TABLES.record_text(self.addr(), off)
+        match self.table.rows().get(self.index) {
+            Some(row) => STAGE_TABLES.record_text(row, off),
+            None => STAGE_TABLES.record_text(self.table.end(), off),
+        }
     }
 
     /// Its tag (the end mark's: -1).
@@ -1502,14 +1499,6 @@ impl RecordRef {
     /// mark or before its first row.
     pub fn offset(self, n: u32) -> Result<Self, BadInput> {
         self.table.row((self.index as u32).wrapping_add(n))
-    }
-
-    /// Its game address (for the code that still works by address).
-    pub fn addr(self) -> u32 {
-        match self.table.rows().get(self.index) {
-            Some(row) => crate::pointers::game_address(std::ptr::from_ref(row)),
-            None => crate::pointers::game_address(std::ptr::from_ref(self.table.end())),
-        }
     }
 }
 
