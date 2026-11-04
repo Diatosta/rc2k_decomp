@@ -18,7 +18,7 @@ pub enum Part {
 }
 
 impl Part {
-    /// Its run of `wear_17c` (first, dwords) and its `damage` dword.
+    /// Its run of `parts_wear` (first, dwords) and its `damage` dword.
     fn places(self) -> (usize, usize, usize) {
         match self {
             Part::Body => (10, 6, 1),       // +0x1A4, +0xD8
@@ -40,13 +40,13 @@ impl Player {
     /// shown).
     pub fn clear_wear(&mut self, part: Part) {
         let (first, dwords, _) = part.places();
-        self.wear_17c[first..first + dwords].fill(0);
+        self.parts_wear[first..first + dwords].fill(0);
     }
 
     /// `service::repair_body` and the four others.
     pub fn repair(&mut self, part: Part) {
         let (first, dwords, damage) = part.places();
-        self.wear_17c[first..first + dwords].fill(0);
+        self.parts_wear[first..first + dwords].fill(0);
         self.damage[damage] = 0;
     }
 
@@ -57,7 +57,7 @@ impl Player {
     }
 
     /// `service::repair_car`: the car as new: eight damage dwords, every part, the tyres,
-    /// `flags_278` -1 and `field_24c` 0.
+    /// `state_flags` -1 and `field_24c` 0.
     pub fn repair_car(&mut self) {
         for d in CAR_DAMAGE {
             self.damage[d] = 0;
@@ -67,7 +67,7 @@ impl Player {
         for part in [Part::Gearbox, Part::Brakes, Part::Lights, Part::Suspension] {
             self.repair(part);
         }
-        self.flags_278 = u32::MAX;
+        self.state_flags = u32::MAX;
         self.field_24c = [0; 8];
     }
 }

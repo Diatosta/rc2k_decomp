@@ -11,7 +11,7 @@ use crate::service::car::Part;
 pub const BODY: u32 = 3;
 pub const GEARBOX: u32 = 0xE;
 pub const TYRES: u32 = 0xF;
-/// The state bits a repaired part sets in `flags_278`: the tyres', the body's (all the
+/// The state bits a repaired part sets in `state_flags`: the tyres', the body's (all the
 /// others).
 pub const TYRE_BITS: u32 = 0x1E;
 pub const BODY_BITS: u32 = 0xFFFF_FFE1;
@@ -173,10 +173,10 @@ pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
 
     w.update_car(|car| {
         if *damage(car, TYRES) == 0 {
-            car.flags_278 |= TYRE_BITS;
+            car.state_flags |= TYRE_BITS;
         }
         if *damage(car, BODY) == 0 {
-            car.flags_278 |= BODY_BITS;
+            car.state_flags |= BODY_BITS;
             car.field_24c = [0; 8];
         }
     });
@@ -259,7 +259,7 @@ mod tests {
             *damage(car, 3) = 7;
             *damage(car, 0xF) = 9;
             *damage(car, 5) = 9;
-            car.wear_17c[0] = 5;
+            car.parts_wear[0] = 5;
         });
         apply_repairs(&mut s).unwrap();
         assert!(s.working);

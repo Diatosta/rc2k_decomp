@@ -114,22 +114,29 @@ pub struct Player {
     pub pace_notes: u32,
     /// "indicador de unidades": 0 imperial, 1 metric.
     pub metric_units: u32,
-    pub wear_17c: [u32; 31],
+    /// The wear of the car's parts, 31 words (the race's `wear[0..31]`); `tyre_wear` goes on
+    /// with the next five.
+    pub parts_wear: [u32; 31],
+    /// The tyres' wear, the race's `wear[31..36]`.
     pub tyre_wear: [u32; 5],
-    pub gap_20c: [u8; 64],
+    /// The 0x40 bytes of the car's best line (the time trial's; the race's result data).
+    pub best_line: [u8; 64],
     pub field_24c: [u32; 8],
     pub gap_26c: [u8; 8],
     /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
     /// saved game).
     pub saved_start_section_a8: u32,
-    pub flags_278: u32,
-    pub gap_27c: u32,
+    /// The car's state bits (the tyres' and the body's are set by a repair, `workshop`; -1
+    /// after `repair_car`; the race's `flags`).
+    pub state_flags: u32,
+    /// The word the last race left for the car (the race's result `word`).
+    pub result_word: u32,
     /// The controller's steering sensitivity, 0 .. 100 ("sensibilidade da direcção"; the
     /// player details page shows it as a marker at x + 2 * it).
     pub controller_sensitivity: u32,
-    /// Set to -1 for every player by `menu::clear_players_284` at an event's start, and kept
-    /// over a race by `sub_4843EC` (`dword_75B010`); meaning not read.
-    pub field_284: i32,
+    /// The HUD's bits: set to -1 for every player by `menu::clear_players_284` at an event's
+    /// start, taken into the race and given back by `single_rally_race` (`dword_75B010`).
+    pub hud_bits: i32,
     /// The money the service spent (the money times 100, `menu::service_pass`); 0 again
     /// after an event's races (`menu::clear_players_288`).
     pub service_spent: u32,
@@ -191,7 +198,7 @@ impl Player {
         word(0x170, self.driver_info);
         word(0x174, self.pace_notes);
         word(0x178, self.metric_units);
-        for (k, &v) in self.wear_17c.iter().enumerate() {
+        for (k, &v) in self.parts_wear.iter().enumerate() {
             word(0x17c + 4 * k, v);
         }
         for (k, &v) in self.tyre_wear.iter().enumerate() {
@@ -201,17 +208,17 @@ impl Player {
             word(0x24c + 4 * k, v);
         }
         word(0x274, self.saved_start_section_a8);
-        word(0x278, self.flags_278);
-        word(0x27c, self.gap_27c);
+        word(0x278, self.state_flags);
+        word(0x27c, self.result_word);
         word(0x280, self.controller_sensitivity);
-        word(0x284, self.field_284 as u32);
+        word(0x284, self.hud_bits as u32);
         word(0x288, self.service_spent);
         b[0x1c..0x1c + self.keys.len()].copy_from_slice(&self.keys);
         b[0x38..0x3c].copy_from_slice(&self.axis_codes);
         b[0x50..0x50 + self.controls_50.len()].copy_from_slice(&self.controls_50);
         b[0x7c..0x7c + self.gap_7c.len()].copy_from_slice(&self.gap_7c);
         b[0x124..0x124 + self.name_copy.len()].copy_from_slice(&self.name_copy);
-        b[0x20c..0x20c + self.gap_20c.len()].copy_from_slice(&self.gap_20c);
+        b[0x20c..0x20c + self.best_line.len()].copy_from_slice(&self.best_line);
         b[0x26c..0x26c + self.gap_26c.len()].copy_from_slice(&self.gap_26c);
         b
     }
@@ -324,16 +331,16 @@ impl Player {
             driver_info: word(&b, 0x170),
             pace_notes: word(&b, 0x174),
             metric_units: word(&b, 0x178),
-            wear_17c: words::<31>(&b, 0x17c),
+            parts_wear: words::<31>(&b, 0x17c),
             tyre_wear: words::<5>(&b, 0x1f8),
-            gap_20c: bytes::<0x40>(&b, 0x20c),
+            best_line: bytes::<0x40>(&b, 0x20c),
             field_24c: words::<8>(&b, 0x24c),
             gap_26c: bytes::<0x8>(&b, 0x26c),
             saved_start_section_a8: word(&b, 0x274),
-            flags_278: word(&b, 0x278),
-            gap_27c: word(&b, 0x27c),
+            state_flags: word(&b, 0x278),
+            result_word: word(&b, 0x27c),
             controller_sensitivity: word(&b, 0x280),
-            field_284: word(&b, 0x284) as i32,
+            hud_bits: word(&b, 0x284) as i32,
             service_spent: word(&b, 0x288),
         }
     }

@@ -5,7 +5,7 @@
 //!
 //! The original copies 91 dwords, 12 bytes from the record's +0x1C and 0x20 bytes from
 //! +0x24C by offset. It writes the settings' 0xA4 (`cars[0].wear[9]`) twice, first from the
-//! record's +0x104 and then from its +0x1A0 (`wear_17c[9]`); only the second stays, so the
+//! record's +0x104 and then from its +0x1A0 (`parts_wear[9]`); only the second stays, so the
 //! record's +0x104 (`damage[12]`) has no field to go to.
 //!
 //! In:  nothing
@@ -49,11 +49,11 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
         car.damage[n].set(p.damage[n]);
     }
     car.damage[12].set(p.damage[13]);
-    for (n, w) in p.wear_17c.iter().enumerate() {
+    for (n, w) in p.parts_wear.iter().enumerate() {
         car.wear[n].set(*w);
     }
     for (n, w) in p.tyre_wear.iter().enumerate() {
-        car.wear[p.wear_17c.len() + n].set(*w);
+        car.wear[p.parts_wear.len() + n].set(*w);
     }
     car.map_area.set(p.map_area);
     car.rear_mirror.set(p.rear_mirror);
@@ -85,8 +85,8 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     }
     let r = &state.results;
     r.service_spent_current.set(p.service_spent);
-    r.hud_bits_current.set(p.field_284 as u32);
-    r.flags_current.set(p.flags_278);
+    r.hud_bits_current.set(p.hud_bits as u32);
+    r.flags_current.set(p.state_flags);
     for (n, w) in p.field_24c.iter().enumerate() {
         r.results[0].field_24c[n].set(*w);
     }

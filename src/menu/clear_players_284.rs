@@ -1,4 +1,4 @@
-//! `menu::clear_players_284` (0x4A9679): every player's `field_284` set to -1.
+//! `menu::clear_players_284` (0x4A9679): every player's `hud_bits` set to -1.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -11,7 +11,7 @@ use crate::menu::players_store::PLAYER_TABLE;
 
 pub fn clear_players_284() -> Result<(), Refused> {
     for player in &PLAYER_TABLE.players {
-        player.update(|p| p.field_284 = -1);
+        player.update(|p| p.hud_bits = -1);
     }
     Ok(())
 }

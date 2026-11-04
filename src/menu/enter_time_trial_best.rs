@@ -48,7 +48,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
         name: bytes(name)?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
-        line: Some(p.get().gap_20c),
+        line: Some(p.get().best_line),
     };
     with_stage_times(|list| list[9].enter(&best))?;
     crate::menu::rank_time_trial_best::rank_time_trial_best()

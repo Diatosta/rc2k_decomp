@@ -82,7 +82,7 @@ pub fn driver_stats() -> Result<(), Refused> {
     let table = Table::read(|o| fault.get(t + o as u32));
     let car = Car {
         wear: std::array::from_fn(|k| p.get().damage[k]),
-        fitted: p.get().flags_278,
+        fitted: p.get().state_flags,
         setup: [p.get().ride_height, p.get().suspension_stiffness],
     };
     fault.check()?;

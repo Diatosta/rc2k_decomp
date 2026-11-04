@@ -43,7 +43,7 @@ pub struct RaceCar {
     /// `Player.damage` words +0xD4 .. +0x100 and +0x108 (+0x104 goes into
     /// `wear[9]`, whose own +0x1A0 follows it).
     pub damage: [Dword; 13],
-    /// `Player.wear_17C` and `tyre_wear` (+0x17C .. +0x208, one word each).
+    /// `Player.parts_wear` and `tyre_wear` (+0x17C .. +0x208, one word each).
     pub wear: [Dword; 36],
     /// `Player.map_area` (+0x158).
     pub map_area: Dword,

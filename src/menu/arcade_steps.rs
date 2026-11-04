@@ -192,7 +192,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
         player,
         player.get().time,
         Some(seal),
-        Some(player.get().gap_20c),
+        Some(player.get().best_line),
     )?;
     with_course_times(|ten| {
         ten[9].enter(&best);
