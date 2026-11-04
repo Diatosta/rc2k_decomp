@@ -9,8 +9,7 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;
-use crate::pointers::GamePtr;
-use crate::saves::load_options::OPTIONS;
+use crate::saves::load_options::{PIECES_LEN, pieces};
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -19,7 +18,7 @@ use crate::system::packed_local_time::packed_local_time;
 const HEAD_LEN: usize = 0x10;
 /// The whole file's length.
 pub fn file_len() -> usize {
-    HEAD_LEN + OPTIONS.iter().map(|&(_, len)| len).sum::<usize>() + 4
+    HEAD_LEN + PIECES_LEN + 4
 }
 
 // ---- Rust version ----
@@ -28,11 +27,8 @@ pub fn file_len() -> usize {
 pub fn save_options(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
     let file = &crate::files::scratch::SCRATCH.buffer;
     let mut owned = Vec::new();
-    for &(place, len) in OPTIONS.iter() {
-        owned.push(
-            GamePtr::new((crate::moved::place(place as usize)) as u32)
-                .read_bytes(len, "a saved option")?,
-        );
+    for (place, len) in pieces() {
+        owned.push(place.read_bytes(len, "a saved option")?);
     }
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
