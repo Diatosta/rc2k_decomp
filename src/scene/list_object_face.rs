@@ -144,12 +144,12 @@ impl FaceWorld for GameFace {
             if block == 0 {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            Ok(self.0.read(
-                block
-                    .wrapping_add(extra.wrapping_mul(4))
-                    .wrapping_add(0x6FC),
-                "a car's block",
-            ))
+            // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
+            crate::physics::car_store::Car::at(block)
+                .part_wake_counts
+                .get((extra as usize).wrapping_sub(1))
+                .map(crate::session::Dword::bits)
+                .ok_or(rc2k_core::Invalid("a wake count past the six"))
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {

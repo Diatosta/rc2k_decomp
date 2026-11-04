@@ -11,20 +11,25 @@
 //! Caller: `drive::countdown_beeps`. Refuses what `countdown_cue` refuses.
 
 use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::panel_store::Loose32;
 use rc2k_core::drive::countdown::{self, Beep};
 
-/// The Rust version: the block at `block`, the second into `to`.
+/// The Rust version: the car block `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
-pub fn countdown_beep(block: u32, to: &Loose32) -> Result<(), Refused> {
-    let reading = crate::scene::reading::Reading::new();
-    let rd = |o: u32| reading.read::<u32>(block.wrapping_add(o), "a car's block");
-    let beep = countdown::countdown_beep(rd(0x1C), rd(0x25C), || {
-        rd(0x14).wrapping_sub(RACE_OVERLAY.countdown_start.get())
-    });
-    reading.finish()?;
+pub fn countdown_beep(block: &Car, to: &Loose32) -> Result<(), Refused> {
+    let beep = countdown::countdown_beep(
+        block.false_start_count.bits(),
+        block.driver_kind.bits(),
+        || {
+            block
+                .run_ticks
+                .bits()
+                .wrapping_sub(RACE_OVERLAY.countdown_start.get())
+        },
+    );
     let (second, cue) = match beep {
         Beep::Idle | Beep::Before(_) => return Ok(()),
         Beep::At { second, cue, .. } => (second, cue),

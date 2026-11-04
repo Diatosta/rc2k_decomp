@@ -6,7 +6,6 @@
 //! change of `pointers.rs`.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use std::cell::Cell;
 
 /// Reads that remember their first refusal.
@@ -18,18 +17,6 @@ pub struct Reading {
 impl Reading {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// The `T` at `addr`; its default after a refusal.
-    #[track_caller]
-    pub fn read<T: Copy + Default>(&self, addr: u32, what: &str) -> T {
-        if self.failed.get().is_some() {
-            return T::default();
-        }
-        GamePtr::new(addr).read(what).unwrap_or_else(|e| {
-            self.failed.set(Some(e));
-            T::default()
-        })
     }
 
     /// `value`'s result kept as a read's: its default after a refusal (this one or one
@@ -72,24 +59,4 @@ impl PointRecords {
         let r = get(of_object_point(number))?;
         Ok([r[4], r[5], r[6]])
     }
-}
-
-/// `count` records of `N` words from `addr` on, copied out.
-pub fn read_records<const N: usize>(
-    addr: u32,
-    count: usize,
-    what: &str,
-) -> Result<Vec<[u32; N]>, BadInput> {
-    let len = count
-        .checked_mul(4 * N)
-        .ok_or(BadInput("a run of records too long"))?;
-    let bytes = GamePtr::new(addr).read_bytes(len, what)?;
-    Ok(bytes
-        .chunks_exact(4 * N)
-        .map(|record| {
-            std::array::from_fn(|n| {
-                u32::from_le_bytes(record[4 * n..4 * n + 4].try_into().unwrap())
-            })
-        })
-        .collect())
 }

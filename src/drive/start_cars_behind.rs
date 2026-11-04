@@ -149,7 +149,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                     .checkpoint
                     .get()
                     .wrapping_sub(RACE_TABLES.pace_back_gap.get());
-                if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
+                if crate::drive::checkpoint_taken::checkpoint_taken(to) {
                     break 'moves;
                 }
                 clear_car(c)?;
@@ -191,7 +191,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
             .checkpoint
             .get()
             .wrapping_add(RACE_TABLES.pace_back_gap.get());
-        if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
+        if crate::drive::checkpoint_taken::checkpoint_taken(to) {
             break 'moves;
         }
         clear_car(c)?;

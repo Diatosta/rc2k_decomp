@@ -129,6 +129,23 @@ impl ViewVars {
     /// `moved::point_into_homes` passes them over). A view past the 52, or a name off the
     /// records, is refused.
     pub fn record_of(n: usize) -> Result<u32, crate::errors::BadInput> {
+        let at = Self::record_name(n)?;
+        Ok(crate::moved::place(at) as u32)
+    }
+
+    /// View record `n` as a place bounded to the group holding the records (a record
+    /// crosses the view variables' end), refused as `record_of` does.
+    pub fn record_place(n: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+        let at = Self::record_name(n)?;
+        let start = crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0;
+        Ok(
+            crate::pointers::GamePtr::to(&crate::race::groups_store::VIEW_AND_RECORDS)
+                .offset((at - start) as u32),
+        )
+    }
+
+    /// The IDA address view record `n` is named by.
+    fn record_name(n: usize) -> Result<usize, crate::errors::BadInput> {
         let cell = VIEW_VARS
             .view_records
             .get(n)
@@ -139,7 +156,7 @@ impl ViewVars {
                 "a view record's name off the records",
             ));
         }
-        Ok(crate::moved::place(at) as u32)
+        Ok(at)
     }
 }
 

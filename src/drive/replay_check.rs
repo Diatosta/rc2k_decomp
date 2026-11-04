@@ -67,10 +67,15 @@ pub fn note() -> Result<(), BadInput> {
     for car in 0..RACE_VIEW.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
-        let at = crate::race::blocks_store::block_addr(car);
-        let words: Vec<[u32; 1]> =
-            crate::scene::reading::read_records(at, CAR_DWORDS, "a car's block")?;
-        let h = hash(words.iter().map(|w| w[0]));
+        let bytes =
+            crate::pointers::GamePtr::to(block).read_bytes(4 * CAR_DWORDS, "a car's block")?;
+        let h = hash(
+            bytes
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|w| u32::from_le_bytes(*w)),
+        );
         let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
         let gear = block.gear.get() as i32; // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");

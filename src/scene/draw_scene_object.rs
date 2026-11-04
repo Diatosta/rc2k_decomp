@@ -45,7 +45,6 @@ pub use rc2k_core::scene::shown::Way;
 fn texture_set() -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
     {
-        let reading = crate::scene::reading::Reading::new();
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
@@ -54,7 +53,7 @@ fn texture_set() -> Result<(u32, u32), Refused> {
             |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
-                (block != 0).then(|| reading.read::<u32>(block.wrapping_add(0x24), "a car's block"))
+                (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
             },
         )
         .map_err(|e| -> Refused {
@@ -63,7 +62,6 @@ fn texture_set() -> Result<(u32, u32), Refused> {
                 SetError::NoBlock => BadInput("a car without its block").into(),
             }
         });
-        reading.finish()?;
         let t = t?;
         Ok((t.set, object))
     }

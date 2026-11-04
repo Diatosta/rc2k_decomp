@@ -20,8 +20,10 @@ use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode,
 
 fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
     // off_606320
-    let record = reading.keep(ViewVars::record_of(mode as usize));
-    reading.read(record, "a camera mode's record")
+    reading.keep(
+        ViewVars::record_place(mode as usize)
+            .and_then(|record| record.read("a camera mode's record")),
+    )
 }
 
 /// The Rust version.
