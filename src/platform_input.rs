@@ -2,7 +2,7 @@
 //! in Rust (`input::di_objects`) on SDL's joysticks and haptics.
 //!
 //! - The devices: SDL's joysticks in the order first seen (a device unplugged keeps its
-//!   place and reads at rest), each opened when seen: its name, a product GUID (SDL's), an
+//!   place and reads at rest, its handles closed), each opened when seen: its name, a product GUID (SDL's), an
 //!   instance GUID made from SDL's and its instance number, force feedback when SDL opens a
 //!   haptic device for it. A gamepad SDL knows (an Xbox pad and the like) as Windows'
 //!   DirectInput shows an XInput pad, which is what the game was made for: x, y the left
@@ -28,14 +28,18 @@ use crate::framework::log;
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
+use std::sync::Mutex;
+
+/// The gamepads `pad_added` opened for the menus, by SDL's id (the handles as numbers).
+static MENU_PADS: Mutex<Vec<(SDL_JoystickID, usize)>> = Mutex::new(Vec::new());
 
 /// A joystick has appeared (SDL's event, also for those there at the start): open as a gamepad
 /// if SDL knows it as one, so its buttons reach the menus (`input::menu_pad`) whether or not
 /// the game has asked for its devices yet.
 pub fn pad_added(id: SDL_JoystickID) {
     // SAFETY: SDL's calls on the id its event gave; the name it returns (null checked) lives
-    // until the next call. A gamepad opened stays open for the program's life: SDL counts
-    // the opens, so the game's own open of it is another.
+    // until the next call. A gamepad opened stays open until it goes (`pad_removed`): SDL
+    // counts the opens, so the game's own open of it is another.
     unsafe {
         let name = SDL_GetJoystickNameForID(id);
         let name = if name.is_null() {
@@ -52,11 +56,36 @@ pub fn pad_added(id: SDL_JoystickID) {
                 SDL_AddGamepadMapping(mapping.as_ptr());
             }
         }
-        let opened = SDL_IsGamepad(id) && !SDL_OpenGamepad(id).is_null();
+        let pad = if SDL_IsGamepad(id) {
+            SDL_OpenGamepad(id)
+        } else {
+            std::ptr::null_mut()
+        };
+        let opened = !pad.is_null();
+        if opened {
+            MENU_PADS
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push((id, pad.expose_provenance()));
+        }
         log(&format!(
             "platform: {name} appeared; a gamepad for the menus: {opened}"
         ));
     }
+}
+
+/// A joystick has gone (SDL's event): the menus' gamepad of it closed.
+pub fn pad_removed(id: SDL_JoystickID) {
+    let mut pads = MENU_PADS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    pads.retain(|&(pad_id, pad)| {
+        if pad_id == id {
+            // SAFETY: the gamepad `pad_added` opened, closed once (it leaves the list).
+            unsafe { SDL_CloseGamepad(std::ptr::with_exposed_provenance_mut(pad)) };
+        }
+        pad_id != id
+    });
 }
 
 struct Device {
@@ -73,10 +102,33 @@ struct Device {
     stick_moved: [bool; 4],
 }
 
+impl Device {
+    /// The device's handles closed (it has gone): it reads at rest and plays no effect.
+    fn close(&mut self) {
+        // SAFETY: the handles `add` opened, each closed once (set to null after); the
+        // joystick of a gamepad is the gamepad's, closed with it.
+        unsafe {
+            if !self.haptic.is_null() {
+                SDL_CloseHaptic(self.haptic);
+            }
+            if !self.gamepad.is_null() {
+                SDL_CloseGamepad(self.gamepad);
+            } else if !self.joystick.is_null() {
+                SDL_CloseJoystick(self.joystick);
+            }
+        }
+        self.haptic = std::ptr::null_mut();
+        self.gamepad = std::ptr::null_mut();
+        self.joystick = std::ptr::null_mut();
+        self.features = 0;
+        self.effects.clear();
+    }
+}
+
 pub struct SdlBackend {
     devices: Vec<Device>,
-    /// SDL's joystick count when last looked at (the list is looked over when it changes).
-    seen: i32,
+    /// SDL's joysticks when last looked at (the list is looked over when they change).
+    seen: Vec<SDL_JoystickID>,
     warned: Vec<String>,
 }
 
@@ -103,7 +155,7 @@ impl SdlBackend {
         }
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
-            seen: -1,
+            seen: Vec::new(),
             warned: Vec::new(),
         }));
     }
@@ -115,28 +167,33 @@ impl SdlBackend {
         }
     }
 
-    /// New joysticks added to the list.
+    /// New joysticks added to the list; those gone closed (they keep their places).
     fn look(&mut self) {
-        // SAFETY: SDL's array of `count` ids (null checked); the devices opened from them
-        // are kept in `devices` until closed.
-        unsafe {
+        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here.
+        let ids = unsafe {
             let mut count = 0;
             let ids = SDL_GetJoysticks(&raw mut count);
             if ids.is_null() {
                 return;
             }
-            if count != self.seen {
-                self.seen = count;
-                for n in 0..count as usize {
-                    let id = *ids.add(n);
-                    if self.devices.iter().any(|d| d.sdl_id == id) {
-                        continue;
-                    }
-                    self.add(id);
-                }
-            }
+            let copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
             SDL_free(ids.cast());
+            copied
+        };
+        if ids == self.seen {
+            return;
         }
+        for device in &mut self.devices {
+            if !ids.contains(&device.sdl_id) {
+                device.close();
+            }
+        }
+        for &id in &ids {
+            if !self.devices.iter().any(|d| d.sdl_id == id) {
+                self.add(id);
+            }
+        }
+        self.seen = ids;
     }
 
     fn add(&mut self, id: SDL_JoystickID) {
@@ -455,9 +512,10 @@ impl Backend for SdlBackend {
             return Reading::default();
         };
         let mut r = Reading::default();
-        // SAFETY: the device's joystick, open while it is listed; the counts are SDL's own.
+        // SAFETY: the device's joystick, open until it has gone (null then); the counts are
+        // SDL's own.
         unsafe {
-            if !SDL_JoystickConnected(d.joystick) {
+            if d.joystick.is_null() || !SDL_JoystickConnected(d.joystick) {
                 return r;
             }
             if !d.gamepad.is_null() {

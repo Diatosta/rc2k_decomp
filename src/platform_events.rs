@@ -56,6 +56,9 @@ fn next_event() -> Option<Event> {
         } else if kind == SDL_EVENT_JOYSTICK_ADDED.0 {
             crate::platform_input::pad_added(event.jdevice.which);
             Event::Other
+        } else if kind == SDL_EVENT_JOYSTICK_REMOVED.0 {
+            crate::platform_input::pad_removed(event.jdevice.which);
+            Event::Other
         } else if kind == SDL_EVENT_GAMEPAD_BUTTON_DOWN.0 || kind == SDL_EVENT_GAMEPAD_BUTTON_UP.0 {
             Event::Pad {
                 button: SDL_GamepadButton(event.gbutton.button as i32),
