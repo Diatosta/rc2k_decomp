@@ -1,5 +1,5 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
-//! thread and the rasteriser's sampled.
+//! thread and the rasteriser's sampled (with `RC2K_PROFILE` set).
 
 #![allow(unsafe_code)]
 
@@ -47,8 +47,9 @@ fn hot_places() -> String {
     String::new()
 }
 
-/// Starts the sampler, once (from the main thread): a thread of its own stops each sampled
-/// thread every millisecond, notes its instruction pointer and lets it go on.
+/// Starts the sampler, once (from the main thread), if `RC2K_PROFILE` is set: a thread of its
+/// own stops each sampled thread every millisecond, notes its instruction pointer and lets it
+/// go on. `rc2k_profile.txt` is emptied as it starts.
 #[cfg(windows)]
 pub fn start_sampler() {
     use std::sync::Once;
@@ -59,6 +60,12 @@ pub fn start_sampler() {
     };
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
+        if std::env::var_os("RC2K_PROFILE").is_none() {
+            return;
+        }
+        if let Err(e) = std::fs::File::create(crate::platform::beside_log("rc2k_profile.txt")) {
+            log(&format!("platform: rc2k_profile.txt is not emptied: {e}"));
+        }
         SAMPLED
             .lock()
             .unwrap()
