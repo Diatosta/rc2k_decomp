@@ -10,4 +10,3 @@ pub mod players;
 pub mod race;
 pub mod record;
 pub mod screens;
-pub mod settings;

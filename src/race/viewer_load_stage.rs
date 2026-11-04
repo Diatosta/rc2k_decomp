@@ -71,8 +71,8 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         crate::sound::store::RACE_SOUNDS
             .one_player
             .set(REPLAY_WORK.header_one_player.get());
-        RACE_STATE.settings.cars[0].record_2c.set(0);
-        RACE_STATE.settings.cars[1].record_2c.set(0);
+        RACE_STATE.settings.cars[0].controller.set(0);
+        RACE_STATE.settings.cars[1].controller.set(0);
         RACE_STATE
             .settings
             .race_mode

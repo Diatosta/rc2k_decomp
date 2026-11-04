@@ -69,22 +69,32 @@ pub struct RaceCar {
     pub codriver_sex: Dword,
     /// `Player.view` (+0xC).
     pub view: Dword,
-    /// The record word at +0x2C (`gap_2C`).
-    pub record_2c: Dword,
-    /// `Player.field_30` (+0x30), the colours.
-    pub record_30: Dword,
-    /// The record words +0x34 .. +0x48 (inside `gap_34`).
-    pub record_34: [Dword; 6],
+    /// `Player.controller` (+0x2C).
+    pub controller: Dword,
+    /// `Player.gearing` (+0x30); the network lobby keeps the car's colours here.
+    pub gearing: Dword,
+    /// `Player.sensitivity_level` (+0x34).
+    pub sensitivity_level: Dword,
+    /// `Player.axis_codes` (+0x38), the four bytes as one word.
+    pub axis_codes: Dword,
+    /// `Player.controller_mode` (+0x3C).
+    pub controller_mode: Dword,
+    /// `Player.dead_zone_1` (+0x40).
+    pub dead_zone_1: Dword,
+    /// `Player.dead_zone_2` (+0x44).
+    pub dead_zone_2: Dword,
+    /// `Player.strength` (+0x48).
+    pub strength: Dword,
     /// The record's +0x4C: not taken.
     pub _gap_4c: Dword,
-    /// The record words +0x50 .. +0x70.
-    pub record_50: [Dword; 9],
-    /// The record's +0x70: not taken.
+    /// `Player.controls_50` bytes 0x00 .. 0x24 (record +0x50 .. +0x74), one word each.
+    pub controls_50: [Dword; 9],
+    /// The word after them: not taken (the record's +0x74 goes to `controls_74`).
     pub _gap_70: Dword,
-    /// The record word +0x74.
-    pub record_74: Dword,
-    /// The record word +0x78.
-    pub record_78: Dword,
+    /// `Player.controls_50` bytes 0x24 .. 0x28 (record +0x74).
+    pub controls_74: Dword,
+    /// `Player.controls_50` bytes 0x28 .. 0x2C (record +0x78).
+    pub controls_78: Dword,
     /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
     pub keys: Bytes<12>,
 }
@@ -102,8 +112,8 @@ pub struct RaceResult {
     pub result: Dword,
     /// The 0x40 bytes of data (`unk_75B02C` / `unk_75B09C`; the best line's text).
     pub data: Bytes<64>,
-    /// The 0x20 bytes copied from the record's +0x24C (`Player.field_24C`).
-    pub block: [Dword; 8],
+    /// The 0x20 bytes copied from the record's +0x24C (`Player.field_24c`).
+    pub field_24c: [Dword; 8],
 }
 
 /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
@@ -169,9 +179,9 @@ pub struct RaceResults {
     /// `dword_75B000`: a figure of the race (Shaun's `dword_6051BC`).
     pub figure_000: Dword,
     /// `dword_75B004`: the current player's record +0x288.
-    pub word_288_current: Dword,
+    pub service_spent_current: Dword,
     /// `dword_75B008`: player 1's record +0x288.
-    pub word_288_first: Dword,
+    pub service_spent_first: Dword,
     /// `dword_75B00C`: the current player's record +0x284 (the HUD's bits); goes back to it.
     pub hud_bits_current: Dword,
     /// `dword_75B010`: player 1's record +0x284.
@@ -248,18 +258,16 @@ pub static RACE_STATE: RaceState = RaceState {
                 race_number: Dword::new(0x61),
                 codriver_sex: Dword::new(0),
                 view: Dword::new(1),
-                record_2c: Dword::new(0),
-                record_30: Dword::new(0),
-                record_34: [
-                    Dword::new(0),
-                    Dword::new(0x2011000),
-                    Dword::new(0),
-                    Dword::new(0),
-                    Dword::new(0xa),
-                    Dword::new(0),
-                ],
+                controller: Dword::new(0),
+                gearing: Dword::new(0),
+                sensitivity_level: Dword::new(0),
+                axis_codes: Dword::new(0x2011000),
+                controller_mode: Dword::new(0),
+                dead_zone_1: Dword::new(0),
+                dead_zone_2: Dword::new(0xa),
+                strength: Dword::new(0),
                 _gap_4c: Dword::new(0),
-                record_50: [
+                controls_50: [
                     Dword::new(0x200),
                     Dword::new(0x100),
                     Dword::new(0x400),
@@ -271,8 +279,8 @@ pub static RACE_STATE: RaceState = RaceState {
                     Dword::new(0),
                 ],
                 _gap_70: Dword::new(0),
-                record_74: Dword::new(0),
-                record_78: Dword::new(0),
+                controls_74: Dword::new(0),
+                controls_78: Dword::new(0),
                 keys: Bytes::new(sparse::<12>(&[(
                     0x0,
                     &[
@@ -301,18 +309,16 @@ pub static RACE_STATE: RaceState = RaceState {
                 race_number: Dword::new(0x60),
                 codriver_sex: Dword::new(0),
                 view: Dword::new(1),
-                record_2c: Dword::new(0),
-                record_30: Dword::new(0),
-                record_34: [
-                    Dword::new(0),
-                    Dword::new(0x2011000),
-                    Dword::new(0),
-                    Dword::new(0),
-                    Dword::new(0xa),
-                    Dword::new(0),
-                ],
+                controller: Dword::new(0),
+                gearing: Dword::new(0),
+                sensitivity_level: Dword::new(0),
+                axis_codes: Dword::new(0x2011000),
+                controller_mode: Dword::new(0),
+                dead_zone_1: Dword::new(0),
+                dead_zone_2: Dword::new(0xa),
+                strength: Dword::new(0),
                 _gap_4c: Dword::new(0),
-                record_50: [
+                controls_50: [
                     Dword::new(0x200),
                     Dword::new(0x100),
                     Dword::new(0x400),
@@ -324,8 +330,8 @@ pub static RACE_STATE: RaceState = RaceState {
                     Dword::new(0),
                 ],
                 _gap_70: Dword::new(0),
-                record_74: Dword::new(0),
-                record_78: Dword::new(0),
+                controls_74: Dword::new(0),
+                controls_78: Dword::new(0),
                 keys: Bytes::new(sparse::<12>(&[(
                     0x0,
                     &[
@@ -340,8 +346,8 @@ pub static RACE_STATE: RaceState = RaceState {
         race_level: Dword::new(0),
         figure_ffc: Dword::new(0),
         figure_000: Dword::new(0),
-        word_288_current: Dword::new(0),
-        word_288_first: Dword::new(0),
+        service_spent_current: Dword::new(0),
+        service_spent_first: Dword::new(0),
         hud_bits_current: Dword::new(0xffffffff),
         hud_bits_first: Dword::new(0xffffffff),
         flags_current: Dword::new(0),
@@ -353,7 +359,7 @@ pub static RACE_STATE: RaceState = RaceState {
                 secs: Float::from_bits(0),
                 result: Dword::new(0),
                 data: Bytes::new([0xff; 64]),
-                block: [const { Dword::new(0) }; 8],
+                field_24c: [const { Dword::new(0) }; 8],
             },
             RaceResult {
                 time: Dword::new(0),
@@ -361,7 +367,7 @@ pub static RACE_STATE: RaceState = RaceState {
                 secs: Float::from_bits(0),
                 result: Dword::new(0),
                 data: Bytes::new([0xff; 64]),
-                block: [const { Dword::new(0) }; 8],
+                field_24c: [const { Dword::new(0) }; 8],
             },
         ],
         stage_index: Dword::new(0),
@@ -440,5 +446,19 @@ mod tests {
                 + size_of::<RaceResult>(),
             0x75B08C,
         );
+        // The record's order inside a `RaceCar` (offsets from 0x75AD1C less the first word).
+        assert_eq!(offset_of!(RaceCar, controller), 0x140 - 0x34);
+        assert_eq!(offset_of!(RaceCar, gearing), 0x144 - 0x34);
+        assert_eq!(offset_of!(RaceCar, sensitivity_level), 0x148 - 0x34);
+        assert_eq!(offset_of!(RaceCar, axis_codes), 0x14C - 0x34);
+        assert_eq!(offset_of!(RaceCar, controller_mode), 0x150 - 0x34);
+        assert_eq!(offset_of!(RaceCar, dead_zone_1), 0x154 - 0x34);
+        assert_eq!(offset_of!(RaceCar, dead_zone_2), 0x158 - 0x34);
+        assert_eq!(offset_of!(RaceCar, strength), 0x15C - 0x34);
+        assert_eq!(offset_of!(RaceCar, controls_50), 0x164 - 0x34);
+        assert_eq!(offset_of!(RaceCar, controls_74), 0x18C - 0x34);
+        assert_eq!(offset_of!(RaceCar, controls_78), 0x190 - 0x34);
+        assert_eq!(offset_of!(RaceCar, keys), 0x194 - 0x34);
+        assert_eq!(offset_of!(RaceResult, field_24c), 0x50);
     }
 }

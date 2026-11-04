@@ -91,7 +91,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
     NET.mode.set(mode);
-    take_player_settings::take_player_settings()?;
+    take_player_settings::take_player_settings();
     fill_own_player::fill_own_player(&NAME_BUFFERS.player_names)?;
     show_background::show_background()?;
     match link()? {

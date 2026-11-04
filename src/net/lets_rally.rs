@@ -40,7 +40,7 @@ pub fn lets_rally() -> Result<bool, Refused> {
         .car_kind_current
         .set(own.head.get(record::CAR) as u32);
     RACE_STATE.settings.cars[0]
-        .record_30
+        .gearing
         .set(own.head.get(record::COLOURS) as u32);
     let state = |n: u32| NET.player_block(n).record.state();
     let Some(first) = record::first_not_host(NET.players.get(), state) else {

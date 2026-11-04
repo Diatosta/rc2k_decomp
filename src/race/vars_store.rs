@@ -68,7 +68,7 @@ pub struct RaceVars {
     pub direction: Dword,
     /// +0x270 (0x623858): `g_raceCarKinds`: [0] the current (`settings.car_kind_current`), [1] the first (`car_kind_first`), [2 ..] `[shauncarnum3]` ...
     pub race_car_kinds: [Dword; 8],
-    /// +0x290 (0x623878): each car's colours word (`net::set_up_race`; the stored blocks' gearbox kind; the players' `settings.cars[n].record_30`).
+    /// +0x290 (0x623878): each car's colours word (`net::set_up_race`; the stored blocks' gearbox kind; the players' `settings.cars[n].gearing`).
     pub car_colours: [Dword; 8],
     /// +0x2b0 (0x623898): the textures' mip setting (`scene::set_filters`, `scene::try_allocate_textures`; from `dword_4F50D0`).
     pub mip_setting: Dword,

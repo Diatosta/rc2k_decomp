@@ -259,8 +259,8 @@ pub fn set_up_mode_1_cars() -> Result<(), BadInput> {
         drop_absent_player();
         set_player_car_kinds();
         for (n, from) in [
-            &RACE_STATE.results.word_288_current,
-            &RACE_STATE.results.word_288_first,
+            &RACE_STATE.results.service_spent_current,
+            &RACE_STATE.results.service_spent_first,
         ]
         .into_iter()
         .enumerate()

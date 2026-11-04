@@ -51,15 +51,15 @@ pub fn device_command(command: u32) -> Result<(), Refused> {
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(n)?,
                     crate::pointers::GamePtr::to(&RACE_STATE.settings.cars[n]).offset(
-                        std::mem::offset_of!(crate::race::state_store::RaceCar, record_2c) as u32,
+                        std::mem::offset_of!(crate::race::state_store::RaceCar, controller) as u32,
                     ),
                 )?,
                 Reading(n, on) => device(n)?.reading.set(on as u32),
                 SecondApart => {
-                    if RACE_STATE.settings.cars[0].record_2c.get()
-                        == RACE_STATE.settings.cars[1].record_2c.get()
+                    if RACE_STATE.settings.cars[0].controller.get()
+                        == RACE_STATE.settings.cars[1].controller.get()
                     {
-                        RACE_STATE.settings.cars[1].record_2c.set(0);
+                        RACE_STATE.settings.cars[1].controller.set(0);
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),

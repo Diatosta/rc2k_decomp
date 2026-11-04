@@ -349,9 +349,9 @@ pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     LoadImm(0x100),
     SubEax(car!(0, brake_balance)),
     Store(car!(0, brake_balance)),
-    Load(Cell(&RACE_STATE.settings.cars[0].record_30)),
+    Load(Cell(&RACE_STATE.settings.cars[0].gearing)),
     Store(var!(RACE_VARS.car_colours[0])),
-    Load(Cell(&RACE_STATE.settings.cars[1].record_30)),
+    Load(Cell(&RACE_STATE.settings.cars[1].gearing)),
     Store(var!(RACE_VARS.car_colours[1])),
     Copy(
         car!(0, start_slot_value),
@@ -573,35 +573,35 @@ pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     ),
     Copy(
         car_bits!(0, impact_octant_marks[0]),
-        Cell(&RACE_STATE.results.results[0].block[0]),
+        Cell(&RACE_STATE.results.results[0].field_24c[0]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[1]),
-        Cell(&RACE_STATE.results.results[0].block[1]),
+        Cell(&RACE_STATE.results.results[0].field_24c[1]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[2]),
-        Cell(&RACE_STATE.results.results[0].block[2]),
+        Cell(&RACE_STATE.results.results[0].field_24c[2]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[3]),
-        Cell(&RACE_STATE.results.results[0].block[3]),
+        Cell(&RACE_STATE.results.results[0].field_24c[3]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[4]),
-        Cell(&RACE_STATE.results.results[0].block[4]),
+        Cell(&RACE_STATE.results.results[0].field_24c[4]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[5]),
-        Cell(&RACE_STATE.results.results[0].block[5]),
+        Cell(&RACE_STATE.results.results[0].field_24c[5]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[6]),
-        Cell(&RACE_STATE.results.results[0].block[6]),
+        Cell(&RACE_STATE.results.results[0].field_24c[6]),
     ),
     Copy(
         car_bits!(0, impact_octant_marks[7]),
-        Cell(&RACE_STATE.results.results[0].block[7]),
+        Cell(&RACE_STATE.results.results[0].field_24c[7]),
     ),
     IntToFloat(
         car_bits!(1, engine_damage),
@@ -777,35 +777,35 @@ pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     ),
     Copy(
         car_bits!(1, impact_octant_marks[0]),
-        Cell(&RACE_STATE.results.results[1].block[0]),
+        Cell(&RACE_STATE.results.results[1].field_24c[0]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[1]),
-        Cell(&RACE_STATE.results.results[1].block[1]),
+        Cell(&RACE_STATE.results.results[1].field_24c[1]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[2]),
-        Cell(&RACE_STATE.results.results[1].block[2]),
+        Cell(&RACE_STATE.results.results[1].field_24c[2]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[3]),
-        Cell(&RACE_STATE.results.results[1].block[3]),
+        Cell(&RACE_STATE.results.results[1].field_24c[3]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[4]),
-        Cell(&RACE_STATE.results.results[1].block[4]),
+        Cell(&RACE_STATE.results.results[1].field_24c[4]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[5]),
-        Cell(&RACE_STATE.results.results[1].block[5]),
+        Cell(&RACE_STATE.results.results[1].field_24c[5]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[6]),
-        Cell(&RACE_STATE.results.results[1].block[6]),
+        Cell(&RACE_STATE.results.results[1].field_24c[6]),
     ),
     Copy(
         car_bits!(1, impact_octant_marks[7]),
-        Cell(&RACE_STATE.results.results[1].block[7]),
+        Cell(&RACE_STATE.results.results[1].field_24c[7]),
     ),
     Copy(
         car!(0, parts_present),
@@ -1239,35 +1239,35 @@ pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
         car_bits!(0, part_hit_damage[3]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[0]),
+        Cell(&RACE_STATE.results.results[0].field_24c[0]),
         car_bits!(0, impact_octant_marks[0]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[1]),
+        Cell(&RACE_STATE.results.results[0].field_24c[1]),
         car_bits!(0, impact_octant_marks[1]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[2]),
+        Cell(&RACE_STATE.results.results[0].field_24c[2]),
         car_bits!(0, impact_octant_marks[2]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[3]),
+        Cell(&RACE_STATE.results.results[0].field_24c[3]),
         car_bits!(0, impact_octant_marks[3]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[4]),
+        Cell(&RACE_STATE.results.results[0].field_24c[4]),
         car_bits!(0, impact_octant_marks[4]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[5]),
+        Cell(&RACE_STATE.results.results[0].field_24c[5]),
         car_bits!(0, impact_octant_marks[5]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[6]),
+        Cell(&RACE_STATE.results.results[0].field_24c[6]),
         car_bits!(0, impact_octant_marks[6]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[0].block[7]),
+        Cell(&RACE_STATE.results.results[0].field_24c[7]),
         car_bits!(0, impact_octant_marks[7]),
     ),
     FloatToInt(
@@ -1443,35 +1443,35 @@ pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
         car_bits!(1, part_hit_damage[3]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[0]),
+        Cell(&RACE_STATE.results.results[1].field_24c[0]),
         car_bits!(1, impact_octant_marks[0]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[1]),
+        Cell(&RACE_STATE.results.results[1].field_24c[1]),
         car_bits!(1, impact_octant_marks[1]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[2]),
+        Cell(&RACE_STATE.results.results[1].field_24c[2]),
         car_bits!(1, impact_octant_marks[2]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[3]),
+        Cell(&RACE_STATE.results.results[1].field_24c[3]),
         car_bits!(1, impact_octant_marks[3]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[4]),
+        Cell(&RACE_STATE.results.results[1].field_24c[4]),
         car_bits!(1, impact_octant_marks[4]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[5]),
+        Cell(&RACE_STATE.results.results[1].field_24c[5]),
         car_bits!(1, impact_octant_marks[5]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[6]),
+        Cell(&RACE_STATE.results.results[1].field_24c[6]),
         car_bits!(1, impact_octant_marks[6]),
     ),
     Copy(
-        Cell(&RACE_STATE.results.results[1].block[7]),
+        Cell(&RACE_STATE.results.results[1].field_24c[7]),
         car_bits!(1, impact_octant_marks[7]),
     ),
     Call(Addr(0x449957)),

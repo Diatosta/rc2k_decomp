@@ -72,8 +72,8 @@ const WORD_8_FIRST: &Dword = &RACE_STATE.settings.car_kind_first;
 /// dword_75AE24: the second set's word that mode 2 takes from +0x10.
 const MODE_WORD: &Dword = &RACE_STATE.settings.cars[0].view;
 /// The two blocks of 0x20 bytes copied from a record's +0x24C, the first car's / the current's.
-const BLOCK_FIRST: &[Dword; 8] = &RACE_STATE.results.results[1].block;
-const BLOCK_CURRENT: &[Dword; 8] = &RACE_STATE.results.results[0].block;
+const BLOCK_FIRST: &[Dword; 8] = &RACE_STATE.results.results[1].field_24c;
+const BLOCK_CURRENT: &[Dword; 8] = &RACE_STATE.results.results[0].field_24c;
 /// The first car's five times (added, then divided by 10 into the record's +0xD8) and the
 /// word whose six times is added; the current car's.
 const TIMES_FIRST: [&Dword; 4] = [
@@ -140,25 +140,25 @@ const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
 
 /// Player 1's record, words (offset, variable), into the race's common variables.
 const PLAYER_1_WORDS: [(u32, &Dword); 19] = [
-    (0x2C, &RACE_STATE.settings.cars[1].record_2c),
-    (0x30, &RACE_STATE.settings.cars[1].record_30),
-    (0x34, &RACE_STATE.settings.cars[1].record_34[0]),
-    (0x38, &RACE_STATE.settings.cars[1].record_34[1]),
-    (0x3C, &RACE_STATE.settings.cars[1].record_34[2]),
-    (0x40, &RACE_STATE.settings.cars[1].record_34[3]),
-    (0x44, &RACE_STATE.settings.cars[1].record_34[4]),
-    (0x48, &RACE_STATE.settings.cars[1].record_34[5]),
-    (0x50, &RACE_STATE.settings.cars[1].record_50[0]),
-    (0x54, &RACE_STATE.settings.cars[1].record_50[1]),
-    (0x58, &RACE_STATE.settings.cars[1].record_50[2]),
-    (0x5C, &RACE_STATE.settings.cars[1].record_50[3]),
-    (0x60, &RACE_STATE.settings.cars[1].record_50[4]),
-    (0x64, &RACE_STATE.settings.cars[1].record_50[5]),
-    (0x68, &RACE_STATE.settings.cars[1].record_50[6]),
-    (0x6C, &RACE_STATE.settings.cars[1].record_50[7]),
-    (0x70, &RACE_STATE.settings.cars[1].record_50[8]),
-    (0x74, &RACE_STATE.settings.cars[1].record_74),
-    (0x78, &RACE_STATE.settings.cars[1].record_78),
+    (0x2C, &RACE_STATE.settings.cars[1].controller),
+    (0x30, &RACE_STATE.settings.cars[1].gearing),
+    (0x34, &RACE_STATE.settings.cars[1].sensitivity_level),
+    (0x38, &RACE_STATE.settings.cars[1].axis_codes),
+    (0x3C, &RACE_STATE.settings.cars[1].controller_mode),
+    (0x40, &RACE_STATE.settings.cars[1].dead_zone_1),
+    (0x44, &RACE_STATE.settings.cars[1].dead_zone_2),
+    (0x48, &RACE_STATE.settings.cars[1].strength),
+    (0x50, &RACE_STATE.settings.cars[1].controls_50[0]),
+    (0x54, &RACE_STATE.settings.cars[1].controls_50[1]),
+    (0x58, &RACE_STATE.settings.cars[1].controls_50[2]),
+    (0x5C, &RACE_STATE.settings.cars[1].controls_50[3]),
+    (0x60, &RACE_STATE.settings.cars[1].controls_50[4]),
+    (0x64, &RACE_STATE.settings.cars[1].controls_50[5]),
+    (0x68, &RACE_STATE.settings.cars[1].controls_50[6]),
+    (0x6C, &RACE_STATE.settings.cars[1].controls_50[7]),
+    (0x70, &RACE_STATE.settings.cars[1].controls_50[8]),
+    (0x74, &RACE_STATE.settings.cars[1].controls_74),
+    (0x78, &RACE_STATE.settings.cars[1].controls_78),
 ];
 
 /// Player 1's record into the first car's variables, before the 0x20 bytes at +0x24C.
@@ -170,7 +170,7 @@ const FIRST_HEAD: [(u32, &Dword); 8] = [
     (0x118, &RACE_STATE.settings.cars[1].suspension_stiffness),
     (0x11C, &RACE_STATE.settings.cars[1].steering_sensitivity),
     (0x120, &RACE_STATE.settings.cars[1].gear_ratio),
-    (0x288, &RACE_STATE.results.word_288_first),
+    (0x288, &RACE_STATE.results.service_spent_first),
 ];
 
 /// Player 1's record into the first car's variables, after them.
@@ -251,7 +251,7 @@ const SECOND_HEAD: [(u32, &Dword); 8] = [
     (0x118, &RACE_STATE.settings.cars[0].suspension_stiffness),
     (0x11C, &RACE_STATE.settings.cars[0].steering_sensitivity),
     (0x120, &RACE_STATE.settings.cars[0].gear_ratio),
-    (0x288, &RACE_STATE.results.word_288_current),
+    (0x288, &RACE_STATE.results.service_spent_current),
 ];
 
 /// The current player's record, after them.
@@ -324,25 +324,25 @@ const SECOND_MID: [(u32, &Dword); 64] = [
 
 /// The current player's record, after the mode-2 word.
 const SECOND_TAIL: [(u32, &Dword); 19] = [
-    (0x2C, &RACE_STATE.settings.cars[0].record_2c),
-    (0x30, &RACE_STATE.settings.cars[0].record_30),
-    (0x34, &RACE_STATE.settings.cars[0].record_34[0]),
-    (0x38, &RACE_STATE.settings.cars[0].record_34[1]),
-    (0x3C, &RACE_STATE.settings.cars[0].record_34[2]),
-    (0x40, &RACE_STATE.settings.cars[0].record_34[3]),
-    (0x44, &RACE_STATE.settings.cars[0].record_34[4]),
-    (0x48, &RACE_STATE.settings.cars[0].record_34[5]),
-    (0x50, &RACE_STATE.settings.cars[0].record_50[0]),
-    (0x54, &RACE_STATE.settings.cars[0].record_50[1]),
-    (0x58, &RACE_STATE.settings.cars[0].record_50[2]),
-    (0x5C, &RACE_STATE.settings.cars[0].record_50[3]),
-    (0x60, &RACE_STATE.settings.cars[0].record_50[4]),
-    (0x64, &RACE_STATE.settings.cars[0].record_50[5]),
-    (0x68, &RACE_STATE.settings.cars[0].record_50[6]),
-    (0x6C, &RACE_STATE.settings.cars[0].record_50[7]),
-    (0x70, &RACE_STATE.settings.cars[0].record_50[8]),
-    (0x74, &RACE_STATE.settings.cars[0].record_74),
-    (0x78, &RACE_STATE.settings.cars[0].record_78),
+    (0x2C, &RACE_STATE.settings.cars[0].controller),
+    (0x30, &RACE_STATE.settings.cars[0].gearing),
+    (0x34, &RACE_STATE.settings.cars[0].sensitivity_level),
+    (0x38, &RACE_STATE.settings.cars[0].axis_codes),
+    (0x3C, &RACE_STATE.settings.cars[0].controller_mode),
+    (0x40, &RACE_STATE.settings.cars[0].dead_zone_1),
+    (0x44, &RACE_STATE.settings.cars[0].dead_zone_2),
+    (0x48, &RACE_STATE.settings.cars[0].strength),
+    (0x50, &RACE_STATE.settings.cars[0].controls_50[0]),
+    (0x54, &RACE_STATE.settings.cars[0].controls_50[1]),
+    (0x58, &RACE_STATE.settings.cars[0].controls_50[2]),
+    (0x5C, &RACE_STATE.settings.cars[0].controls_50[3]),
+    (0x60, &RACE_STATE.settings.cars[0].controls_50[4]),
+    (0x64, &RACE_STATE.settings.cars[0].controls_50[5]),
+    (0x68, &RACE_STATE.settings.cars[0].controls_50[6]),
+    (0x6C, &RACE_STATE.settings.cars[0].controls_50[7]),
+    (0x70, &RACE_STATE.settings.cars[0].controls_50[8]),
+    (0x74, &RACE_STATE.settings.cars[0].controls_74),
+    (0x78, &RACE_STATE.settings.cars[0].controls_78),
 ];
 
 /// The first set of variables back into player 1's record (variable, offset), up to the total.
