@@ -30,7 +30,7 @@ use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
-use crate::screens::stage_panel::{build_second_heading, draw_stage_body, dword, menu_item_id};
+use crate::screens::stage_panel::{build_second_heading, draw_stage_body, menu_item_id};
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
@@ -60,7 +60,7 @@ pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Ref
     }
     build_second_heading(sel.record)?;
     draw_stage_body(sel.record, true, canvas)?;
-    let best = crate::screens::stage_panel::best_of(table, dword(sel.record.wrapping_add(0x3C))?)?;
+    let best = crate::screens::stage_panel::best_of(table, sel.record.record()?.event_slot())?;
     draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
 }
 

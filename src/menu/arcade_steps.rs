@@ -59,6 +59,7 @@ use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::standings::{bytes, table, with_kept_name};
 use crate::race::state_store::RACE_STATE;
+use crate::records::stages_store::{Holder, RecordRef};
 use crate::session::{Dword, read_all, write_all};
 use rc2k_core::menu::{bests, standings};
 
@@ -69,9 +70,8 @@ const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const STAGE_RECORD_LEN: u32 = 0xA4;
 
-use crate::menu::event_flow::dword as get;
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
-fn stage_record() -> Result<u32, Refused> {
+fn stage_record() -> Result<RecordRef, Refused> {
     let (level, stage) = (ARCADE_GAME.level.get(), ARCADE_GAME.stage.get());
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
@@ -87,7 +87,7 @@ fn stage_record() -> Result<u32, Refused> {
 fn with_course_times<R>(
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, Refused> {
-    let course = get(stage_record()? + 0x3C)? as usize;
+    let course = stage_record()?.record()?.event_slot() as usize;
     Ok(crate::saves::best_times::COURSE_TIMES
         .with(|t| t.stages.get_mut(course).map(f))?
         .ok_or(BadInput("a course past the best times"))?)
@@ -117,14 +117,11 @@ fn current() -> Result<(u32, crate::menu::standings::PlayerCell), Refused> {
 }
 
 /// `menu::keep_arcade_stage_best`, `record` the caller's edi.
-pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
-    if record < 0x10000 {
-        return Err(BadInput("an edi that points nowhere").into());
-    }
+pub fn keep_arcade_stage_best(record: RecordRef) -> Result<(), Refused> {
     let (_, player) = current()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     let figure = player.get().figure;
-    if bests::takes_record(figure, get(record + 0x30)?) {
+    if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
         let name = player.get().name;
         if name == 0 {
             return Err(BadInput("a null name").into());
@@ -135,7 +132,7 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
             car: player.get().car_number,
             name: bytes(name)?,
         };
-        let mut r = table(record, STAGE_RECORD_LEN, 1)?;
+        let mut r = table(record.addr(), STAGE_RECORD_LEN, 1)?;
         bests::take_record(&mut r.entries(), 0, &bests::RECORD_HOLDER, &holder);
     }
     Ok(())
@@ -192,7 +189,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     if player.get().name == 0 {
         return Err(BadInput("a null name").into());
     }
-    let course = get(record + 0x3C)?;
+    let course = record.record()?.event_slot();
     DRAW_WORK.figure.set(course);
     let cheats = CHEAT_VARS.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(course)?;

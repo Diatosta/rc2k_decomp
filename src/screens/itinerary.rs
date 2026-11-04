@@ -8,6 +8,7 @@ use crate::errors::{FatalError, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -42,16 +43,16 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 "a section title",
             )?
         } else {
-            crate::menu::event_flow::dword_what(first + 0x38, "a stage record")?
+            first.record()?.name()
         };
         let base = record_at(1)?;
-        let record = move |n: u32| crate::records::stages_store::row(base, n.wrapping_sub(1));
-        let get = |a: u32| crate::menu::event_flow::dword_what(a, "a stage record");
+        let record = move |n: u32| base.offset(n.wrapping_sub(1));
+        let get = |a: u32| crate::menu::event_flow::dword_what(a, "a track pack entry");
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n)?;
-            match get(r)? {
+            match r.tag() {
                 1 => Ok(Row::Service {
-                    hhmm: get(r + 0x10)?,
+                    hhmm: r.record()?.hhmm(),
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
@@ -59,14 +60,14 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                     Ok(Row::Stage {
                         name: get(entry)?,
                         length: get(entry + 0xC)?,
-                        hhmm: get(r + 0x10)?,
+                        hhmm: r.record()?.hhmm(),
                     })
                 }
                 _ => Err(INVALID_STAGE.into()),
             }
         };
         let fault = crate::menu::event_flow::Fault::default();
-        let ends_at = |n: u32| fault.ok(record(n).and_then(get)) == u32::MAX;
+        let ends_at = |n: u32| fault.ok(record(n).map(RecordRef::tag)) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,

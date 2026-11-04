@@ -12,11 +12,10 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::results_store::RESULT_FIGURES;
+use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
-
-use crate::menu::event_flow::dword as get;
 
 fn rows(layout: &Layout) -> usize {
     rc2k_core::screens::players_results::rows(layout, EVENT_STATE.player_count.get())
@@ -46,7 +45,7 @@ fn points_at(row: usize) -> Result<&'static crate::session::Dword, Refused> {
 
 /// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +
 /// 0xA4 x `dword_7558CC`); none: 0.
-fn records() -> Result<(u32, u32), BadInput> {
+fn records() -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
     Ok((
@@ -58,7 +57,7 @@ fn records() -> Result<(u32, u32), BadInput> {
 /// The rows' players, the section's first record, the stage line and the speeds.
 struct Prepared {
     players: Vec<crate::menu::standings::PlayerCell>,
-    base: u32,
+    base: RecordTable,
     stage: Vec<u8>,
     speeds: Vec<Vec<u8>>,
 }
@@ -74,9 +73,6 @@ fn prepare(layout: &Layout) -> Result<Prepared, Refused> {
         }
     }
     let (base, record) = records()?;
-    if base == 0 {
-        return Err(BadInput("no stage records").into());
-    }
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
@@ -125,7 +121,7 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
             });
         }
         let page = Page {
-            section: get(base + 0x38)?,
+            section: base.title()?,
             stage,
             units_set: crate::strings::units::units() != 0,
             show_hours: crate::strings::append_time::show_hours(),

@@ -34,7 +34,7 @@ use crate::sound::store::SOUND_OPTIONS;
 /// The record tables that get made-up records: the championship's and the twelve events'
 /// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
 /// 0x73B142), in the original's order.
-fn record_tables() -> [u32; 13] {
+fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
     let t = &crate::records::stages_store::STAGE_TABLES;
     let mut all = [t.championship(); 13];
     for (n, k) in [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11]
@@ -99,9 +99,7 @@ pub fn set_up_front_end() -> Result<(), Refused> {
     }
     if LOOP_FLAGS.options_loaded.get() != 1 {
         for table in record_tables() {
-            crate::records::default_stage_records::default_stage_records(
-                crate::records::stages_store::STAGE_TABLES.place_at(table),
-            )?;
+            crate::records::default_stage_records::default_stage_records(table)?;
         }
     }
     Ok(())

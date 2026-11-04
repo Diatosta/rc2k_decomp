@@ -28,9 +28,7 @@ pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
         crate::strings::units::units(),
     )?;
     speed.push(0);
-    if (STAGE_TIMES.records)()? == 0 {
-        return Err(crate::errors::BadInput("no stage records").into());
-    }
+    (STAGE_TIMES.records)()?;
     // Converted: `rc2k_core::screens::player_result::stage_result`.
     use crate::screens::game_screen::PlayerResultScreen;
     speed.pop();

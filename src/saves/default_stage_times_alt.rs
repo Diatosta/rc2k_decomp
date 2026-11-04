@@ -32,7 +32,7 @@ pub fn default_stage_times_alt(_ebp: u32, log: Log) -> Result<(), Refused> {
         for n in 0..TABLES {
             let records = crate::records::stages_store::STAGE_TABLES.level_table(n as u32)?;
             let six = (0..6u32)
-                .map(|stage| read_record(records + (stage + 1) * RECORD_LEN))
+                .map(|stage| read_record(records.row(stage + 1)?))
                 .collect::<Result<Vec<_>, _>>()?;
             tables.push(
                 six.try_into()

@@ -34,7 +34,7 @@ pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
             return Err(BadInput("no stages, or no table for their times").into());
         };
         let records: Vec<_> = (0..count as u32)
-            .map(|n| read_record(records_at + n * RECORD_LEN))
+            .map(|n| read_record(records_at.row(n)?))
             .collect::<Result<_, _>>()?;
         let tables = [Target::Stages(table)];
         let filled = championship_times(

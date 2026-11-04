@@ -23,8 +23,7 @@ use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{
-    build_second_heading, draw_records_for_group, draw_stage_body, dword, menu_item_id,
-    table_dword_at,
+    build_second_heading, draw_records_for_group, draw_stage_body, menu_item_id, table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
@@ -41,7 +40,7 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
             GROUP_TITLES,
             sel.group,
         )?,
-        dword(sel.table.wrapping_add(0x38))?,
+        sel.table.title()?,
     )))
 }
 

@@ -54,7 +54,6 @@ use crate::text::draw_text::Canvas;
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-use crate::menu::event_flow::dword as get;
 
 #[derive(Clone, Copy)]
 enum Heading {
@@ -156,7 +155,7 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
                         EVENT_STATE.section.get(),
                     )?
                 } else {
-                    get(record_at(0)? + 0x38)?
+                    record_at(0)?.record()?.name()
                 },
             },
             Heading::Record => {

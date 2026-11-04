@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
+use crate::records::stages_store::{Holder as RecordHolder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
@@ -36,9 +37,9 @@ pub struct Selection {
     /// dword_7558D0
     pub sub: u32,
     /// `tables[group][sub]`: the address of the table's first record.
-    pub table: u32,
+    pub table: RecordTable,
     /// `table + index * 0xA4`, with index = dword_7558CC.
-    pub record: u32,
+    pub record: RecordRef,
 }
 
 /// None while the tables are not there; the original then reads through a null pointer.
@@ -55,7 +56,7 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
     }))
 }
 
-fn selected_record() -> Result<Option<(u32, u32)>, BadInput> {
+fn selected_record() -> Result<Option<(RecordRef, u32)>, BadInput> {
     Ok(selection()?.map(|s| (s.record, s.sub)))
 }
 
@@ -66,26 +67,17 @@ fn selected_record() -> Result<Option<(u32, u32)>, BadInput> {
 /// (`screens::draw_time_trial_records` 0x48DE45, whose car sprite sits on the first row's
 /// y, sic).
 pub struct Rows {
-    pub nationality: u32,
-    pub name: u32,
-    pub car: u32,
-    pub speed: u32,
+    pub holder: RecordHolder,
     pub car_y: i32,
 }
 
 pub const STAGE_ROWS: Rows = Rows {
-    nationality: 0x74,
-    name: 0x54,
-    car: 0x78,
-    speed: 0x30,
+    holder: RecordHolder::Fastest,
     car_y: ROW_2_Y,
 };
 
 pub const TIME_TRIAL_ROWS: Rows = Rows {
-    nationality: 0x9C,
-    name: 0x7C,
-    car: 0xA0,
-    speed: 0x2C,
+    holder: RecordHolder::Second,
     car_y: ROW_1_Y,
 };
 
@@ -113,7 +105,6 @@ pub fn draw_records_rows(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
         };
-        let f = crate::menu::event_flow::Fault::default();
         let name = entry
             .name_text()
             .and_then(|t| Held::new(&t))
@@ -125,15 +116,13 @@ pub fn draw_records_rows(
             figure: entry.head.key,
         };
         // The stage record is the game's.
+        let held = record.record()?.holder(rows.holder);
         let top = Holder {
-            nation: f.get(record + rows.nationality),
-            name: HeldText::Place(
-                crate::records::stages_store::STAGE_TABLES.record_text(record, rows.name),
-            ),
-            car: f.get(record + rows.car),
-            figure: f.get(record + rows.speed),
+            nation: held.nation,
+            name: HeldText::Place(record.text(rows.holder.name_at())),
+            car: held.car,
+            figure: held.speed,
         };
-        f.check()?;
         let car_row = if rows.car_y == ROW_1_Y {
             CarRow::First
         } else {

@@ -15,13 +15,11 @@
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
 use crate::menu::draw_work_store::DRAW_WORK;
-use crate::pointers::GamePtr;
 use crate::race::work_store::RACE_WORK;
+use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
-
-pub const RECORD_LEN: u32 = 0xA4;
 
 /// A piece written to the game's log: a text of the game's (its address) or a number,
 /// with or without a new line after it.
@@ -91,15 +89,17 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 }
 
-/// The record at `at` (0xA4 bytes, unaligned).
-pub fn read_record(at: u32) -> Result<Record, BadInput> {
-    let d = |o: u32| GamePtr::new(at + o).read::<u32>("a stage record");
+/// What the made-up times read of `record`: the first and last classes' times, the event
+/// slot.
+pub fn read_record(record: RecordRef) -> Result<Record, BadInput> {
+    let r = record.record()?;
+    let times = r.class_times();
     Ok(Record {
-        tag: d(0)?,
-        track: d(4)?,
-        length: d(0x18)?,
-        time: d(0x24)?,
-        picked: d(0x3C)?,
+        tag: r.tag(),
+        track: r.track(),
+        length: times[0],
+        time: times[3],
+        picked: r.event_slot(),
     })
 }
 
@@ -155,11 +155,10 @@ pub fn with_checkpoints() -> bool {
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).
-pub fn records(table: u32) -> Result<usize, BadInput> {
-    for n in 1..=0x1000usize {
-        let tag = GamePtr::new(table + n as u32 * RECORD_LEN).read::<u32>("a stage record")?;
-        if tag == u32::MAX {
-            return Ok(n);
+pub fn records(table: RecordTable) -> Result<usize, BadInput> {
+    for n in 1..=0x1000u32 {
+        if table.row(n)?.tag() == u32::MAX {
+            return Ok(n as usize);
         }
     }
     Err(BadInput("a record table without its end"))

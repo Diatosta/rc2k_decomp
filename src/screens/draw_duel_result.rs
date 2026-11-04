@@ -22,15 +22,15 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::results_store::RESULT_FIGURES;
+use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
 
 // dword_758720: byte offset in g_players
 // dword_758724
-use crate::menu::event_flow::dword as get;
 
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
-fn records() -> Result<(u32, u32), BadInput> {
+fn records() -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
     Ok((
@@ -56,9 +56,6 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
     let (base, record) = records()?;
-    if base == 0 {
-        return Err(BadInput("no stage records").into());
-    }
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
@@ -101,7 +98,7 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     rc2k_core::screens::duel_result::duel_result(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &players,
-        get(base + 0x38)?,
+        base.title()?,
         &stage,
         &figures,
         crate::strings::append_time::show_hours(),

@@ -105,10 +105,7 @@ impl arcade::Arcade for Game {
                 // The stage's record in the level's table.
                 let level = crate::records::stages_store::STAGE_TABLES
                     .level_table(ARCADE_GAME.level.get())?;
-                a::keep_arcade_stage_best(crate::records::stages_store::row(
-                    level,
-                    ARCADE_GAME.stage.get(),
-                )?)?;
+                a::keep_arcade_stage_best(level.row(ARCADE_GAME.stage.get())?)?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time()?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks()?,

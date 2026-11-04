@@ -12,9 +12,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
+use crate::records::stages_store::RecordRef;
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
-fn current_record() -> Result<u32, BadInput> {
+fn current_record() -> Result<RecordRef, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = SECTION_RVA.get();
     let index: u32 = INDEX_RVA.get();
@@ -35,7 +36,7 @@ pub fn keep_record_best() -> Result<(), Refused> {
     let record = current_record()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     use rc2k_core::menu::bests;
-    let mut r = table(record, 0xA4, 1)?;
+    let mut r = table(record.addr(), 0xA4, 1)?;
     let mut r = r.entries();
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);

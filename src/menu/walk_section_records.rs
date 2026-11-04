@@ -15,10 +15,11 @@ use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
+use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
-fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
+fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = SECTION_RVA.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
@@ -34,7 +35,7 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
-        |i| fault.ok(record_at(i).and_then(get)),
+        |i| fault.ok(record_at(i).map(RecordRef::tag)),
         |i| crate::menu::calc_cpu_times::check(record_at(i)?).map(|_| ()),
     );
     fault.check()?;

@@ -14,6 +14,7 @@ use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
+use crate::records::stages_store::RecordRef;
 use crate::session::{read_all, write_all};
 
 const TEXTS_RVA: [&std::ffi::CStr; 4] = [c"stage times info", c"a7x", c"a8x", c"times a8-a5"];
@@ -38,7 +39,7 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 
 /// `record` the stage's record (edi in the original; its +0x40 is logged). The original
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
-pub fn scale_stage_times(record: u32) -> Result<(), Refused> {
+pub fn scale_stage_times(record: RecordRef) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
     let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
@@ -49,7 +50,7 @@ pub fn scale_stage_times(record: u32) -> Result<(), Refused> {
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);
     log_int(section as i32, false, 1);
-    log_int(get(record + 0x40)? as i32, false, 1);
+    log_int(record.record()?.number() as i32, false, 1);
     crate::logfile::log_write::log_nul(text(1), false, 1);
     log_float(f32::from_bits(f[0]), 2, false, 1);
     crate::logfile::log_write::log_nul(text(2), false, 1);

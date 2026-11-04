@@ -11,6 +11,7 @@ use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
+use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 use rc2k_core::menu::flow::{self, Picture, Var};
 
@@ -19,7 +20,7 @@ pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
 #[derive(Default)]
 pub struct Game {
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
-    record: u32,
+    record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
     cars: Option<CarList>,
     /// A refused read or write of the core's variables (checked at each call and at the end).
@@ -143,7 +144,10 @@ impl flow::Game for Game {
         match place(v) {
             Place::Cell(cell) => cell.get(),
             Place::Player(n, field) => *field.of(&mut player(n).get()),
-            Place::Record(offset) => self.fault.get(self.record + offset),
+            Place::Record(offset) => self.fault.ok(self
+                .record
+                .ok_or(BadInput("a record field read before a record was found"))
+                .and_then(|r| r.word_at(offset))),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
     }
@@ -152,7 +156,11 @@ impl flow::Game for Game {
         match place(v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, field) => player(n).update(|q| *field.of(q) = value),
-            Place::Record(offset) => self.fault.put(self.record + offset, value),
+            // The flows only read the record.
+            Place::Record(_) => {
+                self.fault
+                    .ok::<()>(Err(BadInput("a write to a stage record")));
+            }
             Place::Quitting => crate::session::FLAGS.quitting.set(value),
         }
     }
@@ -183,7 +191,7 @@ impl flow::Game for Game {
                 if !has_section(table, section, 600)? {
                     return Err(BadInput("a record section past the table").into());
                 }
-                self.record = find_record_in(table, index as i32, section)?;
+                self.record = Some(find_record_in(table, index as i32, section)?);
             }
             C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,

@@ -24,7 +24,146 @@ pub struct Record {
     pub words: [Loose; 41],
 }
 
+/// A record's two record holders: the stage's fastest (+0x30 speed, +0x54 name, +0x74
+/// nationality, +0x78 car) and the second (+0x2C, +0x7C, +0x9C, +0xA0: the time trial's
+/// and `menu::keep_stage_best`'s).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Holder {
+    Fastest,
+    Second,
+}
+
+impl Holder {
+    /// Where its name (0x20 bytes) is in the record.
+    pub const fn name_at(self) -> u32 {
+        match self {
+            Holder::Fastest => 0x54,
+            Holder::Second => 0x7C,
+        }
+    }
+}
+
+/// The bytes a record holder's name has.
+pub const HOLDER_NAME_LEN: usize = 0x20;
+
+/// A record holder's numbers.
+pub struct HolderRow {
+    pub nation: u32,
+    pub car: u32,
+    pub speed: u32,
+}
+
 impl Record {
+    /// +0: the tag: 0 a stage, 1 a service area, 3 or 4 a rally's end, -1 a table's end.
+    pub fn tag(&self) -> u32 {
+        self.words[0].get()
+    }
+
+    /// +4: the track's entry in the track pack (`records::trakpak_entry`).
+    pub fn track(&self) -> u32 {
+        self.words[1].get()
+    }
+
+    /// +8: the track pack's id.
+    pub fn pack_id(&self) -> u32 {
+        self.words[2].get()
+    }
+
+    /// +0x10: the time of day it starts at (hhmm).
+    pub fn hhmm(&self) -> u32 {
+        self.words[4].get()
+    }
+
+    /// +0x18 .. +0x24: the four classes' times (`menu::calc_cpu_times`; the made-up times
+    /// read the first and last, `saves::default_times`).
+    pub fn class_times(&self) -> [u32; 4] {
+        [6, 7, 8, 9].map(|w| self.words[w].get())
+    }
+
+    /// +0x34: the race's stage (`RACE_STATE.settings.stage`), the time a bonus counts from.
+    pub fn race_stage(&self) -> u32 {
+        self.words[13].get()
+    }
+
+    /// +0x38: the stage's name string.
+    pub fn name(&self) -> u32 {
+        self.words[14].get()
+    }
+
+    /// +0x3C: which ten entries of a stage table are the stage's best times.
+    pub fn event_slot(&self) -> u32 {
+        self.words[15].get()
+    }
+
+    /// +0x40: the stage's number.
+    pub fn number(&self) -> u32 {
+        self.words[16].get()
+    }
+
+    /// One of its two record holders: nationality, car and speed (or figure, signed:
+    /// `menu::bests::takes_record`); the name is at `Holder::name_at`.
+    pub fn holder(&self, h: Holder) -> HolderRow {
+        let [nation, car, speed] = Self::holder_words(h).map(|w| self.words[w].get());
+        HolderRow { nation, car, speed }
+    }
+
+    /// A record holder's name (the bytes as kept: no NUL when it fills them).
+    pub fn holder_name(&self, h: Holder) -> [u8; HOLDER_NAME_LEN] {
+        let first = h.name_at() as usize / 4;
+        let mut name = [0; HOLDER_NAME_LEN];
+        for (k, w) in self.words[first..first + HOLDER_NAME_LEN / 4]
+            .iter()
+            .enumerate()
+        {
+            name[4 * k..4 * k + 4].copy_from_slice(&w.get().to_le_bytes());
+        }
+        name
+    }
+
+    /// Makes `row` and `name` (at most `HOLDER_NAME_LEN` bytes; written without a NUL, the
+    /// bytes after it kept) its holder `h`.
+    pub fn set_holder(&self, h: Holder, row: &HolderRow, name: &[u8]) {
+        let [nation, car, speed] = Self::holder_words(h);
+        self.words[nation].set(row.nation);
+        self.words[car].set(row.car);
+        self.words[speed].set(row.speed);
+        let mut bytes = self.holder_name(h);
+        bytes[..name.len()].copy_from_slice(name);
+        let first = h.name_at() as usize / 4;
+        for (k, w) in self.words[first..first + HOLDER_NAME_LEN / 4]
+            .iter()
+            .enumerate()
+        {
+            w.set(u32::from_le_bytes(
+                bytes[4 * k..4 * k + 4].try_into().unwrap(),
+            ));
+        }
+    }
+
+    /// Where holder `h`'s nationality, car and speed are (dword numbers).
+    const fn holder_words(h: Holder) -> [usize; 3] {
+        match h {
+            Holder::Fastest => [29, 30, 12],
+            Holder::Second => [39, 40, 11],
+        }
+    }
+
+    /// +0x44 .. +0x50: the two points on the map its markers go at (`gfx::blit_marker_pair`).
+    pub fn markers(&self) -> [(i32, i32); 2] {
+        [[17, 18], [19, 20]].map(|[x, y]| (self.words[x].get() as i32, self.words[y].get() as i32))
+    }
+
+    /// The dword at byte `at` (a field not named yet; refused off the record).
+    pub fn word_at(&self, at: u32) -> Result<u32, BadInput> {
+        if !at.is_multiple_of(4) {
+            return Err(BadInput("a record's field off a dword"));
+        }
+        self.words
+            .get(at as usize / 4)
+            .map(Loose::get)
+            .ok_or(BadInput("a record's field past its end"))
+    }
+
     const fn new(v: [u32; 41]) -> Self {
         let mut words = [const { Loose::new(0) }; 41];
         let mut k = 0;
@@ -1147,14 +1286,19 @@ pub static STAGE_TABLES: StageTables = StageTables {
     ]),
 };
 
-/// Where a name of this piece lands (an event table).
-fn event_table_named(name: u32) -> Result<u32, BadInput> {
-    crate::moved::named_in(
+/// The event table a name of this piece (an IDA address) is the first row of; refused for
+/// a name that starts no table.
+fn event_table_named(name: u32) -> Result<RecordTable, BadInput> {
+    let at = crate::moved::named_in(
         name,
         START,
         END - START,
         "a stage list's entry off the stage tables",
-    )
+    )?;
+    match RecordRef::at(at)? {
+        RecordRef { table, index: 0 } => Ok(table),
+        _ => Err(BadInput("a stage list's entry that starts no table")),
+    }
 }
 
 impl StageTables {
@@ -1171,7 +1315,7 @@ impl StageTables {
     /// `off_735512[group][sub]`: the event table (a stage group's rally) `sub` of stage group
     /// `group`: where its records begin. Refused for a group past the four, a list that is
     /// not one of the lists, or an entry past a list's end (the -1).
-    pub fn group_event_table(&self, group: u32, sub: u32) -> Result<u32, BadInput> {
+    pub fn group_event_table(&self, group: u32, sub: u32) -> Result<RecordTable, BadInput> {
         let list = self
             .group_lists
             .get(group as usize)
@@ -1192,7 +1336,7 @@ impl StageTables {
 
     /// `off_73555A[level]`: arcade level `level`'s event table; refused for a level past the
     /// six (the -1 ends the list).
-    pub fn level_table(&self, level: u32) -> Result<u32, BadInput> {
+    pub fn level_table(&self, level: u32) -> Result<RecordTable, BadInput> {
         let entry = self
             .level_tables
             .get(level as usize)
@@ -1230,14 +1374,14 @@ impl StageTables {
         tables.offset(at.wrapping_sub(tables.addr()))
     }
 
-    /// The championship's first record.
-    pub fn championship(&self) -> u32 {
-        crate::pointers::game_address(self.championship.as_ptr())
+    /// The championship's records (`g_recordTable`).
+    pub fn championship(&self) -> RecordTable {
+        RecordTable::Championship
     }
 
-    /// Event table `k`'s first record (0x737FC2 + 0x480 k).
-    pub fn event_table(&self, k: usize) -> u32 {
-        crate::pointers::game_address(self.events[k].records.as_ptr())
+    /// Event table `k` (0x737FC2 + 0x480 k).
+    pub fn event_table(&self, k: usize) -> RecordTable {
+        RecordTable::Event(k)
     }
 
     /// The track pack's head.
@@ -1265,7 +1409,7 @@ pub struct RecordRef {
 }
 
 impl RecordTable {
-    fn rows(self) -> &'static [Record] {
+    pub fn rows(self) -> &'static [Record] {
         match self {
             RecordTable::Championship => &STAGE_TABLES.championship,
             RecordTable::Event(k) => &STAGE_TABLES.events[k].records,
@@ -1284,6 +1428,21 @@ impl RecordTable {
         crate::pointers::game_address(self.rows().as_ptr())
     }
 
+    /// Its title string: its first record's name (+0x38).
+    pub fn title(self) -> Result<u32, BadInput> {
+        Ok(self.row(0)?.record()?.name())
+    }
+
+    /// Its rows and end mark as the original's bytes, for the walks.
+    pub fn bytes(self) -> Vec<u8> {
+        self.rows()
+            .iter()
+            .flat_map(|r| r.words.iter())
+            .chain(std::iter::once(self.end()))
+            .flat_map(|w| w.get().to_le_bytes())
+            .collect()
+    }
+
     /// Row `n` (or the end mark). Refused past the end mark: the original's sum runs on into
     /// the next table.
     pub fn row(self, n: u32) -> Result<RecordRef, BadInput> {
@@ -1296,6 +1455,32 @@ impl RecordTable {
 }
 
 impl RecordRef {
+    /// The record; refused for the end mark.
+    pub fn record(self) -> Result<&'static Record, BadInput> {
+        self.table
+            .rows()
+            .get(self.index)
+            .ok_or(BadInput("a table's end mark read as a record"))
+    }
+
+    /// The place of its byte `off` (the fastest's name at +0x54; the bests' writes).
+    pub fn text(self, off: u32) -> crate::pointers::GamePtr {
+        STAGE_TABLES.record_text(self.addr(), off)
+    }
+
+    /// Its tag (the end mark's: -1).
+    pub fn tag(self) -> u32 {
+        self.record().map_or(self.table.end().get(), Record::tag)
+    }
+
+    /// Its dword at byte `at` (the end mark's tag only).
+    pub fn word_at(self, at: u32) -> Result<u32, BadInput> {
+        match at {
+            0 => Ok(self.tag()),
+            _ => self.record()?.word_at(at),
+        }
+    }
+
     /// The row (or end mark) at game address `at`; refused for an address that is neither.
     pub fn at(at: u32) -> Result<Self, BadInput> {
         std::iter::once(RecordTable::Championship)
@@ -1328,21 +1513,9 @@ impl RecordRef {
     }
 }
 
-/// Record `n` rows on from the record at `base` (`base + n x 0xA4`, as the original makes
-/// it), as an address; refused off the table (`RecordTable::row`). Census (2026-11-04,
-/// replays, drives, tour, flows, a championship's stage to its results): no run went off.
-pub fn row(base: u32, n: u32) -> Result<u32, BadInput> {
-    Ok(RecordRef::at(base)?.offset(n)?.addr())
-}
-
-/// The record at `record`, found from the record at `base`, as an address; refused when it
-/// is not a row (or the end mark) of that table.
-pub fn checked(base: u32, record: u32) -> Result<u32, BadInput> {
-    let d = record.wrapping_sub(base);
-    if !d.is_multiple_of(RECORD_LEN) {
-        return Err(BadInput("a record off its table's rows"));
-    }
-    row(base, d / RECORD_LEN)
+/// Row `n` of `table` (or its end mark); refused past it.
+pub fn row(table: RecordTable, n: u32) -> Result<RecordRef, BadInput> {
+    table.row(n)
 }
 
 /// IDA 0x734BC6, the first byte of the piece.
@@ -1400,7 +1573,8 @@ mod tests {
             for sub in 0..6 {
                 let name = word(list + 4 * sub);
                 assert_eq!(
-                    t.group_event_table(group as u32, sub as u32),
+                    t.group_event_table(group as u32, sub as u32)
+                        .map(RecordTable::addr),
                     Ok(table(name)),
                     "group {group} sub {sub}"
                 );
@@ -1409,11 +1583,14 @@ mod tests {
             assert!(t.group_event_table(group as u32, 6).is_err());
         }
         // The groups' lists, one after the other: a read past the first runs into the next.
-        assert_eq!(t.group_event_table(1, 7), Ok(table(word(0x73553E))));
+        assert_eq!(
+            t.group_event_table(1, 7).map(RecordTable::addr),
+            Ok(table(word(0x73553E)))
+        );
         assert!(t.group_event_table(4, 0).is_err());
         for level in 0..6 {
             assert_eq!(
-                t.level_table(level as u32),
+                t.level_table(level as u32).map(RecordTable::addr),
                 Ok(table(word(0x73555A + 4 * level)))
             );
         }
@@ -1441,11 +1618,12 @@ mod tests {
         assert!(RecordRef::at(champ.addr() + 2).is_err());
         let next = RecordRef::at(RecordTable::Event(0).addr()).unwrap();
         assert_eq!((next.table, next.index), (RecordTable::Event(0), 0));
+        assert_eq!(row(RecordTable::Event(1), 7).map(|r| r.index), Ok(7));
+        assert!(row(RecordTable::Event(1), 8).is_err());
         assert_eq!(
-            row(RecordTable::Event(1).addr(), 7),
-            Ok(RecordTable::Event(1).row(7).unwrap().addr())
+            RecordTable::Event(1).row(7).map(RecordRef::tag),
+            Ok(u32::MAX)
         );
-        assert!(row(RecordTable::Event(1).addr(), 8).is_err());
-        assert!(checked(champ.addr(), champ.addr() + 1).is_err());
+        assert!(RecordTable::Event(1).row(7).unwrap().record().is_err());
     }
 }

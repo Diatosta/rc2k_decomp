@@ -15,6 +15,7 @@ use crate::menu::event_flow::StageTable;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::pages_store::MENU_PAGES;
+use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
 use crate::session::Dword;
@@ -231,7 +232,7 @@ pub fn replay_range_caption() -> Result<(), BadInput> {
 pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
-    pub records: fn() -> Result<u32, BadInput>,
+    pub records: fn() -> Result<RecordTable, BadInput>,
     pub record: &'static Dword,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn() -> &'static StageTable,
@@ -240,7 +241,7 @@ pub struct StageTimes {
     pub rally: bool,
 }
 
-fn champ_records() -> Result<u32, BadInput> {
+fn champ_records() -> Result<RecordTable, BadInput> {
     crate::records::stages_store::STAGE_TABLES
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())
 }
@@ -253,7 +254,7 @@ fn champ_table() -> &'static StageTable {
     }
 }
 
-fn rally_records() -> Result<u32, BadInput> {
+fn rally_records() -> Result<RecordTable, BadInput> {
     crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())
 }
 
@@ -284,11 +285,8 @@ pub fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(),
     // Converted: `rc2k_core::screens::best_scores::heading`.
     {
         let base = (p.records)()?;
-        if base == 0 {
-            return Err(BadInput("no stage records").into());
-        }
-        let id = crate::menu::event_flow::dword_what(base + 0x38, "best scores: a game value")?;
-        let record = crate::records::stages_store::row(base, p.record.get())?;
+        let id = base.title()?;
+        let record = base.row(p.record.get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -296,7 +294,7 @@ pub fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(),
 
 /// The stage line (`page_settings::stage_line_bytes`) without its NUL; refused past the
 /// line buffer, as the originals' callers check it.
-fn stage_line_without_nul(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
+fn stage_line_without_nul(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused> {
     let mut line = crate::screens::page_settings::stage_line_bytes(id, record)?;
     if line.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
@@ -314,12 +312,11 @@ fn stage_line_without_nul(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
 pub fn draw_stage_times(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let base = (p.records)()?;
     let table = (p.table)();
-    let (false, true) = (base == 0, table.is_taken()) else {
-        return Err(BadInput("no stage records or times table").into());
-    };
+    if !table.is_taken() {
+        return Err(BadInput("no times table").into());
+    }
     draw_times_heading(p, canvas)?;
-    let record = crate::records::stages_store::row(base, p.record.get())?;
-    let group = crate::menu::event_flow::dword_what(record + 0x3C, "best scores: a game value")?;
+    let group = base.row(p.record.get())?.record()?.event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
     draw_time_rows(table, group as usize, keep, canvas)?;
     Ok(())
@@ -381,7 +378,7 @@ const SECTION: &Dword = &EVENT_STATE.section; // section
 const INDEX: &Dword = &EVENT_STATE.index; // index
 
 /// `records::find_record` of the record table: the section's record `index`.
-pub fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
+pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
         crate::records::stages_store::STAGE_TABLES.championship(),
         index as i32,
@@ -418,7 +415,7 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 "best scores: a game value",
             )?
         } else {
-            crate::menu::event_flow::dword_what(first + 0x38, "best scores: a game value")?
+            first.record()?.name()
         };
         let record = record_at(INDEX.get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };
@@ -439,10 +436,13 @@ pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     };
     let record = record_at(INDEX.get())?;
     // The record's fields are read at once (nothing drawn in between writes them).
-    let fault = Fault::default();
-    let f = |o: u32| fault.get(record + o);
-    let (top_speed, times_at, nation, car) = (f(0x30), f(0x3C), f(0x74), f(0x78));
-    fault.check()?;
+    let fastest = record.record()?.holder(Holder::Fastest);
+    let (top_speed, times_at, nation, car) = (
+        fastest.speed,
+        record.record()?.event_slot(),
+        fastest.nation,
+        fastest.car,
+    );
     let speed = crate::strings::append_speed::append_speed(
         top_speed,
         true,
@@ -455,7 +455,7 @@ pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     rc2k_core::screens::best_scores::fastest(
         &mut ScoresScreen::new(canvas),
         nation,
-        HeldText::Place(crate::records::stages_store::STAGE_TABLES.record_text(record, 0x54)),
+        HeldText::Place(record.text(Holder::Fastest.name_at())),
         car,
         &speed,
     )

@@ -35,13 +35,11 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::records::find_record::{find_record_in, has_section};
+use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::stage_screens;
 
-const RECORD: u32 = 0xA4;
-use crate::menu::event_flow::dword as get;
-
 /// The record `index` / `section` pick.
-fn stage_record() -> Result<u32, Refused> {
+fn stage_record() -> Result<RecordRef, Refused> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section = EVENT_STATE.section.get();
     if !has_section(table, section, 600)? {
@@ -66,7 +64,7 @@ pub fn count_stage_pages() -> Result<(), Refused> {
     let record = stage_record()?;
     // Converted: `rc2k_core::menu::event::stage_pages`.
     let fault = Fault::default();
-    let n = rc2k_core::menu::event::stage_pages(|k| fault.get(record + RECORD * k));
+    let n = rc2k_core::menu::event::stage_pages(|k| fault.ok(record.offset(k).map(RecordRef::tag)));
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
     EVENT_STATE.stage_pages.set(n);
@@ -79,7 +77,7 @@ pub fn play_stage_speech() -> Result<(), Refused> {
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
-        let at = stage_screens::stage_speech(get(record + 4)?, |n| {
+        let at = stage_screens::stage_speech(record.record()?.track(), |n| {
             crate::session::read_on_in(
                 &MENU_LISTS,
                 &MENU_LISTS.stage_speeches,

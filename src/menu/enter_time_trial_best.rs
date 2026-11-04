@@ -32,7 +32,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
-    let slot = dword(record + 0x3C)?;
+    let slot = record.record()?.event_slot();
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;

@@ -23,8 +23,6 @@ const NO_MAP: FatalError = FatalError {
     message: "",
 };
 
-use crate::menu::event_flow::dword;
-
 /// `menu::draw_stage_map`: the stage by `dword_755700` (2: `off_73555A[dword_7587EC]`'s
 /// `dword_7587F0`th; 3: `records::find_record` of `g_recordTable` with `section` and
 /// `index`; else the choice's: `off_735512[group][sub]`'s `number`th), its overlay
@@ -60,7 +58,7 @@ pub fn draw_stage_map() -> Result<(), Refused> {
     let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(
         &MENU_LISTS,
         &MENU_LISTS.map_overlays,
-        dword(record + 0x3C)? as usize,
+        record.record()?.event_slot() as usize,
         "a map overlay",
     )?)?;
     if load_picture_with_overlay(&crate::menu::texts_store::MENU_TEXTS.ukmap_png, &overlay)? {

@@ -7,15 +7,14 @@ use crate::menu::event_flow::StageTable;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
+use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
-use crate::menu::event_flow::dword as get;
-
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
-fn records() -> Result<(u32, u32), BadInput> {
+fn records() -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES
         .group_event_table(CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get())?;
     Ok((
@@ -85,7 +84,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menu = LOOP_FLAGS.menu.get().ok();
     let (base, record) = records()?;
     let table = times_table()?;
-    let (Some(table), Some(menu)) = (table.filter(|_| base != 0), menu) else {
+    let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
     let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
@@ -98,10 +97,13 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     } else {
         record
     };
-    let second = both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1;
-    let speed_at = if second { 0x2C } else { 0x30 };
+    let holder = if both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1 {
+        Holder::Second
+    } else {
+        Holder::Fastest
+    };
     let mut speed = crate::strings::append_speed::append_speed(
-        get(fastest + speed_at)?,
+        fastest.record()?.holder(holder).speed,
         true,
         crate::strings::units::units(),
     )?;
@@ -110,7 +112,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past its buffer").into());
     }
-    let slot = get(record + 0x3C)? as usize;
+    let slot = record.record()?.event_slot() as usize;
     let ten = table
         .with(|t| t.stages.get(slot).copied())?
         .ok_or(BadInput("a stage past its best times table"))?;
@@ -149,10 +151,10 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             0x19D
         },
     )?;
-    set_item(3, get(base + 0x38)?)?;
+    set_item(3, base.title()?)?;
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .stage_result_value
-        .set(get(record + 4)?);
+        .set(record.record()?.track());
     crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
         .write_bytes(&stage, "the stage line")?;
     // Converted: `rc2k_core::screens::stage_results`.
@@ -167,18 +169,12 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             seal: (e.sealed[0], e.sealed[1]),
         }
     });
-    let (nation, name, car) = if second {
-        (0x9C, 0x7C, 0xA0)
-    } else {
-        (0x74, 0x54, 0x78)
-    };
     speed.pop();
+    let held = fastest.record()?.holder(holder);
     let fastest = Fastest {
-        nation: get(fastest + nation)?,
-        name: HeldText::Place(
-            crate::records::stages_store::STAGE_TABLES.record_text(fastest, name),
-        ),
-        car: get(fastest + car)?,
+        nation: held.nation,
+        name: HeldText::Place(fastest.text(holder.name_at())),
+        car: held.car,
         speed,
     };
     let seal_fault = crate::menu::event_flow::Fault::default();

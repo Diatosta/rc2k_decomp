@@ -31,8 +31,6 @@ use crate::menu::results_store::RESULT_FIGURES;
 
 const POSITION_LIMIT: u32 = 16;
 
-use crate::menu::event_flow::dword as get;
-
 fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
     (0..n)
         .map(|k| {
@@ -79,10 +77,11 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 fn stage_time() -> Result<u32, Refused> {
     let records = crate::records::stages_store::STAGE_TABLES
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
-    Ok(get(crate::records::stages_store::row(
-        records,
-        EVENT_STATE.stage_number.get(),
-    )? + 0x34)?)
+    Ok(
+        crate::records::stages_store::row(records, EVENT_STATE.stage_number.get())?
+            .record()?
+            .race_stage(),
+    )
 }
 
 fn points(position: u32) -> Result<u32, Refused> {

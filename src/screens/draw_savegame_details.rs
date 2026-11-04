@@ -37,7 +37,7 @@ use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::write_savegame_slot::SAVE_GAMES;
-use crate::screens::stage_panel::{dword, table_dword_at};
+use crate::screens::stage_panel::table_dword_at;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -78,9 +78,9 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
             section: if mode_13 {
                 table_dword_at(&MENU_LISTS, &MENU_LISTS.section_titles, section)?
             } else {
-                dword(find_record_in(table, 0, section)? + 0x38)?
+                find_record_in(table, 0, section)?.record()?.name()
             },
-            stage: dword(find_record_in(table, index, section)? + 0x40)?,
+            stage: find_record_in(table, index, section)?.record()?.number(),
         };
         let car = |row: usize| -> Result<Car<_>, crate::errors::BadInput> {
             let at = cars_at + row * CAR_LEN;

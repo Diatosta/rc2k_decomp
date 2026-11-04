@@ -4,11 +4,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
 use crate::menu::event_store::EVENT_STATE;
-use crate::pointers::GamePtr;
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a rally times record")
-}
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -40,7 +35,7 @@ pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadI
         let stages = crate::records::stages_store::STAGE_TABLES
             .group_event_table(kind, EVENT_STATE.stage_sub.get())?;
         let stage = crate::records::stages_store::row(stages, EVENT_STATE.stage_number.get())?;
-        let n = get(stage + 0x3C)? as usize;
+        let n = stage.record()?.event_slot() as usize;
         let table = if kind == 1 {
             &crate::saves::best_times::STAGE_TIMES_ALT
         } else {

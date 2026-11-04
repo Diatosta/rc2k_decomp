@@ -10,6 +10,7 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::state_store::MENU_STATE;
+use crate::records::stages_store::{RecordRef, RecordTable};
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
@@ -46,12 +47,12 @@ fn push_id(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
 /// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
-pub fn stage_line_bytes(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
+pub fn stage_line_bytes(id: u32, record: RecordRef) -> Result<Vec<u8>, Refused> {
     crate::screens::draw_stage_heading::heading_text(record, id)
 }
 
 /// The stage line both stage pages build in `byte_A8BD54`.
-fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
+fn stage_line(id: u32, record: RecordRef) -> Result<(), Refused> {
     let line = stage_line_bytes(id, record)?;
     if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
         return Err(BadInput("a stage line past its buffer").into());
@@ -73,7 +74,7 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
-fn stage_record(a: u32, b: u32, c: u32) -> Result<(u32, u32), BadInput> {
+fn stage_record(a: u32, b: u32, c: u32) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
     Ok((base, crate::records::stages_store::row(base, c)?))
 }
@@ -99,11 +100,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
     let (base, record) = stage_record(a, b, CAPTIONS.shown_stage.get())?;
-    set_item(
-        items,
-        3,
-        crate::menu::event_flow::dword_what(base + 0x38, "a stage record")?,
-    )?;
+    set_item(items, 3, base.title()?)?;
     stage_line(0x481, record)?;
     let mut caption = Vec::new();
     push_id(
@@ -142,9 +139,7 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
     )?;
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
-    crate::pointers::GamePtr::new(pointed + 4 + 0x5C + 0x14).write::<u32>(
-        crate::menu::event_flow::dword_what(base + 0x38, "a stage record")?,
-        "a menu item",
-    )?;
+    crate::pointers::GamePtr::new(pointed + 4 + 0x5C + 0x14)
+        .write::<u32>(base.title()?, "a menu item")?;
     stage_line(0x482, record)
 }

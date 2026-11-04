@@ -12,6 +12,7 @@
 //! caller, `sub_480064`, has not been seen in the game.
 
 use crate::errors::Refused;
+use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_string_by_id::push_string;
@@ -28,10 +29,10 @@ fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 
 /// The same line starting with another label string (the stage panels build one with 0x482).
 /// Converted: `rc2k_core::screens::stage_panel::stage_line`.
-pub fn heading_text(record: u32, label: u32) -> Result<Vec<u8>, Refused> {
+pub fn heading_text(record: RecordRef, label: u32) -> Result<Vec<u8>, Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let name = || -> Result<u32, Refused> { Ok(dword(record_entry(record)?)?) };
-    let number = dword(record + 0x40)?;
+    let number = record.record()?.number();
     let line = stage_line(&mut |id| fault.ok(string_bytes(id)), label, number, &name);
     fault.check()?;
     let mut line = line?;
@@ -48,11 +49,11 @@ pub fn string_bytes(id: u32) -> Result<Vec<u8>, crate::errors::BadInput> {
 
 /// Builds the line in the game's line buffer and draws it. Returns the carry flag.
 /// Converted: `rc2k_core::screens::stage_panel::heading`.
-pub fn draw_stage_heading(record: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_stage_heading(record: RecordRef, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let name = || -> Result<u32, Refused> { Ok(dword(record_entry(record)?)?) };
     rc2k_core::screens::stage_panel::heading(
         &mut PanelScreen::new(canvas),
-        dword(record + 0x40)?,
+        record.record()?.number(),
         &name,
     )
 }

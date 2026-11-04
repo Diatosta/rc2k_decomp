@@ -12,15 +12,15 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
+use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable};
 
 /// The record, as the original finds it (refused where it would run away). Converted:
 /// `rc2k_core::files::records::find_stage_record`.
-pub fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
-    let records = GamePtr::new(table).bytes("a record table")?;
-    let place = rc2k_core::files::records::find_stage_record(&records, section, number)?;
-    Ok(crate::records::stages_store::checked(
-        table,
-        table.wrapping_add(place as u32),
-    )?)
+pub fn find_stage_record(
+    table: RecordTable,
+    section: u32,
+    number: u32,
+) -> Result<RecordRef, Refused> {
+    let place = rc2k_core::files::records::find_stage_record(&table.bytes(), section, number)?;
+    Ok(table.row((place / RECORD_LEN as usize) as u32)?)
 }

@@ -13,6 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
+use crate::records::stages_store::Holder;
 
 pub fn keep_stage_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
@@ -20,7 +21,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
     let p = current_player()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     let figure = p.get().figure;
-    if !bests::takes_record(figure, dword(record + 0x2C)?) {
+    if !bests::takes_record(figure, record.record()?.holder(Holder::Second).speed) {
         return Ok(());
     }
     let name = p.get().name;
@@ -33,7 +34,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
         car: p.get().car_number,
         name: crate::menu::standings::bytes(name)?,
     };
-    let mut r = crate::menu::standings::table(record, STAGE_RECORD, 1)?;
+    let mut r = crate::menu::standings::table(record.addr(), STAGE_RECORD, 1)?;
     bests::take_record(&mut r.entries(), 0, &bests::STAGE_HOLDER, &holder);
     Ok(())
 }

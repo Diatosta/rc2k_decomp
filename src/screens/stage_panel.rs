@@ -7,6 +7,7 @@ use crate::errors::Refused;
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
+use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
@@ -24,10 +25,6 @@ const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
-pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::menu::event_flow::dword(at)
-}
-
 /// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
 pub fn table_dword_at<H: ?Sized>(
     holder: &H,
@@ -52,7 +49,7 @@ pub fn label(
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it.
-pub fn build_second_heading(record: u32) -> Result<(), Refused> {
+pub fn build_second_heading(record: RecordRef) -> Result<(), Refused> {
     let bytes = heading_text(record, SECOND_HEADING_STRING)?;
     GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
         .write_bytes(&bytes, "the second stage heading")?;
@@ -70,7 +67,7 @@ pub fn build_second_heading(record: u32) -> Result<(), Refused> {
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
 pub fn draw_stage_body(
-    record: u32,
+    record: RecordRef,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
@@ -81,7 +78,7 @@ pub fn draw_stage_body(
 /// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
 /// `stru_51E5C4`.
 pub fn draw_stage_body_in(
-    record: u32,
+    record: RecordRef,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
     canvas: &mut dyn Canvas,
@@ -89,7 +86,7 @@ pub fn draw_stage_body_in(
     // Converted: `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
-    for call in marker_calls(record)? {
+    for call in marker_calls(record.record()?) {
         set_marker_position(&call);
         canvas.blit_glyph(call)?;
     }
@@ -124,7 +121,7 @@ pub fn draw_stage_body_in(
     let mut screen = PanelScreen::new(canvas);
     rc2k_core::screens::stage_panel::body(
         &mut screen,
-        dword(record.wrapping_add(0x10))?,
+        record.record()?.hhmm(),
         &entry,
         units(),
         heading,
@@ -159,10 +156,10 @@ pub fn best_of(
 /// `table`. Returns the carry flag.
 pub fn draw_records_from(
     table: &crate::menu::event_flow::StageTable,
-    record: u32,
+    record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let best = best_of(table, dword(record.wrapping_add(0x3C))?)?;
+    let best = best_of(table, record.record()?.event_slot())?;
     draw_stage_records(&best, canvas)
 }
 
@@ -171,7 +168,7 @@ pub fn draw_records_from(
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
 pub fn draw_records_for_group(
     group: u32,
-    record: u32,
+    record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     use crate::saves::best_times::{COURSE_TIMES, STAGE_TIMES};

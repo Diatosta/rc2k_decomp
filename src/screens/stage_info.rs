@@ -5,13 +5,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::arcade_store::ARCADE_GAME;
+use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
-use crate::menu::event_flow::dword as get;
-
-/// The page's stage record (none: 0).
-pub fn stage_record() -> Result<u32, BadInput> {
+/// The page's stage record.
+pub fn stage_record() -> Result<RecordRef, BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())?;
     crate::records::stages_store::row(base, ARCADE_GAME.stage.get())
 }
@@ -30,7 +29,11 @@ pub fn draw_stage_best_and_fastest(
     {
         let record = stage_record()?;
         let units = crate::strings::units::units();
-        crate::strings::append_speed::append_speed(get(record + 0x30)?, true, units)?;
+        crate::strings::append_speed::append_speed(
+            record.record()?.holder(RecordHolder::Fastest).speed,
+            true,
+            units,
+        )?;
         let name = times
             .name_text()
             .and_then(|t| Held::new(&t))
@@ -41,13 +44,12 @@ pub fn draw_stage_best_and_fastest(
             car: times.head.car,
             figure: times.head.key,
         };
+        let held = record.record()?.holder(RecordHolder::Fastest);
         let top = Holder {
-            nation: get(record + 0x74)?,
-            name: HeldText::Place(
-                crate::records::stages_store::STAGE_TABLES.record_text(record, 0x54),
-            ),
-            car: get(record + 0x78)?,
-            figure: get(record + 0x30)?,
+            nation: held.nation,
+            name: HeldText::Place(record.text(RecordHolder::Fastest.name_at())),
+            car: held.car,
+            figure: held.speed,
         };
         rc2k_core::screens::stage_panel::records(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas),
@@ -83,6 +85,6 @@ pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         crate::gfx::typefaces::fonts::TIME,
         canvas,
     )?;
-    let times = crate::screens::stage_panel::best_of(course_times, get(record + 0x3C)?)?;
+    let times = crate::screens::stage_panel::best_of(course_times, record.record()?.event_slot())?;
     draw_stage_best_and_fastest(&times, canvas)
 }

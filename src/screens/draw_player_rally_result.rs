@@ -22,9 +22,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let player = crate::menu::player_settings::current()?.get();
     let name = crate::screens::game_screen::player_name(crate::menu::player_name::name()?)?;
-    if (RALLY_STAGE_TIMES.records)()? == 0 {
-        return Err(crate::errors::BadInput("no rally stage records").into());
-    }
+    (RALLY_STAGE_TIMES.records)()?;
     let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(
         top_speed,

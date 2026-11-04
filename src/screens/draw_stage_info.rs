@@ -21,9 +21,10 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
+use crate::records::stages_store::RecordRef;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
-    TITLE_FONT, draw_records_from, draw_stage_body, dword, label, table_dword_at,
+    TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
 };
 use crate::text::draw_text::Canvas;
 
@@ -35,7 +36,7 @@ pub const TITLE_Y: i32 = 0x77;
 // ---- Rust version ----
 
 /// The record of the event's stage, and its section.
-pub fn event_stage() -> Result<(u32, u32), crate::errors::BadInput> {
+pub fn event_stage() -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = EVENT_STATE.section.get();
     let index: u32 = EVENT_STATE.index.get();
@@ -51,7 +52,7 @@ pub fn event_title() -> Result<u32, crate::errors::BadInput> {
     if CHAMP_VIEW.event_mode.get() == 0x13 {
         table_dword_at(&MENU_LISTS, &MENU_LISTS.section_titles, section)
     } else {
-        dword(first.wrapping_add(0x38))
+        Ok(first.record()?.name())
     }
 }
 

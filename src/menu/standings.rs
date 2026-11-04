@@ -226,7 +226,7 @@ pub fn current_event() -> Result<usize, BadInput> {
         return Err(BadInput("a record past the table"));
     }
     let record = crate::records::find_record::find_record_in(table, index as i32, section)?;
-    let event = get(record + 0x3C)? as usize;
+    let event = record.record()?.event_slot() as usize;
     if !crate::saves::best_times::STAGE_TIMES.with(|t| event < t.stages.len())? {
         return Err(BadInput("an event past the stages' best times"));
     }

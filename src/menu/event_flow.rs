@@ -15,6 +15,7 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::results_store::RESULT_FIGURES;
+use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 
 /// A game variable.
@@ -65,10 +66,6 @@ impl Fault {
         self.ok(crate::pointers::GamePtr::new(p).read::<T>(what))
     }
 
-    pub fn put(&self, p: u32, v: u32) {
-        self.ok(put(p, v));
-    }
-
     pub fn check(&self) -> Result<(), BadInput> {
         self.0.take().map_or(Ok(()), Err)
     }
@@ -81,10 +78,6 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
         Ok(value) => value,
         Err(e) => crate::fatal::raise::end(at, e),
     }
-}
-
-pub fn put(p: u32, v: u32) -> Result<(), crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(p).write(v, "a game value")
 }
 
 // ---- the variables ----
@@ -144,7 +137,7 @@ pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
 /// on the way (the original reads through it).
-pub fn stage_record() -> Result<u32, BadInput> {
+pub fn stage_record() -> Result<RecordRef, BadInput> {
     let kind = get(STAGE_KIND);
     if kind >= KINDS {
         return Err(BadInput("a stage kind past off_735512's four"));
@@ -163,7 +156,7 @@ pub fn stage_times() -> Result<(&'static StageTable, usize), BadInput> {
     } else {
         TIMES_OTHER
     };
-    let stage = dword(record + 0x3C)? as usize;
+    let stage = record.record()?.event_slot() as usize;
     if !table.with(|t| stage < t.stages.len())? {
         return Err(BadInput("a stage past its best times table"));
     }

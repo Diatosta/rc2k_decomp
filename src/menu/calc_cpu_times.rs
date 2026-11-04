@@ -24,6 +24,7 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
+use crate::records::stages_store::RecordRef;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
@@ -59,7 +60,7 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 }
 
 /// The current record (see `standings::current_event`'s checks).
-pub fn record() -> Result<u32, BadInput> {
+pub fn record() -> Result<RecordRef, BadInput> {
     current_event()?;
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let (section, index): (u32, u32) = (SECTION_RVA.get(), INDEX_RVA.get());
@@ -68,18 +69,13 @@ pub fn record() -> Result<u32, BadInput> {
 
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check(rec: u32) -> Result<(u32, &'static [Driver], u32), Refused> {
+pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
     let classes: u32 = EVENT_STATE.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
     let drivers = drivers()?;
-    let times = [
-        get(rec + 0x18)?,
-        get(rec + 0x1C)?,
-        get(rec + 0x20)?,
-        get(rec + 0x24)?,
-    ];
+    let times = rec.record()?.class_times();
     let (times, _) = scaled(times, held_section());
     let pack = crate::records::trakpak_entry::record_entry(rec)?;
     let length = get(pack + 0xC)?;
@@ -115,8 +111,8 @@ pub fn calc_cpu_times() -> Result<(), Refused> {
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
-    for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
-        MENU_STATE.menus.class_times[k].set(get(rec + t)?);
+    for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
+        MENU_STATE.menus.class_times[k].set(t);
     }
     crate::menu::scale_stage_times::scale_stage_times(rec)?;
     MENU_STATE.menus.track_length[0].set(length);

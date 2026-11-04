@@ -18,7 +18,7 @@ use crate::menu::menus_store::MENUS;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
-use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
+use crate::screens::stage_panel::{build_second_heading, table_dword_at};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 /// Where item 0's string goes, and where the original puts "item 1"'s.
@@ -49,7 +49,7 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
         )?,
         "a menu item's string",
     )?;
-    GamePtr::new(item_1).write(dword(s.table.wrapping_add(0x38))?, "a menu item's string")?;
+    GamePtr::new(item_1).write(s.table.title()?, "a menu item's string")?;
 
     Ok(())
 }

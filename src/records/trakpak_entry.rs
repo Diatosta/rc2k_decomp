@@ -12,7 +12,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::pointers::GamePtr;
+use crate::records::stages_store::RecordRef;
 
 // ---- game data ----
 
@@ -46,15 +46,13 @@ pub fn trakpak_entry(
         .ok_or(INVALID_HEADER)
 }
 
-/// The entry for the record at `record`, in the pack the game has loaded.
-pub fn record_entry(record: u32) -> Result<u32, Refused> {
-    let record = GamePtr::new(record);
-    let index = record.offset(4).read::<u32>("a record\'s pack entry")?;
-    let pack_id = record.offset(8).read::<u32>("a record\'s pack id")?;
+/// The entry for `record`'s track (+4, +8 the pack's id), in the pack the game has loaded.
+pub fn record_entry(record: RecordRef) -> Result<u32, Refused> {
+    let record = record.record()?;
     Ok(trakpak_entry(
         crate::records::stages_store::STAGE_TABLES.trak_pak(),
-        index,
-        pack_id,
+        record.track(),
+        record.pack_id(),
         loaded_pack_id(),
     )?)
 }

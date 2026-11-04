@@ -22,7 +22,7 @@ use crate::menu::results_store::RESULT_FIGURES;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::stage_panel::{
-    TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, dword, label,
+    TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
     table_dword_at,
 };
 use crate::session::Dword;
@@ -56,7 +56,7 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     RACE_STATE.settings.direction.set(sel.group);
     label(
         canvas,
-        dword(sel.table.wrapping_add(0x38))?,
+        sel.table.title()?,
         TITLE_FONT,
         TITLE_X,
         TABLE_TITLE_Y,
