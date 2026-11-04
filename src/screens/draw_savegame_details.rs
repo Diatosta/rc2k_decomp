@@ -52,12 +52,22 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     {
-        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
+        // The read file's dwords and cars, by offset in it.
+        let file = &SAVE_GAMES.file;
+        let saved_dword = |at: usize| -> Result<u32, crate::errors::BadInput> {
+            let b = file.read_at(at, 4, "a saved game's head")?;
+            Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        };
         for (n, cell) in SAVEGAME_PREVIEW.saved.iter().enumerate() {
-            cell.set(dword(payload + 4 * n as u32)?);
+            cell.set(saved_dword(PAYLOAD_OFFSET + 4 * n)?);
         }
-        let cars = payload + 4 * SAVEGAME_PREVIEW.saved.len() as u32;
-        SAVEGAME_PREVIEW.saved_cars.set(cars);
+        let cars_at = PAYLOAD_OFFSET + 4 * SAVEGAME_PREVIEW.saved.len();
+        // Kept as an address: `saves::load_savegame` reads the cars from there.
+        SAVEGAME_PREVIEW.saved_cars.set(
+            crate::pointers::GamePtr::to(file)
+                .offset(cars_at as u32)
+                .addr(),
+        );
         let players = SAVEGAME_PREVIEW.saved[0].get() as i32;
         let index = SAVEGAME_PREVIEW.saved[2].get() as i32;
         let section = SAVEGAME_PREVIEW.saved[3].get();
@@ -72,24 +82,25 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
             },
             stage: dword(find_record_in(table, index, section)? + 0x40)?,
         };
-        let f = crate::menu::event_flow::Fault::default();
-        let car = |row: usize| {
-            let car = cars + (row * CAR_LEN) as u32;
-            Car {
+        let car = |row: usize| -> Result<Car<_>, crate::errors::BadInput> {
+            let at = cars_at + row * CAR_LEN;
+            let bytes = file.read_at(at, CAR_LEN, "a saved car")?;
+            let p = rc2k_core::menu::player::Player::from_le_bytes(
+                bytes.try_into().expect("CAR_LEN bytes"),
+            );
+            Ok(Car {
                 // The saved car's copy of its player's name (+0x124), read as far as its NUL
                 // inside the read file.
                 name: crate::screens::game_screen::HeldText::Place(
-                    crate::pointers::GamePtr::to(&SAVE_GAMES.file)
-                        .offset(car.wrapping_sub(SAVE_GAMES.file.addr()) + 0x124),
+                    crate::pointers::GamePtr::to(file).offset((at + 0x124) as u32),
                 ),
-                nation: f.get(car + 4),
-                car: f.get(car + 8),
-                numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| f.get(car + o)),
-                shown: [f.get(car + 0xB0) != 0, f.get(car + 0xCC) != 0],
-            }
+                nation: p.nationality,
+                car: p.car_number,
+                numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| p.word(o)),
+                shown: [p.word(0xB0) != 0, p.word(0xCC) != 0],
+            })
         };
-        let cars = [car(0), car(1), car(2), car(3)];
-        f.check()?;
+        let cars = [car(0)?, car(1)?, car(2)?, car(3)?];
         details(
             &mut crate::screens::game_screen::PreviewScreen::new(canvas),
             title,
