@@ -20,15 +20,12 @@ use crate::text::draw_text::Canvas;
 /// (id, x, y, font) of the labels.
 /// The Rust version.
 pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let p = crate::menu::player_settings::current()?;
-    let fault = crate::menu::event_flow::Fault::default();
-    let f = |o: u32| p.get().word(o as usize);
+    let player = crate::menu::player_settings::current()?.get();
     let name = crate::screens::game_screen::player_name(crate::menu::player_name::name()?)?;
     if (RALLY_STAGE_TIMES.records)()? == 0 {
         return Err(crate::errors::BadInput("no rally stage records").into());
     }
-    let top_speed = f(0x94);
-    fault.check()?;
+    let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(
         top_speed,
         true,
@@ -38,12 +35,11 @@ pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
     use crate::screens::game_screen::PlayerResultScreen;
     let p = rc2k_core::screens::player_result::Player {
         name,
-        nation: f(4),
-        car: f(8),
-        time: f(0x88),
+        nation: player.nationality,
+        car: player.car_number,
+        time: player.time,
         speed,
     };
-    fault.check()?;
     let figures = rc2k_core::screens::player_result::RallyFigures {
         position: RESULT_FIGURES.positions[0].get(),
         best: RESULT_FIGURES.time_bonus[0].get(),

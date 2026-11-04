@@ -41,7 +41,7 @@ fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
         .collect()
 }
 
-fn place_pointer(offset: u32) -> Result<u32, Refused> {
+fn place_pointer(offset: u32) -> Result<&'static crate::session::Dword, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the place pointers").into());
     }
@@ -58,7 +58,7 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::results::rank`.
     let pairs =
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
-    let targets: Vec<u32> = pairs
+    let targets: Vec<_> = pairs
         .iter()
         .map(|&(o, _)| place_pointer(o))
         .collect::<Result<_, _>>()?;
@@ -69,9 +69,8 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     }
     DRAW_WORK.work_b4.set(3);
     DRAW_WORK.work_b8.set(4);
-    for (k, &to) in targets.iter().enumerate() {
-        crate::pointers::GamePtr::new(to)
-            .write::<u32>(k as u32 + 1, "results setups: a game value")?;
+    for (k, to) in targets.iter().enumerate() {
+        to.set(k as u32 + 1);
     }
     Ok(())
 }

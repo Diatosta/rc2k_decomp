@@ -24,8 +24,9 @@ pub enum Var {
     SetUpDriver,
     SetUpDriver2,
     SetUpSection,
-    /// A dword of the player chosen (its offset).
-    Racer(u32),
+    /// The chosen player's race number (+0x28) and car (+8).
+    RacerNumber,
+    RacerCar,
 }
 
 /// The steps, by the place the hook crate calls them at.
@@ -119,13 +120,14 @@ pub trait Finish {
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
 }
 
-/// The race's set-up from the racer: its +0x28, +8 twice, `dword_75ACE4` 0, the section.
+/// The race's set-up from the racer: its race number, its car twice, `dword_75ACE4` 0, the
+/// section.
 fn set_up<F: Finish>(e: &mut F) {
-    let car = e.get(Var::Racer(0x28));
+    let car = e.get(Var::RacerNumber);
     e.set(Var::SetUpCar, car);
-    let driver = e.get(Var::Racer(8));
+    let driver = e.get(Var::RacerCar);
     e.set(Var::SetUpDriver, driver);
-    let driver = e.get(Var::Racer(8));
+    let driver = e.get(Var::RacerCar);
     e.set(Var::SetUpDriver2, driver);
     e.set(Var::Kept, 0);
     let section = e.get(Var::Section);
@@ -206,7 +208,8 @@ mod tests {
         fn get(&mut self, v: Var) -> u32 {
             match v {
                 Var::EventMode => self.mode,
-                Var::Racer(o) => o,
+                Var::RacerNumber => 0x28,
+                Var::RacerCar => 8,
                 _ => 7,
             }
         }

@@ -27,7 +27,7 @@ pub fn best_overall_scores() -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::bests::makes_score`.
         let tenth = tenth_best_score(4)?;
         if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-            enter_best(Some(4), 0xCC)?;
+            enter_best(Some(4), |p| p.overall_points[6])?;
             EVENT_STATE.any_time_qualified.set(1u32);
         }
     }

@@ -7,7 +7,7 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
-/// edi) the racer fields are read and written through: a player's, or a standings entry.
+/// edi) the racer fields are read through: a player's.
 pub struct Game {
     pub racer: RacerAt,
     /// A refused read or write of the core's variables (checked at each step and at the end).
@@ -27,43 +27,28 @@ impl Game {
     }
 }
 
-/// Where the racer's fields are: a player's record or an entry of
-/// the championship history (table B).
+/// The player the racer's fields are read from (the original's edi). After the leader's
+/// search edi is a standings entry, but the flows read the racer only after choosing a
+/// player (`Racer::Leader`) or finding one done (`find_done`): no entry is read as one.
 #[derive(Clone, Copy)]
 pub enum RacerAt {
     None,
     Player(crate::menu::standings::PlayerCell),
-    History(usize),
 }
 
-const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no racer chosen");
-const PAST_ENTRY: crate::errors::BadInput = BadInput("a racer's field past its entry");
+const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no player chosen");
+const RACER_SET: crate::errors::BadInput = BadInput("a racer's field written");
 
 impl Game {
-    fn racer_get(&self, offset: u32) -> u32 {
-        match self.racer {
-            RacerAt::None => {
-                self.fault.ok::<u32>(Err(NO_RACER));
-                0
-            }
-            RacerAt::Player(p) => p.get().word(offset as usize),
-            RacerAt::History(n) => {
-                self.fault.ok(
-                    crate::menu::standings::with_b(|t| t.entries[n].dword_at(offset))
-                        .and_then(|v| v.ok_or(PAST_ENTRY)),
-                )
-            }
-        }
-    }
-
-    fn racer_set(&self, offset: u32, value: u32) {
-        match self.racer {
-            RacerAt::None => self.fault.ok(Err(NO_RACER)),
-            RacerAt::Player(p) => p.update(|q| q.store(&[(offset as usize, value)])),
-            RacerAt::History(n) => self.fault.ok(crate::menu::standings::with_b(|t| {
-                t.entries[n].set_dword_at(offset, value)
-            })
-            .and_then(|v| v.ok_or(PAST_ENTRY))),
+    fn racer_get(&self, v: Var) -> u32 {
+        let RacerAt::Player(p) = self.racer else {
+            self.fault.ok::<u32>(Err(NO_RACER));
+            return 0;
+        };
+        let p = p.get();
+        match v {
+            Var::RacerNumber => p.race_number,
+            _ => p.car_number,
         }
     }
 }
@@ -89,7 +74,7 @@ impl finish::Finish for Game {
 
     fn get(&mut self, v: Var) -> u32 {
         match v {
-            Var::Racer(offset) => self.racer_get(offset),
+            Var::RacerNumber | Var::RacerCar => self.racer_get(v),
             _ => match cell(v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -99,7 +84,7 @@ impl finish::Finish for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Racer(offset) => self.racer_set(offset, value),
+            Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -113,7 +98,7 @@ impl finish::Finish for Game {
         } else {
             crate::menu::first_player_unplaced::first_player_unplaced()?
         };
-        self.racer = RacerAt::History(found.entry);
+        self.racer = RacerAt::None;
         Ok((found.figure == 1).then_some(found.computers))
     }
 

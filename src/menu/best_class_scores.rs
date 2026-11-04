@@ -34,7 +34,7 @@ pub fn best_class_scores() -> Result<(), Refused> {
                 // Converted: `rc2k_core::menu::bests::makes_score`.
                 let tenth = tenth_best_score(class)?;
                 if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-                    enter_best(None, 0xB0)?;
+                    enter_best(None, |p| p.stage_points[6])?;
                     EVENT_STATE.any_time_qualified.set(1u32);
                 }
             }

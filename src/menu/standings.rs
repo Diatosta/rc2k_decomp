@@ -268,11 +268,14 @@ pub fn sort_table_a(key: rc2k_core::saves::entries::Field) -> Result<(), BadInpu
 }
 
 /// The current player's (`dword_75598C`) best score entered at the bottom of `group`'s ten
-/// (`saves::best_times::SCORES`, entry 9): its score (the record's `score_at`), its number
-/// plus 1, `new` 1, the nationality and car (its +4 / +8), its group (+0x90), its name pointer
-/// and the name's 0x1F bytes; then moved up its group. Refused for a current player past
-/// 3 or missing, no name, no table or a group past 4.
-pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
+/// (`saves::best_times::SCORES`, entry 9): its score (`score` of its record), its number
+/// plus 1, `new` 1, the nationality and car, its class, its name pointer and the name's 0x1F
+/// bytes; then moved up its group. Refused for a current player past 3 or missing, no name,
+/// no table or a group past 4.
+pub fn enter_best(
+    group: Option<u32>,
+    score: fn(&rc2k_core::menu::player::Player) -> u32,
+) -> Result<(), BadInput> {
     let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
@@ -288,7 +291,7 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     let name_ref = p.get().name;
     let best = s::Best {
         player: n + 1,
-        score: p.get().word(score_at as usize),
+        score: score(&p.get()),
         nation: p.get().nationality,
         car: p.get().car_number,
         group: p.get().class,

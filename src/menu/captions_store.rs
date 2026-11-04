@@ -26,7 +26,7 @@ pub struct CaptionTables {
     /// `g_placePoints`: The points of each place (0, 20000, ..., -1 ends).
     pub place_points: [Dword; 22],
     /// `off_758982`: The four positions in `Results::positions`, by byte offset, kept as IDA's
-    /// addresses, as names (phase 13; `CaptionTables::place_of` makes the real address).
+    /// addresses, as names (phase 13; `CaptionTables::place_of` finds the cell).
     pub place_pointers: [Dword; 4],
     /// `off_758992`: The four sums in `Results::sums` (names, `CaptionTables::sum_of`).
     pub sum_pointers: [Dword; 4],
@@ -45,18 +45,39 @@ pub struct CaptionTables {
 }
 
 impl CaptionTables {
-    /// Where a result array's name lands: in `menu::results_store`'s piece.
-    fn result_at(name: &Dword) -> Result<u32, BadInput> {
-        crate::moved::named_in(
-            name.get(),
-            crate::menu::results_store::START,
-            crate::menu::results_store::END - crate::menu::results_store::START,
-            "a results pointer off the results",
-        )
+    /// The results' cell a name (an IDA address in `menu::results_store`'s piece) names;
+    /// refused off the piece's dwords.
+    fn result_at(name: &Dword) -> Result<&'static Dword, BadInput> {
+        use crate::menu::results_store::{RESULT_FIGURES as R, Results, START};
+        use std::mem::offset_of;
+        let at = (name.get() as usize).wrapping_sub(START);
+        let arrays: [(usize, &'static [Dword]); 10] = [
+            (offset_of!(Results, round), std::slice::from_ref(&R.round)),
+            (offset_of!(Results, group_titles), &R.group_titles),
+            (offset_of!(Results, order), &R.order),
+            (offset_of!(Results, time_bonus), &R.time_bonus),
+            (offset_of!(Results, positions), &R.positions),
+            (offset_of!(Results, points), &R.points),
+            (offset_of!(Results, extra), &R.extra),
+            (offset_of!(Results, sums), &R.sums),
+            (offset_of!(Results, before), &R.before),
+            (offset_of!(Results, totals), &R.totals),
+        ];
+        arrays
+            .iter()
+            .chain([&(offset_of!(Results, pairs), &R.pairs[..])])
+            .find_map(|&(first, cells)| {
+                let d = at.checked_sub(first)?;
+                if d % 4 != 0 {
+                    return None;
+                }
+                cells.get(d / 4)
+            })
+            .ok_or(BadInput("a results pointer off the results' dwords"))
     }
 
-    /// Where position `k` of the results is (`Results::positions[k]`).
-    pub fn place_of(k: usize) -> Result<u32, BadInput> {
+    /// Position `k` of the results (`Results::positions[k]`).
+    pub fn place_of(k: usize) -> Result<&'static Dword, BadInput> {
         let name = CAPTIONS
             .place_pointers
             .get(k)
@@ -64,8 +85,8 @@ impl CaptionTables {
         Self::result_at(name)
     }
 
-    /// Where sum `k` of the results is (`Results::sums[k]`).
-    pub fn sum_of(k: usize) -> Result<u32, BadInput> {
+    /// Sum `k` of the results (`Results::sums[k]`).
+    pub fn sum_of(k: usize) -> Result<&'static Dword, BadInput> {
         let name = CAPTIONS
             .sum_pointers
             .get(k)
@@ -73,8 +94,8 @@ impl CaptionTables {
         Self::result_at(name)
     }
 
-    /// Where total `k` of the results is (`Results::totals[k]`).
-    pub fn total_of(k: usize) -> Result<u32, BadInput> {
+    /// Total `k` of the results (`Results::totals[k]`).
+    pub fn total_of(k: usize) -> Result<&'static Dword, BadInput> {
         let name = CAPTIONS
             .total_pointers
             .get(k)
@@ -369,7 +390,6 @@ mod tests {
         at(offset_of!(CaptionTables, caption_lists), 0x758A12);
         // The three pointer tables' entries are the image's addresses, names of the results'
         // arrays: they resolve to what the image's address named.
-        let results = crate::menu::results_store::results_addr();
         let image = image_bytes(0x758982, 0x7589B6 - 0x758982);
         for (table, from, positions) in [
             (0x758982, 0, 0x758768),
@@ -385,10 +405,12 @@ mod tests {
                     CaptionTables::sum_of,
                     CaptionTables::total_of,
                 ][from](k);
-                assert_eq!(
-                    resolved,
-                    Ok(results + (name as usize - crate::menu::results_store::START) as u32)
-                );
+                let cells = [
+                    &crate::menu::results_store::RESULT_FIGURES.positions,
+                    &crate::menu::results_store::RESULT_FIGURES.sums,
+                    &crate::menu::results_store::RESULT_FIGURES.totals,
+                ][from];
+                assert!(std::ptr::eq(resolved.unwrap(), &raw const cells[k]));
             }
             assert!(CaptionTables::sum_of(4).is_err());
         }

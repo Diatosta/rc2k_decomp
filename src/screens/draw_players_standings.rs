@@ -31,24 +31,22 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         if PLAYER_TABLE.players[row].get().name == 0 {
             return Err(BadInput("a standings row without its name").into());
         }
-        *total = CaptionTables::total_of(row)?;
+        *total = CaptionTables::total_of(row)?.get();
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
-    let fault = crate::menu::event_flow::Fault::default();
-    let field = |row: usize, o: u32| PLAYER_TABLE.players[row].get().word(o as usize);
+    let player = |row: usize| PLAYER_TABLE.players[row].get();
     let rows: Vec<
         rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,
     > = (0..rows)
         .map(|row| {
             Ok(rc2k_core::screens::players_results::Standing {
-                name: crate::screens::game_screen::player_name(field(row, 0x18))?,
-                nation: field(row, 4),
-                car: field(row, 8),
-                points: fault.get(totals[row]),
+                name: crate::screens::game_screen::player_name(player(row).name)?,
+                nation: player(row).nationality,
+                car: player(row).car_number,
+                points: totals[row],
             })
         })
         .collect::<Result<_, BadInput>>()?;
-    fault.check()?;
     rc2k_core::screens::players_results::standings(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &rows,

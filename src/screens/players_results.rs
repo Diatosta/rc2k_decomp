@@ -39,8 +39,8 @@ fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
     Ok(p)
 }
 
-/// The row's points' place (`off_758992[offset]`).
-fn points_at(row: usize) -> Result<u32, Refused> {
+/// The row's points (`off_758992[offset]`).
+fn points_at(row: usize) -> Result<&'static crate::session::Dword, Refused> {
     Ok(CaptionTables::sum_of(offset(row) as usize / 4)?)
 }
 
@@ -118,7 +118,7 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
                 time: p.get().time,
                 speed,
                 points: if layout.points {
-                    get(points_at(row)?)?
+                    points_at(row)?.get()
                 } else {
                     0
                 },

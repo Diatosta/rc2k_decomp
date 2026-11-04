@@ -133,24 +133,6 @@ impl HistoryEntry {
         put(b, 0x74, self.status);
     }
 
-    /// The dword at `offset` (the finishing steps' racer fields, read by offset).
-    pub fn dword_at(&self, offset: u32) -> Option<u32> {
-        let mut b = [0; HISTORY_LEN];
-        self.write(&mut b);
-        let at = offset as usize;
-        b.get(at..at + 4).map(|d| dword(d, 0))
-    }
-
-    /// The dword at `offset` set to `v`; None past the entry.
-    pub fn set_dword_at(&mut self, offset: u32, v: u32) -> Option<()> {
-        let mut b = [0; HISTORY_LEN];
-        self.write(&mut b);
-        let at = offset as usize;
-        b.get_mut(at..at + 4)?.copy_from_slice(&v.to_le_bytes());
-        *self = Self::read(&b);
-        Some(())
-    }
-
     /// The text the game draws for the name: from +0x14 to the first NUL. None: no NUL
     /// before the entry's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
@@ -573,7 +555,7 @@ mod tests {
         let mut out = vec![0; HISTORY_LEN];
         e.write(&mut out);
         assert_eq!(out, bytes);
-        assert_eq!(e.dword_at(0x6C), Some(e.stage[6]));
+        assert_eq!(&out[0x6C..0x70], &e.stage[6].to_le_bytes());
         assert_eq!(Summary::zeroed(0x1C20).unwrap().write().len(), 0x1C20);
     }
 

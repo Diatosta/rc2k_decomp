@@ -19,13 +19,9 @@ use crate::text::draw_text::Canvas;
 
 /// The Rust version.
 pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let player = crate::menu::player_settings::current()?;
-    let p = player;
-    let fault = crate::menu::event_flow::Fault::default();
-    let f = |o: u32| p.get().word(o as usize);
+    let player = crate::menu::player_settings::current()?.get();
     let name = crate::screens::game_screen::player_name(crate::menu::player_name::name()?)?;
-    let top_speed = f(0x94);
-    fault.check()?;
+    let top_speed = player.figure;
     let mut speed = crate::strings::append_speed::append_speed(
         top_speed,
         true,
@@ -40,12 +36,11 @@ pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
     speed.pop();
     let p = rc2k_core::screens::player_result::Player {
         name,
-        nation: f(4),
-        car: f(8),
-        time: f(0x88),
+        nation: player.nationality,
+        car: player.car_number,
+        time: player.time,
         speed,
     };
-    fault.check()?;
     rc2k_core::screens::player_result::stage_result(
         &mut PlayerResultScreen::new(canvas),
         &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),

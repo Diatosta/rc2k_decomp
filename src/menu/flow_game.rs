@@ -15,8 +15,6 @@ use crate::session::Dword;
 use rc2k_core::menu::flow::{self, Picture, Var};
 
 pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
-const PLAYER_TIME: u32 = 0x88;
-const PLAYER_ENTRY: u32 = 0xD0;
 
 #[derive(Default)]
 pub struct Game {
@@ -44,12 +42,28 @@ impl Game {
     }
 }
 
+/// The player's fields the flows read and write.
+#[derive(Clone, Copy)]
+enum PlayerField {
+    Time,
+    Entry,
+}
+
+impl PlayerField {
+    fn of(self, p: &mut rc2k_core::menu::player::Player) -> &mut u32 {
+        match self {
+            PlayerField::Time => &mut p.time,
+            PlayerField::Entry => &mut p.entry,
+        }
+    }
+}
+
 /// Where a variable is.
 enum Place {
     /// A variable of the front end's or the physics block's.
     Cell(&'static Dword),
     /// Player n's field (edi the player).
-    Player(u32, u32),
+    Player(u32, PlayerField),
     /// The found record's field.
     Record(u32),
     /// `g_quitting` (the session's).
@@ -81,8 +95,8 @@ fn place(v: Var) -> Place {
         Var::CarListKind => Cell(CAR_LIST_KIND),
         Var::Cheats => Cell(CHEATS),
         Var::Cleared(k) => Cell(&RESULT_FIGURES.before[k as usize]),
-        Var::PlayerTime(n) => Place::Player(n, PLAYER_TIME),
-        Var::PlayerEntry(n) => Place::Player(n, PLAYER_ENTRY),
+        Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
+        Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
         Var::Continuing => Cell(CONTINUING),
         Var::StagesDone => Cell(champ::STAGES_DONE),
         Var::ResetTimes => Cell(champ::RESET_TIMES),
@@ -128,7 +142,7 @@ impl flow::Game for Game {
     fn get(&mut self, v: Var) -> u32 {
         match place(v) {
             Place::Cell(cell) => cell.get(),
-            Place::Player(n, offset) => player(n).get().word(offset as usize),
+            Place::Player(n, field) => *field.of(&mut player(n).get()),
             Place::Record(offset) => self.fault.get(self.record + offset),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
@@ -137,9 +151,7 @@ impl flow::Game for Game {
     fn set(&mut self, v: Var, value: u32) {
         match place(v) {
             Place::Cell(cell) => cell.set(value),
-            Place::Player(n, offset) => {
-                player(n).update(|q| q.store(&[(offset as usize, value)]));
-            }
+            Place::Player(n, field) => player(n).update(|q| *field.of(q) = value),
             Place::Record(offset) => self.fault.put(self.record + offset, value),
             Place::Quitting => crate::session::FLAGS.quitting.set(value),
         }
