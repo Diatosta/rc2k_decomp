@@ -79,8 +79,7 @@ pub fn load_savegame() -> Result<(), Refused> {
     }
     SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
     if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
-        let saved = SAVEGAME_PREVIEW.saved_cars.get();
-        crate::saves::keep_player_settings::keep_player_settings(saved)?;
+        crate::saves::keep_player_settings::keep_player_settings(cursor)?;
     }
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;
 

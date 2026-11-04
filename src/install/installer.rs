@@ -216,7 +216,7 @@ pub fn resolve_path(path: impl Into<Place>) -> Result<crate::pointers::GamePtr, 
 
 /// `files::find_first` (0x402FC2): whether a file was found.
 pub fn find_first(pattern: impl Into<Place>) -> bool {
-    crate::race::find_snapshot_number::find_first(pattern.into().game())
+    crate::race::find_snapshot_number::find_first(pattern.into().game_ptr())
 }
 
 /// `files::find_next_wanted` (0x402FF6): whether a file was found.

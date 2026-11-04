@@ -16,14 +16,13 @@ use crate::pointers::GamePtr;
 
 const CAR_LEN: u32 = rc2k_core::saves::cars::SAVED_CAR_LEN as u32;
 
-pub fn keep_player_settings(cars: u32) -> Result<(), Refused> {
-    if cars == 0 {
+pub fn keep_player_settings(cars: GamePtr) -> Result<(), Refused> {
+    if cars.is_null() {
         return Err(BadInput("no saved cars").into());
     }
     for n in 0..PLAYERS {
         // The saved cars lie in the savegame file's buffer (`saves::load_savegame`'s cursor).
-        let file = GamePtr::to(&crate::saves::write_savegame_slot::SAVE_GAMES.file);
-        let to = file.offset(cars.wrapping_add(n * CAR_LEN).wrapping_sub(file.addr()));
+        let to = cars.offset(n * CAR_LEN);
         let player = crate::menu::standings::player(n).get().to_le_bytes();
         let mut kept = Vec::new();
         rc2k_core::saves::cars::keep_settings(&player, &mut |at, b| kept.push((at, b)))?;

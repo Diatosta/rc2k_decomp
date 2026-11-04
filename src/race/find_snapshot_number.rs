@@ -44,8 +44,8 @@ pub fn find_next_wanted() -> bool {
 
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
 /// becomes `g_lastFilePath`) not of the skipped attributes; false (carry) when none.
-pub fn find_first(pattern: u32) -> bool {
-    find_first_at(GamePtr::new(pattern))
+pub fn find_first(pattern: GamePtr) -> bool {
+    find_first_at(pattern)
 }
 
 /// `find_first` for a pattern held in Rust's game state.

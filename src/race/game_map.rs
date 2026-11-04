@@ -302,6 +302,8 @@ pub fn load_game_map(picture: GamePtr, key_path: GamePtr) -> Result<(), Refused>
         return Ok(());
     }
     MAP.tile_count.set(0u32);
+    // The game variables keep the paths (nothing else reads them); this function goes on with
+    // the typed pointers it was given.
     MAP.picture_path.set(picture.addr());
     MAP.key_path.set(key_path.addr());
     let (bytes, format) = take_format()?;
@@ -327,7 +329,7 @@ pub fn load_game_map(picture: GamePtr, key_path: GamePtr) -> Result<(), Refused>
     PICTURE.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
         if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring(
-            crate::pointers::GamePtr::new(MAP.key_path.get()),
+            key_path,
             "the key sheet's path",
         )?)? {
             return Ok(());
@@ -378,9 +380,7 @@ pub fn load_game_map(picture: GamePtr, key_path: GamePtr) -> Result<(), Refused>
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels((marked << 8).wrapping_mul(bytes))?;
-        if !crate::gfx::read_picture_file::read_picture_file(&crate::pointers::GamePtr::new(
-            MAP.picture_path.get(),
-        ))? {
+        if !crate::gfx::read_picture_file::read_picture_file(&picture)? {
             return Ok(());
         }
         MAP.tile_count.set(0u32);

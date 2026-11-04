@@ -9,18 +9,18 @@ use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::SOUND_KINDS;
 
-fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a sound table word")
+fn get(at: GamePtr) -> Result<u32, BadInput> {
+    at.read("a sound table word")
 }
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a sound table word")
+fn put(at: GamePtr, v: u32) -> Result<(), BadInput> {
+    at.write(v, "a sound table word")
 }
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
 /// mask (`and 0xFF000000`).
-pub fn whole_to_float(at: u32) -> Result<u32, BadInput> {
+pub fn whole_to_float(at: GamePtr) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
     // at every precision, so no exact twin).
     let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at)?);
@@ -38,21 +38,21 @@ fn span_plain(second: u32, first: u32) -> u32 {
 /// (at `at` + 8) their difference (`fld` / `fsub` / `fstp`). Its leftovers (eax, ebx) are
 /// read by no caller (`prepare_sound_tables` and `sound_row` only).
 // Converted: `rc2k_core::race::sound_tables::span`.
-pub fn sound_span(at: u32) -> Result<(), BadInput> {
+pub fn sound_span(at: GamePtr) -> Result<(), BadInput> {
     whole_to_float(at)?;
-    whole_to_float(at + 4)?;
-    put(at + 8, span_plain(get(at + 4)?, get(at)?))
+    whole_to_float(at.offset(4))?;
+    put(at.offset(8), span_plain(get(at.offset(4))?, get(at)?))
 }
 
 /// `race::sound_row` (0x40D731), converted: a row at `row`: +4, +8, +0xC made floats, spans
 /// at +0x10 and +0x1C. Its leftovers are read by no caller.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
-pub fn sound_row(row: u32) -> Result<(), BadInput> {
+pub fn sound_row(row: GamePtr) -> Result<(), BadInput> {
     for off in [4, 8, 0xC] {
-        whole_to_float(row + off)?;
+        whole_to_float(row.offset(off))?;
     }
-    sound_span(row + 0x10)?;
-    sound_span(row + 0x1C)
+    sound_span(row.offset(0x10))?;
+    sound_span(row.offset(0x1C))
 }
 
 /// Where `prepare_sound_tables` finds its variables (the game's, or a test's).
@@ -90,14 +90,14 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     }
     v.done.set(1);
     for n in 0..RECORDS {
-        let record = crate::sound::sets_store::SoundKinds::record_of(n)?;
-        sound_span(record + 4)?;
+        let record = GamePtr::new(crate::sound::sets_store::SoundKinds::record_of(n)?);
+        sound_span(record.offset(4))?;
         put(
-            record + 0xC,
-            reciprocal(f32::from_bits(get(record + 0xC)?)).to_bits(),
+            record.offset(0xC),
+            reciprocal(f32::from_bits(get(record.offset(0xC))?)).to_bits(),
         )?;
         for k in 0..3 {
-            sound_row(record + 0x10 + 0x28 * k)?;
+            sound_row(record.offset(0x10 + 0x28 * k))?;
         }
     }
     let (table, last) = sines();
