@@ -19,8 +19,8 @@ use std::mem::offset_of;
 /// The Rust version: the registers it leaves (the entry's).
 pub fn take_player_settings() -> Result<(), Refused> {
     let player = &PLAYER_TABLE.players[0];
-    // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
-    player.update(|p| p.store(&[(settings::TAKEN_MARK as usize, 1)]));
+    // Converted: `rc2k_core::net::settings::copies`; the record marked as taking part.
+    player.update(|p| p.entry = rc2k_core::menu::player::TAKES_PART);
     // The copies run on past the settings into the results, so the bound is the whole state.
     let to = GamePtr::to(&RACE_STATE).offset(
         (offset_of!(RaceState, settings) + offset_of!(RaceSettings, car_kind_current)) as u32,

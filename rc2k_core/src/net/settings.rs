@@ -7,9 +7,6 @@
 /// The settings' bytes.
 pub const LEN: usize = 0x3A8;
 
-/// The record's dword made 1 when its settings are taken.
-pub const TAKEN_MARK: u32 = 0xD0;
-
 /// One copy from the record into the settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Copy {
