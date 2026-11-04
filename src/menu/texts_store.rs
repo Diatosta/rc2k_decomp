@@ -2116,8 +2116,8 @@ const fn speech_key(ida: u32) -> u32 {
 /// A speech row's end mark.
 pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 
-/// The entry at `place` of the speech row `row` (its `text_key`): the sample name's address,
-/// or `SPEECH_END`.
+/// The entry at `place` of the speech row `row` (its `text_key`): the sample name's key
+/// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput> {
     let entry = text_at(row)?
         .offset(place.wrapping_mul(4))
@@ -2126,7 +2126,8 @@ pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
     }
-    Ok(crate::audio::store::name_at(entry)?.addr())
+    crate::audio::store::name_at(entry)?;
+    Ok(entry)
 }
 
 /// A text's handle (phase 13): its place in `MENU_TEXTS` (the original kept its address). 0
@@ -2183,7 +2184,8 @@ mod tests {
                 continue;
             }
             names += 1;
-            let text = crate::pointers::GamePtr::new(found)
+            let text = crate::audio::store::name_at(found)
+                .unwrap()
                 .read_bytes(16, "a name")
                 .unwrap();
             assert_eq!(text, image_bytes(wanted as usize, 16), "{at:#x}");

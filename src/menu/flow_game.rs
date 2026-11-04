@@ -281,8 +281,9 @@ impl flow::Game for Game {
             C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
             C::StartStream { channel } => {
                 // ";3files\%speech\rally\rally0.wav"
-                let path = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr();
-                crate::sound::start_stream::start_stream(path, channel);
+                use crate::audio::names_store::SampleNames;
+                let name = core::mem::offset_of!(SampleNames, rally_speech) as u32;
+                crate::sound::start_stream::start_stream(name, channel);
             }
             C::WaitForCommands => crate::sound::wait_for_commands::wait_in_game(),
             C::StopStream => crate::sound::stop_stream::stop_stream(),

@@ -15,16 +15,18 @@
 use crate::audio::store::AUDIO;
 use crate::audio::stream::*;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::session::Shared;
 
 fn playing(player: &Shared<AudioStream>) -> bool {
     player.get().playing == 1
 }
 
-/// The core's player: one of the game's stream players, `path` the file it starts.
+/// The core's player: one of the game's stream players, `path` the file it starts (none for a
+/// stop: the core starts nothing then).
 struct GamePlayer {
     player: &'static Shared<AudioStream>,
-    path: crate::pointers::GamePtr,
+    path: Option<crate::pointers::GamePtr>,
 }
 
 impl GamePlayer {
@@ -47,7 +49,9 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
         self.player.update(|s| s.volume = volume);
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        let path = self.path;
+        let path = self
+            .path
+            .ok_or(crate::errors::BadInput("a stream started without a file"))?;
         self.with(|s| start_stream(s, path))
     }
     fn feed(&mut self) -> Result<(), Refused> {
@@ -64,12 +68,15 @@ impl rc2k_core::audio::streams::Player for GamePlayer {
 impl rc2k_core::audio::streams::Tunes for GamePlayer {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
-        if let Err(e) = self.path.offset(0xE).write_bytes(&d, "a tune's path") {
+        let path = GamePtr::to(&AUDIO.music_path);
+        if let Err(e) = path.offset(0xE).write_bytes(&d, "a tune's path") {
             crate::fatal::raise::end("audio::stream_commands", e);
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(crate::files::file_exists::file_exists_at(self.path)?)
+        Ok(crate::files::file_exists::file_exists_at(GamePtr::to(
+            &AUDIO.music_path,
+        ))?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(
@@ -81,12 +88,17 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer {
 
 /// `audio::stream_command` on the player at `player`. Converted:
 /// `rc2k_core::audio::streams::stream_command`.
-pub fn stream_command(path: u32, volume: i32, action: u32) -> Result<(), Refused> {
+/// `name` the sample name's key (`audio::store::name_key`), 0 with none (a stop).
+pub fn stream_command(name: u32, volume: i32, action: u32) -> Result<(), Refused> {
+    let path = match name {
+        0 => None,
+        _ => Some(crate::audio::store::name_at(name)?),
+    };
     let mut p = GamePlayer {
         player: &AUDIO.sound_stream,
-        path: crate::pointers::GamePtr::new(path),
+        path,
     };
-    rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
+    rc2k_core::audio::streams::stream_command(&mut p, name != 0, volume, action)
 }
 
 /// `audio::music_command`: `tune` with `next` to follow. Converted:
@@ -101,7 +113,7 @@ pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(
     };
     let mut p = GamePlayer {
         player: &AUDIO.music_stream,
-        path: crate::pointers::GamePtr::to(&AUDIO.music_path),
+        path: Some(GamePtr::to(&AUDIO.music_path)),
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     AUDIO.next_tune.set(m.next_tune);

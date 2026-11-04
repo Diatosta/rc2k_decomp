@@ -113,13 +113,12 @@ pub fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            crate::audio::store::name_at(crate::session::read_on_in(
+            crate::session::read_on_in(
                 &MENU_LISTS,
                 &MENU_LISTS.rally_speeches,
                 section as usize,
                 "a rally speech",
-            )?)?
-            .addr(),
+            )?,
             OPTION_WORK.speech_level.get(),
         );
     }

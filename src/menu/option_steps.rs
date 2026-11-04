@@ -21,7 +21,7 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
-use crate::audio::names_store::SAMPLE_NAMES;
+use crate::audio::names_store::SampleNames;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::gfx::choices_store::SCREEN_CHOICES;
@@ -66,7 +66,7 @@ pub fn volume_step(v: Volume) {
             crate::sound::set_music_volume::set_music_volume(value as u32);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
-            SAMPLE_NAMES.menu_speech_st1.addr(),
+            core::mem::offset_of!(SampleNames, menu_speech_st1) as u32,
             value as u32,
         ),
         Then::Sound(sound) => {
