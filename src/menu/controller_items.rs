@@ -18,7 +18,7 @@
 //!   and the set-up.
 //! - `menu::raise_dead_zone_a` (0x46B3A3), `raise_dead_zone_b` (0x46B3EA): +0x40 (or +0x44)
 //!   one more if `100 - (+0x40) - (+0x44)` is above 10 (signed). The first is not
-//!   `pusha`'d: it leaves eax the value (one more or not), ebx `100 - ...`, edi the record.
+//!   `pusha`'d, but no caller reads the eax, ebx and edi it leaves.
 //!
 //! Refusals (before anything): no current player record; a set-up to make without a
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
@@ -50,9 +50,9 @@ fn would_apply(controller: u32) -> Result<bool, Refused> {
 /// `menu::apply_controller`.
 pub fn apply_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = p.get().word(0x2C);
+    let c = p.get().controller;
     if would_apply(c)? {
-        { request_device_setup(c - 1, p.get().word(0x34), p.get().word(0x38), 0, 0) }?;
+        set_up_device(p, c)?;
     }
     Ok(())
 }
@@ -62,14 +62,22 @@ pub fn release_controller() {
     request_device_release();
 }
 
+/// The device's set-up with the player's sensitivity and pedal axes.
+fn set_up_device(p: PlayerCell, c: u32) -> Result<(), Refused> {
+    let q = p.get();
+    let axes = u32::from_le_bytes(q.axis_codes);
+    { request_device_setup(c - 1, q.sensitivity_level, axes, 0, 0) }?;
+    Ok(())
+}
+
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
 fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
     let applies = if c == 0 { false } else { would_apply(c)? };
-    p.update(|q| q.store(&[(0x2C, c)]));
+    p.update(|q| q.controller = c);
     if c == 0 {
         release_controller();
     } else if applies {
-        { request_device_setup(c - 1, p.get().word(0x34), p.get().word(0x38), 0, 0) }?;
+        set_up_device(p, c)?;
     }
     Ok(())
 }
@@ -77,26 +85,24 @@ fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
 /// `menu::next_controller`.
 pub fn next_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = p.get().word(0x2C);
-    let c = rc2k_core::menu::steps::next_controller(c, count());
+    let c = rc2k_core::menu::steps::next_controller(p.get().controller, count());
     choose(p, c)
 }
 
 /// `menu::previous_controller`.
 pub fn previous_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = p.get().word(0x2C);
-    let c = rc2k_core::menu::steps::previous_controller(c, count());
+    let c = rc2k_core::menu::steps::previous_controller(p.get().controller, count());
     choose(p, c)
 }
 
-/// +0x34 to `value` and the set-up, refused (before anything) as the set-up is.
+/// The sensitivity to `value` and the set-up, refused (before anything) as the set-up is.
 fn set_sensitivity(p: PlayerCell, value: u32) -> Result<(), Refused> {
-    let c = p.get().word(0x2C);
+    let c = p.get().controller;
     let applies = would_apply(c)?;
-    p.update(|q| q.store(&[(0x34, value)]));
+    p.update(|q| q.sensitivity_level = value);
     if applies {
-        { request_device_setup(c - 1, value, p.get().word(0x38), 0, 0) }?;
+        set_up_device(p, c)?;
     }
     Ok(())
 }
@@ -106,7 +112,7 @@ pub fn lower_controller_sensitivity() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
     if let Some(s) =
-        rc2k_core::menu::steps::lower_sensitivity(p.get().word(0x2C), p.get().word(0x34))
+        rc2k_core::menu::steps::lower_sensitivity(p.get().controller, p.get().sensitivity_level)
     {
         { set_sensitivity(p, s) }?;
     }
@@ -122,19 +128,27 @@ pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
-    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().word(0x34)) {
+    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().sensitivity_level) {
         { set_sensitivity(p, s) }?;
     }
     Ok(())
 }
 
-/// A dead zone (`offset` 0x40 or 0x44) one more if the two leave more than 10.
-pub fn raise_dead_zone(offset: u32) -> Result<(), Refused> {
+/// `menu::raise_dead_zone_a` (the first) / `raise_dead_zone_b`: the dead zone one more if
+/// the two leave more than 10.
+pub fn raise_dead_zone(second: bool) -> Result<(), Refused> {
     let p = player()?;
-    let value = p.get().word(offset as usize);
-    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(p.get().word(0x40), p.get().word(0x44));
+    let q = p.get();
+    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(q.dead_zone_1, q.dead_zone_2);
     if grows {
-        p.update(|q| q.store(&[(offset as usize, value.wrapping_add(1))]));
+        p.update(|q| {
+            let zone = if second {
+                &mut q.dead_zone_2
+            } else {
+                &mut q.dead_zone_1
+            };
+            *zone = zone.wrapping_add(1);
+        });
     }
     Ok(())
 }

@@ -48,7 +48,6 @@ pub fn award_overall_points() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
-        let at = 4 * section as usize;
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
         for (e, &o) in all.iter_mut().zip(&owners) {
@@ -60,7 +59,7 @@ pub fn award_overall_points() -> Result<(), Refused> {
             e.overall[section as usize] = given;
             match o {
                 Owner::Driver(d) => d.overall(section as usize).set(given),
-                Owner::Player(p) => p.update(|q| q.store(&[(0xB4 + at, given)])),
+                Owner::Player(p) => p.update(|q| q.overall_points[section as usize] = given),
             }
         }
         for (e, &o) in all.iter_mut().zip(&owners) {
@@ -68,7 +67,7 @@ pub fn award_overall_points() -> Result<(), Refused> {
             e.overall[6] = total;
             match o {
                 Owner::Driver(d) => d.overall_total().set(total),
-                Owner::Player(p) => p.update(|q| q.store(&[(0xCC, total)])),
+                Owner::Player(p) => p.update(|q| q.overall_points[6] = total),
             }
         }
         with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;

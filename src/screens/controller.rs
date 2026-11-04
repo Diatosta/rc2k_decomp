@@ -66,14 +66,14 @@ pub fn learn_axis() -> Result<(), Refused> {
     }
     let mut take = true;
     let control = C.learned.get();
-    if l::by_axis(player.get().word(0x34), control) {
+    if l::by_axis(player.get().sensitivity_level, control) {
         let m = crate::input::axes::axis_moved(1)?;
         if !m.carry {
             let (byte, found) = l::pedal(control);
-            player.update(|p| p.store_byte(byte as usize, m.eax as u8));
+            player.update(|p| p.axis_codes[byte] = m.eax as u8);
             crate::input::store::DEVICES.records[0]
                 .axis_code
-                .set(player.get().word(0x38));
+                .set(u32::from_le_bytes(player.get().axis_codes));
             DRAW_WORK.figure.set(found);
             C.learning.set(0);
             take = false;
@@ -90,9 +90,11 @@ pub fn learn_axis() -> Result<(), Refused> {
             return Ok(());
         }
     }
-    let slot = l::binding(C.learned.get()) as usize;
+    let Some(slot) = l::binding(C.learned.get()) else {
+        return Err(crate::errors::BadInput("a learned control past the bindings").into());
+    };
     let figure = DRAW_WORK.figure.get();
-    player.update(|p| p.store(&[(slot, figure)]));
+    player.update(|p| p.set_binding(slot, figure));
     Ok(())
 }
 
@@ -101,7 +103,7 @@ pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, R
     let Some(player) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
-    let device = player.get().word(0x2C);
+    let device = player.get().controller;
     if device != 0 && crate::input::store::DEVICES.device(0).is_none() {
         return Err(crate::errors::BadInput("no input device").into());
     }
@@ -126,10 +128,8 @@ pub fn draw_controller_page(
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
         let player = controller_page_refuses()?;
-        let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| player.get().word(o as usize);
-        let device = f(0x2C);
-        fault.check()?;
+        let p = player.get();
+        let device = p.controller;
         use crate::screens::game_screen::HeldText;
         let mut screen =
             crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas);
@@ -151,15 +151,14 @@ pub fn draw_controller_page(
             record: record.addr(),
             name: HeldText::Place(record.offset(0x30)),
             has_strength: record.offset(0x1C).read::<u32>("a controller's record")? == 1,
-            mode: f(0x3C),
-            strength: f(0x48),
-            sensitivity: f(0x34),
-            first: f(0x40),
-            second: f(0x44),
+            mode: p.controller_mode,
+            strength: p.strength,
+            sensitivity: p.sensitivity_level,
+            first: p.dead_zone_1,
+            second: p.dead_zone_2,
             stick_x,
             buttons,
         };
-        fault.check()?;
         controller_page(&mut screen, Some(&c))
     }
 }

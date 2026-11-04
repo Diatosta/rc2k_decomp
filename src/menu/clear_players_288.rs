@@ -11,7 +11,7 @@ use crate::menu::standings::*;
 /// The Rust version (see the header): the registers it leaves.
 pub fn clear_players_288() -> Result<(), Refused> {
     for n in 0..4 {
-        player(n).update(|q| q.store(&[(0x288, 0)]));
+        player(n).update(|q| q.service_spent = 0);
     }
     Ok(())
 }

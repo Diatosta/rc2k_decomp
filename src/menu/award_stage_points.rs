@@ -53,7 +53,6 @@ pub fn award_stage_points() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};
-    let at = 4 * section as usize;
     for class in 0..classes {
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
@@ -74,7 +73,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
             match *o {
                 Owner::Driver(d) => d.stage(section as usize).set(kept(given, keeps)),
                 Owner::Player(p) => {
-                    p.update(|q| q.store(&[(0x98 + at, kept(given, keeps))]));
+                    p.update(|q| q.stage_points[section as usize] = kept(given, keeps));
                 }
             }
         }
@@ -84,7 +83,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
         e.stage[6] = total;
         match *o {
             Owner::Driver(d) => d.stage_total().set(total),
-            Owner::Player(p) => p.update(|q| q.store(&[(0xB0, total)])),
+            Owner::Player(p) => p.update(|q| q.stage_points[6] = total),
         }
     }
     with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;

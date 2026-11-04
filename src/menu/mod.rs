@@ -229,8 +229,6 @@ pub mod previous_stage_number;
 pub mod previous_stage_sub;
 pub mod previous_texture_setting;
 pub mod previous_view;
-pub mod raise_dead_zone_a;
-pub mod raise_dead_zone_b;
 pub mod raise_sensitivity;
 pub mod rally_results;
 pub mod rally_stages_loop;

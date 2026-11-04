@@ -26,7 +26,6 @@ use crate::text::draw_text::Canvas;
 
 // dword_75AC80
 // dword_7559EC: a work variable, here the weights' sum
-const CAR_DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
 
 // ---- Rust version ----
 
@@ -36,17 +35,15 @@ pub fn inspection_status(
     player: crate::menu::standings::PlayerCell,
 ) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
-    let fault = crate::menu::event_flow::Fault::default();
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
         Part {
-            damage: player.get().word((CAR_DAMAGE_OFFSET + 4 * item) as usize) as i32,
+            damage: player.get().damage[item as usize - 2] as i32,
             threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
             weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
             repairing: repair_flag(item) != 0,
         }
     });
-    fault.check()?;
     let (condition, last) = status(&parts);
     Ok((condition, last.map(|n| PARTS[n])))
 }

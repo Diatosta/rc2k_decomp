@@ -27,20 +27,16 @@ pub fn by_axis(kind: u32, control: u32) -> bool {
     kind == PEDALS_KIND && (control == 1 || control == 2)
 }
 
-/// A pedal's axis learnt: the player's byte it goes to and the found code.
-pub fn pedal(control: u32) -> (u32, u32) {
-    if control == 1 {
-        (0x3B, 0x200)
-    } else {
-        (0x3A, 0x100)
-    }
+/// A pedal's axis learnt: the player's `axis_codes` byte it goes to (+0x3B, +0x3A) and the
+/// found code.
+pub fn pedal(control: u32) -> (usize, u32) {
+    if control == 1 { (3, 0x200) } else { (2, 0x100) }
 }
 
-/// The player's binding of a control (wrapping, as the original's).
-pub fn binding(control: u32) -> u32 {
-    0x50u32
-        .wrapping_add(control.wrapping_mul(4))
-        .wrapping_sub(4)
+/// The player's binding of control 1 .. 11 (+0x50 + 4 (control - 1)). None for another:
+/// the original's wrapping sum writes elsewhere in the record (control 0 at +0x4C).
+pub fn binding(control: u32) -> Option<usize> {
+    (1..=11).contains(&control).then(|| control as usize - 1)
 }
 
 #[cfg(test)]
@@ -51,9 +47,10 @@ mod tests {
     fn rules() {
         assert!(!timed_out(0xBB7) && timed_out(0xBB8) && !timed_out(0xFFFF_FFFF));
         assert!(by_axis(3, 2) && !by_axis(3, 3) && !by_axis(2, 1));
-        assert_eq!(pedal(1), (0x3B, 0x200));
-        assert_eq!(pedal(2), (0x3A, 0x100));
-        assert_eq!(binding(1), 0x50);
-        assert_eq!(binding(0), 0x4C);
+        assert_eq!(pedal(1), (3, 0x200));
+        assert_eq!(pedal(2), (2, 0x100));
+        assert_eq!(binding(1), Some(0));
+        assert_eq!(binding(11), Some(10));
+        assert_eq!((binding(0), binding(12)), (None, None));
     }
 }

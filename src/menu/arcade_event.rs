@@ -2,7 +2,7 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::event_flow::{Fault, STAGE_RECORD};
+use crate::menu::event_flow::STAGE_RECORD;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -18,8 +18,6 @@ use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 struct Game {
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell,
-    /// A refused read or write of the core's variables (checked at each step and at the end).
-    fault: Fault,
 }
 
 /// The variables that are in the physics block.
@@ -78,7 +76,7 @@ impl arcade::Arcade for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Player0Entry => self.player0.update(|p| p.store(&[(0xD0, value)])),
+            Var::Player0Entry => self.player0.update(|p| p.entry = value),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => address(v).set(value),
@@ -87,7 +85,6 @@ impl arcade::Arcade for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
-        self.fault.check()?;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
@@ -144,10 +141,7 @@ pub fn arcade_event() -> Result<(), Refused> {
     let mut game = Game {
         cars: None,
         player0,
-        fault: Fault::default(),
     };
     // Converted: `rc2k_core::menu::arcade_event::arcade_event`.
-    let done = arcade::arcade_event(&mut game);
-    game.fault.check()?;
-    done
+    arcade::arcade_event(&mut game)
 }

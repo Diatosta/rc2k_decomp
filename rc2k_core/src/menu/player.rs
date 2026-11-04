@@ -31,19 +31,26 @@ pub struct Player {
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
     pub race_number: u32,
-    pub gap_2c: u32,
+    /// The controller: 0 the keyboard, n the input device n - 1 (`menu::next_controller`).
+    pub controller: u32,
     /// The gearing chosen on the car choice, 0 .. 2 (its name string 0x21F + it;
     /// `menu::next_gearing`, `menu::previous_gearing`).
     pub gearing: u32,
-    pub gap_34: [u8; 8],
-    /// Bit 0 turned over by `menu::toggle_player_3c`.
-    pub field_3c: u32,
-    /// Lowered by `menu::lower_player_40` while above 0 (signed).
-    pub field_40: u32,
-    /// Lowered by `menu::lower_player_44` unless 0.
-    pub field_44: u32,
-    /// 0 .. 100 in tens (`menu::raise_player_48`, `lower_player_48`).
-    pub field_48: u32,
+    /// The controller's sensitivity, 0 .. 3 (string 0x3A1 + it on the controller page;
+    /// the bindings' texts go by it, `screens::controls::Binding::kind`).
+    pub sensitivity_level: u32,
+    /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
+    /// `screens::learning::pedal`), handed to the device's set-up as one dword.
+    pub axis_codes: [u8; 4],
+    /// The controller's mode (bit 0; string 0x56D + it; `menu::toggle_player_3c`).
+    pub controller_mode: u32,
+    /// The controller page's two sliders, the dead zones: their sum leaves the rest of
+    /// 100 (`menu::lower_player_40`, `menu::lower_player_44`, `raise_dead_zone`).
+    pub dead_zone_1: u32,
+    pub dead_zone_2: u32,
+    /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
+    /// `lower_player_48`; shown for a device that has it).
+    pub strength: u32,
     pub gap_4c: u32,
     /// The 0x2C bytes the controller pages copy out (`screens::pick_player_n`) and back
     /// (`menu::keep_player_keys`).
@@ -117,7 +124,9 @@ pub struct Player {
     /// Set to -1 for every player by `menu::clear_players_284` at an event's start, and kept
     /// over a race by `sub_4843EC` (`dword_75B010`); meaning not read.
     pub field_284: i32,
-    pub gap_288: u32,
+    /// The money the service spent (the money times 100, `menu::service_pass`); 0 again
+    /// after an event's races (`menu::clear_players_288`).
+    pub service_spent: u32,
 }
 
 impl Player {
@@ -133,12 +142,13 @@ impl Player {
         word(0x14, self.field_14);
         word(0x18, self.name);
         word(0x28, self.race_number);
-        word(0x2c, self.gap_2c);
+        word(0x2c, self.controller);
         word(0x30, self.gearing);
-        word(0x3c, self.field_3c);
-        word(0x40, self.field_40);
-        word(0x44, self.field_44);
-        word(0x48, self.field_48);
+        word(0x34, self.sensitivity_level);
+        word(0x3c, self.controller_mode);
+        word(0x40, self.dead_zone_1);
+        word(0x44, self.dead_zone_2);
+        word(0x48, self.strength);
         word(0x4c, self.gap_4c);
         word(0x84, self.field_84);
         word(0x88, self.time);
@@ -189,9 +199,9 @@ impl Player {
         word(0x27c, self.gap_27c);
         word(0x280, self.controller_sensitivity);
         word(0x284, self.field_284 as u32);
-        word(0x288, self.gap_288);
+        word(0x288, self.service_spent);
         b[0x1c..0x1c + self.keys.len()].copy_from_slice(&self.keys);
-        b[0x34..0x34 + self.gap_34.len()].copy_from_slice(&self.gap_34);
+        b[0x38..0x3c].copy_from_slice(&self.axis_codes);
         b[0x50..0x50 + self.controls_50.len()].copy_from_slice(&self.controls_50);
         b[0x7c..0x7c + self.gap_7c.len()].copy_from_slice(&self.gap_7c);
         b[0x124..0x124 + self.name_copy.len()].copy_from_slice(&self.name_copy);
@@ -267,13 +277,14 @@ impl Player {
             name: word(&b, 0x18),
             keys: bytes::<0xc>(&b, 0x1c),
             race_number: word(&b, 0x28),
-            gap_2c: word(&b, 0x2c),
+            controller: word(&b, 0x2c),
             gearing: word(&b, 0x30),
-            gap_34: bytes::<0x8>(&b, 0x34),
-            field_3c: word(&b, 0x3c),
-            field_40: word(&b, 0x40),
-            field_44: word(&b, 0x44),
-            field_48: word(&b, 0x48),
+            sensitivity_level: word(&b, 0x34),
+            axis_codes: bytes::<4>(&b, 0x38),
+            controller_mode: word(&b, 0x3c),
+            dead_zone_1: word(&b, 0x40),
+            dead_zone_2: word(&b, 0x44),
+            strength: word(&b, 0x48),
             gap_4c: word(&b, 0x4c),
             controls_50: bytes::<0x2c>(&b, 0x50),
             gap_7c: bytes::<0x8>(&b, 0x7c),
@@ -317,7 +328,7 @@ impl Player {
             gap_27c: word(&b, 0x27c),
             controller_sensitivity: word(&b, 0x280),
             field_284: word(&b, 0x284) as i32,
-            gap_288: word(&b, 0x288),
+            service_spent: word(&b, 0x288),
         }
     }
 }
@@ -351,28 +362,27 @@ pub enum Setting {
 }
 
 impl Player {
-    /// `menu::lower_player_40`: +0x40 one less while above 0 (signed); the value left.
-    pub fn lower_40(&mut self) -> u32 {
-        if (self.field_40 as i32) > 0 {
-            self.field_40 -= 1;
-        }
-        self.field_40
-    }
-
-    /// `menu::lower_player_44`: +0x44 one less unless 0.
-    pub fn lower_44(&mut self) {
-        if self.field_44 != 0 {
-            self.field_44 = self.field_44.wrapping_sub(1);
+    /// `menu::lower_player_40`: the first dead zone one less while above 0 (signed).
+    pub fn lower_dead_zone_1(&mut self) {
+        if (self.dead_zone_1 as i32) > 0 {
+            self.dead_zone_1 -= 1;
         }
     }
 
-    /// `menu::raise_player_48` / `lower_player_48`: +0x48 ten more unless 100, ten less
-    /// unless 0.
-    pub fn step_48(&mut self, up: bool) {
-        if up && self.field_48 != 100 {
-            self.field_48 = self.field_48.wrapping_add(10);
-        } else if !up && self.field_48 != 0 {
-            self.field_48 = self.field_48.wrapping_sub(10);
+    /// `menu::lower_player_44`: the second dead zone one less unless 0.
+    pub fn lower_dead_zone_2(&mut self) {
+        if self.dead_zone_2 != 0 {
+            self.dead_zone_2 = self.dead_zone_2.wrapping_sub(1);
+        }
+    }
+
+    /// `menu::raise_player_48` / `lower_player_48`: the strength ten more unless 100, ten
+    /// less unless 0.
+    pub fn step_strength(&mut self, up: bool) {
+        if up && self.strength != 100 {
+            self.strength = self.strength.wrapping_add(10);
+        } else if !up && self.strength != 0 {
+            self.strength = self.strength.wrapping_sub(10);
         }
     }
 
@@ -383,9 +393,19 @@ impl Player {
         self.class = class;
     }
 
-    /// `menu::toggle_player_3c`: +0x3C's bit 0 turned over.
-    pub fn toggle_3c(&mut self) {
-        self.field_3c ^= 1;
+    /// Binding `k` (0 .. 10; +0x50 + 4 k).
+    pub fn binding(&self, k: usize) -> u32 {
+        let b = &self.controls_50[4 * k..4 * k + 4];
+        u32::from_le_bytes([b[0], b[1], b[2], b[3]])
+    }
+
+    pub fn set_binding(&mut self, k: usize, v: u32) {
+        self.controls_50[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+
+    /// `menu::toggle_player_3c`: the controller mode's bit 0 turned over.
+    pub fn toggle_controller_mode(&mut self) {
+        self.controller_mode ^= 1;
     }
 
     /// The setting's dword.
@@ -699,22 +719,25 @@ mod tests {
 
     #[test]
     fn small_fields() {
-        let mut p: Player = unsafe { std::mem::zeroed() };
-        assert_eq!(p.lower_40(), 0);
-        p.field_40 = 2;
-        assert_eq!(p.lower_40(), 1);
-        p.field_40 = u32::MAX;
-        assert_eq!(p.lower_40(), u32::MAX);
-        p.lower_44();
-        assert_eq!(p.field_44, 0);
-        p.step_48(false);
-        assert_eq!(p.field_48, 0);
-        p.field_48 = 100;
-        p.step_48(true);
-        assert_eq!(p.field_48, 100);
-        p.step_48(false);
-        assert_eq!(p.field_48, 90);
-        p.toggle_3c();
-        assert_eq!(p.field_3c, 1);
+        let mut p = Player::from_le_bytes([0; 0x28c]);
+        p.lower_dead_zone_1();
+        assert_eq!(p.dead_zone_1, 0);
+        p.dead_zone_1 = 2;
+        p.lower_dead_zone_1();
+        assert_eq!(p.dead_zone_1, 1);
+        p.dead_zone_1 = u32::MAX;
+        p.lower_dead_zone_1();
+        assert_eq!(p.dead_zone_1, u32::MAX);
+        p.lower_dead_zone_2();
+        assert_eq!(p.dead_zone_2, 0);
+        p.step_strength(false);
+        assert_eq!(p.strength, 0);
+        p.strength = 100;
+        p.step_strength(true);
+        assert_eq!(p.strength, 100);
+        p.step_strength(false);
+        assert_eq!(p.strength, 90);
+        p.toggle_controller_mode();
+        assert_eq!(p.controller_mode, 1);
     }
 }

@@ -8,7 +8,6 @@
 //!
 //! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
 
 /// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
@@ -19,7 +18,6 @@ pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), R
     }
     // Converted: `rc2k_core::saves::rankings::fill_b`.
     use rc2k_core::menu::standings::PlayerB;
-    let fault = Fault::default();
     let source = PlayerB {
         index,
         name: bytes(p.get().name)?,
@@ -30,7 +28,6 @@ pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), R
         b4: std::array::from_fn(|k| p.get().overall_points[k]),
         slots: std::array::from_fn(|k| p.get().stage_points[k]),
     };
-    fault.check()?;
     with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;
     Ok(())
 }

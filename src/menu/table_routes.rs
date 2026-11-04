@@ -191,7 +191,7 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             { crate::menu::controller_items::previous_controller() }?;
             Ok(())
         }
-        ItemFn::KeepPlayerKeys => crate::menu::player_actions::keep_player_keys_hook::run(),
+        ItemFn::KeepPlayerKeys => crate::menu::player_actions::keep_player_keys(),
         ItemFn::LearnBinding1 => {
             crate::menu::learn_bindings::learn_binding(1);
             Ok(())
@@ -232,10 +232,10 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             crate::menu::learn_bindings::learn_binding(10);
             Ok(())
         }
-        ItemFn::LowerPlayer40 => crate::menu::player_actions::lower_player_40_hook::run(),
-        ItemFn::RaiseDeadZoneA => crate::menu::raise_dead_zone_a::run(),
-        ItemFn::LowerPlayer44 => crate::menu::player_actions::lower_player_44_hook::run(),
-        ItemFn::RaiseDeadZoneB => crate::menu::raise_dead_zone_b::run(),
+        ItemFn::LowerPlayer40 => crate::menu::player_actions::lower_dead_zone_1(),
+        ItemFn::RaiseDeadZoneA => crate::menu::controller_items::raise_dead_zone(false),
+        ItemFn::LowerPlayer44 => crate::menu::player_actions::lower_dead_zone_2(),
+        ItemFn::RaiseDeadZoneB => crate::menu::controller_items::raise_dead_zone(true),
         ItemFn::LowerControllerSensitivity => {
             { crate::menu::controller_items::lower_controller_sensitivity() }?;
             Ok(())
@@ -249,8 +249,8 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
                     .get(),
             )
         }
-        ItemFn::RaisePlayer48 => crate::menu::player_actions::raise_player_48_hook::run(),
-        ItemFn::LowerPlayer48 => crate::menu::player_actions::lower_player_48_hook::run(),
+        ItemFn::RaisePlayer48 => crate::menu::player_actions::raise_strength(),
+        ItemFn::LowerPlayer48 => crate::menu::player_actions::lower_strength(),
         ItemFn::BeginGearRatioEdit => {
             crate::service::begin_edits::begin_edit(crate::service::begin_edits::GEAR_RATIO)
         }
@@ -275,8 +275,14 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             { crate::service::toggle_repair_choice::toggle_repair_choice() }?;
             Ok(())
         }
-        ItemFn::NextScoresPage => crate::menu::player_actions::next_scores_page_hook::run(),
-        ItemFn::PreviousScoresPage => crate::menu::player_actions::previous_scores_page_hook::run(),
+        ItemFn::NextScoresPage => {
+            crate::menu::player_actions::next_scores_page();
+            Ok(())
+        }
+        ItemFn::PreviousScoresPage => {
+            crate::menu::player_actions::previous_scores_page();
+            Ok(())
+        }
         ItemFn::PreviousSavePage => {
             crate::menu::item_actions::previous_save_page();
             Ok(())
@@ -286,9 +292,11 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             Ok(())
         }
         ItemFn::PreviousReplayRange => {
-            crate::menu::player_actions::previous_replay_range_hook::run()
+            crate::menu::player_actions::previous_replay_range().map_err(Into::into)
         }
-        ItemFn::NextReplayRange => crate::menu::player_actions::next_replay_range_hook::run(),
+        ItemFn::NextReplayRange => {
+            crate::menu::player_actions::next_replay_range().map_err(Into::into)
+        }
         ItemFn::BeginSavegameName => {
             crate::menu::begin_savegame_name::begin_savegame_name(true)?;
             Ok(())
@@ -318,10 +326,10 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         }
         ItemFn::PreviousStagePage => crate::menu::stage_view_steps::step_stage_page(false),
         ItemFn::NextStagePage => crate::menu::stage_view_steps::step_stage_page(true),
-        ItemFn::Player0CarSpecs => crate::menu::player_actions::player_0_car_specs::run(),
-        ItemFn::Player1CarSpecs => crate::menu::player_actions::player_1_car_specs::run(),
-        ItemFn::Player2CarSpecs => crate::menu::player_actions::player_2_car_specs::run(),
-        ItemFn::Player3CarSpecs => crate::menu::player_actions::player_3_car_specs::run(),
+        ItemFn::Player0CarSpecs => crate::menu::player_actions::player_car_specs(0),
+        ItemFn::Player1CarSpecs => crate::menu::player_actions::player_car_specs(1),
+        ItemFn::Player2CarSpecs => crate::menu::player_actions::player_car_specs(2),
+        ItemFn::Player3CarSpecs => crate::menu::player_actions::player_car_specs(3),
         ItemFn::Toggle755640 => crate::menu::option_items::toggle_755640::run(),
         ItemFn::Toggle755644 => crate::menu::option_items::toggle_755644::run(),
         ItemFn::PreviousScreenMode => crate::menu::option_items::previous_screen_mode::run(),
@@ -342,12 +350,12 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::ToggleChannels => crate::menu::option_items::toggle_channels::run(),
         ItemFn::ViewStageDetails => crate::menu::item_actions::view_stage_details(),
         ItemFn::ApplyScreenMode => crate::menu::apply_screen_mode::apply_screen_mode(),
-        ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_player_3c_hook::run(),
+        ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_controller_mode(),
         ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(),
         ItemFn::ReplayItemB => crate::menu::replay_item_b::replay_item_b(),
         ItemFn::ReplayItemA => crate::menu::replay_item_a::replay_item_a(),
         ItemFn::ToggleCaptionChoice => {
-            crate::menu::player_actions::toggle_caption_choice_hook::run()
+            crate::menu::player_actions::toggle_caption_choice().map_err(Into::into)
         }
         ItemFn::ShowIntro => crate::menu::item_actions::show_intro(),
         ItemFn::NextCarNumber => {
@@ -375,7 +383,10 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             crate::menu::go_back::go_back();
             Ok(())
         }
-        ItemFn::LeaveWithCarry => crate::menu::player_actions::leave_with_carry_hook::run(),
+        ItemFn::LeaveWithCarry => {
+            crate::menu::player_actions::leave_with_carry();
+            Ok(())
+        }
         ItemFn::NextStageLoop => crate::menu::next_stage_loop::run(),
         ItemFn::StartRallyLoop => crate::menu::start_rally_loop::run(),
         ItemFn::NetworkRallyLoop => crate::menu::network_rally_loop::run(),

@@ -162,7 +162,8 @@ impl races::EventRaces for Game {
 
     fn fourth_out(&mut self) {
         player(3).update(|q| {
-            q.store(&[(0x88, races::FOURTH_TIME), (0xD0, races::FOURTH_ENTRY)]);
+            q.time = races::FOURTH_TIME;
+            q.entry = races::FOURTH_ENTRY;
         });
     }
 }

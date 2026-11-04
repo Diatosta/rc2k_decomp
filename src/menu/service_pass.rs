@@ -86,7 +86,7 @@ pub fn service_pass() -> Result<(), Refused> {
                     .set(EVENT_STATE.event_out.get().wrapping_add(1));
             }
             let spent = passes::spent(MENU_STATE.driver_stats.money.get());
-            p.update(|q| q.store(&[(0x288, spent)]));
+            p.update(|q| q.service_spent = spent);
         }
         if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
             EVENT_STATE.event_goes_on.set(0u32);

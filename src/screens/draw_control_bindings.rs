@@ -38,10 +38,10 @@ pub fn binding_text(
     n: u32,
 ) -> Result<Vec<u8>, Refused> {
     let b = rc2k_core::screens::controls::Binding {
-        binding: player.get().word(0x50 + 4 * n as usize),
-        kind: player.get().word(0x34),
+        binding: player.get().binding(n as usize),
+        kind: player.get().sensitivity_level,
         axis: if n < 2 {
-            player.get().byte(0x3B - n as usize)
+            player.get().axis_codes[3 - n as usize]
         } else {
             0
         },

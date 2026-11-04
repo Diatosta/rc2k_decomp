@@ -33,7 +33,7 @@ pub fn inspection_verdict() -> Result<(), Refused> {
     fault.check()?;
     DRAW_WORK.figure.set(v.penalties);
     MENU_STATE.driver_stats.score.set(v.score);
-    p.update(|q| q.store(&[(0xD0, v.kind)]));
+    p.update(|q| q.entry = v.kind);
 
     Ok(())
 }

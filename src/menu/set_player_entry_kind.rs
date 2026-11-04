@@ -20,6 +20,6 @@ pub fn set_player_entry_kind() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::player::entry_kind`.
     let score: i32 = MENU_STATE.driver_stats.score.get() as i32;
-    player(n).update(|q| q.store(&[(0xD0, rc2k_core::menu::player::entry_kind(score))]));
+    player(n).update(|q| q.entry = rc2k_core::menu::player::entry_kind(score));
     Ok(())
 }
