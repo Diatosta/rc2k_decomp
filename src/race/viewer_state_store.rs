@@ -45,6 +45,15 @@ pub struct ReplayViewBlock {
 pub static REPLAY_VIEW: ReplayViewBlock =
     crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
+/// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
+/// of the three switch tables (0 `off_5C2C70`, 1 `off_5C2C78`, 2 `off_5C2C88`; the original
+/// kept the table's address).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ViewerPicture {
+    Rectangle(crate::pointers::GamePtr),
+    Switch(usize),
+}
+
 impl ReplayViewBlock {
     /// IDA's address of the viewer's list and the count of its items (from 24 bytes in).
     #[cfg(test)]
@@ -61,24 +70,27 @@ impl ReplayViewBlock {
         ida: u32,
         range: core::ops::Range<usize>,
         what: &'static str,
-    ) -> Result<u32, crate::errors::BadInput> {
+    ) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         if !range.contains(&(ida as usize)) {
             return Err(crate::errors::BadInput(what));
         }
-        Ok(crate::moved::place(ida as usize) as u32)
+        Ok(crate::pointers::GamePtr::new(
+            crate::moved::place(ida as usize) as u32,
+        ))
     }
 
     /// Where the list's key table (the header's +0x10) is.
     pub fn key_table() -> Result<u32, crate::errors::BadInput> {
-        Self::named(
+        Ok(Self::named(
             REPLAY_VIEW.viewer_list[4].get(),
             Self::RECTANGLES,
             "the viewer list's key table off its place",
-        )
+        )?
+        .addr())
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
-    pub fn item_place(index: u32) -> Result<u32, crate::errors::BadInput> {
+    pub fn item_place(index: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         Self::named(
             Self::item_dword(index, 1)?,
             Self::RECTANGLES,
@@ -86,13 +98,30 @@ impl ReplayViewBlock {
         )
     }
 
-    /// Where item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is.
-    pub fn item_picture(index: u32) -> Result<u32, crate::errors::BadInput> {
-        Self::named(
-            Self::item_dword(index, 3)?,
+    /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is.
+    /// The original compared the picture's address with the three tables' addresses.
+    pub fn item_picture(index: u32) -> Result<ViewerPicture, crate::errors::BadInput> {
+        let ida = Self::item_dword(index, 3)?;
+        let table = |offset: usize| (crate::race::viewer_screen_store::START + offset) as u32;
+        use crate::race::viewer_screen_store::ViewerPanelBlock;
+        use core::mem::offset_of;
+        let switch = if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_a)) {
+            Some(0)
+        } else if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_b)) {
+            Some(1)
+        } else if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_c)) {
+            Some(2)
+        } else {
+            None
+        };
+        if let Some(table) = switch {
+            return Ok(ViewerPicture::Switch(table));
+        }
+        Ok(ViewerPicture::Rectangle(Self::named(
+            ida,
             Self::PANEL,
             "a viewer item's picture off the panel",
-        )
+        )?))
     }
 
     fn item_dword(index: u32, field: usize) -> Result<u32, crate::errors::BadInput> {
@@ -147,13 +176,16 @@ mod tests {
                 name(item + 0xC)
             );
             assert_eq!(
-                ReplayViewBlock::item_place(k).unwrap() as usize,
+                ReplayViewBlock::item_place(k).unwrap().addr() as usize,
                 crate::moved::place(name(item + 4) as usize)
             );
-            assert_eq!(
-                ReplayViewBlock::item_picture(k).unwrap() as usize,
-                crate::moved::place(name(item + 0xC) as usize)
-            );
+            match ReplayViewBlock::item_picture(k).unwrap() {
+                ViewerPicture::Rectangle(picture) => assert_eq!(
+                    picture.addr() as usize,
+                    crate::moved::place(name(item + 0xC) as usize)
+                ),
+                ViewerPicture::Switch(table) => assert!(table < 3),
+            }
         }
         assert!(ReplayViewBlock::item_place(26).is_err());
     }

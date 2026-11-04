@@ -12,16 +12,14 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::session::{Dword, read_all};
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle `rect`
 /// (ebx), the colour `colour` (ecx); every register kept. For the viewer's items, whose
 /// picture is a kept address (a rectangle or a switch table's entry).
-pub fn tyre_quad(uv: u32, rect: &[Dword; 4], colour: u32) -> Result<(), Refused> {
+pub fn tyre_quad(uv: [u32; 4], rect: &[Dword; 4], colour: u32) -> Result<(), Refused> {
     let rect = read_all(rect);
-    let uv: [u32; 4] = GamePtr::new(uv).read("a tyre's texture rectangle")?;
     quad_of(uv, rect, colour)
 }
 

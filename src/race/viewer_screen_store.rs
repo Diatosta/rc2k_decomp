@@ -174,10 +174,11 @@ impl ViewerPanelBlock {
     /// `word_5C291C` ..: the text id of camera `camera` (47 of them; the original does not
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
-        crate::pointers::read_or_end(
-            self.unknown_0[0].addr() + (2 * camera) as u32,
-            "a camera's name",
-        )
+        // The names are the block's first bytes; a number past them reads on in the block.
+        crate::pointers::GamePtr::to(self)
+            .offset((2 * camera) as u32)
+            .read("a camera's name")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a camera's name", e))
     }
 
     /// Where the picture `n` places on in switch table `table` (0 `off_5C2C70`, 1
@@ -185,7 +186,11 @@ impl ViewerPanelBlock {
     /// and `moved::point_into_homes` passes them over). The three tables are one run of nine
     /// names, which an `n` past a table's end reads on into, as the original; past the run,
     /// or a name off the panel, is refused.
-    pub fn switch_picture(&self, table: usize, n: u32) -> Result<u32, crate::errors::BadInput> {
+    pub fn switch_picture(
+        &self,
+        table: usize,
+        n: u32,
+    ) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         let run: [&Dword; 9] = [
             &self.switch_pictures_a[0],
             &self.switch_pictures_a[1],
@@ -212,7 +217,9 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        Ok(crate::moved::place(ida) as u32)
+        Ok(crate::pointers::GamePtr::new(
+            crate::moved::place(ida) as u32
+        ))
     }
 
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.
@@ -314,7 +321,7 @@ mod tests {
             };
             assert_eq!(cell.get(), name(ida));
             assert_eq!(
-                v.switch_picture(table, n as u32).unwrap() as usize,
+                v.switch_picture(table, n as u32).unwrap().addr() as usize,
                 crate::moved::place(name(ida) as usize)
             );
         }

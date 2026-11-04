@@ -9,8 +9,8 @@ use crate::gfx::show_picture_file::show_picture_file;
 
 // ---- game data ----
 
-/// The picture shown; what `gfx::show_picture_file` returns (eax: 1, or the path).
-pub fn show_loading_picture() -> Result<u32, crate::errors::Refused> {
+/// The picture shown.
+pub fn show_loading_picture() -> Result<(), crate::errors::Refused> {
     show_picture_file(crate::pointers::GamePtr::to(
         &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
     ))

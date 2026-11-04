@@ -2,8 +2,8 @@
 //! page of the screen: the loading picture.
 //!
 //! In:  eax = the picture's path
-//! Out: eax = what `dword_51B9C4` held (1, unless the file could not be read: then the
-//!      path); the rest as its callees leave them
+//! Out: nothing (the original left eax = what `dword_51B9C4` held, or the path when the file
+//!      could not be read; no caller used it)
 //! The window's messages are passed on (`sub_410535`); `dword_51B9C4` = 1; the picture's
 //! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
 //! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
@@ -48,8 +48,8 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 
 // ---- Rust version ----
 
-/// The Rust version on the picture at `path`; returns the eax it leaves (see the header).
-pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused> {
+/// The Rust version on the picture at `path`.
+pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> {
     pump_messages_now();
     SHOWING.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
@@ -64,13 +64,12 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused>
     let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
     crate::gfx::picture::set_size(sizes::screen(width, height));
     let pages = sizes::pages(SCREEN_MODE.mode_flags.get());
-    let mut eax = path.addr();
     if !read {
         crate::gfx::clear_picture::clear_picture()?;
     } else {
-        eax = SHOWING.get();
+        let was_showing = SHOWING.get();
         SHOWING.set(0);
-        if eax != 0 && FONTS.palettes.get() != 0 {
+        if was_showing != 0 && FONTS.palettes.get() != 0 {
             PICTURE.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface()?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
@@ -85,7 +84,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused>
             for _ in 0..pages {
                 // `cmp g_surfaceLocked, 1`'s carry: not locked.
                 if lock_surface() < 1 {
-                    return Ok(eax);
+                    return Ok(());
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
                     crate::pointers::GamePtr::to(&crate::gfx::screen_state::DRAW_SURFACE.x)
@@ -94,7 +93,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused>
                 unlock_surface();
                 show_frame_now();
             }
-            return Ok(eax);
+            return Ok(());
         }
     }
     crate::gfx::convert_picture::convert_picture_now()?;
@@ -102,7 +101,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<u32, Refused>
         copy_picture_to_surface(&mut GameSurface)?;
         show_frame_now();
     }
-    Ok(eax)
+    Ok(())
 }
 
 #[cfg(test)]
