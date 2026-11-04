@@ -9,3 +9,4 @@ pub mod force;
 pub mod frame;
 pub mod joystick;
 pub mod keyboard;
+pub mod layouts;

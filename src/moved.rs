@@ -753,12 +753,7 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::sound::store::CdAudio::LEN,
         home: crate::sound::store::CdAudio::home,
     },
-    // input: the keyboard file, devices, keyboard and mouse (`input::store`, typed)
-    Moved {
-        ida: crate::input::store::KEYBOARD_FILE_IDA,
-        len: crate::input::store::KEYBOARD_FILE_LEN,
-        home: || crate::input::store::keyboard_file_addr() as usize,
-    },
+    // input: the devices, keyboard and mouse (`input::store`, typed)
     Moved {
         ida: crate::input::store::DEVICES_IDA,
         len: crate::input::store::DEVICES_LEN,

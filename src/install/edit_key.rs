@@ -21,7 +21,6 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::input::store::{KEYBOARD_FILE, LayoutId, set_current_layout};
 use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::InstallerPages;
@@ -111,15 +110,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
             }
             EditKey::Arrow => return Ok((key, true)),
             EditKey::Other => {
-                let swap = KEYBOARD_FILE.mode.get() == 2;
-                let kept = KEYBOARD_FILE.layout.get();
-                if swap {
-                    set_current_layout(LayoutId::File(0));
-                }
-                let out = crate::input::key_to_char::key_to_char(key);
-                if swap {
-                    KEYBOARD_FILE.layout.set(kept);
-                }
+                let out = crate::input::key_to_char::key_to_char_for_text(key);
                 out? as u8
             }
         }

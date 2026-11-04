@@ -5,22 +5,21 @@
 //! Out: al = the character, 0 if the key types none; carry = (al == 0), zero = (al == 1);
 //!      ebx, ecx, edx, esi, edi, ebp preserved. The rest of eax: untouched for a key release
 //!      (bit 7 set); else zero, except ah = the dead key that was stored or used.
-//! The layout is a block of four tables (`dword_4F07D4` points at the current one in the
-//! original; here a `LayoutId` handle, the tables found by `input::store::layout_table`): +0 a
-//! list of dead keys {key, plain, shifted} ended by a 0 key, +4 the plain table, +8 the
-//! shifted one, +0xC the one used while `byte_4F6B40` is down (read as AltGr). A dead key is
+//! The layout (`input::layouts`; `dword_4F07D4` pointed at the current one in the original)
+//! has a list of dead keys {key, plain, shifted} ended by a 0 key, a plain table, a shifted
+//! one and one used while `byte_4F6B40` is down (read as AltGr). A dead key is
 //! stored in `byte_4F6AD0`; the next key is then looked up, by its plain character, in the
 //! list of {dead key, base, plain result, shifted result} at 0x4F8000. Keys whose bit is set
 //! in the bitmap at 0x4F7FF0 type nothing. In layout mode 2 (`byte_4F07D2`), Alt or AltGr
-//! with a shift key switches the layout: left shift picks 0x4F07F8, right shift 0x4F080C.
+//! with a shift key switches the layout: left shift picks the keyboard file's first layout,
+//! right shift its second.
 //! Refuses: no layout; a dead key pending with no plain table (the original reads through
 //! null); lists without an end within 256 entries.
 
 use crate::errors::BadInput;
-use crate::input::store::{
-    DEVICES, KEYBOARD, KEYBOARD_FILE, LayoutId, LayoutTable, current_layout, layout_table,
-    set_current_layout,
-};
+use crate::input::layouts::{Current, layouts};
+use crate::input::store::{DEVICES, KEYBOARD};
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -32,68 +31,69 @@ const RIGHT_SHIFT: usize = 0x36;
 const ALT: usize = 0x38;
 const ALT_GR: usize = 0x64;
 
-use crate::pointers::{GameBytes, GamePtr};
-
 fn down(key: usize) -> bool {
     DEVICES.keys_down.get(key) != 0
 }
 
 /// True if a keyboard layout is set.
 pub fn has_layout() -> bool {
-    KEYBOARD_FILE.layout.get() != 0
+    layouts().current() != Current::None
 }
 
 // ---- Rust version ----
 
 /// eax as the original leaves it; the character is its low byte.
 pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
-    use rc2k_core::input::keyboard::{self, Layout, Switch};
+    typed(eax, false)
+}
+
+/// The same for the name editors and the yes/no question, which in layout mode 2 always use
+/// the keyboard file's first layout and leave the current one as it was (the original put
+/// that layout in place for the call and the old one back after).
+pub fn key_to_char_for_text(eax: u32) -> Result<u32, BadInput> {
+    typed(eax, true)
+}
+
+fn typed(eax: u32, for_text: bool) -> Result<u32, BadInput> {
+    use rc2k_core::input::keyboard::{self, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {
         return Ok(eax & !0xFF);
     }
-    // Converted: `rc2k_core::input::keyboard`; here the layout block's pointers as tables, and
-    // the switch and the pending key stored.
+    let mut layouts = layouts();
+    // Converted: `rc2k_core::input::keyboard`; here the layouts, and the switch and the
+    // pending key stored.
     let switched = keyboard::switch(
-        KEYBOARD_FILE.mode.get(),
+        layouts.mode(),
         down(ALT),
         down(ALT_GR),
         down(LEFT_SHIFT),
         down(RIGHT_SHIFT),
-    );
-    let layout = match switched {
-        Some(Switch::First) => LayoutId::File(0),
-        Some(Switch::Second) => LayoutId::File(1),
-        None => current_layout()?.ok_or(BadInput("no keyboard layout"))?,
+    )
+    .map(|which| match which {
+        Switch::First => Current::File(0),
+        Switch::Second => Current::File(1),
+    });
+    let own_layout = for_text && layouts.mode() == 2;
+    let which = match switched {
+        Some(layout) => layout,
+        None if own_layout => Current::File(0),
+        None => layouts.current(),
     };
-    // Each table by the layout's handle (`layout_table`).
-    let table = |t: LayoutTable| layout_table(layout, t);
-    let tables = [
-        table(LayoutTable::DeadKeys)?,
-        table(LayoutTable::Plain)?,
-        table(LayoutTable::Shifted)?,
-        table(LayoutTable::AltGr)?,
-    ];
-    fn as_bytes(t: &Option<GameBytes>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
-        t.as_ref()
-            .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
-    }
+    let layout = layouts
+        .layout(which)
+        .ok_or(BadInput("no keyboard layout"))?;
     let typed = keyboard::key_to_char(
         key,
-        &Layout {
-            dead_keys: as_bytes(&tables[0]),
-            plain: as_bytes(&tables[1]),
-            shifted: as_bytes(&tables[2]),
-            alt_gr: as_bytes(&tables[3]),
-        },
+        &layout.tables()?,
         &GamePtr::to(&KEYBOARD.compose).bytes("the compose table")?,
         &GamePtr::to(&KEYBOARD.silent_keys).bytes("the silent keys")?,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),
         DEVICES.dead_key.get(),
     )?;
-    if switched.is_some() {
-        set_current_layout(layout);
+    if let (Some(layout), false) = (switched, own_layout) {
+        layouts.set_current(layout);
     }
     if let Some(pending) = typed.pending {
         DEVICES.dead_key.set(pending);

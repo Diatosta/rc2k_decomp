@@ -3,8 +3,8 @@
 //! In:  eax = the key, if `dword_4F7FD8` is 1; otherwise it takes the pending key itself
 //! Out: eax = 1 for yes, 0xFFFFFFFF for no, 2 for the third answer, 0 for anything else or
 //!      no key; everything else preserved
-//! The key becomes a character through `key_to_char` (with the layout `dword_4F07F8` put in
-//! place for the call when `byte_4F07D2` is 2), is made lower case with the table at
+//! The key becomes a character through `key_to_char_for_text` (the keyboard file's first
+//! layout in place for the call when the layout mode (`byte_4F07D2`) is 2), is made lower case with the table at
 //! `byte_4F0BC8`, and is compared with the first character of strings 0xC3, 0xC4 and 0xC5 in
 //! turn. Each string is built at the start of the shared text buffer without a NUL, so an
 //! empty one is "compared" through whatever was there.
@@ -12,8 +12,8 @@
 //! Refuses a missing keyboard layout (before the key is taken) and what `key_to_char` does.
 
 use crate::errors::BadInput;
-use crate::input::key_to_char::{has_layout, key_to_char};
-use crate::input::store::{KEYBOARD, KEYBOARD_FILE, LayoutId, set_current_layout};
+use crate::input::key_to_char::{has_layout, key_to_char_for_text};
+use crate::input::store::KEYBOARD;
 use crate::input::take_key::take_key;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::TEXT_LEN;
@@ -34,15 +34,7 @@ pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     if eax == 0 {
         return Ok(0);
     }
-    let own_layout = KEYBOARD_FILE.mode.get() == 2;
-    let layout = KEYBOARD_FILE.layout.get();
-    if own_layout {
-        set_current_layout(LayoutId::File(0));
-    }
-    let character = key_to_char(eax);
-    if own_layout {
-        KEYBOARD_FILE.layout.set(layout);
-    }
+    let character = key_to_char_for_text(eax);
     let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
     // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
     // buffer's start without a NUL, as the original does (their lengths checked first).

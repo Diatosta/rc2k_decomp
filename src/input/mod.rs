@@ -24,6 +24,7 @@ pub mod input_tick;
 pub mod joystick_found;
 pub mod key_to_char;
 pub mod keys;
+pub mod layouts;
 pub mod list_joysticks;
 pub mod make_effect;
 pub mod menu_pad;

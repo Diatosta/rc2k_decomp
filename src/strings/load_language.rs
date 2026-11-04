@@ -40,16 +40,13 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::gfx::glyph_tables::TABLES;
-use crate::input::store::{
-    KEYBOARD_FILE, LayoutId, LayoutTable, file_table_offset, set_current_layout,
-};
+use crate::input::layouts::layouts;
 use crate::install::vars::INSTALLER_RUN;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::keyboard_tables::KEYBOARD_TABLES;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::{LEXICON_ROOM, use_lexicon};
 use rc2k_core::strings::case::CaseTable;
@@ -96,10 +93,12 @@ pub static PLAIN_LETTERS: Bytes<256> = Bytes::new([
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
 ]);
-/// `KEYBOARD_FILE` (dword_4F07C8): the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9
-/// and +0xA two modes, +0xB the layout's number, +0xC the layout chosen (written here),
-/// +0x30 the layouts.
-const KEYBOARD_LEN: usize = 0x400;
+/// The `.kim` file (`g_keyboardFile`, dword_4F07C8), 0x400 bytes: +0 "KEYB", +8 a kind, +0xA
+/// the layout mode, +0xB the layout's number, +0x30 the layouts
+/// (`rc2k_core::input::layouts`).
+const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
+/// Where the file is read to (the layouts own the result).
+static KEYBOARD_BUFFER: Bytes<KEYBOARD_LEN> = Bytes::new([0; KEYBOARD_LEN]);
 
 // ---- Rust version ----
 
@@ -147,9 +146,7 @@ fn correct_lexicon() -> Result<(), BadInput> {
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     compile()?;
     use_lexicon();
-    set_current_layout(LayoutId::BuiltIn);
-    KEYBOARD_FILE.built_in.set(1);
-    KEYBOARD_FILE.mode.set(1);
+    layouts().use_built_in();
 
     if read_first_match(
         crate::pointers::GamePtr::to(LOCALE_FILES),
@@ -172,42 +169,30 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         player.update(|p| p.metric_units = units);
     }
 
+    // Read over the block the last load left (a shorter file leaves its tail).
+    KEYBOARD_BUFFER.write(&layouts().file_bytes());
     if read_first_match(
         crate::pointers::GamePtr::to(KEYBOARD_FILES),
-        crate::pointers::GamePtr::to(&KEYBOARD_FILE),
+        crate::pointers::GamePtr::to(&KEYBOARD_BUFFER),
         KEYBOARD_LEN as u32,
         0,
     )?
     .is_some()
     {
-        if &KEYBOARD_FILE.magic.read() != b"KEYB" {
+        let keyboard = KEYBOARD_BUFFER.read();
+        if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
-        // The layouts' table offsets stay as loaded; `layout_table` resolves them.
-        let chosen = KEYBOARD_FILE.chosen.get();
-        set_current_layout(LayoutId::File(chosen));
-        if KEYBOARD_FILE.kind.get() == 0x0C {
-            let Some(fourth) = file_table_offset(chosen, LayoutTable::KeyNames)? else {
-                return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
-            };
-            for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
-                GamePtr::to(&KEYBOARD_FILE)
-                    .offset(fourth.wrapping_add(at))
-                    .write::<u16>(value, "a keyboard table")?;
-            }
-        }
+        // Converted: `rc2k_core::input::layouts` (the offsets made places, the kind 0x0C
+        // patch).
+        layouts().use_file(rc2k_core::input::layouts::parse(&keyboard)?);
     }
 
     make_case_tables()?;
 
-    // `sub_403462`
+    // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
     if MACHINE.keyboard_type.get() == 2 {
-        GamePtr::to(&KEYBOARD_TABLES.nec_head).unbounded().copy_to(
-            GamePtr::to(&KEYBOARD_FILE),
-            0x30,
-            "the NEC keyboard head",
-        )?;
-        set_current_layout(LayoutId::Nec);
+        layouts().use_nec();
         INSTALLER_RUN.first_drive.set(0x61u32);
     }
 

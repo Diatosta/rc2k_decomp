@@ -56,7 +56,7 @@ mod tests {
         assert_eq!(mine, &image[..]);
     }
 
-    /// The NEC layout's pointers name the offsets `input::store::layout_table` uses.
+    /// The NEC layout's pointers name the offsets `input::layouts` uses.
     #[test]
     fn the_nec_layouts_tables_are_where_the_store_says() {
         let image = crate::moved::image_bytes(0x4F0E10, 0x14);

@@ -1,18 +1,13 @@
 //! The input module's variables, out of RAL.EXE's image (phase 5, `notes/conversion.md`;
-//! typed in phase 7). Four blocks with the image's layout, one `#[repr(C)]` struct each:
-//! - `KeyboardFile` (`KEYBOARD_FILE`), IDA 0x4F07C8 .. 0x4F0BC8: the keyboard file's 0x400
-//!   bytes as `strings::load_language` reads it (its head, the layout mode, the current
-//!   layout, the two layout blocks and the tables they point into; `key_to_char`). One
-//!   block: the file is read over all of it and its layouts' offsets are made addresses in it
-//!   (2026-10-24: moving only 0x4F07D0 .. 0x4F0820 left the file in the image and the layouts
-//!   pointing past the block, "a keyboard layout without its key names" at the redefine page);
+//! typed in phase 7). Three blocks with the image's layout, one `#[repr(C)]` struct each (the keyboard file's
+//! block went in 2026-11-04: its layouts are `input::layouts`):
 //! - `Devices` (`DEVICES`), 0x4F68D8 .. 0x4F7E18: the settings' switches (`nojoysticks` ...),
 //!   the DirectInput objects, the joystick's state, caps and properties, the key tables (down,
 //!   now, before, pressed, repeat: a byte a key), the mouse word, the two device records
 //!   (0x4F8 bytes each, `types::InputDevice`; `input_devices` points at them), the
 //!   controllers' table (`types::Controller`) and the input command;
-//! - `Keyboard` (`KEYBOARD`), 0x4F7FD8 .. 0x4F8294: the yes/no key, the built-in layout, the
-//!   silent keys' bitmap and the dead keys' list (0x4F8000) the keyboard file fills;
+//! - `Keyboard` (`KEYBOARD`), 0x4F7FD8 .. 0x4F8294: the yes/no key, the built-in layout's
+//!   tables, the silent keys' bitmap and the dead keys' list (0x4F8000);
 //! - `Mouse` (`MOUSE`), 0x5C6924 .. 0x5C6948: the mouse's position, clicks and buttons.
 //!
 //! The effects' GUIDs and the DirectInput identifiers (0x4F7E18 .. 0x4F7FA8) stay in the
@@ -81,92 +76,6 @@ const fn bytes<const N: usize>(runs: Runs, at: usize) -> Bytes<N> {
 
 const fn byte(runs: Runs, at: usize) -> Byte {
     Byte::new(byte_at(runs, at))
-}
-
-/// A keyboard layout: five pointers (the dead keys' list, the plain table, the shifted one,
-/// the one used while AltGr (`byte_4F6B40`) is down, and the key names' table, words of
-/// string ids a key; `append_key_name`; the keyboard file of kind 0x0C patches three).
-#[repr(C)]
-pub struct KeyLayout {
-    /// +0: a list of {dead key, plain, shifted} ended by a 0 key.
-    pub dead_keys: Dword,
-    /// +4: the plain table (a character a key).
-    pub plain: Dword,
-    /// +8: the shifted table.
-    pub shifted: Dword,
-    /// +0xC: the table used while AltGr is down.
-    pub alt_gr: Dword,
-    /// +0x10: the key names' table (`load_language` writes three words of it for kind
-    /// 0x0C).
-    pub key_names: Dword,
-}
-
-// ---- the keyboard file: 0x4F07C8 .. 0x4F0BC8 ----
-
-/// The keyboard file's 0x400 bytes (`g_keyboardFile`): the file is read over all of it.
-#[repr(C)]
-pub struct KeyboardFile {
-    /// `g_keyboardFile`: "KEYB" in a file.
-    pub magic: Bytes<4>,
-    /// 0x4F07CC (a reading: the file's second dword; nothing reads it).
-    pub _version: Dword,
-    /// `byte_4F07D0`: the file's kind (0x0C: patches the fourth table of its layout).
-    pub kind: Byte,
-    /// `byte_4F07D1`: 1 for the built-in layout.
-    pub built_in: Byte,
-    /// `byte_4F07D2`: the layout mode (2: Alt with a shift key switches the layout).
-    pub mode: Byte,
-    /// `byte_4F07D3`: the layout the file picks (times 0x14 from `layouts`).
-    pub chosen: Byte,
-    /// `g_keyboardLayout` (`dword_4F07D4`): the current layout, `LayoutId::cell` (0: none).
-    pub layout: Dword,
-    /// 0x4F07D8 .. 0x4F07F8: the rest of the file's head.
-    pub _head: Bytes<0x20>,
-    /// `dword_4F07F8` and `unk_4F080C`: the file's two layout blocks (offsets into the
-    /// file from the first block, kept as loaded; `layout_table` resolves them).
-    pub layouts: [KeyLayout; 2],
-    /// 0x4F0820 .. 0x4F0BC8: the tables the layouts point into.
-    pub tables: Bytes<0x3A8>,
-}
-
-impl KeyboardFile {
-    pub const LEN: u32 = size_of::<Self>() as u32;
-}
-
-pub static KEYBOARD_FILE: KeyboardFile = KeyboardFile {
-    magic: Bytes::new([0; 4]),
-    _version: Dword::new(0),
-    kind: Byte::new(0),
-    built_in: Byte::new(0),
-    mode: Byte::new(0),
-    chosen: Byte::new(0),
-    layout: Dword::new(0),
-    _head: Bytes::new([0; 0x20]),
-    layouts: [
-        KeyLayout {
-            dead_keys: Dword::new(0),
-            plain: Dword::new(0),
-            shifted: Dword::new(0),
-            alt_gr: Dword::new(0),
-            key_names: Dword::new(0),
-        },
-        KeyLayout {
-            dead_keys: Dword::new(0),
-            plain: Dword::new(0),
-            shifted: Dword::new(0),
-            alt_gr: Dword::new(0),
-            key_names: Dword::new(0),
-        },
-    ],
-    tables: Bytes::new([0; 0x3A8]),
-};
-
-pub const KEYBOARD_FILE_IDA: usize = 0x4F07C8;
-pub const KEYBOARD_FILE_LEN: usize = core::mem::size_of::<KeyboardFile>();
-
-/// Where the keyboard file is (`moved::MOVED`'s home for IDA 0x4F07C8).
-pub fn keyboard_file_addr() -> u32 {
-    crate::pointers::game_address(&raw const KEYBOARD_FILE)
 }
 
 // ---- the devices: 0x4F68D8 .. 0x4F7E18 ----
@@ -432,8 +341,9 @@ pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
 pub struct Keyboard {
     /// `g_yesNoKeyGiven`: 1 = the key comes in eax.
     pub yes_no_key_given: Dword,
-    /// `unk_4F7FDC`: the built-in layout (its pointers name the tables below).
-    pub built_in_layout: KeyLayout,
+    /// `unk_4F7FDC`: the built-in layout's five pointers (nothing reads them: `input::layouts`
+    /// copies the tables below).
+    pub _built_in_layout: [Dword; 5],
     /// `dword_4F7FF0`: one bit per key; the keys set type nothing.
     pub silent_keys: [Dword; 4],
     /// `unk_4F8000`: the dead keys' list {dead key, base, plain result, shifted result}.
@@ -456,13 +366,7 @@ pub static KEYBOARD: Keyboard = {
     use crate::input::store_data::KEYBOARD_RUNS as R;
     Keyboard {
         yes_no_key_given: dword(R, 0x0),
-        built_in_layout: KeyLayout {
-            dead_keys: dword(R, 0x4),
-            plain: dword(R, 0x8),
-            shifted: dword(R, 0xC),
-            alt_gr: dword(R, 0x10),
-            key_names: dword(R, 0x14),
-        },
+        _built_in_layout: dwords(R, 0x4),
         silent_keys: dwords(R, 0x18),
         compose: bytes(R, 0x28),
         plain: bytes(R, 0x94),
@@ -476,137 +380,6 @@ pub static KEYBOARD: Keyboard = {
 
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
-
-/// A keyboard layout, by handle (`g_keyboardLayout`, the current one, kept in
-/// `KEYBOARD_FILE.layout` as `LayoutId::cell`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LayoutId {
-    /// The built-in layout (`KEYBOARD.built_in_layout`).
-    BuiltIn,
-    /// One of the keyboard file's layout blocks (the file holds two; `chosen` may name more).
-    File(u8),
-    /// The built-in NEC layout (`strings::keyboard_tables`).
-    Nec,
-}
-
-/// One table of a layout, in the order of the layout block's pointers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LayoutTable {
-    DeadKeys,
-    Plain,
-    Shifted,
-    AltGr,
-    KeyNames,
-}
-
-/// Where the file's layout blocks start in `KEYBOARD_FILE` (0x4F07F8 - 0x4F07C8); the file's
-/// table offsets count from here.
-const FILE_LAYOUTS: u32 = 0x30;
-/// A layout block's size: five table pointers.
-const LAYOUT_LEN: u32 = 0x14;
-
-impl LayoutId {
-    /// The value kept in `KEYBOARD_FILE.layout`: 0 stands for no layout.
-    pub fn cell(self) -> u32 {
-        match self {
-            Self::BuiltIn => 1,
-            Self::Nec => 2,
-            Self::File(n) => 0x10 + n as u32,
-        }
-    }
-
-    fn from_cell(cell: u32) -> Result<Option<Self>, BadInput> {
-        match cell {
-            0 => Ok(None),
-            1 => Ok(Some(Self::BuiltIn)),
-            2 => Ok(Some(Self::Nec)),
-            0x10..=0x10F => Ok(Some(Self::File((cell - 0x10) as u8))),
-            _ => Err(BadInput("a keyboard layout that is not one of the handles")),
-        }
-    }
-}
-
-impl LayoutTable {
-    fn at(self) -> u32 {
-        match self {
-            Self::DeadKeys => 0,
-            Self::Plain => 4,
-            Self::Shifted => 8,
-            Self::AltGr => 0xC,
-            Self::KeyNames => 0x10,
-        }
-    }
-}
-
-/// The current layout, none before `load_language` sets one.
-pub fn current_layout() -> Result<Option<LayoutId>, BadInput> {
-    LayoutId::from_cell(KEYBOARD_FILE.layout.get())
-}
-
-pub fn set_current_layout(layout: LayoutId) {
-    KEYBOARD_FILE.layout.set(layout.cell());
-}
-
-/// Where a file layout's table starts in `KEYBOARD_FILE`: the offset the file holds (0 for
-/// none), kept as loaded and resolved here. Only the file's two blocks have their offsets
-/// made places in the original; a block past them holds raw numbers.
-pub fn file_table_offset(layout: u8, table: LayoutTable) -> Result<Option<u32>, BadInput> {
-    let at = FILE_LAYOUTS + layout as u32 * LAYOUT_LEN + table.at();
-    if at + 4 > KeyboardFile::LEN {
-        return Err(BadInput("a keyboard layout past the keyboard file"));
-    }
-    let offset: u32 = GamePtr::to(&KEYBOARD_FILE)
-        .offset(at)
-        .read("a keyboard layout's table")?;
-    if offset == 0 {
-        return Ok(None);
-    }
-    if layout > 1 {
-        return Err(BadInput("a keyboard layout past the file's two blocks"));
-    }
-    let start = FILE_LAYOUTS.wrapping_add(offset);
-    if start >= KeyboardFile::LEN {
-        return Err(BadInput("a keyboard table outside the keyboard file"));
-    }
-    Ok(Some(start))
-}
-
-/// The bytes of a layout's table, none when the layout has none. A file's tables are found
-/// by their offsets into the file (`strings::load_language`); the built-in layouts' by their
-/// typed stores.
-pub fn layout_table(
-    layout: LayoutId,
-    table: LayoutTable,
-) -> Result<Option<crate::pointers::GameBytes>, BadInput> {
-    use crate::strings::keyboard_tables::KEYBOARD_TABLES;
-    const WHAT: &str = "a keyboard layout's table";
-    let start = match (layout, table) {
-        (LayoutId::File(n), t) => {
-            let Some(start) = file_table_offset(n, t)? else {
-                return Ok(None);
-            };
-            return GamePtr::to(&KEYBOARD_FILE)
-                .offset(start)
-                .bytes(WHAT)
-                .map(Some);
-        }
-        (_, LayoutTable::DeadKeys | LayoutTable::AltGr) => return Ok(None),
-        (LayoutId::BuiltIn, LayoutTable::Plain) => GamePtr::to(&KEYBOARD.plain),
-        (LayoutId::BuiltIn, LayoutTable::Shifted) => GamePtr::to(&KEYBOARD.shifted),
-        (LayoutId::BuiltIn, LayoutTable::KeyNames) => GamePtr::to(&KEYBOARD.key_names),
-        // The NEC layout's tables follow its block, at the offsets its pointers name.
-        (LayoutId::Nec, LayoutTable::Plain) => {
-            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x14)
-        }
-        (LayoutId::Nec, LayoutTable::Shifted) => {
-            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x94)
-        }
-        (LayoutId::Nec, LayoutTable::KeyNames) => {
-            GamePtr::to(&KEYBOARD_TABLES.nec_layout).offset(0x114)
-        }
-    };
-    start.bytes(WHAT).map(Some)
-}
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
 pub fn keyboard_addr() -> u32 {
@@ -741,7 +514,6 @@ mod tests {
     fn the_blocks_start_as_the_images_bytes() {
         let _g = crate::store::test_lock();
         for (ida, len, addr) in [
-            (KEYBOARD_FILE_IDA, KEYBOARD_FILE_LEN, keyboard_file_addr()),
             (DEVICES_IDA, DEVICES_LEN, devices_addr()),
             (KEYBOARD_IDA, KEYBOARD_LEN, keyboard_addr()),
             (MOUSE_IDA, MOUSE_LEN, mouse_addr()),
@@ -772,11 +544,6 @@ mod tests {
 
     #[test]
     fn the_blocks_keep_the_images_layout() {
-        assert_eq!(KEYBOARD_FILE_LEN, 0x4F0BC8 - 0x4F07C8);
-        assert_eq!(offset_of!(KeyboardFile, mode), 0x4F07D2 - 0x4F07C8);
-        assert_eq!(offset_of!(KeyboardFile, layout), 0x4F07D4 - 0x4F07C8);
-        assert_eq!(offset_of!(KeyboardFile, layouts), 0x4F07F8 - 0x4F07C8);
-        assert_eq!(offset_of!(KeyboardFile, tables), 0x4F0820 - 0x4F07C8);
         assert_eq!(DEVICES_LEN, 0x4F7E18 - 0x4F68D8);
         for (offset, ida) in [
             (offset_of!(Devices, direct_input), 0x4F6904),
@@ -808,44 +575,6 @@ mod tests {
         assert_eq!(offset_of!(Keyboard, plain), 0x4F806C - 0x4F7FD8);
         assert_eq!(offset_of!(Keyboard, axes_rest), 0x4F8270 - 0x4F7FD8);
         assert_eq!(MOUSE_LEN, 0x24);
-    }
-
-    #[test]
-    fn the_layout_handles_resolve() {
-        let _g = crate::store::test_lock();
-        for l in [
-            LayoutId::BuiltIn,
-            LayoutId::Nec,
-            LayoutId::File(0),
-            LayoutId::File(1),
-        ] {
-            assert_eq!(LayoutId::from_cell(l.cell()), Ok(Some(l)));
-        }
-        assert_eq!(LayoutId::from_cell(0), Ok(None));
-        assert!(LayoutId::from_cell(3).is_err());
-        for l in [LayoutId::BuiltIn, LayoutId::Nec] {
-            assert!(layout_table(l, LayoutTable::DeadKeys).unwrap().is_none());
-            assert!(layout_table(l, LayoutTable::AltGr).unwrap().is_none());
-            for t in [
-                LayoutTable::Plain,
-                LayoutTable::Shifted,
-                LayoutTable::KeyNames,
-            ] {
-                assert!(layout_table(l, t).unwrap().is_some());
-            }
-        }
-        // A file's table is its offset from the first block; 0 is none.
-        let saved = KEYBOARD_FILE.layouts[0].plain.get();
-        KEYBOARD_FILE.layouts[0].plain.set(0x10u32);
-        assert_eq!(
-            file_table_offset(0, LayoutTable::Plain),
-            Ok(Some(FILE_LAYOUTS + 0x10))
-        );
-        KEYBOARD_FILE.layouts[0].plain.set(0u32);
-        assert_eq!(file_table_offset(0, LayoutTable::Plain), Ok(None));
-        KEYBOARD_FILE.layouts[0].plain.set(0x1000u32);
-        assert!(file_table_offset(0, LayoutTable::Plain).is_err());
-        KEYBOARD_FILE.layouts[0].plain.set(saved);
     }
 
     #[test]
