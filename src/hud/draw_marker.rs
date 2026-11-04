@@ -8,7 +8,7 @@
 //! Caller: layout 0's drawer (0x4B1F0C).
 
 use crate::errors::Refused;
-use crate::hud::store::{HUD, rect_addr};
+use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
 use rc2k_core::hud::quads::marker_x;
 
@@ -28,6 +28,6 @@ pub fn draw_marker(record: GamePtr) -> Result<(), Refused> {
             HUD.marker_k[1].get(),
         );
         HUD.scratch.set(x);
-        crate::hud::add_sprite::add_sprite(x, 0, rect_addr(RECT))
+        crate::hud::add_sprite::add_sprite(x, 0, rect_place(RECT))
     }
 }

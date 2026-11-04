@@ -19,13 +19,13 @@ use crate::errors::Refused;
 use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
-use crate::hud::store::{HUD, rect_addr};
+use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
 
 /// A sprite scaled 0xC0 over `flt_75C00C` both ways; the scales then taken off into
 /// `dword_75C060`.
 pub fn scaled(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    let at = rect_addr(rect);
+    let at = rect_place(rect);
     let k = HUD.uv_scale_x.bits();
     HUD.scratch.set(0xC0);
     let v = int_over_80(0xC0, k);
@@ -36,7 +36,7 @@ pub fn scaled(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
 
 /// A sprite: rectangle `rect` (0x10 a rectangle) of `dword_75B940` at (x, y).
 pub fn plain(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(x, y, rect_addr(rect))
+    crate::hud::add_sprite::add_sprite(x, y, rect_place(rect))
 }
 
 /// The sign of the needle by the record's `field` (`dword_75C040`, `dword_75BFAC`, the

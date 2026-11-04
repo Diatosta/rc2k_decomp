@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
-use crate::hud::store::{HUD, rect_addr};
+use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
 use rc2k_core::hud::panels;
 
@@ -33,7 +33,7 @@ pub fn time_digits(value: u32, base: u32) -> [u32; 6] {
 
 /// A sprite: rectangle `rect` of `dword_75B940` at (x, y).
 pub fn sprite(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(x, y, rect_addr(rect))
+    crate::hud::add_sprite::add_sprite(x, y, rect_place(rect))
 }
 
 /// The sign of a time into `dword_75C0A4`: `plus` or `minus`.

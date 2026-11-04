@@ -14,10 +14,10 @@ use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
 /// `hud::add_scaled_sprite`): the rectangle.
-pub fn put_places(s: u32) -> Result<[u32; 4], Refused> {
+pub fn put_places(s: GamePtr) -> Result<[u32; 4], Refused> {
     Ok({
         let rect: [u32; 4] = crate::effects::try_from_fn(|n| {
-            Ok(GamePtr::new(s + 4 * n as u32).read::<u32>("a hud record's field")?)
+            Ok(s.offset(4 * n as u32).read::<u32>("a hud record's field")?)
         })?;
         for (n, v) in quads::sprite_places(rect) {
             HUD.quad[n].set(v);
@@ -33,10 +33,10 @@ pub fn put_corners(x: u32, y: u32, w: u32, h: u32) {
     }
 }
 
-/// The Rust version (see the header): the sprite whose rectangle is at `rect` with its
+/// The Rust version (see the header): the sprite whose rectangle is the place `rect` with its
 /// corner at `x`, `y` (ebx, ecx, esi; every register kept).
 // Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
-pub fn add_sprite(x: u32, y: u32, rect: u32) -> Result<(), Refused> {
+pub fn add_sprite(x: u32, y: u32, rect: GamePtr) -> Result<(), Refused> {
     let [_, _, w, h] = put_places(rect)?;
     put_corners(x, y, w, h);
     crate::hud::add_quad::add_quad()

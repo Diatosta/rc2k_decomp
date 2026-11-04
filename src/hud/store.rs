@@ -512,10 +512,17 @@ pub fn hud_addr() -> u32 {
     crate::pointers::game_address(&raw const HUD)
 }
 
-/// The rectangle `n` of the table as an address (`add_sprite` is handed rectangles by
-/// address: the record's numbers are not checked, as in the original).
-pub fn rect_addr(n: u32) -> u32 {
-    (crate::pointers::game_address(HUD.rects.as_ptr())).wrapping_add(n.wrapping_mul(0x10))
+/// The place of the rectangle `n` of the table (the record's numbers are not checked, as in
+/// the original: a number past the table reads on into the block's next fields, so the
+/// place is bounded to the whole block).
+pub fn rect_place(n: u32) -> crate::pointers::GamePtr {
+    rects_at(n.wrapping_mul(0x10))
+}
+
+/// The place `offset` bytes into the rectangles (bounded to the whole block, as `rect_place`).
+pub fn rects_at(offset: u32) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&HUD)
+        .offset((core::mem::offset_of!(Hud, rects) as u32).wrapping_add(offset))
 }
 
 #[cfg(test)]

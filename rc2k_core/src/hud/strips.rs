@@ -44,16 +44,15 @@ impl Strip {
     }
 }
 
-/// A view block's strip; `field(offset)` reads the block, in the original's order.
-pub fn strip(field: impl Fn(u32) -> u32) -> Strip {
-    if field(0xFA8) != 0 || field(0x728) == 0 {
+/// A view block's strip from its `covered` (+0xFA8), `shown` (+0x728), `clock` (+0x72C) and
+/// `period` (+0x730) fields.
+pub fn strip(covered: u32, shown: u32, clock: u32, period: u32) -> Strip {
+    if covered != 0 || shown == 0 {
         return Strip::Hidden;
     }
-    let period = field(0x730);
     if (period as i32) <= 0 {
         return Strip::Steady;
     }
-    let clock = field(0x72C);
     Strip::Flashing(Flash {
         quotient: clock / period,
         remainder: clock % period,
@@ -137,14 +136,7 @@ mod tests {
 
     #[test]
     fn strips() {
-        let block = |fa8: u32, on: u32, clock: u32, period: u32| {
-            strip(move |o| match o {
-                0xFA8 => fa8,
-                0x728 => on,
-                0x72C => clock,
-                _ => period,
-            })
-        };
+        let block = |fa8: u32, on: u32, clock: u32, period: u32| strip(fa8, on, clock, period);
         assert_eq!(block(1, 1, 0, 0), Strip::Hidden);
         assert_eq!(block(0, 0, 0, 0), Strip::Hidden);
         assert_eq!(block(0, 1, 5, 0x8000_0000), Strip::Steady);

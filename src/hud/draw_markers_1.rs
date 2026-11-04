@@ -10,7 +10,7 @@
 //! Caller: layout 1's drawer (0x4B2BF4); `hud::draw_markers_2` is its twin (rows 0x11F, 0x12C).
 
 use crate::errors::Refused;
-use crate::hud::store::{HUD, rect_addr};
+use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
@@ -44,7 +44,7 @@ pub fn markers_with(record: GamePtr, rows: [u32; 2]) -> Result<(), Refused> {
                 HUD.marker_k[1].get(),
             );
             HUD.scratch.set(x);
-            let rect = rect_addr(RECT);
+            let rect = rect_place(RECT);
             HUD.scratch.set(0x78u32);
             let st1 = int_over_80(0x78, k);
             HUD.scratch.set(0x100u32);

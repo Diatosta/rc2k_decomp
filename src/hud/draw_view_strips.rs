@@ -12,19 +12,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::hud::overlay_pass::shown_layout;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 
-/// Whether the block at `block`'s strip is shown (see the header).
-fn flashing(block: u32) -> Result<bool, BadInput> {
-    use rc2k_core::hud::strips::strip;
-    let bad = crate::effects::Sticky::default();
-    let shown =
-        strip(|o| bad.take(GamePtr::new(block + o).read::<u32>("a hud record's field"))).shown();
-    bad.done()?;
-    Ok(shown)
+/// Whether the strip of the view block `handle` names is shown (see the header).
+fn flashing(handle: u32) -> Result<bool, BadInput> {
+    let car = crate::race::blocks_store::car_of(handle).ok_or(BadInput("a view's block"))?;
+    Ok(rc2k_core::hud::strips::strip(
+        car.view_covered.get(),
+        car.notice_shown.get(),
+        car.notice_time.get(),
+        car.notice_time_b.get(),
+    )
+    .shown())
 }
 
 /// The Rust version (see the header). What the original leaves in the registers is read
@@ -35,11 +36,11 @@ pub fn draw_view_strips() -> Result<(), Refused> {
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
         if REPLAY_FILE.hold_car_revs.bits() == 0 {
-            if flashing(RACE_VIEW.view_block(0))? {
+            if flashing(RACE_VIEW.view_blocks[0].get())? {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
                 draw_view_strip(shown_layout())?;
             }
-            if shown_layout() != 0 && flashing(RACE_VIEW.view_block(1))? {
+            if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].get())? {
                 DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
                 draw_view_strip(shown_layout().wrapping_add(SECOND_VIEW))?;
             }
