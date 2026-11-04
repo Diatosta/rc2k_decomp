@@ -16,7 +16,6 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
@@ -91,7 +90,6 @@ fn piece_name(piece: StartPiece) -> String {
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame() -> Result<(), BadInput> {
     let saved = crate::race::blocks_store::replay_state();
-    let read = |at: u32| GamePtr::new(at).read::<u32>("the replay check's blocks");
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);
@@ -99,10 +97,11 @@ pub fn compare_frame() -> Result<(), BadInput> {
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let ours = crate::drive::save_replay_cars::piece_addr(piece);
+        let ours = crate::drive::save_replay_cars::piece_place(piece);
         for k in 0..n as u32 {
             let (now, kept) = (
-                read(ours + 4 * k)?,
+                ours.offset(4 * k)
+                    .read::<u32>("the replay check's blocks")?,
                 saved
                     .offset(4 * (offset as u32 + k))
                     .read::<u32>("the replay check's blocks")?,

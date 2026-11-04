@@ -9,15 +9,20 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
-use crate::race::work_store::RACE_WORK;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::work_store::{RACE_WORK, RaceWork};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
-/// Where a piece of the starting state is now (an address).
-pub fn piece_addr(piece: StartPiece) -> u32 {
+/// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
+/// `unk_71BF84` (its 0x400 bytes run on through the computer driver's fields: bounded to
+/// the race work).
+pub fn piece_place(piece: StartPiece) -> GamePtr {
     match piece {
-        StartPiece::Car(k) => crate::race::blocks_store::block_addr(k as usize),
-        StartPiece::RaceSlots => RACE_WORK.race_slots[0].part.addr(), // g_raceSlots
-        StartPiece::Extra => RACE_WORK.replay_extra.addr(),           // unk_71BF84
+        StartPiece::Car(k) => GamePtr::to(&CAR_BLOCKS.cars[k as usize]),
+        StartPiece::RaceSlots => GamePtr::to(&RACE_WORK.race_slots),
+        StartPiece::Extra => {
+            GamePtr::to(&RACE_WORK).offset(core::mem::offset_of!(RaceWork, replay_extra) as u32)
+        }
     }
 }
 
@@ -27,9 +32,23 @@ pub fn save_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
             crate::race::blocks_store::replay_state().offset(4 * offset as u32),
-            piece_addr(piece),
+            piece_place(piece),
         );
-        GamePtr::new(place).copy_to(state, n * 4, "the cars' starting state")?;
+        place.copy_to(state, n * 4, "the cars' starting state")?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rc2k_core::strings::bytes::Bytes;
+
+    #[test]
+    fn every_piece_fits_its_place() {
+        for (piece, _, n) in start_layout() {
+            let room = piece_place(piece).bytes("a piece").unwrap();
+            assert!(room.byte(n * 4 - 1).is_some(), "{piece:?}: {n:#x} dwords");
+        }
+    }
 }

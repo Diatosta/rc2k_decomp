@@ -49,9 +49,9 @@ pub struct MapVars {
     pub tile_pixels: Loose,
     /// `g_mapTileCount` (`0x5BE999`).
     pub tile_count: Loose,
-    /// `g_mapPicturePath` (`0x5BE99D`).
+    /// `g_mapPicturePath` (`0x5BE99D`). Not used: nothing reads it (the paths are arguments).
     pub picture_path: Loose,
-    /// `g_mapKeyPath` (`0x5BE9A1`).
+    /// `g_mapKeyPath` (`0x5BE9A1`). Not used: nothing reads it (the paths are arguments).
     pub key_path: Loose,
     /// `g_mapPixelBytes` (`0x5BE9A5`): bytes a pixel.
     pub pixel_bytes: Loose,
@@ -302,10 +302,6 @@ pub fn load_game_map(picture: GamePtr, key_path: GamePtr) -> Result<(), Refused>
         return Ok(());
     }
     MAP.tile_count.set(0u32);
-    // The game variables keep the paths (nothing else reads them); this function goes on with
-    // the typed pointers it was given.
-    MAP.picture_path.set(picture.addr());
-    MAP.key_path.set(key_path.addr());
     let (bytes, format) = take_format()?;
     take_tiles()?;
     // The key sheet is a picture buffer (Rust's since phase 12, `gfx::picture`), counted on

@@ -22,7 +22,6 @@ use crate::drive::race_parts::{
 };
 use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::vars_store::RACE_VARS;
@@ -32,16 +31,23 @@ use crate::race::work_store::RACE_WORK;
 use crate::session::{Dword, FLAGS};
 
 fn view_bit(view: &Dword) -> Result<bool, BadInput> {
-    let block = crate::race::blocks_store::block_of(view.get());
-    let bits: u32 = GamePtr::new(block.wrapping_add(0x468)).read("a view's block")?;
-    Ok(bits & 0x40 != 0)
+    let car = crate::race::blocks_store::car_of(view.get()).ok_or(BadInput("a view's block"))?;
+    Ok(car.input_keys.get() & 0x40 != 0)
+}
+
+/// The network player's car block.
+fn net_player_car() -> Result<&'static crate::physics::car_store::Car, BadInput> {
+    let handle = RACE_WORK
+        .car_blocks
+        .get(crate::net::store::NET.player.get() as usize)
+        .ok_or(BadInput("the network player's car"))?;
+    crate::race::blocks_store::car_of(handle.get()).ok_or(BadInput("the network player's car"))
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(answer: u32) -> Result<(), BadInput> {
     if crate::net::store::NET.session.get() != 0 {
-        let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
-        GamePtr::new(block.wrapping_add(0xB0)).write(answer, "a car's block")?;
+        net_player_car()?.stop_state.set_bits(answer);
         return Ok(());
     }
     CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
@@ -94,7 +100,7 @@ pub fn race_loop() -> Result<(), Refused> {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }
-                let (or, _) = crate::drive::any_key_down::any_key_down();
+                let or = crate::drive::any_key_down::any_key_down();
                 if or != 0 {
                     // Which keys (`g_keysPressed`, by scan code), and the window's own state
                     // of them (`g_keysDown`), for the credits race that ends at once after
@@ -162,8 +168,7 @@ pub fn race_loop() -> Result<(), Refused> {
         }
         // 0x444F0F: paused.
         if crate::net::store::NET.session.get() != 0 {
-            let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
-            GamePtr::new(block.wrapping_add(0x468)).write(0u32, "a car's block")?;
+            net_player_car()?.input_keys.set_bits(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key() }?;
         }

@@ -7,9 +7,8 @@
 //!
 //! Callers: `sub_460049`, `sub_46062E` (twice).
 
-use crate::drive::save_replay_cars::piece_addr;
+use crate::drive::save_replay_cars::piece_place;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use rc2k_core::drive::replay_frames::start_layout;
 
 /// The Rust version.
@@ -18,9 +17,9 @@ pub fn load_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
             crate::race::blocks_store::replay_state().offset(4 * offset as u32),
-            piece_addr(piece),
+            piece_place(piece),
         );
-        state.copy_to(GamePtr::new(place), n * 4, "the cars' starting state")?;
+        state.copy_to(place, n * 4, "the cars' starting state")?;
     }
     Ok(())
 }
