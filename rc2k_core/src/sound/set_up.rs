@@ -30,9 +30,8 @@ pub enum Step {
     Wait,
 }
 
-/// The menus' set-up: the mode (`dword_4F82C4`), the sounds' list (its address,
-/// `unk_511AE4`) and the master volume (`dword_755684`).
-pub fn menus(mode: u32, list: u32, volume: u32) -> [Step; 5] {
+/// The menus' set-up: the mode (`dword_4F82C4`), the sounds' list (`unk_511AE4`) and the master volume (`dword_755684`).
+pub fn menus(mode: u32, list: crate::audio::commands::SoundList, volume: u32) -> [Step; 5] {
     [
         Step::StopMusic,
         Step::Send {
@@ -41,7 +40,7 @@ pub fn menus(mode: u32, list: u32, volume: u32) -> [Step; 5] {
         },
         Step::Send {
             command: LOAD,
-            eax: list,
+            eax: list.word(),
         },
         Step::Send {
             command: VOLUME,
@@ -120,7 +119,7 @@ mod tests {
     #[test]
     fn set_ups() {
         assert_eq!(
-            menus(1, 2, 3)[1..4],
+            menus(1, crate::audio::commands::SoundList::Menu, 3)[1..4],
             [
                 Step::Send {
                     command: MODE,
@@ -128,7 +127,7 @@ mod tests {
                 },
                 Step::Send {
                     command: LOAD,
-                    eax: 2
+                    eax: 1
                 },
                 Step::Send {
                     command: VOLUME,

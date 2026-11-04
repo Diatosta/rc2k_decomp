@@ -1,6 +1,7 @@
 //! `audio::load_sounds` (0x40AEB9): command 3: a list of sounds loaded.
 //!
-//! In:  eax = the list (the sender's eax): sound numbers, -2 passed over, ended by -1
+//! In:  the list (by handle: `SoundList`, the sender's eax once): sound numbers, -2 passed
+//!      over, ended by -1
 //! Out: every register preserved
 //!
 //! For each sound whose record has a file (`data_key`) and `copies` above 0 (signed), that
@@ -20,7 +21,10 @@
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::session::FLAGS;
+use crate::sound::sets_store::{MENU_SOUNDS, MenuSounds, RaceSoundSets};
+use rc2k_core::audio::commands::SoundList;
 
 /// The core's loader: each step the Rust version of the original's callee, with what it
 /// reads (the record, the voice, the shared voice or the mode; `make_buffer` the record as
@@ -88,15 +92,78 @@ impl rc2k_core::audio::load::Loader for GameLoader {
     }
 }
 
-/// Converted: `rc2k_core::audio::load` (`entries`, `load`).
-pub fn load_sounds(list: u32) -> Result<(), Refused> {
-    if list == 0 {
-        return Ok(());
+/// The place of a list. The original reads a list on until its -1, wherever that is; here
+/// the read is bounded to the store holding the list, and a list without its end there is
+/// refused.
+fn list_place(list: SoundList) -> Result<GamePtr, BadInput> {
+    match list {
+        SoundList::Menu => {
+            Ok(GamePtr::to(&MENU_SOUNDS).offset(core::mem::offset_of!(MenuSounds, list) as u32))
+        }
+        SoundList::Race { offset } => RaceSoundSets::list_place(offset),
     }
+}
+
+/// Converted: `rc2k_core::audio::load` (`entries`, `load`).
+pub fn load_sounds(list: Option<SoundList>) -> Result<(), Refused> {
+    let Some(list) = list else {
+        return Ok(());
+    };
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D").into());
     }
-    let entries = rc2k_core::audio::load::entries(|n| read(list + n as u32 * 4))?;
+    let place = list_place(list)?;
+    let refusal = std::cell::Cell::new(None);
+    let entries = rc2k_core::audio::load::entries(|n| {
+        match place.offset(n as u32 * 4).read::<u32>("a list of sounds") {
+            Ok(entry) => entry,
+            Err(e) => {
+                refusal.set(refusal.get().or(Some(e)));
+                rc2k_core::audio::load::END
+            }
+        }
+    })?;
+    if let Some(e) = refusal.get() {
+        return Err(e.into());
+    }
     let mut l = GameLoader;
     rc2k_core::audio::load::load(&mut l, &entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every list a command can name ends in -1 inside its store, and holds only sounds.
+    #[test]
+    fn lists_end_inside_their_store() {
+        let mut lists = vec![SoundList::Menu];
+        for n in 0..72 {
+            lists.push(RaceSoundSets::kind_list_of(n).unwrap());
+        }
+        for field in [
+            core::mem::offset_of!(RaceSoundSets, replay_set),
+            core::mem::offset_of!(RaceSoundSets, first_set_a),
+            core::mem::offset_of!(RaceSoundSets, first_set_b),
+            core::mem::offset_of!(RaceSoundSets, first_set_c),
+            core::mem::offset_of!(RaceSoundSets, second_set_a),
+            core::mem::offset_of!(RaceSoundSets, second_set_b),
+            core::mem::offset_of!(RaceSoundSets, last_set),
+        ] {
+            lists.push(SoundList::Race {
+                offset: field as u32,
+            });
+        }
+        for list in lists {
+            let place = list_place(list).unwrap();
+            let entries = rc2k_core::audio::load::entries(|n| {
+                place
+                    .offset(n as u32 * 4)
+                    .read::<u32>("a list of sounds")
+                    .expect("a list runs out of its store")
+            });
+            assert!(entries.is_ok(), "{list:?}");
+        }
+        assert!(list_place(SoundList::Race { offset: 0x10000 }).is_err());
+    }
 }

@@ -754,17 +754,33 @@ pub static RACE_SOUND_SETS: RaceSoundSets = RaceSoundSets {
 };
 
 impl RaceSoundSets {
-    /// Where the sets of the kind-table entry `n` (two a kind of car) are.
-    pub fn kind_set_of(n: usize) -> Result<u32, crate::errors::BadInput> {
-        if n >= Self::KIND_ENTRIES {
-            return Err(crate::errors::BadInput("a race sound kind past the table"));
+    /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
+    pub fn kind_list_of(
+        n: usize,
+    ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
+        let ida = RACE_SOUND_SETS
+            .kinds
+            .get(n)
+            .filter(|_| n < Self::KIND_ENTRIES)
+            .ok_or(crate::errors::BadInput("a race sound kind past the table"))?
+            .get() as usize;
+        match ida.checked_sub(Self::START) {
+            Some(offset) if offset < Self::LEN => Ok(rc2k_core::audio::commands::SoundList::Race {
+                offset: offset as u32,
+            }),
+            _ => Err(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            )),
         }
-        named(
-            RACE_SOUND_SETS.kinds[n].get(),
-            Self::START,
-            Self::LEN,
-            Self::home(),
-        )
+    }
+
+    /// Where a list of the race's sets is, bounded to the whole sets (the original reads a
+    /// list on until its end).
+    pub fn list_place(offset: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+        if offset as usize >= core::mem::size_of::<Self>() {
+            return Err(crate::errors::BadInput("a sound list off the race's sets"));
+        }
+        Ok(crate::pointers::GamePtr::to(&RACE_SOUND_SETS).offset(offset))
     }
 
     /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
@@ -777,19 +793,6 @@ impl RaceSoundSets {
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const RACE_SOUND_SETS) as usize
     }
-}
-
-/// Where a table's entry names (phase 13: the tables keep IDA's addresses as names, and
-/// `moved::point_into_homes` passes them over): `ida` in the piece at IDA `start`, `len` long,
-/// now at `home`. A value off the piece is refused.
-fn named(ida: u32, start: usize, len: usize, home: usize) -> Result<u32, crate::errors::BadInput> {
-    let at = ida as usize;
-    if !(start..start + len).contains(&at) {
-        return Err(crate::errors::BadInput(
-            "a sound table's entry off its piece",
-        ));
-    }
-    Ok((home + (at - start)) as u32)
 }
 
 /// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
@@ -3004,8 +3007,13 @@ mod tests {
     fn racesoundsets_starts_as_the_games() {
         for n in 0..72 {
             let ida = RACE_SOUND_SETS.kinds[n].get() as usize;
-            let at = RaceSoundSets::kind_set_of(n).unwrap() as usize;
-            assert_eq!(at, RaceSoundSets::home() + (ida - RaceSoundSets::START));
+            let at = RaceSoundSets::kind_list_of(n).unwrap();
+            assert_eq!(
+                at,
+                rc2k_core::audio::commands::SoundList::Race {
+                    offset: (ida - RaceSoundSets::START) as u32
+                }
+            );
             // The image's relocated dword names the same set.
             let image = crate::moved::image_bytes(RaceSoundSets::KINDS_AT + 4 * n, 4);
             assert_eq!(
@@ -3013,7 +3021,7 @@ mod tests {
                 ida
             );
         }
-        assert!(RaceSoundSets::kind_set_of(72).is_err());
+        assert!(RaceSoundSets::kind_list_of(72).is_err());
         let size = size_of::<RaceSoundSets>();
         assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);

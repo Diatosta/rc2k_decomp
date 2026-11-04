@@ -26,7 +26,9 @@ use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use crate::sound::queue::START_3;
-use crate::sound::sets_store::RACE_SOUND_SETS;
+use crate::sound::sets_store::RaceSoundSets;
+use core::mem::offset_of;
+use rc2k_core::audio::commands::SoundList;
 
 // ---- game data ----
 
@@ -55,11 +57,11 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
 
 // ---- Rust version ----
 
-/// `send` gets each command 3's list (its eax, all the audio thread reads of it).
+/// `send` gets each command 3's list (by handle: the audio thread resolves it).
 /// The variables (`crate::sound::store::RACE_SOUNDS`): dword_514F70 and dword_514F74 the
 /// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound
 /// objects; dword_75B108 the replay switch.
-pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
+pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput> {
     use crate::sound::store::RACE_SOUNDS as R;
     let object = |number: &Dword| -> Result<u32, BadInput> {
         let number = number.get();
@@ -124,24 +126,27 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
         count,
         other_count,
     ) {
+        let list = |offset: usize| SoundList::Race {
+            offset: offset as u32,
+        };
         send(match set {
-            Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set),
-            Set::FirstKind(k) => {
-                crate::sound::sets_store::RaceSoundSets::kind_set_of(2 * k as usize)?
-            }
-            Set::First(n) => [
-                crate::session::address_of(&RACE_SOUND_SETS.first_set_a),
-                crate::session::address_of(&RACE_SOUND_SETS.first_set_b),
-                crate::session::address_of(&RACE_SOUND_SETS.first_set_c),
-            ][n],
-            Set::SecondKind(k) => {
-                crate::sound::sets_store::RaceSoundSets::kind_set_of(2 * k as usize + 1)?
-            }
-            Set::Second(n) => [
-                crate::session::address_of(&RACE_SOUND_SETS.second_set_a),
-                crate::session::address_of(&RACE_SOUND_SETS.second_set_b),
-            ][n],
-            Set::Last => crate::session::address_of(&RACE_SOUND_SETS.last_set),
+            Set::Replay => list(offset_of!(RaceSoundSets, replay_set)),
+            Set::FirstKind(k) => RaceSoundSets::kind_list_of(2 * k as usize)?,
+            Set::First(n) => list(
+                [
+                    offset_of!(RaceSoundSets, first_set_a),
+                    offset_of!(RaceSoundSets, first_set_b),
+                    offset_of!(RaceSoundSets, first_set_c),
+                ][n],
+            ),
+            Set::SecondKind(k) => RaceSoundSets::kind_list_of(2 * k as usize + 1)?,
+            Set::Second(n) => list(
+                [
+                    offset_of!(RaceSoundSets, second_set_a),
+                    offset_of!(RaceSoundSets, second_set_b),
+                ][n],
+            ),
+            Set::Last => list(offset_of!(RaceSoundSets, last_set)),
         });
     }
     Ok(())
@@ -149,5 +154,5 @@ pub fn load_race_sounds(send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
 
 /// In the game: each list sent as command 3.
 pub fn load_race_sounds_in_game() -> Result<(), BadInput> {
-    load_race_sounds(&mut |list| crate::sound::senders::send(START_3, [list, 0, 0, 0]))
+    load_race_sounds(&mut |list| crate::sound::senders::send(START_3, [list.word(), 0, 0, 0]))
 }

@@ -3,7 +3,7 @@
 //! In:  nothing (the other registers go into the commands as they are)
 //! Out: every register preserved
 //! `dword_518080` = 1; `sound::stop_music`; command 5 with `dword_4F82C4`; command 3 with the
-//! address of `unk_511AE4`; command 8 with `dword_755684`; `sound::wait_for_commands`;
+//! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
 //! `dword_506C84` = 0 (`sub_409B76`).
 //! What the two numbers are is a reading: volumes, the second the one the options screen
 //! steps between 0 and 0x40 (`sub_467F00`, `sub_467F24`).
@@ -11,7 +11,7 @@
 
 use crate::audio::store::AUDIO;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::sound::sets_store::MENU_SOUNDS;
+use rc2k_core::audio::commands::SoundList;
 
 // ---- Rust version ----
 
@@ -38,7 +38,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     crate::sound::store::SETTINGS_APPLIED.done.set(MENUS);
     let steps = menus(
         AUDIO.menu_sound_mode.get(),
-        MENU_SOUNDS.list.addr(),
+        SoundList::Menu,
         OPTION_WORK.master_volume_shown.get(),
     );
     for s in steps {

@@ -5,6 +5,34 @@
 /// The queue's records.
 pub const RECORDS: u32 = 0x400;
 
+/// A list of sounds command 3 loads, by handle (the original sent its address). The menus'
+/// list, or a list in the race's sets at an offset from the sets' start.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SoundList {
+    Menu,
+    Race { offset: u32 },
+}
+
+impl SoundList {
+    /// The word a command record carries: 0 is no list, 1 the menus', 2 and up the race's
+    /// list at that offset less 2.
+    pub fn word(self) -> u32 {
+        match self {
+            SoundList::Menu => 1,
+            SoundList::Race { offset } => offset.wrapping_add(2),
+        }
+    }
+
+    /// The list a record's word names; none for 0.
+    pub fn from_word(word: u32) -> Option<SoundList> {
+        match word {
+            0 => None,
+            1 => Some(SoundList::Menu),
+            n => Some(SoundList::Race { offset: n - 2 }),
+        }
+    }
+}
+
 /// A record, by its number.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
@@ -12,8 +40,8 @@ pub enum Command {
     Start(i32),
     /// 2: the EAX room asked.
     Room(u32),
-    /// 3: a list of sounds loaded.
-    Load(u32),
+    /// 3: a list of sounds loaded (none: nothing).
+    Load(Option<SoundList>),
     /// 4: every voice given back.
     Free,
     /// 5: the sound mode.
@@ -45,7 +73,7 @@ pub fn decode(record: &[u32; 8]) -> Command {
     match number {
         1 => Command::Start(eax as u16 as i16 as i32),
         2 => Command::Room(eax),
-        3 => Command::Load(eax),
+        3 => Command::Load(SoundList::from_word(eax)),
         4 => Command::Free,
         5 => Command::Mode(eax),
         6 => Command::Six,
@@ -135,6 +163,17 @@ mod tests {
                 action: 2
             }
         );
+        assert_eq!(decode(&[3, 0, 0, 0, 0, 0, 0, 0]), Command::Load(None));
+        for list in [
+            SoundList::Menu,
+            SoundList::Race { offset: 0 },
+            SoundList::Race { offset: 0x7C },
+        ] {
+            assert_eq!(
+                decode(&[3, list.word(), 0, 0, 0, 0, 0, 0]),
+                Command::Load(Some(list))
+            );
+        }
         assert_eq!(decode(&[0xC, 0, 0, 0, 0, 0, 0, 0]), Command::Other(0xC));
         assert_eq!((next_place(5), next_place(0x3FF)), (6, 0));
     }

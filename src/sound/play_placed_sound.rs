@@ -91,7 +91,8 @@ pub fn play_placed_sound(request: &SoundRequest, mode: u32) -> Result<(), BadInp
         request.angle.set(angle);
         request.pan.set(place);
         let place = placed::place(place, request.place[0].get(), angle, mode);
-        (ebx, ecx, edi, ebp) = (volume, place, record.addr(), 0);
+        // Outside 3D `play_sound` sends no place for edi: the original's record address is not read.
+        (ebx, ecx, edi, ebp) = (volume, place, 0, 0);
     } else {
         (ebx, ecx, edi, ebp) = (
             to_int(request.volume.get()),

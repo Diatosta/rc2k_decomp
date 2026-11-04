@@ -28,7 +28,7 @@ use std::sync::atomic::Ordering;
 /// `stop_streams`, which stops with action 0 (section 16).
 pub fn take_commands() -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
-    use rc2k_core::audio::commands::{Command, decode, next_place};
+    use rc2k_core::audio::commands::{Command, SoundList, decode, next_place};
     loop {
         if AUDIO.command_count.get() == 0 {
             return Ok(());
@@ -43,7 +43,7 @@ pub fn take_commands() -> Result<(), Refused> {
             Command::Start(sound) => crate::audio::start_voice::start_voice(sound, &record)?,
             Command::Room(room) => AUDIO.eax_room.set(room),
             Command::Load(list) => {
-                AUDIO.sound_list_loaded.set(list);
+                AUDIO.sound_list_loaded.set(list.map_or(0, SoundList::word));
                 crate::audio::load_sounds::load_sounds(list)?;
             }
             Command::Free => {
