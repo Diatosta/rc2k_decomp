@@ -126,7 +126,8 @@ pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
     // blitted and the texture unlocked.
     if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
         let piece = Piece {
-            rectangle: piece_address(),
+            // The icon store's own piece (`Shared` keeps no typed pointer yet).
+            rectangle: crate::pointers::GamePtr::new(piece_address()),
             x: stored.target_x,
             y: stored.target_y,
             pixels,

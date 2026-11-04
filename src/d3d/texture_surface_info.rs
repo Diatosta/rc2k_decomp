@@ -10,13 +10,12 @@
 //!
 //! Caller: `d3d::lock_texture`.
 
-use crate::d3d::texture_lock::{get, put};
+use crate::d3d::texture_lock::get;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::d3d::textures::surface_info`.
-    let s = DRAW_SURFACE.x.addr();
     let d = crate::gfx::upload::UPLOAD.description.addr();
     let kind = get(record + 0xC);
     let f = rc2k_core::d3d::textures::surface_info(
@@ -27,20 +26,25 @@ pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> 
         get(d + 0x10),
         get(d + 0x24),
     );
-    for (at, v) in [
-        (8, f.width),
-        (0xC, f.height),
-        (0x10, f.bits),
-        (0x14, f.bytes),
-        (0x18, f.row_bytes),
-        (0x1C, f.row_dwords),
-        (0x20, f.format),
-        (0x24, f.pitch),
-        (0x28, f.pixels),
-        (0x2C, f.gap),
+    let surface = &DRAW_SURFACE;
+    for (field, v) in [
+        (&surface.width, f.width),
+        (&surface.height, f.height),
+        (&surface.bits_per_pixel, f.bits),
+        (&surface.bytes_per_pixel, f.bytes),
+        (&surface.row_bytes, f.row_bytes),
+        (&surface.row_dwords, f.row_dwords),
+        (&surface.format, f.format),
+        (&surface.pitch, f.pitch),
+        (&surface.pixels, f.pixels),
+        (&surface.row_gap, f.gap),
     ] {
-        put(s + at, v);
+        field.set(v);
     }
     crate::gfx::surface::on_address();
-    crate::gfx::set_clip::set_clip_at(s)
+    // The clip rectangle is the surface's first four dwords (x, y, width, height).
+    crate::gfx::set_clip::set_clip(
+        [&surface.x, &surface.y, &surface.width, &surface.height].map(crate::session::Dword::get),
+    );
+    Ok(())
 }

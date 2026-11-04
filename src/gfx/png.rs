@@ -1,8 +1,8 @@
 /// The info block's place (a game address). The shared scratch (`files::scratch::SCRATCH`,
 /// 0x93E8B0) holds first the file's first 0x80 bytes, then what the decoder says about the
 /// picture, a `PngInfo`.
-pub fn info_addr() -> u32 {
-    crate::files::scratch::SCRATCH.buffer.addr()
+pub fn info_ptr() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&crate::files::scratch::SCRATCH.buffer)
 }
 
 /// The info's dword at `offset` (`core::mem::offset_of!(PngInfo, ..)`).

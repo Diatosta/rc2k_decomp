@@ -189,6 +189,7 @@ impl Textures {
 
     /// Where kind `n`'s description is (0: none). A value that is no handle ends the
     /// program.
+    // A number: the record's kind field is a game address other modules read.
     pub fn kind(&self, n: usize) -> u32 {
         let handle = self.kinds[n].get();
         if handle == 0 {

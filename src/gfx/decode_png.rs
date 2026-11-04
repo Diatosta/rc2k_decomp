@@ -39,9 +39,9 @@ use crate::pointers::GamePtr;
 
 /// Returns what the original returns in eax. `pixels` names a picture buffer
 /// (`gfx::picture`, 0 none).
-pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> {
+pub fn decode_png(file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
-    if pixels == 0 || info == 0 {
+    if pixels == 0 || info_at.is_null() {
         return Ok(1);
     }
     // First the whole walk and the checks without writing anything: what is refused here
@@ -63,7 +63,6 @@ pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> 
         Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
         None => 0,
     };
-    let info_at = GamePtr::new(info);
     if let Some(h) = found.header {
         HEADER.width.set(h.width);
         HEADER.height.set(h.height);
@@ -96,5 +95,7 @@ pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> 
         .wrapping_mul(header.width)
         .wrapping_mul(header.height)
         .wrapping_add(pixels);
+    // The info block's place as a number only to compare it with the pixels' span.
+    let info = info_at.addr();
     Ok(if info >= pixels && info < end { 3 } else { 0 })
 }

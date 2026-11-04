@@ -45,7 +45,7 @@ pub fn game_target() -> Result<Target, BadInput> {
 /// buffer's number since phase 12, `gfx::picture`), eax the picture's row bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct Piece {
-    pub rectangle: u32,
+    pub rectangle: crate::pointers::GamePtr,
     pub x: u32,
     pub y: u32,
     pub pixels: u32,
@@ -54,11 +54,13 @@ pub struct Piece {
 
 /// The places it writes: one region a row.
 fn rows(p: &Piece, to: &Target) -> Option<Vec<Region>> {
-    if p.rectangle == 0 || p.pixels == 0 || to.pixels == 0 || to.format == 0 {
+    if p.rectangle.is_null() || p.pixels == 0 || to.pixels == 0 || to.format == 0 {
         return None;
     }
-    let [_, _, width, height]: [u32; 4] =
-        crate::pointers::read_or_end(p.rectangle, "a blit's rectangle");
+    let [_, _, width, height]: [u32; 4] = p
+        .rectangle
+        .read("a blit's rectangle")
+        .unwrap_or_else(|e| crate::fatal::raise::end("a blit's rectangle", e));
     if width == 0 || height == 0 {
         return None;
     }
@@ -84,8 +86,7 @@ pub fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
     if rows(p, to).is_none() {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
-    let [x, y, width, height] =
-        GamePtr::new(p.rectangle).read::<[u32; 4]>("a piece's rectangle")?;
+    let [x, y, width, height] = p.rectangle.read::<[u32; 4]>("a piece's rectangle")?;
     let format = crate::gfx::pixel_format::layout(to.format)?;
     let mut target =
         p.y.wrapping_mul(to.pitch)

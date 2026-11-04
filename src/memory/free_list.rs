@@ -31,7 +31,7 @@ pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     // Stores type a list by its first dword: the record runs on past that field.
     let at = list.unbounded();
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
-    crate::gfx::glyph_store::give_back(at.addr());
+    crate::gfx::glyph_store::give_back(at);
     let mut l = at.read::<MemoryList>("a memory list")?;
     let block = l.head;
     if block != 0 && own_heap() == 1 {

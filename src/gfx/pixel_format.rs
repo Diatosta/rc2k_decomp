@@ -24,6 +24,7 @@ pub fn texture_kind_format(n: usize) -> u32 {
 /// The handle for the layout of the texture description at game address `description`
 /// (a texture record's kind, whose +8 the original keeps): one that is no description's
 /// gives a handle no read finds, as the original's read there would go wrong.
+// `description` is the number a texture record keeps in its kind field.
 pub fn texture_description_format(description: u32) -> u32 {
     let descriptions = &crate::gfx::texture_upload::TEXTURE_TABLES.descriptions;
     match descriptions.iter().position(|d| d.addr() == description) {

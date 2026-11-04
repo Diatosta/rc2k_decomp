@@ -21,7 +21,7 @@ pub fn sprite_table() -> u32 {
 
 // ---- Rust version ----
 
-/// The two blitter calls the original makes for `object`.
+/// The two blitter calls the original makes for `object`. A number: the stage record the screens' callers pass on is a game address (`screens::stage_panel`).
 pub fn marker_calls(object: u32) -> Result<[BlitCall; 2], crate::errors::BadInput> {
     let object = crate::pointers::GamePtr::new(object);
     let coord = |at: u32| object.offset(at).read::<i32>("a marker object\'s position");

@@ -25,8 +25,8 @@ const TABLE_FIRST: u32 = 0x4000;
 const PLACE_END: u32 = 0x1_0000;
 
 struct Held {
-    /// The game address of the list it is counted on.
-    list: u32,
+    /// The list it is counted on.
+    list: GamePtr,
     bytes: Arc<Vec<u8>>,
 }
 
@@ -66,7 +66,6 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`):
 /// its place. Refused when all fifteen are held.
 pub fn new_palette(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
-    let list = list.addr();
     let mut s = store();
     let id = (1..PALETTE_IDS)
         .find(|&id| s.palettes[id].is_none())
@@ -80,7 +79,6 @@ pub fn new_palette(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
 
 /// A new glyph table, empty: its place. Refused past the places there are.
 pub fn new_table(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
-    let list = list.addr();
     let mut s = store();
     let held = Some(Held {
         list,
@@ -104,8 +102,8 @@ pub fn new_table(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
     Ok(place)
 }
 
-/// Everything held on the list at game address `list` given back (`memory::free_list`).
-pub fn give_back(list: u32) {
+/// Everything held on `list` given back (`memory::free_list`).
+pub fn give_back(list: GamePtr) {
     let mut s = store();
     let Store { palettes, tables } = &mut *s;
     for slot in palettes.iter_mut().chain(tables.iter_mut()) {
@@ -236,7 +234,7 @@ mod tests {
         write_bytes(t, 8, &[7; 4], "a table").unwrap();
         let held = bytes(t, "a table").unwrap();
         assert_eq!((held.byte(11), held.byte(12)), (Some(7), None));
-        give_back(list.addr());
+        give_back(list);
         assert!(bytes(p, "a palette").is_err());
         assert!(bytes(t, "a table").is_err());
     }

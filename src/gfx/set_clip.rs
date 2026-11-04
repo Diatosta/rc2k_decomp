@@ -7,7 +7,6 @@
 //! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
 //! Refuses a null rectangle. The name is a reading.
 
-use crate::errors::BadInput;
 use crate::gfx::blit::BLIT;
 
 // ---- Rust version ----
@@ -22,13 +21,4 @@ pub fn set_clip(rectangle: [u32; 4]) {
     BLIT.clip.top.set(top);
     BLIT.clip.right.set(right);
     BLIT.clip.bottom.set(bottom);
-}
-
-/// `set_clip` on the rectangle at game address `at` (checked).
-pub fn set_clip_at(at: u32) -> Result<(), BadInput> {
-    if at == 0 {
-        return Err(BadInput("no rectangle to clip to"));
-    }
-    set_clip(crate::pointers::GamePtr::new(at).read("a rectangle to clip to")?);
-    Ok(())
 }

@@ -58,7 +58,7 @@ fn read_held(path: &[u8], size: u32) -> Result<bool, Refused> {
     if !read.ok || read.bytes_read != Some(size) {
         return Ok(false);
     }
-    decode_png(file, PICTURE.buffer.get(), crate::gfx::png::info_addr())?;
+    decode_png(file, PICTURE.buffer.get(), crate::gfx::png::info_ptr())?;
     PICTURE.flags.set(0x802u32);
     lay_out_png()?;
     PICTURE.width.set(DECODER.width.get());
