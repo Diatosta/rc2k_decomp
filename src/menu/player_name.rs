@@ -18,21 +18,16 @@ use crate::place::Place;
 /// The current player's name as a place bounded by the names' store (the original runs on
 /// past a name that lacks its end).
 pub fn name_place() -> Result<crate::pointers::GamePtr, Refused> {
-    use crate::menu::player_names::{name_index, name_ptr};
-    Ok(name_ptr(name_index(name()?)?))
+    Ok(crate::menu::player_names::name_ptr(name()?))
 }
 
 pub fn kept() -> Place {
     Place::from(&NAME_BUFFERS.kept_name)
 }
 
-/// The current player's name.
-pub fn name() -> Result<u32, Refused> {
-    let name = current()?.get().name;
-    if name == 0 {
-        return Err(BadInput("a player without a name").into());
-    }
-    Ok(name)
+/// Whose name the current player has.
+pub fn name() -> Result<usize, Refused> {
+    Ok(crate::menu::player_names::name_of(&current()?.get())?)
 }
 
 pub fn bring_back_name(name: impl Into<Place>) -> Result<(), BadInput> {

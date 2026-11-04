@@ -8,25 +8,23 @@
 //!
 //! Callers: `sub_4A2B75` and two of the game's. Refuses a null entry, record or name, before
 //! anything.
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// `e` the entry of table A (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
 pub fn copy_standing_entry(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
-    if p.get().name == 0 {
-        return Err(BadInput("a null name").into());
-    }
+    name_player(&p.get())?;
     // Converted: `rc2k_core::saves::rankings::fill_a`.
     use rc2k_core::menu::standings::PlayerA;
-    let name_at = p.get().name;
+    let name_at = name_address_of(&p.get())?;
     let source = PlayerA {
         index,
         time: p.get().time,
         group: p.get().class,
         total: p.get().total,
         name_at,
-        name: bytes(name_at)?,
+        name: name_of(&p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         entered: p.get().entry,

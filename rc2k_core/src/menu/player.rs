@@ -28,8 +28,10 @@ pub struct Player {
     /// The section a saved game starts at (`SCREEN_FLOW.start_section`; player 0's, kept
     /// in the saved game).
     pub saved_start_section: u32,
-    /// The player's name (a place in `g_playerNames`).
-    pub name: u32,
+    /// Whose name in the four name buffers (`g_playerNames`) is the player's: 0 none, n the
+    /// name of player n - 1 (the original kept the name's address; the saved games still
+    /// carry it, `to_file_bytes`).
+    pub name_number: u32,
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
     pub race_number: u32,
@@ -143,7 +145,41 @@ pub struct Player {
 }
 
 impl Player {
-    /// The record as its 0x28c bytes in the game's layout.
+    /// The player whose name buffer is the player's name; None without a name or past the
+    /// four players.
+    pub const fn name_player(&self) -> Option<usize> {
+        match self.name_number {
+            n @ 1..=PLAYERS => Some(n as usize - 1),
+            _ => None,
+        }
+    }
+
+    /// The name set to the buffer of player `player` (counted from 0).
+    pub const fn set_name_player(&mut self, player: usize) {
+        self.name_number = player as u32 + 1;
+    }
+
+    /// The record as the saved game keeps it: the layout of `to_le_bytes`, with the word at
+    /// +0x18 the address of the name's buffer (`name_address(player)`), or 0 without a name.
+    pub fn to_file_bytes(&self, name_address: impl Fn(usize) -> u32) -> [u8; 0x28c] {
+        let mut b = self.to_le_bytes();
+        let at = self.name_player().map_or(0, name_address);
+        b[0x18..0x1c].copy_from_slice(&at.to_le_bytes());
+        b
+    }
+
+    /// The record from a saved game's bytes. The word at +0x18 is an address of the game that
+    /// wrote the file and names nothing here: `name_number` is 0 and the caller keeps its
+    /// own.
+    pub const fn from_file_bytes(mut b: [u8; 0x28c]) -> Self {
+        b[0x18] = 0;
+        b[0x19] = 0;
+        b[0x1a] = 0;
+        b[0x1b] = 0;
+        Self::from_le_bytes(b)
+    }
+
+    /// The record as its 0x28c bytes in memory's layout (+0x18 the name number).
     pub fn to_le_bytes(&self) -> [u8; 0x28c] {
         let mut b = [0; 0x28c];
         let mut word = |at: usize, v: u32| b[at..at + 4].copy_from_slice(&v.to_le_bytes());
@@ -153,7 +189,7 @@ impl Player {
         word(0xc, self.view);
         word(0x10, self.second_view);
         word(0x14, self.saved_start_section);
-        word(0x18, self.name);
+        word(0x18, self.name_number);
         word(0x28, self.race_number);
         word(0x2c, self.controller);
         word(0x30, self.gearing);
@@ -287,7 +323,7 @@ impl Player {
             view: word(&b, 0xc),
             second_view: word(&b, 0x10),
             saved_start_section: word(&b, 0x14),
-            name: word(&b, 0x18),
+            name_number: word(&b, 0x18),
             keys: bytes::<0xc>(&b, 0x1c),
             race_number: word(&b, 0x28),
             controller: word(&b, 0x2c),
@@ -668,6 +704,48 @@ pub fn redefine(keys: [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> Red
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A record whose every dword is different.
+    fn numbered() -> [u8; 0x28c] {
+        let mut b = [0; 0x28c];
+        for (n, chunk) in b.chunks_mut(4).enumerate() {
+            chunk.copy_from_slice(&(0x0101_0101 * (n as u32 + 1)).to_le_bytes());
+        }
+        b
+    }
+
+    #[test]
+    fn the_saved_record_carries_the_names_address() {
+        let address = |k: usize| 0x0075_5784 + 0x20 * k as u32;
+        let bytes = numbered();
+        for k in 0..4 {
+            let mut p = Player::from_le_bytes(bytes);
+            p.set_name_player(k);
+            assert_eq!(p.name_player(), Some(k));
+            // The file has what the original wrote: the record with the address at +0x18.
+            let mut expected = bytes;
+            expected[0x18..0x1c].copy_from_slice(&address(k).to_le_bytes());
+            assert_eq!(p.to_file_bytes(address), expected);
+        }
+        let mut none = Player::from_le_bytes(bytes);
+        none.name_number = 0;
+        let mut expected = bytes;
+        expected[0x18..0x1c].fill(0);
+        assert_eq!(none.to_file_bytes(address), expected);
+        assert_eq!(none.name_player(), None);
+        none.name_number = 5;
+        assert_eq!(none.name_player(), None);
+    }
+
+    #[test]
+    fn a_loaded_record_keeps_every_other_byte_and_no_name() {
+        let bytes = numbered();
+        let p = Player::from_file_bytes(bytes);
+        assert_eq!(p.name_number, 0);
+        let mut expected = bytes;
+        expected[0x18..0x1c].fill(0);
+        assert_eq!(p.to_le_bytes(), expected);
+    }
 
     #[test]
     fn small() {

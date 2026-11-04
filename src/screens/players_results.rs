@@ -32,7 +32,7 @@ fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
     let p = &PLAYER_TABLE.players[(o / 4) as usize];
-    if p.get().name == 0 {
+    if p.get().name_player().is_none() {
         return Err(BadInput("a row's player without its name").into());
     }
     Ok(p)
@@ -108,7 +108,9 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
-                name: crate::screens::game_screen::player_name(p.get().name)?,
+                name: crate::screens::game_screen::player_name_of(
+                    crate::menu::player_names::name_of(&p.get())?,
+                ),
                 nation: p.get().nationality,
                 car: p.get().car_number,
                 time: p.get().time,

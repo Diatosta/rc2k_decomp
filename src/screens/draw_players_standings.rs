@@ -28,7 +28,7 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     };
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
-        if PLAYER_TABLE.players[row].get().name == 0 {
+        if PLAYER_TABLE.players[row].get().name_player().is_none() {
             return Err(BadInput("a standings row without its name").into());
         }
         *total = CaptionTables::total_of(row)?.get();
@@ -40,7 +40,9 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     > = (0..rows)
         .map(|row| {
             Ok(rc2k_core::screens::players_results::Standing {
-                name: crate::screens::game_screen::player_name(player(row).name)?,
+                name: crate::screens::game_screen::player_name_of(
+                    crate::menu::player_names::name_of(&player(row))?,
+                ),
                 nation: player(row).nationality,
                 car: player(row).car_number,
                 points: totals[row],

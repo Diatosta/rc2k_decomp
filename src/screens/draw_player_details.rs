@@ -81,7 +81,7 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
         return Err(BadInput("a player past the four").into());
     };
     let player: Player = cell.get();
-    if player.name == 0 {
+    if player.name_player().is_none() {
         return Err(BadInput("a player without its name").into());
     }
     // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
@@ -105,7 +105,9 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
         controllers: crate::input::store::DEVICES.controller_count.get() != 0,
-        name: crate::screens::game_screen::player_name(player.name)?,
+        name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
+            &player,
+        )?),
         typing: OPTION_WORK.typing.get() != 0,
         blink: DRAW_WORK.cursor_on.get(),
         nationality: player.nationality,

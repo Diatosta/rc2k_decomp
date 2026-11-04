@@ -26,7 +26,7 @@ pub type PlayerCell = &'static crate::session::Shared<rc2k_core::menu::player::P
 
 /// Whether any of the players has no name (a null name place).
 pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInput> {
-    Ok(players.iter().any(|p| p.get().name == 0))
+    Ok(players.iter().any(|p| p.get().name_player().is_none()))
 }
 
 /// Player `n`'s record (`n` one of the four).
@@ -162,12 +162,23 @@ pub fn as_holder(
         car: p.car_number,
         speed: p.figure,
     };
-    Ok((row, bytes(p.name)?))
+    Ok((row, name_of(p)?))
 }
 
-/// `N` bytes at `p`.
-pub fn bytes<const N: usize>(p: u32) -> Result<[u8; N], BadInput> {
-    crate::pointers::GamePtr::new(p).read::<[u8; N]>("a name")
+/// The player's name, `N` bytes from its start (bounded by the names' store: the original
+/// runs on past a name that lacks its end).
+pub fn name_of<const N: usize>(p: &rc2k_core::menu::player::Player) -> Result<[u8; N], BadInput> {
+    crate::menu::player_names::name_ptr(name_player(p)?).read::<[u8; N]>("a name")
+}
+
+/// Whose name the player has; refused without one.
+pub fn name_player(p: &rc2k_core::menu::player::Player) -> Result<usize, BadInput> {
+    crate::menu::player_names::name_of(p)
+}
+
+/// The address of the player's name that the entries carry as the name's id.
+pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadInput> {
+    Ok(crate::menu::player_names::name_address(name_player(p)?))
 }
 
 /// Runs `f` on `g_keptPlayerName`, the sorts' swap buffer (a copy of it, put back after).
@@ -264,12 +275,16 @@ pub fn enter_best(
     let p = player(n);
     let group = group.unwrap_or(p.get().class);
     let scores = &crate::saves::best_times::SCORES;
-    let (true, true, false) = (scores.is_taken(), group < 5, p.get().name == 0) else {
+    let (true, true, false) = (
+        scores.is_taken(),
+        group < 5,
+        p.get().name_player().is_none(),
+    ) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
     // Converted: `rc2k_core::saves::scores::enter_best`.
     use rc2k_core::saves::scores as s;
-    let name_ref = p.get().name;
+    let name_ref = name_address_of(&p.get())?;
     let best = s::Best {
         player: n + 1,
         score: score(&p.get()),
@@ -277,7 +292,7 @@ pub fn enter_best(
         car: p.get().car_number,
         group: p.get().class,
         name_ref,
-        name: bytes(name_ref)?,
+        name: name_of(&p.get())?,
     };
     scores.with(|t| {
         with_kept_name(|kept| s::enter_best(&mut t.groups[group as usize], &best, kept));

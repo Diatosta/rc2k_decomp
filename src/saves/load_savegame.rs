@@ -83,14 +83,14 @@ pub fn load_savegame() -> Result<(), Refused> {
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;
 
     for car in cars {
-        let name = car.get().name;
+        let name = car.get().name_number;
         let saved: [u8; CAR_LEN] = cursor.read("a saved car")?;
-        car.set(rc2k_core::menu::player::Player::from_le_bytes(saved));
+        car.set(rc2k_core::menu::player::Player::from_file_bytes(saved));
         // The file's own pointer is not to be trusted: the game's stays (a save's holds the
         // same place, unless the file was damaged).
-        car.update(|p| p.name = name);
+        car.update(|p| p.name_number = name);
         crate::menu::player_names::set_name_bytes(
-            crate::menu::player_names::name_index(name)?,
+            crate::menu::player_names::name_of(&car.get())?,
             &car.get().name_copy,
         );
         cursor = cursor.offset(CAR_LEN as u32);

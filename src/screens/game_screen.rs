@@ -97,8 +97,13 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
         .ok_or(crate::errors::BadInput("a name past its entry"))
 }
 
-/// The name a player record names (`Player::name`, a place in `g_playerNames`), drawn from
-/// the names' store; refused when it names no player's name.
+/// The name of player `player` (counted from 0), drawn from the names' store.
+pub fn player_name_of(player: usize) -> HeldText {
+    HeldText::Place(crate::menu::player_names::name_ptr(player))
+}
+
+/// The name an entry's name address names (`player_names::name_address`), drawn from the
+/// names' store; refused when it names no player's name.
 pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
     crate::menu::player_names::index_of(name_at)
         .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(k)))

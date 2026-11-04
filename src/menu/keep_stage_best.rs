@@ -11,8 +11,9 @@
 //! past the four or missing, a stage the tables do not give (`event_flow::stage_record`), or a name
 //! pointer of 0 when the record is taken.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::event_flow::*;
+use crate::menu::standings::name_player;
 use crate::records::stages_store::Holder;
 
 pub fn keep_stage_best() -> Result<(), Refused> {
@@ -24,10 +25,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
     if !bests::takes_record(figure, record.record()?.holder(Holder::Second).speed) {
         return Ok(());
     }
-    let name = p.get().name;
-    if name == 0 {
-        return Err(BadInput("a player's name pointer of 0").into());
-    }
+    name_player(&p.get())?;
     let (row, name) = crate::menu::standings::as_holder(&p.get())?;
     record.record()?.set_holder(Holder::Second, &row, &name);
     Ok(())

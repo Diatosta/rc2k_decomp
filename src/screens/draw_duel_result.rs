@@ -52,7 +52,7 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         crate::menu::standings::player(0),
         crate::menu::standings::player(1),
     );
-    if p1.get().name == 0 || p2.get().name == 0 {
+    if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
     let (base, record) = records()?;
@@ -70,7 +70,7 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {
         let p = p.get();
         Ok(Player {
-            name: crate::screens::game_screen::player_name(p.name)?,
+            name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(&p)?),
             nation: p.nationality,
             car: p.car_number,
             time: p.time,

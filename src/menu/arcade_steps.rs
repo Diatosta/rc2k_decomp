@@ -57,7 +57,7 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::menu::standings::{bytes, with_kept_name};
+use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
 use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::session::{Dword, read_all, write_all};
@@ -121,10 +121,7 @@ pub fn keep_arcade_stage_best(record: RecordRef) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
-        let name = player.get().name;
-        if name == 0 {
-            return Err(BadInput("a null name").into());
-        }
+        name_player(&player.get())?;
         let (row, name) = crate::menu::standings::as_holder(&player.get())?;
         record.record()?.set_holder(Holder::Fastest, &row, &name);
     }
@@ -160,7 +157,7 @@ fn new_best(
     seal: Option<bests::Seal>,
     line: Option<[u8; bests::LINE_LEN]>,
 ) -> Result<bests::NewBest, BadInput> {
-    let name_at = player.get().name;
+    let name_at = name_address_of(&player.get())?;
     Ok(bests::NewBest {
         key,
         player: 1,
@@ -168,7 +165,7 @@ fn new_best(
         name_at,
         car: player.get().car_number,
         group: player.get().class,
-        name: bytes(name_at)?,
+        name: name_of(&player.get())?,
         entered: None,
         seal,
         line,
@@ -179,9 +176,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     let record = stage_record()?;
     with_course_times(|_| ())?;
     let (_, player) = current()?;
-    if player.get().name == 0 {
-        return Err(BadInput("a null name").into());
-    }
+    name_player(&player.get())?;
     let course = record.record()?.event_slot();
     DRAW_WORK.figure.set(course);
     let cheats = CHEAT_VARS.cheats.get();
@@ -204,9 +199,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
 pub fn enter_arcade_level_score() -> Result<(), Refused> {
     with_level_scores(|_| ())?;
     let (n, player) = current()?;
-    if player.get().name == 0 {
-        return Err(BadInput("a null name").into());
-    }
+    name_player(&player.get())?;
     // Converted: `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
     let best = new_best(player, score, None, None)?;

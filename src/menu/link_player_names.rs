@@ -2,21 +2,21 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! For each of the four players (`g_cars`): its +0x18 = the address of the player's
-//! name in `g_playerNames`, and the name's 0x20 bytes copied to its +0x124.
+//! For each of the four players (`g_cars`): its +0x18 = the player's name (in
+//! `g_playerNames`, kept as the player's number), and the name's 0x20 bytes copied to its +0x124.
 //! Callers: `saves::load_savegame` (twice) and the main menu's set-up `sub_47C63F`. Refuses a
 //! missing player. Rust callers run its `entry` (`routes.rs`); the registers above are the
 //! original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::player_names::{cars, name, name_bytes};
+use crate::menu::player_names::{cars, name_bytes};
 
 // ---- Rust version ----
 
 pub fn link_player_names() -> Result<(), BadInput> {
     for (player, car) in cars().iter().enumerate() {
         car.update(|p| {
-            p.name = name(player);
+            p.set_name_player(player);
             p.name_copy = name_bytes(player);
         });
     }

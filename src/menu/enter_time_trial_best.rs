@@ -14,9 +14,10 @@
 //! ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before anything) a current player
 //! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::*;
+use crate::menu::standings::name_address_of;
 use crate::session::Dword;
 
 const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
@@ -28,16 +29,13 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     let record = stage_record()?;
     stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
-    let name = p.get().name;
-    if name == 0 {
-        return Err(BadInput("a player's name pointer of 0").into());
-    }
+    let name = name_address_of(&p.get())?;
     let slot = record.record()?.event_slot();
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
-    use crate::menu::standings::bytes;
+    use crate::menu::standings::name_of;
     let best = bests::NewBest {
         key: p.get().time,
         player: 1,
@@ -45,7 +43,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
         name_at: name,
         car: p.get().car_number,
         group: p.get().class,
-        name: bytes(name)?,
+        name: name_of(&p.get())?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(p.get().best_line),
