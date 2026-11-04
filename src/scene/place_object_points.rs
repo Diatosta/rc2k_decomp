@@ -146,7 +146,6 @@ struct Object {
     points: i32,
     normals: i32,
     table: u32,
-    matrix: u32,
 }
 
 fn object() -> Result<Object, BadInput> {
@@ -161,14 +160,12 @@ fn object() -> Result<Object, BadInput> {
         normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
             as i32,
         table: COURSE_LISTS.object_points.bits(),
-        // `g_objectMatrix`: only ever `g_madeObjectMatrix`, the image's value, never written.
-        matrix: MATRICES.made_object_matrix[0].addr(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || !point_records::held() || object.matrix == 0) {
-        return Err(BadInput("no points' table, no records or no matrix"));
+    if object.points > 0 && (object.table == 0 || !point_records::held()) {
+        return Err(BadInput("no points' table or no records"));
     }
     Ok(object)
 }
@@ -181,8 +178,8 @@ pub fn place_object_points() -> Result<(), Refused> {
         return Ok(());
     }
     // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
-    let matrix: [u32; 16] =
-        crate::pointers::GamePtr::new(object.matrix).read("the object's matrix")?;
+    // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
+    let matrix: [u32; 16] = std::array::from_fn(|n| MATRICES.made_object_matrix[n].bits());
     let move_by: u32 = RACE_VARS.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

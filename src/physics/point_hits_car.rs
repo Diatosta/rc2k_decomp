@@ -58,7 +58,7 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
     for k in 0..3 {
         CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
     }
-    turn_by_heading(CONTACT_WORK.object_point_turned[0].addr(), y);
+    turn_by_heading(&CONTACT_WORK.object_point_turned, y);
     x87_2();
     let (x, z) = (
         CONTACT_WORK.contact_point[0].bits(),

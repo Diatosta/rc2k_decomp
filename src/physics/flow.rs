@@ -18,11 +18,6 @@ pub fn p(x: impl crate::store::At, v: u32) {
     crate::store::at_write(x, v);
 }
 
-/// The game's address of IDA address `x`.
-pub fn a(x: impl crate::store::At) -> u32 {
-    x.here() as u32
-}
-
 /// `fld a; fcomp b`: C0, a below b or unordered.
 pub fn c0(a: u32, b: u32) -> bool {
     compare_full(a, b) & 0x100 != 0

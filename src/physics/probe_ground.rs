@@ -126,14 +126,11 @@ fn probe_points(n: u32) -> Result<(), Refused> {
         CONTACT_WORK.ground_cell_row[1].set(cell.row_offset);
         let trap = crate::physics::cells::Trap::new();
         let noise = |i: u32| {
-            u32::from(
-                trap.byte(
-                    crate::scene::engine_tables_store::ENGINE_TABLES
-                        .noise_bytes
-                        .addr()
-                        + i,
-                    "the ground noise table",
-                ),
+            trap.keep(
+                crate::scene::engine_tables_store::ENGINE_TABLES
+                    .noise_bytes
+                    .read_at(i as usize, 1, "the ground noise table")
+                    .map(|b| u32::from(b[0])),
             )
         };
         let n = cell.corners.map(noise);

@@ -33,17 +33,10 @@ pub fn set_object_file_names(folder_kind: u32) -> Result<(), crate::errors::BadI
     use rc2k_core::scene::objects::{folder, number_digits};
     {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
-        let (ro3_number, lwo_number) = (
-            FILE_NUMBERS.text_addr(ro3 + number),
-            FILE_NUMBERS.text_addr(lwo + number),
-        );
+        let (ro3_number, lwo_number) = ((ro3 + number) as u32, (lwo + number) as u32);
         FILE_NUMBERS.object_ro3_number.set_bits(ro3_number);
-        FILE_NUMBERS
-            .object_ro3_path
-            .set_bits(FILE_NUMBERS.text_addr(ro3));
-        FILE_NUMBERS
-            .object_lwo_path
-            .set_bits(FILE_NUMBERS.text_addr(lwo));
+        FILE_NUMBERS.object_ro3_path.set_bits(ro3 as u32);
+        FILE_NUMBERS.object_lwo_path.set_bits(lwo as u32);
         FILE_NUMBERS.object_lwo_number.set_bits(lwo_number);
         let digits = number_digits(OBJECT_WORK.loading_kind.bits());
         FILE_NUMBERS

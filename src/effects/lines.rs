@@ -188,7 +188,6 @@ pub fn measure_lines() -> Result<(), Refused> {
             if !every {
                 LINES_WORK.any.set(1u32);
             }
-            LINES_WORK.current.set(block.at(BLOCK).addr());
             for o in (0x1C..=0x30).step_by(4) {
                 block.put(BLOCK + o, 0)?;
             }
@@ -369,7 +368,7 @@ pub struct LinesWork {
     pub difference: [Dword; 3],
     /// 0x93C87C: Not named: 44 bytes (a gap, or unreferenced data)
     pub _gap_93c87c: Bytes<44>,
-    /// 0x93C8A8: `g_marksMeasuredBlock`: the block being measured
+    /// 0x93C8A8: `g_marksMeasuredBlock`: the block being measured. Not used: nothing reads it (the original kept the block's address)
     pub current: Dword,
     /// 0x93C8AC: Not named: 8 bytes (a gap, or unreferenced data)
     pub _gap_93c8ac: Bytes<8>,

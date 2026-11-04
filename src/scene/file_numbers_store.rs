@@ -11,13 +11,13 @@ use crate::session::Dword;
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): not named.
     pub unknown_0: Dword,
-    /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number (`scene::set_object_file_names`).
+    /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_ro3_number: Dword,
-    /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path (`scene::set_object_file_names`).
+    /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_ro3_path: Dword,
-    /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path (`scene::set_object_file_names`).
+    /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_lwo_path: Dword,
-    /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number (`scene::set_object_file_names`).
+    /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number, kept as the text's IDA address within `unknown_14` (the original kept its address; `scene::set_object_file_names`).
     pub object_lwo_number: Dword,
     /// +0x14 (0x60AD34): not named.
     pub unknown_14: [Dword; 116],
@@ -35,7 +35,7 @@ pub struct ObjectFileNumbers {
 pub static FILE_NUMBERS: ObjectFileNumbers =
     crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
-/// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_addr`).
+/// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_ptr`).
 pub mod texts {
     pub const FOLDER_0_RO3: usize = 0x60AD4E;
     pub const FOLDER_0_LWO: usize = 0x60AD62;
@@ -65,20 +65,7 @@ pub mod texts {
 }
 
 impl ObjectFileNumbers {
-    /// Where the byte at IDA `ida` is, inside the untyped bytes `unknown_14` (the path texts of `texts`).
-    pub fn text_addr(&self, ida: usize) -> u32 {
-        assert!((0x60AD34..0x60AF04).contains(&ida));
-        self.unknown_14[0].addr() + (ida - 0x60AD34) as u32
-    }
-
-    /// The text at game address `at` (one the object names' cells keep: `text_addr`'s),
-    /// bounded as `text_ptr`.
-    pub fn text_at(&self, at: u32) -> crate::pointers::GamePtr {
-        let texts = self.text_ptr(0x60AD34);
-        texts.offset(at.wrapping_sub(texts.addr()))
-    }
-
-    /// `text_addr` as a pointer bounded by the untyped bytes `unknown_14` hold the texts in.
+    /// The text at IDA address `ida` as a pointer bounded by the untyped bytes `unknown_14` hold the texts in.
     pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
         assert!((0x60AD34..0x60AF04).contains(&ida));
         crate::pointers::GamePtr::to(&self.unknown_14[0])

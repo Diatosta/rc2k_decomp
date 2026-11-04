@@ -25,7 +25,7 @@ use crate::math::x87_float::{int, ld, st, to_int};
 use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::car_store::CAR;
 #[allow(unused_imports)]
-use crate::physics::flow::{a, c0, g, hold_high, hold_low, p, table_lerp};
+use crate::physics::flow::{c0, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
 use crate::race::work_store::RACE_WORK;
 use crate::session::{Cell32, Float};

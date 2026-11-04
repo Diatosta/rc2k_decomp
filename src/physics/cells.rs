@@ -47,11 +47,6 @@ impl Trap {
         self.keep(crate::pointers::GamePtr::new(a).read::<u32>(what))
     }
 
-    /// The byte at `a`.
-    pub fn byte(&self, a: u32, what: &str) -> u8 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u8>(what))
-    }
-
     /// Whether a refusal has been kept.
     pub fn failed(&self) -> bool {
         self.0.get().is_some()

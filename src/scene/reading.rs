@@ -93,16 +93,3 @@ pub fn read_records<const N: usize>(
         })
         .collect())
 }
-
-/// The records written from `addr` on.
-pub fn write_records<const N: usize>(
-    addr: u32,
-    records: &[[u32; N]],
-    what: &str,
-) -> Result<(), BadInput> {
-    let bytes: Vec<u8> = records
-        .iter()
-        .flat_map(|record| record.iter().flat_map(|word| word.to_le_bytes()))
-        .collect();
-    GamePtr::new(addr).write_bytes(&bytes, what)
-}

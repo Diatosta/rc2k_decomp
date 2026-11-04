@@ -8,23 +8,22 @@
 //!
 //! Caller: `effects::morph_object_points`.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
-use crate::pointers::GamePtr;
+use crate::race::marks_settings_store::MarkCar;
 use crate::session::Float;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
+/// The car record's block (`effects::morph_object_points`).
+const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 
-/// The Rust version (see the header): `block` the block (the original's ebp), `to` where
+/// The Rust version (see the header): `block` the car record whose block holds the factors (the original's ebp), `to` where
 /// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
-pub fn blend_corner(block: u32, to: u32, from: u32, base: [u32; 3]) -> Result<(), Refused> {
+pub fn blend_corner(block: &MarkCar, to: u32, from: u32, base: [u32; 3]) -> Result<(), Refused> {
     {
         // `from` and `to` are places of `scene::object_points` (phase 13).
         let src = crate::scene::object_points::point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
-        let f = x87::loaded(get(block + 0x90 + 4 * signs)?);
+        let f = x87::loaded(block.word(BLOCK + 0x90 + 4 * signs)?);
         BLEND_WORK.factor.set_bits(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);

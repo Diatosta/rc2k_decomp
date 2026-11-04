@@ -25,7 +25,7 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::numbers_store::NUMBERS;
 
 use crate::math::next_random::next_random;
-use crate::physics::flow::{a, c0, p};
+use crate::physics::flow::{c0, p};
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
@@ -52,11 +52,6 @@ pub fn touch_face() -> Result<(), Refused> {
     if count > LIST_ROOM {
         return Err(BadInput("g_litFaceCount past 0x100 (the list's room)").into());
     }
-    let _all = [
-        (a(&CONTACT_WORK.lit_faces[count as usize]), 4),
-        (face, 0x40),
-        ((CONTACT_WORK.lit_face_count.addr()), 4),
-    ];
     (|| -> Result<(), crate::errors::Refused> {
         p(&CONTACT_WORK.lit_faces[count as usize], number);
         let kind = CONTACT_WORK.contact_kind.get();
