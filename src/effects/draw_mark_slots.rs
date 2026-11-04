@@ -25,11 +25,10 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::mark_slots::{SLOTS, TUNING};
+use crate::effects::mark_slots::{SLOTS, TUNING, slot_matrix};
 use crate::effects::setup::CLOCK;
 use crate::effects::splines::SPLINE_HEAD;
 use crate::errors::{BadInput, Refused};
-use crate::math::cells::At;
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
@@ -65,7 +64,10 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
     // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
     let first = &crate::effects::setup::marks()?.cars[0];
     if first.word(0x2C)? != 0 {
-        crate::effects::add_mark_slot::add_mark_slot(first.word(4)?, MATRICES.view_place[0].addr());
+        crate::effects::add_mark_slot::add_mark_slot(
+            first.word(4)?,
+            crate::effects::mark_slots::VIEW_PLACE_MATRIX,
+        );
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
     for s in SLOTS.slots.iter().rev() {
@@ -84,7 +86,10 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
         let z = x87::mul(c, k4[0]);
         let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
-        let once = rotate_point(&At(s.matrix.get()), [extended(z), extended(y), extended(x)]);
+        let once = rotate_point(
+            slot_matrix(s.matrix.get())?,
+            [extended(z), extended(y), extended(x)],
+        );
         let twice = rotate_point(&MATRICES.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {

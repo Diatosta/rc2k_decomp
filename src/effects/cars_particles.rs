@@ -93,7 +93,7 @@ pub fn cars_particles() -> Result<(), Refused> {
         let car = &crate::effects::setup::marks()?.cars[n as usize];
         EMITTER.car.set(car_handle(n as usize));
         let m = car.whole_matrix()?;
-        adjugate_matrix(m, car.at(0x94).addr());
+        adjugate_matrix(car.whole_matrix_cells()?, &car.words[0x94 / 4..]);
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
             let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
             for (k, x) in v.iter().enumerate() {
@@ -149,7 +149,7 @@ pub fn cars_particles() -> Result<(), Refused> {
         ];
         let across = x87::normalised3(across, one);
         write_bits(&EMITTER.across, across);
-        let b = x87::crossed_turned(across, w, m);
+        let b = x87::crossed_turned(across, car.part_matrix_cells()?, car.whole_matrix_cells()?);
         write_bits(&EMITTER.side_b, b);
         let a = [
             x87::product_difference(b[1], across[2], b[2], across[1]),

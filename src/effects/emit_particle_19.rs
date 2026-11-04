@@ -109,7 +109,7 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&TWIN_STATE.point),
         set.tuning.lift.bits(),
-        m,
+        car.whole_matrix_cells()?,
     );
     put(0x10, x)?;
     put(0x14, y)?;

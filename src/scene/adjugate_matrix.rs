@@ -11,18 +11,15 @@
 //! null matrix or result. The Rust version is `adjugate_matrix_plain`; the x87's stays for
 //! `effects::cars_particles`.
 
+use crate::math::cells::Cells;
 use crate::math::x87;
 
 /// The Rust version (see the header), the x87's: for `effects::cars_particles`
-/// (unconverted).
-pub fn adjugate_matrix(matrix: u32, out: u32) {
+/// (unconverted). The cells are the matrix's and the result's from their first dword on.
+pub fn adjugate_matrix(matrix: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     use rc2k_core::scene::matrices::COFACTORS;
-    let get = |o: u32| {
-        crate::pointers::read_or_end::<u32>(matrix + o, "scene::adjugate_matrix's operand")
-    };
-    let put = |o: u32, v: u32| {
-        crate::pointers::write_or_end::<u32>(out + o, v, "scene::adjugate_matrix's operand");
-    };
+    let get = |o: u32| matrix.bits(o as usize / 4);
+    let put = |o: u32, v: u32| out.set_bits(o as usize / 4, v);
     for (to, [a, b, c, d]) in COFACTORS {
         put(to, x87::product_difference(get(a), get(b), get(c), get(d)));
     }

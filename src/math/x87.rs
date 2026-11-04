@@ -945,9 +945,9 @@ pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int((bh::ld(a).abs() + bh::ld(b).abs()) * bh::ld(k))
 }
 
-/// The matrix at `m`, as far as a turn reads it.
-fn matrix_at(m: u32) -> [u32; 15] {
-    crate::pointers::read_or_end(m, "a math helper's operand")
+/// The matrix in `m`'s cells, as far as a turn reads it (the first 15 dwords).
+fn matrix_at(m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 15] {
+    crate::math::cells::load(m)
 }
 
 /// The point (a, b, c) (a on top of the x87 stack) by the matrix at `m` (its rows 0x10
@@ -969,7 +969,13 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
 /// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
 /// 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
-pub fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
+pub fn turned_place_less(
+    t: [u32; 3],
+    k: u32,
+    d: u32,
+    lift: u32,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
     let kf = bh::ld(k);
     let a = -bh::ld(t[0]) * kf;
     let b = (bh::ld(t[1]) - bh::ld(d)) * kf;
@@ -1010,7 +1016,11 @@ pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
 
 /// The point (p0, p1, p2) turned and placed by the matrix at `m`; then x, y, y less
 /// `lift`, z.
-pub fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
+pub fn turned_place(
+    p: [u32; 3],
+    lift: u32,
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 4] {
     let [x, y, z] = matrix_turn(
         &matrix_at(m),
         bh::ld(p[0]),
@@ -1056,8 +1066,12 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
 
 /// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
-pub fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
-    let [w0, w1, w2]: [u32; 3] = crate::pointers::read_or_end(w, "a math helper's operand");
+pub fn crossed_turned(
+    p: [u32; 3],
+    w: &(impl crate::math::cells::Cells + ?Sized),
+    m: &(impl crate::math::cells::Cells + ?Sized),
+) -> [u32; 3] {
+    let [w0, w1, w2]: [u32; 3] = crate::math::cells::load(w);
     let (w0, w1, w2) = (bh::ld(w0), bh::ld(w1), bh::ld(w2));
     let (p0, p1, p2) = (bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]));
     let cz = p0 * w1 - p1 * w0;
@@ -1162,7 +1176,7 @@ pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
 
 /// `sub_4CFDD5`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
-pub fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
+pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 3] {
     let [x, y, z] = {
         matrix_turn(
             &matrix_at(m),

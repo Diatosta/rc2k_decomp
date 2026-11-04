@@ -1161,6 +1161,7 @@ pub(super) fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
 
 #[cfg(test)]
 mod diff {
+    use crate::math::cells::At;
     use crate::math::x87 as plain;
     use crate::math::x87::{control_word, set_control_word};
     use std::collections::BTreeMap;
@@ -1564,14 +1565,14 @@ mod diff {
             let mp = crate::pointers::game_address(m.as_ptr());
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
             let want = super::turned_place_less(p, k, d, lift, mp);
-            let got = plain::turned_place_less(p, k, d, lift, mp);
+            let got = plain::turned_place_less(p, k, d, lift, &At(mp));
             let ok = want.same(&got, 0);
             t.record("turned_place_less", ok, || {
                 format!("{p:x?} {k:x} {d:x} {lift:x} {m:x?} want {want:x?} got {got:x?}")
             });
 
             let want = super::turned_place(p, lift, mp);
-            let got = plain::turned_place(p, lift, mp);
+            let got = plain::turned_place(p, lift, &At(mp));
             let ok = want.same(&got, 0);
             t.record("turned_place", ok, || {
                 format!("{p:x?} {lift:x} {m:x?} want {want:x?} got {got:x?}")
@@ -1580,7 +1581,7 @@ mod diff {
             let w = t.rng.a3();
             let wp = crate::pointers::game_address(w.as_ptr());
             let want = super::crossed_turned(p, wp, mp);
-            let got = plain::crossed_turned(p, wp, mp);
+            let got = plain::crossed_turned(p, &At(wp), &At(mp));
             let ok = want.same(&got, 0);
             t.record("crossed_turned", ok, || {
                 format!("{p:x?} {w:x?} {m:x?} want {want:x?} got {got:x?}")
@@ -1588,7 +1589,7 @@ mod diff {
 
             let p80 = t.rng.p80();
             let want = super::column_turn(&p80, mp);
-            let got = plain::column_turn(&p80, mp);
+            let got = plain::column_turn(&p80, &At(mp));
             let ok = want.same(&got, 0);
             t.record("column_turn", ok, || {
                 format!("{p80:x?} {m:x?} want {want:x?} got {got:x?}")

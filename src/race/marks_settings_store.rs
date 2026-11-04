@@ -193,6 +193,27 @@ impl MarkCar {
             .map_or(0, |b| crate::pointers::GamePtr::to(&b.part_matrices).addr()))
     }
 
+    /// The car's whole matrix as cells, refused where the original would read address 0.
+    pub fn whole_matrix_cells(
+        &self,
+    ) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
+        self.block_at(0x24)?
+            .map(|b| &b.whole_matrix)
+            .ok_or(crate::errors::BadInput("a car record without its matrix"))
+    }
+
+    /// The car's part matrices as cells (the first is `part_matrix`'s), refused as
+    /// `whole_matrix_cells`.
+    pub fn part_matrix_cells(
+        &self,
+    ) -> Result<&'static [crate::session::Float; 64], crate::errors::BadInput> {
+        self.block_at(0x28)?
+            .map(|b| &b.part_matrices)
+            .ok_or(crate::errors::BadInput(
+                "a car record without its part matrix",
+            ))
+    }
+
     /// Names block `handle` for `whole_matrix` and `part_matrix` (+0x24, +0x28).
     pub fn set_block(&self, handle: u32) -> Result<(), crate::errors::BadInput> {
         self.put(0x24, handle)?;

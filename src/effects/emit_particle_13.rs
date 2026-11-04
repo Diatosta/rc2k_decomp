@@ -66,7 +66,7 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
         MARKS_FLOATS.plus_65_536.bits(),
         MARKS_FLOATS.seven_hundred.bits(),
         KIND13_SET.lift.bits(),
-        m,
+        car.whole_matrix_cells()?,
     );
     put(0x10, x)?;
     put(0x14, y)?;

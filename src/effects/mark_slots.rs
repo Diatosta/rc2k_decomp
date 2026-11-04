@@ -12,12 +12,30 @@ pub struct MarkSlot {
     pub life: Dword,
     /// +4: which point of `g_marksPoints` (12 bytes each) the slot sits at.
     pub point: Dword,
-    /// +8: the address of the matrix it is turned by.
+    /// +8: the matrix it is turned by, as a handle (`VIEW_PLACE_MATRIX`; the original kept
+    /// the matrix's address); 0 for none.
     pub matrix: Dword,
     /// +0xC: 0.
     pub spare: Dword,
     /// +0x10: a float of the slot's own random (`flt_93540E` plus the random's low word).
     pub size: Float,
+}
+
+/// A slot's matrix handle for the view place matrix (`g_viewPlaceMatrix`, `MATRICES.view_place`),
+/// the only one `effects::add_mark_slot` is given.
+pub const VIEW_PLACE_MATRIX: u32 = 0xCD00_0001;
+
+/// The matrix a slot's handle names; refused for any other value (the original would have
+/// turned by whatever lay at that address).
+pub fn slot_matrix(
+    handle: u32,
+) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
+    match handle {
+        VIEW_PLACE_MATRIX => Ok(&crate::race::matrices_store::MATRICES.view_place),
+        _ => Err(crate::errors::BadInput(
+            "a mark slot's matrix handle that names none",
+        )),
+    }
 }
 
 /// The mark slots (IDA 0x934F7C .. 0x935300, the image's layout; phase 7, typed state).

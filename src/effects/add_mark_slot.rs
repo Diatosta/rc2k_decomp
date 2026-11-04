@@ -3,7 +3,7 @@
 //! slot's own random (`dword_93540A` times 0xC5 plus 0x5D, its low word, plus
 //! `flt_93540E`). Nothing when none is free.
 //!
-//! In:  eax, esi what the slot holds
+//! In:  eax what the slot holds, esi the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
 //! Out: every register kept
 //!
 //! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
@@ -15,7 +15,7 @@ use crate::math::x87;
 const TIME: u32 = 0x3C;
 
 /// The Rust version (see the header).
-pub fn add_mark_slot(what: u32, at_esi: u32) {
+pub fn add_mark_slot(what: u32, matrix: u32) {
     for slot in SLOTS.slots.iter().rev() {
         if slot.life.get() as i32 > 0 {
             continue;
@@ -29,7 +29,7 @@ pub fn add_mark_slot(what: u32, at_esi: u32) {
         let float = x87::int_plus((random & 0xFFFF) as i32, TUNING.base.bits());
         slot.life.set(TIME);
         slot.point.set(what);
-        slot.matrix.set(at_esi);
+        slot.matrix.set(matrix);
         slot.spare.set(0);
         slot.size.set_bits(float);
         return;
