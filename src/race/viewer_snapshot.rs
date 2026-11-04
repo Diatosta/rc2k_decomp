@@ -11,12 +11,10 @@
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::gfx::picture_store::PICTURE;
 use crate::race::find_snapshot_number::{SNAPSHOT, digits_place};
 
 /// The Rust version (see the header).
 pub fn viewer_snapshot() -> Result<(), Refused> {
-    let kept: u32 = PICTURE.name.get();
     let digits = digits_place();
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let at = crate::pointers::game_address(digits);
@@ -25,12 +23,10 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
         "the snapshot's digits",
     ));
     crate::pointers::write_or_end(at, next, "the snapshot's digits");
-    PICTURE.name.set(SNAPSHOT.addr());
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
-        { crate::gfx::write_screen_pcx::write_screen_pcx() }?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(Some(&SNAPSHOT.text()))?;
         crate::platform::unlock_surface();
     }
-    PICTURE.name.set(kept);
     Ok(())
 }

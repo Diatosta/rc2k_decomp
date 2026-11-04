@@ -18,7 +18,8 @@ pub const LEN: usize = 0x519554 - START;
 pub struct Decoder {
     /// `g_glyphBuilderFlags` (`dword_519118`): how the sheet is read and its glyphs built.
     pub builder_flags: Dword,
-    /// `template_` (`dword_51911C`): the builder's file name template.
+    /// `template_` (`dword_51911C`): the builder's file name template. Not used: nothing
+    /// reads it, so the template is not kept here.
     pub template: Dword,
     /// `number` (`dword_519120`): the sheet's number in the template.
     pub number: Dword,

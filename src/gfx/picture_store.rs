@@ -16,7 +16,7 @@ pub const LEN: usize = 0x4F4A24 - START;
 #[repr(C)]
 pub struct Picture {
     /// `dword_4F49C8`: the name of the file a screenshot is written to, or 0 for the
-    /// numbered default.
+    /// numbered default. Not used: `gfx::write_screen_pcx` takes the name from its caller.
     pub name: Dword,
     /// `g_pictureFlags` (`dword_4F49CC`): flags of the picture; bits 8 .. 11 say what its
     /// pixels are (0x200 after a conversion to 16-bit pixels).

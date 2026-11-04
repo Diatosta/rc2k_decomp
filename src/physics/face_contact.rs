@@ -188,10 +188,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     );
     CONTACT_WORK.contact_point[1].set_bits(0);
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    PHYSICS
-        .contact_record
-        .set(crate::pointers::game_address(PHYSICS.contacts.as_ptr()));
-    contact_force();
+    contact_force(&PHYSICS.contacts[0]);
     Ok(())
 }
 

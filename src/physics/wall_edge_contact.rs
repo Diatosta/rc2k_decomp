@@ -28,7 +28,7 @@ use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::{a, copy_cells};
+use crate::physics::flow::copy_cells;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -105,8 +105,7 @@ pub fn steps() -> Result<(), Refused> {
         NUMBERS.tenth.bits(),
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
-    contact_force();
+    contact_force(&PHYSICS.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

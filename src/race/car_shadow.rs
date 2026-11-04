@@ -31,11 +31,10 @@ fn points() -> GamePtr {
     GamePtr::to(&SHADOW_SKIDS.shadow_points)
 }
 
-/// The point at game address `at` (`dword_643ABC` keeps the farthest one's), bounded as
+/// Point `n` (0x20 bytes each; `dword_643ABC` keeps the farthest one's number), bounded as
 /// `points`.
-fn point_at(at: u32) -> GamePtr {
-    let points = points();
-    points.offset(at.wrapping_sub(points.addr()))
+fn point_at(n: u32) -> GamePtr {
+    points().offset(n.wrapping_mul(0x20))
 }
 
 fn get(a: GamePtr) -> Result<u32, BadInput> {
@@ -689,7 +688,7 @@ pub fn shadow_points() -> Result<(), Refused> {
         put(at.offset(0x10), length)?;
         if !below_or_unordered(length, SHADOW_SKIDS.farthest_length.bits()) {
             SHADOW_SKIDS.farthest_length.set_bits(length);
-            SHADOW_SKIDS.farthest.set(at.addr());
+            SHADOW_SKIDS.farthest.set(k as u32);
         }
         put(
             at,

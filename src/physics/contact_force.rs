@@ -61,8 +61,9 @@ fn fill3(to: &[Float], v: u32) {
     }
 }
 
-/// The Rust version.
-pub fn contact_force() {
+/// The Rust version: `record` the one the contact's force goes to (the original's
+/// `dword_614B40`, set by each caller just before).
+pub fn contact_force(record: &ForceRecord) {
     cross_product(
         &CONTACT_WORK.contact_turn_speed,
         &CONTACT_WORK.contact_point,
@@ -191,11 +192,6 @@ pub fn contact_force() {
         &CONTACT_WORK.contact_normal_push,
         &CONTACT_WORK.contact_total,
     );
-    let edi = PHYSICS.contact_record.get();
-    // The record the contact's force goes to (+0 force, +0xC place).
-    let record = crate::pointers::GamePtr::new(edi)
-        .record::<ForceRecord>("a contact record")
-        .unwrap_or_else(|e| crate::fatal::raise::end("a contact record", e));
     turn_by_inverse(&CONTACT_WORK.contact_total);
     x87_8(&record.force);
     turn_by_inverse(&CONTACT_WORK.contact_point);

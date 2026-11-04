@@ -431,7 +431,8 @@ pub struct PhysicsTables {
     pub contacts: [ForceRecord; 7],
     /// +0x1308 (0x614B30): the push `physics::apply_force` takes.
     pub push_record: [Dword; 4],
-    /// +0x1318 (0x614B40): `physics::contact_force`'s record.
+    /// +0x1318 (0x614B40): `physics::contact_force`'s record. Not used: the callers pass the
+    /// record to it.
     pub contact_record: Dword,
     /// +0x131c (0x614B44): `physics::lever_push`'s vector.
     pub lever_push_vector: [Dword; 4],

@@ -16,7 +16,8 @@ pub struct ShadowSkids {
     pub shadow_work: [Dword; 5],
     /// +0x2014 (0x643AB8): `flt_643AB8`: the length of the farthest point (`race::car_shadow::shadow_points`).
     pub farthest_length: Float,
-    /// +0x2018 (0x643ABC): `dword_643ABC`: the farthest point's record (`race::car_shadow`).
+    /// +0x2018 (0x643ABC): `dword_643ABC`: the farthest point's number (`race::car_shadow`;
+    /// the original kept its record's address).
     pub farthest: Dword,
     /// +0x201c (0x643AC0): `flt_643AC0`: the first point's angle.
     pub first_angle: Float,

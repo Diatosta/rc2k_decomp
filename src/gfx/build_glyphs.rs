@@ -67,7 +67,8 @@ pub struct SheetVars {
     pub sheet_table: Dword,
     /// `dword_51959C`: its size.
     pub sheet_table_size: Dword,
-    /// `dword_5195A0`: the list given in ebx.
+    /// `dword_5195A0`: the list given in ebx. Not used: nothing reads it, so the list is not
+    /// kept here.
     pub table_list: Dword,
     /// `g_builtTable` (`dword_5195A4`): the table being built.
     pub table: Dword,
@@ -282,8 +283,6 @@ pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result
         return Err(BadInput("no path for the sheets").into());
     }
     let work = crate::pointers::GamePtr::to(&LEXICON.memory);
-    DECODER.template.set(template.addr());
-    SHEET.table_list.set(list.addr());
     DECODER.number.set(0u32);
     loop {
         if DECODER.builder_flags.get() & WITH_ALPHA != 0 {

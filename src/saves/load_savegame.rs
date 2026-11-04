@@ -77,7 +77,6 @@ pub fn load_savegame() -> Result<(), Refused> {
         at.set(cursor.read::<u32>("the savegame's head")?);
         cursor = cursor.offset(4);
     }
-    SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
     if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
         crate::saves::keep_player_settings::keep_player_settings(cursor)?;
     }

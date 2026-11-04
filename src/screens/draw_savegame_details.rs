@@ -62,12 +62,6 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
             cell.set(saved_dword(PAYLOAD_OFFSET + 4 * n)?);
         }
         let cars_at = PAYLOAD_OFFSET + 4 * SAVEGAME_PREVIEW.saved.len();
-        // Kept as an address: `saves::load_savegame` reads the cars from there.
-        SAVEGAME_PREVIEW.saved_cars.set(
-            crate::pointers::GamePtr::to(file)
-                .offset(cars_at as u32)
-                .addr(),
-        );
         let players = SAVEGAME_PREVIEW.saved[0].get() as i32;
         let index = SAVEGAME_PREVIEW.saved[2].get() as i32;
         let section = SAVEGAME_PREVIEW.saved[3].get();

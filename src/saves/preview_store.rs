@@ -22,6 +22,7 @@ pub struct SavegamePreview {
     /// others are not read (`screens::draw_savegame_details`).
     pub saved: [Dword; 7],
     /// `dword_75516C`: the saved cars in the file's buffer (the address after the figures).
+    /// Not used: nothing reads it (the readers take the cars by their offset in the file).
     pub saved_cars: Dword,
 }
 

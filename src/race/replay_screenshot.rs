@@ -13,7 +13,6 @@
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
-use crate::gfx::picture_store::PICTURE;
 use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
@@ -26,25 +25,19 @@ pub fn replay_screenshot() -> Result<(), Refused> {
         VIEWER_PANEL.pictures_started.set_bits(1u32);
         VIEWER_PANEL.picture_clock.set(crate::os::ticks());
     }
-    let kept: u32 = PICTURE.name.get();
     let name = GamePtr::to(&VIEWER_PANEL.picture_name);
     // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
     let digits = name.offset(4);
     let (counted, _, _) =
         rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
     digits.write(counted, "the picture name")?;
-    PICTURE.name.set(name.addr());
-    let saved = (|| {
-        // The surface locked (the carry says it was not), the picture written, the
-        // surface unlocked.
-        if crate::platform::lock_surface() >= 1 {
-            crate::gfx::write_screen_pcx::write_screen_pcx()?;
-            crate::platform::unlock_surface();
-        }
-        Ok::<(), Refused>(())
-    })();
-    PICTURE.name.set(kept);
-    saved?;
+    let name = crate::files::cstring(name, "the picture name")?;
+    // The surface locked (the carry says it was not), the picture written, the surface
+    // unlocked.
+    if crate::platform::lock_surface() >= 1 {
+        crate::gfx::write_screen_pcx::write_screen_pcx(Some(&name))?;
+        crate::platform::unlock_surface();
+    }
     VIEWER_PANEL.picture_clock.set(
         VIEWER_PANEL
             .picture_clock

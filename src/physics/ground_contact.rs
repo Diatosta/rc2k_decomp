@@ -50,10 +50,7 @@ fn steps() -> Result<(), Refused> {
     CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
     take_contact(n)?;
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    PHYSICS
-        .contact_record
-        .set(PHYSICS.contacts[2].force[0].addr());
-    contact_force();
+    contact_force(&PHYSICS.contacts[2]);
     { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),

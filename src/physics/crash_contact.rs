@@ -31,7 +31,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
-use crate::physics::flow::{hold_high, p};
+use crate::physics::flow::hold_high;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
@@ -116,8 +116,7 @@ fn steps() -> Result<(), Refused> {
         dot_product(&CONTACT_WORK.crash_car_up, &CONTACT_WORK.contact_normal)
     }));
     x87_1();
-    p(&PHYSICS.contact_record, PHYSICS.forces[21].force[0].addr());
-    contact_force();
+    contact_force(&PHYSICS.forces[21]);
     { place_sound_e5() }?;
     for k in 0..3 {
         CONTACT_WORK.ground_force[k].set(PHYSICS.forces[21].force[k].bits());

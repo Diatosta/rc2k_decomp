@@ -17,7 +17,8 @@ pub struct ObjectTables {
     pub face_count: Dword,
     /// +0x804 (0x5CD680): `g_objectPointCount`: the points loaded so far (`scene::add_object_shape`, `scene::project_point`, `scene::place_object_points`).
     pub point_count: Dword,
-    /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`).
+    /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
+    /// reads it, so the address is not kept here.
     pub normals_at: Dword,
     /// +0x80c (0x5CD688): `g_carMarkTextures`: the textures of the car's marks (number, digits, plates) in the first 0x40 (`race::car_draw`; [1] .. [9] are `dword_5CD68C` .. `dword_5CD6AC`), and the 0x100 kind bytes `scene::draw_shown_object` sets (`scene::list_object_face`).
     pub car_mark_textures: [Dword; 256],

@@ -7,7 +7,8 @@
 //! below 0xC0 as itself), through the stream `g_pictureStream` (`files::open_stream` mode
 //! 1, `files::write_stream_block`, `files::write_stream_byte`, `files::close_stream`).
 //! The file is `dword_4F49C8` when set, else the game's screenshot name `000.pcx`
-//! (0x4F52BC), its three digits one more first (999 goes round to 000).
+//! (0x4F52BC), its three digits one more first (999 goes round to 000). Here the callers
+//! that set `dword_4F49C8` (and put it back after) pass the name instead.
 //!
 //! In:  nothing (the surface locked)
 //! Out: carry set when it failed (the open, a write, the close); every register kept
@@ -46,16 +47,17 @@ fn next_shot_name() {
     }
 }
 
-/// The Rust version: whether it worked (carry clear).
-pub fn write_screen_pcx() -> Result<bool, Refused> {
+/// The Rust version: whether it worked (carry clear). `name` the file's path (without its
+/// NUL), or None for the next numbered screenshot.
+pub fn write_screen_pcx(name: Option<&[u8]>) -> Result<bool, Refused> {
     let header_bytes = header(DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
     PCX.header.write(&header_bytes);
-    let name: u32 = crate::gfx::picture_store::PICTURE.name.get();
-    let path = if name == 0 {
-        next_shot_name();
-        SHOTS.name.text()
-    } else {
-        crate::files::cstring(GamePtr::new(name), "a screenshot's path")?
+    let path = match name {
+        Some(name) => name.to_vec(),
+        None => {
+            next_shot_name();
+            SHOTS.name.text()
+        }
     };
     with_stream(|stream| {
         if !crate::files::open_stream::open_stream(stream, &path, 1)? {

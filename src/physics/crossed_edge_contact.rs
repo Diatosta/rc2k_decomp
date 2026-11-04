@@ -26,7 +26,6 @@ use crate::math::x87::mul;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
 use crate::race::numbers_store::NUMBERS;
@@ -109,8 +108,7 @@ pub fn steps() -> Result<(), Refused> {
         NUMBERS.tenth.bits(),
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(&PHYSICS.contact_record, PHYSICS.contacts[1].force[0].addr());
-    contact_force();
+    contact_force(&PHYSICS.contacts[1]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }

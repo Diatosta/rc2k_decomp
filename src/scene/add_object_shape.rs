@@ -343,9 +343,6 @@ pub fn add_object_shape() -> Result<(), BadInput> {
     crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[lowest, highest]);
     OBJECT_SLOTS.no_normals.set(without);
     OBJECT_TABLES.face_count.set(face_number);
-    OBJECT_TABLES
-        .normals_at
-        .set(crate::scene::objects::file().addr() + shape.normals_at as u32);
     OBJECT_WORK
         .face_cursor
         .set_bits(out as u32 - room.face_memory);
