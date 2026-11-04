@@ -289,9 +289,6 @@ mod tests {
             ));
             Ok(())
         }
-        fn buffer_address(&mut self, _: Buffer) -> u32 {
-            0x1000
-        }
     }
 
     #[test]

@@ -14,6 +14,12 @@ pub fn name(player: usize) -> u32 {
     NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32
 }
 
+/// Which player's name a player record's name pointer (`Player::name`) names; None for an
+/// address that is no name's start.
+pub fn index_of(name_at: u32) -> Option<usize> {
+    (0..PLAYERS).find(|&k| name(k) == name_at)
+}
+
 /// Player `player`'s name as a pointer bounded by the names' store (the original runs on
 /// past a name that lacks its end).
 pub fn name_ptr(player: usize) -> crate::pointers::GamePtr {

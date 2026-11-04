@@ -105,7 +105,7 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
         controllers: crate::input::store::DEVICES.controller_count.get() != 0,
-        name: player.name,
+        name: crate::screens::game_screen::player_name(player.name)?,
         typing: OPTION_WORK.typing.get() != 0,
         blink: DRAW_WORK.cursor_on.get(),
         nationality: player.nationality,

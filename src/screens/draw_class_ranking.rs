@@ -66,26 +66,27 @@ pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = CHAMP_VIEW.ranked_player.get();
-    let rows: Vec<RankedRow<u32>> = rows
+    // A player's entry names the player's name (`name_at`), a driver's a string.
+    let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()
         .map(|&(e, place)| {
             let kind = e.head.player;
-            RankedRow {
+            Ok(RankedRow {
                 place,
                 mine: kind != 0 && kind == player,
                 name: if kind == 0 {
                     Name::String(e.head.name_id)
                 } else {
-                    Name::Text(e.head.name_id)
+                    Name::Text(crate::screens::game_screen::player_name(e.head.name_id)?)
                 },
                 time: e.head.rally_time,
                 nation: e.head.nation,
                 car: e.head.car,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<_, BadInput>>()?;
     class_ranking(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         first_time,
         crate::strings::append_time::show_hours(),
         &rows,

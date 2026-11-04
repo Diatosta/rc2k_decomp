@@ -36,17 +36,21 @@ pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::players_results::standings`.
     let fault = crate::menu::event_flow::Fault::default();
     let field = |row: usize, o: u32| PLAYER_TABLE.players[row].get().word(o as usize);
-    let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
-        .map(|row| rc2k_core::screens::players_results::Standing {
-            name: field(row, 0x18),
-            nation: field(row, 4),
-            car: field(row, 8),
-            points: fault.get(totals[row]),
+    let rows: Vec<
+        rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,
+    > = (0..rows)
+        .map(|row| {
+            Ok(rc2k_core::screens::players_results::Standing {
+                name: crate::screens::game_screen::player_name(field(row, 0x18))?,
+                nation: field(row, 4),
+                car: field(row, 8),
+                points: fault.get(totals[row]),
+            })
         })
-        .collect();
+        .collect::<Result<_, BadInput>>()?;
     fault.check()?;
     rc2k_core::screens::players_results::standings(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &rows,
     )?;
     Ok(())

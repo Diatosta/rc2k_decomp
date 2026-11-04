@@ -1,6 +1,6 @@
 //! The game's side of `rc2k_core::screens::screen::Screen` (2026-10-20, the screens' conversion): a
-//! family's fonts are font records in game memory, its texts game addresses, its work
-//! variables game dwords; drawn through the text functions and the canvas.
+//! family's fonts are font records in game memory, its texts places in typed stores or
+//! held names, its work variables game dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
@@ -43,42 +43,17 @@ pub trait GameWork: Copy {
     fn cell(self) -> &'static Dword;
 }
 
-/// A text a screen draws: where the game keeps it (an address, `u32`: the tables and records the
-/// game hands over keep their texts as addresses), or one held by
-/// value (`HeldText`: the typed tables' names, phase 12).
+/// A text a screen draws (`HeldText`: a place in a typed store, bounded by it, or a name
+/// held by value). The game's tables keep texts as addresses; the screens get them as
+/// places (a player's name by `player_name`).
 pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
     fn draw(self, font: GamePtr, x: i32, y: i32, canvas: &mut dyn Canvas)
     -> Result<Drawn, Refused>;
-    /// A buffer of the game's.
-    fn of_buffer(at: u32) -> Self;
+    /// A shared buffer of the game's.
+    fn of_buffer(at: GamePtr) -> Self;
     /// Measured in `font` from x: its widest line's width.
     fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
-}
-
-impl GameText for u32 {
-    fn draw(
-        self,
-        font: GamePtr,
-        x: i32,
-        y: i32,
-        canvas: &mut dyn Canvas,
-    ) -> Result<Drawn, Refused> {
-        let out = draw_text_at(font, GamePtr::new(self), x, y, canvas)?;
-        Ok(Drawn {
-            y: out.y,
-            too_wide: out.too_wide,
-        })
-    }
-
-    fn of_buffer(at: u32) -> Self {
-        at
-    }
-
-    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
-        let m = crate::text::measure_text::measure_text_at(font, GamePtr::new(self), x, canvas)?;
-        Ok(m.width)
-    }
 }
 
 /// A text held by value (a typed table's name, copied out of it): at most `ROOM` bytes,
@@ -122,10 +97,19 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
         .ok_or(crate::errors::BadInput("a name past its entry"))
 }
 
+/// The name a player record names (`Player::name`, a place in `g_playerNames`), drawn from
+/// the names' store; refused when it names no player's name.
+pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
+    crate::menu::player_names::index_of(name_at)
+        .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(k)))
+        .ok_or(crate::errors::BadInput(
+            "a player's name that is no player's name",
+        ))
+}
+
 /// The texts of a screen whose names are held by value: those, or the game's own buffers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeldText {
-    Game(u32),
     /// A text in a field of a typed store (a record's name), bounded by it.
     Place(GamePtr),
     Held(Held),
@@ -140,7 +124,6 @@ impl GameText for HeldText {
         canvas: &mut dyn Canvas,
     ) -> Result<Drawn, Refused> {
         match self {
-            HeldText::Game(at) => at.draw(font, x, y, canvas),
             HeldText::Place(at) => {
                 let out = draw_text_at(font, at, x, y, canvas)?;
                 Ok(Drawn {
@@ -160,13 +143,12 @@ impl GameText for HeldText {
         }
     }
 
-    fn of_buffer(at: u32) -> Self {
-        HeldText::Game(at)
+    fn of_buffer(at: GamePtr) -> Self {
+        HeldText::Place(at)
     }
 
     fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         match self {
-            HeldText::Game(at) => at.measure(font, x, canvas),
             HeldText::Place(at) => {
                 let m = crate::text::measure_text::measure_text_at(font, at, x, canvas)?;
                 Ok(m.width)
@@ -178,7 +160,7 @@ impl GameText for HeldText {
     }
 }
 
-pub struct GameScreen<'a, F, W, T = u32> {
+pub struct GameScreen<'a, F, W, T = HeldText> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
     pub menu_items: &'static [crate::menu::menus_store::MenuItem],
@@ -251,7 +233,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, T::of_buffer(buffer_at(buffer).addr()), x, y)
+        self.text(font, T::of_buffer(buffer_at(buffer)), x, y)
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {
@@ -306,10 +288,6 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         .write();
         let canvas = &mut *self.canvas;
         blit_bar(&mut |call| canvas.blit_glyph(call))
-    }
-
-    fn buffer_address(&mut self, buffer: Buffer) -> u32 {
-        buffer_at(buffer).addr()
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
@@ -506,9 +484,7 @@ impl GameFont for rc2k_core::screens::car_pages::Font {
 
 impl GameWork for rc2k_core::screens::car_pages::Work {
     fn cell(self) -> &'static Dword {
-        match self {
-            rc2k_core::screens::car_pages::Work::TextKept => &DRAW_WORK.figure,
-        }
+        match self {}
     }
 }
 

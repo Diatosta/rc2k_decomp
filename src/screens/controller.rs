@@ -3,7 +3,7 @@
 //! `dword_7551F8`), the player's control `dword_7551FC` (1 .. ) learns the axis or the
 //! direction the player moves, into the player's +0x50 table.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -130,17 +130,27 @@ pub fn draw_controller_page(
         let f = |o: u32| player.get().word(o as usize);
         let device = f(0x2C);
         fault.check()?;
-        let mut screen = crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas);
+        use crate::screens::game_screen::HeldText;
+        let mut screen =
+            crate::screens::game_screen::GameScreen::<Font, Work, HeldText>::new(canvas);
         if device == 0 {
             return controller_page(&mut screen, None);
         }
-        let record = crate::input::store::DEVICES.controllers[0].addr()
-            + device.wrapping_sub(1).wrapping_mul(0x50);
+        // Device n is the controllers' record n - 1 (0x50 bytes; +0x30 its name, +0x1C 1
+        // with a strength).
+        let Some(entry) = (device as usize)
+            .checked_sub(1)
+            .and_then(|n| crate::input::store::DEVICES.controllers.get(n))
+        else {
+            return Err(BadInput("a player's device past the controllers").into());
+        };
+        let record = crate::pointers::GamePtr::to(entry);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state()?;
         let c = Controller {
-            record,
-            name: record + 0x30,
-            has_strength: fault.get(record + 0x1C) == 1,
+            // Kept in `dword_755A0C` as the original keeps it.
+            record: record.addr(),
+            name: HeldText::Place(record.offset(0x30)),
+            has_strength: record.offset(0x1C).read::<u32>("a controller's record")? == 1,
             mode: f(0x3C),
             strength: f(0x48),
             sensitivity: f(0x34),

@@ -24,6 +24,10 @@ pub fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,
         page,
-        |slot| crate::service::read_setup_slot::slot_name(slot).game(),
+        |slot| {
+            crate::screens::game_screen::HeldText::Place(
+                crate::service::read_setup_slot::slot_name(slot).game_ptr(),
+            )
+        },
     )
 }

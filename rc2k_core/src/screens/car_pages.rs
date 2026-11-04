@@ -103,11 +103,10 @@ pub enum Font {
     Figures,
 }
 
+/// No work variable: the original keeps the description's buffer's address in
+/// `dword_7559EC`, a scratch dword every other reader sets before reading.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Work {
-    /// `dword_7559EC`: the description's text buffer.
-    TextKept,
-}
+pub enum Work {}
 
 /// The string "n/d".
 const NOT_KNOWN: u32 = 0x578;
@@ -211,8 +210,6 @@ pub fn page<S: Screen<Font = Font, Work = Work>>(
             } else {
                 let text = p.s.strings(d.description, 7)?;
                 p.s.store(Buffer::Text, &text)?;
-                let at = p.s.buffer_address(Buffer::Text);
-                p.s.keep(Work::TextKept, at);
                 p.carry = p.s.draw(Font::Figures, Buffer::Text, 0x1A4, 0xD5)?.too_wide;
             }
         }
@@ -349,8 +346,8 @@ mod tests {
         fn sprite(&mut self, _: u32, _: i32, _: i32) -> Result<(), Invalid> {
             unreachable!()
         }
-        fn keep(&mut self, w: Work, v: u32) {
-            self.0.push(format!("keep {w:?} {v}"));
+        fn keep(&mut self, w: Work, _: u32) {
+            match w {}
         }
         fn bar(&mut self, _: Bar) -> Result<(), Invalid> {
             unreachable!()
@@ -386,7 +383,7 @@ mod tests {
         };
         let mut s = Record::default();
         page(&mut s, 0, &mut other, 3, 0).unwrap();
-        assert_eq!(s.0[1], "Figures \"d600x7\\0\" 0x1a4 0xd5");
+        assert_eq!(s.0, ["Figures \"d600x7\\0\" 0x1a4 0xd5"]);
         assert!(page(&mut Record::default(), 3, &mut other, 0, 2).is_ok());
         let mut s = Record::default();
         other.length = 120;

@@ -405,9 +405,6 @@ mod tests {
         fn fatal(&mut self, _: u32, m: &'static str) -> Invalid {
             Invalid(m)
         }
-        fn buffer_address(&mut self, _: Buffer) -> u32 {
-            0x1000
-        }
     }
 
     #[test]

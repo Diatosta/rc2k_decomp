@@ -76,7 +76,12 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         let car = |row: usize| {
             let car = cars + (row * CAR_LEN) as u32;
             Car {
-                name: car + 0x124,
+                // The saved car's copy of its player's name (+0x124), read as far as its NUL
+                // inside the read file.
+                name: crate::screens::game_screen::HeldText::Place(
+                    crate::pointers::GamePtr::to(&SAVE_GAMES.file)
+                        .offset(car.wrapping_sub(SAVE_GAMES.file.addr()) + 0x124),
+                ),
                 nation: f.get(car + 4),
                 car: f.get(car + 8),
                 numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| f.get(car + o)),

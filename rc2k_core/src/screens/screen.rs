@@ -158,11 +158,6 @@ pub trait Screen {
     fn item(&mut self, _n: u32, _on: bool) -> Result<(), Self::Error> {
         Err(Invalid("this screen has no menu").into())
     }
-    /// Where a buffer is, as the game keeps it in a work variable (0 off the game).
-    fn buffer_address(&mut self, _buffer: Buffer) -> u32 {
-        0
-    }
-
     /// `bytes` (no NUL) put in the line buffer with a NUL and drawn from there.
     fn line(
         &mut self,

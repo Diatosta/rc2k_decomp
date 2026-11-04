@@ -112,7 +112,7 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
-                name: p.get().word(0x18),
+                name: crate::screens::game_screen::player_name(p.get().word(0x18))?,
                 nation: p.get().word(4),
                 car: p.get().word(8),
                 time: p.get().word(0x88),
@@ -132,7 +132,11 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
             extra_glyph: DRAW_WORK.work_b4.get(),
         };
         players_results(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            &mut crate::screens::game_screen::GameScreen::<
+                _,
+                _,
+                crate::screens::game_screen::HeldText,
+            >::new(canvas),
             layout,
             &page,
             &rows,

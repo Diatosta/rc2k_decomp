@@ -39,7 +39,7 @@ pub fn draw_replay_slot_names(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::REPLAYS,
         page,
-        |slot| slot_name(slot).game(),
+        |slot| crate::screens::game_screen::HeldText::Place(slot_name(slot).game_ptr()),
     )
     .map(|_| ())
 }

@@ -70,10 +70,10 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
     let units = crate::strings::units::units();
-    let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<u32>, Refused> {
+    let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {
         let p = p.get();
         Ok(Player {
-            name: p.name,
+            name: crate::screens::game_screen::player_name(p.name)?,
             nation: p.nationality,
             car: p.car_number,
             time: p.word(0x88),
@@ -99,7 +99,7 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }),
     };
     rc2k_core::screens::duel_result::duel_result(
-        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas),
         &players,
         get(base + 0x38)?,
         &stage,
