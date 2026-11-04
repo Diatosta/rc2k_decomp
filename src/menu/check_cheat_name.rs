@@ -22,9 +22,9 @@ const HIDDEN_NAME: u32 = 0x18F;
 
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
-fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
+fn find(coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
     let list = GamePtr::to(&CHEAT_VARS.cheat_names);
-    let text = GamePtr::new(coded).bytes("a coded name")?;
+    let text = coded.bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))
         .take_while(|&b| b != 0)
@@ -41,7 +41,9 @@ fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
 /// calls get theirs as noted, of which only the sound reads one (eax 8).
 pub fn check_cheat_name() -> Result<(), Refused> {
-    let name = crate::menu::standings::player(3).get().name;
+    let name = crate::menu::player_names::name_ptr(crate::menu::player_names::name_index(
+        crate::menu::standings::player(3).get().name,
+    )?);
     let coded = rot13_into_text(name)?;
     let Some((_found, bit)) = find(coded)? else {
         return Ok(());
@@ -58,6 +60,6 @@ pub fn check_cheat_name() -> Result<(), Refused> {
     let mut hidden = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
     hidden.push(0);
-    GamePtr::new(name).write_bytes(&hidden, "a player\'s name")?;
+    name.write_bytes(&hidden, "a player\'s name")?;
     Ok(())
 }

@@ -15,6 +15,13 @@ use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
 use crate::place::Place;
 
+/// The current player's name as a place bounded by the names' store (the original runs on
+/// past a name that lacks its end).
+pub fn name_place() -> Result<crate::pointers::GamePtr, Refused> {
+    use crate::menu::player_names::{name_index, name_ptr};
+    Ok(name_ptr(name_index(name()?)?))
+}
+
 pub fn kept() -> Place {
     Place::from(&NAME_BUFFERS.kept_name)
 }

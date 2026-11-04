@@ -30,12 +30,12 @@ fn write32(at: GamePtr, v: u32) -> Result<(), Refused> {
 /// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
 /// The flags the original leaves are read by neither caller (register liveness,
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
-pub fn draw_time_text(font: GamePtr, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let (mut at, mut x, mut edi) = (GamePtr::new(text), x, 0u32);
+    let (mut at, mut x, mut edi) = (text, x, 0u32);
     // Converted: `rc2k_core::text::time_text_widths`; here the original's way of drawing
     // one character at a time (the dword after it swapped for 0 around the call).
-    let chars = GamePtr::new(text).bytes("a time text")?;
+    let chars = text.bytes("a time text")?;
     let widths = rc2k_core::text::time_text_widths(&chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
     for width in widths {

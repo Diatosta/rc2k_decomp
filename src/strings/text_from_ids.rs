@@ -23,10 +23,6 @@ pub fn text_at() -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(&crate::strings::text_buffer::TEXT_BUFFER.text)
 }
 
-pub fn text() -> *mut u8 {
-    crate::strings::text_buffer::TEXT_BUFFER.text.as_ptr()
-}
-
 // ---- Rust version ----
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:

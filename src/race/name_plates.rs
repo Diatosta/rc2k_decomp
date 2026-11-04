@@ -83,12 +83,20 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
         start.wrapping_add(crate::gfx::surface::address()?),
         time_rows(line),
     );
-    for (text, (x, y)) in [&OVERLAY.label_behind[0], &OVERLAY.label_ahead[0]]
-        .into_iter()
-        .zip(time_places(line))
+    // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
+    // block's next dword, so the place is bounded to the block, not the label.
+    use crate::race::overlay_store::OverlayBlock;
+    use core::mem::offset_of;
+    for (label, (x, y)) in [
+        offset_of!(OverlayBlock, label_behind),
+        offset_of!(OverlayBlock, label_ahead),
+    ]
+    .into_iter()
+    .zip(time_places(line))
     {
+        let text = GamePtr::to(&*OVERLAY).offset(label as u32);
         FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(&FONTS.game_fonts[3], text.addr(), x, y)?;
+        draw_text_in_game(&FONTS.game_fonts[3], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())

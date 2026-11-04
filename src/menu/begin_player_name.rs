@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::player_name::{kept, name};
+use crate::menu::player_name::{kept, name_place};
 use crate::menu::text_entry::{Text, field, put_field, with_entry};
 
 // ---- Rust version ----
@@ -20,7 +20,7 @@ use crate::menu::text_entry::{Text, field, put_field, with_entry};
 pub fn begin_player_name() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
     let with_4 = { SCREEN_FLOW.enter_skips_name_entry.get() } == 1;
-    let at = if with_4 { None } else { Some(name()?) };
+    let at = if with_4 { None } else { Some(name_place()?) };
     // The copy is written, not read.
     let (mut text, mut copy) = (at.map_or(Ok(Text::default()), field)?, Text::default());
     with_entry(|e| e.begin_player_name(with_4, &mut text, &mut copy));

@@ -21,9 +21,8 @@ use crate::input::take_key::take_key;
 use crate::menu::clear_text::clear_text;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::player_name::{backspace_name, bring_back_name, name};
+use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
-use crate::pointers::GamePtr;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -35,7 +34,7 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
-    let name = name()?;
+    let name = name_place()?;
     let len = { LOOP_FLAGS.text_length.get() } as i32;
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
@@ -64,14 +63,9 @@ pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a player's name")?;
+                name.offset(len as u32).write::<u8>(c, "a player's name")?;
                 set_length(len.wrapping_add(1));
-                let measured = measure_text_at(
-                    MEASURING_FONT.game_ptr(),
-                    crate::pointers::GamePtr::new(name),
-                    len,
-                    canvas,
-                )?;
+                let measured = measure_text_at(MEASURING_FONT.game_ptr(), name, len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_name(name)?;
                 }

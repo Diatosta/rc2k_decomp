@@ -21,19 +21,19 @@ pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32,
     let source = Source::of(id, || fault.ok(ptr_low(id)) != 0);
     fault.check()?;
     let direct = match source {
-        Source::Made => Some(ptr_high(id)?),
-        Source::Pointer => Some(ptr_low(id)?),
+        Source::Made => Some(GamePtr::new(ptr_high(id)?)),
+        Source::Pointer => Some(crate::settings::read_driver_names::name_at(ptr_low(id)?)),
         Source::Table => None,
     };
     match direct {
         Some(p) => {
             // The text runs to its NUL inside one block of the game's memory.
-            let text = GamePtr::new(p).bytes("a string")?;
+            let text = p.bytes("a string")?;
             let Some(len) = (0..).map_while(|n| text.byte(n)).position(|b| b == 0) else {
                 return Err(BadInput("a string without its end in its block"));
             };
-            emit(&GamePtr::new(p).read_bytes(len, "a string")?);
-            Ok(p)
+            emit(&p.read_bytes(len, "a string")?);
+            Ok(p.addr())
         }
         None => {
             expand_entry(id, emit);
