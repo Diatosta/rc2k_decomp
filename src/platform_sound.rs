@@ -173,7 +173,10 @@ struct State {
 static STATE: Mutex<Option<State>> = Mutex::new(None);
 
 fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
-    let mut s = STATE.lock().unwrap();
+    // Taken even after a panic held it: the audio callback must not panic on it again.
+    let mut s = STATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(s.get_or_insert_with(|| State {
         entries: HashMap::new(),
         next: 1,
@@ -624,16 +627,40 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
 const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
-/// SDL's audio callback: the playing buffers mixed into what the stream wants.
 /// The loudest sample sent to the device since the remote control last asked.
 #[cfg(feature = "remote")]
 pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+/// Whether the audio callback has panicked: it gives silence from then on.
+static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// SDL's audio callback: the playing buffers mixed into what the stream wants.
 extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
+    use std::sync::atomic::Ordering::Relaxed;
     let frames = (wanted.max(0) / 4) as usize;
     if frames == 0 {
         return;
     }
+    // A panic must not unwind into SDL (it would end the program, unreported).
+    let mixed = if FEED_PANICKED.load(Relaxed) {
+        None
+    } else {
+        std::panic::catch_unwind(|| mixed_frames(frames)).ok()
+    };
+    let pcm = mixed.unwrap_or_else(|| {
+        if !FEED_PANICKED.swap(true, Relaxed) {
+            crate::framework::log(
+                "platform_sound: the audio callback panicked: silence from now on",
+            );
+        }
+        vec![0i16; frames * 2]
+    });
+    // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
+    unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+}
+
+/// The playing buffers mixed into `frames` stereo frames for the device.
+fn mixed_frames(frames: usize) -> Vec<i16> {
     let mut out = vec![0f32; frames * 2];
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
@@ -679,8 +706,7 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
     if let Some(peak) = pcm.iter().map(|sample| sample.unsigned_abs() as u32).max() {
         LAST_PEAK.fetch_max(peak, std::sync::atomic::Ordering::Relaxed);
     }
-    // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
-    unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+    pcm
 }
 
 static OPENED: Mutex<bool> = Mutex::new(false);
