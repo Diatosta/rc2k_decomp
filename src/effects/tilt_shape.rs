@@ -29,6 +29,7 @@ pub fn tilt_shape() {
 
 /// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
     /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.
     pub tilt: Float,
@@ -64,10 +65,6 @@ pub static SHAPE_TILT: ShapeTilt = ShapeTilt {
 impl ShapeTilt {
     pub const START: usize = 0x811BC3;
     pub const LEN: usize = 0x28;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SHAPE_TILT) as usize
-    }
 }
 
 #[cfg(test)]

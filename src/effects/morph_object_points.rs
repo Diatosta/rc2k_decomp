@@ -142,6 +142,7 @@ pub fn morph_object_points() -> Result<(), Refused> {
 
 /// The object morph's work (IDA 0x93C6CC .. 0x93C6F4, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MorphWork {
     /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
     pub taken: Dword,
@@ -170,10 +171,6 @@ pub static MORPH_WORK: MorphWork = MorphWork {
 impl MorphWork {
     pub const START: usize = 0x93C6CC;
     pub const LEN: usize = 0x28;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MORPH_WORK) as usize
-    }
 }
 
 #[cfg(test)]

@@ -250,6 +250,7 @@ pub fn emit_bursts_with(
 
 /// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6) (IDA 0x93A3D2 .. 0x93A3F6, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
     /// 0x93A3D2: the strength's factor
     pub strength_k: Float,

@@ -137,6 +137,7 @@ pub fn make_profiles(resume: u32) -> Result<(), Refused> {
 
 /// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ProfileRings {
     /// 0x8DD061: `g_marksRingBefore`: each of the 0x100 indexes' one before it (`effects::make_profiles`).
     pub before: [Dword; 256],
@@ -155,6 +156,7 @@ pub static PROFILE_RINGS: ProfileRings = ProfileRings {
 impl ProfileRings {
     pub const START: usize = 0x8DD061;
     pub const LEN: usize = 0x804;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_RINGS) as usize
@@ -163,6 +165,7 @@ impl ProfileRings {
 
 /// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ProfileLists {
     /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image; `moved::RAW_KEPT` keeps them so).
     pub ramps: [Dword; 3],
@@ -194,6 +197,7 @@ pub static PROFILE_LISTS: ProfileLists = ProfileLists {
 impl ProfileLists {
     pub const START: usize = 0x9152F6;
     pub const LEN: usize = 0x34;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_LISTS) as usize
@@ -217,6 +221,7 @@ const fn table(first: &[(usize, u32)]) -> ProfileTable {
 
 /// The profile tables (13 of 0x800 bytes: three ramps, two curves, eight sines, in this order of memory) (IDA 0x8E506D .. 0x8EB86D, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ProfileTables {
     /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7: the tables `ProfileLists` names.
     pub tables: [ProfileTable; 13],
@@ -243,6 +248,7 @@ pub static PROFILE_TABLES: ProfileTables = ProfileTables {
 impl ProfileTables {
     pub const START: usize = 0x8E506D;
     pub const LEN: usize = 0x6800;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_TABLES) as usize

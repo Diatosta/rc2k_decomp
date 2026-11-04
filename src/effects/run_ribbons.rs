@@ -35,6 +35,7 @@ const STREAK: u32 = 0x12;
 /// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
 /// 128: the table `SURFACE.colours` is the one in use while it is not).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Colours257 {
     /// 0x939DB2 .. 0x93A1B6: the 257 colours
     pub colours: [Dword; 257],
@@ -60,10 +61,6 @@ pub static COLOURS_257: Colours257 = Colours257 {
 impl Colours257 {
     pub const START: usize = 0x939DB2;
     pub const LEN: usize = 0x404;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const COLOURS_257) as usize
-    }
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.

@@ -45,6 +45,7 @@ use crate::session::{Bytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// 0x52A263: `unk_52A263`: the build notice's first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
     pub notice_first: Bytes<78>,
@@ -60,10 +61,6 @@ pub static NOTICE: BuildNotice = BuildNotice {
 impl BuildNotice {
     pub const START: usize = 0x52A263;
     pub const LEN: usize = 0xAC;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const NOTICE) as usize
-    }
 }
 
 #[cfg(test)]

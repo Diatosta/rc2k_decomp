@@ -20,6 +20,7 @@ pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 
 /// The PCX file being decoded.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Pcx {
     /// `dword_5195D4`: the picture's width, as the header says.
     pub file_width: Dword,
@@ -54,11 +55,6 @@ pub static PCX: Pcx = Pcx {
     width_limit: Dword::new(0x320),
     height_limit: Dword::new(0x258),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5195D4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const PCX) as usize
-}
 
 /// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`):
 /// whether the read worked.

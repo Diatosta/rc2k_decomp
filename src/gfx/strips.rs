@@ -12,6 +12,7 @@ pub const LEN: usize = 0x6D18C8 - START;
 
 /// The view strips' places.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Strips {
     /// `dword_6D1870` .. `dword_6D187C`: the strip being drawn: top, height, left, width.
     pub sizes: [Dword; 4],
@@ -29,11 +30,6 @@ pub static STRIPS: Strips = Strips {
     ]),
     lefts: dwords([0xdc, 0x14, 0xdc, 0, 0x1a4, 0xdc]),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x6D1870).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const STRIPS) as usize
-}
 
 #[cfg(test)]
 mod tests {

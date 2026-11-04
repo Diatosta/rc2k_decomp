@@ -163,6 +163,7 @@ pub fn gate_with(wheel: GamePtr, object: &'static MarkCar, rate: i32) -> Result<
 
 /// The particle emitters' variables (IDA 0x935416 .. 0x935562, the image's layout; phase 7, typed state): the record they are on, the vectors they share, and their constants and randoms.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EmitterVars {
     /// 0x935416: `g_marksRecordNumber` (`dword_935416`): which wheel record the emitters are on (0 .. 3, 2 or 3 for the body); bit 0 the side.
     pub record: Dword,
@@ -271,10 +272,6 @@ pub static EMITTER: EmitterVars = EmitterVars {
 impl EmitterVars {
     pub const START: usize = 0x935416;
     pub const LEN: usize = 0x14C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const EMITTER) as usize
-    }
 }
 
 #[cfg(test)]

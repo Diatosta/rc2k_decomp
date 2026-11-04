@@ -12,6 +12,7 @@ pub const LEN: usize = 0x4F3FC4 - START;
 /// A pixel layout's number and its masks' summary (`describe_format` picks the number of
 /// the layout whose bits the masks match).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Numbered {
     /// The layout's number.
     pub number: Dword,
@@ -30,6 +31,7 @@ impl Numbered {
 
 /// The pixel formats' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Formats {
     /// `dword_4F3F78`: six of (number, layout).
     pub numbers: [Numbered; 6],
@@ -52,11 +54,6 @@ pub static FORMATS: Formats = Formats {
     scratch: Bytes::new([0; 4]),
     component_format: [const { Dword::new(0) }; 6],
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F3F78).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const FORMATS) as usize
-}
 
 #[cfg(test)]
 mod tests {

@@ -6,6 +6,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTiming {
     /// 0x89CA30: `dword_89CA30`: the frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each call).
     pub frames: Dword,
@@ -24,6 +25,7 @@ pub static WINDSCREEN_FLAKE_TIMING: WindscreenFlakeTiming = WindscreenFlakeTimin
 impl WindscreenFlakeTiming {
     pub const START: usize = 0x89CA30;
     pub const LEN: usize = 0xC;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TIMING) as usize
@@ -32,6 +34,7 @@ impl WindscreenFlakeTiming {
 
 /// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTables {
     /// 0x89CACA: `g_marksWindscreenFlakeCurve`: the quarter-circle curve of 0x100 floats (`effects::set_up_windscreen_flakes`; nothing ported reads it).
     pub curve: [Float; 256],
@@ -165,6 +168,7 @@ pub static WINDSCREEN_FLAKE_TABLES: WindscreenFlakeTables = WindscreenFlakeTable
 impl WindscreenFlakeTables {
     pub const START: usize = 0x89CACA;
     pub const LEN: usize = 0x6A0;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TABLES) as usize
@@ -173,6 +177,7 @@ impl WindscreenFlakeTables {
 
 /// One windscreen flake item (0x3C bytes; `effects::spawn_windscreen_flake`, `expire_windscreen_flakes`, `run_windscreen_flakes`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItem {
     /// +0: 1 while the flake lives, 0 for a free item.
     pub live: Dword,
@@ -231,6 +236,7 @@ impl WindscreenFlakeItems {
 
 /// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeState {
     /// 0x8BC18A: `g_marksWindscreenFlakesDone`: 0, or where `effects::set_up_windscreen_flakes` goes on.
     pub done: Dword,
@@ -351,6 +357,7 @@ pub static WINDSCREEN_FLAKE_STATE: WindscreenFlakeState = WindscreenFlakeState {
 impl WindscreenFlakeState {
     pub const START: usize = 0x8BC18A;
     pub const LEN: usize = 0xDC;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_STATE) as usize

@@ -154,6 +154,7 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
 
 /// The twin car emitters' shared work (`emit_particle_19`, `emit_particle_22`) (IDA 0x93A1B6 .. 0x93A1D6, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TwinState {
     /// 0x93A1B6: `flt_93A1B6` .. `flt_93A1BE`: the point the entry's place starts at (turned and placed by the car's matrix)
     pub point: [Float; 3],
@@ -180,10 +181,6 @@ pub static TWIN_STATE: TwinState = TwinState {
 impl TwinState {
     pub const START: usize = 0x93A1B6;
     pub const LEN: usize = 0x20;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const TWIN_STATE) as usize
-    }
 }
 
 #[cfg(test)]
@@ -213,6 +210,7 @@ mod twin_state_tests {
 
 /// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
     /// 0x93A48A: the chance's random
     pub chance_random: Dword,

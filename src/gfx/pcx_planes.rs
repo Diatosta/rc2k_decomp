@@ -12,11 +12,6 @@ pub const LEN: usize = 0x9526F8 - START;
 /// The planes of the row being written (a buffer, zero at the start).
 pub static PLANES: Bytes<LEN> = Bytes::new([0; LEN]);
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x94F6F8).
-pub fn home() -> usize {
-    PLANES.addr() as usize
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

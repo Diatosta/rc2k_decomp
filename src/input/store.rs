@@ -428,6 +428,7 @@ pub fn mouse_addr() -> u32 {
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
     /// `g_effectsLastTime`: the force-feedback effects' last clock.
     pub last_time: Dword,
@@ -488,6 +489,7 @@ impl ForceFeedback {
     pub const START: usize = 0x518084;
     pub const LEN: usize = 0x6c;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FORCE_FEEDBACK) as usize

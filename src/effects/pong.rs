@@ -10,6 +10,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PongState {
     /// 0x768658: `flt_768658` .. `flt_768684`: the box drawn last (`effects::draw_pong_box`): the offsets of its corners from the place, twice (a reading: six, then the same plus the second shift).
     pub box_sides: [Float; 12],
@@ -106,14 +107,11 @@ pub static PONG: PongState = PongState {
 impl PongState {
     pub const START: usize = 0x768658;
     pub const LEN: usize = 0x184;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PONG) as usize
-    }
 }
 
 /// The pong game's constants (IDA 0x769182 .. 0x769232, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PongRules {
     /// 0x769182: `flt_769182` .. `flt_76919E`: the court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its size, the bat, its size.
     pub start: [Float; 8],
@@ -198,10 +196,6 @@ pub static PONG_RULES: PongRules = PongRules {
 impl PongRules {
     pub const START: usize = 0x769182;
     pub const LEN: usize = 0xB0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PONG_RULES) as usize
-    }
 }
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state

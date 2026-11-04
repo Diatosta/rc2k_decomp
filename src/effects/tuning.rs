@@ -6,6 +6,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksFrame {
     /// 0x765110: `dword_765110`: the time stamp counter's low half at the last frame step.
     pub last_count: Dword,
@@ -48,10 +49,6 @@ pub static MARKS_FRAME: MarksFrame = MarksFrame {
 impl MarksFrame {
     pub const START: usize = 0x765110;
     pub const LEN: usize = 0x30;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARKS_FRAME) as usize
-    }
 }
 
 #[cfg(test)]
@@ -112,6 +109,7 @@ mod marks_frame_tests {
 
 /// The marks' constants (a pool of integers and floats the effects' code multiplies by) (IDA 0x765140 .. 0x765238, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
     /// 0x765140: `dword_765140`: 0x10000, the ring's pull limit (`effects::run_ring`).
     pub pull_limit: Dword,
@@ -257,10 +255,6 @@ pub static MARKS_FLOATS: MarksFloats = MarksFloats {
 impl MarksFloats {
     pub const START: usize = 0x765140;
     pub const LEN: usize = 0xF8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARKS_FLOATS) as usize
-    }
 }
 
 #[cfg(test)]
@@ -390,6 +384,7 @@ mod marks_floats_tests {
 
 /// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`) (IDA 0x765238 .. 0x7652A4, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
     /// 0x765238: `dword_765238`: the settings' +0x4C, copied each frame step (a reading: which colours the ribbons use).
     pub other: Dword,
@@ -438,10 +433,6 @@ pub static MARKS_KIND_FLOATS: MarksKindFloats = MarksKindFloats {
 impl MarksKindFloats {
     pub const START: usize = 0x765238;
     pub const LEN: usize = 0x6C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARKS_KIND_FLOATS) as usize
-    }
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ pub const LEN: usize = 0x4F52C4 - START;
 
 /// The screenshots' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Shots {
     /// `g_screenshotsOn` (`dword_4F52B4`, a `var\ral.cfg` setting, `screensnapshot`).
     pub on: Dword,
@@ -26,11 +27,6 @@ pub static SHOTS: Shots = Shots {
     locked_here: Dword::new(0),
     name: Bytes::new(*b"000.pcx\0"),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F52B4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const SHOTS) as usize
-}
 
 /// Whether screenshots are on.
 pub fn on() -> u32 {

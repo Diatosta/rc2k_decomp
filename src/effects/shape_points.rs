@@ -435,6 +435,7 @@ pub fn make_shape_sets() -> Result<(), Refused> {
 
 /// The shape sets' inputs (`effects::shape_points`, `effects::turns`) (IDA 0x764F40 .. 0x764F7C, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ShapeInputs {
     /// 0x764F40: `dword_764F40`: the angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a scratch, nothing reads it back).
     pub scratch: Dword,
@@ -464,10 +465,6 @@ pub static SHAPE_INPUTS: ShapeInputs = ShapeInputs {
 impl ShapeInputs {
     pub const START: usize = 0x764F40;
     pub const LEN: usize = 0x3C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SHAPE_INPUTS) as usize
-    }
 }
 
 #[cfg(test)]
@@ -500,6 +497,7 @@ mod shape_inputs_tests {
 
 /// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`, `turn_all_shapes`) (IDA 0x89C724 .. 0x89C994, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ShapeSetTuning {
     /// 0x89C724: `g_marksShapeKinds`, `dword_89C728`: the two face kinds the shape sets are made for (set by `effects::make_shape_sets` from the kind's entries of the two tables that follow).
     pub face_kinds: [Dword; 2],
@@ -695,6 +693,7 @@ pub static SHAPE_SET_TUNING: ShapeSetTuning = ShapeSetTuning {
 impl ShapeSetTuning {
     pub const START: usize = 0x89C724;
     pub const LEN: usize = 0x270;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SHAPE_SET_TUNING) as usize

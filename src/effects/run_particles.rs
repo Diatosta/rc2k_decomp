@@ -327,6 +327,7 @@ pub fn run_particles() -> Result<(), Refused> {
 
 /// The trail particles' colours (IDA 0x922B38 .. 0x922FE0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TrailColours {
     /// 0x922B38: `dword_922B38`: the trail particles' 298 colours (`effects::run_particles`).
     pub colours: [Dword; 298],
@@ -638,6 +639,7 @@ pub static TRAIL_PALETTE: TrailColours = TrailColours {
 impl TrailColours {
     pub const START: usize = 0x922B38;
     pub const LEN: usize = 0x4A8;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const TRAIL_PALETTE) as usize
@@ -646,6 +648,7 @@ impl TrailColours {
 
 /// The puff's work values (IDA 0x93A5F0 .. 0x93A618, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
     /// 0x93A5F0: Not named: 16 bytes (a gap, or unreferenced data)
     pub _gap_93a5f0: Bytes<16>,
@@ -672,10 +675,6 @@ pub static PUFF_WORK: PuffWork = PuffWork {
 impl PuffWork {
     pub const START: usize = 0x93A5F0;
     pub const LEN: usize = 0x28;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PUFF_WORK) as usize
-    }
 }
 
 #[cfg(test)]
@@ -742,6 +741,7 @@ const fn burst_colours() -> [u8; 0x2000] {
 
 /// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
     /// 0x93A618: `dword_93A618`: 8 ramps of 256 dwords (a channel mask times the step)
     pub table: Bytes<8192>,
@@ -755,10 +755,6 @@ pub static BURST_COLOURS: BurstColours = BurstColours {
 impl BurstColours {
     pub const START: usize = 0x93A618;
     pub const LEN: usize = 0x2000;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const BURST_COLOURS) as usize
-    }
 }
 
 #[cfg(test)]
@@ -790,6 +786,7 @@ mod burst_colours_tests {
 
 /// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ParticleTuning {
     /// 0x93C618: `flt_93C618` .. `flt_93C620`: the puff's x wave (three factors)
     pub puff_x: [Float; 3],
@@ -886,10 +883,6 @@ pub static PARTICLE_TUNING: ParticleTuning = ParticleTuning {
 impl ParticleTuning {
     pub const START: usize = 0x93C618;
     pub const LEN: usize = 0xB0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PARTICLE_TUNING) as usize
-    }
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`, `effects::squares_*`, `effects::draw_plane`) (IDA 0x814710 .. 0x814770, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropState {
     /// 0x814710: `dword_814710`: the live windscreen drop items counted in this frame (`effects::windscreen_drops_frame`).
     pub live: Dword,
@@ -50,10 +51,6 @@ pub static WINDSCREEN_DROP_STATE: WindscreenDropState = WindscreenDropState {
 impl WindscreenDropState {
     pub const START: usize = 0x814710;
     pub const LEN: usize = 0x60;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_DROP_STATE) as usize
-    }
 }
 
 #[cfg(test)]
@@ -109,6 +106,7 @@ mod windscreen_drop_state_tests {
 
 /// The windscreen drops' work (`effects::windscreen_drops_*`, `effects::shapes`, `effects::spawn_windscreen_drop`): the drift, the curve, the radii, the axes, the sprite's corners and the windscreen drop points (IDA 0x814772 .. 0x81518A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropWork {
     /// 0x814772: `flt_814772`, `flt_814776`: the drift at the item's cell (`effects::windscreen_drops_frame`).
     pub drift: [Float; 2],
@@ -226,10 +224,6 @@ pub static WINDSCREEN_DROP_WORK: WindscreenDropWork = WindscreenDropWork {
 impl WindscreenDropWork {
     pub const START: usize = 0x814772;
     pub const LEN: usize = 0xA18;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_DROP_WORK) as usize
-    }
 }
 
 #[cfg(test)]

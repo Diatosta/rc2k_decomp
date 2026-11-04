@@ -10,6 +10,7 @@ pub const LEN: usize = 8;
 
 /// Whether a 3D card was found.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Cards {
     /// `g_primary3dCard` (`dword_5AB4AC`): a 3D primary card.
     pub primary: Dword,
@@ -22,11 +23,6 @@ pub static CARDS: Cards = Cards {
     primary: Dword::new(0),
     secondary: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5AB4AC).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const CARDS) as usize
-}
 
 #[cfg(test)]
 mod tests {

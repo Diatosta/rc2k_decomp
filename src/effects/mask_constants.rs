@@ -6,6 +6,7 @@ use crate::session::{Dword, Float};
 
 /// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MaskConstants {
     /// 0x89C994: `dword_89C994`: the random (times 0xC5 plus 0x5D) of the moving time (`effects::run_shapes`).
     pub time_random: Dword,
@@ -90,6 +91,7 @@ pub static MASK_CONSTANTS: MaskConstants = MaskConstants {
 impl MaskConstants {
     pub const START: usize = 0x89C994;
     pub const LEN: usize = 0x9C;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const MASK_CONSTANTS) as usize

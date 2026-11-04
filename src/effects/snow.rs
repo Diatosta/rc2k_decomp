@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The snow's random tables (0x800 flakes) (IDA 0x8C6000 .. 0x8D2000, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SnowTables {
     /// 0x8C6000: `g_marksRandomsA` (0x8C6000), `g_marksRandomsB` (0x8C8000), `g_marksRandomsC` (0x8CA000): the flakes' places, 20-bit randoms (`effects::make_noise_curve`).
     pub randoms: [[Dword; 2048]; 3],
@@ -27,14 +28,11 @@ pub static SNOW_TABLES: SnowTables = SnowTables {
 impl SnowTables {
     pub const START: usize = 0x8C6000;
     pub const LEN: usize = 0xC000;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SNOW_TABLES) as usize
-    }
 }
 
 /// The snow's curve (IDA 0x8D2310 .. 0x8DA310, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SnowCurve {
     /// 0x8D2310: `g_marksCurve`: 0x1000 whole numbers, a smoothed random walk the flakes' x and z are moved by (`effects::make_noise_curve`).
     pub curve: [Dword; 4096],
@@ -50,10 +48,6 @@ pub static SNOW_CURVE: SnowCurve = SnowCurve {
 impl SnowCurve {
     pub const START: usize = 0x8D2310;
     pub const LEN: usize = 0x8000;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SNOW_CURVE) as usize
-    }
 }
 
 /// The snow's variables (IDA 0x8D2000 .. 0x8D2310, the image's layout; phase 7, typed state).
@@ -254,6 +248,7 @@ impl SnowState {
 
 /// The snow curve's walk variables and records (IDA 0x8DA410 .. 0x8DB430, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SnowCurveVars {
     /// 0x8DA410: `dword_8DA410` ..: the curve walk's value, least step, most step, change, step and the running sum of the seeds (`effects::make_noise_curve`).
     pub curve_vars: [Dword; 6],
@@ -275,14 +270,11 @@ pub static SNOW_VARS: SnowCurveVars = SnowCurveVars {
 impl SnowCurveVars {
     pub const START: usize = 0x8DA410;
     pub const LEN: usize = 0x1020;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SNOW_VARS) as usize
-    }
 }
 
 /// The snow's light, fade colours and constants (IDA 0x8DB430 .. 0x8DB558, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SnowLight {
     /// 0x8DB430: `flt_8DB430` ..: the light's place turned by the view (`effects::run_snow`).
     pub light_place: [Float; 3],
@@ -421,10 +413,6 @@ pub static SNOW_LIGHT: SnowLight = SnowLight {
 impl SnowLight {
     pub const START: usize = 0x8DB430;
     pub const LEN: usize = 0x128;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SNOW_LIGHT) as usize
-    }
 }
 
 #[cfg(test)]

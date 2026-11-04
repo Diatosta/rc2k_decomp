@@ -163,6 +163,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
 
 /// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MaskList {
     /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
     pub list: [Dword; 4],
@@ -184,10 +185,6 @@ pub static MASK_LIST: MaskList = MaskList {
 impl MaskList {
     pub const START: usize = 0x93A1DA;
     pub const LEN: usize = 0x40;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MASK_LIST) as usize
-    }
 }
 
 #[cfg(test)]

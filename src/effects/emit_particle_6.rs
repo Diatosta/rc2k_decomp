@@ -163,6 +163,7 @@ pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
 
 /// Kind 6's emitter variables (`emit_particle_6`) (IDA 0x93A41A .. 0x93A462, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind6Set {
     /// 0x93A41A: `flt_93A41A` .. `flt_93A426`: the rate's factors
     pub rate_k: [Float; 4],
@@ -206,10 +207,6 @@ pub static KIND6_SET: Kind6Set = Kind6Set {
 impl Kind6Set {
     pub const START: usize = 0x93A41A;
     pub const LEN: usize = 0x48;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND6_SET) as usize
-    }
 }
 
 #[cfg(test)]

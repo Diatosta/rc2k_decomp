@@ -51,7 +51,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
             #( is_cells::<#types>(); )*
             assert!(
-                core::mem::size_of::<#name #of>() == 0 #( + core::mem::size_of::<#types>() )*,
+                ::core::mem::size_of::<#name #of>() == 0 #( + ::core::mem::size_of::<#types>() )*,
                 "Cells: padding between the fields",
             );
         };
@@ -60,7 +60,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             fn cell_at(offset: usize) -> crate::pointers::CellAt {
                 // The fields' first bytes, rising (`repr(C)`): the field holding `offset` is
                 // the last starting at or before it (one of no size never holds it).
-                let starts = [#( core::mem::offset_of!(Self, #names) ),*];
+                let starts = [#( ::core::mem::offset_of!(Self, #names) ),*];
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {
                     #( #indices => <#types as crate::pointers::Cells>::cell_at(

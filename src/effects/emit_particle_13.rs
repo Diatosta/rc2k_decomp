@@ -118,6 +118,7 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
 
 /// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind13Set {
     /// 0x93A462: `flt_93A462`: the place's lift
     pub lift: Float,
@@ -154,10 +155,6 @@ pub static KIND13_SET: Kind13Set = Kind13Set {
 impl Kind13Set {
     pub const START: usize = 0x93A462;
     pub const LEN: usize = 0x28;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND13_SET) as usize
-    }
 }
 
 #[cfg(test)]

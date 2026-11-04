@@ -359,6 +359,7 @@ pub fn set_up_blocks() -> Result<(), Refused> {
 
 /// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
     /// 0x93C738: `g_marksBlockStart`: the eight values a block's +0x90 .. starts with
     pub block_start: [Float; 8],
@@ -425,10 +426,6 @@ pub static LINES_WORK: LinesWork = LinesWork {
 impl LinesWork {
     pub const START: usize = 0x93C738;
     pub const LEN: usize = 0x188;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const LINES_WORK) as usize
-    }
 }
 
 #[cfg(test)]

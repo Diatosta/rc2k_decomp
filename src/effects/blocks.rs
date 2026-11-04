@@ -249,6 +249,7 @@ impl MarkLinks {
 /// (`effects::scale_corners`; `effects::draw_cell_sprite` scales a sprite by the slope, and
 /// `effects::set_quad_uvs` reads record 0x58's eight values as four texture places).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Slope {
     /// +0: |+0xA - +2| over |+4 - +0| of the corner record, as a float.
     pub slope: Float,
@@ -326,6 +327,7 @@ impl MarkCorners {
 
 /// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)
     pub list: [Dword; 4],
@@ -379,10 +381,6 @@ pub static RING_POOL: RingPool = RingPool {
 impl RingPool {
     pub const START: usize = 0x93A580;
     pub const LEN: usize = 0x70;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RING_POOL) as usize
-    }
 }
 
 #[cfg(test)]

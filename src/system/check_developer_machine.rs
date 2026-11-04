@@ -15,11 +15,6 @@ pub const DEVELOPER_START: usize = 0x529D94;
 /// `g_developerMachine` (`dword_529D94`): 1 on a computer called "andrew".
 pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
 
-/// Where the switch is (`moved::MOVED`'s home for IDA 0x529D94).
-pub fn developer_home() -> usize {
-    DEVELOPER.addr() as usize
-}
-
 const NAME_ROOM: u32 = 0x40;
 
 // ---- Rust version ----

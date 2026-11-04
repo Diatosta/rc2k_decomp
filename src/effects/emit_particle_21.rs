@@ -133,6 +133,7 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
 
 /// Kind 0x15's emitter variables (`emit_particle_21`) (IDA 0x93A312 .. 0x93A39A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind21Set {
     /// 0x93A312: `flt_93A312` .. `flt_93A31E`: the rate's factors
     pub rate_k: [Float; 4],
@@ -185,10 +186,6 @@ pub static KIND21_SET: Kind21Set = Kind21Set {
 impl Kind21Set {
     pub const START: usize = 0x93A312;
     pub const LEN: usize = 0x88;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND21_SET) as usize
-    }
 }
 
 #[cfg(test)]

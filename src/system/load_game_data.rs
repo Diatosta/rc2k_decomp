@@ -259,6 +259,7 @@ pub fn load_in_game() -> Result<(), Refused> {
 
 /// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
     pub runs: Dword,
@@ -271,6 +272,7 @@ pub static RUN_COUNT: RunCount = RunCount {
 impl RunCount {
     pub const START: usize = 0x518BB0;
     pub const LEN: usize = 0x4;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const RUN_COUNT) as usize

@@ -654,6 +654,7 @@ pub struct SharedSpot {
 
 /// A spot kind's repeats, 8 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindRepeats {
     /// Nothing reads it (a gap).
     pub _word_0: Word,
@@ -758,6 +759,7 @@ pub fn stage_sounds_addr() -> u32 {
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
     /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (an address).
     pub pick_playing: Dword,
@@ -958,6 +960,7 @@ impl SpotPicks {
     pub const START: usize = 0x517f40;
     pub const LEN: usize = 0x140;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SPOT_PICKS) as usize
@@ -966,6 +969,7 @@ impl SpotPicks {
 
 /// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
     /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
     pub done: Dword,
@@ -979,6 +983,7 @@ impl SettingsApplied {
     pub const START: usize = 0x518080;
     pub const LEN: usize = 0x4;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SETTINGS_APPLIED) as usize
@@ -987,6 +992,7 @@ impl SettingsApplied {
 
 /// The kept sound options (IDA 0x5180f0 .. 0x518104, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
     /// `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`); what it sets is not worked out.
     pub kept_f0: Dword,
@@ -1012,6 +1018,7 @@ impl SoundOptions {
     pub const START: usize = 0x5180f0;
     pub const LEN: usize = 0x14;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SOUND_OPTIONS) as usize
@@ -1020,6 +1027,7 @@ impl SoundOptions {
 
 /// The CD audio's state (IDA 0x518104 .. 0x518120, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CdAudio {
     /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
     pub no_cd_audio: Dword,
@@ -1051,6 +1059,7 @@ impl CdAudio {
     pub const START: usize = 0x518104;
     pub const LEN: usize = 0x1c;
 
+    #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const CD_AUDIO) as usize

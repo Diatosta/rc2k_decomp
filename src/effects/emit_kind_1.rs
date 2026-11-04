@@ -206,6 +206,7 @@ pub fn emit_kind_1(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refus
 
 /// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind1Choice {
     /// 0x93A1D6: `g_marksKind1Choice`: `emit_particle_21` when not 0 (`ring_frame` sets it from the rain's drops)
     pub choice: Dword,
@@ -219,10 +220,6 @@ pub static KIND1_CHOICE: Kind1Choice = Kind1Choice {
 impl Kind1Choice {
     pub const START: usize = 0x93A1D6;
     pub const LEN: usize = 0x4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND1_CHOICE) as usize
-    }
 }
 
 #[cfg(test)]
@@ -253,6 +250,7 @@ mod kind1_choice_tests {
 
 /// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind1Set {
     /// 0x93A39A: `dword_93A39A`: the side's random
     pub side_random: Dword,
@@ -291,10 +289,6 @@ pub static KIND1_SET: Kind1Set = Kind1Set {
 impl Kind1Set {
     pub const START: usize = 0x93A39A;
     pub const LEN: usize = 0x38;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND1_SET) as usize
-    }
 }
 
 #[cfg(test)]

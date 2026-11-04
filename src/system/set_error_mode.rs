@@ -28,6 +28,7 @@ pub fn set_error_mode() {
 
 /// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ErrorMode {
     /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.
     pub changed: Dword,
@@ -43,6 +44,7 @@ pub static ERROR_MODE: ErrorMode = ErrorMode {
 impl ErrorMode {
     pub const START: usize = 0x4E059C;
     pub const LEN: usize = 0x8;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const ERROR_MODE) as usize

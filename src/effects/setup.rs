@@ -14,6 +14,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
     /// 0x764FC8: `g_marksClockStarted`: 0 until `effects::tick_clock` has run once (`init_marks` clears it).
     pub started: Dword,
@@ -59,6 +60,7 @@ pub static CLOCK: MarksClock = MarksClock {
 impl MarksClock {
     pub const START: usize = 0x764FC8;
     pub const LEN: usize = 0x34;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const CLOCK) as usize
@@ -298,6 +300,7 @@ pub fn make_noise_curve() -> Result<(), Refused> {
 /// handed over and 0 before (nothing runs without them). The settings are the race's one
 /// record, `MARKS_SETTINGS` (the original kept its address).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
     /// 0x767A28: `g_marksSettings`: 1 when the settings are set, else 0.
     pub is_set: Dword,
@@ -320,14 +323,11 @@ pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettin
 impl SettingsPointer {
     pub const START: usize = 0x767A28;
     pub const LEN: usize = 4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SETTINGS) as usize
-    }
 }
 
 /// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ClockK {
     /// 0x93CC10: `flt_93CC10`: the reciprocal the first tick starts with
     pub first_reciprocal: Float,
@@ -344,10 +344,6 @@ pub static CLOCK_K: ClockK = ClockK {
 impl ClockK {
     pub const START: usize = 0x93CC10;
     pub const LEN: usize = 0x8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CLOCK_K) as usize
-    }
 }
 
 #[cfg(test)]

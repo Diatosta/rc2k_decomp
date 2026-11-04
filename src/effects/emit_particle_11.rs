@@ -43,6 +43,7 @@ pub fn emit_particle_11(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
 
 /// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind11Set {
     /// 0x93A262: `dword_93A262`: the place's random
     pub place_random: Dword,
@@ -95,10 +96,6 @@ pub static KIND11_SET: Kind11Set = Kind11Set {
 impl Kind11Set {
     pub const START: usize = 0x93A262;
     pub const LEN: usize = 0xB0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND11_SET) as usize
-    }
 }
 
 #[cfg(test)]

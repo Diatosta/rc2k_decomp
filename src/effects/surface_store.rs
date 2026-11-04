@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword};
 
 /// The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceTables {
     /// 0x935766: `g_marksCellPlaces` (0x40 cells of four floats, 16 bytes each) then `g_marksSubcellPlaces` at 0x935B66 (0x40 x 0x100 bytes: 4 x 4 sub-cells of 16 bytes per cell); the original reads one cell and 0x10 sub-cells past them (see `SurfaceTables::word`).
     pub places: Bytes<17408>,
@@ -181,10 +182,6 @@ pub static SURFACE: SurfaceTables = SurfaceTables {
 impl SurfaceTables {
     pub const START: usize = 0x935766;
     pub const LEN: usize = 0x464C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SURFACE) as usize
-    }
 }
 
 impl SurfaceTables {

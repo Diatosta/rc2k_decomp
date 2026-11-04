@@ -62,6 +62,7 @@ pub const LEN: usize = 0x5195D4 - START;
 
 /// The sheet and table being built.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SheetVars {
     /// `dword_519598`: the sheet's table, and
     pub sheet_table: Dword,
@@ -103,11 +104,6 @@ pub static SHEET: SheetVars = SheetVars {
     pixel_size: Dword::new(0),
     alpha_loaded: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x519598).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const SHEET) as usize
-}
 
 const RECORD_HEAD: u32 = 0x1C;
 /// Half the picture buffer: where a sheet lies, and what an alpha sheet is kept behind.

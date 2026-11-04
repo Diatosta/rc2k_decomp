@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The rain's variables (IDA 0x8BC405 .. 0x8BDE55, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RainState {
     /// 0x8BC405: `dword_8BC405`: 1 once a rain frame has been drawn, 0 with no drops (and after `effects::seed_noise`, which also clears it); `effects::draw_rain_streak` draws nothing while it is 0.
     pub drawn: Dword,
@@ -192,14 +193,11 @@ pub static RAIN: RainState = RainState {
 impl RainState {
     pub const START: usize = 0x8BC405;
     pub const LEN: usize = 0x1A50;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RAIN) as usize
-    }
 }
 
 /// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RainRules {
     /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw (a whole number's bits).
     pub rhw: Dword,
@@ -261,10 +259,6 @@ pub static RAIN_RULES: RainRules = RainRules {
 impl RainRules {
     pub const START: usize = 0x8C5F91;
     pub const LEN: usize = 0x6C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RAIN_RULES) as usize
-    }
 }
 
 #[cfg(test)]

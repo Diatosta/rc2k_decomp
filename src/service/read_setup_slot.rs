@@ -30,6 +30,7 @@ pub const LEN: usize = 0x528504 - START;
 
 /// The car set-ups' buffers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SetUps {
     /// `dword_527838`: the head of a set-up file as it is read or written.
     pub file: Bytes<SETUP_FILE_LEN>,
@@ -46,21 +47,11 @@ pub static SET_UPS: SetUps = SetUps {
     kept: Dword::new(0),
 };
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x527838).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const SET_UPS) as usize
-}
-
 /// IDA's address of the file name's template.
 pub const TEMPLATE_START: usize = 0x529716;
 
 /// `aSavedataCarset`: the set-up file's name, the number's two digits last.
 pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\carsetup\\carset00\0");
-
-/// Where the template is (`moved::MOVED`'s home for IDA 0x529716).
-pub fn template_home() -> usize {
-    TEMPLATE.addr() as usize
-}
 
 // "CRSU"
 pub fn slot_name(slot: u32) -> crate::place::Place {

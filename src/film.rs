@@ -45,11 +45,6 @@ pub const NO_FMV_START: usize = 0x5BE870;
 /// `g_noFmv` (`dword_5BE870`, `nofmv`, a `var\ral.cfg` setting): 1 = no films.
 pub static NO_FMV: crate::session::Dword = crate::session::Dword::new(0);
 
-/// Where the switch is (`moved::MOVED`'s home for IDA 0x5BE870).
-pub fn no_fmv_home() -> usize {
-    NO_FMV.addr() as usize
-}
-
 // ---- FFmpeg (cdecl; only functions, and the frame's first fields, which are stable) ----
 // The declarations below are FFmpeg's (libavcodec 61 / libavutil 59), every pointer
 // argument a C pointer of the type named in its header.

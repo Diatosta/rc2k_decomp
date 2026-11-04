@@ -322,6 +322,7 @@ impl<const N: usize> Bytes<N> {
         self.0.get().cast()
     }
 
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.as_ptr())
     }

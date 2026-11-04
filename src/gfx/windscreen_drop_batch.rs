@@ -18,6 +18,7 @@ pub const RECORDS_LEN: usize = 0x3000;
 
 /// The windscreen drop batch.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDrops {
     /// `dword_62423C`: the indices to draw.
     pub index_count: Dword,
@@ -38,11 +39,6 @@ pub static WINDSCREEN_DROP_BATCH: WindscreenDrops = WindscreenDrops {
     vertex_count: Dword::new(0),
     records: Bytes::new([0; RECORDS_LEN]),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x62423C).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const WINDSCREEN_DROP_BATCH) as usize
-}
 
 #[cfg(test)]
 mod tests {

@@ -26,11 +26,6 @@ pub const DIGITS_AT: usize = 0x12;
 /// `aSavedataSnapsh`: the viewer's snapshot picture's name, its three digits counted up.
 pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
 
-/// Where the name is (`moved::MOVED`'s home for IDA 0x529731).
-pub fn snapshot_home() -> usize {
-    SNAPSHOT.addr() as usize
-}
-
 /// Where the name's three digits are.
 pub fn digits_place() -> *mut u8 {
     SNAPSHOT.as_ptr().wrapping_add(DIGITS_AT)

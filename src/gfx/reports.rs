@@ -12,6 +12,7 @@ pub const LEN: usize = 4;
 
 /// The 3D reports switch.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Reports {
     /// `dword_4F52AC`: 1 while Direct3D's errors are reported (fatal).
     pub on: Dword,
@@ -19,11 +20,6 @@ pub struct Reports {
 
 /// The switch; the first value is the image's.
 pub static REPORTS: Reports = Reports { on: Dword::new(1) };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F52AC).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const REPORTS) as usize
-}
 
 #[cfg(test)]
 mod tests {

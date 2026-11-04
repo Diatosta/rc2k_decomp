@@ -11,6 +11,7 @@ pub const LEN: usize = 0x75523C - START;
 
 /// The bar being drawn.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BarVars {
     /// `dword_755224`: the bar's x (`blit_bar_marker` moves it to the marker).
     pub x: Dword,
@@ -35,11 +36,6 @@ pub static BAR: BarVars = BarVars {
     end_glyph: Dword::new(0),
     percent: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x755224).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const BAR) as usize
-}
 
 #[cfg(test)]
 mod tests {

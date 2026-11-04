@@ -109,6 +109,7 @@ pub fn load_kind_data() -> Result<(), Refused> {
 
 /// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
     /// 0x809BC3: `g_marksEdgeMask`: 256 x 128 cells, a byte set where an item dies.
     pub mask: Bytes<32768>,
@@ -121,10 +122,6 @@ pub static EDGE_MASK: EdgeMask = EdgeMask {
 impl EdgeMask {
     pub const START: usize = 0x809BC3;
     pub const LEN: usize = 0x8000;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const EDGE_MASK) as usize
-    }
 }
 
 #[cfg(test)]
@@ -149,6 +146,7 @@ mod edge_mask_tests {
 
 /// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
     /// 0x811BEB: `g_marksKindBoxes`: 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
     pub boxes: Bytes<1632>,
@@ -322,10 +320,6 @@ pub static KIND_BOXES: KindBoxes = KindBoxes {
 impl KindBoxes {
     pub const START: usize = 0x811BEB;
     pub const LEN: usize = 0x6E8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND_BOXES) as usize
-    }
 }
 
 #[cfg(test)]

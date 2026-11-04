@@ -31,6 +31,7 @@ pub const LEN: usize = 0x4F4B30 - START;
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
 /// settings ask for it).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Grading {
     /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).
     pub reading: Dword,
@@ -49,11 +50,6 @@ pub static GRADING: Grading = Grading {
     saturation: Dword::new(0x100),
     grades: Bytes::new([0; 0x100]),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F4A24).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const GRADING) as usize
-}
 
 /// The second picture's place, in bytes from the first's start.
 pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;

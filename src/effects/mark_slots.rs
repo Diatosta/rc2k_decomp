@@ -7,6 +7,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// One mark slot (IDA `g_markSlots`, 0x14 bytes): a sprite that lives a number of ticks.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarkSlot {
     /// +0: the ticks left (0 or less: free; `effects::add_mark_slot` sets 0x3C).
     pub life: Dword,
@@ -40,6 +41,7 @@ pub fn slot_matrix(
 
 /// The mark slots (IDA 0x934F7C .. 0x935300, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarkSlots {
     /// 0x934F7C: `g_markSlots`: 0x20 slots of 0x14 bytes.
     pub slots: [MarkSlot; 32],
@@ -84,14 +86,11 @@ pub static SLOTS: MarkSlots = MarkSlots {
 impl MarkSlots {
     pub const START: usize = 0x934F7C;
     pub const LEN: usize = 0x384;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SLOTS) as usize
-    }
 }
 
 /// The mark slots' constants and randoms (IDA 0x9353A6 .. 0x935412, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SlotTuning {
     /// 0x9353A6: `flt_9353A6`: half the slot square's size on the screen.
     pub half: Float,
@@ -130,10 +129,6 @@ pub static TUNING: SlotTuning = SlotTuning {
 impl SlotTuning {
     pub const START: usize = 0x9353A6;
     pub const LEN: usize = 0x6C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const TUNING) as usize
-    }
 }
 
 #[cfg(test)]

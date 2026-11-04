@@ -44,6 +44,7 @@ pub fn read_sku(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
 
 /// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Sku {
     /// 0x5190F4: `dword_5190F4`: the edition's number.
     pub number: Dword,
@@ -74,6 +75,7 @@ pub static SKU: Sku = Sku {
 impl Sku {
     pub const START: usize = 0x5190F4;
     pub const LEN: usize = 0x24;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SKU) as usize

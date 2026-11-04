@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The ring's work (IDA 0x935620 .. 0x93573C, the image's layout; phase 7, typed state): its list, cursor and count, the emitters' and the draws' integers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RingWork {
     /// 0x935620: `stru_935620`: the ring's memory list (`memory::List`, 16 bytes: `effects::set_up_surface` takes the 0x25000-byte ring on it).
     pub list: Bytes<16>,
@@ -95,10 +96,6 @@ pub static RING_WORK: RingWork = RingWork {
 impl RingWork {
     pub const START: usize = 0x935620;
     pub const LEN: usize = 0x11C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RING_WORK) as usize
-    }
 }
 
 #[cfg(test)]
@@ -138,6 +135,7 @@ mod tests {
 
 /// The surface pictures' names (IDA 0x93573C .. 0x935766, the image's layout; phase 7, typed state): `effects::set_up_surface` reads them.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PictureNames {
     /// 0x93573C: "files\m\surfdata.pcx" (`aFilesMSurfdata`).
     pub surfdata: Bytes<21>,
@@ -159,10 +157,6 @@ pub static PICTURE_NAMES: PictureNames = PictureNames {
 impl PictureNames {
     pub const START: usize = 0x93573C;
     pub const LEN: usize = 0x2A;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PICTURE_NAMES) as usize
-    }
 }
 
 #[cfg(test)]

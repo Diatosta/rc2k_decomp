@@ -29,6 +29,7 @@ pub const TEXTS_LEN: usize = 0x18;
 
 /// The texts the installer (and `files::resolve_path`) use.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
     /// `unk_5295B4`: base directory B, an empty text.
     pub base_b: crate::session::Bytes<1>,
@@ -53,11 +54,6 @@ pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
     star: crate::session::Bytes::new(*b"*.*\0"),
     record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
 };
-
-/// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
-pub fn texts_home() -> usize {
-    crate::pointers::game_address(&raw const INSTALL_TEXTS) as usize
-}
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
 

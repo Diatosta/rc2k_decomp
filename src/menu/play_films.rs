@@ -35,6 +35,7 @@ pub const FILMS_LEN: usize = 0x52983C - FILMS_START;
 
 /// The films' file names.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Films {
     /// `a3filesFmvIntro` (`0x5297F5`).
     pub intro: crate::session::Bytes<22>,
@@ -53,11 +54,6 @@ pub static FILMS: Films = Films {
     allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
     _gap_44: crate::session::Bytes::new([0; 3]),
 };
-
-/// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
-pub fn films_home() -> usize {
-    crate::pointers::game_address(&raw const FILMS) as usize
-}
 
 // ---- Rust version ----
 

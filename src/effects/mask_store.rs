@@ -180,6 +180,7 @@ impl PictureCopy {
 
 /// The picture number of each kind (IDA 0x934EA8 .. 0x934F30; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindPictures {
     /// +0x0: `g_marksKindPictureNumbers`: per kind, the number in the mask and picture paths' two digits
     pub numbers: [Dword; 34],
@@ -228,10 +229,6 @@ pub static KIND_PICTURES: KindPictures = KindPictures {
 impl KindPictures {
     pub const START: usize = 0x934EA8;
     pub const LEN: usize = 0x88;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND_PICTURES) as usize
-    }
 }
 
 #[cfg(test)]

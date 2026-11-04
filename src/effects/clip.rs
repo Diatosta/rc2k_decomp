@@ -5,6 +5,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ClipScreen {
     /// 0x7687E4: `g_marksScreenMiddleX`, `g_marksScreenMiddleXLess`, `g_marksScreenMiddleY`, `g_marksScreenMiddleYLess`: the screen's middle and one less (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
     pub edges: [Float; 4],
@@ -25,14 +26,11 @@ pub static CLIP: ClipScreen = ClipScreen {
 impl ClipScreen {
     pub const START: usize = 0x7687E4;
     pub const LEN: usize = 0xD0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CLIP) as usize
-    }
 }
 
 /// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GlowState {
     /// 0x93CC70: `dword_93CC70`: 1 = no glow (initially 1).
     pub off: Dword,
@@ -67,10 +65,6 @@ pub static GLOW: GlowState = GlowState {
 impl GlowState {
     pub const START: usize = 0x93CC70;
     pub const LEN: usize = 0x40;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const GLOW) as usize
-    }
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// 0x8EB871: `flt_8EB871` ..: the profile tables' running values (`effects::make_profiles`; as bits).
     pub profile_work: [Float; 11],
@@ -84,6 +85,7 @@ pub static DRAW_WORK: DrawWork = DrawWork {
 impl DrawWork {
     pub const START: usize = 0x8EB871;
     pub const LEN: usize = 0x100;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const DRAW_WORK) as usize
@@ -141,6 +143,7 @@ pub static VIEW_VARS: ViewVars = ViewVars {
 impl ViewVars {
     pub const START: usize = 0x8F3975;
     pub const LEN: usize = 0x58;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const VIEW_VARS) as usize
@@ -149,6 +152,7 @@ impl ViewVars {
 
 /// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawFrame {
     /// 0x91FF3E: `g_marksProfilesDone`: 0, or where `effects::make_profiles` goes on.
     pub profiles_done: Dword,
@@ -246,6 +250,7 @@ pub static DRAW_FRAME: DrawFrame = DrawFrame {
 impl DrawFrame {
     pub const START: usize = 0x91FF3E;
     pub const LEN: usize = 0xA4;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const DRAW_FRAME) as usize
@@ -254,6 +259,7 @@ impl DrawFrame {
 
 /// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FlareParts {
     /// 0x92051E: `flt_92051E` .. `flt_920526`: the lens flare's unit way (`effects::draw_lens_flare`).
     pub unit: [Float; 3],
@@ -333,6 +339,7 @@ pub static FLARE_PARTS: FlareParts = FlareParts {
 impl FlareParts {
     pub const START: usize = 0x92051E;
     pub const LEN: usize = 0xD8;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FLARE_PARTS) as usize
@@ -341,6 +348,7 @@ impl FlareParts {
 
 /// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FlareScales {
     /// 0x9206D2: `flt_9206D2`, `flt_9206D6`: the lens flare's fade constants (`effects::draw_lens_flare`).
     pub fade: [Float; 2],
@@ -359,6 +367,7 @@ pub static FLARE_SCALES: FlareScales = FlareScales {
 impl FlareScales {
     pub const START: usize = 0x9206D2;
     pub const LEN: usize = 0x14;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FLARE_SCALES) as usize

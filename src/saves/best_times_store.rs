@@ -60,6 +60,7 @@ impl BestTimes {
 /// standings' table A, `menu::standings`). Fields by `rc2k_core::saves::defaults::TimeEntry`
 /// and the section screen (readings).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TimeEntry {
     pub field_0: Dword,
     /// +4: the player (1 .. 4), 0 for a computer driver.
@@ -126,6 +127,7 @@ const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 /// `screens::draw_section_best_times` and `saves::default_championship_times`;
 /// `moved::point_into_homes` passes them over), then the tables, twenty entries each.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
     pub tables: [Dword; 6],
     pub rallies: [[TimeEntry; 20]; 6],
@@ -1268,6 +1270,7 @@ impl RallyTimes {
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.
     pub const END: usize = 0x7475D0;
+    #[cfg(test)]
     /// Where IDA 0x742C98 is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const RALLY_TIMES) as usize

@@ -183,6 +183,7 @@ pub fn emit_particle_5_with(
 
 /// Kind 5's emitter variables (`emit_particle_5::FIFTH`) (IDA 0x93A23A .. 0x93A262, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Kind5Set {
     /// 0x93A23A: `dword_93A23A`: the place's random
     pub place_random: Dword,
@@ -221,10 +222,6 @@ pub static KIND5_SET: Kind5Set = Kind5Set {
 impl Kind5Set {
     pub const START: usize = 0x93A23A;
     pub const LEN: usize = 0x28;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KIND5_SET) as usize
-    }
 }
 
 #[cfg(test)]

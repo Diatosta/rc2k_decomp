@@ -29,11 +29,6 @@ pub const PNG_SETTING_START: usize = 0x51B97C;
 /// are read.
 pub static PNG_SETTING: Dword = Dword::new(0);
 
-/// Where the setting is (`moved::MOVED`'s home for IDA 0x51B97C).
-pub fn png_setting_home() -> usize {
-    PNG_SETTING.addr() as usize
-}
-
 // ---- Rust version ----
 
 /// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,

@@ -40,10 +40,6 @@ pub const SHOWING_START: usize = 0x51B9C4;
 /// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
 pub static SHOWING: Dword = Dword::new(0);
 
-/// Where the switch is (`moved::MOVED`'s home for IDA 0x51B9C4).
-pub fn showing_home() -> usize {
-    SHOWING.addr() as usize
-}
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
 // ---- Rust version ----

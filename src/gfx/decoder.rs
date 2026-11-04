@@ -15,6 +15,7 @@ pub const LEN: usize = 0x519554 - START;
 
 /// What the PCX and PNG readers lay out and the glyph builder works with.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Decoder {
     /// `g_glyphBuilderFlags` (`dword_519118`): how the sheet is read and its glyphs built.
     pub builder_flags: Dword,
@@ -77,11 +78,6 @@ impl Decoder {
     pub fn palette(&self) -> [u32; 256] {
         std::array::from_fn(|n| self.palette[n].get())
     }
-}
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x519118).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const DECODER) as usize
 }
 
 #[cfg(test)]

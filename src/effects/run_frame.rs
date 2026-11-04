@@ -80,6 +80,7 @@ pub fn run_frame() -> Result<(), Refused> {
 
 /// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FrameK {
     /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
     pub share_k: Float,
@@ -100,10 +101,6 @@ pub static FRAME_K: FrameK = FrameK {
 impl FrameK {
     pub const START: usize = 0x93C8C0;
     pub const LEN: usize = 0x10;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const FRAME_K) as usize
-    }
 }
 
 #[cfg(test)]

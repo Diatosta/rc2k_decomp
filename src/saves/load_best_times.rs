@@ -29,11 +29,6 @@ pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\
 /// The path's length without its NUL.
 pub const PATH_LEN: usize = 11;
 
-/// Where the name is (`moved::MOVED`'s home for IDA 0x5295E4).
-pub fn path_home() -> usize {
-    PATH.addr() as usize
-}
-
 // "R5HS"
 const HEAD_LEN: u32 = 0x10;
 /// The tables of `allocate_best_times` the file holds, in the file's order.

@@ -24,6 +24,7 @@ const fn zeros<const N: usize>() -> [Dword; N] {
 /// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; `g_netOwnRecord` for
 /// this machine).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlayerRecord {
     /// +0 the state bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its
     /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
@@ -81,6 +82,7 @@ impl PlayerRecord {
 
 /// A player's block of `g_netReceived` (`NetPlayerBlock`, 0x804C bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlayerBlock {
     /// +0: the player's name.
     pub name: Bytes<32>,
@@ -558,6 +560,7 @@ impl NetVars {
 
 /// IDA 0x5AB490 .. 0x5AB4AC.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// 0x5AB490: `dword_5AB490`: `net::draw_button`'s string.
     pub text: Dword,
@@ -588,10 +591,6 @@ pub static BUTTON: Button = Button {
 impl Button {
     pub const START: usize = 0x5AB490;
     pub const LEN: usize = 0x1C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const BUTTON) as usize
-    }
 }
 
 #[cfg(test)]

@@ -11,6 +11,7 @@ pub const LEN: usize = 0x4F505C - START;
 
 /// The clip rectangle (all four edges inclusive).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
     /// `g_clipLeft` (`dword_4F503C`).
     pub left: Dword,
@@ -24,6 +25,7 @@ pub struct ClipRect {
 
 /// The blitters' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Blitter {
     /// The clip rectangle.
     pub clip: ClipRect,
@@ -50,11 +52,6 @@ pub static BLIT: Blitter = Blitter {
     top_skip: Dword::new(0),
     rows_left: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F503C).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const BLIT) as usize
-}
 
 #[cfg(test)]
 mod tests {

@@ -20,6 +20,7 @@ pub const TABLE_ROOM: usize = 0x20;
 
 /// The screen mode tables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Modes {
     /// `dword_4F4E30`: the two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
     pub kind_bits: [Dword; 2],
@@ -60,6 +61,7 @@ pub static MODES: Modes = Modes {
     table: [const { Dword::new(0) }; 2 * TABLE_ROOM],
 };
 
+#[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
 pub fn home() -> usize {
     crate::pointers::game_address(&raw const MODES) as usize

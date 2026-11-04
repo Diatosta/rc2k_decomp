@@ -63,6 +63,7 @@ impl InstallVars {
 
 /// IDA 0x52A30F .. 0x52A4B0.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriveRows {
     /// 0x52A30F: `byte_52A30F`: the installer's drive rows, 0x10 bytes each (letter, a byte, the text).
     pub drive_rows: Bytes<400>,
@@ -104,14 +105,11 @@ pub static DRIVE_ROWS: DriveRows = DriveRows {
 impl DriveRows {
     pub const START: usize = 0x52A30F;
     pub const LEN: usize = 0x1A1;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const DRIVE_ROWS) as usize
-    }
 }
 
 /// IDA 0x5AB419 .. 0x5AB490.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LobbyKeys {
     /// 0x5AB419: `aSoftwareMicros`: "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
     pub registry_key: Bytes<74>,
@@ -145,10 +143,6 @@ pub static LOBBY_KEYS: LobbyKeys = LobbyKeys {
 impl LobbyKeys {
     pub const START: usize = 0x5AB419;
     pub const LEN: usize = 0x77;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const LOBBY_KEYS) as usize
-    }
 }
 
 #[cfg(test)]

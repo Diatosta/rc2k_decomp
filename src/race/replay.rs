@@ -39,6 +39,7 @@ pub const SLOTS: usize = 100;
 
 /// The replays' buffers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Replays {
     /// `dword_528504`: the file's header (a dword array, `HEADER_LEN` bytes).
     pub header: Bytes<{ HEADER_LEN as usize }>,
@@ -51,11 +52,6 @@ pub static REPLAYS: Replays = Replays {
     header: Bytes::new([0; HEADER_LEN as usize]),
     names: Bytes::new([0; SLOTS * NAME_BYTES]),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x528504).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const REPLAYS) as usize
-}
 
 #[cfg(test)]
 mod block_tests {

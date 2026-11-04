@@ -16,11 +16,6 @@ const TABLE_LEN: usize = 0x300;
 /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
 pub static THIRDS: Bytes<TABLE_LEN> = Bytes::new([0; TABLE_LEN]);
 
-/// Where the table is (`moved::MOVED`'s home for IDA 0x4F4B30).
-pub fn home() -> usize {
-    THIRDS.addr() as usize
-}
-
 // ---- Rust version ----
 
 pub fn fill_thirds_table() {

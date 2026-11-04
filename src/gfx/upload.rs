@@ -13,6 +13,7 @@ pub const LEN: usize = 0x5ABA8C - START;
 /// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's
 /// `Lock`; the game's code reads its fields by their DirectDraw offsets.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceDesc {
     /// `dwSize` (`dword_5ABA18`).
     pub size: Dword,
@@ -39,6 +40,7 @@ pub struct SurfaceDesc {
 
 /// The upload's variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Upload {
     /// `dword_5ABA18`: the description a `Lock` fills.
     pub description: SurfaceDesc,
@@ -69,11 +71,6 @@ pub static UPLOAD: Upload = Upload {
     _gap_6c: Dword::new(0),
     trying: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA18).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const UPLOAD) as usize
-}
 
 impl SurfaceDesc {
     /// Where the description is, for the surface's `Lock`.

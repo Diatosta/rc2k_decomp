@@ -39,6 +39,7 @@ pub fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
 
 /// The spread point's random (IDA 0x923004 .. 0x923008, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SpreadRandom {
     /// 0x923004: `g_marksSpreadRandom`: the random (times 0x9D plus 0x47) of `effects::spread_point`.
     pub random: Dword,
@@ -51,6 +52,7 @@ pub static SPREAD_RANDOM: SpreadRandom = SpreadRandom {
 impl SpreadRandom {
     pub const START: usize = 0x923004;
     pub const LEN: usize = 0x4;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SPREAD_RANDOM) as usize

@@ -775,6 +775,7 @@ fn box_place_x87(w: &RingWork, e: u32, car: &MarkCar) {
 
 /// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RingKinds {
     /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors
     pub drift5: [Float; 3],
@@ -886,10 +887,6 @@ pub static RING_KINDS: RingKinds = RingKinds {
 impl RingKinds {
     pub const START: usize = 0x93A4DA;
     pub const LEN: usize = 0x9C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RING_KINDS) as usize
-    }
 }
 
 #[cfg(test)]

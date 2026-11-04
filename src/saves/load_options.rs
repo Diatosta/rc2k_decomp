@@ -39,11 +39,6 @@ pub const PATH_START: usize = 0x5295D8;
 /// `aVarRalDat`: the options file's name.
 pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\ral.dat\0");
 
-/// Where the name is (`moved::MOVED`'s home for IDA 0x5295D8).
-pub fn path_home() -> usize {
-    PATH.addr() as usize
-}
-
 #[cfg(test)]
 mod path_tests {
     use super::*;

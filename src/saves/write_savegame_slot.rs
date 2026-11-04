@@ -31,6 +31,7 @@ pub const NAME_BYTES: usize = 0x20;
 
 /// The saved games' buffers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SaveGames {
     /// `dword_51EBB0`: a value the options file (`var\ral.dat`) keeps; nothing else reads it.
     pub kept_a: Dword,
@@ -50,21 +51,11 @@ pub static SAVE_GAMES: SaveGames = SaveGames {
     kept_b: Dword::new(0),
 };
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x51EBB0).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const SAVE_GAMES) as usize
-}
-
 /// IDA's address of the file name's template.
 pub const TEMPLATE_START: usize = 0x5296FB;
 
 /// `aSavedataSavega`: the saved game's file name, the number's two digits last.
 pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\savegame\\svgame00\0");
-
-/// Where the template is (`moved::MOVED`'s home for IDA 0x5296FB).
-pub fn template_home() -> usize {
-    TEMPLATE.addr() as usize
-}
 
 // "R5SG"
 pub fn slot_name(slot: u32) -> crate::place::Place {

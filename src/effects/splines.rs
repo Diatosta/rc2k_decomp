@@ -852,10 +852,6 @@ pub static SPLINE_HEAD: SplineHead = SplineHead {
 impl SplineHead {
     pub const START: usize = 0x769312;
     pub const LEN: usize = 0xEC0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_HEAD) as usize
-    }
 }
 
 #[cfg(test)]
@@ -888,6 +884,7 @@ mod spline_head_tests {
 
 /// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplineWork {
     /// 0x76A1D2: `dword_76A1D2` ..: four points of three whole numbers: A, B, C and D (`effects::bend_points`).
     pub bend: [Dword; 12],
@@ -956,10 +953,6 @@ pub static SPLINE_WORK: SplineWork = SplineWork {
 impl SplineWork {
     pub const START: usize = 0x76A1D2;
     pub const LEN: usize = 0x17E0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_WORK) as usize
-    }
 }
 
 #[cfg(test)]
@@ -1005,6 +998,7 @@ mod spline_work_tests {
 
 /// The four tables of eight spline records of 0xE90 bytes (`effects::splines`) (IDA 0x76B9B2 .. 0x788BB2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplineTables {
     /// 0x76B9B2: `g_marksSplinesA`: eight `MarkSpline` records.
     pub a: Bytes<29824>,
@@ -1254,10 +1248,6 @@ pub static SPLINE_TABLES: SplineTables = SplineTables {
 impl SplineTables {
     pub const START: usize = 0x76B9B2;
     pub const LEN: usize = 0x1D200;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_TABLES) as usize
-    }
 }
 
 #[cfg(test)]
@@ -1285,6 +1275,7 @@ mod spline_tables_tests {
 
 /// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplineKinds {
     /// 0x788BB2: `g_marksSplineChosen`, then `g_marksSplineKinds` (four): the five values of `g_marksKind`.
     pub chosen: [Dword; 5],
@@ -1494,10 +1485,6 @@ pub static SPLINE_KINDS: SplineKinds = SplineKinds {
 impl SplineKinds {
     pub const START: usize = 0x788BB2;
     pub const LEN: usize = 0x348;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_KINDS) as usize
-    }
 }
 
 #[cfg(test)]
@@ -1533,6 +1520,7 @@ mod spline_kinds_tests {
 
 /// The splines' file name (`effects::splines`) (IDA 0x788EFA .. 0x788F0D, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplinePath {
     /// 0x788EFA: `files\m\spline.dat`, the file's name.
     pub path: Bytes<19>,
@@ -1548,10 +1536,6 @@ pub static SPLINE_PATH: SplinePath = SplinePath {
 impl SplinePath {
     pub const START: usize = 0x788EFA;
     pub const LEN: usize = 0x13;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_PATH) as usize
-    }
 }
 
 #[cfg(test)]
@@ -1576,6 +1560,7 @@ mod spline_path_tests {
 
 /// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`) (IDA 0x788F0D .. 0x788F69, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplineConstants {
     /// 0x788F0D: `flt_788F0D`, `flt_788F11`, `flt_788F15`: the wave's constants.
     pub wave_k: [Float; 3],
@@ -1607,10 +1592,6 @@ pub static SPLINE_CONSTANTS: SplineConstants = SplineConstants {
 impl SplineConstants {
     pub const START: usize = 0x788F0D;
     pub const LEN: usize = 0x5C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPLINE_CONSTANTS) as usize
-    }
 }
 
 #[cfg(test)]

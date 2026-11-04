@@ -132,6 +132,7 @@ pub fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
 
 /// The marks' kind (`effects::kind_values`) (IDA 0x769232 .. 0x769236, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksKind {
     /// 0x769232: `g_marksKind`: the kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
     pub kind: Dword,
@@ -144,10 +145,6 @@ pub static MARKS_KIND: MarksKind = MarksKind {
 impl MarksKind {
     pub const START: usize = 0x769232;
     pub const LEN: usize = 0x4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARKS_KIND) as usize
-    }
 }
 
 #[cfg(test)]

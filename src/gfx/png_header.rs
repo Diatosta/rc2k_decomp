@@ -11,6 +11,7 @@ pub const LEN: usize = 0xA8C1A4 - START;
 
 /// The header of the PNG being decoded.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PngHeader {
     /// `dword_A8C190`: the picture's width.
     pub width: Dword,
@@ -35,11 +36,6 @@ pub static HEADER: PngHeader = PngHeader {
     _gap_b: Bytes::new([0; 5]),
     colour_type: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0xA8C190).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const HEADER) as usize
-}
 
 #[cfg(test)]
 mod tests {

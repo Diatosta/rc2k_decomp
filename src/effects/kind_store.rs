@@ -19,6 +19,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_933ED0`, `flt_933ED4` ..; plane `flt_934BD0`, `flt_934BD4` ..)
     pub place: [Float; 3],
@@ -1801,6 +1802,7 @@ impl Tables2 {
 
 /// Set 1's two outs after its quad (IDA 0x933E70 .. 0x933E7C; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_933E70`), the lift along the up
     pub extra: Float,
@@ -1820,14 +1822,11 @@ pub static EXTRAS_1: KindExtras1 = KindExtras1 {
 impl KindExtras1 {
     pub const START: usize = 0x933E70;
     pub const LEN: usize = 0xC;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const EXTRAS_1) as usize
-    }
 }
 
 /// Set 2's out after its quad (IDA 0x934B78 .. 0x934B7C; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_934B78`), the lift along the up
     pub extra: Float,
@@ -1841,10 +1840,6 @@ pub static EXTRA_2: KindExtra2 = KindExtra2 {
 impl KindExtra2 {
     pub const START: usize = 0x934B78;
     pub const LEN: usize = 0x4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const EXTRA_2) as usize
-    }
 }
 
 /// A set's constants and light (IDA 0x54 bytes; phase 7, typed state). The offsets are from its start.

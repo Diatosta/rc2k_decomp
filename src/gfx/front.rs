@@ -11,6 +11,7 @@ pub const LEN: usize = 8;
 
 /// The surface handles.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Surfaces {
     /// `g_frontSurface` (`dword_4F32B4`): the front surface, 0 with none.
     pub front: Dword,
@@ -23,11 +24,6 @@ pub static SURFACES: Surfaces = Surfaces {
     front: Dword::new(0),
     back: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F32B4).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const SURFACES) as usize
-}
 
 #[cfg(test)]
 mod tests {

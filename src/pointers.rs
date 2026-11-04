@@ -721,6 +721,54 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     }
 }
 
+/// One of the game's stores: a static whose every byte is a cell, read and written by
+/// offset through its own cells (`load_cells`, `store_cells`). What a game address in a moved
+/// range resolves to (`moved::Home`).
+pub trait Store: Sync {
+    /// Its length in bytes.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "GamePtr reads through stores at step 4 (notes/memory_layer_plan.md)"
+        )
+    )]
+    fn size(&self) -> usize;
+    /// Its first byte, to find the store a host address lies in: compared, never followed.
+    fn first(&self) -> *const u8;
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "GamePtr reads through stores at step 4 (notes/memory_layer_plan.md)"
+        )
+    )]
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
+    #[expect(
+        dead_code,
+        reason = "GamePtr writes through stores at step 4 (notes/memory_layer_plan.md)"
+    )]
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
+}
+
+impl<T: Cells + Sync> Store for T {
+    fn size(&self) -> usize {
+        size_of::<T>()
+    }
+
+    fn first(&self) -> *const u8 {
+        std::ptr::from_ref(self).cast()
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+        load_cells(self, offset, to)
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+        store_cells(self, offset, from)
+    }
+}
+
 /// The bytes of a cell's value, as many as it is wide.
 fn cell_bytes(place: *const u8, kind: CellKind) -> [u8; 4] {
     use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};

@@ -6,6 +6,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// A factor, a vector, and the vector scaled by the factor (0x1C bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct VectorSource {
     pub factor: Dword,
     pub vector: [Dword; 3],
@@ -14,6 +15,7 @@ pub struct VectorSource {
 
 /// The marks' view vectors the frame starts from (IDA 0x764F90 .. 0x764FC8, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewSources {
     /// 0x764F90: `dword_764F90` (a factor), `dword_764F94` .. (a vector), `flt_764FA0` .. (the vector scaled by the factor; `effects::scale_vectors_by`), then the same at `dword_764FAC` ..: what `effects::keep_vectors` keeps and the car view sets (a reading).
     pub sources: [VectorSource; 2],
@@ -45,14 +47,11 @@ pub static SOURCES: ViewSources = ViewSources {
 impl ViewSources {
     pub const START: usize = 0x764F90;
     pub const LEN: usize = 0x38;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SOURCES) as usize
-    }
 }
 
 /// The kept vectors of the marks' view (IDA 0x769236 .. 0x769312, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KeptView {
     /// 0x769236: `flt_769236`, `flt_76923A`: the sine and cosine of `first_angle` (`effects::turn_kept_vectors`).
     pub first_sine_cosine: [Float; 2],
@@ -163,10 +162,6 @@ pub static KEPT: KeptView = KeptView {
 impl KeptView {
     pub const START: usize = 0x769236;
     pub const LEN: usize = 0xDC;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const KEPT) as usize
-    }
 }
 
 #[cfg(test)]

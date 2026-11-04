@@ -42,6 +42,7 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// The plane's constants (IDA 0x934F30 .. 0x934F7C; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlaneTuning {
     /// +0x0: what the settings' rate is multiplied by into the first axis' scale (`flt_934F30`)
     pub rate_k: Float,
@@ -72,10 +73,6 @@ pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
 impl PlaneTuning {
     pub const START: usize = 0x934F30;
     pub const LEN: usize = 0x4C;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PLANE_TUNING) as usize
-    }
 }
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.

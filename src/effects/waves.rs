@@ -6,6 +6,7 @@ use crate::session::{Dword, Float};
 
 /// The marks' sine table (IDA 0x92001E .. 0x92051E, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarksSines {
     /// 0x92001E: `g_marksSines`: 0x140 sines of 0, step, 2 step .. (`effects::make_wave_tables`; nothing ported reads them).
     pub table: [Float; 320],
@@ -18,14 +19,11 @@ pub static SINES: MarksSines = MarksSines {
 impl MarksSines {
     pub const START: usize = 0x92001E;
     pub const LEN: usize = 0x500;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SINES) as usize
-    }
 }
 
 /// The wave levels (IDA 0x9205F6 .. 0x92063A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WaveLevels {
     /// 0x9205F6: `g_marksWaveLevels`: the lens flare's parts' places along the line: whole numbers at first, floats once `effects::make_wave_tables` has run (as bits).
     pub levels: [Dword; 17],
@@ -56,14 +54,11 @@ pub static WAVE_LEVELS: WaveLevels = WaveLevels {
 impl WaveLevels {
     pub const START: usize = 0x9205F6;
     pub const LEN: usize = 0x44;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WAVE_LEVELS) as usize
-    }
 }
 
 /// The wave tables' flag and constants (IDA 0x9206C2 .. 0x9206D2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WaveState {
     /// 0x9206C2: `g_marksWaveDone`: 0, or `nullsub_23`'s address once the tables are made.
     pub done: Dword,
@@ -85,10 +80,6 @@ pub static WAVE: WaveState = WaveState {
 impl WaveState {
     pub const START: usize = 0x9206C2;
     pub const LEN: usize = 0x10;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WAVE) as usize
-    }
 }
 
 #[cfg(test)]

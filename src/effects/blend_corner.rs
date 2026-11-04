@@ -36,6 +36,7 @@ pub fn blend_corner(block: &MarkCar, to: u32, from: u32, base: [u32; 3]) -> Resu
 
 /// The corner blend's factor (IDA 0x93C6C8 .. 0x93C6CC, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BlendWork {
     /// 0x93C6C8: `flt_93C6C8`: the blend factor (`blend_corner`'s)
     pub factor: Float,
@@ -49,10 +50,6 @@ pub static BLEND_WORK: BlendWork = BlendWork {
 impl BlendWork {
     pub const START: usize = 0x93C6C8;
     pub const LEN: usize = 0x4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const BLEND_WORK) as usize
-    }
 }
 
 #[cfg(test)]

@@ -20,6 +20,7 @@ pub const LEN: usize = COUNT * 0x20;
 
 /// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// +0x00: the character drawn with glyph 0.
     pub first_char: Byte,
@@ -72,6 +73,7 @@ impl FontObject {
 
 /// The font objects.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Fonts {
     pub objects: [FontObject; COUNT],
 }
@@ -147,6 +149,7 @@ pub static FONTS: Fonts = Fonts {
     ],
 };
 
+#[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
     crate::pointers::game_address(&raw const FONTS) as usize

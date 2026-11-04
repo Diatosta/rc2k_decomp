@@ -10,6 +10,7 @@ pub const LEN: usize = 4;
 
 /// The surface-locked switch.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Locked {
     /// `g_surfaceLocked` (`dword_4F3870`): 1 while the screen's surface is locked for drawing.
     pub surface: Dword,
@@ -19,11 +20,6 @@ pub struct Locked {
 pub static LOCKED: Locked = Locked {
     surface: Dword::new(0),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F3870).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const LOCKED) as usize
-}
 
 #[cfg(test)]
 mod tests {

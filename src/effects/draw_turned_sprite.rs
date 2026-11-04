@@ -84,6 +84,7 @@ pub fn draw_turned_sprite(
 
 /// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SpriteUv {
     /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
     pub uv: [Float; 8],
@@ -106,10 +107,6 @@ pub static SPRITE_UV: SpriteUv = SpriteUv {
 impl SpriteUv {
     pub const START: usize = 0x93A21A;
     pub const LEN: usize = 0x20;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPRITE_UV) as usize
-    }
 }
 
 #[cfg(test)]

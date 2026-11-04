@@ -21,11 +21,6 @@ pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
 /// `aVarTmprpl` (room for 0x10B bytes): the last race's replay file's name.
 pub static LAST_RACE: Bytes<LAST_RACE_LEN> = Bytes::new(with_runs(&[(0, b"var\\tmprpl\0")]));
 
-/// Where the name is (`moved::MOVED`'s home for IDA 0x5295F0).
-pub fn last_race_home() -> usize {
-    LAST_RACE.addr() as usize
-}
-
 /// IDA's address of the replay files' names' templates.
 pub const TEMPLATES_START: usize = 0x52974B;
 /// Their length.
@@ -33,6 +28,7 @@ pub const TEMPLATES_LEN: usize = 0x52977A - TEMPLATES_START;
 
 /// The replay files' names, the number's two digits last.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Templates {
     /// `aSavedataReplay`: "savedata\replay\replay00".
     pub saved: Bytes<25>,
@@ -44,11 +40,6 @@ pub static TEMPLATES: Templates = Templates {
     saved: Bytes::new(*b"savedata\\replay\\replay00\0"),
     own: Bytes::new(*b"files\\replay\\replay00\0"),
 };
-
-/// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
-pub fn templates_home() -> usize {
-    crate::pointers::game_address(&raw const TEMPLATES) as usize
-}
 
 #[cfg(test)]
 mod block_tests {
