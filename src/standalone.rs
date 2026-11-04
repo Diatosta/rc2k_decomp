@@ -28,7 +28,7 @@ use std::sync::atomic::Ordering;
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
 #[cfg(windows)]
 use windows_sys::Win32::System::Diagnostics::Debug::{
-    AddVectoredExceptionHandler, EXCEPTION_POINTERS,
+    EXCEPTION_POINTERS, SetUnhandledExceptionFilter,
 };
 
 // ---- the hooks, and no execution of anything else ----
@@ -55,7 +55,68 @@ const LONE_RETN: [usize; 119] = [
 // ---- what the faults catch ----
 
 #[cfg(windows)]
-static FILTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+/// The event that starts the fault reporter's time limit (`arm_time_limit`), a handle.
+static TIME_LIMIT_EVENT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// How long a fault's report may take before the process is ended without it (a fault
+/// inside the allocator or the loader leaves their locks held, and the report needs both).
+const REPORT_TIME_LIMIT_SECONDS: u32 = 2;
+
+#[cfg(unix)]
+/// The fault reporter's time limit started: SIGALRM, whose default action ends the
+/// process, comes after `REPORT_TIME_LIMIT_SECONDS`.
+fn arm_time_limit() {
+    // SAFETY: `alarm` is async-signal-safe and touches no memory of ours.
+    unsafe {
+        libc::alarm(REPORT_TIME_LIMIT_SECONDS);
+    }
+}
+
+#[cfg(windows)]
+/// The fault reporter's time limit started: the watchdog thread (`start_watchdog`) ends
+/// the process after `REPORT_TIME_LIMIT_SECONDS`.
+fn arm_time_limit() {
+    use windows_sys::Win32::System::Threading::SetEvent;
+    let event = TIME_LIMIT_EVENT.load(Ordering::SeqCst);
+    if event != 0 {
+        // SAFETY: the event made by `start_watchdog`, open for the program's life.
+        unsafe {
+            SetEvent(std::ptr::with_exposed_provenance_mut(event));
+        }
+    }
+}
+
+#[cfg(windows)]
+/// The watchdog of the fault reporter's time limit, started before any fault: a thread made
+/// inside the handler could wait for the loader lock the faulting thread holds.
+fn start_watchdog() {
+    use windows_sys::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
+    // SAFETY: an unnamed manual-reset event with default security, kept for the
+    // program's life.
+    let event = unsafe { CreateEventW(std::ptr::null(), 1, 0, std::ptr::null()) };
+    if event.is_null() {
+        log("standalone: the fault reporter has no time limit (no event)");
+        return;
+    }
+    let address = event.expose_provenance();
+    TIME_LIMIT_EVENT.store(address, Ordering::SeqCst);
+    let started = std::thread::Builder::new()
+        .name("fault watchdog".into())
+        .spawn(move || {
+            // SAFETY: the event above, never closed.
+            unsafe {
+                WaitForSingleObject(std::ptr::with_exposed_provenance_mut(address), INFINITE);
+            }
+            std::thread::sleep(std::time::Duration::from_secs(u64::from(
+                REPORT_TIME_LIMIT_SECONDS,
+            )));
+            crate::os::terminate(1)
+        });
+    if started.is_err() {
+        TIME_LIMIT_EVENT.store(0, Ordering::SeqCst);
+        log("standalone: the fault reporter has no time limit (no thread)");
+    }
+}
 
 #[cfg(windows)]
 /// The module a host address is in, and the address relative to its base
@@ -205,6 +266,7 @@ pub fn answers(at: usize) -> bool {
 /// address it read or wrote (`write`), `sp` the thread's stack pointer (host addresses).
 /// Shared by the systems' handlers.
 fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
+    arm_time_limit();
     let verb = if write { "writing" } else { "reading" };
     log(&format!(
         "standalone: the fault is in {}; return addresses on the stack: {}",
@@ -219,9 +281,10 @@ fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
 
 #[cfg(windows)]
 /// # Safety
-/// The system's vectored handler: `info` and the records it points at are the system's,
-/// live during the call.
-unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
+/// The system's unhandled-exception filter (it runs only for exceptions no handler took,
+/// so system code that catches its own faults is left alone): `info` and the records it
+/// points at are the system's, live during the call.
+unsafe extern "system" fn on_exception(info: *const EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_SEARCH: i32 = 0;
     // SAFETY: `info`'s records as the system hands them (the function's contract).
     unsafe {
@@ -552,10 +615,12 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     install_fault_reporter();
     #[cfg(windows)]
     {
-        // SAFETY: `on_exception` is a handler of the system's signature, for the
-        // program's life.
-        let handler = unsafe { AddVectoredExceptionHandler(1, Some(on_exception)) };
-        FILTER.store(handler.expose_provenance(), Ordering::SeqCst);
+        start_watchdog();
+        // SAFETY: `on_exception` is a filter of the system's signature, for the program's
+        // life.
+        unsafe {
+            SetUnhandledExceptionFilter(Some(on_exception));
+        }
     }
     // The audio thread runs (its Rust version), on DirectSound over SDL
     // (`platform_sound`).
