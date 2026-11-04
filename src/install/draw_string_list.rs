@@ -11,7 +11,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{draw_string, rd};
+use crate::install::installer::{draw_string, rd, rl};
 use rc2k_core::install::layout;
 
 /// `count` records of `table` drawn at (x, y) on.
@@ -26,12 +26,10 @@ pub fn draw_string_list(
     for (offset, _) in layout::list_records(count)? {
         let record = table.add(offset);
         let (x, y) = layout::list_place(rd(record), rd(record.add(4)), x, y);
-        draw_string(
-            rd(record.add(0xC)),
-            crate::pointers::GamePtr::new(rd(record.add(8))),
-            x,
-            y,
-        )?;
+        let font = rl(record.add(8))
+            .font()
+            .unwrap_or_else(|e| crate::install::installer::refuse(e));
+        draw_string(rd(record.add(0xC)), font.game_ptr(), x, y)?;
     }
     Ok(())
 }

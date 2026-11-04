@@ -18,8 +18,10 @@
 //! are the original's.
 
 use crate::install::installer::{wb, wd};
-use crate::install::vars::INSTALLER_PAGES;
+use crate::install::page_links::PageLink;
 use crate::install::vars::INSTALLER_RUN;
+use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
+use core::mem::offset_of;
 use rc2k_core::install::drives::{self, DriveMenu};
 
 pub fn list_drives() {
@@ -70,18 +72,23 @@ pub fn list_drives() {
     }
     let count = INSTALLER_RUN.drive_count.get();
     let (menu, name) = match drives::menu(count) {
-        DriveMenu::Eight => (crate::place::Place::from(&INSTALLER_PAGES.menu_8), 0x51D7F8),
+        DriveMenu::Eight => (
+            crate::place::Place::from(&INSTALLER_PAGES.menu_8),
+            offset_of!(InstallerPages, menu_8),
+        ),
         DriveMenu::Sixteen => (
             crate::place::Place::from(&INSTALLER_PAGES.menu_16),
-            0x51D8B0,
+            offset_of!(InstallerPages, menu_16),
         ),
         DriveMenu::More => (
             crate::place::Place::from(&INSTALLER_PAGES.menu_more),
-            0x51D9E8,
+            offset_of!(InstallerPages, menu_more),
         ),
     };
-    // A link: the menu's IDA address, as the image's (`InstallerPages::resolved`).
-    INSTALLER_PAGES.chosen_menu.set_u32(0, name);
+    // A link to the menu (`page_links::PageLink`).
+    INSTALLER_PAGES
+        .chosen_menu
+        .set_u32(0, PageLink::in_pages_at(name).raw());
     crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));
 }
 

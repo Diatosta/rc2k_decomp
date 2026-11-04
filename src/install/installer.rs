@@ -115,12 +115,16 @@ pub fn ww(at: impl Into<Place>, v: u16) {
 }
 
 pub fn rd(at: impl Into<Place>) -> u32 {
-    let at = at.into();
     let b = at
+        .into()
         .read(4, "an installer dword")
         .unwrap_or_else(|e| refuse(e));
-    let value = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
-    crate::install::vars::InstallerPages::resolved(at.game(), value).unwrap_or_else(|e| refuse(e))
+    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
+}
+
+/// The link (`page_links::PageLink`) the dword at `at` holds.
+pub fn rl(at: impl Into<Place>) -> crate::install::page_links::PageLink {
+    crate::install::page_links::PageLink::from_raw(rd(at))
 }
 
 pub fn wd(at: impl Into<Place>, v: u32) {
@@ -388,8 +392,12 @@ pub fn list_take_key() -> Result<u8, Refused> {
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
-pub fn list_step(key: u32, table: u32, list: ListMenu) -> Result<bool, crate::errors::BadInput> {
-    crate::menu::list_step::list_step(key as u8, table, list)
+pub fn list_step(
+    key: u32,
+    table: Option<crate::pointers::GamePtr>,
+    list: ListMenu,
+) -> Result<bool, crate::errors::BadInput> {
+    crate::menu::list_step::list_step_at(key as u8, table, list)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).

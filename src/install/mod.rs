@@ -66,6 +66,7 @@ pub mod next_edit;
 pub mod open_installed;
 pub mod open_installer;
 pub mod page_key;
+pub mod page_links;
 pub mod page_records;
 pub mod place_pieces;
 pub mod place_row;

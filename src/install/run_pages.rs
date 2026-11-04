@@ -45,7 +45,7 @@ pub fn run_pages(first: PageEntry) -> Result<(), Refused> {
 
 /// Whether `list`'s action (+8) is the page at IDA `page`.
 fn is_page(entry: PageEntry, page: u32) -> bool {
-    entry.list_addr() != 0 && entry.list().action() == page
+    entry.has_list() && entry.list().action() == page
 }
 
 /// A page passed over: its entry, the entry it was come to from, the one it went on to.

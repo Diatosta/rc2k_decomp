@@ -9,13 +9,16 @@
 //! choices, the edit record or the least value). Every accessor reads or writes inside its
 //! own 0x18 header bytes or 0x10 item bytes (`GamePtr::limited`); a place outside every
 //! allocation ends the program (`install::installer::refuse`). The words that name data
-//! (links, boxes, tables) are read as `installer::rd` does, resolved to where the installer's
-//! pages are now.
+//! (boxes, tables, texts, values) are links (`install::page_links::PageLink`), handles the
+//! installer's pages hold in place of addresses and each accessor resolves with bounds; the
+//! words that name code stay as read.
 //!
 //! The item count is the list's own and is not checked against the item asked for: the
 //! original goes past it too (a list of no items goes round 2^32 times).
 
-use crate::install::installer::{rb, rd, rw, wb, wd};
+use crate::install::installer::refuse;
+use crate::install::installer::{rb, rd, rl, rw, wb, wd};
+use crate::install::page_links::PageLink;
 use crate::pointers::GamePtr;
 
 /// The header's bytes.
@@ -23,14 +26,15 @@ const HEADER: u32 = 0x18;
 /// An item's bytes.
 const ITEM: u32 = 0x10;
 
-/// A list menu (a game address, the header's and items' places taken from it).
+/// A list menu (the header's and items' places are taken from its place).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ListMenu(GamePtr);
 
 impl ListMenu {
-    /// The list at a game address (a pointer from the pages' tables).
-    pub fn at(addr: u32) -> Self {
-        Self(GamePtr::new(addr))
+    /// The list a link of the installer's pages names (a link that names no list place is
+    /// refused).
+    pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
+        Ok(Self(link.in_pages()?))
     }
 
     /// The list at a place in the game's data.
@@ -81,9 +85,10 @@ impl ListMenu {
         rd(self.head(8, 4))
     }
 
-    /// +0x10: the neighbours table for `menu::list_step`.
-    pub fn neighbours(self) -> u32 {
-        rd(self.head(0x10, 4))
+    /// +0x10: the neighbours table for `menu::list_step` (None for none).
+    pub fn neighbours(self) -> Option<GamePtr> {
+        let link = rl(self.head(0x10, 4));
+        (!link.is_none()).then(|| link.in_pages().unwrap_or_else(|e| refuse(e)))
     }
 
     /// +0x14: the key action (`install::installer::key_action`).
@@ -191,9 +196,9 @@ impl ListItem {
         self.count()
     }
 
-    /// +4: the box the item's pieces are placed in (0: the title's).
-    pub fn box_at(self) -> u32 {
-        rd(self.field(4, 4))
+    /// +4: the box the item's pieces are placed in (none: the title's).
+    pub fn box_link(self) -> PageLink {
+        rl(self.field(4, 4))
     }
 
     /// +8: the link's or action's address, or where the item's value or text is.
@@ -201,14 +206,21 @@ impl ListItem {
         rd(self.field(8, 4))
     }
 
-    /// +8 as the text the item edits or shows.
+    /// +8 as the text the item edits or shows (a link).
     pub fn text(self) -> crate::place::Place {
-        crate::place::Place::from(GamePtr::new(self.target()))
+        crate::place::Place::from(self.link_place(8))
     }
 
-    /// +8 as the byte the item sets (a choice, a value).
+    /// +8 as the byte the item sets (a choice, a value; a link).
     pub fn value(self) -> ItemByte {
-        ItemByte(GamePtr::new(self.target()))
+        ItemByte(self.link_place(8))
+    }
+
+    /// The place the link at `offset` names, in the pages or the folder typed.
+    fn link_place(self, offset: u32) -> GamePtr {
+        rl(self.field(offset, 4))
+            .place()
+            .unwrap_or_else(|e| refuse(e))
     }
 
     /// +0xC: the pointer to the choices, the edit record or the text action.
@@ -226,14 +238,21 @@ impl ListItem {
         rb(self.field(0xD, 1))
     }
 
-    /// +0xC as the item's choices (a choice item).
+    /// The place in the pages the link at `offset` names.
+    fn pages_link(self, offset: u32) -> GamePtr {
+        rl(self.field(offset, 4))
+            .in_pages()
+            .unwrap_or_else(|e| refuse(e))
+    }
+
+    /// +0xC as the item's choices (a choice item; a link).
     pub fn choices(self) -> Choices {
-        Choices(GamePtr::new(self.data()))
+        Choices(self.pages_link(0xC))
     }
 
     /// +0xC as the item's edit record (an edit item).
     pub fn edit_field(self) -> EditField {
-        EditField(GamePtr::new(self.data()).limited(8))
+        EditField(self.pages_link(0xC).limited(8))
     }
 }
 

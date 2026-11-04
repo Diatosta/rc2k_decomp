@@ -61,11 +61,6 @@ impl Fault {
         self.ok(dword(p))
     }
 
-    /// A `T` of the game's memory at `p`.
-    pub fn read<T: Copy + Default>(&self, p: u32, what: &str) -> T {
-        self.ok(crate::pointers::GamePtr::new(p).read::<T>(what))
-    }
-
     /// A `T` at the place `at`.
     pub fn read_at<T: Copy + Default>(&self, at: crate::pointers::GamePtr, what: &str) -> T {
         self.ok(at.read::<T>(what))

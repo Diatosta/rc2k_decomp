@@ -12,6 +12,7 @@
 //! Callers: `race::replay_viewer` (two), `sub_4144CF` (one), reading ZF.
 
 use crate::install::vars::INSTALLER_PAGES;
+use crate::pointers::GamePtr;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
@@ -22,6 +23,15 @@ pub fn list_step(
     table: u32,
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
+    list_step_at(key, (table != 0).then(|| GamePtr::new(table)), list)
+}
+
+/// `list_step` with the neighbours table as a place (None for none).
+pub fn list_step_at(
+    key: u8,
+    table: Option<GamePtr>,
+    list: crate::menu::list_handle::ListMenu,
+) -> Result<bool, crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::list_menu::step`.
     let count = list.count();
     if !MOVES.contains(&key) {
@@ -30,15 +40,14 @@ pub fn list_step(
     let ecx = INSTALLER_PAGES.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     let entry_of = |k: usize| {
-        fault.read::<u8>(
-            table
-                .wrapping_add(ecx.wrapping_mul(4))
-                .wrapping_add(k as u32),
+        let table = table.unwrap_or(GamePtr::new(0));
+        fault.read_at::<u8>(
+            table.offset(ecx.wrapping_mul(4)).offset(k as u32),
             "a neighbours table",
         )
     };
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
-    let stepped = step(key, ecx as u8, count, table != 0, entry_of);
+    let stepped = step(key, ecx as u8, count, table.is_some(), entry_of);
     fault.check()?;
     let Step::Moved(cl) = stepped else {
         return Ok(false);

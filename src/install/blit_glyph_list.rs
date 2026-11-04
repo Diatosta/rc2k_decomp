@@ -12,7 +12,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::rd;
+use crate::install::installer::{rd, rl};
 use rc2k_core::install::layout;
 
 /// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs` (esi).
@@ -35,10 +35,19 @@ pub fn blit_glyph_list(
                 glyphs,
                 x as i32,
                 y as i32,
-                // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
-                Some(rd(record.add(0xC))),
+                Some(palette(rl(record.add(0xC)))),
             )
         }?;
     }
     Ok(())
+}
+
+/// The palette a record's link names: the blended palette, the only one the pages name.
+fn palette(link: crate::install::page_links::PageLink) -> u32 {
+    if !link.is_blended_palette() {
+        crate::install::installer::refuse(crate::errors::BadInput(
+            "a glyph list's palette that is not the blended palette",
+        ));
+    }
+    crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr()
 }

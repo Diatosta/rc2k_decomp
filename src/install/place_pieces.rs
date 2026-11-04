@@ -10,21 +10,25 @@
 //! are the original's.
 
 use crate::errors::Refused;
+use crate::install::page_links::PageLink;
 use crate::install::page_records::{BoxRecord, Piece, piece_count};
-use crate::install::vars::INSTALLER_PAGES;
-use crate::place::Place;
+use crate::install::place_row::place_row;
+use crate::install::vars::InstallerPages;
 
 pub fn place_pieces() -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
-    let rows = rc2k_core::install::layout::rows(piece_count(), |k| Piece::nth(k).item().box_at())?;
+    let rows =
+        rc2k_core::install::layout::rows(piece_count(), |k| Piece::nth(k).item().box_link().raw())?;
     for (first, n, the_box) in rows {
-        let title_box = Place::from(&INSTALLER_PAGES.title_box);
-        let (place, title) = if the_box == 0 {
-            (title_box, true)
-        } else {
-            (Place::from(the_box), the_box == title_box.game())
-        };
-        crate::install::place_row::place_row(first, n, BoxRecord::of(place), title, the_box)?;
+        let link = PageLink::from_raw(the_box);
+        let title = link.is_none() || link == title_box_link();
+        // The register as it comes: the wrap sets it before it reads it.
+        place_row(first, n, BoxRecord::linked(link), title, the_box)?;
     }
     Ok(())
+}
+
+/// The link to the title's box.
+fn title_box_link() -> PageLink {
+    PageLink::in_pages_at(core::mem::offset_of!(InstallerPages, title_box))
 }

@@ -70,7 +70,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 measure_text(font_of(font)?, &TEXT_BUFFER.text, left)?
             }
             Way::Action => {
-                let the_box = BoxRecord::of(piece.item().box_at());
+                let the_box = BoxRecord::linked(piece.item().box_link());
                 (the_box.width(), the_box.height())
             }
             Way::Other => {

@@ -13,13 +13,14 @@
 //! Reads and writes are checked as `install::installer::{rb, ..}` are: a place outside its
 //! buffer or every allocation ends the program.
 
-use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
+use crate::install::installer::{rb, rd, refuse, rl, rw, wb, wd, ww};
+use crate::install::page_links::PageLink;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::Place;
 use crate::pointers::GamePtr;
 
-/// A page entry (a game address in the pages' tables).
+/// A page entry (a place in the pages' tables).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageEntry(GamePtr);
 
@@ -29,25 +30,30 @@ impl PageEntry {
         Self(place.into().game_ptr())
     }
 
-    /// The entry at a game address (a link from another entry).
-    pub fn at(addr: u32) -> Self {
-        Self(GamePtr::new(addr))
+    /// The entry a link from another entry names.
+    pub fn at(link: PageLink) -> Self {
+        Self(link.in_pages().unwrap_or_else(|e| refuse(e)))
     }
 
-    /// +0: the page's list (0: none).
-    pub fn list_addr(self) -> u32 {
-        rd(self.0.limited(4))
+    /// +0 as the link to the page's list (none: no list).
+    fn list_link(self) -> PageLink {
+        rl(self.0.limited(4))
+    }
+
+    /// Whether the entry has a list (+0).
+    pub fn has_list(self) -> bool {
+        !self.list_link().is_none()
     }
 
     /// The page's list.
     pub fn list(self) -> ListMenu {
-        ListMenu::at(self.list_addr())
+        ListMenu::at(self.list_link()).unwrap_or_else(|e| refuse(e))
     }
 
-    /// The entry `offset` bytes on (`pages::next_entry_at`) read as a link; None for 0.
+    /// The entry `offset` bytes on (`pages::next_entry_at`) read as a link; None for none.
     pub fn next(self, offset: u32) -> Option<PageEntry> {
-        let at = rd(self.0.offset(offset).limited(4));
-        (at != 0).then(|| PageEntry::at(at))
+        let link = rl(self.0.offset(offset).limited(4));
+        (!link.is_none()).then(|| PageEntry::at(link))
     }
 }
 
@@ -152,8 +158,12 @@ impl Piece {
 pub struct BoxRecord(Place);
 
 impl BoxRecord {
-    pub fn of(place: impl Into<Place>) -> Self {
-        Self(place.into())
+    /// The box a link names; none is the title's box.
+    pub fn linked(link: PageLink) -> Self {
+        if link.is_none() {
+            return Self(Place::from(&INSTALLER_PAGES.title_box));
+        }
+        Self(Place::from(link.in_pages().unwrap_or_else(|e| refuse(e))))
     }
 
     pub fn x(self) -> u32 {
@@ -170,5 +180,52 @@ impl BoxRecord {
 
     pub fn height(self) -> u32 {
         rd(self.0.add(0xC))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every page of both runs resolves its list, its items' links and its neighbours table.
+    #[test]
+    fn every_page_resolves_its_links() {
+        let mut seen = 0;
+        for first in [
+            PageEntry::of(&INSTALLER_PAGES.normal_pages),
+            PageEntry::of(&INSTALLER_PAGES.update_pages),
+        ] {
+            let mut entries = vec![first];
+            while let Some(entry) = entries.pop() {
+                if entry.list_link().in_pages().is_err() || seen > 200 {
+                    continue;
+                }
+                seen += 1;
+                let list = entry.list();
+                let _ = list.neighbours();
+                for n in 0..u32::from(list.count()) {
+                    let item = list.item(n);
+                    let _ = item.box_link();
+                    match item.kind() {
+                        2 => {
+                            let _ = item.choices().word(0);
+                        }
+                        4 => {
+                            let _ = item.edit_field().width();
+                            let _ = item.text();
+                        }
+                        _ => {}
+                    }
+                }
+                // (An entry holds as many answers' links as its page takes; the rest of the
+                // words are other data.)
+                entries.extend((0..8).filter_map(|answer| {
+                    let at = rc2k_core::install::pages::next_entry_at(answer);
+                    let link = rl(entry.0.offset(at).limited(4));
+                    link.in_pages().ok().map(|_| PageEntry::at(link))
+                }));
+            }
+        }
+        assert!(seen > 5);
     }
 }

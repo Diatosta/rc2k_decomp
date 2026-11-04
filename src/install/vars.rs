@@ -10,6 +10,7 @@
 //! at start (`moved::point_into_homes`). The pages' lists are walked by pointer
 //! (`install::installer`'s `rd`/`rb`), so their tables stay byte buffers.
 
+use crate::install::page_links::PageLink;
 use crate::session::{Byte, Bytes, Dword, Loose, Word, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
@@ -331,6 +332,27 @@ pub struct InstallerPages {
     pub bad_folder_chars: Bytes<20>,
 }
 
+/// `bytes`, the installer pages' field that starts at IDA's address `start`, with each link
+/// it holds turned from the original's address to its handle (`page_links::PageLink`), once,
+/// where the data is built.
+const fn linked<const N: usize>(start: u32, mut bytes: [u8; N]) -> [u8; N] {
+    let mut k = 0;
+    while k < PAGE_LINKS.len() {
+        let at = PAGE_LINKS[k];
+        if at >= start && at + 4 <= start + N as u32 {
+            let i = (at - start) as usize;
+            let ida = u32::from_le_bytes([bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]]);
+            let link = PageLink::of_ida(ida).raw().to_le_bytes();
+            bytes[i] = link[0];
+            bytes[i + 1] = link[1];
+            bytes[i + 2] = link[2];
+            bytes[i + 3] = link[3];
+        }
+        k += 1;
+    }
+    bytes
+}
+
 pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     _lead: Bytes::new([0; 7]),
     layout: Bytes::new([0; 4096]),
@@ -346,21 +368,21 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     frame_clock: Loose::new(0x0),
     move_clock: Loose::new(0x0),
     _gap_51d427: Bytes::new([0; 12]),
-    texts: Bytes::new(with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")])),
-    msg_error: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")])),
-    msg_cancel: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")])),
-    remove_strings: Bytes::new(with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")])),
-    bar_glyphs_list: Bytes::new(with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")])),
+    texts: Bytes::new(linked::<32>(0x51D433, with_runs::<32>(&[(0, b"\xa9\x01\x00\x00\xaf\x00\x00\x00\xa4\xe8Q\x00\xaf\x00\x00\x00\xa9\x01\x00\x00\xfa\x00\x00\x00d\xe9Q\x00\xb0")]))),
+    msg_error: Bytes::new(linked::<16>(0x51D453, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00^\x01\x00\x00\xa4\xe8Q\x00\xb1")]))),
+    msg_cancel: Bytes::new(linked::<16>(0x51D463, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00\x90\x01\x00\x00\xa4\xe8Q\x00\xb3")]))),
+    remove_strings: Bytes::new(linked::<16>(0x51D473, with_runs::<16>(&[(0, b"\xa9\x01\x00\x00,\x01\x00\x00\xa4\xe8Q\x00\xba")]))),
+    bar_glyphs_list: Bytes::new(linked::<32>(0x51D483, with_runs::<32>(&[(0, b"\xe1\x00\x00\x00,\x01"), (12, b"t;O\x00\xa9\x01\x00\x00,\x01\x00\x00\x01\x00\x00\x00t;O")]))),
     bar: Bytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: Bytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [Dword::new(0x0), Dword::new(0x51e624), Dword::new(0x51e824), Dword::new(0x51e824), Dword::new(0x51ea44), Dword::new(0x51ea64), Dword::new(0x51ea24), Dword::new(0x51e9e4), Dword::new(0x51ea04), Dword::new(0x51e9c4), Dword::new(0x51e864), Dword::new(0x51e884), Dword::new(0x51e844), Dword::new(0x51e6c4), Dword::new(0x51e6e4), Dword::new(0x51e6a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e8c4), Dword::new(0x51e8e4), Dword::new(0x51e8a4), Dword::new(0x51e984), Dword::new(0x51e9a4), Dword::new(0x51e964)],
     kind_fonts: Bytes::new(with_runs::<108>(&[(0, b"\x12\x00\t\x0c\x00\x02\x00\x1e\x17\x00\x08\x0b\x01\x02\x00\x1e\n\x00\x07\x10\x02\x02\x00\x1e"), (32, b"\x12\x00\t\x0c\x00\x02\x00\x1e"), (64, b"\x0c\x00\t\x12\x00\x02\x00\x1e\x15\x00\x15\x15\x00\x03\x00,\x0c\x00\x0c\x0c\x00\x02\x00\x1e\x12\x00\x12\x12\x00\x02\x00\x1e\x18\x00\x18\x18\x00\x02\x00\x1e\t")])),
-    normal_pages: Bytes::new(with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")])),
-    _gap_51d5c0: Bytes::new(with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")])),
-    update_pages: Bytes::new(with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")])),
-    _gap_51d5e4: Bytes::new(with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")])),
-    chosen_menu: Bytes::new(with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")])),
-    _gap_51d604: Bytes::new(with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")])),
+    normal_pages: Bytes::new(linked::<44>(0x51D594, with_runs::<44>(&[(0, b"p\xd6Q"), (8, b"\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q\x00\xc0\xd5Q")]))),
+    _gap_51d5c0: Bytes::new(linked::<24>(0x51D5C0, with_runs::<24>(&[(0, b"(\xd7Q"), (8, b"\xe4\xd5Q\x00T\xd6Q\x00\x10\xd6Q\x00`\xd6Q")]))),
+    update_pages: Bytes::new(linked::<12>(0x51D5D8, with_runs::<12>(&[(0, b"\xb8\xdcQ"), (8, b"H\xd6Q")]))),
+    _gap_51d5e4: Bytes::new(linked::<20>(0x51D5E4, with_runs::<20>(&[(0, b"\x90\xd7Q\x00\xc0\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q\x00\xf8\xd5Q")]))),
+    chosen_menu: Bytes::new(linked::<12>(0x51D5F8, with_runs::<12>(&[(0, b"\xf8\xd7Q\x00\xe4\xd5Q\x00\x04\xd6Q")]))),
+    _gap_51d604: Bytes::new(linked::<292>(0x51D604, with_runs::<292>(&[(0, b"\xa0\xdbQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00\xb8\xdcQ\x00\xc0\xd5Q\x00H\xd6Q\x00\x10\xddQ\x00\x04\xd6Q"), (40, b"0\xd6Q\x00\x18\xdcQ\x00\xf8\xd5Q\x00\x1c\xd6Q\x00`\xdcQ"), (68, b"(\xddQ"), (80, b"@\xddQ"), (92, b"X\xddQ"), (104, b"\t"), (109, b"\n\x9b"), (116, b"\x99AA"), (132, b"\x01\x01+\x10"), (148, b"\x01\x02,\x10"), (164, b"\x01\x03-\x10"), (180, b"\x01\x04.\x10"), (196, b"\x01\x05/\x10"), (212, b"\x01\x060\x10"), (228, b"\x01\x071\x10"), (244, b"\x01\x082\x10"), (260, b"\x01\t3\x10"), (276, b"\x01\x00\x99")]))),
     script_entry: Dword::new(0x950500),
     record_flag: Dword::new(0x0),
     _gap_51d730: Bytes::new(with_runs::<16>(&[(0, b"\xefAA")])),
@@ -370,13 +392,13 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     _gap_51d744: Bytes::new(with_runs::<14>(&[(12, b"\x01\x02")])),
     script_set_up: Word::new(0x97),
     _gap_51d754: Bytes::new(with_runs::<164>(&[(12, b"\x01\x03\x98"), (28, b"\x01\x04|\x05"), (44, b"\x01\x00\x99"), (61, b"\x05\x9a\x00\x02\x00\x00\x00+BA"), (84, b"\x05\x0c\xa1"), (96, b"\x04SA\x00\x01\x01\xa2"), (116, b"\x01\x02\xa3"), (132, b"\x01\x03\xa4"), (148, b"\x01\x00\xbf")])),
-    menu_8: Bytes::new(with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")])),
-    menu_16: Bytes::new(with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")])),
-    menu_more: Bytes::new(with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")])),
-    _gap_51dba0: Bytes::new(with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")])),
+    menu_8: Bytes::new(linked::<184>(0x51D7F8, with_runs::<184>(&[(1, b"\n\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xb8\xddQ"), (72, b"\x01\x01\x12\x10\xb8\xddQ"), (88, b"\x01\x01\x13\x10\xb8\xddQ"), (104, b"\x01\x01\x14\x10\xb8\xddQ"), (120, b"\x01\x01\x15\x10\xb8\xddQ"), (136, b"\x01\x01\x16\x10\xb8\xddQ"), (152, b"\x01\x01\x17\x10\xb8\xddQ"), (168, b"\x01\x01\x18\x10\xb8\xddQ")]))),
+    menu_16: Bytes::new(linked::<312>(0x51D8B0, with_runs::<312>(&[(1, b"\x12\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xd8\xddQ"), (72, b"\x01\x01\x12\x10\xd8\xddQ"), (88, b"\x01\x01\x13\x10\xd8\xddQ"), (104, b"\x01\x01\x14\x10\xd8\xddQ"), (120, b"\x01\x01\x15\x10\xd8\xddQ"), (136, b"\x01\x01\x16\x10\xd8\xddQ"), (152, b"\x01\x01\x17\x10\xd8\xddQ"), (168, b"\x01\x01\x18\x10\xd8\xddQ"), (184, b"\x01\x01\x19\x10\xe8\xddQ"), (200, b"\x01\x01\x1a\x10\xe8\xddQ"), (216, b"\x01\x01\x1b\x10\xe8\xddQ"), (232, b"\x01\x01\x1c\x10\xe8\xddQ"), (248, b"\x01\x01\x1d\x10\xe8\xddQ"), (264, b"\x01\x01\x1e\x10\xe8\xddQ"), (280, b"\x01\x01\x1f\x10\xe8\xddQ"), (296, b"\x01\x01 \x10\xe8\xddQ")]))),
+    menu_more: Bytes::new(linked::<440>(0x51D9E8, with_runs::<440>(&[(1, b"\x1a\x9a\x00\x02\x00\x00\x00^BA"), (24, b"\x05\x0c\x9d\x00\xf8\xddQ"), (40, b"\x01\x00\xbf\x00\x08\xdeQ"), (56, b"\x01\x01\x11\x10\xa8\xddQ"), (72, b"\x01\x01\x12\x10\xa8\xddQ"), (88, b"\x01\x01\x13\x10\xa8\xddQ"), (104, b"\x01\x01\x14\x10\xa8\xddQ"), (120, b"\x01\x01\x15\x10\xa8\xddQ"), (136, b"\x01\x01\x16\x10\xa8\xddQ"), (152, b"\x01\x01\x17\x10\xa8\xddQ"), (168, b"\x01\x01\x18\x10\xa8\xddQ"), (184, b"\x01\x01\x19\x10\xb8\xddQ"), (200, b"\x01\x01\x1a\x10\xb8\xddQ"), (216, b"\x01\x01\x1b\x10\xb8\xddQ"), (232, b"\x01\x01\x1c\x10\xb8\xddQ"), (248, b"\x01\x01\x1d\x10\xb8\xddQ"), (264, b"\x01\x01\x1e\x10\xb8\xddQ"), (280, b"\x01\x01\x1f\x10\xb8\xddQ"), (296, b"\x01\x01 \x10\xb8\xddQ"), (312, b"\x01\x01!\x10\xc8\xddQ"), (328, b"\x01\x01\"\x10\xc8\xddQ"), (344, b"\x01\x01#\x10\xc8\xddQ"), (360, b"\x01\x01$\x10\xc8\xddQ"), (376, b"\x01\x01%\x10\xc8\xddQ"), (392, b"\x01\x01&\x10\xc8\xddQ"), (408, b"\x01\x01'\x10\xc8\xddQ"), (424, b"\x01\x01(\x10\xc8\xddQ")]))),
+    _gap_51dba0: Bytes::new(linked::<424>(0x51DBA0, with_runs::<424>(&[(1, b"\x06\x9a"), (8, b"\xf5BA"), (20, b"NSA\x00\x05\x0c\x9e"), (40, b"$\x01"), (48, b"\xfa\xeb\x95\x00p\xddQ\x00\x05\n\xaa"), (72, b"\x05\n\xac"), (88, b"\x05\n\xad"), (104, b"\x05\n\xab"), (121, b"\x03\x9a"), (128, b"\xc7BA"), (144, b"\x05\n\xad"), (156, b"\x04SA\x00\x01\x01\xae"), (168, b"\xdaBA"), (176, b"\x01\x00\xbf"), (193, b"\x04\x9a"), (200, b"/CA"), (216, b"\x05\x0b\xb2"), (228, b"\x04SA\x00\x05\x0c\xb4"), (244, b"\x04SA\x00\x01\x01l\x05"), (264, b"\x01\x00k\x05"), (281, b"\x04\xb6\x00\x02\x00\x00\x00GCA"), (304, b"\x05\n\xb7"), (316, b"\x04SA\x00\x01\x01\xb8"), (336, b"\x01\x02\xb9"), (352, b"\x01\x00\xbf"), (368, b"@"), (376, b"\xcd0A"), (392, b"@"), (400, b"\xdf4A"), (416, b"@")]))),
     step: Bytes::new(with_runs::<16>(&[(0, b")6A")])),
     _gap_51dd58: Bytes::new(with_runs::<32>(&[(0, b"@"), (8, b"P6A"), (24, b"\x02|\xa0\x00\x0b\x00\xe9\x02")])),
-    title: Bytes::new(with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")])),
+    title: Bytes::new(linked::<16>(0x51DD78, with_runs::<16>(&[(0, b"\x05\t\x00\x00\x88\xddQ")]))),
     _gap_51dd88: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00,")])),
     title_box: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00\x90\x01")])),
     _gap_51dda8: Bytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
@@ -406,24 +428,6 @@ impl InstallerPages {
         crate::gfx::typefaces::FontId::try_at(cell.get() as usize).ok_or(crate::errors::BadInput(
             "a page font that is no font object",
         ))
-    }
-
-    /// What dword `value` read at game address `at` means: a slot of `PAGE_LINKS` keeps IDA's
-    /// address as a name, resolved here to the place now (`installer::rd` reads them all).
-    pub fn resolved(at: u32, value: u32) -> Result<u32, crate::errors::BadInput> {
-        let off = (at as usize).wrapping_sub(Self::home());
-        if value == 0 || off >= Self::LEN {
-            return Ok(value);
-        }
-        if PAGE_LINKS
-            .binary_search(&((Self::START + off) as u32))
-            .is_err()
-        {
-            return Ok(value);
-        }
-        crate::moved::home_of_rva((value as usize).wrapping_sub(crate::framework::IMAGE_BASE))
-            .map(|home| home as u32)
-            .ok_or(crate::errors::BadInput("an installer link at no place"))
     }
 
     /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
@@ -500,7 +504,7 @@ impl InstallerPalette {
 
 /// The installer pages' dwords that name data: the pages' links, their items' fonts and
 /// variables (IDA's addresses, sorted). The code pointers beside them stay addresses.
-const PAGE_LINKS: [u32; 105] = [
+pub(super) const PAGE_LINKS: [u32; 105] = [
     0x51D43B, 0x51D44B, 0x51D45B, 0x51D46B, 0x51D47B, 0x51D48F, 0x51D49F, 0x51D594, 0x51D59C,
     0x51D5A0, 0x51D5A4, 0x51D5A8, 0x51D5AC, 0x51D5B0, 0x51D5B4, 0x51D5B8, 0x51D5BC, 0x51D5C0,
     0x51D5C8, 0x51D5CC, 0x51D5D0, 0x51D5D4, 0x51D5D8, 0x51D5E0, 0x51D5E4, 0x51D5E8, 0x51D5EC,
@@ -534,9 +538,21 @@ mod tests {
             .collect();
         assert_eq!(found, PAGE_LINKS);
         for &p in &PAGE_LINKS {
-            let at = (InstallerPages::home() + p as usize - InstallerPages::START) as u32;
-            let value = crate::install::installer::rd(at);
-            assert_ne!(value, 0, "{p:#X}");
+            let off = (p as usize - InstallerPages::START) as u32;
+            let image = crate::moved::image_bytes(p as usize, 4);
+            let ida = u32::from_le_bytes(image.try_into().unwrap());
+            let link = PageLink::from_raw(
+                crate::pointers::GamePtr::to(&INSTALLER_PAGES)
+                    .offset(off + 7)
+                    .read::<u32>("a page link")
+                    .unwrap(),
+            );
+            assert_eq!(link, PageLink::of_ida(ida), "{p:#X}");
+            // The handle names the place the image's address is now.
+            let home = crate::moved::home_of_rva(ida as usize - crate::framework::IMAGE_BASE);
+            if let Ok(place) = link.place() {
+                assert_eq!(Some(place.addr() as usize), home, "{p:#X}");
+            }
         }
     }
 
@@ -609,7 +625,13 @@ mod tests {
             7 + InstallerPages::LEN <= size
                 && size <= (7 + InstallerPages::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
+        let mut image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
+        // The links are the handles that stand for the image's addresses.
+        for &p in &PAGE_LINKS {
+            let at = p as usize - InstallerPages::START;
+            let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
+            image[at..at + 4].copy_from_slice(&PageLink::of_ida(ida).raw().to_le_bytes());
+        }
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(InstallerPages::home()).cast_const(),
