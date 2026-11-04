@@ -136,7 +136,7 @@ pub fn compiled() -> Result<Compiled, FatalError> {
     let lent = crate::pointers::LentBytes::from_vec(vec![0u8; FILE_ROOM as usize]);
     let read = read_first_match(
         crate::pointers::GamePtr::to(PATTERN),
-        crate::pointers::GamePtr::new(lent.addr()),
+        lent.ptr(),
         FILE_ROOM,
         0,
     )

@@ -16,15 +16,15 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::d3d::textures::surface_info`.
-    let d = crate::gfx::upload::UPLOAD.description.addr();
+    let description = &crate::gfx::upload::UPLOAD.description;
     let kind = get(record + 0xC);
     let f = rc2k_core::d3d::textures::surface_info(
         get(record + 4),
         get(record + 8),
         get(kind + 4),
         crate::gfx::pixel_format::texture_description_format(kind),
-        get(d + 0x10),
-        get(d + 0x24),
+        description.pitch.get(),
+        description.pixels.get(),
     );
     let surface = &DRAW_SURFACE;
     for (field, v) in [

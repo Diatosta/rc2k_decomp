@@ -127,7 +127,7 @@ fn text(text: &[u8], newline: bool) {
 /// `sub_41299B` with eax = 1: the two lines about a sheet.
 fn log_sheet(path: GamePtr, image: bool, backdrop: u32, transparent: u32) {
     text(b"Extracting: PCX\0", false);
-    crate::logfile::log_write::log_at(path.addr(), false, 1);
+    crate::logfile::log_write::log_at(path, false, 1);
     log_int(PCX.file_width.get() as i32, false, 1);
     log_int(PCX.file_height.get() as i32, false, 1);
     log_int((PCX.planes.get() as i32).wrapping_mul(8), true, 1);
