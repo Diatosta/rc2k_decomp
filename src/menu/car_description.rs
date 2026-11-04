@@ -35,6 +35,5 @@ pub fn shown_description() -> Result<u32, Refused> {
 
 /// A description by handle (`cars_store::car_ref`).
 pub fn read(description: u32) -> Result<CarDescription, BadInput> {
-    crate::menu::cars_store::description_ptr(description)?
-        .read::<CarDescription>("a car description")
+    Ok(crate::menu::cars_store::description(description)?.get())
 }

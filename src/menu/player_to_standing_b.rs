@@ -14,7 +14,7 @@ use crate::menu::standings::*;
 /// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
 pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
-    if p.get().word(0x18) == 0 {
+    if p.get().name == 0 {
         return Err(BadInput("a null name").into());
     }
     // Converted: `rc2k_core::saves::rankings::fill_b`.
@@ -22,13 +22,13 @@ pub fn player_to_standing_b(e: usize, p: PlayerCell, index: u32) -> Result<(), R
     let fault = Fault::default();
     let source = PlayerB {
         index,
-        name: bytes(p.get().word(0x18))?,
-        nationality: p.get().word(4),
-        car: p.get().word(8),
-        group: p.get().word(0x90),
-        total: p.get().word(0x8C),
-        b4: std::array::from_fn(|k| p.get().word(0xB4 + 4 * k)),
-        slots: std::array::from_fn(|k| p.get().word(0x98 + 4 * k)),
+        name: bytes(p.get().name)?,
+        nationality: p.get().nationality,
+        car: p.get().car_number,
+        group: p.get().class,
+        total: p.get().total,
+        b4: std::array::from_fn(|k| p.get().overall_points[k]),
+        slots: std::array::from_fn(|k| p.get().stage_points[k]),
     };
     fault.check()?;
     with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;

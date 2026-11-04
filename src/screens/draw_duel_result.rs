@@ -76,8 +76,8 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             name: crate::screens::game_screen::player_name(p.name)?,
             nation: p.nationality,
             car: p.car_number,
-            time: p.word(0x88),
-            speed: crate::strings::append_speed::append_speed(p.word(0x94), true, units)?,
+            time: p.time,
+            speed: crate::strings::append_speed::append_speed(p.figure, true, units)?,
         })
     };
     let players = [player(p1)?, player(p2)?];

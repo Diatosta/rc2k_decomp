@@ -11,9 +11,9 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_player_times() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::event::PLAYER_TIMES`.
+    // Converted: `rc2k_core::menu::player::Player::reset_times`.
     for n in 0..4 {
-        put_all(player(n), &rc2k_core::menu::event::PLAYER_TIMES)?;
+        player(n).update(rc2k_core::menu::player::Player::reset_times);
     }
     EVENT_STATE.event_goes_on.set(0u32);
     Ok(())

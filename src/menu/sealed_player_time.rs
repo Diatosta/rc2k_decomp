@@ -23,9 +23,9 @@ pub fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
     let p = player(n);
     let sealed = {
         crate::records::seal_time::seal_time(
-            p.get().word(0x88),
+            p.get().time,
             [
-                p.get().word(8) as u8,
+                p.get().car_number as u8,
                 RACE_STATE.settings.run_kind.get() as u8,
                 byte as u8,
             ],

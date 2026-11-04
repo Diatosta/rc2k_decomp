@@ -18,7 +18,8 @@ pub struct CarDescription {
     pub car: u32,
     /// String: the car's name.
     pub name: u32,
-    pub field_8: u32,
+    /// The car's class, 0 .. 3 (a player's `class`, the standings' group).
+    pub class: u32,
     /// Cubic centimetres.
     pub capacity: u32,
     /// String.
@@ -51,7 +52,9 @@ pub struct CarDescription {
     pub weight: u32,
     /// String: the first of the seven lines of its description.
     pub description: u32,
-    pub field_74: u32,
+    /// Where its figures are (an IDA address into the description texts,
+    /// `cars_store::description_table`).
+    pub figures: u32,
 }
 
 impl CarDescription {
@@ -63,7 +66,7 @@ impl CarDescription {
         Self {
             car: word(&b, 0),
             name: word(&b, 1),
-            field_8: word(&b, 2),
+            class: word(&b, 2),
             capacity: word(&b, 3),
             engine_type: word(&b, 4),
             power: word(&b, 5),
@@ -90,7 +93,7 @@ impl CarDescription {
             rear_track: word(&b, 26),
             weight: word(&b, 27),
             description: word(&b, 28),
-            field_74: word(&b, 29),
+            figures: word(&b, 29),
         }
     }
 }

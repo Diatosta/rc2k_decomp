@@ -21,19 +21,19 @@ impl Part {
     /// Its run of `wear_17c` (first, dwords) and its `damage` dword.
     fn places(self) -> (usize, usize, usize) {
         match self {
-            Part::Body => (10, 6, 3),        // +0x1A4, +0xD8
-            Part::Gearbox => (0, 10, 14),    // +0x17C, +0x104
-            Part::Brakes => (28, 3, 13),     // +0x1EC, +0x100
-            Part::Lights => (16, 7, 7),      // +0x1BC, +0xE8
-            Part::Suspension => (23, 5, 11), // +0x1D8, +0xF8
+            Part::Body => (10, 6, 1),       // +0x1A4, +0xD8
+            Part::Gearbox => (0, 10, 12),   // +0x17C, +0x104
+            Part::Brakes => (28, 3, 11),    // +0x1EC, +0x100
+            Part::Lights => (16, 7, 5),     // +0x1BC, +0xE8
+            Part::Suspension => (23, 5, 9), // +0x1D8, +0xF8
         }
     }
 }
 
 /// The tyre damage dword (+0x108).
-const TYRE_DAMAGE: usize = 15;
+const TYRE_DAMAGE: usize = 13;
 /// The damage dwords `repair_car` zeroes itself (+0xD4 .. +0xFC).
-const CAR_DAMAGE: [usize; 8] = [2, 4, 5, 6, 8, 9, 10, 12];
+const CAR_DAMAGE: [usize; 8] = [0, 2, 3, 4, 6, 7, 8, 10];
 
 impl Player {
     /// `service::repair_body` and the four others.

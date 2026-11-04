@@ -14,22 +14,22 @@ use crate::menu::standings::*;
 /// `e` the entry of table A (edi in the original), `p` the player's record (esi), `index`
 /// the player's index (ebx).
 pub fn copy_standing_entry(e: usize, p: PlayerCell, index: u32) -> Result<(), Refused> {
-    if p.get().word(0x18) == 0 {
+    if p.get().name == 0 {
         return Err(BadInput("a null name").into());
     }
     // Converted: `rc2k_core::saves::rankings::fill_a`.
     use rc2k_core::menu::standings::PlayerA;
-    let name_at = p.get().word(0x18);
+    let name_at = p.get().name;
     let source = PlayerA {
         index,
-        time: p.get().word(0x88),
-        group: p.get().word(0x90),
-        total: p.get().word(0x8C),
+        time: p.get().time,
+        group: p.get().class,
+        total: p.get().total,
         name_at,
         name: bytes(name_at)?,
-        nationality: p.get().word(4),
-        car: p.get().word(8),
-        entered: p.get().word(0xD0),
+        nationality: p.get().nationality,
+        car: p.get().car_number,
+        entered: p.get().entry,
     };
     with_a(|t| rc2k_core::saves::rankings::fill_a(&mut t.entries[e], &source))?;
     Ok(())

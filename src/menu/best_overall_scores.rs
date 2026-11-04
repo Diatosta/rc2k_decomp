@@ -21,7 +21,7 @@ pub fn best_overall_scores() -> Result<(), Refused> {
     EVENT_STATE.any_time_qualified.set(0u32);
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
-        let player_score = p.get().word(0xCC);
+        let player_score = p.get().overall_points[6];
         // The tenth entry's offset (the original leaves its address in esi, which the
         // screen's lists set before anything reads it).
         // Converted: `rc2k_core::menu::bests::makes_score`.

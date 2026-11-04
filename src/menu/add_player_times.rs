@@ -11,16 +11,9 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn add_player_times() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::event::added_time`.
+    // Converted: `rc2k_core::menu::player::Player::add_time`.
     for p in counted_players()? {
-        let entered = p.get().word(0xD0);
-        // The times are read only for a player that took part, as the original.
-        let (time, total) = if entered == 1 {
-            (p.get().word(0x88), p.get().word(0x8C))
-        } else {
-            (0, 0)
-        };
-        put_all(p, &rc2k_core::menu::event::added_time(entered, time, total))?;
+        p.update(rc2k_core::menu::player::Player::add_time);
     }
     Ok(())
 }

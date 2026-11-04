@@ -28,7 +28,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     let record = stage_record()?;
     stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
-    let name = p.get().word(0x18);
+    let name = p.get().name;
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
@@ -39,12 +39,12 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::bytes;
     let best = bests::NewBest {
-        key: p.get().word(0x88),
+        key: p.get().time,
         player: 1,
-        nationality: p.get().word(4),
+        nationality: p.get().nationality,
         name_at: name,
-        car: p.get().word(8),
-        group: p.get().word(0x90),
+        car: p.get().car_number,
+        group: p.get().class,
         name: bytes(name)?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),

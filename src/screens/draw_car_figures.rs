@@ -31,7 +31,7 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::car_description::{CarDescription, read, shown_description};
+use crate::menu::car_description::{read, shown_description};
 use crate::menu::event_store::EVENT_STATE;
 use crate::text::draw_text::Canvas;
 
@@ -71,8 +71,7 @@ pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<
             crate::strings::units::units(),
         );
         if d != before {
-            crate::menu::cars_store::description_ptr(record)?
-                .write::<CarDescription>(d, "a car description")?;
+            crate::menu::cars_store::description(record)?.set(d);
         }
         carry
     }

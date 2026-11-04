@@ -64,7 +64,7 @@ pub fn time_trial_service() -> Result<(), Refused> {
                 return Err(BadInput("a current player past the four").into());
             }
             let record = player(serviced);
-            if passes::is_out(record.get().word(0xD0)) {
+            if passes::is_out(record.get().entry) {
                 crate::menu::inspection_faults::inspection_faults()?;
                 {
                     run_screen(

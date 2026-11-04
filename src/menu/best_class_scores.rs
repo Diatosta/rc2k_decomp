@@ -27,8 +27,8 @@ pub fn best_class_scores() -> Result<(), Refused> {
         EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
-            let player_score = p.get().word(0xB0);
-            if p.get().word(0x90) == class {
+            let player_score = p.get().stage_points[6];
+            if p.get().class == class {
                 // The group's tenth entry's offset (the original leaves its address in
                 // esi, which the screen's lists set before anything reads it).
                 // Converted: `rc2k_core::menu::bests::makes_score`.

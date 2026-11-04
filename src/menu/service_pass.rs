@@ -35,7 +35,7 @@ pub fn service_pass() -> Result<(), Refused> {
     let players = counted_players()?;
     let due = { EVENT_STATE.service_due.get() } == 1;
     for &p in &players {
-        if due && passes::takes_part(p.get().word(0xD0)) {
+        if due && passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
@@ -47,7 +47,7 @@ pub fn service_pass() -> Result<(), Refused> {
     'all: {
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
-            let entry = p.get().word(0xD0);
+            let entry = p.get().entry;
             if !passes::serviced(entry, || EVENT_STATE.service_due.get()) {
                 continue;
             }
@@ -72,7 +72,7 @@ pub fn service_pass() -> Result<(), Refused> {
             }
             crate::service::apply_repairs::apply_repairs_in_game()?;
             crate::menu::set_player_entry_kind::set_player_entry_kind()?;
-            if passes::is_out(p.get().word(0xD0)) {
+            if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults()?;
                 run_screen(
                     &crate::menu::inspection_area_loop::SCREEN,

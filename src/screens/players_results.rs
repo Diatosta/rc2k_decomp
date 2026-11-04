@@ -84,7 +84,7 @@ fn prepare(layout: &Layout) -> Result<Prepared, Refused> {
     let units = crate::strings::units::units();
     let mut speeds = Vec::new();
     for p in &players {
-        let s = crate::strings::append_speed::append_speed(p.get().word(0x94), false, units)?;
+        let s = crate::strings::append_speed::append_speed(p.get().figure, false, units)?;
         if !(3..=0x80).contains(&s.len()) {
             return Err(BadInput("a speed draw_spaced_number refuses").into());
         }
@@ -112,10 +112,10 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
         let mut rows = Vec::new();
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
-                name: crate::screens::game_screen::player_name(p.get().word(0x18))?,
-                nation: p.get().word(4),
-                car: p.get().word(8),
-                time: p.get().word(0x88),
+                name: crate::screens::game_screen::player_name(p.get().name)?,
+                nation: p.get().nationality,
+                car: p.get().car_number,
+                time: p.get().time,
                 speed,
                 points: if layout.points {
                     get(points_at(row)?)?

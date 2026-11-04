@@ -20,7 +20,7 @@ pub fn beat_target_time() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::bests::makes_time`.
     let target = with_event(event, |ten| ten[9].head.key)?;
-    let beaten = rc2k_core::menu::bests::makes_time(player(n).get().word(0x88), target);
+    let beaten = rc2k_core::menu::bests::makes_time(player(n).get().time, target);
     EVENT_STATE.time_qualifies.set(u32::from(beaten));
     Ok(())
 }

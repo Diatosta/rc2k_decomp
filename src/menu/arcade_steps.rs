@@ -120,16 +120,16 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
     }
     let (_, player) = current()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
-    let figure = player.get().word(0x94);
+    let figure = player.get().figure;
     if bests::takes_record(figure, get(record + 0x30)?) {
-        let name = player.get().word(0x18);
+        let name = player.get().name;
         if name == 0 {
             return Err(BadInput("a null name").into());
         }
         let holder = bests::Holder {
             figure,
-            nationality: player.get().word(4),
-            car: player.get().word(8),
+            nationality: player.get().nationality,
+            car: player.get().car_number,
             name: bytes(name)?,
         };
         let mut r = table(record, STAGE_RECORD_LEN, 1)?;
@@ -150,7 +150,7 @@ pub fn check_arcade_level_score() -> Result<(), Refused> {
 pub fn check_arcade_stage_time() -> Result<(), Refused> {
     with_course_times(|_| ())?;
     let (_, player) = current()?;
-    let time = player.get().word(0x88);
+    let time = player.get().time;
     EVENT_STATE.player_time.set(time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
     if bests::makes_time(time, with_course_times(|ten| ten[9].head.key)?) {
@@ -167,14 +167,14 @@ fn new_best(
     seal: Option<bests::Seal>,
     line: Option<[u8; bests::LINE_LEN]>,
 ) -> Result<bests::NewBest, BadInput> {
-    let name_at = player.get().word(0x18);
+    let name_at = player.get().name;
     Ok(bests::NewBest {
         key,
         player: 1,
-        nationality: player.get().word(4),
+        nationality: player.get().nationality,
         name_at,
-        car: player.get().word(8),
-        group: player.get().word(0x90),
+        car: player.get().car_number,
+        group: player.get().class,
         name: bytes(name_at)?,
         entered: None,
         seal,
@@ -186,7 +186,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     let record = stage_record()?;
     with_course_times(|_| ())?;
     let (_, player) = current()?;
-    if player.get().word(0x18) == 0 {
+    if player.get().name == 0 {
         return Err(BadInput("a null name").into());
     }
     let course = get(record + 0x3C)?;
@@ -197,7 +197,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(
         player,
-        player.get().word(0x88),
+        player.get().time,
         Some(seal),
         Some(player.get().gap_20c),
     )?;
@@ -211,7 +211,7 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
 pub fn enter_arcade_level_score() -> Result<(), Refused> {
     with_level_scores(|_| ())?;
     let (n, player) = current()?;
-    if player.get().word(0x18) == 0 {
+    if player.get().name == 0 {
         return Err(BadInput("a null name").into());
     }
     // Converted: `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
@@ -227,7 +227,7 @@ pub fn enter_arcade_level_score() -> Result<(), Refused> {
 pub fn score_arcade_stage() -> Result<(), Refused> {
     let first = crate::menu::standings::player(0);
     RESULT_FIGURES.before[0].set(RESULT_FIGURES.totals[0].get());
-    RESULT_FIGURES.extra[0].set(first.get().word(0x94));
+    RESULT_FIGURES.extra[0].set(first.get().figure);
     // Converted: `rc2k_core::menu::standings::arcade_points`.
     let points =
         standings::arcade_points(ARCADE_GAME.places.get(), RESULT_FIGURES.positions[0].get());

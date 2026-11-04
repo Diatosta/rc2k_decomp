@@ -24,7 +24,7 @@ pub fn find_section_player() -> Result<SectionPlayer, Refused> {
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = EVENT_STATE.section.get();
     let done: [u32; 4] =
-        std::array::from_fn(|n| player(n as u32).get().word(0xB4 + 4 * section as usize));
+        std::array::from_fn(|n| player(n as u32).get().overall_points[section as usize]);
     let found = rc2k_core::menu::points::section_player(done);
     Ok(SectionPlayer {
         index: found.unwrap_or(u32::MAX),

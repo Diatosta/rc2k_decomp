@@ -19,8 +19,6 @@ pub fn reset_single_event() -> Result<(), Refused> {
     MENU_PAGES.services.set(0u32);
     EVENT_STATE.stages_done.set(0u32);
 
-    // Converted: `rc2k_core::menu::event::PLAYER_BEGIN`.
-    use rc2k_core::menu::event::PLAYER_BEGIN;
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
@@ -29,7 +27,7 @@ pub fn reset_single_event() -> Result<(), Refused> {
     EVENT_STATE.event_out.set(0u32);
 
     for n in (0..4).rev() {
-        put_all(player(n), &PLAYER_BEGIN)?;
+        player(n).update(rc2k_core::menu::player::Player::begin);
     }
     Ok(())
 }

@@ -7,6 +7,8 @@
 //! views, co-driver, keys, controller) and the state of the player's car (which car,
 //! damage, setup, wear). What is known of it; the rest are gaps.
 
+use crate::menu::event::HOUR;
+
 /// The players.
 pub const PLAYERS: u32 = 4;
 
@@ -49,12 +51,24 @@ pub struct Player {
     pub gap_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event`.
     pub field_84: u32,
-    pub gap_88: u32,
-    /// Zeroed for each player by `menu::begin_event`.
-    pub field_8c: u32,
-    pub no_turbo: u32,
-    pub gap_94: [u8; 56],
-    pub damage: [u32; 16],
+    /// The stage's time (`HOUR`: none yet; `menu::reset_player_times`).
+    pub time: u32,
+    /// The event's total time (`menu::reset_player_totals`; 0 at `menu::begin_event`).
+    pub total: u32,
+    /// The car's class, 0 .. 3 (its description's +8, `menu::take_shown_car`; the
+    /// standings' group).
+    pub class: u32,
+    /// The stage's figure (the time trial's; 0 at `menu::ready_players`).
+    pub figure: u32,
+    /// Six sections' stage points and their total (`menu::award_stage_points`).
+    pub stage_points: [u32; 7],
+    /// Six sections' overall points and their total (`menu::award_overall_points`).
+    pub overall_points: [u32; 7],
+    /// How the player is in the event: 1 taking part (`TAKES_PART`), 2 an entry below
+    /// the score (`entry_kind`), 6 out (`menu::reset_player_times`).
+    pub entry: u32,
+    /// The car's fourteen parts' damage (the service and inspection pages' figures).
+    pub damage: [u32; 14],
     pub tyre: u32,
     pub brake_balance: u32,
     pub ride_height: u32,
@@ -127,11 +141,19 @@ impl Player {
         word(0x48, self.field_48);
         word(0x4c, self.gap_4c);
         word(0x84, self.field_84);
-        word(0x88, self.gap_88);
-        word(0x8c, self.field_8c);
-        word(0x90, self.no_turbo);
+        word(0x88, self.time);
+        word(0x8c, self.total);
+        word(0x90, self.class);
+        word(0x94, self.figure);
+        for (k, &v) in self.stage_points.iter().enumerate() {
+            word(0x98 + 4 * k, v);
+        }
+        for (k, &v) in self.overall_points.iter().enumerate() {
+            word(0xb4 + 4 * k, v);
+        }
+        word(0xd0, self.entry);
         for (k, &v) in self.damage.iter().enumerate() {
-            word(0xcc + 4 * k, v);
+            word(0xd4 + 4 * k, v);
         }
         word(0x10c, self.tyre);
         word(0x110, self.brake_balance);
@@ -172,7 +194,6 @@ impl Player {
         b[0x34..0x34 + self.gap_34.len()].copy_from_slice(&self.gap_34);
         b[0x50..0x50 + self.controls_50.len()].copy_from_slice(&self.controls_50);
         b[0x7c..0x7c + self.gap_7c.len()].copy_from_slice(&self.gap_7c);
-        b[0x94..0x94 + self.gap_94.len()].copy_from_slice(&self.gap_94);
         b[0x124..0x124 + self.name_copy.len()].copy_from_slice(&self.name_copy);
         b[0x20c..0x20c + self.gap_20c.len()].copy_from_slice(&self.gap_20c);
         b[0x26c..0x26c + self.gap_26c.len()].copy_from_slice(&self.gap_26c);
@@ -257,11 +278,14 @@ impl Player {
             controls_50: bytes::<0x2c>(&b, 0x50),
             gap_7c: bytes::<0x8>(&b, 0x7c),
             field_84: word(&b, 0x84),
-            gap_88: word(&b, 0x88),
-            field_8c: word(&b, 0x8c),
-            no_turbo: word(&b, 0x90),
-            gap_94: bytes::<0x38>(&b, 0x94),
-            damage: words::<16>(&b, 0xcc),
+            time: word(&b, 0x88),
+            total: word(&b, 0x8c),
+            class: word(&b, 0x90),
+            figure: word(&b, 0x94),
+            stage_points: words::<7>(&b, 0x98),
+            overall_points: words::<7>(&b, 0xb4),
+            entry: word(&b, 0xd0),
+            damage: words::<14>(&b, 0xd4),
             tyre: word(&b, 0x10c),
             brake_balance: word(&b, 0x110),
             ride_height: word(&b, 0x114),
@@ -353,10 +377,10 @@ impl Player {
     }
 
     /// `menu::take_shown_car`: the car of a car list's entry (its +0 the car's number, +8
-    /// whether it has no turbo) given to the player.
-    pub fn take_car(&mut self, number: u32, no_turbo: u32) {
+    /// its class) given to the player.
+    pub fn take_car(&mut self, number: u32, class: u32) {
         self.car_number = number;
-        self.no_turbo = no_turbo;
+        self.class = class;
     }
 
     /// `menu::toggle_player_3c`: +0x3C's bit 0 turned over.
@@ -389,6 +413,74 @@ impl Player {
     pub fn change(&mut self, s: Setting, up: bool) {
         let v = self.setting(s);
         *v = stepped(s, *v, up);
+    }
+}
+
+/// A player's `entry` while taking part.
+pub const TAKES_PART: u32 = 1;
+/// A player's `entry` once out of the event (`menu::reset_player_times`).
+pub const OUT: u32 = 6;
+
+impl Player {
+    /// `menu::begin_event` and `reset_single_event`: no total, +0x84 0, taking part.
+    pub fn begin(&mut self) {
+        self.total = 0;
+        self.field_84 = 0;
+        self.entry = TAKES_PART;
+    }
+
+    /// `menu::reset_player_times`: no stage time yet, out.
+    pub fn reset_times(&mut self) {
+        self.time = HOUR;
+        self.entry = OUT;
+    }
+
+    /// `menu::reset_player_totals`: no total or stage time yet.
+    pub fn reset_totals(&mut self) {
+        self.total = HOUR;
+        self.time = HOUR;
+    }
+
+    /// `menu::ready_players`: taking part again, time and figure 0.
+    pub fn ready(&mut self) {
+        self.entry = TAKES_PART;
+        self.time = 0;
+        self.figure = 0;
+    }
+
+    /// `menu::add_player_times`: one that took part has its stage time added to its
+    /// total, another both none yet.
+    pub fn add_time(&mut self) {
+        if self.entry == TAKES_PART {
+            self.total = self.total.wrapping_add(self.time);
+        } else {
+            self.time = HOUR;
+            self.total = HOUR;
+        }
+    }
+
+    /// `menu::clear_result_slots`: the stage and overall points emptied
+    /// (`event::empty_result_slot`).
+    pub fn clear_results(&mut self) {
+        for (k, slot) in self
+            .stage_points
+            .iter_mut()
+            .chain(&mut self.overall_points)
+            .enumerate()
+        {
+            *slot = crate::menu::event::empty_result_slot(k);
+        }
+    }
+
+    /// `menu::begin_event`: the setup's defaults: gear ratio 2, brake balance 0x32, tyre
+    /// 3, ride height 0x46, suspension 0x1E, steering sensitivity the controller's.
+    pub fn default_setup(&mut self) {
+        self.gear_ratio = 2;
+        self.brake_balance = 0x32;
+        self.tyre = 3;
+        self.ride_height = 0x46;
+        self.suspension_stiffness = 0x1E;
+        self.steering_sensitivity = self.controller_sensitivity;
     }
 }
 
@@ -566,6 +658,30 @@ mod tests {
     }
 
     #[test]
+    fn event_steps() {
+        let mut p = Player::from_le_bytes([0; 0x28c]);
+        p.time = 5;
+        p.total = u32::MAX;
+        p.entry = TAKES_PART;
+        p.add_time();
+        assert_eq!((p.time, p.total), (5, 4));
+        p.entry = 2;
+        p.add_time();
+        assert_eq!((p.time, p.total), (HOUR, HOUR));
+        p.clear_results();
+        let b = p.to_le_bytes();
+        let at = |o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap());
+        assert_eq!(
+            (at(0x98), at(0xB0), at(0xB4), at(0xCC)),
+            (u32::MAX, 0, u32::MAX, 0)
+        );
+        assert_eq!(at(0xD0), 2);
+        p.controller_sensitivity = 9;
+        p.default_setup();
+        assert_eq!((p.word(0x11C), p.word(0x120), p.word(0x10C)), (9, 2, 3));
+    }
+
+    #[test]
     fn bytes_there_and_back() {
         let mut bytes = [0u8; 0x28c];
         for (n, b) in bytes.iter_mut().enumerate() {
@@ -574,8 +690,9 @@ mod tests {
         let p = Player::from_le_bytes(bytes);
         assert_eq!(p.to_le_bytes(), bytes);
         let mut q = p;
-        q.store(&[(0x8C, 5), (0xD0, 1)]);
-        assert_eq!(q.field_8c, 5);
+        q.store(&[(0x8C, 5), (0xD0, 1), (0x98, 7), (0xCC, 8), (0xD4, 9)]);
+        assert_eq!((q.total, q.entry, q.stage_points[0]), (5, 1, 7));
+        assert_eq!((q.overall_points[6], q.damage[0]), (8, 9));
         assert_eq!(q.word(0xD0), 1);
         assert_eq!(q.word(4), p.nationality);
     }

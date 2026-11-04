@@ -32,16 +32,16 @@ pub fn enter_record_entry() -> Result<(), Refused> {
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = p.get().word(0x18);
+    let name_at = p.get().name;
     let best = bests::NewBest {
-        key: p.get().word(0x88),
+        key: p.get().time,
         player: n + 1,
-        nationality: p.get().word(4),
+        nationality: p.get().nationality,
         name_at,
-        car: p.get().word(8),
-        group: p.get().word(0x90),
+        car: p.get().car_number,
+        group: p.get().class,
         name: bytes(name_at)?,
-        entered: Some(p.get().word(0xD0)),
+        entered: Some(p.get().entry),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };

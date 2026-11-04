@@ -8,12 +8,12 @@
 //! Refuses (before anything) a player count of 0 or past 4 or a player missing .
 
 use crate::errors::Refused;
-use crate::menu::standings::{counted_players, put_all};
+use crate::menu::standings::counted_players;
 
 pub fn ready_players() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::event::PLAYER_READY`.
+    // Converted: `rc2k_core::menu::player::Player::ready`.
     for p in counted_players()? {
-        put_all(p, &rc2k_core::menu::event::PLAYER_READY)?;
+        p.update(rc2k_core::menu::player::Player::ready);
     }
     Ok(())
 }

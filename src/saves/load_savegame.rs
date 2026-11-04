@@ -102,8 +102,8 @@ pub fn load_savegame() -> Result<(), Refused> {
         RECORDS_LEN,
         "the saved drivers",
     )?;
-    SCREEN_FLOW.start_section.set(cars[0].get().word(0x14));
-    SCREEN_FLOW.start_section_a8.set(cars[0].get().word(0x274));
+    SCREEN_FLOW.start_section.set(cars[0].get().field_14);
+    SCREEN_FLOW.start_section_a8.set(cars[0].get().field_274);
 
     match resume(crate::menu::next_record_kind::next_record_kind()?) {
         Resume::NextSection => {

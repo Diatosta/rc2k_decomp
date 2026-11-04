@@ -157,7 +157,7 @@ impl races::EventRaces for Game {
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        player(i).get().word(0xD0) == races::TAKES_PART
+        player(i).get().entry == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {

@@ -14,10 +14,8 @@ use crate::menu::standings::*;
 /// The Rust version (see the header): the registers it leaves.
 pub fn clear_result_slots() -> Result<(), Refused> {
     let drivers = drivers()?;
-    // Converted: `rc2k_core::menu::event::result_slots`.
-    use rc2k_core::menu::event::result_slots;
     for n in 0..4 {
-        put_all(player(n), &result_slots(0x98))?;
+        player(n).update(rc2k_core::menu::player::Player::clear_results);
     }
     drivers.iter().for_each(Driver::clear_results);
     Ok(())

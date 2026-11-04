@@ -23,7 +23,7 @@ pub fn time_trial_qualifies() -> Result<(), Refused> {
     stage_times()?;
     let p = current_player()?;
     set(QUALIFIES, 0);
-    let time = p.get().word(0x88);
+    let time = p.get().time;
     set(TIME, time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
     let best = with_stage_times(|ten| ten[9].head.key)?;

@@ -1155,11 +1155,9 @@ pub fn car_of(handle: u32) -> Result<usize, BadInput> {
     }
 }
 
-/// Where the description a handle names is (`car_of`).
-pub fn description_ptr(handle: u32) -> Result<crate::pointers::GamePtr, BadInput> {
-    Ok(crate::pointers::GamePtr::to(
-        &CAR_TABLE.descriptions[car_of(handle)?],
-    ))
+/// The description a handle names (`car_of`).
+pub fn description(handle: u32) -> Result<&'static Shared<CarDescription>, BadInput> {
+    Ok(&CAR_TABLE.descriptions[car_of(handle)?])
 }
 
 /// The table's entry for car `number` (refused past the 34: the original reads on into
@@ -1186,9 +1184,7 @@ pub fn cars_addr() -> u32 {
 /// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
 pub fn description_table(entry: u32) -> Result<u32, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
-    let table = description_ptr(entry)?
-        .offset(0x74)
-        .read::<u32>("a car description's table")?;
+    let table = description(entry)?.get().figures;
     if table == 0 {
         return Err(crate::errors::BadInput("a car without its table"));
     }

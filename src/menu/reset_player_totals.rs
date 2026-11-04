@@ -11,9 +11,9 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_player_totals() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::event::PLAYER_TOTALS`.
+    // Converted: `rc2k_core::menu::player::Player::reset_totals`.
     for p in counted_players()? {
-        put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS)?;
+        p.update(rc2k_core::menu::player::Player::reset_totals);
     }
     Ok(())
 }

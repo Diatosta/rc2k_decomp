@@ -16,7 +16,7 @@ use crate::menu::standings::*;
 /// down (`copy_standing_entry`, ebx the player's index).
 fn players_by_group(firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
-    let groups: Vec<u32> = players.iter().map(|p| p.get().word(0x90)).collect();
+    let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         { crate::menu::copy_standing_entry::copy_standing_entry(e, players[n], n as u32) }?;

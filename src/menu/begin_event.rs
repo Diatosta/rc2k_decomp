@@ -18,17 +18,16 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player::PLAYERS;
-use crate::menu::standings::put_all;
 use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
+use rc2k_core::menu::player::Player;
 
 const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 pub fn begin_event() -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers()?;
     MENU_PAGES.services.set(0u32);
     EVENT_STATE.stages_done.set(0u32);
-    // Converted: `rc2k_core::menu::event` (`PLAYER_BEGIN`, `KEEPS_SETUP`, `setup_defaults`).
-    use rc2k_core::menu::event::{PLAYER_BEGIN, setup_defaults};
+    // Converted: `rc2k_core::menu::player::Player::{begin, default_setup}`.
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
@@ -37,11 +36,10 @@ pub fn begin_event() -> Result<(), Refused> {
     for n in 0..PLAYERS {
         CURRENT_PLAYER.set(n);
         let p = crate::menu::standings::player(n);
-        put_all(p, &PLAYER_BEGIN)?;
+        p.update(Player::begin);
         crate::service::repair_parts::repair_car()?;
         if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
-            let sensitivity = p.get().controller_sensitivity;
-            put_all(p, &setup_defaults(sensitivity))?;
+            p.update(Player::default_setup);
         }
     }
     Ok(())

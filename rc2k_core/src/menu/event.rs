@@ -9,64 +9,19 @@
 //! players' records are written by offset, as far as their fields are worked out: each
 //! step's stores, (offset, value), in the original's order.
 
-use super::standings::Store;
 use crate::strings::format::{Pad, decimal};
 
 /// No time yet: an hour in milliseconds.
 pub const HOUR: u32 = 3_600_000;
 
-/// `menu::begin_event` and `reset_single_event`: each player's +0x8C and +0x84 0, +0xD0 1.
-pub const PLAYER_BEGIN: [Store; 3] = [(0x8C, 0), (0x84, 0), (0xD0, 1)];
-
-/// `menu::reset_player_times`: each player's time (+0x88) none yet, +0xD0 6.
-pub const PLAYER_TIMES: [Store; 2] = [(0x88, HOUR), (0xD0, 6)];
-
-/// `menu::reset_player_totals`: each counted player's total (+0x8C) and time none yet.
-pub const PLAYER_TOTALS: [Store; 2] = [(0x8C, HOUR), (0x88, HOUR)];
-
-/// `menu::ready_players`: each counted player taking part again (+0xD0 1), time and
-/// figure (+0x88, +0x94) 0.
-pub const PLAYER_READY: [Store; 3] = [(0xD0, 1), (0x88, 0), (0x94, 0)];
-
-/// `menu::clear_result_slots`: fourteen result slots from `at` (a player's +0x98, a
-/// driver's +0x5C) emptied: -1, but 0 in the seventh and the last (two groups of six
-/// sections' points and their total: a player's stage points then overall points, a
-/// driver's overall then stage points).
-pub fn result_slots(at: usize) -> [Store; 14] {
-    std::array::from_fn(|k| (at + 4 * k, empty_result_slot(k)))
-}
-
-/// Result slot `k` emptied (`result_slots`).
+/// Result slot `k` emptied (`menu::clear_result_slots`): -1, but 0 in the seventh and the
+/// last (two groups of six sections' points and their total).
 pub fn empty_result_slot(k: usize) -> u32 {
     if k == 6 || k == 13 { 0 } else { u32::MAX }
 }
 
 /// The event mode that keeps the players' setups (`menu::begin_event`).
 pub const KEEPS_SETUP: u32 = 3;
-
-/// `menu::begin_event`: a player's setup's defaults: gear ratio 2, brake balance 0x32,
-/// tyre 3, ride height 0x46, suspension 0x1E, steering sensitivity the controller's
-/// (+0x280, `sensitivity`).
-pub fn setup_defaults(sensitivity: u32) -> [Store; 6] {
-    [
-        (0x120, 2),
-        (0x110, 0x32),
-        (0x10C, 3),
-        (0x114, 0x46),
-        (0x118, 0x1E),
-        (0x11C, sensitivity),
-    ]
-}
-
-/// `menu::add_player_times`: a player that took part (+0xD0 1) has its stage time added
-/// to its total (+0x8C), another both none yet.
-pub fn added_time(entered: u32, time: u32, total: u32) -> Vec<Store> {
-    if entered == 1 {
-        vec![(0x8C, total.wrapping_add(time))]
-    } else {
-        vec![(0x88, HOUR), (0x8C, HOUR)]
-    }
-}
 
 /// Which stage the stage screens' map shows (`dword_755700`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -170,14 +125,14 @@ mod tests {
 
     #[test]
     fn stores() {
-        let s = result_slots(0x98);
         assert_eq!(
-            (s[0], s[6], s[13]),
-            ((0x98, u32::MAX), (0xB0, 0), (0xCC, 0))
+            (
+                empty_result_slot(0),
+                empty_result_slot(6),
+                empty_result_slot(13)
+            ),
+            (u32::MAX, 0, 0)
         );
-        assert_eq!(setup_defaults(9)[5], (0x11C, 9));
-        assert_eq!(added_time(1, 5, u32::MAX), [(0x8C, 4)]);
-        assert_eq!(added_time(2, 5, 7), [(0x88, HOUR), (0x8C, HOUR)]);
         assert_eq!(MapStage::Choice as u32, 1);
     }
 

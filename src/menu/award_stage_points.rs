@@ -68,7 +68,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
             DRAW_WORK.seconds.set(points.0);
             let keeps = match *o {
                 Owner::Driver(d) => d.in_event.get() == IN_EVENT,
-                Owner::Player(p) => p.get().word(0xD0) == 1,
+                Owner::Player(p) => p.get().entry == 1,
             };
             e.stage[section as usize] = kept(given, keeps);
             match *o {

@@ -53,7 +53,7 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
         (0..4).map(|k| RESULT_FIGURES.totals[k].get()).collect()
     } else {
-        players(4)?.iter().map(|&r| r.get().word(0x88)).collect()
+        players(4)?.iter().map(|&r| r.get().time).collect()
     };
     // Converted: `rc2k_core::menu::results::rank`.
     let pairs =
@@ -96,7 +96,7 @@ fn points(position: u32) -> Result<u32, Refused> {
 pub fn score(n: usize) -> Result<(), Refused> {
     let records = players(n as u32)?;
     let target = stage_time()?;
-    let times: Vec<u32> = records.iter().map(|&r| r.get().word(0x88)).collect();
+    let times: Vec<u32> = records.iter().map(|&r| r.get().time).collect();
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
@@ -121,7 +121,7 @@ pub fn score(n: usize) -> Result<(), Refused> {
             earned[k],
             times[k],
             target,
-            records[k].get().word(0x94),
+            records[k].get().figure,
         );
         RESULT_FIGURES.points[k].set(sc.points);
         RESULT_FIGURES.time_bonus[k].set(sc.bonus);

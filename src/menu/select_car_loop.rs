@@ -44,7 +44,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let Some(player) = crate::menu::player::player(current) else {
         return Err(crate::errors::BadInput("a current player past the four").into());
     };
-    SCREEN_FLOW.shown_gearing.set(player.get().word(0x30));
+    SCREEN_FLOW.shown_gearing.set(player.get().gearing);
     SCREEN_FLOW.turning.set(0x1u32);
     MENU_STATE.carousel.menu.set(0xDu32);
     carousel(entry.cars)?;

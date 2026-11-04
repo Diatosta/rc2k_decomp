@@ -97,7 +97,7 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                 nation: p.nationality,
                 car: p.car_number,
                 numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| p.word(o)),
-                shown: [p.word(0xB0) != 0, p.word(0xCC) != 0],
+                shown: [p.stage_points[6] != 0, p.overall_points[6] != 0],
             })
         };
         let cars = [car(0)?, car(1)?, car(2)?, car(3)?];

@@ -33,9 +33,7 @@ pub fn find_player_car() -> Result<(), Refused> {
     let mut cars = Vec::new();
     let mut n = 0;
     loop {
-        cars.push(
-            crate::menu::cars_store::description_ptr(entry(n)?)?.read::<u32>("a carousel car")?,
-        );
+        cars.push(crate::menu::cars_store::description(entry(n)?)?.get().car);
         if entry(n + 1)? == u32::MAX {
             break;
         }

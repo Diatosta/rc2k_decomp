@@ -184,12 +184,6 @@ pub fn table(first: u32, size: u32, count: u32) -> Result<GameTable, BadInput> {
     })
 }
 
-/// A record's stores (the core's) made at `p`.
-pub fn put_all(p: PlayerCell, stores: &[standings::Store]) -> Result<(), BadInput> {
-    p.update(|p| p.store(stores));
-    Ok(())
-}
-
 /// `N` bytes at `p`.
 pub fn bytes<const N: usize>(p: u32) -> Result<[u8; N], BadInput> {
     crate::pointers::GamePtr::new(p).read::<[u8; N]>("a name")
@@ -284,20 +278,20 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
-    let group = group.unwrap_or(p.get().word(0x90));
+    let group = group.unwrap_or(p.get().class);
     let scores = &crate::saves::best_times::SCORES;
-    let (true, true, false) = (scores.is_taken(), group < 5, p.get().word(0x18) == 0) else {
+    let (true, true, false) = (scores.is_taken(), group < 5, p.get().name == 0) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
     // Converted: `rc2k_core::saves::scores::enter_best`.
     use rc2k_core::saves::scores as s;
-    let name_ref = p.get().word(0x18);
+    let name_ref = p.get().name;
     let best = s::Best {
         player: n + 1,
         score: p.get().word(score_at as usize),
-        nation: p.get().word(4),
-        car: p.get().word(8),
-        group: p.get().word(0x90),
+        nation: p.get().nationality,
+        car: p.get().car_number,
+        group: p.get().class,
         name_ref,
         name: bytes(name_ref)?,
     };
@@ -327,7 +321,7 @@ pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
 pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
     let limit = MENU_STATE.driver_stats.limits[k as usize].get() as i32;
-    Ok(p.get().word(0xD4 + 4 * k as usize) as i32 >= limit)
+    Ok(p.get().damage[k as usize] as i32 >= limit)
 }
 
 /// What the numbering functions (`number_all_a`, `number_all_b`, `number_standings_a`,

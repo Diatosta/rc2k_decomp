@@ -116,8 +116,7 @@ fn check_cars(list: CarList, from_second: bool) -> Result<(), Refused> {
     reading(list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
-        let number = |car: u32| match crate::menu::cars_store::description_ptr(car)
-            .and_then(|d| d.read::<u32>("a car of the carousel"))
+        let number = |car: u32| match crate::menu::cars_store::description(car).map(|d| d.get().car)
         {
             Ok(n) => n,
             Err(e) => {
@@ -142,8 +141,7 @@ fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
             if car == u32::MAX {
                 break;
             }
-            let first: u32 =
-                crate::menu::cars_store::description_ptr(car)?.read("a car of the carousel")?;
+            let first = crate::menu::cars_store::description(car)?.get().car;
             // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
             // on past the table, into what the image has after it (other statics now:
             // `MOVED` resolves each address to its home).
