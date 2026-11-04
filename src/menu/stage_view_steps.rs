@@ -92,7 +92,7 @@ pub fn play_stage_speech() -> Result<(), Refused> {
         if let Some(e) = fault.take() {
             return Err(e.into());
         }
-        let at = crate::menu::texts_store::text_at(at?)?.addr();
+        let at = at?;
         crate::sound::store::CAR_STREAM.on.set(1);
         crate::sound::store::CAR_STREAM.stream.set(at);
         crate::sound::store::CAR_STREAM.place.set(0);

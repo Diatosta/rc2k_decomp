@@ -1055,7 +1055,8 @@ pub static NEXT_MENU_SOUND_TIME: Dword = Dword::new(0);
 /// `g_raceSoundsOn` (0x6218F0): 1 at start; the race's sounds switched.
 pub static RACE_SOUNDS_ON: Dword = Dword::new(1);
 
-/// The car stream's three dwords (0xA8C180 .. 0xA8C18C): the place it is at, its list, and
+/// The car stream's three dwords (0xA8C180 .. 0xA8C18C): the place it is at, its list (a
+/// speech row's `texts_store::text_key`; the original kept its address), and
 /// whether it is on (`sound::play_car_stream`, `sound::step_car_stream`, the stage
 /// view's speech).
 #[repr(C)]

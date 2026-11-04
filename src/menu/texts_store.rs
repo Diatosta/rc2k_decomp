@@ -2116,10 +2116,12 @@ const fn speech_key(ida: u32) -> u32 {
 /// A speech row's end mark.
 pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 
-/// The entry at `place` of the speech row at `row`: the sample name's address, or `SPEECH_END`.
+/// The entry at `place` of the speech row `row` (its `text_key`): the sample name's address,
+/// or `SPEECH_END`.
 pub fn speech_entry(row: u32, place: u32) -> Result<u32, crate::errors::BadInput> {
-    let entry =
-        crate::pointers::GamePtr::new(row.wrapping_add(4 * place)).read::<u32>("a speech row")?;
+    let entry = text_at(row)?
+        .offset(place.wrapping_mul(4))
+        .read::<u32>("a speech row")?;
     // 0: none, as the original's null.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
@@ -2171,11 +2173,11 @@ mod tests {
 
     #[test]
     fn each_speech_entry_names_the_samples_it_named_in_the_image() {
-        let (mut names, base) = (0, menu_texts_addr());
+        let mut names = 0;
         for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
             let image = image_bytes(at, 4);
             let wanted = u32::from_le_bytes(image[..4].try_into().unwrap());
-            let found = speech_entry(base + (at - START) as u32, 0).unwrap();
+            let found = speech_entry(text_key(at as u32), 0).unwrap();
             if wanted == SPEECH_END || wanted == 0 {
                 assert_eq!(found, wanted);
                 continue;
