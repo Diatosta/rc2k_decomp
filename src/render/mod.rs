@@ -15,6 +15,7 @@ pub use gles as gpu;
 pub mod gpu;
 pub mod software;
 
+use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
@@ -109,9 +110,9 @@ fn give_frame_back(target: &Target) {
 }
 
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
-/// canvas's written pixels over it.
+/// canvas's written pixels over it, with the number of its set of targets (`Gpu::colour_texture`).
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn finish_frame(target: &Target) -> Option<*mut sdl3_sys::everything::SDL_GPUTexture> {
+pub fn finish_frame(target: &Target) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64)> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
@@ -151,19 +152,59 @@ pub fn show_on_panel(target: &Target, frame: &[u8], width: usize, height: usize)
 
 // ---- textures' changes ----
 
-/// The textures whose memory may have changed since a GPU last asked.
-static CHANGED_TEXTURES: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+/// The textures changed since a GPU last asked, by their memory's address.
+#[derive(Default)]
+pub(crate) struct TextureChanges {
+    /// Written: what a GPU holds of them is to be brought up again.
+    pub written: HashSet<usize>,
+    /// Gone (their memory given back): what a GPU holds of them is to be let go.
+    pub gone: HashSet<usize>,
+}
 
-/// The texture at `pixels` is being written, or is gone.
-pub fn texture_changed(pixels: usize) {
-    let mut changed = CHANGED_TEXTURES.lock().unwrap();
-    if !changed.contains(&pixels) {
-        changed.push(pixels);
+impl TextureChanges {
+    fn note(&mut self, pixels: usize, gone: bool) {
+        if gone {
+            self.written.remove(&pixels);
+            self.gone.insert(pixels);
+        } else if !self.gone.contains(&pixels) {
+            self.written.insert(pixels);
+        }
     }
 }
 
-pub(crate) fn take_changed_textures() -> Vec<usize> {
-    std::mem::take(&mut *CHANGED_TEXTURES.lock().unwrap())
+static CHANGED_TEXTURES: Mutex<Option<TextureChanges>> = Mutex::new(None);
+
+/// Whether a GPU backend has started: only then are the textures' changes kept (nothing
+/// else asks for them).
+static GPU_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// A GPU backend has started and keeps textures: their changes are kept from now on.
+pub(crate) fn gpu_started() {
+    GPU_STARTED.store(true, Relaxed);
+}
+
+fn note_texture_change(pixels: usize, gone: bool) {
+    if GPU_STARTED.load(Relaxed) {
+        CHANGED_TEXTURES
+            .lock()
+            .unwrap()
+            .get_or_insert_default()
+            .note(pixels, gone);
+    }
+}
+
+/// The texture at `pixels` is being written.
+pub fn texture_written(pixels: usize) {
+    note_texture_change(pixels, false);
+}
+
+/// The texture at `pixels` is gone: its memory has been given back.
+pub fn texture_gone(pixels: usize) {
+    note_texture_change(pixels, true);
+}
+
+pub(crate) fn take_changed_textures() -> TextureChanges {
+    CHANGED_TEXTURES.lock().unwrap().take().unwrap_or_default()
 }
 
 /// A texture's pixels as bytes of 0xAARRGGBB, its rows without gaps.
@@ -241,3 +282,26 @@ pub static PARALLEL_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::At
 pub static TILE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+#[cfg(test)]
+mod tests {
+    use super::TextureChanges;
+
+    #[test]
+    fn a_texture_gone_is_not_also_written() {
+        let mut changes = TextureChanges::default();
+        changes.note(0x100, false);
+        changes.note(0x100, false);
+        changes.note(0x200, false);
+        changes.note(0x200, true);
+        // Gone, then made again at the same address and written: still to be let go.
+        changes.note(0x300, true);
+        changes.note(0x300, false);
+        let mut written: Vec<_> = changes.written.iter().copied().collect();
+        let mut gone: Vec<_> = changes.gone.iter().copied().collect();
+        written.sort();
+        gone.sort();
+        assert_eq!(written, [0x100]);
+        assert_eq!(gone, [0x200, 0x300]);
+    }
+}

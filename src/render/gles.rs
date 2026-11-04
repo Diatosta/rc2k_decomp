@@ -71,6 +71,7 @@ library! {
     glUniform2f: fn(i32, f32, f32);
     glUniform4fv: fn(i32, i32, *const f32);
     glGenTextures: fn(i32, *mut u32);
+    glDeleteTextures: fn(i32, *const u32);
     glBindTexture: fn(u32, u32);
     glTexImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
     glTexSubImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
@@ -861,9 +862,20 @@ impl Gpu {
         out
     }
 
+    /// The textures whose memory is gone let go of.
+    fn forget(&mut self, gone: &[usize]) {
+        for pixels in gone {
+            if let Some(texture) = self.textures.remove(pixels) {
+                // SAFETY: a name of ours, no longer in the table.
+                unsafe { (self.gl.glDeleteTextures)(1, &raw const texture.name) };
+            }
+        }
+    }
+
     fn run(mut self, jobs: Receiver<Job>) {
         for job in jobs {
             match job {
+                Job::Forget(gone) => self.forget(&gone),
                 Job::Draw(part) => self.draw(part),
                 Job::ShowTarget => self.show_target(),
                 Job::ShowPicture {
@@ -895,6 +907,8 @@ struct Part {
 }
 
 enum Job {
+    /// The textures whose memory is gone, by address.
+    Forget(Vec<usize>),
     Draw(Part),
     ShowTarget,
     ShowPicture {
@@ -930,8 +944,12 @@ impl Front {
     fn draw(&mut self, canvas: &mut [u8], commands: Vec<Command>) {
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        for pixels in super::take_changed_textures() {
-            self.known.remove(&pixels);
+        let changes = super::take_changed_textures();
+        for pixels in changes.written.iter().chain(&changes.gone) {
+            self.known.remove(pixels);
+        }
+        if !changes.gone.is_empty() {
+            self.send(Job::Forget(changes.gone.into_iter().collect()));
         }
         let (width, _) = self.size;
         let mut uploads = Vec::new();
@@ -1028,8 +1046,8 @@ fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usiz
         let (blocks, rest) = row.as_chunks::<BLOCK>();
         blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
     };
-    // Each row looked at once, the screen in bands side by side (the game's thread takes
-    // the last): the scan is the most of what the game's thread spends here.
+    // Each row looked at once, the screen in two bands side by side on rayon's threads (no
+    // thread made per flush): the scan is the most of what the game's thread spends here.
     const BANDS: usize = 2;
     let stride = width * 4;
     let mut written = vec![false; canvas.len() / stride.max(1)];
@@ -1039,16 +1057,13 @@ fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usiz
             *seen = row_written(row);
         }
     };
-    std::thread::scope(|scope| {
-        let mut parts = canvas.chunks(band * stride).zip(written.chunks_mut(band));
-        let last = parts.next_back();
-        for (rows, into) in parts {
-            scope.spawn(move || look(rows, into));
-        }
-        if let Some((rows, into)) = last {
-            look(rows, into);
-        }
-    });
+    let (first_rows, last_rows) = canvas.split_at((band * stride).min(canvas.len()));
+    let rows = written.len();
+    let (first_into, last_into) = written.split_at_mut(band.min(rows));
+    rayon::join(
+        || look(first_rows, first_into),
+        || look(last_rows, last_into),
+    );
     let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
     for y in (0..written.len()).filter(|&y| written[y]) {
         match runs.last_mut() {
@@ -1113,6 +1128,7 @@ pub fn start_if_wanted() {
                 known: HashMap::new(),
                 size: (0, 0),
             });
+            super::gpu_started();
         }
         Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
     }

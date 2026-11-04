@@ -184,7 +184,7 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
         flush();
     }
     if let Some(pixels) = pixels {
-        crate::render::texture_changed(pixels as usize);
+        crate::render::texture_written(pixels as usize);
     }
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
@@ -731,7 +731,7 @@ fn release_pool(pool: usize) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
                 if let Some(gone) = slot {
-                    crate::render::texture_changed(gone.pixels.addr() as usize);
+                    crate::render::texture_gone(gone.pixels.addr() as usize);
                 }
                 *slot = None;
             }
@@ -796,7 +796,7 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
             None => continue,
         };
         if let Some(Some(target)) = memory.get_mut(to) {
-            crate::render::texture_changed(target.pixels.addr() as usize);
+            crate::render::texture_written(target.pixels.addr() as usize);
             let n = pixels.len().min(target.pixels.len());
             // SAFETY: this thread draws; the target is not locked while it is loaded.
             let to = unsafe { target.pixels.slice_mut() };

@@ -37,6 +37,25 @@ struct CachedTexture {
     stale: bool,
 }
 
+/// The targets a frame is drawn into, at the screen's size.
+struct Targets {
+    colour: *mut SDL_GPUTexture,
+    depth: *mut SDL_GPUTexture,
+    canvas: *mut SDL_GPUTexture,
+    canvas_transfer: *mut SDL_GPUTransferBuffer,
+}
+
+impl Default for Targets {
+    fn default() -> Targets {
+        Targets {
+            colour: null_mut(),
+            depth: null_mut(),
+            canvas: null_mut(),
+            canvas_transfer: null_mut(),
+        }
+    }
+}
+
 pub struct Gpu {
     device: *mut SDL_GPUDevice,
     colour: *mut SDL_GPUTexture,
@@ -45,6 +64,8 @@ pub struct Gpu {
     canvas_transfer: *mut SDL_GPUTransferBuffer,
     width: u32,
     height: u32,
+    /// How many times the targets have been made: names the colour target's set.
+    targets_made: u64,
     depth_is_new: bool,
     scene_vert: *mut SDL_GPUShader,
     scene_frag: *mut SDL_GPUShader,
@@ -101,6 +122,7 @@ pub fn start(device: *mut SDL_GPUDevice) {
                 driver.to_string_lossy()
             ));
             *GPU.lock().unwrap() = Some(gpu);
+            super::gpu_started();
         }
         Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
     }
@@ -116,6 +138,7 @@ impl Gpu {
             canvas_transfer: null_mut(),
             width: 0,
             height: 0,
+            targets_made: 0,
             depth_is_new: true,
             scene_vert: null_mut(),
             scene_frag: null_mut(),
@@ -342,37 +365,62 @@ impl Gpu {
         Ok(pipeline)
     }
 
-    /// The targets at the screen's size.
+    /// The targets at the screen's size. On a failure the old ones are kept, whole.
     pub fn set_size(&mut self, width: u32, height: u32) -> Result<(), String> {
         if (width, height) == (self.width, self.height) {
             return Ok(());
         }
-        // SAFETY: the old targets are ours; SDL waits for work that uses them.
-        unsafe {
-            if !self.colour.is_null() {
-                SDL_ReleaseGPUTexture(self.device, self.colour);
-                SDL_ReleaseGPUTexture(self.device, self.depth);
-                SDL_ReleaseGPUTexture(self.device, self.canvas);
-                SDL_ReleaseGPUTransferBuffer(self.device, self.canvas_transfer);
-            }
+        let mut made = Targets::default();
+        let outcome = self.make_targets(&mut made, width, height);
+        if let Err(why) = outcome {
+            self.release_targets(&made);
+            return Err(why);
         }
-        self.colour = self.make_texture(
+        let old = Targets {
+            colour: std::mem::replace(&mut self.colour, made.colour),
+            depth: std::mem::replace(&mut self.depth, made.depth),
+            canvas: std::mem::replace(&mut self.canvas, made.canvas),
+            canvas_transfer: std::mem::replace(&mut self.canvas_transfer, made.canvas_transfer),
+        };
+        self.release_targets(&old);
+        (self.width, self.height) = (width, height);
+        self.targets_made += 1;
+        self.depth_is_new = true;
+        Ok(())
+    }
+
+    /// Fills `made` with targets of `width` x `height`, up to the first that fails.
+    fn make_targets(&self, made: &mut Targets, width: u32, height: u32) -> Result<(), String> {
+        made.colour = self.make_texture(
             width,
             height,
             SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
         )?;
-        self.depth = self.make_texture_of(
+        made.depth = self.make_texture_of(
             DEPTH_FORMAT,
             width,
             height,
             SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
         )?;
-        self.canvas = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
-        self.canvas_transfer =
+        made.canvas = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
+        made.canvas_transfer =
             self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4)?;
-        (self.width, self.height) = (width, height);
-        self.depth_is_new = true;
         Ok(())
+    }
+
+    /// The targets released, those of them that were made.
+    fn release_targets(&self, targets: &Targets) {
+        // SAFETY: ours, no longer held by `self`; SDL waits for work that uses them.
+        unsafe {
+            for texture in [targets.colour, targets.depth, targets.canvas] {
+                if !texture.is_null() {
+                    SDL_ReleaseGPUTexture(self.device, texture);
+                }
+            }
+            if !targets.canvas_transfer.is_null() {
+                SDL_ReleaseGPUTransferBuffer(self.device, targets.canvas_transfer);
+            }
+        }
     }
 
     fn make_transfer(
@@ -392,9 +440,10 @@ impl Gpu {
             .ok_or_else(sdl_error)
     }
 
-    /// The colour target, for showing it.
-    pub fn colour_texture(&self) -> *mut SDL_GPUTexture {
-        self.colour
+    /// The colour target, for showing it, and the number of its set of targets (a new
+    /// target may be made at an old one's address).
+    pub fn colour_texture(&self) -> (*mut SDL_GPUTexture, u64) {
+        (self.colour, self.targets_made)
     }
 
     /// `bytes` into the transfer buffer `transfer` from `at` (cycled when `at` is 0: the last
@@ -466,11 +515,19 @@ impl Gpu {
         Ok(())
     }
 
-    /// Forgets what is known of textures whose memory has changed.
+    /// Forgets what is known of textures whose memory has changed, and lets go of those whose
+    /// memory is gone.
     fn take_changes(&mut self) {
-        for pixels in super::take_changed_textures() {
+        let changes = super::take_changed_textures();
+        for pixels in changes.written {
             if let Some(texture) = self.textures.get_mut(&pixels) {
                 texture.stale = true;
+            }
+        }
+        for pixels in changes.gone {
+            if let Some(gone) = self.textures.remove(&pixels) {
+                // SAFETY: ours; SDL waits for work that uses it.
+                unsafe { SDL_ReleaseGPUTexture(self.device, gone.texture) };
             }
         }
     }

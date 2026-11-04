@@ -185,19 +185,19 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     });
 
     let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
+    // The old frame's texture is destroyed only once the new screen is whole: on a failure
+    // the old one stays as it was.
+    let old_texture = screen
+        .as_ref()
+        .map(|old| std::ptr::with_exposed_provenance_mut::<SDL_Texture>(old.texture));
     // SAFETY: SDL's calls on the window SDL made (kept in `SCREEN` while it lives), on
     // the thread that opened it; its renderer and textures the same.
     let (window, renderer, texture) = unsafe {
         let (window, renderer) = match screen.as_ref() {
-            Some(old) => {
-                SDL_DestroyTexture(std::ptr::with_exposed_provenance_mut::<SDL_Texture>(
-                    old.texture,
-                ));
-                (
-                    std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
-                    std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(old.renderer),
-                )
-            }
+            Some(old) => (
+                std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
+                std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(old.renderer),
+            ),
             None => {
                 // The handheld's frames go to the framebuffer (`handheld`).
                 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -260,8 +260,16 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         (window, renderer, texture)
     };
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut() {
-        gpu.set_size(width, height)?;
+    if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut()
+        && let Err(why) = gpu.set_size(width, height)
+    {
+        // SAFETY: the texture made above, held by nothing else.
+        unsafe { SDL_DestroyTexture(texture) };
+        return Err(why);
+    }
+    if let Some(old_texture) = old_texture {
+        // SAFETY: the old screen's texture, replaced below; nothing else holds it.
+        unsafe { SDL_DestroyTexture(old_texture) };
     }
     let pixels = crate::pointers::LentBytes::from_vec(vec![0u8; (bytes * width * height) as usize]);
     DRAW_SURFACE.present_pixels.set(pixels.addr());
@@ -357,18 +365,20 @@ pub fn unlock_surface() -> u32 {
 
 // ---- gfx::show_frame (0x4057D1) ----
 
-/// The GPU's colour target as a texture of the window's renderer: made once for a target.
+/// The GPU's colour target as a texture of the window's renderer: made once for a set of
+/// targets (`targets_made`, their number).
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 fn view_of(
     renderer: *mut SDL_Renderer,
-    colour: *mut SDL_GPUTexture,
+    (colour, targets_made): (*mut SDL_GPUTexture, u64),
     width: usize,
     height: usize,
 ) -> *mut SDL_Texture {
-    /// The target's handle and its view, as numbers.
-    static VIEW: Mutex<(usize, usize)> = Mutex::new((0, 0));
+    /// The number of the targets' set the view was made for (none yet: 0), and the view as
+    /// a number.
+    static VIEW: Mutex<(u64, usize)> = Mutex::new((0, 0));
     let mut view = VIEW.lock().unwrap();
-    if view.0 != colour.expose_provenance() {
+    if view.0 != targets_made {
         // SAFETY: SDL's properties, set and read in this block; the renderer and the target
         // are alive (`SCREEN`, `GPU`); the old view is this function's.
         unsafe {
@@ -405,7 +415,7 @@ fn view_of(
                 );
             }
             SDL_SetTextureBlendMode(made, SDL_BLENDMODE_NONE);
-            *view = (colour.expose_provenance(), made.expose_provenance());
+            *view = (targets_made, made.expose_provenance());
         }
     }
     std::ptr::with_exposed_provenance_mut(view.1)
