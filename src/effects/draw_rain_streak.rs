@@ -36,7 +36,7 @@ fn project() {
 /// The Rust version (see the header).
 pub fn draw_rain_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     {
-        if SETTINGS.pointer.get() == 0 {
+        if SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turn(&place);

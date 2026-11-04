@@ -140,7 +140,7 @@ pub fn emit_particle_1(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
         let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 1)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
-        let m = car.whole_matrix()?;
+        let m = car.whole()?;
         let side = (next_c5(&KIND1_SET.side_random) & 0x3FFF) as i32 - 0x2000;
         MARKS_FRAME.emit_side.set_bits(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
@@ -164,8 +164,8 @@ pub fn emit_particle_1(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
                 let k4 = 4 * k as u32;
                 let f = [0, 1, 2].map(|i| KIND1_SET.motion_k[3 * k + i].bits());
                 x87::three_products_80([
-                    [at(m + k4)?, field(wheel, 0x10)?, f[0]],
-                    [at(m + 0x20 + k4)?, field(wheel, 0x18)?, f[1]],
+                    [matrix_cell(m, k4)?, field(wheel, 0x10)?, f[0]],
+                    [matrix_cell(m, 0x20 + k4)?, field(wheel, 0x18)?, f[1]],
                     [EMITTER.side_b[k].bits(), field(wheel, 0xC)?, f[2]],
                 ])
             })

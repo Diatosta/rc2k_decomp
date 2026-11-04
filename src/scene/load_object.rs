@@ -32,7 +32,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_bytes;
 use crate::files::state::BYTES_READ;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
@@ -198,9 +197,9 @@ pub fn load_object() -> Result<(), Refused> {
     let known = find_object_kind(kind);
     MATRICES.known_object.set_bits(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
-    let record = LIGHT_RECORDS.record_addr(known) as usize + 0x58;
+    let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
     for part in &PARTS {
-        let group: u32 = GamePtr::new((record + part.group) as u32).read("a kind's record")?;
+        let group: u32 = record.offset(part.group as u32).read("a kind's record")?;
         let mut bits = 0;
         if group != u32::MAX {
             bits = 1u32 << (group & 31);

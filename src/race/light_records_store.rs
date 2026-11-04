@@ -41,6 +41,19 @@ impl LightRecords {
     }
 }
 
+impl LightRecords {
+    /// Record `index` as a place bounded to the whole group (the light records and the gear
+    /// figures after them): the original does not bound the index and reads on past the 34
+    /// records into the gear figures (`scene::load_object`).
+    pub fn record_ptr(&self, index: u32) -> crate::pointers::GamePtr {
+        use crate::race::groups_store::{LIGHTS_AND_GEAR, LightsAndGear};
+        crate::pointers::GamePtr::to(&LIGHTS_AND_GEAR).offset(
+            (core::mem::offset_of!(LightsAndGear, light_records) as u32)
+                .wrapping_add(index.wrapping_mul(0x134)),
+        )
+    }
+}
+
 /// The piece: a field of `race::groups_store::LIGHTS_AND_GEAR` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
@@ -89,5 +102,22 @@ mod tests {
         assert_eq!(offset_of!(LightRecord, groups), 0x5C90C4 - START);
         assert_eq!(offset_of!(LightRecord, lights), 0xA4);
         assert_eq!(LIGHT_RECORDS.record_addr(1), (piece_addr() + 0x134));
+    }
+
+    #[test]
+    fn a_record_place_reads_on_into_the_group_and_no_further() {
+        // The longest read: a group number of the kind past the 34 (load_object).
+        assert!(
+            LIGHT_RECORDS
+                .record_ptr(34)
+                .offset(0x58 + 0x28)
+                .read::<u32>("t")
+                .is_ok()
+        );
+        assert_eq!(
+            LIGHT_RECORDS.record_ptr(1).addr(),
+            LIGHT_RECORDS.record_addr(1)
+        );
+        assert!(LIGHT_RECORDS.record_ptr(0x1000).read::<u32>("t").is_err());
     }
 }

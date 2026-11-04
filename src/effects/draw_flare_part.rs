@@ -48,7 +48,7 @@ pub fn draw_flare_part(
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     {
-        if crate::effects::setup::SETTINGS.pointer.get() == 0 {
+        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         for n in 0..2 {

@@ -21,8 +21,7 @@
 //! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
 //! room) and a car without its block.
 
-use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
+use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
@@ -56,10 +55,9 @@ pub fn load_hud_car_icons() -> Result<(), Refused> {
     let player = if crate::net::store::NET.session.get() != 0 {
         let car = car_icons::one_car(crate::net::store::NET.player.get())?;
         let block: u32 = RACE_WORK.car_block(car);
-        if block == 0 {
-            return Err(BadInput("a car without its block").into());
-        }
-        GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?
+        crate::race::blocks_store::block_at(block, "a car without its block")?
+            .car_kind
+            .bits()
     } else {
         CAR_BLOCKS.cars[0].car_kind.bits()
     };

@@ -105,21 +105,22 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
     let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
     let car = emitting_car()?;
-    let m = car.whole_matrix()?;
+    let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&TWIN_STATE.point),
         set.tuning.lift.bits(),
-        car.whole_matrix_cells()?,
+        car.whole()?,
     );
     put(0x10, x)?;
     put(0x14, y)?;
     put(0x28, y_less)?;
     put(0x18, z)?;
-    let row = crate::effects::try_from_fn::<u32, 3>(|i| at(m + [0x18u32, 0x14, 0x10][i]))?
-        .into_iter()
-        .zip(set.tuning.row_k.iter())
-        .map(|(a, k)| x87::mul_80(a, k.bits()))
-        .collect::<Vec<_>>();
+    let row =
+        crate::effects::try_from_fn::<u32, 3>(|i| matrix_cell(cells, [0x18u32, 0x14, 0x10][i]))?
+            .into_iter()
+            .zip(set.tuning.row_k.iter())
+            .map(|(a, k)| x87::mul_80(a, k.bits()))
+            .collect::<Vec<_>>();
     let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
     let step: u32 = CLOCK.reciprocal.bits();
     for n in 0..3 {

@@ -67,9 +67,12 @@ pub fn home() -> usize {
     ICON_UPLOAD.addr() as usize
 }
 
-/// The piece's place: what `blit_components` gets in ebx.
-fn piece_address() -> u32 {
-    ICON_UPLOAD.addr() + std::mem::offset_of!(IconUpload, piece) as u32
+/// The piece's place: what `blit_components` gets in ebx, bounded to the piece's four dwords
+/// (the longest read is its 16 bytes).
+fn piece_place() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&ICON_UPLOAD)
+        .offset(std::mem::offset_of!(IconUpload, piece) as u32)
+        .limited(std::mem::size_of::<[u32; 4]>() as u32)
 }
 
 /// What `upload_car_icon` is given (the original's registers): the icon sheet's two pictures
@@ -126,8 +129,7 @@ pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
     // blitted and the texture unlocked.
     if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
         let piece = Piece {
-            // The icon store's own piece (`Shared` keeps no typed pointer yet).
-            rectangle: crate::pointers::GamePtr::new(piece_address()),
+            rectangle: piece_place(),
             x: stored.target_x,
             y: stored.target_y,
             pixels,
@@ -148,5 +150,11 @@ mod block_tests {
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&ICON_UPLOAD, START, START + STORED_LEN);
         assert_eq!(crate::moved::place(START), ICON_UPLOAD.addr() as usize);
+    }
+
+    #[test]
+    fn the_piece_place_holds_its_four_dwords_and_no_more() {
+        assert!(piece_place().read::<[u32; 4]>("t").is_ok());
+        assert!(piece_place().read::<[u32; 5]>("t").is_err());
     }
 }

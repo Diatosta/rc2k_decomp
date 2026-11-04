@@ -75,7 +75,7 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
         let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
-        let m = car.whole_matrix()?;
+        let m = car.whole()?;
         let r = next_c5(&KIND21_SET.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);
@@ -84,9 +84,9 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
             let k = 4 * k as u32;
             Ok(x87::pair_sum_80(
                 a,
-                at(m + k)?,
+                matrix_cell(m, k)?,
                 b,
-                at(m + 0x20 + k)?,
+                matrix_cell(m, 0x20 + k)?,
                 field(wheel, 0x3C + k)?,
             ))
         })?;
@@ -95,7 +95,10 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
         put(0x28, x87::ext_less(place[1], KIND21_SET.lift.bits()))?;
         put(0x10, rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
-            let (first, third) = (at(m + 4 * k as u32)?, at(m + 0x20 + 4 * k as u32)?);
+            let (first, third) = (
+                matrix_cell(m, 4 * k as u32)?,
+                matrix_cell(m, 0x20 + 4 * k as u32)?,
+            );
             let f = [0, 1, 2].map(|i| KIND21_SET.motion_k[3 * k + i].bits());
             Ok(x87::three_products([
                 [first, field(wheel, 0x10)?, f[0]],

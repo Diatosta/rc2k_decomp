@@ -23,20 +23,16 @@
 //! before anything, null settings, a null entry or link on the way, a null object where one
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
+use crate::effects::emitters::matrix_cell;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::{RING_WORK, RingWork};
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
 use crate::scene::matrix3::extended;
 use crate::session::Float;
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a game field")
-}
 
 /// The settings' flag for a ring entry's tag (its +8, a car's number times 0x4C8 for the
 /// cars' emitters): the word at the tag + 0x60 in the settings.
@@ -187,7 +183,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                 let obj = car_or_none(eg(e, 0x68)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, eg(e, 8)?)? != 0;
-                if needs && obj.map_or(Ok(0), MarkCar::whole_matrix)? == 0 {
+                if needs && !obj.map_or(Ok(false), |c| c.has_block(0x24))? {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -227,11 +223,11 @@ fn aged(e: u32, ground: bool) -> Result<bool, Refused> {
 /// The place on the object's (unrounded sums), st(0) first.
 fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
-        let m = entry_car(e)?.whole_matrix()?;
+        let m = entry_car(e)?.whole()?;
         [
-            x87::add_80(eg(e, 0x10)?, get(m + 0x30)?),
-            x87::add_80(eg(e, 0x14)?, get(m + 0x34)?),
-            x87::add_80(eg(e, 0x18)?, get(m + 0x38)?),
+            x87::add_80(eg(e, 0x10)?, matrix_cell(m, 0x30)?),
+            x87::add_80(eg(e, 0x14)?, matrix_cell(m, 0x34)?),
+            x87::add_80(eg(e, 0x18)?, matrix_cell(m, 0x38)?),
         ]
     })
 }

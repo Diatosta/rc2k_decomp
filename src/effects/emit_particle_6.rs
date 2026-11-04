@@ -93,7 +93,7 @@ pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
         let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 6)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
-        let m = car.whole_matrix()?;
+        let m = car.whole()?;
         let r = next_c5(&KIND6_SET.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);
@@ -101,7 +101,13 @@ pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k = 4 * k as u32;
-                x87::pair_sum_80(a, at(m + k)?, b, at(m + 0x20 + k)?, field(wheel, 0x3C + k)?)
+                x87::pair_sum_80(
+                    a,
+                    matrix_cell(m, k)?,
+                    b,
+                    matrix_cell(m, 0x20 + k)?,
+                    field(wheel, 0x3C + k)?,
+                )
             })
         })?;
         put(0x18, rounded(place[2]))?;

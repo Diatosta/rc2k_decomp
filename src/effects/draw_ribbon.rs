@@ -34,7 +34,7 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
     {
-        if SETTINGS.pointer.get() == 0 {
+        if SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         DRAW_WORK.half[0].set_bits(width >> 1);

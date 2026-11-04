@@ -293,24 +293,25 @@ pub fn make_noise_curve() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The marks' settings pointer (IDA 0x767A28, phase 7, typed state): `g_marksSettings`, the
-/// address of the settings the game hands `effects::init_marks` (0 before; nothing runs
-/// without it).
+/// The marks' settings flag (IDA 0x767A28, phase 7, typed state): `g_marksSettings`, which
+/// held the address of the settings the game hands `effects::init_marks`; it is 1 once they are
+/// handed over and 0 before (nothing runs without them). The settings are the race's one
+/// record, `MARKS_SETTINGS` (the original kept its address).
 #[repr(C)]
 pub struct SettingsPointer {
-    /// 0x767A28: `g_marksSettings`.
-    pub pointer: Dword,
+    /// 0x767A28: `g_marksSettings`: 1 when the settings are set, else 0.
+    pub is_set: Dword,
 }
 
 pub static SETTINGS: SettingsPointer = SettingsPointer {
-    pointer: Dword::new(0),
+    is_set: Dword::new(0),
 };
 
 /// The marks' settings the race handed `effects::init_marks` (`race::marks_settings_store`,
 /// the one record `g_marksSettings` points at); refused while it points at none, where the
 /// original's reads through it would fault.
 pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettings, BadInput> {
-    if SETTINGS.pointer.get() == 0 {
+    if SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings"));
     }
     Ok(&crate::race::marks_settings_store::MARKS_SETTINGS)
@@ -402,7 +403,7 @@ mod clock_tests {
         assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
         assert_eq!(
             crate::moved::place(SettingsPointer::START),
-            SETTINGS.pointer.addr() as usize
+            SETTINGS.is_set.addr() as usize
         );
     }
 }

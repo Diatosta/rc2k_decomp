@@ -124,7 +124,7 @@ pub fn emit_particle_5_with(
         EMITTER.sign.set(sign as u32);
         EMITTER.strength.set_bits(strength);
         let car = emitting_car()?;
-        let m = car.whole_matrix()?;
+        let m = car.whole()?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         EMITTER.sides[0].set(a as u32);
@@ -134,11 +134,11 @@ pub fn emit_particle_5_with(
                 let k = 4 * k as u32;
                 x87::pair_sum_less(
                     a,
-                    at(m + k)?,
+                    matrix_cell(m, k)?,
                     b,
-                    at(m + 0x20 + k)?,
+                    matrix_cell(m, 0x20 + k)?,
                     field(wheel, 0x3C + k)?,
-                    at(m + 0x30 + k)?,
+                    matrix_cell(m, 0x30 + k)?,
                 )
             })
         })?;
@@ -150,7 +150,7 @@ pub fn emit_particle_5_with(
             Ok({
                 let lift = (k == 1).then(|| set.lift.bits());
                 x87::times_int_plus_times_80(
-                    at(m + 4 * k as u32)?,
+                    matrix_cell(m, 4 * k as u32)?,
                     set.motion_k[k].bits(),
                     sign,
                     lift,
@@ -162,7 +162,7 @@ pub fn emit_particle_5_with(
             jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
         let speed = field(wheel, 0x18)?;
         for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
-            let row = at(m + 0x28 - 4 * n as u32)?;
+            let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             put(
                 o,
                 x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved[n])),

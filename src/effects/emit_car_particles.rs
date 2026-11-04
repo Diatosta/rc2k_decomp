@@ -21,8 +21,7 @@ use crate::effects::emit_body_particles::emit_body_particles;
 use crate::effects::emit_wheel_particles::emit_wheel_particles;
 use crate::effects::emitters::*;
 use crate::effects::tuning::MARKS_FLOATS;
-use crate::errors::{BadInput, Refused};
-use crate::math::cells::At;
+use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::MarkCar;
 use crate::scene::matrix3::{extended, rounded};
@@ -33,9 +32,7 @@ use crate::session::{read_bits, write_bits};
 const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
 /// The Rust version (see the header): `o` the car's object (the original's esi).
 pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
-    if o.whole_matrix()? == 0 {
-        return Err(BadInput("a null car matrix").into());
-    }
+    o.whole()?;
     let k = read_bits(&EMITTER.place_k);
     let z1 = x87::int_times(o.word(0xC)? as i32, k[0]);
     o.put(0x118, z1)?;
@@ -58,10 +55,10 @@ pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
         o.word(0x1A8)?,
         MARKS_FLOATS.half.bits(),
     ) as u32);
-    let m = o.whole_matrix()?;
+    let m = o.whole()?;
     for p in [0x110, 0x158, 0x1A0, 0x1E8] {
         let turned = rotate_point(
-            &At(m),
+            m,
             [
                 extended(o.word(p)?),
                 extended(o.word(p + 4)?),
@@ -74,12 +71,15 @@ pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
     }
     for (n, &r) in RECORDS[..4].iter().enumerate() {
         if n == 2 {
-            write_bits(&EMITTER.side_a, [at(m)?, at(m + 4)?, at(m + 8)?]);
+            write_bits(
+                &EMITTER.side_a,
+                [matrix_cell(m, 0)?, matrix_cell(m, 4)?, matrix_cell(m, 8)?],
+            );
             write_bits(
                 &EMITTER.side_b,
                 crate::effects::try_from_fn(|i__| {
                     let f = [0x20, 0x24, 0x28][i__];
-                    Ok(at(m + f)? ^ 0x8000_0000)
+                    Ok(matrix_cell(m, f)? ^ 0x8000_0000)
                 })?,
             );
         }

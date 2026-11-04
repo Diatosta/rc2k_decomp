@@ -2,11 +2,11 @@
 //! seed kept, then the fifteen steps (each after `nullsub_1` with its number in eax), the
 //! screen's middle and the kind's float.
 //!
-//! In:  the settings, the seed (the original's esi, eax; its ecx and edi are read by no
-//!      step)
+//! In:  the seed (eax; the original also took the settings in esi, here always the race's
+//!      one; its ecx and edi are read by no step)
 //! Out: nothing (no caller reads the registers it leaves)
 //!
-//! One caller, init mark's end (0x457030). Refuses no settings, and a kind (the settings'
+//! One caller, init mark's end (0x457030). Refuses a kind (the settings'
 //! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both
 //! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:
 //! fixed (section 16, 2026-10-23), they get 18240.0.
@@ -26,24 +26,18 @@ const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
 /// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
 const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 
-/// The Rust version (see the header): `settings` the settings (the original's esi), `seed`
-/// the seed (eax). The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
-pub fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
+/// The Rust version (see the header): `seed` the seed (eax). The original took the settings'
+/// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
+/// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
+pub fn init_marks(seed: u32) -> Result<(), Refused> {
     use crate::effects::*;
     {
-        if settings == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        // The race hands its one record (`race::marks_settings_store`); every read through
-        // `g_marksSettings` is a field of it.
+        // Every read through `g_marksSettings` is a field of the race's record.
         let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
-        if settings != crate::pointers::GamePtr::to(marks).addr() {
-            return Err(BadInput("marks settings that are not the race's record").into());
-        }
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
-        crate::effects::setup::SETTINGS.pointer.set(settings);
+        crate::effects::setup::SETTINGS.is_set.set(1);
         MARKS_WORK.seed.set(seed);
         CLOCK.started.set(0);
         edges::load_kind_data()?;

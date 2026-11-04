@@ -16,6 +16,7 @@
 //! than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::Car;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -60,7 +61,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
 }
 
 // Converted: `rc2k_core::scene::lamps::car_lights`
-pub fn add_car_lights(add: &mut dyn FnMut(usize) -> Result<(), Refused>) -> Result<(), Refused> {
+pub fn add_car_lights(add: &mut dyn FnMut(&Car) -> Result<(), Refused>) -> Result<(), Refused> {
     {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         if cars == 0 || cars > BLOCKS {
@@ -72,7 +73,7 @@ pub fn add_car_lights(add: &mut dyn FnMut(usize) -> Result<(), Refused>) -> Resu
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
             lights.0.finish()?;
             if lit {
-                add(block as usize)?;
+                add(crate::race::blocks_store::block_at(block, "no car")?)?;
             }
         }
         Ok(())

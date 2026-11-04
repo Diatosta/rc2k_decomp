@@ -78,9 +78,11 @@ impl FaceWorld for GameFace {
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
-        self.0.read(
-            LIGHT_RECORDS.record_addr(place as u32).wrapping_add(0x70),
-            "a kind's record",
+        self.0.keep(
+            LIGHT_RECORDS
+                .record_ptr(place as u32)
+                .offset(0x70)
+                .read("a kind's record"),
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {

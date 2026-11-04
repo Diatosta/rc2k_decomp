@@ -66,7 +66,7 @@ fn step_made(half: u32) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 pub fn run_splines() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }

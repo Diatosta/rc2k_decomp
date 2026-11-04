@@ -55,11 +55,9 @@ pub fn draw_disc() -> Result<(), Refused> {
                 .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
         HUD.scratch.set(t);
-        let base = crate::d3d::vertices_store::piece_addr();
-
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
-                disc_vertex(e, base + 0x20 * n as u32)?;
+                disc_vertex(e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
             }
             crate::hud::add_triangle::add_triangle()?;
         }

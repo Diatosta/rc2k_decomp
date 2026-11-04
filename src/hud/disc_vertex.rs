@@ -13,28 +13,28 @@
 //! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the original's
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
+use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
 use crate::hud::store::{HUD, Hud};
 use crate::math::x87_float::ld;
-use crate::pointers::GamePtr;
-use crate::scene::x87_mem::fstp;
+use crate::scene::x87_mem::{Base, fstp};
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
-fn place(h: &Hud, k: u32, e: u32) {
-    x87_1(h, k as usize, e as usize);
+fn place(h: &Hud, k: u32, vertex: &Vertex) {
+    x87_1(h, k as usize, vertex);
 }
 
-/// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
-pub fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
+/// The Rust version (see the header): ring entry `entry` into `vertex`.
+pub fn disc_vertex(entry: u32, vertex: &Vertex) -> Result<(), Refused> {
     if entry >= ENTRIES {
         return Err(BadInput("a disc entry past the ring").into());
     }
     {
         place(&HUD, entry * 4, vertex);
         let colour = (HUD.quad[0].get() << 24) | 0xFF_FFFF;
-        GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
-        GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
+        vertex.colour.set(colour);
+        vertex.specular.set(0);
     }
     Ok(())
 }
@@ -47,7 +47,7 @@ pub fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
 /// `[e + 0x1C] = ((((-[b + k + 0x914] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x718]) / [b + 0x6E0]`
 /// `[e + 0] = ([b + k + 0x848] * [b + 0x710]) + [b + 0x704]`
 /// `[e + 4] = (-[b + k + 0x88C] * [b + 0x710]) + [b + 0x708]`
-fn x87_1(h: &Hud, k: usize, e: usize) {
+fn x87_1(h: &Hud, k: usize, e: impl Base) {
     let t0 = ld(h.texture_ring_sines[k / 4].bits());
     let t1 = ld(h.disc_size.bits());
     let t2 = t0 * t1;

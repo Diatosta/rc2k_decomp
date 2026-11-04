@@ -20,10 +20,9 @@
 //! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
 //! byte without overflow. The x87's arithmetic in `X` (plain Rust since 2026-10-24; the
 //! original's instructions are `asm_reference` in the tests). Callers: `sub_44F1FE`, twice.
-//! Refuses when there is no block.
+//! Takes the car's block as a typed reference.
 
-use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::physics::car_store::Car;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -31,13 +30,6 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::session::MACHINE;
-
-// ---- game data ----
-/// In a car's block.
-const LAMPS_ON: usize = 0x84;
-const PLACE: usize = 0x134;
-const MATRIX: usize = 0x9CC;
-const STRENGTH: usize = 0xABC;
 
 // ---- Rust version ----
 
@@ -135,20 +127,16 @@ fn held(value: i32) -> u32 {
     }
 }
 
-pub fn add_car_light(car: usize) -> Result<(), BadInput> {
-    if car == 0 {
-        return Err(BadInput("no car"));
-    }
-    let read = |at: usize| GamePtr::new(car.wrapping_add(at) as u32).read::<u32>("a car's block");
-    if read(LAMPS_ON)? == 0 {
-        return Ok(());
+pub fn add_car_light(car: &Car) {
+    if car.lights_on.get() == 0 {
+        return;
     }
     let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
     let mut from = [0u32; 3];
     for k in 0..3 {
-        from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
+        from[k] = place[k].wrapping_sub(car.position[k].bits());
     }
-    let matrix: [u32; 16] = GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
+    let matrix = crate::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
     crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
     let [x, y, z] = seen;
@@ -160,7 +148,7 @@ pub fn add_car_light(car: usize) -> Result<(), BadInput> {
         .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
-    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(read(STRENGTH)?) >> 8;
+    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(car.marks_count.bits()) >> 8;
     let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
         [held(amount as i32) as usize]
         .get();
@@ -168,7 +156,6 @@ pub fn add_car_light(car: usize) -> Result<(), BadInput> {
     LIGHT_WORK
         .light_colour
         .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
-    Ok(())
 }
 
 #[cfg(all(test, target_arch = "x86"))]

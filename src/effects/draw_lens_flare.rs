@@ -24,7 +24,7 @@ const PARTS: u32 = 0x11;
 
 /// The Rust version (see the header).
 pub fn draw_lens_flare() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }

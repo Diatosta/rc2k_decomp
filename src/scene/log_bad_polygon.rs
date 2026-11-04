@@ -69,8 +69,9 @@ const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
 ];
 const PT: &std::ffi::CStr = c"pt"; // "pt"
 
-/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
-pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
+/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
+/// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
+pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
@@ -92,8 +93,7 @@ pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
         return Ok(());
     }
     for n in 0..count {
-        let vertex = vertices.wrapping_add(0x20 * n);
-        let words = GamePtr::new(vertex).read_bytes(0x20, "a vertex")?;
+        let words = vertices.offset(0x20 * n).read_bytes(0x20, "a vertex")?;
         log(WRITE, text(PT));
         log(INT, n);
         for (label, kind, offset) in VERTEX {

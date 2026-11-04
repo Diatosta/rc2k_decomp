@@ -14,7 +14,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame() -> Result<(), Refused> {
     {
-        if crate::effects::setup::SETTINGS.pointer.get() == 0 {
+        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());

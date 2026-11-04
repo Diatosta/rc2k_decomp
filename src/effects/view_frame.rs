@@ -15,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 
 /// The Rust version (see the header).
 pub fn view_frame() -> Result<(), Refused> {
-    if crate::effects::setup::SETTINGS.pointer.get() == 0 {
+    if crate::effects::setup::SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     {

@@ -93,7 +93,7 @@ fn refusal() -> Option<&'static str> {
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
-    if n > 0 && SETTINGS.pointer.get() == 0 {
+    if n > 0 && SETTINGS.is_set.get() == 0 {
         return Some("no marks settings");
     }
     None

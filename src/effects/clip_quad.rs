@@ -40,7 +40,7 @@ fn get(a: GamePtr) -> Result<u32, BadInput> {
 /// the clipped polygon (six at most) goes back there.
 pub fn clip_quad() -> Result<bool, Refused> {
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+        let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
         if settings == 0 {
             return Err(BadInput("null marks settings").into());
         }

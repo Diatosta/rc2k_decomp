@@ -86,7 +86,10 @@ pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Resu
 /// With the lamps' Rust versions.
 pub fn set_object_light_in_game() -> Result<(), Refused> {
     set_object_light(&mut || {
-        add_car_lights(&mut |car| Ok(add_car_light(car)?))?;
+        add_car_lights(&mut |car| {
+            add_car_light(car);
+            Ok(())
+        })?;
         add_point_lights()?;
         Ok(())
     })

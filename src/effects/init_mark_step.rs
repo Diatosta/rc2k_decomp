@@ -65,7 +65,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(MARKS_SETTINGS.settings_text.addr(), file)?;
+        crate::effects::init_marks::init_marks(file)?;
     }
     Ok(())
 }

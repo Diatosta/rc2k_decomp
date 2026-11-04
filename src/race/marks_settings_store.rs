@@ -1,5 +1,5 @@
 //! The marks' settings (IDA 0x5C2F84 .. 0x5C56EC): the record the race hands the effects
-//! (`effects::init_marks`' first argument, kept in `g_marksSettings`, `effects::setup::SETTINGS`)
+//! (`effects::init_marks`, now flagged in `g_marksSettings`, `effects::setup::SETTINGS`)
 //! and the effects read every frame: a head the race's views and `drive::set_listener` write,
 //! the eight cars' records (`effects::init_mark_step` copies them), and a tail of the
 //! listener's figures and switches. One record in the original, between the replay viewer's
@@ -177,44 +177,28 @@ impl MarkCar {
         Ok(crate::race::blocks_store::car_of(self.word(offset)?))
     }
 
-    /// Where the car's whole matrix is (the block's +0x8C0, the original's +0x24), 0 when
-    /// no block is set.
-    pub fn whole_matrix(&self) -> Result<u32, crate::errors::BadInput> {
-        Ok(self
-            .block_at(0x24)?
-            .map_or(0, |b| crate::pointers::GamePtr::to(&b.whole_matrix).addr()))
-    }
-
-    /// Where the car's first part matrix is (the block's +0x740, the original's +0x28), 0
-    /// when no block is set.
-    pub fn part_matrix(&self) -> Result<u32, crate::errors::BadInput> {
-        Ok(self
-            .block_at(0x28)?
-            .map_or(0, |b| crate::pointers::GamePtr::to(&b.part_matrices).addr()))
-    }
-
-    /// The car's whole matrix as cells, refused where the original would read address 0.
-    pub fn whole_matrix_cells(
-        &self,
-    ) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
+    /// The car's whole matrix (the block's +0x8C0, the original's +0x24); refused when no
+    /// block is set (the original reads from address 0).
+    pub fn whole(&self) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
         self.block_at(0x24)?
             .map(|b| &b.whole_matrix)
-            .ok_or(crate::errors::BadInput("a car record without its matrix"))
+            .ok_or(crate::errors::BadInput("a car record without its block"))
     }
 
-    /// The car's part matrices as cells (the first is `part_matrix`'s), refused as
-    /// `whole_matrix_cells`.
-    pub fn part_matrix_cells(
-        &self,
-    ) -> Result<&'static [crate::session::Float; 64], crate::errors::BadInput> {
+    /// The car's four part matrices (the block's +0x740, the original's +0x28); refused when no
+    /// block is set.
+    pub fn parts(&self) -> Result<&'static [crate::session::Float; 64], crate::errors::BadInput> {
         self.block_at(0x28)?
             .map(|b| &b.part_matrices)
-            .ok_or(crate::errors::BadInput(
-                "a car record without its part matrix",
-            ))
+            .ok_or(crate::errors::BadInput("a car record without its block"))
     }
 
-    /// Names block `handle` for `whole_matrix` and `part_matrix` (+0x24, +0x28).
+    /// Whether the record's block handle at `offset` (+0x24 or +0x28) names a block.
+    pub fn has_block(&self, offset: u32) -> Result<bool, crate::errors::BadInput> {
+        Ok(self.block_at(offset)?.is_some())
+    }
+
+    /// Names block `handle` for `whole` and `parts` (+0x24, +0x28).
     pub fn set_block(&self, handle: u32) -> Result<(), crate::errors::BadInput> {
         self.put(0x24, handle)?;
         self.put(0x28, handle)

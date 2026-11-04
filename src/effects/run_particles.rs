@@ -59,7 +59,7 @@ fn colour_index(e: u32, life: u32) -> Result<(i32, bool), Refused> {
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 fn refusal() -> Result<Option<&'static str>, Refused> {
     Ok({
-        let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+        let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }

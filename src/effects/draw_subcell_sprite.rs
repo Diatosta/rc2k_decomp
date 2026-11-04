@@ -53,7 +53,7 @@ pub fn draw_subcell_sprite(
         return Err(BadInput("a null ring entry").into());
     }
     fog_at(0)?;
-    if SETTINGS.pointer.get() == 0 {
+    if SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(&place);

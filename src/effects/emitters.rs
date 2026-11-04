@@ -66,9 +66,13 @@ pub fn take_entry(tag: u32, kind: u32) -> Result<u32, Refused> {
     })
 }
 
-/// Reads a dword at an address.
-pub fn at(a: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(a).read::<u32>("a mark's field")?)
+/// The dword at byte `offset` of a car's matrix (16 cells) or matrices; refused past the
+/// cells (the original reads on into the block).
+pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
+    matrix
+        .get(offset as usize / 4)
+        .map(Float::bits)
+        .ok_or_else(|| BadInput("a car matrix's cell past its end").into())
 }
 
 /// Reads a dword at an offset from a record inside a car's (a wheel's or the body's).
@@ -85,7 +89,7 @@ pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
     match crate::race::marks_settings_store::car_or_none(EMITTER.car.get()) {
-        Some(car) => Ok(car.whole_matrix()? != 0),
+        Some(car) => Ok(car.has_block(0x24)?),
         None => Ok(false),
     }
 }

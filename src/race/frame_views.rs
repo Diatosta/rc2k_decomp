@@ -133,7 +133,7 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::effects::setup::SETTINGS.pointer.get() == 0 {
+    if crate::effects::setup::SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -466,7 +466,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
     check_view_marks(
         block,
         |b| GamePtr::to(records[b as usize]).addr(),
-        || crate::effects::setup::SETTINGS.pointer.get(),
+        || crate::effects::setup::SETTINGS.is_set.get(),
     )?;
     let (other, own) = marks_shown(
         view,

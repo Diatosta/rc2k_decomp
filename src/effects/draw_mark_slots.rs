@@ -43,7 +43,7 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 /// Why it refuses, if it does, worked out before anything is written.
 fn refusal() -> Option<&'static str> {
     {
-        if crate::effects::setup::SETTINGS.pointer.get() == 0 {
+        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
             return Some("no marks settings");
         }
         for slot in &SLOTS.slots {

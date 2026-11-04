@@ -107,6 +107,41 @@ impl Base for &crate::session::Dword {
     }
 }
 
+/// A polygon vertex (`TLVertex`): its eight dwords by their offsets, 0 .. 0x1C.
+impl Base for &crate::d3d::vertices_store::Vertex {
+    fn address(self) -> usize {
+        crate::pointers::game_address(std::ptr::from_ref(self)) as usize
+    }
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        match off {
+            0x0 => self.x.bits(),
+            0x4 => self.y.bits(),
+            0x8 => self.z.bits(),
+            0xC => self.rhw.bits(),
+            0x10 => self.colour.bits(),
+            0x14 => self.specular.bits(),
+            0x18 => self.u.bits(),
+            0x1C => self.v.bits(),
+            _ => panic!("a vertex has no dword at {off:#x}"),
+        }
+    }
+    #[inline(always)]
+    fn set_dword(self, off: usize, value: u32) {
+        match off {
+            0x0 => self.x.set_bits(value),
+            0x4 => self.y.set_bits(value),
+            0x8 => self.z.set_bits(value),
+            0xC => self.rhw.set_bits(value),
+            0x10 => self.colour.set_bits(value),
+            0x14 => self.specular.set_bits(value),
+            0x18 => self.u.set_bits(value),
+            0x1C => self.v.set_bits(value),
+            _ => panic!("a vertex has no dword at {off:#x}"),
+        }
+    }
+}
+
 /// Ten-byte values only read, the operands of `fld tbyte`.
 impl Base for &[[u8; 10]] {
     fn address(self) -> usize {

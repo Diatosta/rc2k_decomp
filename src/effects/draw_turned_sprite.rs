@@ -41,7 +41,7 @@ pub fn draw_turned_sprite(
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
         if (c as i32) > DRAW_WORK.near.bits() as i32
-            && crate::effects::setup::SETTINGS.pointer.get() == 0
+            && crate::effects::setup::SETTINGS.is_set.get() == 0
         {
             return Err(BadInput("no marks settings").into());
         }

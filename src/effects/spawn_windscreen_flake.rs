@@ -27,7 +27,7 @@ const WINDOW: u32 = 32;
 /// The Rust version (see the header): ecx as it leaves it.
 pub fn spawn_windscreen_flake(x: u32, z: u32, kind: u32) -> Result<u32, Refused> {
     Ok({
-        let base = crate::session::address_of(&WINDSCREEN_FLAKE_ITEMS.items);
+        let base = GamePtr::to(&WINDSCREEN_FLAKE_ITEMS.items);
         let end = ITEMS * ITEM_LEN;
         let mut at = WINDSCREEN_FLAKE_TABLES.cursor.get();
         let step = |at: &mut u32| {
@@ -37,9 +37,9 @@ pub fn spawn_windscreen_flake(x: u32, z: u32, kind: u32) -> Result<u32, Refused>
             }
         };
         for _ in 0..WINDOW {
-            let e = base.wrapping_add(at);
-            if GamePtr::new(e).read::<u32>("a mark's field")? == 0 {
-                let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+            let e = base.offset(at);
+            if e.read::<u32>("a mark's field")? == 0 {
+                let put = |o: u32, v: u32| e.offset(o).write::<u32>(v, "a mark's field");
                 put(0, 1)?;
                 put(0x20, x87::int_to_float(x as i32))?;
                 put(0x24, x87::int_to_float(z as i32))?;

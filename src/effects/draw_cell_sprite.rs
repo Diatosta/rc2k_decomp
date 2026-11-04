@@ -62,7 +62,7 @@ pub fn draw_cell_sprite(
     }
     // The fog's and the clip's refusals, before anything.
     fog_at(0)?;
-    if SETTINGS.pointer.get() == 0 {
+    if SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(&place);

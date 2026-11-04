@@ -1,10 +1,9 @@
 //! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`, 0x4D1711, no
 //! references to it; IDA 2026-10-30), its labels kept. Some figures lie through
-//! `g_marksSettings` (0x767A28), a pointer, the rest at their own places. Labels with `?` were
+//! `g_marksSettings` (0x767A28, now a set / not-set flag), the rest at their own places. Labels with `?` were
 //! the developers' own, for the names in their source.
 
 use crate::debug::wear_page::value_at;
-use crate::pointers::GamePtr;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 
 /// `g_marksSettings`.
@@ -17,7 +16,7 @@ const WORK: u32 = 0x29C;
 enum At {
     /// IDA's address.
     Place(usize),
-    /// An offset from what `g_marksSettings` points to.
+    /// An offset in the settings `g_marksSettings` stands for (the race's record).
     Through(u32),
 }
 
@@ -101,11 +100,11 @@ fn read(at: At) -> Option<u32> {
     match at {
         Place(ida) => value_at(ida),
         Through(offset) => {
-            let settings = value_at(SETTINGS)?;
-            if settings == 0 {
+            if value_at(SETTINGS)? == 0 {
                 return None;
             }
-            GamePtr::new(settings.wrapping_add(offset))
+            crate::race::marks_settings_store::MARKS_SETTINGS
+                .at(offset)
                 .read::<u32>("the effects' page")
                 .ok()
         }

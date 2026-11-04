@@ -24,7 +24,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 pub fn swap_mask() -> Result<(), Refused> {
     use crate::effects::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::effects::masks;
-    let s: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    let s: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }

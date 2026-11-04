@@ -68,7 +68,7 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
         }
         for n in cars()? {
             let car = &marks.cars[n];
-            if car.whole_matrix()? == 0 || car.part_matrix()? == 0 {
+            if !car.has_block(0x24)? || !car.has_block(0x28)? {
                 return Ok(Some("a car's null matrix or vector"));
             }
             if car.word(4)? >= MODELS {
@@ -81,7 +81,7 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
 
 /// The Rust version (see the header).
 pub fn cars_particles() -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.pointer.get();
+    let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
@@ -92,8 +92,8 @@ pub fn cars_particles() -> Result<(), Refused> {
             .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
         let car = &crate::effects::setup::marks()?.cars[n as usize];
         EMITTER.car.set(car_handle(n as usize));
-        let m = car.whole_matrix()?;
-        adjugate_matrix(car.whole_matrix_cells()?, &car.words[0x94 / 4..]);
+        let whole = car.whole()?;
+        adjugate_matrix(whole, &car.words[0x94 / 4..]);
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
             let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
             for (k, x) in v.iter().enumerate() {
@@ -104,7 +104,7 @@ pub fn cars_particles() -> Result<(), Refused> {
             let k4 = 4 * k;
             car.put(
                 0x58 + k4,
-                x87::sub(at(m + 0x30 + k4)?, car.word(0x40 + k4)?),
+                x87::sub(matrix_cell(whole, 0x30 + k4)?, car.word(0x40 + k4)?),
             )?;
         }
         let mean_k: u32 = MARKS_FLOATS.quarter.bits();
@@ -121,9 +121,9 @@ pub fn cars_particles() -> Result<(), Refused> {
                 ),
             )?;
         }
-        car.put(0x40, at(m + 0x30)?)?;
-        car.put(0x44, at(m + 0x34)?)?;
-        car.put(0x48, at(m + 0x38)?)?;
+        car.put(0x40, matrix_cell(whole, 0x30)?)?;
+        car.put(0x44, matrix_cell(whole, 0x34)?)?;
+        car.put(0x48, matrix_cell(whole, 0x38)?)?;
         let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
         let one: u32 = MARKS_FLOATS.one.bits();
         let (length, rate) = x87::length_and_rate(
@@ -140,16 +140,16 @@ pub fn cars_particles() -> Result<(), Refused> {
                 car.put(o, 0)?;
             }
         }
-        let w = car.part_matrix()?;
+        let parts = car.parts()?;
         let up = read_bits(&EMITTER.up);
         let across = [
-            x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),
-            x87::product_difference(up[2], at(w)?, up[0], at(w + 8)?),
-            x87::product_difference(up[0], at(w + 4)?, up[1], at(w)?),
+            x87::product_difference(up[1], matrix_cell(parts, 8)?, up[2], matrix_cell(parts, 4)?),
+            x87::product_difference(up[2], matrix_cell(parts, 0)?, up[0], matrix_cell(parts, 8)?),
+            x87::product_difference(up[0], matrix_cell(parts, 4)?, up[1], matrix_cell(parts, 0)?),
         ];
         let across = x87::normalised3(across, one);
         write_bits(&EMITTER.across, across);
-        let b = x87::crossed_turned(across, car.part_matrix_cells()?, car.whole_matrix_cells()?);
+        let b = x87::crossed_turned(across, car.parts()?, car.whole()?);
         write_bits(&EMITTER.side_b, b);
         let a = [
             x87::product_difference(b[1], across[2], b[2], across[1]),
