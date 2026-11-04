@@ -629,23 +629,219 @@ impl GamePtr {
 ///
 /// # Safety
 /// Every byte of the type is inside an `UnsafeCell` or an atomic, and any bit pattern is a
-/// valid value.
-pub unsafe trait Cells {}
+/// valid value. `cell_at` names, for each byte below the type's size, the primitive cell that
+/// holds it: an atomic of that width at that offset, or a run of `Bytes`.
+pub unsafe trait Cells {
+    /// The primitive cell holding byte `offset` (below the type's size), placed from the
+    /// record's first byte.
+    fn cell_at(offset: usize) -> CellAt;
+}
+
+/// What a primitive cell is: an atomic of one width, or a run of plain shared bytes
+/// (`Bytes<N>`, copied as `shared_memory` copies).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CellKind {
+    U8,
+    U16,
+    U32,
+    Bytes,
+}
+
+/// A primitive cell of a record: where it starts, how long it is, what it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CellAt {
+    pub start: usize,
+    pub len: usize,
+    pub kind: CellKind,
+}
+
+impl CellAt {
+    const fn atomic(kind: CellKind, len: usize) -> Self {
+        Self {
+            start: 0,
+            len,
+            kind,
+        }
+    }
+
+    /// The same cell in a record where its holder starts `at` bytes in.
+    pub const fn after(self, at: usize) -> Self {
+        Self {
+            start: self.start + at,
+            ..self
+        }
+    }
+}
 
 // SAFETY: `#[repr(C)]` over its one array of `Dword`s.
-unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N> {}
-// SAFETY: atomics and cells over plain integers.
-unsafe impl Cells for crate::session::Dword {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl Cells for crate::session::Float {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl Cells for crate::session::Word {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl Cells for crate::session::Byte {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {}
-// SAFETY: every field is a cell over a plain integer.
-unsafe impl<T: Cells, const N: usize> Cells for [T; N] {}
+unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N> {
+    fn cell_at(offset: usize) -> CellAt {
+        <[crate::session::Dword; N]>::cell_at(offset)
+    }
+}
+// SAFETY: one `AtomicU32`.
+unsafe impl Cells for crate::session::Dword {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::U32, 4)
+    }
+}
+// SAFETY: one `AtomicU32`.
+unsafe impl Cells for crate::session::Float {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::U32, 4)
+    }
+}
+// SAFETY: one `AtomicU16`.
+unsafe impl Cells for crate::session::Word {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::U16, 2)
+    }
+}
+// SAFETY: one `AtomicU8`.
+unsafe impl Cells for crate::session::Byte {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::U8, 1)
+    }
+}
+// SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
+unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::Bytes, N)
+    }
+}
+// SAFETY: `N` of a type of cells, one after another.
+unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
+    fn cell_at(offset: usize) -> CellAt {
+        let size = size_of::<T>();
+        assert!(
+            size != 0 && offset < size * N,
+            "Cells: byte {offset} outside the array"
+        );
+        T::cell_at(offset % size).after(offset - offset % size)
+    }
+}
+
+/// The bytes of a cell's value, as many as it is wide.
+fn cell_bytes(place: *const u8, kind: CellKind) -> [u8; 4] {
+    use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
+    let mut bytes = [0; 4];
+    // SAFETY: `place` is an atomic of this width inside a borrowed record (`Cells::cell_at`).
+    unsafe {
+        match kind {
+            CellKind::U8 => bytes[0] = AtomicU8::from_ptr(place.cast_mut()).load(Relaxed),
+            CellKind::U16 => bytes[..2].copy_from_slice(
+                &AtomicU16::from_ptr(place.cast_mut().cast())
+                    .load(Relaxed)
+                    .to_ne_bytes(),
+            ),
+            CellKind::U32 => {
+                bytes = AtomicU32::from_ptr(place.cast_mut().cast())
+                    .load(Relaxed)
+                    .to_ne_bytes();
+            }
+            CellKind::Bytes => unreachable!("a run of bytes is no atomic"),
+        }
+    }
+    bytes
+}
+
+/// A cell's bytes `from ..` set to `new`, the others kept: one store when all of it is new,
+/// else one compare-and-swap, so a byte written into a dword never undoes a write to the
+/// dword's other bytes.
+fn set_cell_bytes(place: *const u8, kind: CellKind, from: usize, new: &[u8]) {
+    use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
+    let merge = |old: [u8; 4]| {
+        let mut bytes = old;
+        bytes[from..from + new.len()].copy_from_slice(new);
+        bytes
+    };
+    // SAFETY: as `cell_bytes`'.
+    unsafe {
+        match kind {
+            CellKind::U8 => AtomicU8::from_ptr(place.cast_mut()).store(new[0], Relaxed),
+            CellKind::U16 => {
+                let cell = AtomicU16::from_ptr(place.cast_mut().cast());
+                let _ = cell.try_update(Relaxed, Relaxed, |old| {
+                    let [a, b, ..] = old.to_ne_bytes();
+                    let [a, b, ..] = merge([a, b, 0, 0]);
+                    Some(u16::from_ne_bytes([a, b]))
+                });
+            }
+            CellKind::U32 => {
+                let cell = AtomicU32::from_ptr(place.cast_mut().cast());
+                if new.len() == 4 {
+                    cell.store(u32::from_ne_bytes(merge([0; 4])), Relaxed);
+                } else {
+                    let _ = cell.try_update(Relaxed, Relaxed, |old| {
+                        Some(u32::from_ne_bytes(merge(old.to_ne_bytes())))
+                    });
+                }
+            }
+            CellKind::Bytes => unreachable!("a run of bytes is no atomic"),
+        }
+    }
+}
+
+/// The cells `offset .. offset + len` of `record` that `visit(cell, from, to)` gets in turn:
+/// the cell, and the part of it in the run (offsets from the record's first byte).
+fn each_cell<T: Cells>(
+    offset: usize,
+    len: usize,
+    mut visit: impl FnMut(CellAt, usize, usize),
+) -> Result<(), BadInput> {
+    let end = offset
+        .checked_add(len)
+        .filter(|&end| end <= size_of::<T>())
+        .ok_or(BadInput("past the end of a record"))?;
+    let mut at = offset;
+    while at < end {
+        let cell = T::cell_at(at);
+        let to = end.min(cell.start + cell.len);
+        visit(cell, at, to);
+        at = to;
+    }
+    Ok(())
+}
+
+/// `to.len()` bytes of `record` from byte `offset` on, each cell read whole at its own
+/// width (a run of `Bytes` as `shared_memory` reads it).
+pub fn load_cells<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+    let base = std::ptr::from_ref(record).cast::<u8>();
+    each_cell::<T>(offset, to.len(), |cell, from, upto| {
+        let out = &mut to[from - offset..upto - offset];
+        if cell.kind == CellKind::Bytes {
+            // SAFETY: the run lies inside the record's `Bytes` (`cell_at`), shared bytes
+            // copied through `shared_memory`; `out` is the caller's.
+            unsafe { crate::shared_memory::load(base.add(from), out.as_mut_ptr(), out.len()) };
+        } else {
+            // SAFETY: the cell lies inside the record (`cell_at`).
+            let bytes = cell_bytes(unsafe { base.add(cell.start) }, cell.kind);
+            out.copy_from_slice(&bytes[from - cell.start..upto - cell.start]);
+        }
+    })
+}
+
+/// `from` written into `record` from byte `offset` on, each cell at its own width (`set_cell_bytes`).
+pub fn store_cells<T: Cells>(record: &T, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+    let base = std::ptr::from_ref(record).cast::<u8>();
+    each_cell::<T>(offset, from.len(), |cell, at, upto| {
+        let new = &from[at - offset..upto - offset];
+        if cell.kind == CellKind::Bytes {
+            // SAFETY: as `load_cells`'.
+            unsafe {
+                crate::shared_memory::store(base.add(at).cast_mut(), new.as_ptr(), new.len());
+            }
+        } else {
+            // SAFETY: the cell lies inside the record (`cell_at`).
+            set_cell_bytes(
+                unsafe { base.add(cell.start) },
+                cell.kind,
+                at - cell.start,
+                new,
+            );
+        }
+    })
+}
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:
 /// a race-block piece that left the block takes the image's bytes).
@@ -894,6 +1090,9 @@ impl Drop for Lent {
         forget(self.0);
     }
 }
+
+#[cfg(test)]
+mod cells_tests;
 
 #[cfg(test)]
 mod tests {

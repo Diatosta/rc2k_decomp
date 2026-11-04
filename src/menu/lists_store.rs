@@ -28,6 +28,7 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
 /// One kind's own place in a menu scene (`scene::draw_carousel_entry`: the
 /// kind's size, its y and its angle).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct OwnPlace {
     /// Its size.
     pub size: Dword,
@@ -39,6 +40,7 @@ pub struct OwnPlace {
 
 /// The menus' lists and tables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuLists {
     /// `dword_7594AA`: the menus' last draw list (25 entries, -1 at start;
     /// `menu::player4_buttons_loop`'s).
@@ -136,8 +138,9 @@ pub struct MenuLists {
     pub _gap_75a61e: Bytes<4>,
     /// `dword_75A622`: the eight texture numbers of the carousel's menu (-1 none).
     pub carousel_textures: [Dword; 8],
-    /// `aFilesGFrntBack`: a path string, ends at 0x75A658.
-    pub front_back_path: Bytes<22>,
+    /// `aFilesGFrntBack`: a path string, ends at 0x75A658 (and two bytes to the record's
+    /// size, which every byte of a record of cells is part of).
+    pub front_back_path: Bytes<24>,
 }
 
 /// First values the image's.
@@ -1462,7 +1465,7 @@ pub static MENU_LISTS: MenuLists = MenuLists {
     ],
     _gap_75a61e: Bytes::new([0xff; 4]),
     carousel_textures: [const { Dword::new(0) }; 8],
-    front_back_path: Bytes::new(sparse::<22>(&[(
+    front_back_path: Bytes::new(sparse::<24>(&[(
         0x0,
         &[
             0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x67, 0x5c, 0x66, 0x72, 0x6e, 0x74, 0x5c, 0x62,

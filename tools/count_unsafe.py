@@ -40,24 +40,31 @@ PATTERNS = {
     '.addr()': r'\.addr\(\)',
     'pointers::host': r'pointers::host',
 }
-totals = collections.Counter()
-files = {k: collections.Counter() for k in PATTERNS}
-for root in ('src', 'rc2k_core/src'):
-    for d, _, fs in os.walk(root):
-        for f in fs:
-            if not f.endswith('.rs'):
-                continue
-            p = os.path.join(d, f)
-            s = open(p, errors='replace').read()
-            if re.search(r'x87_reference|asm_test', p):
-                continue
-            s = strip_tests(re.sub(r'//[^\n]*', '', s))
-            for k, pat in PATTERNS.items():
-                n = len(re.findall(pat, s))
-                totals[k] += n
-                if n:
-                    files[k][p] = n
-print(dict(totals))
-if len(sys.argv) > 1:
-    for p, n in files[sys.argv[1]].most_common():
-        print(n, p)
+
+
+def main():
+    totals = collections.Counter()
+    files = {k: collections.Counter() for k in PATTERNS}
+    for root in ('src', 'rc2k_core/src'):
+        for d, _, fs in os.walk(root):
+            for f in fs:
+                if not f.endswith('.rs'):
+                    continue
+                p = os.path.join(d, f)
+                s = open(p, errors='replace').read()
+                if re.search(r'x87_reference|asm_test', p):
+                    continue
+                s = strip_tests(re.sub(r'//[^\n]*', '', s))
+                for k, pat in PATTERNS.items():
+                    n = len(re.findall(pat, s))
+                    totals[k] += n
+                    if n:
+                        files[k][p] = n
+    print(dict(totals))
+    if len(sys.argv) > 1:
+        for p, n in files[sys.argv[1]].most_common():
+            print(n, p)
+
+
+if __name__ == '__main__':
+    main()

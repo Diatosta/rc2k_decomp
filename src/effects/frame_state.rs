@@ -92,6 +92,7 @@ impl DrawWork {
 
 /// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
     /// 0x8F3975: `g_marksViewHeading`: the view's heading (`effects::view_heading`).
     pub heading: Float,

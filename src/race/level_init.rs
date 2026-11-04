@@ -220,7 +220,7 @@ pub fn init_checkpoints() -> Result<(), Refused> {
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             let face = trap.keep_read(crate::session::read_on_in(
-                &crate::race::checkpoints_store::CHECKPOINTS,
+                &crate::race::buffers_store::BUFFERS,
                 table,
                 n as usize,
                 "the checkpoint table",

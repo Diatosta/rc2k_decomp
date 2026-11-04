@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, Float};
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness; IDA 0x75AC90 on, 12 bytes each).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SetupItem {
     /// The value being chosen (`service::step_*_up` / `_down`).
     pub chosen: Dword,
@@ -21,6 +22,7 @@ pub struct SetupItem {
 /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
 /// the place of its entries, their kinds, and the menu's own numbers.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Carousel {
     /// `dword_75A658`: the kind of the entry being drawn.
     pub kind: Dword,
@@ -68,6 +70,7 @@ impl Carousel {
 
 /// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ServiceUi {
     /// `dword_75AA90`: the colour of the boxes' frames (`screens::draw_service_boxes`).
     pub box_colour_a: Dword,
@@ -85,6 +88,7 @@ pub struct ServiceUi {
 
 /// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarouselPictures {
     /// `dword_75AAA8` ..: the pictures wanted (`scene::draw_car_object`).
     pub wanted: [Dword; 4],
@@ -97,6 +101,7 @@ pub struct CarouselPictures {
 /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
 /// times `menu::calc_cpu_times` makes, the fade, the standings' switches.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Menus {
     /// `dword_75AAD8`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: Dword,
@@ -144,6 +149,7 @@ pub struct Menus {
 
 /// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverStats {
     /// `flt_75AB58`: the steps a flat pair is divided by (`menu::driver_stats`).
     pub steps: Float,
@@ -183,6 +189,7 @@ pub struct DriverStats {
 
 /// The menus' working variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuState {
     /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
     pub carousel: Carousel,

@@ -321,13 +321,13 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         FRAME_WORK.shadow_corners[1].set(point_word(from, 2)?);
         let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
         copy_on_in(
-            (&POLYGON_WORK, list),
-            (&POLYGON_WORK, old),
+            (&crate::race::buffers_store::BUFFERS, list),
+            (&crate::race::buffers_store::BUFFERS, old),
             count as usize,
             "the polygon list",
         )?;
         write_on_in(
-            &POLYGON_WORK,
+            &crate::race::buffers_store::BUFFERS,
             old,
             count as usize,
             list[0].get(),
@@ -339,12 +339,16 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         rc2k_core::race::shadow::clip_by_edge(
             count,
             |k| {
-                read_on_in(&POLYGON_WORK, old, k as usize, "the old polygon list").unwrap_or_else(
-                    |err| {
-                        trap.keep(err);
-                        0
-                    },
+                read_on_in(
+                    &crate::race::buffers_store::BUFFERS,
+                    old,
+                    k as usize,
+                    "the old polygon list",
                 )
+                .unwrap_or_else(|err| {
+                    trap.keep(err);
+                    0
+                })
             },
             |e| {
                 let entry = match work_entry(e) {
@@ -370,9 +374,13 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
                 next
             },
             |e| {
-                if let Err(err) =
-                    write_on_in(&POLYGON_WORK, list, added as usize, e, "the polygon list")
-                {
+                if let Err(err) = write_on_in(
+                    &crate::race::buffers_store::BUFFERS,
+                    list,
+                    added as usize,
+                    e,
+                    "the polygon list",
+                ) {
                     trap.keep(err);
                 }
                 added += 1;
@@ -471,13 +479,13 @@ pub fn shadow_on_face() -> Result<(), Refused> {
     let list = &POLYGON_WORK.list;
     copy_on_in(
         (&FRAME_WORK, &FRAME_WORK.shadow_list),
-        (&POLYGON_WORK, list),
+        (&crate::race::buffers_store::BUFFERS, list),
         count as usize,
         "the shadow list",
     )?;
     DRAW.polygon_vertex_count.set_bits(count);
     write_on_in(
-        &POLYGON_WORK,
+        &crate::race::buffers_store::BUFFERS,
         list,
         count as usize,
         FRAME_WORK.shadow_list[0].get(),
@@ -504,7 +512,7 @@ pub fn shadow_on_face() -> Result<(), Refused> {
     let n: u32 = DRAW.polygon_vertex_count.bits();
     for k in 0..n {
         raise_onto_face(read_on_in(
-            &POLYGON_WORK,
+            &crate::race::buffers_store::BUFFERS,
             list,
             k as usize,
             "the polygon list",

@@ -645,6 +645,7 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
 
 /// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_particle_13`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SplineHead {
     /// 0x769312: `g_marksPoints`: three floats by car model (34 models), a mark slot's point is an index into it (12 bytes each).
     pub points: [Float; 102],

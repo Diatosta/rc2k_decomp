@@ -10,6 +10,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CaptionTables {
     /// `dword_758806`: 1 when the screen (the car choice, a name entry) was left; the loops that look at it clear it.
     pub screen_left: Dword,

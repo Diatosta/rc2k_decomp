@@ -51,7 +51,7 @@ pub fn init_overlay() -> Result<(), Refused> {
                 let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
                 let distance = |k: u32| {
                     crate::session::read_on_in(
-                        &crate::race::checkpoints_store::CHECKPOINTS,
+                        &crate::race::buffers_store::BUFFERS,
                         distances,
                         k as usize,
                         "an overlay variable",

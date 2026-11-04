@@ -139,7 +139,7 @@ impl Float {
 /// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
-pub fn read_on_in<H: ?Sized, C: Cell32>(
+pub fn read_on_in<H: crate::pointers::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -148,20 +148,17 @@ pub fn read_on_in<H: ?Sized, C: Cell32>(
     match cells.get(n) {
         Some(cell) => Ok(cell.bits()),
         None => {
-            let place = crate::pointers::GamePtr::to(holder);
-            place
-                .offset(
-                    crate::pointers::game_address(cells.as_ptr())
-                        .wrapping_sub(place.addr())
-                        .wrapping_add(n.wrapping_mul(4) as u32),
-                )
-                .read(what)
+            let mut bytes = [0; 4];
+            on_in(holder, cells, n, what, |at| {
+                crate::pointers::load_cells(holder, at, &mut bytes)
+            })?;
+            Ok(u32::from_le_bytes(bytes))
         }
     }
 }
 
 /// `read_on_in`'s write.
-pub fn write_on_in<H: ?Sized, C: Cell32>(
+pub fn write_on_in<H: crate::pointers::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -173,22 +170,35 @@ pub fn write_on_in<H: ?Sized, C: Cell32>(
             cell.set_bits(v);
             Ok(())
         }
-        None => {
-            let place = crate::pointers::GamePtr::to(holder);
-            place
-                .offset(
-                    crate::pointers::game_address(cells.as_ptr())
-                        .wrapping_sub(place.addr())
-                        .wrapping_add(n.wrapping_mul(4) as u32),
-                )
-                .write(v, what)
-        }
+        None => on_in(holder, cells, n, what, |at| {
+            crate::pointers::store_cells(holder, at, &v.to_le_bytes())
+        }),
     }
+}
+
+/// `access` on dword `n` of `cells`, placed from `holder`'s first byte (refused, and logged,
+/// when that is not inside `holder`).
+fn on_in<H, C>(
+    holder: &H,
+    cells: &[C],
+    n: usize,
+    what: &str,
+    access: impl FnOnce(usize) -> Result<(), crate::errors::BadInput>,
+) -> Result<(), crate::errors::BadInput> {
+    let at = (cells.as_ptr() as usize)
+        .wrapping_sub(std::ptr::from_ref(holder) as usize)
+        .wrapping_add(n.wrapping_mul(4));
+    access(at).inspect_err(|_| {
+        crate::framework::log(&format!(
+            "pointers: {what}: dword {n} at +{at:#x}, outside its holder of {:#x} bytes",
+            size_of::<H>()
+        ));
+    })
 }
 
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
 /// what it has just written), each past its table's end only inside its holder.
-pub fn copy_on_in<F: ?Sized, T: ?Sized, A: Cell32, B: Cell32>(
+pub fn copy_on_in<F: crate::pointers::Cells, T: crate::pointers::Cells, A: Cell32, B: Cell32>(
     (from_holder, from): (&F, &[A]),
     (to_holder, to): (&T, &[B]),
     n: usize,

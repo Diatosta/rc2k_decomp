@@ -26,7 +26,7 @@ const SECOND_HEADING_STRING: u32 = 0x482;
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
 /// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
-pub fn table_dword_at<H: ?Sized>(
+pub fn table_dword_at<H: crate::pointers::Cells>(
     holder: &H,
     table: &[crate::session::Dword],
     index: u32,

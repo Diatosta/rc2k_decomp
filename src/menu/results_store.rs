@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The players' results figures (IDA 0x758714 .. 0x7587E8).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Results {
     /// `g_round`: The rounds of a multi-player event.
     pub round: Dword,
