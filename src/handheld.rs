@@ -10,6 +10,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
 const FBIOPUT_VSCREENINFO: libc::c_ulong = 0x4601;
+const FBIOGET_FSCREENINFO: libc::c_ulong = 0x4602;
 const FBIOPAN_DISPLAY: libc::c_ulong = 0x4606;
 
 /// The panel.
@@ -31,6 +32,24 @@ struct VarInfo {
     /// Offset and length of red, green, blue, alpha (and each one's `msb_right`).
     colours: [u32; 12],
     rest: [u32; 20],
+}
+
+/// `fb_fix_screeninfo`, of which the memory's length and a row's are read.
+#[repr(C)]
+struct FixedInfo {
+    id: [u8; 16],
+    memory_start: libc::c_ulong,
+    memory_length: u32,
+    kind: u32,
+    kind_aux: u32,
+    visual: u32,
+    pan_steps: [u16; 3],
+    row_bytes: u32,
+    io_start: libc::c_ulong,
+    io_length: u32,
+    accel: u32,
+    capabilities: u16,
+    reserved: [u16; 2],
 }
 
 struct Framebuffer {
@@ -85,6 +104,26 @@ fn open_framebuffer() -> Result<Framebuffer, String> {
         info.colours = [16, 8, 0, 8, 8, 0, 0, 8, 0, 24, 8, 0];
         if libc::ioctl(fd, FBIOPUT_VSCREENINFO, &mut info) != 0 {
             return Err("the framebuffer takes no 720x480 at 32 bits".into());
+        }
+        // The mode the driver has set, which may not be the one asked for.
+        let set = (info.xres, info.yres, info.bits_per_pixel);
+        if set != (WIDTH as u32, HEIGHT as u32, 32) || info.yres_virtual < HEIGHT as u32 * 2 {
+            return Err(format!(
+                "the framebuffer set {} x {} at {} bits, {} rows in all, not 720x480 at 32 bits \
+                 on two pages",
+                set.0, set.1, set.2, info.yres_virtual
+            ));
+        }
+        let mut fixed: FixedInfo = std::mem::zeroed();
+        if libc::ioctl(fd, FBIOGET_FSCREENINFO, &mut fixed) != 0 {
+            return Err("the framebuffer's layout cannot be read".into());
+        }
+        if fixed.row_bytes as usize != STRIDE || (fixed.memory_length as usize) < len {
+            return Err(format!(
+                "the framebuffer's rows are {} bytes and its memory {} bytes, not {STRIDE} and \
+                 at least {len}",
+                fixed.row_bytes, fixed.memory_length
+            ));
         }
         let pixels = libc::mmap(
             std::ptr::null_mut(),
@@ -306,10 +345,10 @@ unsafe extern "C" fn on_profile(
             if frame < low || frame > sp + (1 << 16) || !frame.is_multiple_of(16) {
                 break;
             }
-            // SAFETY: on this thread's stack, within the frames it has in use.
-            let (next, from) = unsafe {
-                let record = frame as *const usize;
-                (record.read_volatile(), record.add(1).read_volatile())
+            // Read by the kernel, which answers a failure for memory past the stack's top
+            // rather than a fault in the handler.
+            let Some([next, from]) = read_own_words(frame) else {
+                break;
             };
             caller.store(from, Relaxed);
             low = frame + 16;
@@ -318,6 +357,26 @@ unsafe extern "C" fn on_profile(
         // SAFETY: `gettid` takes nothing and cannot fail.
         THREADS[n].store(unsafe { libc::syscall(libc::SYS_gettid) } as u32, Relaxed);
     }
+}
+
+/// The two words at `at` in this process's memory, or None where it has none; a system call
+/// alone, as a signal handler must.
+fn read_own_words(at: usize) -> Option<[usize; 2]> {
+    let mut words = [0usize; 2];
+    let local = libc::iovec {
+        iov_base: words.as_mut_ptr().cast(),
+        iov_len: size_of_val(&words),
+    };
+    let remote = libc::iovec {
+        iov_base: std::ptr::with_exposed_provenance_mut(at),
+        iov_len: size_of_val(&words),
+    };
+    // SAFETY: `local` is `words`, of its length; the kernel only reads at `remote`, and fails
+    // the call for memory that is not there.
+    let read = unsafe {
+        libc::process_vm_readv(libc::getpid(), &raw const local, 1, &raw const remote, 1, 0)
+    };
+    (read == size_of_val(&words) as isize).then_some(words)
 }
 
 /// The timer started if `RC2K_PROFILE` is set: 500 samples of processor time a second.
