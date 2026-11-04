@@ -17,11 +17,17 @@
 
 // ---- Rust version ----
 
-/// (found, ebx, ecx).
-pub fn find_entry_with_bits(bits: u32, table: u32, count: u32) -> (bool, u32, u32) {
+/// (found, ebx, ecx): the entry found (or the place past the table) and the entries left.
+pub fn find_entry_with_bits(
+    bits: u32,
+    table: crate::pointers::GamePtr,
+    count: u32,
+) -> (bool, crate::pointers::GamePtr, u32) {
     // Converted: `rc2k_core::system::tables::with_bits`.
-    use rc2k_core::system::tables::{left, with_bits};
+    use rc2k_core::system::tables::with_bits;
     let found = with_bits(crate::system::find_entry::entries(table, count), bits);
-    let (at, n) = left(table, count, found);
-    (found.is_some(), at, n)
+    match found {
+        Some(n) => (true, table.offset(8 * n as u32), count - n as u32),
+        None => (false, table.offset(count.wrapping_mul(8)), 0),
+    }
 }

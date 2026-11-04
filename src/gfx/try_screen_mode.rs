@@ -34,11 +34,8 @@ pub fn try_screen_mode(mode: u32) -> Result<Flags, Refused> {
         // Converted: `rc2k_core::gfx::screen_modes::look_up`.
         use rc2k_core::gfx::screen_modes::{Lookup, look_up};
         let count: u32 = MODES.count.get();
-        let table = MODES.table_addr();
-        match look_up(
-            crate::system::find_entry::entries(table as u32, count),
-            mode,
-        ) {
+        let table = crate::gfx::modes::Modes::mode_table_ptr();
+        match look_up(crate::system::find_entry::entries(table, count), mode) {
             Lookup::NoBits => return Ok(Err(true)),
             // `cmp ecx, 1` on a count of 0, else the `dec ecx` that reached 0.
             Lookup::Missing => return Ok(Err(count != 0)),

@@ -14,10 +14,10 @@ use crate::menu::list_handle::ListItem;
 
 pub fn start_edit(item: ListItem) {
     let record = item.edit_field();
-    let text = item.target();
+    let text = item.text();
     let most = crate::install::folders::field_most(text, record.most());
     // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
-    let at = crate::pointers::GamePtr::new(text);
+    let at = text.game_ptr();
     let mut words = at
         .read_bytes(most as usize + 2, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));

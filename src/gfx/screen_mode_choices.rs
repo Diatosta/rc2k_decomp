@@ -36,7 +36,6 @@ use crate::gfx::cards::CARDS;
 use crate::gfx::modes::{MODES, Modes};
 use crate::pointers::GamePtr;
 use crate::system::find_entry_with_bits::find_entry_with_bits;
-use crate::system::next_entry::next_entry;
 use rc2k_core::gfx::mode_choices as mc;
 
 // ---- game data (IDA addresses) ----
@@ -72,24 +71,24 @@ fn read_word(at: GamePtr) -> Result<u32, BadInput> {
 
 /// The modes the list would hold (the mode table's of the pixel kind's bits), or None
 /// when the original stops (the kind's choice past 1, no mode of the kind).
-fn modes_of(kind: u32) -> Option<Vec<u32>> {
+fn modes_of(kind: u32) -> Option<Vec<GamePtr>> {
     if kind > 1 {
         return None;
     }
     let bits = MODES.kind_bits[kind as usize].get();
     let (mut found, mut at, mut left) =
-        find_entry_with_bits(bits, MODES.table_addr() as u32, MODES.count.get());
+        find_entry_with_bits(bits, Modes::mode_table_ptr(), MODES.count.get());
     if !found {
         return None;
     }
     let mut modes = Vec::new();
     while found {
         modes.push(at);
-        let (carry, next, rest) = next_entry(at, left);
-        if carry {
+        // `system::next_entry`: on by one entry, the carry set when none are left.
+        if left <= 1 {
             break;
         }
-        (found, at, left) = find_entry_with_bits(bits, next, rest);
+        (found, at, left) = find_entry_with_bits(bits, at.offset(8), left - 1);
     }
     Some(modes)
 }
@@ -163,7 +162,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
 }
 
 /// The list made again (`loc_40468A` on), `current` the mode kept in ebp.
-fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
+fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> {
     CHOICES.listed.set(0);
     CHOICES.resolutions.set(0);
     let Some(modes) = modes else {
@@ -174,7 +173,7 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
-        let mode = read(GamePtr::new(at))?;
+        let mode = read(at)?;
         let (size_key, kind_key) = mc::keys(mode);
         let size = entry_or_past(size_key, Modes::sizes_ptr(), 8)?;
         let kind = entry_or_past(kind_key, Modes::pixel_kinds_ptr(), 2)?;

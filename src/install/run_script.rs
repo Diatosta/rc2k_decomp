@@ -30,7 +30,7 @@ pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused>
     // Bounded by the script's allocation, not by the field it starts in: the uninstall
     // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
     // after it, as the original reads it.
-    let mut cursor = Place::from(crate::pointers::GamePtr::new(script.into().game()));
+    let mut cursor = Place::from(script.into().game_ptr().unbounded());
     let mut end = Place::from(&INSTALLER_PATHS.script_path);
     wb(end, 0);
     let mut stack: Vec<Place> = Vec::new();

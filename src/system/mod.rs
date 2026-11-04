@@ -8,7 +8,6 @@ pub mod find_running_game;
 pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
-pub mod next_entry;
 pub mod packed_local_time;
 pub mod read_command_line;
 pub mod read_keyboard_type;

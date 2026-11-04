@@ -55,7 +55,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
                 let item = piece.item();
                 let record = item.edit_field();
                 let edit_font = font(colour(first, record.font_kind() as u32))?;
-                let mut text = Place::from(item.target());
+                let mut text = item.text();
                 if pieces::caret(first, record.flags()) {
                     let cursor = str_append(text, &TEXT_BUFFER.text);
                     let cursor = append_string_by_id(4, cursor);

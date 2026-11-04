@@ -18,7 +18,6 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::modes::MODES;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
@@ -41,8 +40,11 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,
-        entries(MODES.sizes_addr() as u32, SIZE_COUNT),
-        entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
+        entries(crate::gfx::modes::Modes::sizes_ptr(), SIZE_COUNT),
+        entries(
+            crate::gfx::modes::Modes::pixel_kinds_ptr(),
+            PIXEL_KIND_COUNT,
+        ),
         crate::gfx::pixel_format::SCREEN_FORMAT,
         pixels,
     )

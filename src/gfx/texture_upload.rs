@@ -181,12 +181,6 @@ impl Textures {
         if pool == 0 { &self.system } else { &self.video }
     }
 
-    /// Where the sizes table is (five entries of two dwords, for `system::find_entry`).
-    pub fn sizes_addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
-            + core::mem::offset_of!(Self, sizes) as u32
-    }
-
     /// Where kind `n`'s description is (0: none). A value that is no handle ends the
     /// program.
     // A number: the record's kind field is a game address other modules read.

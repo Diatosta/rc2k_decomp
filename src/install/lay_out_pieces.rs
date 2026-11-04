@@ -21,7 +21,7 @@ use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
 use crate::install::page_records::{Piece, set_piece_count};
 use crate::install::vars::INSTALLER_PAGES;
-use crate::menu::list_handle::ListMenu;
+use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
 /// A page's list, read where the original reads it.
@@ -70,8 +70,8 @@ pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
         piece.set_marks(new.marks);
         piece.set_kind(new.kind);
         piece.set_item(match new.owner {
-            Owner::Title => INSTALLER_PAGES.title.addr(),
-            Owner::Item(k) => list.item(k).addr(),
+            Owner::Title => ListItem::of_title(),
+            Owner::Item(k) => list.item(k),
         });
         piece.set_x(0);
         piece.set_y(0);

@@ -14,14 +14,14 @@ use crate::errors::{BadInput, Refused};
 
 #[cfg(unix)]
 mod unix;
-/// Whether an edit field's text (its game address) is the folder typed on the page.
-pub fn is_folder_field(text: u32) -> bool {
-    text == crate::install::vars::INSTALLER_PATHS.typed.addr()
+/// Whether an edit field's text is the folder typed on the page.
+pub fn is_folder_field(text: crate::place::Place) -> bool {
+    text.game_ptr() == crate::pointers::GamePtr::to(&crate::install::vars::INSTALLER_PATHS.typed)
 }
 
 /// An edit field's most bytes: the folder field's by the system's rules, any other's its
 /// record's (`original`).
-pub fn field_most(text: u32, original: u8) -> u8 {
+pub fn field_most(text: crate::place::Place, original: u8) -> u8 {
     if is_folder_field(text) {
         <Native as Folders>::field_most(original)
     } else {
@@ -80,7 +80,7 @@ pub trait Folders {
 
 /// An edit field's width: the folder field's by the system's rules, any other's its
 /// record's (`original`). `text` is the field's text (its game address).
-pub fn field_width(text: u32, original: u16) -> u16 {
+pub fn field_width(text: crate::place::Place, original: u16) -> u16 {
     if is_folder_field(text) {
         <Native as Folders>::field_width(original)
     } else {

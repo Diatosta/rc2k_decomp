@@ -58,9 +58,9 @@ fn clear(text: Place, most: u32) {
 /// `key` as eax (al the key, ah its bits). Returns eax as the original leaves it (its
 /// caller reads al again) and its zero: set, but for Escape and Enter (`or ah, 8`).
 pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
-    let text = Place::from(item.target());
+    let text = item.text();
     let record = item.edit_field();
-    let most = crate::install::folders::field_most(text.game(), record.most()) as u32;
+    let most = crate::install::folders::field_most(text, record.most()) as u32;
     let with_bit_3 = (key | 0x800, false);
     let backspace = || {
         if rb(text) != 0 {
@@ -82,14 +82,14 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
             }
             EditKey::Enter => {
                 record.set_flags(record.flags() & !EDITING);
-                let words = crate::pointers::GamePtr::new(text.game()).bytes("an edited text")?;
+                let words = text.game_ptr().bytes("an edited text")?;
                 let (blank, _) = edits::blank(&words)?;
                 if blank {
                     clear(text, most);
                     // The folder's default by the system's rules (`install::folders`).
                     use crate::install::folders::{Folders, Native};
                     match <Native as Folders>::first_folder() {
-                        Some(first) if crate::install::folders::is_folder_field(text.game()) => {
+                        Some(first) if crate::install::folders::is_folder_field(text) => {
                             crate::install::run_installer::put_typed(&first);
                         }
                         _ => {
@@ -130,7 +130,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
         text,
         most.wrapping_add(text.game()).wrapping_add(1),
     )?;
-    let widest = crate::install::folders::field_width(text.game(), record.width());
+    let widest = crate::install::folders::field_width(text, record.width());
     if edits::too_wide(width, widest) {
         backspace();
     }

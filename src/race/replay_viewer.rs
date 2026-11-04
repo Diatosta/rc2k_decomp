@@ -143,7 +143,7 @@ fn view(mode: Mode) -> Result<(), Refused> {
     REPLAY_VIEW.last_race_viewed.set((slot == LAST_RACE) as u32);
     find_snapshot_number::find_snapshot_number()?;
     viewer_load_stage::viewer_load_stage()?;
-    let list = ListMenu::at(REPLAY_VIEW.viewer_list[0].addr());
+    let list = ListMenu::of(crate::pointers::GamePtr::to(&REPLAY_VIEW.viewer_list));
     REPLAY_FILE.viewer_sound.set(0);
     INSTALLER_PAGES.list_answer.set(1);
     INSTALLER_PAGES.list_leave.set(0);

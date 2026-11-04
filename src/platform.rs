@@ -30,7 +30,6 @@ use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::SURFACES;
 use crate::gfx::locked::LOCKED;
-use crate::gfx::modes::MODES;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::gfx::set_clip::set_clip;
@@ -82,7 +81,10 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
         // passes the 3D check (`gfx::mark_3d_modes`).
         use crate::gfx::modes::MODES;
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
-        let (table, count) = (MODES.table_addr() as u32, MODES.count.get());
+        let (table, count) = (
+            crate::gfx::modes::Modes::mode_table_ptr(),
+            MODES.count.get(),
+        );
         let works = |mode: u32| {
             let entries = crate::system::find_entry::entries(table, count);
             matches!(look_up(entries, mode), Lookup::Found(_))
@@ -124,23 +126,25 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
 // ---- gfx::set_screen_mode (0x404B63) ----
 
 /// The value of a table's entry for a key.
-fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
-    let entry = find_entry(key, table as u32, entries).ok()??;
-    Some(crate::pointers::read_or_end(
-        entry + 4,
-        "a screen mode table",
-    ))
+fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<u32> {
+    let entry = find_entry(key, table, entries).ok()??;
+    Some(
+        entry
+            .offset(4)
+            .read("a screen mode table")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
+    )
 }
 
 fn set_screen_mode(mode: u32) -> Result<(), String> {
     SCREEN_MODE.mode_flags.set(mode);
-    let size =
-        looked_up(mode & 0xFF, MODES.sizes_addr(), 8).ok_or("a screen size that is not known")?;
+    let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
+        .ok_or("a screen size that is not known")?;
     let (width, height) = (size & 0xFFFF, size >> 16);
-    let bits = looked_up(mode & 0xF00, MODES.pixel_kinds_addr(), 2)
+    let bits = looked_up(mode & 0xF00, crate::gfx::modes::Modes::pixel_kinds_ptr(), 2)
         .ok_or("a kind of pixel that is not known")?;
-    let kind =
-        looked_up(mode & 0xF_0000, MODES.kinds_addr(), 3).ok_or("a kind that is not known")?;
+    let kind = looked_up(mode & 0xF_0000, crate::gfx::modes::Modes::kinds_ptr(), 3)
+        .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
     // As the original (0x404C55): every texture given back before the screen changes;
     // the game loads again what it needs (a trial's 0x40 more found the pool full).

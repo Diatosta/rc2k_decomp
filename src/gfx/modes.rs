@@ -65,17 +65,6 @@ pub fn home() -> usize {
     crate::pointers::game_address(&raw const MODES) as usize
 }
 
-macro_rules! table_addr {
-    ($name:ident, $field:ident) => {
-        /// Where the table is (an address into the whole block: the tables are walked past
-        /// their ends, as the original's).
-        pub fn $name(&self) -> usize {
-            crate::pointers::game_address(std::ptr::from_ref::<Self>(self)) as usize
-                + core::mem::offset_of!(Self, $field)
-        }
-    };
-}
-
 impl Modes {
     /// Where a table is, as a pointer bounded by the whole block (the tables are walked
     /// past their ends).
@@ -91,10 +80,10 @@ impl Modes {
     pub fn kinds_ptr() -> crate::pointers::GamePtr {
         Self::table_ptr(core::mem::offset_of!(Self, kinds))
     }
-    table_addr!(pixel_kinds_addr, pixel_kinds);
-    table_addr!(sizes_addr, sizes);
-    table_addr!(kinds_addr, kinds);
-    table_addr!(table_addr, table);
+    /// The mode table (walked past its end like the others).
+    pub fn mode_table_ptr() -> crate::pointers::GamePtr {
+        Self::table_ptr(core::mem::offset_of!(Self, table))
+    }
 }
 
 #[cfg(test)]
@@ -115,7 +104,13 @@ mod tests {
         assert_eq!(offset_of!(Modes, count), 0x4F4F38 - START);
         assert_eq!(offset_of!(Modes, table), 0x4F4F3C - START);
         assert_eq!(crate::moved::place(START), home());
-        assert_eq!(crate::moved::place(0x4F4E50), MODES.sizes_addr());
-        assert_eq!(crate::moved::place(0x4F4F3C), MODES.table_addr());
+        assert_eq!(
+            crate::moved::place(0x4F4E50),
+            Modes::sizes_ptr().addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x4F4F3C),
+            Modes::mode_table_ptr().addr() as usize
+        );
     }
 }

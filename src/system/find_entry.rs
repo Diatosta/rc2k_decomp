@@ -21,10 +21,10 @@ pub const ENTRY_LEN: u32 = 8;
 
 // ---- Rust version ----
 
-/// The entry's address, if the key is in the table.
-pub fn find_entry(key: u32, table: u32, count: u32) -> Result<Option<u32>, BadInput> {
+/// The entry, if the key is in the table.
+pub fn find_entry(key: u32, table: GamePtr, count: u32) -> Result<Option<GamePtr>, BadInput> {
     // Converted: `rc2k_core::system::tables::by_key`.
-    if count != 0 && table == 0 {
+    if count != 0 && table.is_null() {
         return Err(BadInput("no table to look in"));
     }
     let (entries, refused) = entries_checked(table, count);
@@ -32,13 +32,13 @@ pub fn find_entry(key: u32, table: u32, count: u32) -> Result<Option<u32>, BadIn
     if let Some(e) = refused.take() {
         return Err(e);
     }
-    Ok(found.map(|n| table.wrapping_add(n as u32 * ENTRY_LEN)))
+    Ok(found.map(|n| table.offset(n as u32 * ENTRY_LEN)))
 }
 
 /// The table's entries, read inside one allocation each; the walk ends at a refused read,
 /// which is left in the cell for the caller to raise before it uses the walk's answer.
 pub fn entries_checked(
-    table: u32,
+    table: GamePtr,
     count: u32,
 ) -> (
     impl Iterator<Item = rc2k_core::system::tables::Entry>,
@@ -51,9 +51,9 @@ pub fn entries_checked(
         if n >= count {
             return None;
         }
-        let at = table.wrapping_add(8 * n);
+        let at = table.offset(ENTRY_LEN.wrapping_mul(n));
         n += 1;
-        match GamePtr::new(at).read::<rc2k_core::system::tables::Entry>("a table's entry") {
+        match at.read::<rc2k_core::system::tables::Entry>("a table's entry") {
             Ok(entry) => Some(entry),
             Err(e) => {
                 kept.set(Some(e));
@@ -66,9 +66,13 @@ pub fn entries_checked(
 
 /// The table's entries for callers that cannot carry a refusal: a refused read ends the
 /// program (`checked_reads::refuse`).
-pub fn entries(table: u32, count: u32) -> impl Iterator<Item = rc2k_core::system::tables::Entry> {
+pub fn entries(
+    table: GamePtr,
+    count: u32,
+) -> impl Iterator<Item = rc2k_core::system::tables::Entry> {
     (0..count).map(move |n| {
-        GamePtr::new(table.wrapping_add(8 * n))
+        table
+            .offset(ENTRY_LEN.wrapping_mul(n))
             .read::<rc2k_core::system::tables::Entry>("a table's entry")
             .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
     })

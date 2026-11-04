@@ -572,8 +572,13 @@ fn fatal(code: u32) -> FatalError {
 
 /// A size by its number in `dword_5ABA98`.
 fn size_of(code: u32) -> Option<u32> {
-    let entry = find_entry(code, TEXTURE_TABLES.sizes_addr(), 5).ok()??;
-    Some(crate::pointers::read_or_end(entry + 4, "a texture size"))
+    let entry = find_entry(code, crate::pointers::GamePtr::to(&TEXTURE_TABLES.sizes), 5).ok()??;
+    Some(
+        entry
+            .offset(4)
+            .read("a texture size")
+            .unwrap_or_else(|e| crate::fatal::raise::end("a texture size", e)),
+    )
 }
 
 /// One texture more in a pool: its record made and its levels' memory.

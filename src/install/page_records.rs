@@ -13,7 +13,7 @@
 //! Reads and writes are checked as `install::installer::{rb, ..}` are: a place outside its
 //! buffer or every allocation ends the program.
 
-use crate::install::installer::{rb, rd, rw, wb, wd, ww};
+use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::Place;
@@ -101,17 +101,17 @@ impl Piece {
         ww(self.0.add(2), text);
     }
 
-    /// +4: the piece's item.
+    /// +4: the piece's item (the original kept its address; this is its offset in the
+    /// installer's pages, `ListItem::in_pages`).
     pub fn item(self) -> ListItem {
-        ListItem::at(self.item_addr())
+        ListItem::in_pages(rd(self.0.add(4))).unwrap_or_else(|e| refuse(e))
     }
 
-    pub fn item_addr(self) -> u32 {
-        rd(self.0.add(4))
-    }
-
-    pub fn set_item(self, item: u32) {
-        wd(self.0.add(4), item);
+    pub fn set_item(self, item: ListItem) {
+        wd(
+            self.0.add(4),
+            item.pages_offset().unwrap_or_else(|e| refuse(e)),
+        );
     }
 
     pub fn x(self) -> u32 {

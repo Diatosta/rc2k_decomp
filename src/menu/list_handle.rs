@@ -118,14 +118,38 @@ impl ListMenu {
 pub struct ListItem(GamePtr);
 
 impl ListItem {
-    /// The item at a game address (a pointer from a piece or a page's tables).
-    pub fn at(addr: u32) -> Self {
-        Self(GamePtr::new(addr).limited(ITEM))
+    /// The item `offset` bytes into the installer's pages (`crate::install::vars::
+    /// InstallerPages`), where every list of the installer lives: what a piece keeps of its
+    /// item. An offset with no item's room before the pages' end is refused.
+    pub fn in_pages(offset: u32) -> Result<Self, crate::errors::BadInput> {
+        use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
+        if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
+            return Err(crate::errors::BadInput(
+                "an item outside the installer's pages",
+            ));
+        }
+        Ok(Self(
+            GamePtr::to(&INSTALLER_PAGES).offset(offset).limited(ITEM),
+        ))
     }
 
-    /// Its game address (what a piece keeps of its item).
-    pub fn addr(self) -> u32 {
-        self.0.addr()
+    /// The title's item (the pages' `title` record).
+    pub fn of_title() -> Self {
+        Self(GamePtr::to(&crate::install::vars::INSTALLER_PAGES.title).limited(ITEM))
+    }
+
+    /// Where this item is in the installer's pages (see `in_pages`); an item outside them is
+    /// refused.
+    pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
+        use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
+        let start = GamePtr::to(&INSTALLER_PAGES).addr();
+        let offset = self.0.addr().wrapping_sub(start);
+        if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
+            return Err(crate::errors::BadInput(
+                "an item outside the installer's pages",
+            ));
+        }
+        Ok(offset)
     }
 
     fn field(self, offset: u32, len: u32) -> GamePtr {
@@ -175,6 +199,11 @@ impl ListItem {
     /// +8: the link's or action's address, or where the item's value or text is.
     pub fn target(self) -> u32 {
         rd(self.field(8, 4))
+    }
+
+    /// +8 as the text the item edits or shows.
+    pub fn text(self) -> crate::place::Place {
+        crate::place::Place::from(GamePtr::new(self.target()))
     }
 
     /// +8 as the byte the item sets (a choice, a value).
@@ -285,5 +314,30 @@ impl EditField {
 
     pub fn width(self) -> u16 {
         rw(self.0.offset(6).limited(2))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pieces_item_is_kept_as_an_offset_in_the_pages() {
+        let title = ListItem::of_title();
+        let offset = title.pages_offset().unwrap();
+        assert_eq!(ListItem::in_pages(offset).unwrap(), title);
+        // The title's record is where IDA has it (0x51DD78), from the pages' first byte.
+        assert_eq!(
+            offset as usize,
+            core::mem::offset_of!(crate::install::vars::InstallerPages, title)
+        );
+    }
+
+    #[test]
+    fn an_item_outside_the_pages_is_refused() {
+        let size = size_of::<crate::install::vars::InstallerPages>() as u32;
+        assert!(ListItem::in_pages(size - ITEM).is_ok());
+        assert!(ListItem::in_pages(size - ITEM + 1).is_err());
+        assert!(ListItem::in_pages(u32::MAX).is_err());
     }
 }
