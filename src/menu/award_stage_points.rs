@@ -17,6 +17,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
@@ -24,16 +25,15 @@ const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
 /// The driver (computer, by `find_cpu_team`) or player of an entry, and the field its
 /// stage points go to, and whether it keeps them.
 enum Owner {
-    Driver(u32),
+    Driver(&'static Driver),
     Player(PlayerCell),
 }
 
 fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
     match e.player {
-        0 => {
-            let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
-            Ok(Owner::Driver(driver))
-        }
+        0 => Ok(Owner::Driver(crate::menu::find_cpu_team::find_cpu_team(
+            e.first,
+        )?)),
         n if n <= 4 => Ok(Owner::Player(player(n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
@@ -53,7 +53,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};
-    let at = 4 * section;
+    let at = 4 * section as usize;
     for class in 0..classes {
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
@@ -67,14 +67,14 @@ pub fn award_stage_points() -> Result<(), Refused> {
             let given = points.take();
             DRAW_WORK.seconds.set(points.0);
             let keeps = match *o {
-                Owner::Driver(d) => get(d + 0x24)? == 1,
+                Owner::Driver(d) => d.in_event.get() == IN_EVENT,
                 Owner::Player(p) => p.get().word(0xD0) == 1,
             };
             e.stage[section as usize] = kept(given, keeps);
             match *o {
-                Owner::Driver(d) => put(d + 0x78 + at, kept(given, keeps))?,
+                Owner::Driver(d) => d.stage(section as usize).set(kept(given, keeps)),
                 Owner::Player(p) => {
-                    p.update(|q| q.store(&[(0x98 + at as usize, kept(given, keeps))]));
+                    p.update(|q| q.store(&[(0x98 + at, kept(given, keeps))]));
                 }
             }
         }
@@ -83,7 +83,7 @@ pub fn award_stage_points() -> Result<(), Refused> {
         let total = total(std::array::from_fn(|k| e.stage[k]));
         e.stage[6] = total;
         match *o {
-            Owner::Driver(d) => put(d + 0x90, total)?,
+            Owner::Driver(d) => d.stage_total().set(total),
             Owner::Player(p) => p.update(|q| q.store(&[(0xB0, total)])),
         }
     }

@@ -1,9 +1,9 @@
 //! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98; phase 7,
 //! typed): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
-//! -1 that ends them for the walks (`menu::standings::entries`), and `g_driverNames`, the
+//! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
 //! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
 //! `#[repr(C)]`, the image's layout; `moved::MOVED` points the range at it. The event code
-//! and `rc2k_core` work on the records as bytes (`menu::standings::table`), from `first()`.
+//! works on the records by field (`menu::standings::drivers` walks them).
 //! The fields' meanings are readings (IDA's `Driver` names +8, +0x14 and +0x18
 //! `nationality`, `car` and `flag`: the time entries and the section screen say class,
 //! nationality and car).
@@ -18,10 +18,10 @@ pub struct Driver {
     pub field_4: Dword,
     /// +8: the class (a time entry's group, +0x1C).
     pub class: Dword,
-    /// +0xC: the event's points.
-    pub points: Dword,
-    /// +0x10: the event's place.
-    pub place: Dword,
+    /// +0xC: the stage's time (`menu::calc_cpu_times`; a time entry's time).
+    pub time: Dword,
+    /// +0x10: the event's total time, each stage's added.
+    pub total: Dword,
     /// +0x14: the nationality (a time entry's +8, the flag's sprite; `var\name.cfg`'s first
     /// number).
     pub nation: Dword,
@@ -29,12 +29,15 @@ pub struct Driver {
     pub car: Dword,
     pub field_1c: Dword,
     pub field_20: Dword,
-    /// +0x24: 1 while in the event.
+    /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
+    /// (`rc2k_core::menu::event_races::DROPPED`).
     pub in_event: Dword,
     pub field_28: Dword,
     /// +0x2C: twelve figures set to 100 at an event's start (the car's condition).
     pub condition: [Dword; 12],
-    /// +0x5C: the result slots: six places and a count, twice (`menu::clear_result_slots`).
+    /// +0x5C: the result slots: six sections' overall points and their total, then six
+    /// sections' stage points and their total (`menu::clear_result_slots`,
+    /// `menu::award_overall_points`, `menu::award_stage_points`).
     pub results: [Dword; 14],
 }
 
@@ -54,8 +57,8 @@ impl Driver {
             name_entry: Dword::new(v[0]),
             field_4: Dword::new(v[1]),
             class: Dword::new(v[2]),
-            points: Dword::new(v[3]),
-            place: Dword::new(v[4]),
+            time: Dword::new(v[3]),
+            total: Dword::new(v[4]),
             nation: Dword::new(v[5]),
             car: Dword::new(v[6]),
             field_1c: Dword::new(v[7]),
@@ -69,6 +72,59 @@ impl Driver {
 }
 
 const _: () = assert!(core::mem::size_of::<Driver>() == 0x94);
+
+/// A driver's +0x24 while in the event.
+pub const IN_EVENT: u32 = 1;
+
+impl Driver {
+    /// Back in the event with no times (`menu::reset_drivers`).
+    pub fn reset(&self) {
+        self.in_event.set(IN_EVENT);
+        self.time.set(0);
+        self.total.set(0);
+    }
+
+    /// An event's start (`menu::begin_event`, `menu::reset_single_event`): no times, +0x20
+    /// 0, in the event.
+    pub fn begin(&self) {
+        self.reset();
+        self.field_20.set(0);
+    }
+
+    /// The twelve condition figures back at 100 (`menu::reset_driver_condition`).
+    pub fn reset_condition(&self) {
+        for c in &self.condition {
+            c.set(100);
+        }
+    }
+
+    /// The result slots emptied (`menu::clear_result_slots`).
+    pub fn clear_results(&self) {
+        for (k, slot) in self.results.iter().enumerate() {
+            slot.set(rc2k_core::menu::event::empty_result_slot(k));
+        }
+    }
+
+    /// The overall points of section `section` (0 .. 5; `menu::award_overall_points`).
+    pub fn overall(&self, section: usize) -> &Dword {
+        &self.results[section]
+    }
+
+    /// The total of the overall points.
+    pub fn overall_total(&self) -> &Dword {
+        &self.results[6]
+    }
+
+    /// The stage points of section `section` (0 .. 5; `menu::award_stage_points`).
+    pub fn stage(&self, section: usize) -> &Dword {
+        &self.results[7 + section]
+    }
+
+    /// The total of the stage points.
+    pub fn stage_total(&self) -> &Dword {
+        &self.results[13]
+    }
+}
 
 /// A driver's name entry (0x14 bytes): the string's id and four dwords.
 #[repr(C)]
@@ -99,13 +155,6 @@ pub struct DriverTable {
     pub end: Dword,
     /// `g_driverNames` (0x741E88).
     pub names: [DriverName; 180],
-}
-
-impl DriverTable {
-    /// The first driver's address (the walks' start).
-    pub fn first(&self) -> u32 {
-        crate::pointers::game_address(self.drivers.as_ptr())
-    }
 }
 
 pub static DRIVERS: DriverTable = DriverTable {

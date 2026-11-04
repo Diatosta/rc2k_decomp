@@ -14,16 +14,22 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::drivers_store::Driver;
 use crate::menu::standings::*;
 
-/// An entry's driver or player record, and whether it is a driver.
-fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<(u32, bool), Refused> {
+/// An entry's driver (computer) or player.
+#[derive(Clone, Copy)]
+enum Owner {
+    Driver(&'static Driver),
+    Player(PlayerCell),
+}
+
+fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
     match e.player {
-        0 => {
-            let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
-            Ok((driver, true))
-        }
-        n if n <= 4 => Ok((player(n - 1).addr(), false)),
+        0 => Ok(Owner::Driver(crate::menu::find_cpu_team::find_cpu_team(
+            e.first,
+        )?)),
+        n if n <= 4 => Ok(Owner::Player(player(n - 1))),
         _ => Err(BadInput("a player past 4 or missing").into()),
     }
 }
@@ -42,22 +48,28 @@ pub fn award_overall_points() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
-        let at = 4 * section;
+        let at = 4 * section as usize;
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
-        for (e, &(o, cpu)) in all.iter_mut().zip(&owners) {
+        for (e, &o) in all.iter_mut().zip(&owners) {
             if e.group == 0 {
                 continue;
             }
             let given = points.take();
             DRAW_WORK.seconds.set(points.0);
             e.overall[section as usize] = given;
-            put(o + if cpu { 0x5C } else { 0xB4 } + at, given)?;
+            match o {
+                Owner::Driver(d) => d.overall(section as usize).set(given),
+                Owner::Player(p) => p.update(|q| q.store(&[(0xB4 + at, given)])),
+            }
         }
-        for (e, &(o, cpu)) in all.iter_mut().zip(&owners) {
+        for (e, &o) in all.iter_mut().zip(&owners) {
             let total = total(std::array::from_fn(|k| e.overall[k]));
             e.overall[6] = total;
-            put(o + if cpu { 0x74 } else { 0xCC }, total)?;
+            match o {
+                Owner::Driver(d) => d.overall_total().set(total),
+                Owner::Player(p) => p.update(|q| q.store(&[(0xCC, total)])),
+            }
         }
         with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
         Ok(())

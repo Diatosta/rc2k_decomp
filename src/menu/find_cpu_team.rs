@@ -1,5 +1,5 @@
-//! `menu::find_cpu_team` (0x4A49FF): the driver (`g_drivers`, 0x94 each) whose first dword
-//! is eax (a reading: the computer team's number); none: the fatal error 0x8070A098
+//! `menu::find_cpu_team` (0x4A49FF): the driver (`g_drivers`, `standings::drivers`'s walk)
+//! whose first dword is eax (a reading: the computer team's number); none: the fatal error 0x8070A098
 //! "CpuTeam Not Found (oh sh_t!)".
 //!
 //! In:  eax the number
@@ -9,20 +9,18 @@
 //! raises the fatal error as the original.
 
 use crate::errors::Refused;
-use crate::menu::standings::*;
+use crate::menu::drivers_store::Driver;
 
-/// The Rust version (see the header): the registers it leaves.
-pub fn find_cpu_team(team: u32) -> Result<u32, Refused> {
-    let first = crate::menu::drivers_store::DRIVERS.first();
-    let all = game_entries(first, DRIVER)?;
-    // Converted: `rc2k_core::menu::standings::find_team`.
-    let mut drivers = table(first, DRIVER, all.len() as u32)?;
-    if let Some(n) = rc2k_core::menu::standings::find_team(&drivers.entries(), team) {
-        return Ok(all[n]);
-    }
-    Err(crate::errors::FatalError {
-        code: 0x8070A098,
-        message: "CpuTeam Not Found (oh sh_t!)",
-    }
-    .into())
+/// The Rust version (see the header): the driver.
+pub fn find_cpu_team(team: u32) -> Result<&'static Driver, Refused> {
+    crate::menu::standings::drivers()?
+        .iter()
+        .find(|d| d.name_entry.get() == team)
+        .ok_or(
+            crate::errors::FatalError {
+                code: 0x8070A098,
+                message: "CpuTeam Not Found (oh sh_t!)",
+            }
+            .into(),
+        )
 }

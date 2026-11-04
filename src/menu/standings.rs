@@ -2,23 +2,20 @@
 //! (`saves::best_times::RANKED_TIMES`, best times: `player` 1 .. 4 or 0 for a computer
 //! driver, `group`, `figure` the position) and table B (`saves::best_times::CHAMP_HISTORY`,
 //! `rankings::HistoryEntry`); both end with an entry whose first dword is -1.
-//! Also the drivers (`g_drivers`, 0x94 each, -1 at the end) and the players
-//! (`g_players`, four pointers).
+//! Also the drivers (`g_drivers`, -1 at the end) and the players (`g_players`).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::drivers_store::{DRIVERS, Driver};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
 use crate::session::Dword;
-use rc2k_core::menu::standings::{self, Entries, NAME_LEN};
+use rc2k_core::menu::standings::{self, NAME_LEN};
 
 pub use crate::saves::best_times::{CHAMP_HISTORY as TABLE_B, RANKED_TIMES as TABLE_A};
 use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
-pub const DRIVER: u32 = 0x94;
-/// No table of the game's is longer; a walk past it (no end entry) is refused.
-pub const MOST_ENTRIES: u32 = 0x400;
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
@@ -32,29 +29,24 @@ pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInp
     Ok(players.iter().any(|p| p.get().name == 0))
 }
 
-pub use crate::menu::event_flow::put;
-
 /// Player `n`'s record (`n` one of the four).
 pub fn player(n: u32) -> PlayerCell {
     &PLAYER_TABLE.players[n as usize]
 }
 
-/// A table of the game's memory (the drivers) walked as the original's `do .. while`
-/// walks them (the first always, then each while its first dword is not -1): its entries'
-/// addresses; refused when no end entry comes within `MOST_ENTRIES`.
-pub fn game_entries(first: u32, size: u32) -> Result<Vec<u32>, BadInput> {
-    let mut out = vec![first];
-    let mut e = first;
-    loop {
-        e = e.wrapping_add(size);
-        if get(e)? == u32::MAX {
-            return Ok(out);
-        }
-        if out.len() as u32 >= MOST_ENTRIES {
-            return Err(BadInput("a standings table without its end entry"));
-        }
-        out.push(e);
+/// The drivers (`g_drivers`) as the original's `do .. while` walks them: the first always,
+/// then each while its first dword is not -1. The walk ends at the latest on the -1 after the
+/// 180 (`DRIVERS.end`); refused when that is gone (the original would read on).
+pub fn drivers() -> Result<&'static [Driver], BadInput> {
+    let all = &DRIVERS.drivers;
+    let count = 1 + all[1..]
+        .iter()
+        .take_while(|d| d.name_entry.get() != u32::MAX)
+        .count();
+    if count == all.len() && DRIVERS.end.get() != u32::MAX {
+        return Err(BadInput("the drivers without their end entry"));
     }
+    Ok(&all[..count])
 }
 
 /// `f` on table A; refused without it.
@@ -68,7 +60,7 @@ pub fn with_b<R>(f: impl FnOnce(&mut ChampHistory) -> R) -> Result<R, BadInput> 
 }
 
 /// How many of table A's entries the original walks; refused without the table or with no
-/// end entry within `MOST_ENTRIES`.
+/// end entry within the core's `MOST_WALKED`.
 pub fn walked_a() -> Result<usize, BadInput> {
     with_a(|t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
@@ -137,7 +129,25 @@ pub struct Found {
     pub entry: usize,
 }
 
-/// A table copied out of the game's memory for the core to work on, stored back when dropped
+/// The walked drivers, for the tables' fills.
+pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
+    Ok(drivers()?
+        .iter()
+        .map(|d| rc2k_core::saves::rankings::Driver {
+            number: d.name_entry.get(),
+            group: d.class.get(),
+            time: d.time.get(),
+            total: d.total.get(),
+            nation: d.nation.get(),
+            car: d.car.get(),
+            entered: d.in_event.get(),
+            points: d.results.each_ref().map(Dword::get),
+        })
+        .collect())
+}
+
+/// A record copied out of the game's memory for the core to work on (a stage record's,
+/// `menu::keep_stage_best`), stored back when dropped
 /// (whatever the caller's way out: the original works in place, so its changes stay).
 pub struct GameTable {
     first: u32,
@@ -147,8 +157,8 @@ pub struct GameTable {
 
 impl GameTable {
     /// The core's view.
-    pub fn entries(&mut self) -> Entries<'_> {
-        Entries {
+    pub fn entries(&mut self) -> rc2k_core::menu::standings::Entries<'_> {
+        rc2k_core::menu::standings::Entries {
             bytes: &mut self.bytes,
             size: self.size,
         }
@@ -172,35 +182,6 @@ pub fn table(first: u32, size: u32, count: u32) -> Result<GameTable, BadInput> {
         bytes: crate::pointers::GamePtr::new(first)
             .read_bytes((count * size) as usize, "a standings table")?,
     })
-}
-
-/// The drivers (`g_drivers`) as the core's table, as far as `entries` walks them.
-pub fn driver_table() -> Result<GameTable, BadInput> {
-    let first = crate::menu::drivers_store::DRIVERS.first();
-    let all = game_entries(first, DRIVER)?;
-    table(first, DRIVER, all.len() as u32)
-}
-
-/// The drivers as far as `game_entries` walks them, for the tables' fills.
-pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
-    use crate::menu::drivers_store::DRIVERS;
-    let count = game_entries(DRIVERS.first(), DRIVER)?.len();
-    let Some(drivers) = DRIVERS.drivers.get(..count) else {
-        return Err(BadInput("more drivers than the table holds"));
-    };
-    Ok(drivers
-        .iter()
-        .map(|d| rc2k_core::saves::rankings::Driver {
-            number: d.name_entry.get(),
-            group: d.class.get(),
-            time: d.points.get(),
-            total: d.place.get(),
-            nation: d.nation.get(),
-            car: d.car.get(),
-            entered: d.in_event.get(),
-            points: d.results.each_ref().map(super::super::session::Dword::get),
-        })
-        .collect())
 }
 
 /// A record's stores (the core's) made at `p`.

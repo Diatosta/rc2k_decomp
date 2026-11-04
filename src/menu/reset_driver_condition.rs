@@ -7,13 +7,11 @@
 //! Callers: `sub_471F0D` (twice), the event drivers. Refuses a table without its end entry, before
 //! anything.
 use crate::errors::Refused;
-use crate::menu::standings::*;
+use crate::menu::drivers_store::Driver;
+use crate::menu::standings::drivers;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_driver_condition() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::event::driver_condition`, stored in each driver.
-    driver_table()?
-        .entries()
-        .store_all(&rc2k_core::menu::event::driver_condition());
+    drivers()?.iter().for_each(Driver::reset_condition);
     Ok(())
 }

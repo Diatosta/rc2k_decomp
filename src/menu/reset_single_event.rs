@@ -14,15 +14,16 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_single_event() -> Result<(), Refused> {
-    let mut drivers = driver_table()?;
-    let mut drivers = drivers.entries();
+    let drivers = drivers()?;
 
     MENU_PAGES.services.set(0u32);
     EVENT_STATE.stages_done.set(0u32);
 
-    // Converted: `rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN}`.
-    use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN};
-    drivers.store_all(&DRIVER_BEGIN);
+    // Converted: `rc2k_core::menu::event::PLAYER_BEGIN`.
+    use rc2k_core::menu::event::PLAYER_BEGIN;
+    drivers
+        .iter()
+        .for_each(crate::menu::drivers_store::Driver::begin);
 
     EVENT_STATE.event_goes_on.set(1u32);
     EVENT_STATE.event_out.set(0u32);

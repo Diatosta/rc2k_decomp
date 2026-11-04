@@ -20,6 +20,7 @@
 //! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
@@ -53,13 +54,8 @@ const DIVIDE_BY_ZERO: FatalError = FatalError {
     message: "",
 };
 /// Whether any of the drivers is in class `c` (+8), the first found ending the look.
-fn any_in_class(drivers: &[u32], c: u32) -> Result<bool, BadInput> {
-    for &d in drivers {
-        if get(d + 8)? == c {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+fn any_in_class(drivers: &[Driver], c: u32) -> bool {
+    drivers.iter().any(|d| d.class.get() == c)
 }
 
 /// The current record (see `standings::current_event`'s checks).
@@ -72,12 +68,12 @@ pub fn record() -> Result<u32, BadInput> {
 
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
+pub fn check(rec: u32) -> Result<(u32, &'static [Driver], u32), Refused> {
     let classes: u32 = EVENT_STATE.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
-    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
+    let drivers = drivers()?;
     let times = [
         get(rec + 0x18)?,
         get(rec + 0x1C)?,
@@ -101,7 +97,7 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
         }
     };
     for c in 0..classes {
-        if !any_in_class(&drivers, c)? {
+        if !any_in_class(drivers, c) {
             continue;
         }
         if class_time(c)? >> 1 == 0 {
@@ -129,8 +125,8 @@ pub fn calc_cpu_times() -> Result<(), Refused> {
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
         let mut gaps = 0u32;
-        for &d in &drivers {
-            if get(d + 8)? != c {
+        for d in drivers {
+            if d.class.get() != c {
                 continue;
             }
             let time = class_time_at(c)?;
@@ -145,10 +141,10 @@ pub fn calc_cpu_times() -> Result<(), Refused> {
             DRAW_WORK.figure.set(own);
             EVENT_STATE.service_944.set(spread.first);
             EVENT_STATE.dword_755948.set(spread.step);
-            if get(d + 0x24)? == 1 {
+            if d.in_event.get() == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
-                put(d + 0xC, own)?;
-                put(d + 0x10, get(d + 0x10)?.wrapping_add(own))?;
+                d.time.set(own);
+                d.total.set(d.total.get().wrapping_add(own));
             }
             gaps = gaps.wrapping_add(gap);
         }

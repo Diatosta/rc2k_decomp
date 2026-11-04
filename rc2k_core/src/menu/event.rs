@@ -15,14 +15,6 @@ use crate::strings::format::{Pad, decimal};
 /// No time yet: an hour in milliseconds.
 pub const HOUR: u32 = 3_600_000;
 
-/// `menu::reset_drivers`: each driver in the event (+0x24 1), no points (+0xC), no place
-/// (+0x10) (a reading).
-pub const DRIVER_RESET: [Store; 3] = [(0x24, 1), (0xC, 0), (0x10, 0)];
-
-/// `menu::begin_event` and `reset_single_event`: each driver's +0x10, +0xC, +0x20 0 and
-/// +0x24 1.
-pub const DRIVER_BEGIN: [Store; 4] = [(0x10, 0), (0xC, 0), (0x20, 0), (0x24, 1)];
-
 /// `menu::begin_event` and `reset_single_event`: each player's +0x8C and +0x84 0, +0xD0 1.
 pub const PLAYER_BEGIN: [Store; 3] = [(0x8C, 0), (0x84, 0), (0xD0, 1)];
 
@@ -36,17 +28,17 @@ pub const PLAYER_TOTALS: [Store; 2] = [(0x8C, HOUR), (0x88, HOUR)];
 /// figure (+0x88, +0x94) 0.
 pub const PLAYER_READY: [Store; 3] = [(0xD0, 1), (0x88, 0), (0x94, 0)];
 
-/// `menu::reset_driver_condition`: a driver's twelve figures from +0x2C 100 (a reading:
-/// the car's condition).
-pub fn driver_condition() -> [Store; 12] {
-    std::array::from_fn(|k| (0x2C + 4 * k, 100))
+/// `menu::clear_result_slots`: fourteen result slots from `at` (a player's +0x98, a
+/// driver's +0x5C) emptied: -1, but 0 in the seventh and the last (two groups of six
+/// sections' points and their total: a player's stage points then overall points, a
+/// driver's overall then stage points).
+pub fn result_slots(at: usize) -> [Store; 14] {
+    std::array::from_fn(|k| (at + 4 * k, empty_result_slot(k)))
 }
 
-/// `menu::clear_result_slots`: fourteen result slots from `at` (a player's +0x98, a
-/// driver's +0x5C) emptied: -1, but 0 in the seventh and the last (a reading: two groups
-/// of six places and a count).
-pub fn result_slots(at: usize) -> [Store; 14] {
-    std::array::from_fn(|k| (at + 4 * k, if k == 6 || k == 13 { 0 } else { u32::MAX }))
+/// Result slot `k` emptied (`result_slots`).
+pub fn empty_result_slot(k: usize) -> u32 {
+    if k == 6 || k == 13 { 0 } else { u32::MAX }
 }
 
 /// The event mode that keeps the players' setups (`menu::begin_event`).
@@ -178,8 +170,6 @@ mod tests {
 
     #[test]
     fn stores() {
-        let c = driver_condition();
-        assert_eq!((c[0], c[11]), ((0x2C, 100), (0x58, 100)));
         let s = result_slots(0x98);
         assert_eq!(
             (s[0], s[6], s[13]),

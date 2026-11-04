@@ -282,12 +282,6 @@ pub const A_FIGURE: usize = 0x44;
 #[cfg(test)]
 pub const B_FIGURE: usize = 0x70;
 
-/// `menu::find_cpu_team`: the first driver whose number (+0) is `number` (none: the game's
-/// fatal error 0x8070A098).
-pub fn find_team(drivers: &Entries, number: u32) -> Option<usize> {
-    (0..drivers.len()).find(|&n| drivers.get(n, 0) == number)
-}
-
 /// What `menu::copy_standing_entry` takes from a player's record for a table A entry.
 pub struct PlayerA {
     /// The player's index (0 .. 3).
@@ -543,8 +537,6 @@ mod tests {
         d.set(1, 0, 7);
         d.set(1, 0x24, 9);
         d.set(1, 0x5C + 4 * 13, 11);
-        assert_eq!(find_team(&d, 7), Some(1));
-        assert_eq!(find_team(&d, 8), None);
         fill_a_from_driver(&mut t, 2, &d, 1, 0x55, b"ab\0");
         assert_eq!((t.get(2, 0), t.get(2, 0x4C), t.get(2, 0xC)), (7, 9, 0x55));
         assert_eq!(t.bytes_at(2, 0x20, 3), b"ab\0");

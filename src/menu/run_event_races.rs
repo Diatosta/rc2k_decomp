@@ -31,6 +31,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
@@ -48,14 +49,27 @@ const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps' Rust versions, the race and the front end.
 struct Game {
-    /// The first driver's record.
-    first: u32,
+    /// The walked drivers.
+    drivers: &'static [Driver],
     /// The stage's track pack entry.
     pack: u32,
     /// The driver `running` last asked about (the one `drop_out` drops).
-    asked: u32,
+    asked: Option<&'static Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
+}
+
+impl Game {
+    /// Driver `k` of the walked ones; past them a refusal kept for the next check (the core
+    /// picks under `PICKED`, which `run_event_races` checks the walk reaches).
+    fn driver(&self, k: u32) -> Option<&'static Driver> {
+        let d = self.drivers.get(k as usize);
+        if d.is_none() {
+            self.fault
+                .ok::<()>(Err(BadInput("a driver past the walked ones")));
+        }
+        d
+    }
 }
 
 /// The variables that are in the physics block.
@@ -122,45 +136,46 @@ impl races::EventRaces for Game {
     }
 
     fn slow(&mut self, k: u32, added: u32) {
-        let driver = self.first + k * DRIVER;
-        let fault = &self.fault;
-        fault.put(driver + 0xC, fault.get(driver + 0xC).wrapping_add(added));
-        fault.put(driver + 0x10, fault.get(driver + 0x10).wrapping_add(added));
+        if let Some(d) = self.driver(k) {
+            d.time.set(d.time.get().wrapping_add(added));
+            d.total.set(d.total.get().wrapping_add(added));
+        }
     }
 
     fn running(&mut self, k: u32) -> bool {
-        self.asked = self.first + k * DRIVER;
-        self.fault.get(self.asked + 0x24) == races::RUNNING
+        self.asked = self.driver(k);
+        self.asked
+            .is_some_and(|d| d.in_event.get() == races::RUNNING)
     }
 
     fn drop_out(&mut self) {
-        self.fault.put(self.asked + 0x24, races::DROPPED);
-        self.fault.put(self.asked + 0xC, races::DROPPED_TIME);
-        self.fault.put(self.asked + 0x10, races::DROPPED_TIME);
+        if let Some(d) = self.asked {
+            d.in_event.set(races::DROPPED);
+            d.time.set(races::DROPPED_TIME);
+            d.total.set(races::DROPPED_TIME);
+        }
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        self.fault.get(player(i).addr() + 0xD0) == races::TAKES_PART
+        player(i).get().word(0xD0) == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
-        let fourth = player(3).addr();
-        self.fault.put(fourth + 0x88, races::FOURTH_TIME);
-        self.fault.put(fourth + 0xD0, races::FOURTH_ENTRY);
+        player(3).update(|q| {
+            q.store(&[(0x88, races::FOURTH_TIME), (0xD0, races::FOURTH_ENTRY)]);
+        });
     }
 }
 
 /// The Rust version (see the header).
 pub fn run_event_races() -> Result<(), Refused> {
-    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    let fault = Fault::default();
+    let drivers = drivers()?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
-            .filter(|&&d| fault.get(d + 0x24) == 1)
+            .filter(|d| d.in_event.get() == IN_EVENT)
             .count()
             < 4;
-    fault.check()?;
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
@@ -175,9 +190,9 @@ pub fn run_event_races() -> Result<(), Refused> {
     crate::menu::calc_cpu_times::check(rec)?;
     let pack = crate::records::trakpak_entry::record_entry(rec)?;
     let mut game = Game {
-        first: drivers[0],
+        drivers,
         pack,
-        asked: 0,
+        asked: None,
         fault: Fault::default(),
     };
     // Converted: `rc2k_core::menu::event_races::run_event_races`.
