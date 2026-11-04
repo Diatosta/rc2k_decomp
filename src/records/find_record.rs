@@ -17,7 +17,7 @@ use crate::pointers::GamePtr;
 pub fn find_record_in(table: u32, index: i32, section: u32) -> Result<u32, BadInput> {
     let records = GamePtr::new(table).bytes("a record table")?;
     let place = rc2k_core::files::records::find_record(&records, index, section)?;
-    Ok(table.wrapping_add(place as u32))
+    crate::records::stages_store::checked(table, table.wrapping_add(place as u32))
 }
 
 /// True if `table` has at least `section` section headers among its first `limit` records:

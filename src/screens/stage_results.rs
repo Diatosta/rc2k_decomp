@@ -20,7 +20,7 @@ fn records() -> Result<(u32, u32), BadInput> {
         .group_event_table(CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get())?;
     Ok((
         base,
-        base.wrapping_add(CAPTIONS.shown_stage.get().wrapping_mul(0xA4)),
+        crate::records::stages_store::row(base, CAPTIONS.shown_stage.get())?,
     ))
 }
 

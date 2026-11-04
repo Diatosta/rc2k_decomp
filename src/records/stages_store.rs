@@ -1246,6 +1246,105 @@ impl StageTables {
     }
 }
 
+/// A record's bytes.
+pub const RECORD_LEN: u32 = 0xA4;
+
+/// A table of records: the championship's (`g_recordTable`) or one of the twelve events'.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecordTable {
+    Championship,
+    Event(usize),
+}
+
+/// A record of a table: row `index`, or (at `index` == the rows' count) the -1 that ends
+/// the table, whose tag a walk may read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RecordRef {
+    pub table: RecordTable,
+    pub index: usize,
+}
+
+impl RecordTable {
+    fn rows(self) -> &'static [Record] {
+        match self {
+            RecordTable::Championship => &STAGE_TABLES.championship,
+            RecordTable::Event(k) => &STAGE_TABLES.events[k].records,
+        }
+    }
+
+    fn end(self) -> &'static Loose {
+        match self {
+            RecordTable::Championship => &STAGE_TABLES.championship_end,
+            RecordTable::Event(k) => &STAGE_TABLES.events[k].end,
+        }
+    }
+
+    /// Its first row's game address (for the code that still works by address).
+    pub fn addr(self) -> u32 {
+        crate::pointers::game_address(self.rows().as_ptr())
+    }
+
+    /// Row `n` (or the end mark). Refused past the end mark: the original's sum runs on into
+    /// the next table.
+    pub fn row(self, n: u32) -> Result<RecordRef, BadInput> {
+        let index = n as usize;
+        if index > self.rows().len() {
+            return Err(BadInput("a record index past its table's end"));
+        }
+        Ok(RecordRef { table: self, index })
+    }
+}
+
+impl RecordRef {
+    /// The row (or end mark) at game address `at`; refused for an address that is neither.
+    pub fn at(at: u32) -> Result<Self, BadInput> {
+        std::iter::once(RecordTable::Championship)
+            .chain((0..STAGE_TABLES.events.len()).map(RecordTable::Event))
+            .find_map(|table| {
+                let d = at.checked_sub(table.addr())?;
+                let n = d / RECORD_LEN;
+                (d.is_multiple_of(RECORD_LEN) && n as usize <= table.rows().len()).then_some(
+                    RecordRef {
+                        table,
+                        index: n as usize,
+                    },
+                )
+            })
+            .ok_or(BadInput("an address that is no record of a table"))
+    }
+
+    /// The record `n` rows on (wrapping as the original's sum); refused past the table's end
+    /// mark or before its first row.
+    pub fn offset(self, n: u32) -> Result<Self, BadInput> {
+        self.table.row((self.index as u32).wrapping_add(n))
+    }
+
+    /// Its game address (for the code that still works by address).
+    pub fn addr(self) -> u32 {
+        match self.table.rows().get(self.index) {
+            Some(row) => crate::pointers::game_address(std::ptr::from_ref(row)),
+            None => crate::pointers::game_address(std::ptr::from_ref(self.table.end())),
+        }
+    }
+}
+
+/// Record `n` rows on from the record at `base` (`base + n x 0xA4`, as the original makes
+/// it), as an address; refused off the table (`RecordTable::row`). Census (2026-11-04,
+/// replays, drives, tour, flows, a championship's stage to its results): no run went off.
+pub fn row(base: u32, n: u32) -> Result<u32, BadInput> {
+    Ok(RecordRef::at(base)?.offset(n)?.addr())
+}
+
+/// The record at `record`, found from the record at `base`, as an address; refused when it
+/// is not a row (or the end mark) of that table.
+pub fn checked(base: u32, record: u32) -> Result<u32, BadInput> {
+    let d = record.wrapping_sub(base);
+    if !d.is_multiple_of(RECORD_LEN) {
+        return Err(BadInput("a record off its table's rows"));
+    }
+    row(base, d / RECORD_LEN)
+}
+
 /// IDA 0x734BC6, the first byte of the piece.
 pub const START: usize = 0x734BC6;
 /// IDA 0x73B674, the end of the piece.
@@ -1328,5 +1427,25 @@ mod tests {
             );
         }
         assert!(t.result_table(4).is_err());
+    }
+
+    #[test]
+    fn records_stay_in_their_table() {
+        let champ = RecordTable::Championship;
+        assert_eq!(champ.row(66).map(|r| r.index), Ok(66), "the end mark");
+        assert!(champ.row(67).is_err());
+        assert!(RecordTable::Event(0).row(8).is_err());
+        let third = RecordRef::at(champ.addr() + 3 * RECORD_LEN).unwrap();
+        assert_eq!((third.table, third.index), (champ, 3));
+        assert_eq!(third.offset(u32::MAX).map(|r| r.index), Ok(2));
+        assert!(RecordRef::at(champ.addr() + 2).is_err());
+        let next = RecordRef::at(RecordTable::Event(0).addr()).unwrap();
+        assert_eq!((next.table, next.index), (RecordTable::Event(0), 0));
+        assert_eq!(
+            row(RecordTable::Event(1).addr(), 7),
+            Ok(RecordTable::Event(1).row(7).unwrap().addr())
+        );
+        assert!(row(RecordTable::Event(1).addr(), 8).is_err());
+        assert!(checked(champ.addr(), champ.addr() + 1).is_err());
     }
 }

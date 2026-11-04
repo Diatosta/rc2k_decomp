@@ -35,7 +35,7 @@ fn records() -> Result<(u32, u32), BadInput> {
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
     Ok((
         base,
-        base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),
+        crate::records::stages_store::row(base, EVENT_STATE.stage_number.get())?,
     ))
 }
 

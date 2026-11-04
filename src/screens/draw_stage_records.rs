@@ -25,8 +25,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const RECORD_SIZE: u32 = 0xA4;
-
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 
@@ -53,7 +51,7 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
         group,
         sub,
         table,
-        record: table.wrapping_add(index.wrapping_mul(RECORD_SIZE)),
+        record: crate::records::stages_store::row(table, index)?,
     }))
 }
 

@@ -45,10 +45,10 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             crate::menu::event_flow::dword_what(first + 0x38, "a stage record")?
         };
         let base = record_at(1)?;
-        let record = move |n: u32| base.wrapping_add((n - 1).wrapping_mul(0xA4));
+        let record = move |n: u32| crate::records::stages_store::row(base, n.wrapping_sub(1));
         let get = |a: u32| crate::menu::event_flow::dword_what(a, "a stage record");
         let row = |n: u32| -> Result<Row, Refused> {
-            let r = record(n);
+            let r = record(n)?;
             match get(r)? {
                 1 => Ok(Row::Service {
                     hhmm: get(r + 0x10)?,
@@ -66,7 +66,7 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             }
         };
         let fault = crate::menu::event_flow::Fault::default();
-        let ends_at = |n: u32| fault.ok(get(record(n))) == u32::MAX;
+        let ends_at = |n: u32| fault.ok(record(n).and_then(get)) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,

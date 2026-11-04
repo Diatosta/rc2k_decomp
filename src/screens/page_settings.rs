@@ -75,7 +75,7 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 /// 0xA4 the line is about.
 fn stage_record(a: u32, b: u32, c: u32) -> Result<(u32, u32), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
-    Ok((base, base.wrapping_add(c.wrapping_mul(0xA4))))
+    Ok((base, crate::records::stages_store::row(base, c)?))
 }
 
 /// What both stage pages read through: refused before anything.

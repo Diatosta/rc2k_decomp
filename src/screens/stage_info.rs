@@ -13,7 +13,7 @@ use crate::menu::event_flow::dword as get;
 /// The page's stage record (none: 0).
 pub fn stage_record() -> Result<u32, BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())?;
-    Ok(base.wrapping_add(ARCADE_GAME.stage.get().wrapping_mul(0xA4)))
+    crate::records::stages_store::row(base, ARCADE_GAME.stage.get())
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines

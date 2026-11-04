@@ -13,8 +13,6 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
 
-const RECORD_SIZE: u32 = 0xA4;
-
 pub const GROUP_RVA: &Dword = &EVENT_STATE.stage_group; // dword_7558C8: 0 or 1
 pub const SUB_RVA: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0: 0 .. 5
 pub const NUMBER_RVA: &Dword = &EVENT_STATE.stage_number; // dword_7558CC: 1 .. 6
@@ -42,10 +40,10 @@ pub fn draw_stage_map() -> Result<(), Refused> {
     let record = match mode {
         2 => {
             let table: u32 = ARCADE_GAME.level.get();
-            let at = ARCADE_GAME.stage.get().wrapping_mul(RECORD_SIZE);
-            crate::records::stages_store::STAGE_TABLES
-                .level_table(table)?
-                .wrapping_add(at)
+            crate::records::stages_store::row(
+                crate::records::stages_store::STAGE_TABLES.level_table(table)?,
+                ARCADE_GAME.stage.get(),
+            )?
         }
         3 => crate::records::find_record::find_record_in(
             crate::records::stages_store::STAGE_TABLES.championship(),
@@ -56,8 +54,7 @@ pub fn draw_stage_map() -> Result<(), Refused> {
             let s = selection()?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
-            s.table
-                .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
+            crate::records::stages_store::row(s.table, EVENT_STATE.stage_number.get())?
         }
     };
     let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(

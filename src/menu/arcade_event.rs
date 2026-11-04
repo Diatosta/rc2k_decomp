@@ -2,7 +2,6 @@ use crate::errors::Refused;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::event_flow::STAGE_RECORD;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -106,8 +105,10 @@ impl arcade::Arcade for Game {
                 // The stage's record in the level's table.
                 let level = crate::records::stages_store::STAGE_TABLES
                     .level_table(ARCADE_GAME.level.get())?;
-                let stage = ARCADE_GAME.stage.get().wrapping_mul(STAGE_RECORD);
-                a::keep_arcade_stage_best(level.wrapping_add(stage))?;
+                a::keep_arcade_stage_best(crate::records::stages_store::row(
+                    level,
+                    ARCADE_GAME.stage.get(),
+                )?)?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time()?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks()?,

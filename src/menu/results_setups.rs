@@ -79,9 +79,10 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 fn stage_time() -> Result<u32, Refused> {
     let records = crate::records::stages_store::STAGE_TABLES
         .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
-    Ok(get(records.wrapping_add(
-        EVENT_STATE.stage_number.get().wrapping_mul(0xA4),
-    ) + 0x34)?)
+    Ok(get(crate::records::stages_store::row(
+        records,
+        EVENT_STATE.stage_number.get(),
+    )? + 0x34)?)
 }
 
 fn points(position: u32) -> Result<u32, Refused> {

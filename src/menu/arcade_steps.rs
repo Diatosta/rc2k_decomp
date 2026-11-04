@@ -76,7 +76,10 @@ fn stage_record() -> Result<u32, Refused> {
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
-    Ok(crate::records::stages_store::STAGE_TABLES.level_table(level)? + stage * 0xA4)
+    Ok(crate::records::stages_store::row(
+        crate::records::stages_store::STAGE_TABLES.level_table(level)?,
+        stage,
+    )?)
 }
 
 /// `f` on the course's ten best times (`saves::best_times::COURSE_TIMES`); refused with no

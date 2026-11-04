@@ -19,5 +19,8 @@ use crate::pointers::GamePtr;
 pub fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
     let records = GamePtr::new(table).bytes("a record table")?;
     let place = rc2k_core::files::records::find_stage_record(&records, section, number)?;
-    Ok(table.wrapping_add(place as u32))
+    Ok(crate::records::stages_store::checked(
+        table,
+        table.wrapping_add(place as u32),
+    )?)
 }

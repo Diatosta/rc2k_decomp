@@ -151,7 +151,7 @@ pub fn stage_record() -> Result<u32, BadInput> {
     }
     let stages =
         crate::records::stages_store::STAGE_TABLES.group_event_table(kind, get(STAGE_SUB))?;
-    Ok(stages.wrapping_add(get(STAGE_NUMBER).wrapping_mul(STAGE_RECORD)))
+    crate::records::stages_store::row(stages, get(STAGE_NUMBER))
 }
 
 /// The chosen stage's best times: its table and its place there; refused as
