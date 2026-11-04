@@ -15,7 +15,7 @@
 //! `saves::entries`; this holds the tests of a new figure, the new entry's parts, and the
 //! records' best holders.
 
-use super::standings::{Entries, NAME_LEN};
+use super::standings::NAME_LEN;
 
 /// The 0x40 bytes a best time keeps (its checkpoints; the player's +0x20C).
 pub const LINE_LEN: usize = 0x40;
@@ -59,55 +59,9 @@ pub struct NewBest {
     pub line: Option<[u8; LINE_LEN]>,
 }
 
-/// Where a record keeps its best holder: the figure, nationality, car and the name's 0x20
-/// bytes.
-pub struct HolderAt {
-    pub figure: usize,
-    pub nationality: usize,
-    pub car: usize,
-    pub name: usize,
-}
-
-/// The championship's and arcade's records (0xA4 each).
-pub const RECORD_HOLDER: HolderAt = HolderAt {
-    figure: 0x30,
-    nationality: 0x74,
-    car: 0x78,
-    name: 0x54,
-};
-
-/// The time trial's stage records.
-pub const STAGE_HOLDER: HolderAt = HolderAt {
-    figure: 0x2C,
-    nationality: 0x9C,
-    car: 0xA0,
-    name: 0x7C,
-};
-
-/// A best holder: the player's figure (+0x94), nationality (+4), car (+8), name.
-pub struct Holder {
-    pub figure: u32,
-    pub nationality: u32,
-    pub car: u32,
-    pub name: [u8; 0x20],
-}
-
 /// Whether a figure takes a record whose own is `kept`: above it (signed).
 pub fn takes_record(figure: u32, kept: u32) -> bool {
     (kept as i32) < figure as i32
-}
-
-/// The record (entry `n`) taken by `holder`.
-pub fn take_record(record: &mut Entries, n: usize, at: &HolderAt, holder: &Holder) {
-    record.store(
-        n,
-        &[
-            (at.figure, holder.figure),
-            (at.nationality, holder.nationality),
-            (at.car, holder.car),
-        ],
-    );
-    record.set_bytes(n, at.name, &holder.name);
 }
 
 /// The record entries' pass (`menu::record_entries_pass`) on the game.
@@ -144,30 +98,11 @@ pub fn record_entries<R: RecordEntries>(players: u32, e: &mut R) -> Result<(), R
 mod tests {
     use super::*;
 
-    fn list(bytes: &mut [u8], size: usize) -> Entries<'_> {
-        Entries { bytes, size }
-    }
-
     #[test]
     fn tests() {
         assert!(makes_time(5, 5) && !makes_time(6, 5) && makes_time(u32::MAX, 0));
         assert!(makes_score(5, 5) && !makes_score(4, 5) && !makes_score(u32::MAX, 0));
         assert!(takes_record(6, 5) && !takes_record(5, 5) && takes_record(0, u32::MAX));
-    }
-
-    #[test]
-    fn records() {
-        let mut bytes = vec![0u8; 0xA4];
-        let mut r = list(&mut bytes, 0xA4);
-        let h = Holder {
-            figure: 8,
-            nationality: 1,
-            car: 2,
-            name: [b'h'; 0x20],
-        };
-        take_record(&mut r, 0, &STAGE_HOLDER, &h);
-        assert_eq!((r.get(0, 0x2C), r.get(0, 0xA0)), (8, 2));
-        assert_eq!(r.bytes_at(0, 0x7C, 0x20), &[b'h'; 0x20]);
     }
 
     #[test]

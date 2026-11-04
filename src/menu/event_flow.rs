@@ -128,7 +128,6 @@ pub const STAGE_KIND: &Dword = &EVENT_STATE.stage_group; // dword_7558C8
 pub const STAGE_SUB: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0
 pub const STAGE_NUMBER: &Dword = &EVENT_STATE.stage_number; // dword_7558CC
 const KINDS: u32 = 4;
-pub const STAGE_RECORD: u32 = 0xA4;
 /// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `dword_7556E8`, ten for each
 /// stage (the record's +0x3C).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;

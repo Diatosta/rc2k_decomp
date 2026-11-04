@@ -19,7 +19,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     let p = current_player()?;
-    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
+    // Converted: `rc2k_core::menu::bests::takes_record`.
     let figure = p.get().figure;
     if !bests::takes_record(figure, record.record()?.holder(Holder::Second).speed) {
         return Ok(());
@@ -28,13 +28,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
-    let holder = bests::Holder {
-        figure,
-        nationality: p.get().nationality,
-        car: p.get().car_number,
-        name: crate::menu::standings::bytes(name)?,
-    };
-    let mut r = crate::menu::standings::table(record.addr(), STAGE_RECORD, 1)?;
-    bests::take_record(&mut r.entries(), 0, &bests::STAGE_HOLDER, &holder);
+    let (row, name) = crate::menu::standings::as_holder(&p.get())?;
+    record.record()?.set_holder(Holder::Second, &row, &name);
     Ok(())
 }

@@ -57,7 +57,7 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::results_store::RESULT_FIGURES;
-use crate::menu::standings::{bytes, table, with_kept_name};
+use crate::menu::standings::{bytes, with_kept_name};
 use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::session::{Dword, read_all, write_all};
@@ -68,7 +68,6 @@ const SCORE_1: &Dword = &RESULT_FIGURES.totals[1]; // dword_7587BC
 // hhmm
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
-const STAGE_RECORD_LEN: u32 = 0xA4;
 
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
 fn stage_record() -> Result<RecordRef, Refused> {
@@ -119,21 +118,15 @@ fn current() -> Result<(u32, crate::menu::standings::PlayerCell), Refused> {
 /// `menu::keep_arcade_stage_best`, `record` the caller's edi.
 pub fn keep_arcade_stage_best(record: RecordRef) -> Result<(), Refused> {
     let (_, player) = current()?;
-    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
+    // Converted: `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
         let name = player.get().name;
         if name == 0 {
             return Err(BadInput("a null name").into());
         }
-        let holder = bests::Holder {
-            figure,
-            nationality: player.get().nationality,
-            car: player.get().car_number,
-            name: bytes(name)?,
-        };
-        let mut r = table(record.addr(), STAGE_RECORD_LEN, 1)?;
-        bests::take_record(&mut r.entries(), 0, &bests::RECORD_HOLDER, &holder);
+        let (row, name) = crate::menu::standings::as_holder(&player.get())?;
+        record.record()?.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())
 }

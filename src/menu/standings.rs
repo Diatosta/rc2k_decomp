@@ -146,42 +146,23 @@ pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadIn
         .collect())
 }
 
-/// A record copied out of the game's memory for the core to work on (a stage record's,
-/// `menu::keep_stage_best`), stored back when dropped
-/// (whatever the caller's way out: the original works in place, so its changes stay).
-pub struct GameTable {
-    first: u32,
-    size: usize,
-    bytes: Vec<u8>,
-}
-
-impl GameTable {
-    /// The core's view.
-    pub fn entries(&mut self) -> rc2k_core::menu::standings::Entries<'_> {
-        rc2k_core::menu::standings::Entries {
-            bytes: &mut self.bytes,
-            size: self.size,
-        }
-    }
-}
-
-impl Drop for GameTable {
-    fn drop(&mut self) {
-        crate::pointers::GamePtr::new(self.first)
-            .write_bytes(&self.bytes, "a standings table")
-            .unwrap_or_else(|e| crate::fatal::raise::end("a standings table", e));
-    }
-}
-
-/// `count` entries of `size` bytes from `first`, for the core; refused when they do not lie
-/// in one block of the game's memory.
-pub fn table(first: u32, size: u32, count: u32) -> Result<GameTable, BadInput> {
-    Ok(GameTable {
-        first,
-        size: size as usize,
-        bytes: crate::pointers::GamePtr::new(first)
-            .read_bytes((count * size) as usize, "a standings table")?,
-    })
+/// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
+/// 0x20 bytes (as the original copies them, past the NUL too).
+pub fn as_holder(
+    p: &rc2k_core::menu::player::Player,
+) -> Result<
+    (
+        crate::records::stages_store::HolderRow,
+        [u8; crate::records::stages_store::HOLDER_NAME_LEN],
+    ),
+    BadInput,
+> {
+    let row = crate::records::stages_store::HolderRow {
+        nation: p.nationality,
+        car: p.car_number,
+        speed: p.figure,
+    };
+    Ok((row, bytes(p.name)?))
 }
 
 /// `N` bytes at `p`.

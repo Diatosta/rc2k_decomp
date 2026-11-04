@@ -12,7 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
-use crate::records::stages_store::RecordRef;
+use crate::records::stages_store::{Holder, RecordRef};
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
 fn current_record() -> Result<RecordRef, BadInput> {
@@ -34,23 +34,17 @@ pub fn keep_record_best() -> Result<(), Refused> {
         return Err(BadInput("a player without a name").into());
     }
     let record = current_record()?;
-    // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
+    // Converted: `rc2k_core::menu::bests::takes_record`.
     use rc2k_core::menu::bests;
-    let mut r = table(record.addr(), 0xA4, 1)?;
-    let mut r = r.entries();
+    let record = record.record()?;
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
-        let figure = p.get().figure;
-        if !bests::takes_record(figure, r.get(0, bests::RECORD_HOLDER.figure)) {
+        let p = p.get();
+        if !bests::takes_record(p.figure, record.holder(Holder::Fastest).speed) {
             break;
         }
-        let holder = bests::Holder {
-            figure,
-            nationality: p.get().nationality,
-            car: p.get().car_number,
-            name: bytes(p.get().name)?,
-        };
-        bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
+        let (row, name) = as_holder(&p)?;
+        record.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())
 }

@@ -1607,6 +1607,27 @@ mod tests {
     }
 
     #[test]
+    fn holders_are_written_by_name() {
+        let record = Record::new([0x5555_5555; 41]);
+        let row = HolderRow {
+            nation: 1,
+            car: 2,
+            speed: 8,
+        };
+        record.set_holder(Holder::Second, &row, b"Jill");
+        let held = record.holder(Holder::Second);
+        assert_eq!((held.nation, held.car, held.speed), (1, 2, 8));
+        assert_eq!(record.word_at(0x2C), Ok(8));
+        assert_eq!(record.word_at(0xA0), Ok(2));
+        // No NUL written: the bytes after the name stay.
+        let name = record.holder_name(Holder::Second);
+        assert_eq!((&name[..4], name[4]), (&b"Jill"[..], 0x55));
+        // The other holder untouched.
+        assert_eq!(record.holder(Holder::Fastest).speed, 0x5555_5555);
+        assert_eq!(record.word_at(0x54), Ok(0x5555_5555));
+    }
+
+    #[test]
     fn records_stay_in_their_table() {
         let champ = RecordTable::Championship;
         assert_eq!(champ.row(66).map(|r| r.index), Ok(66), "the end mark");
