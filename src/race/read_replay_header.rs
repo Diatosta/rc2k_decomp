@@ -41,22 +41,22 @@ const NAMES: [&std::ffi::CStr; 12] = [
 const TITLE: &std::ffi::CStr = c"READREPLAYHEADER"; // "READREPLAYHEADER"
 
 /// `log_write_l1` (with a line break for the title) of a text.
-fn log_text(text: u32, newline: bool) {
-    crate::logfile::log_write::log_at(text, newline, 1);
+fn log_text(text: &std::ffi::CStr, newline: bool) {
+    crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
 /// The Rust version. Reads no register and keeps every one (liveness), so its only
 /// caller, `race::viewer_load_stage`, calls it plainly.
 pub fn read_replay_header() {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
-    log_text(crate::pointers::game_address(TITLE.as_ptr()), true);
+    log_text(TITLE, true);
     for s in HEADER_SETTINGS {
         for to in targets(s) {
             to.set(header_cell(s).get());
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
-        log_text(crate::pointers::game_address(text.as_ptr()), false);
+        log_text(text, false);
         crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }

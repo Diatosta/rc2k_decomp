@@ -10,6 +10,7 @@ use rc2k_core::screens::car_pages::CarDescription;
 
 /// The car table (IDA 0x75648C .. 0x7585D8).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarTable {
     /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:
     /// kept as IDA's addresses, as names (phase 13; nothing reads them, and
@@ -1176,6 +1177,7 @@ pub const START: usize = 0x75648C;
 pub const END: usize = 0x7585D8;
 
 /// Where IDA 0x75648C is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn cars_addr() -> u32 {
     crate::pointers::game_address(&raw const CAR_TABLE)
 }

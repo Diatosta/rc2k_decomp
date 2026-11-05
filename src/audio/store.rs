@@ -37,6 +37,7 @@ pub const STATE_END: usize = 0x506E6C;
 
 /// One of `g_eaxRooms`' ten reverb settings (EAX's `EAX_REVERBPROPERTIES`, 16 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EaxRoom {
     /// The preset's environment number.
     pub environment: Dword,
@@ -47,6 +48,7 @@ pub struct EaxRoom {
 
 /// The audio thread's variables (IDA 0x4F8294 .. 0x506E6C, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct AudioState {
     /// `g_qualityModes`: the sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first choice picks one. (IDA 0x4F8294)
     pub quality_modes: [Dword; 4],
@@ -794,17 +796,13 @@ const LAYOUT: &[(usize, usize)] = &[
     (core::mem::offset_of!(AudioState, eax_rooms), 0x506DCC),
 ];
 
-/// Where the audio state is (`moved::MOVED`'s home for IDA 0x4F8294).
-pub fn state_addr() -> u32 {
-    crate::pointers::game_address(&raw const AUDIO)
-}
-
 pub const SAMPLES_IDA: usize = 0x50A7A4;
 pub const SAMPLES_END: usize = 0x511AE4;
 const SAMPLE_COUNT: usize = 0x1CD;
 
 /// The sample records (IDA 0x50A7A4 .. 0x511AE4): sound number -> its record.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
     pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
 }
@@ -2322,11 +2320,6 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
 pub static SAMPLE_RECORDS: SampleRecords = SampleRecords {
     records: first_records(),
 };
-
-/// Where the sample records are (`moved::MOVED`'s home for IDA 0x50A7A4).
-pub fn sample_records_addr() -> u32 {
-    crate::pointers::game_address(&raw const SAMPLE_RECORDS)
-}
 
 pub const QUEUE_IDA: usize = 0x9566F8;
 pub const QUEUE_END: usize = 0x95E6F8;

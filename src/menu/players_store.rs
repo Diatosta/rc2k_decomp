@@ -10,6 +10,7 @@ use rc2k_core::menu::player::Player;
 
 /// The four players and their table (IDA 0x755A4C .. 0x75648C).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlayerTable {
     /// `g_player1 .. g_player4`: The players' records (settings, and the state of each player's car).
     pub players: [Shared<Player>; 4],
@@ -246,6 +247,7 @@ pub const START: usize = 0x755A4C;
 pub const END: usize = 0x75648C;
 
 /// Where IDA 0x755A4C is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn players_addr() -> u32 {
     crate::pointers::game_address(&raw const PLAYER_TABLE)
 }

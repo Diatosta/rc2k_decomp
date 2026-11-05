@@ -828,6 +828,13 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
         CellAt::atomic(CellKind::Bytes, N)
     }
 }
+// SAFETY: an `UnsafeCell` over a plain record (any bytes make one, `Plain`), read and
+// written through `shared_memory` as `Bytes`: all of it one run of shared bytes.
+unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::Bytes, size_of::<T>())
+    }
+}
 // SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.
 unsafe impl Cells for crate::session::Loose {
     fn cell_at(_: usize) -> CellAt {
@@ -987,6 +994,16 @@ plain_record!(
     rc2k_core::gfx::pixels::PixelFormat = 5 * 4,
     crate::gfx::texture_upload::TextureFormat = 3 * 4 + 5 * 4 + 8 * 4,
     crate::gfx::texture_upload::TextureRecord = (5 + 9 + 9 + 7) * 4,
+    crate::audio::samples::SampleFile = 0x20,
+    rc2k_core::audio::streams::AudioStream = 0x2C,
+    crate::audio::make_buffer::BufferDescription = 0x14,
+    crate::audio::describe_wave_format::WaveFormat = 0x12,
+    rc2k_core::audio::modes::AudioOptions = 0x40,
+    rc2k_core::audio::voices::SampleRecord = 0x40,
+    rc2k_core::audio::voices::Voice = 0x70,
+    rc2k_core::audio::voices::MixerChannel = 0x58,
+    rc2k_core::screens::car_pages::CarDescription = 0x78,
+    rc2k_core::menu::player::Player = 0x28C,
 );
 
 /// One of the game's stores: a static whose every byte is a cell, read and written by

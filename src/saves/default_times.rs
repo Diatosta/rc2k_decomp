@@ -25,7 +25,7 @@ use rc2k_core::saves::defaults::{Filled, Record};
 /// with or without a new line after it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
-    Text(u32, bool),
+    Text(&'static std::ffi::CStr, bool),
     Number(u32, bool),
 }
 
@@ -34,7 +34,9 @@ pub type Log<'a> = &'a mut dyn FnMut(Piece);
 /// The log pieces as the game's log functions write them.
 pub fn to_the_log(piece: Piece) {
     match piece {
-        Piece::Text(text, newline) => crate::logfile::log_write::log_at(text, newline, 1),
+        Piece::Text(text, newline) => {
+            crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
+        }
         Piece::Number(number, newline) => {
             crate::logfile::log_int::log_int(number as i32, newline, 1);
         }
@@ -70,8 +72,8 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
         use rc2k_core::saves::defaults::{Piece as P, Text};
-        let text = |t| {
-            let at = match t {
+        let text = |t| -> &'static std::ffi::CStr {
+            match t {
                 Text::Dashes => c"-----------------------------------------------------",
                 Text::Start => c"guesscheckpointtimes:start",
                 Text::Passing => c"passing:(time:ebx)",
@@ -79,8 +81,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
                 Text::CheckData => c"testcheckdata",
                 Text::Done => c"guesscheckpointtimes:done",
                 Text::DashesAfter => c"-----------------------------------------------------",
-            };
-            crate::pointers::game_address(at.as_ptr())
+            }
         };
         (self.log)(match piece {
             P::Text(t, newline) => Piece::Text(text(t), newline),

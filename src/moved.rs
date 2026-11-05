@@ -51,10 +51,9 @@ pub(crate) struct Moved {
 }
 
 /// Where a moved range lives: a store of cells, read and written by offset
-/// (`pointers::Store`), or, until its type is one, a function answering its address.
+/// (`pointers::Store`).
 pub(crate) enum Home {
     Store(&'static dyn crate::pointers::Store),
-    Address(fn() -> usize),
 }
 
 impl Home {
@@ -62,7 +61,6 @@ impl Home {
     fn address(&self) -> usize {
         match self {
             Home::Store(store) => crate::pointers::game_address(store.first()) as usize,
-            Home::Address(home) => home(),
         }
     }
 }
@@ -649,12 +647,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::audio::store::STATE_IDA,
         len: crate::audio::store::STATE_END - crate::audio::store::STATE_IDA,
-        home: Home::Address(|| crate::audio::store::state_addr() as usize),
+        home: Home::Store(&crate::audio::store::AUDIO),
     },
     Moved {
         ida: crate::audio::store::SAMPLES_IDA,
         len: crate::audio::store::SAMPLES_END - crate::audio::store::SAMPLES_IDA,
-        home: Home::Address(|| crate::audio::store::sample_records_addr() as usize),
+        home: Home::Store(&crate::audio::store::SAMPLE_RECORDS),
     },
     Moved {
         ida: crate::audio::store::QUEUE_IDA,
@@ -777,12 +775,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::players_store::START,
         len: crate::menu::players_store::END - crate::menu::players_store::START,
-        home: Home::Address(|| crate::menu::players_store::players_addr() as usize),
+        home: Home::Store(&crate::menu::players_store::PLAYER_TABLE),
     },
     Moved {
         ida: crate::menu::cars_store::START,
         len: crate::menu::cars_store::END - crate::menu::cars_store::START,
-        home: Home::Address(|| crate::menu::cars_store::cars_addr() as usize),
+        home: Home::Store(&crate::menu::cars_store::CAR_TABLE),
     },
     Moved {
         ida: crate::menu::cheats_store::START,
@@ -2310,12 +2308,10 @@ pub fn store_of(addr: usize) -> Option<(&'static dyn crate::pointers::Store, usi
     let homes = BY_HOME.get_or_init(|| {
         let mut v: Vec<Entry> = MOVED
             .iter()
-            .filter_map(|m| match &m.home {
-                Home::Store(store) => {
-                    let home = m.home.address();
-                    Some((home, home + m.len, *store))
-                }
-                Home::Address(_) => None,
+            .map(|m| {
+                let Home::Store(store) = &m.home;
+                let home = m.home.address();
+                (home, home + m.len, *store)
             })
             .collect();
         v.sort_unstable_by_key(|&(home, _, _)| home);
@@ -2496,9 +2492,7 @@ mod tests {
     fn every_store_home_covers_its_range_and_reads_as_its_bytes() {
         let _lock = crate::store::test_lock();
         for m in MOVED {
-            let Home::Store(store) = &m.home else {
-                continue;
-            };
+            let Home::Store(store) = &m.home;
             assert!(
                 m.len <= store.size(),
                 "{:#x}: {:#x} bytes in a store of {:#x}",
@@ -2523,15 +2517,11 @@ mod tests {
     fn store_of_finds_every_store_s_range() {
         for m in MOVED {
             let home = m.home.address();
-            match &m.home {
-                Home::Store(store) => {
-                    for at in [0, m.len / 2, m.len - 1] {
-                        let (found, offset) = store_of(home + at).expect("a store's byte");
-                        assert_eq!(found.first(), store.first(), "{:#x} + {at:#x}", m.ida);
-                        assert_eq!(offset, at, "{:#x}", m.ida);
-                    }
-                }
-                Home::Address(_) => assert!(store_of(home).is_none(), "{:#x}", m.ida),
+            let Home::Store(store) = &m.home;
+            for at in [0, m.len / 2, m.len - 1] {
+                let (found, offset) = store_of(home + at).expect("a store's byte");
+                assert_eq!(found.first(), store.first(), "{:#x} + {at:#x}", m.ida);
+                assert_eq!(offset, at, "{:#x}", m.ida);
             }
         }
     }

@@ -126,6 +126,10 @@ macro_rules! every_store {
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let _lock = crate::store::test_lock();
     every_store! {
+        crate::audio::store::AUDIO,
+        crate::audio::store::SAMPLE_RECORDS,
+        crate::menu::players_store::PLAYER_TABLE,
+        crate::menu::cars_store::CAR_TABLE,
         crate::drive::finish_store::FINISH,
         crate::drive::replay_frames_store::REPLAY_FRAMES,
         crate::effects::frame_state::VIEW_VARS,

@@ -23,7 +23,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
 
-const WRITE: u32 = 0;
 const HEX8: u32 = 1;
 /// The value column: what the line shows.
 type Value = fn() -> u32;
@@ -76,16 +75,15 @@ pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
-    let text = |s: &std::ffi::CStr| crate::pointers::game_address(s.as_ptr());
     for (label, kind, at) in HEAD {
-        log(WRITE, text(label));
+        write(label);
         log(kind, at());
     }
     DRAW.polygon_clip_mask.set_bits(0u32);
     let object = LIGHT_WORK.drawing_object.bits() == 1;
     let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
-        log(WRITE, text(label));
+        write(label);
         log(kind, at());
     }
     log(NEWLINE, 0);
@@ -94,10 +92,10 @@ pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
     }
     for n in 0..count {
         let words = vertices.offset(0x20 * n).read_bytes(0x20, "a vertex")?;
-        log(WRITE, text(PT));
+        write(PT);
         log(INT, n);
         for (label, kind, offset) in VERTEX {
-            log(WRITE, text(label));
+            write(label);
             log(
                 kind,
                 u32::from_le_bytes(
@@ -113,11 +111,15 @@ pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// One log call at level 1: a text, a number (a float with two decimals) or a line's end.
+/// A label, at level 1.
+fn write(label: &std::ffi::CStr) {
+    crate::logfile::log_write::log_nul(label.to_bytes(), false, 1);
+}
+
+/// One log call at level 1: a number (a float with two decimals) or a line's end.
 fn log(kind: u32, value: u32) {
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
     match kind {
-        WRITE => crate::logfile::log_write::log_at(value, false, 1),
         HEX8 => log_hex8(value, false, 1),
         FLOAT => log_float(f32::from_bits(value), 2, false, 1),
         INT => log_int(value as i32, false, 1),
