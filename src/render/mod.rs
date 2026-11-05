@@ -236,8 +236,19 @@ impl Target {
     pub unsafe fn bytes<'a>(&self) -> &'a mut [u8] {
         let len = self.pitch * self.height;
         crate::pointers::check_or_end(self.pixels as u32, len, "the screen's pixels");
-        // SAFETY: the bytes checked above; the caller's promise.
-        unsafe { std::slice::from_raw_parts_mut(crate::pointers::host_at(self.pixels), len) }
+        // The screen is a lent block of the pool (the tests' screens are lent buffers of
+        // their own).
+        let first = crate::pointers::lent_bytes(self.pixels as u32, len);
+        #[cfg(test)]
+        let first = first.or_else(|| Some(crate::pointers::host_at(self.pixels)));
+        let first = first.unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "the screen's pixels",
+                crate::errors::BadInput("a screen in no lent block"),
+            )
+        });
+        // SAFETY: `len` bytes of one lent block (found above); the caller's promise.
+        unsafe { std::slice::from_raw_parts_mut(first, len) }
     }
 
     /// The screen's pixels for the rasteriser, rows `pitch / (bits / 8)` pixels apart: its

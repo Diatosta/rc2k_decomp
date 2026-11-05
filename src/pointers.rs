@@ -280,9 +280,8 @@ fn to_game((start, end): (usize, usize)) -> (u32, u32) {
     }
 }
 
-/// `host` for a game address held as a `usize` (an IDA-named place, `store::game_addr`).
-/// Every address the program holds as a number is a game address (phase 9): host
-/// addresses stay pointers, but for this module's own range tables.
+/// `host` for a game address held as a `usize` (the tests' buffers and image checks).
+#[cfg(test)]
 #[inline]
 pub fn host_at(addr: usize) -> *mut u8 {
     host(addr as u32)
@@ -340,6 +339,15 @@ pub fn lend_block(block: &'static pool::PoolBlock, len: usize, system: bool) -> 
         register(at, len as u32);
     }
     at
+}
+
+/// The first of `len` bytes at the game address `addr` inside one lent block of the pool (the
+/// screen's pixels for the renderers): its host pointer, or None for bytes in no lent block.
+pub fn lent_bytes(addr: u32, len: usize) -> Option<*mut u8> {
+    let homes = POOL_HOMES.read().ok()?;
+    let (&start, block) = homes.range(..=addr).next_back()?;
+    let offset = (addr - start) as usize;
+    (offset.checked_add(len)? <= block.len()).then(|| block.as_ptr().wrapping_add(offset))
 }
 
 /// A lent block given back: its region, its store and its game range; the block, for the
