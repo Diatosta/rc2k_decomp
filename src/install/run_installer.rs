@@ -40,7 +40,8 @@ pub fn run_installer() -> Result<(), Refused> {
     // whole (2026-10-28: it showed `ome/..`).
     #[cfg(unix)]
     crate::install::installer::wd(
-        crate::framework::game_addr(0x11DBD0),
+        // 0x51DBD0.
+        crate::place::Place::from(&crate::install::vars::INSTALLER_PAGES.folder_page).add(0x30),
         // A link: `INSTALLER_PATHS.typed`'s IDA address (`InstallerPages::resolved`).
         0x95EBF8,
     );

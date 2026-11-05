@@ -651,8 +651,9 @@ pub fn get_device_state(this: u32, size: u32) -> Result<DiJoyState, i32> {
     })
 }
 
-/// `SetDataFormat`: the game asks for `c_dfDIJoystick`, the state `get_device_state` gives.
-pub fn set_data_format(_this: u32, _format: u32) -> i32 {
+/// `SetDataFormat`: the game asks for `c_dfDIJoystick` (0x4D7220), the state
+/// `get_device_state` gives, so the format is not passed.
+pub fn set_data_format(_this: u32) -> i32 {
     DI_OK
 }
 

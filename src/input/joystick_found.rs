@@ -19,7 +19,7 @@
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::input::di_harness::{CAPS_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a};
+use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDeviceInstance};
@@ -43,7 +43,7 @@ fn look_over(
         return Ok(false);
     }
     let device2 = DEVICES.new_joystick2.get();
-    if di::set_data_format(device2, a(JOYSTICK_FORMAT_RVA)) != 0 {
+    if di::set_data_format(device2) != 0 {
         return Ok(false);
     }
     if di::set_cooperative_level(device2, MACHINE.window.get(), 5) != 0 {

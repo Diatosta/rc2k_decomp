@@ -30,7 +30,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::field;
 use crate::input::devices::Deferred;
-use crate::input::di_harness::{JOYSTICK_FORMAT_RVA, a, controller_dword, entry_of, fatal};
+use crate::input::di_harness::{controller_dword, entry_of, fatal};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{
@@ -217,7 +217,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
     record.device.set(DEVICES.new_joystick2.get());
     DEVICES.new_joystick2.set(0);
     let device = record.device.get();
-    if crate::input::di_objects::set_data_format(device, a(JOYSTICK_FORMAT_RVA)) != 0 {
+    if crate::input::di_objects::set_data_format(device) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
     if crate::input::di_objects::set_cooperative_level(device, MACHINE.window.get(), 5) != 0 {

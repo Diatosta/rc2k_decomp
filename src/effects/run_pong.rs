@@ -12,7 +12,6 @@
 use crate::effects::move_pong_ball::move_pong_ball;
 use crate::effects::move_pong_bat::move_pong_bat;
 use crate::effects::pong;
-use crate::effects::store::game_read;
 use crate::errors::Refused;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::scene::matrix3::extended;
@@ -29,7 +28,10 @@ pub fn run_pong() -> Result<(), Refused> {
     use crate::effects::draw_pong_box::draw_pong_box;
     let p = &pong::PONG;
     {
-        if CHEAT_VARS.cheats.get() & CHEAT == 0 || game_read::<u32>(pong::SHOWN_RVA) == 0 {
+        // `dword_641678`: pong shown.
+        if CHEAT_VARS.cheats.get() & CHEAT == 0
+            || crate::race::frame_store::FRAME_WORK.lead_kept[7].get() == 0
+        {
             return Ok(());
         }
         crate::effects::pong_setup::pong_setup();

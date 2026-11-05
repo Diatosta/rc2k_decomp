@@ -12,7 +12,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::flow_store::SCREEN_FLOW;
@@ -20,7 +19,7 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, List, Screen, Step, prepare_scene, screen_entry,
+    Callee, Entry, Flow, FrameRoutine, List, Screen, Step, prepare_scene, screen_entry,
 };
 use crate::scene::draw_store::DRAW;
 
@@ -71,7 +70,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x0)],

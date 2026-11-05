@@ -74,11 +74,6 @@ pub fn ida_read<T: crate::pointers::Plain>(at: impl Ida) -> T {
     crate::pointers::read_or_end(at.here() as u32, "a game variable")
 }
 
-/// The address of `place`.
-pub fn game_addr(place: impl Where) -> u32 {
-    place.address() as u32
-}
-
 /// Pointer to the game's memory at `place`.
 pub fn game_ptr<T>(place: impl Where) -> *mut T {
     crate::pointers::host_at(place.address()).cast::<T>()

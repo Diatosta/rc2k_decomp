@@ -13,14 +13,13 @@
 //! visit, 2026-10-11). Named `screen_48558d_loop` until then.
 //! Callers: `sub_482382`, `sub_48AE39`.
 
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -61,7 +60,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Write(|| &EVENT_STATE.event_done, 0x0)],
     set_up_first: &[],

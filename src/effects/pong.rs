@@ -5,7 +5,6 @@
 //! before the game was seen), the score's place `dword_7687D4` / `dword_7687D8`, the
 //! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
-use crate::framework::rva;
 use crate::session::{Bytes, Dword, Float};
 
 /// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
@@ -222,8 +221,6 @@ pub fn rules_at(mk: usize) -> PongRules {
             .read_unaligned()
     }
 }
-
-pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {

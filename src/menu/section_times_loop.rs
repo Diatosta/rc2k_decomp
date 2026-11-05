@@ -3,12 +3,11 @@
 //! background `results1.png`. Nothing in RAL.EXE reaches either; reached here from the debug
 //! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
 
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::SCREEN_ITEMS;
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 /// `unk_747798`'s slot, the item kept between visits.
 const SLOT: usize = (0x747798 - 0x747660) / 4;
@@ -36,7 +35,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
     set_up_first: &[],

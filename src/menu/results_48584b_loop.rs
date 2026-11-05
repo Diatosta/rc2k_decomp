@@ -11,14 +11,13 @@
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
 //! Callers: `sub_4824C1`, `sub_4826A2`.
 
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -59,7 +58,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Write(|| &EVENT_STATE.event_done, 0x0)],
     set_up_first: &[Step::Call(Callee::ScoreTwoPlayers)],

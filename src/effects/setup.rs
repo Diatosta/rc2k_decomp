@@ -3,11 +3,9 @@
 //! `effects::run_frame`, 0x4D1549).
 
 use crate::effects::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
-use crate::effects::store::game_read;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::session::{Bytes, Dword, Float};
@@ -178,7 +176,6 @@ pub fn tick_clock() -> Result<(), Refused> {
 
 pub const CURVE_LEN: u32 = 0x1000;
 pub const CURVE_RECORDS: u32 = 0x20;
-const QUAD_VALUE_RVAS: (usize, usize) = (rva(0x62409C), rva(0x6240A0));
 
 /// `effects::make_noise_curve` (0x4C2247), `init_marks`' step 5, with `g_marksSeed` started
 /// at 0x7FFFFFF:
@@ -284,11 +281,10 @@ pub fn make_noise_curve() -> Result<(), Refused> {
     for cell in &SNOW.quad_a {
         cell.set_bits(first);
     }
-    for (quad, rva) in [
-        (&SNOW.quad_b, QUAD_VALUE_RVAS.0),
-        (&SNOW.quad_c, QUAD_VALUE_RVAS.1),
-    ] {
-        let v: u32 = game_read(rva);
+    // The view's centre (`dword_62409C`, `dword_6240A0`).
+    let centre = &crate::scene::draw_store::DRAW.view_centre;
+    for (quad, from) in [(&SNOW.quad_b, &centre[0]), (&SNOW.quad_c, &centre[1])] {
+        let v: u32 = from.bits();
         for cell in quad {
             cell.set_bits(v);
         }

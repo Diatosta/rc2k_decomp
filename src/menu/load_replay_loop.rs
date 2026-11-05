@@ -13,7 +13,6 @@
 //! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
-use crate::framework::rva;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::draw_work_store::DRAW_WORK;
@@ -22,7 +21,7 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -90,7 +89,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ]),
-    frame_callback: rva(0x474D4B),
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
     set_up_first: &[],

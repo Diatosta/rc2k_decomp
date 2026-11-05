@@ -6,7 +6,6 @@
 //! (IDA 2026-10-17), and `run` does them in order as the original's code does.
 
 use crate::errors::Refused;
-use crate::framework::{game_addr, rva};
 use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::math::x87;
 use crate::physics::car_store::Car;
@@ -23,11 +22,22 @@ use Step::*;
 pub use rc2k_core::race::settings_copy::Kind;
 use rc2k_core::race::settings_copy::Step;
 
-/// A variable of the steps: one of the physics block's cells, a field of a car's block,
-/// or the game's at an IDA address (the race's, the texts, the calls).
+/// A routine a `Call` step runs (the original's `call` at its address).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Routine {
+    /// `race::clear_player_absences` (0x449D44).
+    ClearPlayerAbsences,
+    /// `race::copy_league_table` (0x4650B7).
+    CopyLeagueTable,
+    /// `race::store_results_by_mode` (0x449957).
+    StoreResultsByMode,
+}
+
+/// An operand of the steps: one of the physics block's cells, a field of a car's block, a
+/// store's dword, or (for `Call` only) a routine.
 #[derive(Clone, Copy)]
 pub enum Place {
-    Addr(usize),
+    Routine(Routine),
     Cell(&'static Dword),
     /// A float of the physics block, by its bits.
     Bits(&'static Float),
@@ -38,13 +48,13 @@ pub enum Place {
     /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
     Var(fn() -> &'static Dword),
 }
-use Place::{Addr, Bits, CarBits, CarCell, Cell, Var};
+use Place::{Bits, CarBits, CarCell, Cell, Var};
 
 impl Place {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
         match self {
-            Addr(a) => get(a),
+            Place::Routine(r) => unreachable!("{r:?} is a routine, read as a variable"),
             Cell(cell) => cell.get(),
             Bits(cell) => cell.bits(),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
@@ -56,7 +66,7 @@ impl Place {
     /// Its dword set (a float's bits).
     pub fn set(self, v: u32) {
         match self {
-            Addr(a) => set(a, v),
+            Place::Routine(r) => unreachable!("{r:?} is a routine, written as a variable"),
             Cell(cell) => cell.set(v),
             Bits(cell) => cell.set_bits(v),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
@@ -103,17 +113,6 @@ macro_rules! var {
     };
 }
 pub(crate) use {car, car_bits, var};
-
-/// `race::clear_player_absences`, `race::copy_league_table`, `race::store_results_by_mode`.
-pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
-
-fn get(a: usize) -> u32 {
-    crate::pointers::read_or_end(game_addr(rva(a)), "race::settings_copy's operand")
-}
-
-fn set(a: usize, v: u32) {
-    crate::pointers::write_or_end(game_addr(rva(a)), v, "race::settings_copy's operand");
-}
 
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
 /// (the original reads no register at entry: they start from nothing), the x87's
@@ -170,19 +169,18 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         Ok(())
     }
     fn call(&mut self, a: Place) -> Result<(), Refused> {
-        let Addr(a) = a else {
-            unreachable!("the calls are the image's");
+        let Place::Routine(routine) = a else {
+            unreachable!("a call of a variable");
         };
         use crate::race::race_shell::{
             clear_player_absences, copy_league_table, store_results_by_mode,
         };
         // Each keeps the registers the steps read (eax is set again before any use).
         {
-            match CALLS.iter().position(|&c| c == a) {
-                Some(0) => clear_player_absences(),
-                Some(1) => copy_league_table()?,
-                Some(2) => store_results_by_mode(),
-                _ => unreachable!("a call the tables have"),
+            match routine {
+                Routine::ClearPlayerAbsences => clear_player_absences(),
+                Routine::CopyLeagueTable => copy_league_table()?,
+                Routine::StoreResultsByMode => store_results_by_mode(),
             }
         }
         Ok(())
@@ -1037,7 +1035,7 @@ pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Float(car_bits!(1, impact_octant_marks[6])),
     Text(c"[car2.caroctdamage7]", false),
     Float(car_bits!(1, impact_octant_marks[7])),
-    Call(Addr(0x449D44)),
+    Call(Place::Routine(Routine::ClearPlayerAbsences)),
     Load(Cell(&RACE_STATE.results.results[0].result)),
     Store(car!(0, stop_state)),
     Load(Cell(&RACE_STATE.results.results[1].result)),
@@ -1048,7 +1046,7 @@ pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
     Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
-    Call(Addr(0x4650B7)),
+    Call(Place::Routine(Routine::CopyLeagueTable)),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Text(c"-------------------------------------", true),
     Return,
@@ -1474,7 +1472,7 @@ pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
         Cell(&RACE_STATE.results.results[1].field_24c[7]),
         car_bits!(1, impact_octant_marks[7]),
     ),
-    Call(Addr(0x449957)),
+    Call(Place::Routine(Routine::StoreResultsByMode)),
     Load(car!(0, stop_state)),
     Store(Cell(&RACE_STATE.results.results[0].result)),
     Load(car!(1, stop_state)),

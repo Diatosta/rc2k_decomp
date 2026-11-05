@@ -53,8 +53,8 @@
 //! gets, as the original hands them). A refusal goes back to the loop's caller; a set
 //! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
-use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{log, rva};
+use crate::errors::{FatalError, Refused};
+use crate::framework::log;
 use crate::input::take_key::take_key;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::draw_work_store::DRAW_WORK;
@@ -76,8 +76,15 @@ use rc2k_core::menu::keys::Pressed;
 
 // ---- game code the loop calls itself ----
 
-pub const FRAME_CALLBACK: usize = rva(0x474D4B); // menu::frame_callback
-const INSPECTION_FRAME: usize = rva(0x46D019); // menu::inspection_frame
+/// The frame routine a screen runs each frame (the original kept its code address in the
+/// screen's description).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FrameRoutine {
+    /// `menu::frame_callback` (0x474D4B): every menu screen's.
+    Menu,
+    /// `menu::inspection_frame` (0x46D019): the inspection area's after its first frame.
+    Inspection,
+}
 
 // ---- game data ----
 
@@ -143,11 +150,10 @@ pub struct Screen {
     /// same as before every other frame: 35 loops put their 3D list in `g_unreadList` at
     /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
     pub first_frame_lists: Option<&'static [List]>,
-    /// `FRAME_CALLBACK` or `menu::inspection_frame` (0x46D019).
-    pub frame_callback: usize,
+    pub frame_callback: FrameRoutine,
     /// The frame callback of every frame but the first after set-up, where it is another
     /// one: the inspection area's loop is the only one.
-    pub later_frame_callback: Option<usize>,
+    pub later_frame_callback: Option<FrameRoutine>,
     pub before: &'static [Step],
     pub set_up_first: &'static [Step],
     pub prepare: &'static [Step],
@@ -494,11 +500,10 @@ fn set_lists(screen: &Screen, lists: &[List]) {
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-fn run_frame(callback: usize, menu: MenuId) -> Result<(), Refused> {
+fn run_frame(callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
     let frame = || match callback {
-        FRAME_CALLBACK => crate::menu::frame_callback::frame_callback(menu),
-        INSPECTION_FRAME => crate::menu::inspection_frame::inspection_frame(menu),
-        _ => Err(BadInput("a screen with a frame callback of no menu's").into()),
+        FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(menu),
+        FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(menu),
     };
     match crate::platform::run_frame_now(frame) {
         Some(made) => made.map(|_| ()),

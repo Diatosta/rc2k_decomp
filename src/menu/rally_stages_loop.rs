@@ -16,7 +16,7 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- game data ----
 
@@ -43,7 +43,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     first_frame_lists: None,
-    frame_callback: FRAME_CALLBACK,
+    frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Write(|| &DRAW_WORK.escaped, 0)],
     set_up_first: &[],

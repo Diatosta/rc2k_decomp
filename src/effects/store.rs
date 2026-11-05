@@ -13,15 +13,13 @@
 //! reads past a table reads what the original read, and 16-byte alignment holds for the
 //! `xmmword_8D2000` constants): an address `X` of IDA is at `STORE + (X - START)`. A `Slot`
 //! is such an address (`Slot::at(0x814724)`), checked against the block when it is written.
-//! `game_read` / `game_write` / `game_addr` here take a `Slot` or, as the framework's, an
-//! RVA of the image: a name the marks keep for a variable of the block cannot reach the
-//! image's old, unchanging copy, because it is not a `usize`. The x87 blocks (`effects::plain`)
-//! reach the block through `base()`: `mk + offset` with `offset` IDA's address less `START`.
+//! The x87 blocks (`effects::plain`) reach the block through `base()`: `mk + offset` with `offset` IDA's address less `START`.
 //!
 //! Threads: the marks run on the game's thread alone, as the image's bytes did.
 
 use crate::effects::store_data::RUNS;
 use crate::errors::BadInput;
+#[cfg(test)]
 use crate::framework;
 use crate::session::Bytes;
 #[cfg(test)]
@@ -358,29 +356,6 @@ impl Add<i32> for Slot {
     fn add(self, n: i32) -> Slot {
         Slot(self.0.wrapping_add(n as usize))
     }
-}
-
-/// What `game_read` and the others take: a place in the block, or an RVA of the image.
-pub trait Where: Copy {
-    fn address(self) -> usize;
-}
-
-impl Where for usize {
-    fn address(self) -> usize {
-        framework::game_addr(self) as usize
-    }
-}
-
-#[cfg(test)]
-impl Where for Slot {
-    fn address(self) -> usize {
-        Slot::address(self)
-    }
-}
-
-/// Reads a variable (`framework::game_read`, over the block or the image).
-pub fn game_read<T: crate::pointers::Plain>(place: impl Where) -> T {
-    crate::pointers::read_or_end(place.address() as u32, "a marks variable")
 }
 
 #[cfg(test)]

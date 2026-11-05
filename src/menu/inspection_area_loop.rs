@@ -8,12 +8,11 @@
 //! its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
 //! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`.
 
-use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -38,8 +37,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     first_frame_lists: None,
-    frame_callback: rva(0x474D4B),
-    later_frame_callback: Some(rva(0x46D019)), // sub_46D019
+    frame_callback: FrameRoutine::Menu,
+    later_frame_callback: Some(FrameRoutine::Inspection),
     before: &[],
     set_up_first: &[],
     prepare: &[],
