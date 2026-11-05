@@ -14,7 +14,6 @@ pub mod edit_steering_sensitivity;
 pub mod edit_suspension_stiffness;
 pub mod edit_tyre;
 pub mod handle_edit_keys;
-pub mod harness;
 pub mod load_background;
 pub mod load_setup_slot;
 pub mod load_setup_values;

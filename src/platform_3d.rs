@@ -474,11 +474,21 @@ pub fn copy_screen_to_system_texture(number: u32) {
         let most = mask >> shift;
         ((c * most + 127) / 255) << shift
     };
+    let rows = crate::gfx::rows::Rows::new(
+        screen.pixels as u32,
+        screen.pitch as u32,
+        screen.height as u32,
+    );
     for y in 0..h {
         let sy = y * screen.height / h;
         let what = "the screen's row";
-        let row = crate::pointers::GamePtr::new((screen.pixels + sy * screen.pitch) as u32)
-            .read_bytes(screen.width * if screen.bits == 16 { 2 } else { 4 }, what)
+        let row = rows
+            .read(
+                sy as u32,
+                0,
+                screen.width * if screen.bits == 16 { 2 } else { 4 },
+                what,
+            )
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
         for x in 0..w {
             let sx = x * screen.width / w;

@@ -35,7 +35,8 @@ pub trait PictureSurface {
     /// Returns whether the surface is now locked.
     fn lock(&mut self) -> bool;
     fn unlock(&mut self);
-    fn pixels(&self) -> crate::pointers::GamePtr;
+    /// The first row's game address (0 for none).
+    fn pixels(&self) -> u32;
     fn rows(&self) -> u32;
     fn row_dwords(&self) -> u32;
     fn row_gap(&self) -> u32;
@@ -55,11 +56,9 @@ impl PictureSurface for GameSurface {
     fn unlock(&mut self) {
         crate::platform::unlock_surface();
     }
-    fn pixels(&self) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::new(
-            crate::gfx::surface::address()
-                .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e)),
-        )
+    fn pixels(&self) -> u32 {
+        crate::gfx::surface::address()
+            .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {
         DRAW_SURFACE.height.get()
@@ -79,7 +78,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     }
     let to = surface.pixels();
     let (rows, row_bytes) = (surface.rows(), surface.row_dwords() as usize * 4);
-    let refused = if !has_picture() || to.is_null() {
+    let refused = if !has_picture() || to == 0 {
         Some(BadInput("no picture buffer or no surface"))
     } else if rows == 0 {
         Some(BadInput("a surface without rows"))
@@ -93,17 +92,16 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
-    let gap = surface.row_gap() as usize;
-    // The picture's rows from its buffer (`gfx::picture`), onto the surface by address.
+    // The surface's rows: their dwords, then the gap to the next.
+    let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
+    // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
     let copied = with_picture(|from| -> Result<(), BadInput> {
-        let (mut at, mut to) = (0usize, to);
-        for _ in 0..rows {
+        for y in 0..rows {
+            let at = y as usize * row_bytes;
             let row = from
                 .get(at..at + row_bytes)
                 .ok_or(BadInput("a picture's row past its buffer"))?;
-            to.write_bytes(row, "a picture's row onto the surface")?;
-            at += row_bytes;
-            to = to.offset((row_bytes + gap) as u32);
+            to.write(y, 0, row, "a picture's row onto the surface")?;
         }
         Ok(())
     })

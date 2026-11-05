@@ -28,13 +28,15 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     if crate::platform::lock_surface() < 1 {
         return Ok(());
     }
-    let mut row = DRAW_SURFACE.present_pixels.get();
-    for _ in 0..SCREEN.height.get() {
-        let dwords = SCREEN.row_dwords.get();
-        crate::pointers::GamePtr::new(row).fill(0, 4 * dwords as usize, "the back surface")?;
-        row = row
-            .wrapping_add(4 * dwords)
-            .wrapping_add(DRAW_SURFACE.present_gap.get());
+    // Each row's dwords, then the gap to the next (the original's step).
+    let dwords = SCREEN.row_dwords.get();
+    let rows = crate::gfx::rows::Rows::new(
+        DRAW_SURFACE.present_pixels.get(),
+        (4 * dwords).wrapping_add(DRAW_SURFACE.present_gap.get()),
+        SCREEN.height.get(),
+    );
+    for y in 0..rows.count() {
+        rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;
     }
     crate::platform::unlock_surface();
     Ok(())

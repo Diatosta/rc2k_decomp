@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::vars_store::RACE_VARS;
@@ -37,20 +36,24 @@ pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 /// The row's address and the value `read_pixel` hands to the conversion (one place for
 /// both: a second copy of this compiled without the row's upper half, 2026-10-16).
 pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
-    let row = DRAW_SURFACE
-        .pixels
-        .get()
-        .wrapping_add(y.wrapping_mul(DRAW_SURFACE.pitch.get()));
+    let rows = crate::gfx::rows::Rows::new(
+        DRAW_SURFACE.pixels.get(),
+        DRAW_SURFACE.pitch.get(),
+        DRAW_SURFACE.height.get(),
+    );
+    let row = rows.at(y, 0)?;
     let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
         // As the original: eax the row's address, then `mov ax` of the pixel: the
         // upper half of the result is the row's address's.
-        let word =
-            GamePtr::new(row.wrapping_add(x.wrapping_mul(2))).read::<u16>("the surface's pixel")?;
-        (row & 0xFFFF_0000) | u32::from(word)
+        let word = row
+            .offset(x.wrapping_mul(2))
+            .read::<u16>("the surface's pixel")?;
+        (row.addr() & 0xFFFF_0000) | u32::from(word)
     } else {
-        GamePtr::new(row.wrapping_add(x.wrapping_mul(4))).read::<u32>("the surface's pixel")?
+        row.offset(x.wrapping_mul(4))
+            .read::<u32>("the surface's pixel")?
     };
-    Ok((row, pixel))
+    Ok((row.addr(), pixel))
 }
 
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.

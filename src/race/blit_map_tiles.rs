@@ -22,10 +22,10 @@ use rc2k_core::race::map::TILE;
 /// The Rust version (see the header).
 pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_offset,
+    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.
     use rc2k_core::race::map::{
-        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_offset,
+        BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
     };
     if { lock_texture(texture) }?.carry {
         return Ok(());
@@ -40,13 +40,12 @@ pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Re
         { unlock_texture(texture) }?;
         return Err(e.into());
     }
-    let gap = row_gap(pitch, bytes);
-    MAP.row_gap.set(gap);
+    MAP.row_gap.set(row_gap(pitch, bytes));
+    let surface = crate::gfx::rows::Rows::new(pixels, pitch, DRAW_SURFACE.height.get());
     let black = MAP.black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
-            let mut to = pixels.wrapping_add(tile_offset(col, row, bytes, pitch));
             let wide = pixel_width(bytes);
             // The tile's pixels, copied out whole once (16 x 16 of them, contiguous); none
             // drawn black. A tile marked but never filled holds 1 in the original's table:
@@ -75,7 +74,10 @@ pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Re
             let tile = u32::from(source.is_some());
             let source = source.unwrap_or_default();
             let mut at = 0usize;
-            for _ in 0..TILE {
+            for r in 0..TILE {
+                // The original steps a tile's rows by its pixels' bytes and the gap: the
+                // texture's pitch, and `wide` - `bytes` more a pixel when they differ.
+                let (y, along) = tile_row(col, row, r, bytes, wide);
                 // The row's pixels, `wide` bytes each, written at once (the locked texture
                 // is the platform's memory).
                 let mut row = Vec::with_capacity(TILE as usize * wide as usize);
@@ -102,9 +104,7 @@ pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Re
                     }
                     at += wide as usize;
                 }
-                crate::pointers::GamePtr::new(to).write_bytes(&row, "a map texture's row")?;
-                to = to.wrapping_add(TILE * wide);
-                to = to.wrapping_add(gap);
+                surface.write(y, along, &row, "a map texture's row")?;
             }
         }
     }

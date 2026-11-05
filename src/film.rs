@@ -610,6 +610,7 @@ fn blit(p: &Picture) {
     if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
         return;
     }
+    let rows = crate::gfx::rows::Rows::new(pixels, pitch, sh as u32);
     let mut row = vec![0u8; sw * bytes];
     for y in 0..sh {
         let from = (y * h / sh) * w;
@@ -618,8 +619,7 @@ fn blit(p: &Picture) {
             let p = pack(c >> 16 & 0xFF, mr) | pack(c >> 8 & 0xFF, mg) | pack(c & 0xFF, mb);
             row[x * bytes..(x + 1) * bytes].copy_from_slice(&p.to_le_bytes()[..bytes]);
         }
-        crate::pointers::GamePtr::new(pixels.wrapping_add(y as u32 * pitch))
-            .write_bytes(&row, "the film's picture")
+        rows.write(y as u32, 0, &row, "the film's picture")
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::play_film", e));
     }
 }

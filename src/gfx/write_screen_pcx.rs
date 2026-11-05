@@ -29,7 +29,6 @@ use crate::files::write_stream_byte::write_stream_byte;
 use crate::gfx::pcx::PCX;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::shots::SHOTS;
-use crate::pointers::GamePtr;
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
 /// `rc2k_core::gfx::pcx::screen_header`).
@@ -73,7 +72,7 @@ pub fn write_screen_pcx(name: Option<&[u8]>) -> Result<bool, Refused> {
 /// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 fn rows(stream: &mut Stream) -> Result<bool, Refused> {
-    let mut row = crate::gfx::surface::address()?;
+    let rows = crate::gfx::rows::Rows::surface()?;
     // eax as the original has it: the block's byte count after the header (0x80).
     let mut eax: u32 = 0x80;
     let width = DRAW_SURFACE.width.get();
@@ -83,8 +82,8 @@ fn rows(stream: &mut Stream) -> Result<bool, Refused> {
         // The row's pixels, as the original reads them (none for other sizes).
         let bits = DRAW_SURFACE.bits_per_pixel.get();
         let pixels = match bits {
-            0x10 => GamePtr::new(row).read_bytes(2 * width as usize, "the surface")?,
-            0x20 => GamePtr::new(row).read_bytes(4 * width as usize, "the surface")?,
+            0x10 => rows.read(y, 0, 2 * width as usize, "the surface")?,
+            0x20 => rows.read(y, 0, 4 * width as usize, "the surface")?,
             _ => Vec::new(),
         };
         let planes = rc2k_core::gfx::pcx::screen_planes(width, &mut eax, &mut |x, eax| {
@@ -113,9 +112,8 @@ fn rows(stream: &mut Stream) -> Result<bool, Refused> {
                 return Ok(false);
             }
         }
-        row = row.wrapping_add(DRAW_SURFACE.pitch.get());
         y += 1;
-        if y == DRAW_SURFACE.height.get() {
+        if y == rows.count() {
             break;
         }
     }

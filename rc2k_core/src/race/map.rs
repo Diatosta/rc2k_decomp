@@ -98,9 +98,14 @@ pub fn row_gap(pitch: u32, bytes: u32) -> u32 {
     pitch.wrapping_sub(bytes.wrapping_mul(TILE))
 }
 
-/// A tile's first pixel's offset on the surface (column and row of the 8 x 8).
-pub fn tile_offset(col: u32, row: u32, bytes: u32, pitch: u32) -> u32 {
-    (col.wrapping_mul(bytes) << 4).wrapping_add(row.wrapping_mul(pitch) << 4)
+/// Tile (`col`, `row`)'s pixel row `r` (of the 8 x 8): the surface's row and the byte along
+/// it. The original starts a tile at 16 x (`col` x `bytes` + `row` x the pitch) and steps its
+/// rows by `wide` x 16 + `row_gap`: the pitch, and 16 x (`wide` - `bytes`) more when the
+/// pixels are stored wider than the surface's.
+pub fn tile_row(col: u32, row: u32, r: u32, bytes: u32, wide: u32) -> (u32, u32) {
+    let along = (col.wrapping_mul(bytes) << 4)
+        .wrapping_add(r.wrapping_mul(TILE).wrapping_mul(wide.wrapping_sub(bytes)));
+    ((row << 4).wrapping_add(r), along)
 }
 
 /// Two bytes a pixel as words, any other size as dwords.
@@ -123,7 +128,14 @@ mod tests {
         assert!(check_tiles(1, 0, true).is_err());
         assert!(check_tiles(1, 0, false).is_ok());
         assert_eq!(row_gap(0x400, 2), 0x3E0);
-        assert_eq!(tile_offset(1, 1, 2, 0x400), 0x20 + 0x4000);
+        // The original's address: the tile's start plus r steps of wide x 16 + the gap.
+        let (pitch, r) = (0x400u32, 5u32);
+        for (bytes, wide) in [(2, 2), (4, 4), (3, 4)] {
+            let start = (bytes << 4) + (pitch << 4);
+            let original = start + r * (wide * TILE + row_gap(pitch, bytes));
+            let (y, along) = tile_row(1, 1, r, bytes, wide);
+            assert_eq!(y * pitch + along, original);
+        }
         assert_eq!((pixel_width(2), pixel_width(3)), (2, 4));
     }
 

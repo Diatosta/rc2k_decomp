@@ -115,7 +115,7 @@ pub fn upload_texture_picture(
             (width, height) = halve_texture(pixels, width, height, times)?;
         }
         let surface = record.get().surfaces[level as usize];
-        let (mut target, pitch) = surfaces
+        let (target, pitch) = surfaces
             .lock(surface)
             .map_err(|_| direct_draw_failed(0x8021_8772))?;
         // The level's pixels read once; the surface is the platform's.
@@ -126,7 +126,8 @@ pub fn upload_texture_picture(
             .0
             .iter()
             .map(|d| u32::from_le_bytes(*d));
-        for _ in 0..height {
+        let rows = crate::gfx::rows::Rows::new(target, pitch, height);
+        for y in 0..height {
             // The row's pixels, `bytes` each, written at once.
             let row: Vec<u8> = match bytes {
                 2 => (0..width)
@@ -142,8 +143,7 @@ pub fn upload_texture_picture(
                     .collect(),
                 _ => return Err(fatal(0x80A1_8775)),
             };
-            crate::pointers::GamePtr::new(target).write_bytes(&row, "a texture's row")?;
-            target = target.wrapping_add(pitch);
+            rows.write(y, 0, &row, "a texture's row")?;
         }
         surfaces
             .unlock(surface)

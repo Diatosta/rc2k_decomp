@@ -13,19 +13,19 @@ use crate::race::view_store::RACE_VIEW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
-/// `rows` rows of the locked surface from `edi` cleared (`rep stosd` of the row's dwords, then
-/// the row's gap). Gives edi after them.
-fn clear_rows(mut edi: u32, rows: u32) -> u32 {
-    for _ in 0..rows {
-        let n = DRAW_SURFACE.row_dwords.get();
-        if let Err(e) = GamePtr::new(edi).fill(0, 4 * n as usize, "a plate's surface") {
-            crate::fatal::raise::end("race::name_plates", e);
-        }
-        edi = edi
-            .wrapping_add(4 * n)
-            .wrapping_add(DRAW_SURFACE.row_gap.get());
+/// `rows` rows of the locked surface cleared from byte `start` of its first (`rep stosd` of
+/// the row's dwords, then the row's gap, as the original steps).
+fn clear_rows(start: u32, rows: u32) -> Result<(), crate::errors::BadInput> {
+    let dwords = DRAW_SURFACE.row_dwords.get();
+    let surface = crate::gfx::rows::Rows::new(
+        crate::gfx::surface::address()?,
+        (4 * dwords).wrapping_add(DRAW_SURFACE.row_gap.get()),
+        DRAW_SURFACE.height.get(),
+    );
+    for y in 0..rows {
+        surface.fill(y, start, 0, 4 * dwords as usize, "a plate's surface")?;
     }
-    edi
+    Ok(())
 }
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
@@ -41,7 +41,7 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
     let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
-    clear_rows(crate::gfx::surface::address()?, name_rows(line));
+    clear_rows(0, name_rows(line))?;
     FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
         draw_text_in_game(&FONTS.game_fonts[2], text, x, y)?;
@@ -79,10 +79,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
     let line = FONTS.game_fonts[0].get().line_height as u32;
     let start = time_start(line, DRAW_SURFACE.pitch.get());
-    clear_rows(
-        start.wrapping_add(crate::gfx::surface::address()?),
-        time_rows(line),
-    );
+    clear_rows(start, time_rows(line))?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // block's next dword, so the place is bounded to the block, not the label.
     use crate::race::overlay_store::OverlayBlock;

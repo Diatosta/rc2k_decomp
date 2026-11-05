@@ -48,11 +48,14 @@ pub fn on_address() {
     ON_PICTURE.store(0, Relaxed);
 }
 
-/// `bytes` written at `offset` from the target's start; refused past its memory.
+/// `bytes` written at `offset` from the target's start; refused past its rows (pitch x height)
+/// or its memory.
 pub fn write(target: Target, offset: u32, bytes: &[u8]) -> Result<(), BadInput> {
     match target {
         Target::Address(a) => {
-            crate::pointers::GamePtr::new(a.wrapping_add(offset)).write_bytes(bytes, "the surface")
+            crate::gfx::rows::Rows::new(a, DRAW_SURFACE.pitch.get(), DRAW_SURFACE.height.get())
+                .byte(offset)
+                .write_bytes(bytes, "the surface")
         }
         Target::Picture(n) => crate::gfx::picture::write_bytes(n, offset as usize, bytes),
     }

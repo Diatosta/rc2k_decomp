@@ -63,12 +63,11 @@ pub fn pages(mode_flags: u32) -> u32 {
     if mode_flags & THREE_PAGES != 0 { 3 } else { 2 }
 }
 
-/// `gfx::put_surface_pixel`: a pixel's address and its bytes (2 for a surface of 16 bits a
-/// pixel, else 4), all wrapping.
-pub fn pixel_place(pixels: u32, pitch: u32, bits: u32, x: u32, y: u32) -> (u32, u32) {
-    let row = pixels.wrapping_add(y.wrapping_mul(pitch));
+/// `gfx::put_surface_pixel`: a pixel's place in its row and its bytes (2 for a surface of 16
+/// bits a pixel, else 4), wrapping.
+pub fn pixel_place(bits: u32, x: u32) -> (u32, u32) {
     let wide = if bits == 16 { 2 } else { 4 };
-    (row.wrapping_add(x.wrapping_mul(wide)), wide)
+    (x.wrapping_mul(wide), wide)
 }
 
 #[cfg(test)]
@@ -81,7 +80,7 @@ mod tests {
         assert_eq!(screen(640, 480).row_bytes, 2560);
         assert!(rescaled(800, 640) && !rescaled(640, 640));
         assert_eq!((pages(0x4_0000), pages(0x2_0000)), (3, 2));
-        assert_eq!(pixel_place(0x1000, 0x200, 16, 3, 2), (0x1406, 2));
-        assert_eq!(pixel_place(0x1000, 0x200, 32, 3, 2), (0x140C, 4));
+        assert_eq!(pixel_place(16, 3), (6, 2));
+        assert_eq!(pixel_place(32, 3), (0xC, 4));
     }
 }

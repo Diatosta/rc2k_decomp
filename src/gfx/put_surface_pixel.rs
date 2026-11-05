@@ -12,22 +12,9 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
-/// Where the pixel goes and how wide it is.
-pub fn place(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
-    // Converted: `rc2k_core::gfx::picture_size::pixel_place`.
-    Ok(rc2k_core::gfx::picture_size::pixel_place(
-        crate::gfx::surface::address()?,
-        DRAW_SURFACE.pitch.get(),
-        DRAW_SURFACE.bits_per_pixel.get(),
-        x,
-        y,
-    ))
-}
-
 /// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
 /// the pixel (the original's eax).
 pub fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
-    use crate::pointers::GamePtr;
     // `g_surface`'s format pointer.
     let format: u32 = DRAW_SURFACE.format.get();
     if components != 0 && format == 0 {
@@ -41,11 +28,14 @@ pub fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused
     } else {
         components_to_pixel(&crate::gfx::pixel_format::layout(format)?, components)
     };
-    let (at, wide) = place(x, y)?;
+    // Converted: `rc2k_core::gfx::picture_size::pixel_place` (row y at y x the pitch).
+    let (at, wide) =
+        rc2k_core::gfx::picture_size::pixel_place(DRAW_SURFACE.bits_per_pixel.get(), x);
+    let place = crate::gfx::rows::Rows::surface()?.at(y, at)?;
     if wide == 2 {
-        GamePtr::new(at).write(pixel as u16, "a surface's pixel")?;
+        place.write(pixel as u16, "a surface's pixel")?;
     } else {
-        GamePtr::new(at).write(pixel, "a surface's pixel")?;
+        place.write(pixel, "a surface's pixel")?;
     }
     Ok(pixel)
 }
