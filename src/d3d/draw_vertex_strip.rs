@@ -19,9 +19,8 @@ use crate::pointers::GamePtr;
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
 
-fn vertices(at: u32, count: u32) -> Result<Vec<Vertex>, BadInput> {
-    let bytes =
-        GamePtr::new(at).read_bytes(count.min(MOST) as usize * VERTEX_LEN, "a strip's vertices")?;
+fn vertices(at: GamePtr, count: u32) -> Result<Vec<Vertex>, BadInput> {
+    let bytes = at.read_bytes(count.min(MOST) as usize * VERTEX_LEN, "a strip's vertices")?;
     Ok(bytes
         .as_chunks::<VERTEX_LEN>()
         .0
@@ -35,7 +34,7 @@ fn vertices(at: u32, count: u32) -> Result<Vec<Vertex>, BadInput> {
 }
 
 /// The strip of `count` vertices at `at` drawn: Direct3D's result, always 0 here.
-pub fn draw_vertex_strip(at: u32, count: u32) -> Result<u32, BadInput> {
+pub fn draw_vertex_strip(at: GamePtr, count: u32) -> Result<u32, BadInput> {
     let vertices = vertices(at, count)?;
     let swallowed = note(|| Call::Fan(vertices.clone()));
     if !swallowed {

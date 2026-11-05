@@ -17,12 +17,15 @@ use crate::race::find_snapshot_number::{SNAPSHOT, digits_place};
 pub fn viewer_snapshot() -> Result<(), Refused> {
     let digits = digits_place();
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
-    let at = crate::pointers::game_address(digits);
-    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(crate::pointers::read_or_end(
-        at,
-        "the snapshot's digits",
-    ));
-    crate::pointers::write_or_end(at, next, "the snapshot's digits");
+    let what = "the snapshot's digits";
+    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(
+        digits
+            .read(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
+    );
+    digits
+        .write(next, what)
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(Some(&SNAPSHOT.text()))?;

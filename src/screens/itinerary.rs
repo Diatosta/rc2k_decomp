@@ -47,7 +47,6 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         };
         let base = record_at(1)?;
         let record = move |n: u32| base.offset(n.wrapping_sub(1));
-        let get = |a: u32| crate::menu::event_flow::dword_what(a, "a track pack entry");
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n)?;
             match r.tag() {
@@ -58,8 +57,8 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 0 => {
                     let entry = crate::records::trakpak_entry::record_entry(r)?;
                     Ok(Row::Stage {
-                        name: get(entry)?,
-                        length: get(entry + 0xC)?,
+                        name: entry.read::<u32>("a track pack entry")?,
+                        length: entry.offset(0xC).read::<u32>("a track pack entry")?,
                         hhmm: r.record()?.hhmm(),
                     })
                 }

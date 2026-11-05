@@ -13,8 +13,5 @@ const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub fn clear_forces() -> Result<(), Refused> {
-    clear_records(
-        crate::pointers::game_address(PHYSICS.forces.as_ptr()),
-        COUNT,
-    )
+    clear_records(crate::pointers::GamePtr::to(&PHYSICS.forces), COUNT)
 }

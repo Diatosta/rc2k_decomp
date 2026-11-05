@@ -93,7 +93,7 @@ pub fn draw_stage_body_in(
     let entry = || -> Result<Entry, Refused> {
         let entry = record_entry(record)?;
         let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| fault.get(entry.wrapping_add(o));
+        let f = |o: u32| fault.read_at::<u32>(entry.offset(o), "a stage record");
         let made = Entry {
             // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
             // has no bound (fixed: refused).

@@ -72,10 +72,10 @@ pub fn open_property_set(o: &Opening, holder: u32) -> Result<bool, Refused> {
 
 /// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open; eax the
 /// room's entry. Refuses a room past the table (the original reads past it).
-pub fn set_eax_room(room: u32) -> Result<u32, Refused> {
+pub fn set_eax_room(room: u32) -> Result<crate::pointers::GamePtr, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.
-    let at = crate::pointers::game_address(AUDIO.eax_rooms.as_ptr())
-        + rc2k_core::audio::levels::eax_room_offset(room)?;
+    let at = crate::pointers::GamePtr::to(&AUDIO.eax_rooms)
+        .offset(rc2k_core::audio::levels::eax_room_offset(room)?);
     let p = AUDIO.eax_properties.get();
     if p != 0 {
         // `IKsPropertySet::Set` of the reverb's property 0 with the room's 0x10 bytes.

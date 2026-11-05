@@ -20,14 +20,14 @@ pub fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{UNLOCK_FAILED, Unlock, unlock};
     // Converted: `rc2k_core::d3d::textures::unlock`.
     let r = record(texture);
-    let surface = if texture < 0x140 { get(r + 0x14) } else { 0 };
-    let (carry, zero) = match unlock(texture, surface, || get(r + 0x60)).map_err(BadInput::from)? {
+    let surface = if texture < 0x140 { field(r, 0x14) } else { 0 };
+    let (carry, zero) = match unlock(texture, surface, || field(r, 0x60)).map_err(BadInput::from)? {
         Unlock::Flags(carry, zero) => (carry, zero),
         Unlock::Unlock => {
             if crate::platform_3d::unlock_surface(surface) != 0 {
                 return Err(fatal(UNLOCK_FAILED).into());
             }
-            put(r + 0x60, 0);
+            put_field(r, 0x60, 0);
             (false, true)
         }
     };

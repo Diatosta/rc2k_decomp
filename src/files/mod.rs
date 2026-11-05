@@ -248,16 +248,6 @@ pub mod state {
             .offset(DIRECTORY_LEN)
             .limited(DIRECTORY_LEN)
     }
-
-    /// g_baseDirectory.
-    pub fn base_directory() -> *mut u8 {
-        DIRECTORIES.as_ptr().cast()
-    }
-
-    /// g_localeDirectory.
-    pub fn locale_directory() -> *mut u8 {
-        DIRECTORIES.as_ptr().cast::<u8>().wrapping_add(0x100)
-    }
 }
 
 #[cfg(test)]

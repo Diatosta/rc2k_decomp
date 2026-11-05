@@ -177,12 +177,13 @@ pub fn roll_credits(
             _ => fonts::NAME,
         }
     };
-    let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
+    // Unbounded: the script is read on to its end mark, as the original.
+    let mut at = crate::pointers::GamePtr::to(&CREDITS.script).unbounded();
     let trap = Trap::new();
     let (lines, below) = lay_out(
         || {
-            let v = trap.read::<u16>(at, "the credits' script");
-            at += 2;
+            let v = trap.read_at::<u16>(at, "the credits' script");
+            at = at.offset(2);
             v
         },
         width,

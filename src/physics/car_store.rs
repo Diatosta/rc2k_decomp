@@ -571,7 +571,12 @@ impl Car {
     pub fn known(address: u32) -> Option<&'static Car> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
         static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
-        let &(car, blocks) = HOMES.get_or_init(|| (car_addr(), blocks_addr()));
+        let &(car, blocks) = HOMES.get_or_init(|| {
+            (
+                crate::pointers::game_address(core::ptr::from_ref(&CAR)),
+                blocks_addr(),
+            )
+        });
         if address == car {
             return Some(&CAR);
         }
@@ -593,11 +598,6 @@ pub const END: usize = 0x71AFB8;
 
 const _: () = assert!(END - START == core::mem::size_of::<Car>());
 
-/// Where IDA 0x719FD8 is now (its own static).
-pub fn car_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&CAR))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -613,7 +613,7 @@ mod tests {
                 .ok()
                 .map(core::ptr::from_ref)
         };
-        let at = car_addr();
+        let at = crate::pointers::game_address(core::ptr::from_ref(&CAR));
         assert_eq!(Car::known(at).map(core::ptr::from_ref), by_region(at));
         for n in 0..BLOCK_COUNT {
             let at = block_addr(n);
@@ -644,6 +644,7 @@ mod tests {
         assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
+        let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&CAR));
         assert_eq!(car_addr() % 4, 0);
         assert_eq!(
             car_addr(),

@@ -42,7 +42,7 @@ fn times_table() -> Result<Option<&'static StageTable>, BadInput> {
         (&v.stage_best_times_alt, &b::STAGE_TIMES_ALT),
     ]
     .into_iter()
-    .find(|(var, _)| crate::pointers::game_address(std::ptr::from_ref::<Dword>(*var)) == p)
+    .find(|(var, _)| crate::pointers::GamePtr::to::<Dword>(var) == crate::pointers::GamePtr::new(p))
     .ok_or(BadInput(
         "a times table list entry that names no best times variable",
     ))?;

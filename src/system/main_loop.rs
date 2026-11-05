@@ -41,10 +41,9 @@ const INSTALLER_MARK: u16 = 0xBD;
 
 /// The base directory's first character (`g_baseDirectory`).
 fn base_drive() -> u8 {
-    crate::pointers::read_or_end(
-        crate::pointers::game_address(crate::files::state::base_directory()),
-        "the base directory",
-    )
+    crate::files::state::base_directory_place()
+        .read("the base directory")
+        .unwrap_or_else(|e| crate::fatal::raise::end("the base directory", e))
 }
 
 /// `logfile::log_write` of a line of the game's log.

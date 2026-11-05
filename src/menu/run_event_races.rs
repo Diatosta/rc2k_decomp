@@ -52,7 +52,7 @@ struct Game {
     /// The walked drivers.
     drivers: &'static [Driver],
     /// The stage's track pack entry.
-    pack: u32,
+    pack: crate::pointers::GamePtr,
     /// The driver `running` last asked about (the one `drop_out` drops).
     asked: Option<&'static Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
@@ -117,7 +117,10 @@ impl races::EventRaces for Game {
                 // The summary's variable: 1 while it is there (the race reads it:
                 // `RACE_STATE.settings.rivals`).
                 RACE_STATE.settings.rivals.set(CHAMP_VIEW.summary.get());
-                RACE_STATE.settings.stage.set(get(self.pack + 0x34)?);
+                RACE_STATE
+                    .settings
+                    .stage
+                    .set(self.pack.offset(0x34).read::<u32>("a track pack entry")?);
             }
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;

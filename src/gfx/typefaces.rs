@@ -120,7 +120,8 @@ impl FontObject {
         self.set(font);
     }
 
-    /// Where the object is: what `draw_text` and the others take.
+    /// Where the object is.
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
     }
@@ -238,7 +239,7 @@ impl FontId {
 
     /// Where the object is.
     pub fn addr(self) -> u32 {
-        self.object().addr()
+        self.game_ptr().addr()
     }
 
     /// Where the object is, as a checked game pointer.

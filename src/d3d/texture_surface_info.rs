@@ -10,17 +10,19 @@
 //!
 //! Caller: `d3d::lock_texture`.
 
-use crate::d3d::texture_lock::get;
+use crate::d3d::texture_lock::{field, get};
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// The Rust version (see the header).
-pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
+pub fn texture_surface_info(
+    record: crate::pointers::GamePtr,
+) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::d3d::textures::surface_info`.
     let description = &crate::gfx::upload::UPLOAD.description;
-    let kind = get(record + 0xC);
+    let kind = field(record, 0xC);
     let f = rc2k_core::d3d::textures::surface_info(
-        get(record + 4),
-        get(record + 8),
+        field(record, 4),
+        field(record, 8),
         get(kind + 4),
         crate::gfx::pixel_format::texture_description_format(kind),
         description.pitch.get(),

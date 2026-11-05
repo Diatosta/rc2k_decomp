@@ -2107,10 +2107,10 @@ pub fn end_kept_reflections() {
 /// into `flt_5EA484`), times the view's turn into `g_madeObjectMatrix`; the reflections
 /// kept around the drawing (`scene::draw_scene_object`, esi `g_turnedMatrix`). Refuses
 /// (before anything) as `check_slot_object`.
-pub fn draw_slot_object(slot: u32) -> Result<(), Refused> {
+pub fn draw_slot_object(slot: &crate::race::work_store::RaceSlot) -> Result<(), Refused> {
     use crate::scene::matrix;
     check_slot_object(slot)?;
-    let object = get(slot)?;
+    let object = slot.part.get();
     FRAME_SWITCHES.object_number.set(object);
     let mode: u32 = RACE_VARS.run_kind.bits();
     if RACE_VIEW.players.bits() != 1 && mode != 0 && mode != 2 {
@@ -2134,16 +2134,11 @@ pub fn draw_slot_object(slot: u32) -> Result<(), Refused> {
     OBJECT_WORK.light_turns[1].set_bits(STAGE_PREFS.sun_height.bits());
     LIGHT_STATE.view_kind.set_bits(1);
     LIGHT_WORK.light_kind.set_bits(2);
-    crate::math::cells::cells_from(
-        slot + 0x10,
-        &MATRICES.object_turn_matrix,
-        16,
-        "a face, record or matrix",
-    )?;
+    crate::math::cells::copy_cells(&slot.matrix, &MATRICES.object_turn_matrix, 16);
     let place = [
-        get(slot + 4)?,
-        get(slot + 8)?.wrapping_add(get(slot + 0x5C)?),
-        get(slot + 0xC)?,
+        slot.place[0].get(),
+        slot.place[1].get().wrapping_add(slot.unknown_5c.get()),
+        slot.place[2].get(),
     ];
     for (k, &p) in place.iter().enumerate() {
         OBJECT_WORK.place[k].set_bits(p);
@@ -2175,9 +2170,9 @@ pub fn draw_slot_object(slot: u32) -> Result<(), Refused> {
 
 /// What `scene::draw_scene_object` would refuse for slot `at`'s object, before anything:
 /// a car's object (0x50 .. 0xEF) without its block.
-pub fn check_slot_object(at: u32) -> Result<(), Refused> {
+pub fn check_slot_object(slot: &crate::race::work_store::RaceSlot) -> Result<(), Refused> {
     {
-        let n = get(at)?.wrapping_sub(0x50);
+        let n = slot.part.get().wrapping_sub(0x50);
         if n < 0xA0 && RACE_WORK.car_block((n / 0x14) as usize) == 0 {
             return Err(BadInput("a slot's car without its block").into());
         }
@@ -2189,16 +2184,15 @@ pub fn check_slot_object(at: u32) -> Result<(), Refused> {
 /// (0x78 bytes at `g_raceSlots`) whose +0 is not 0 (inside `pusha`). Refuses (before anything) as
 /// `check_slot_object` for any.
 pub fn draw_race_slots() -> Result<(), Refused> {
-    let slots = crate::pointers::game_address(RACE_WORK.race_slots.as_ptr());
-    for n in 0..8 {
-        if get(slots + 0x78 * n)? != 0 {
-            check_slot_object(slots + 0x78 * n)?;
+    let slots = &RACE_WORK.race_slots;
+    for slot in slots {
+        if slot.part.get() != 0 {
+            check_slot_object(slot)?;
         }
     }
-    for n in 0..8 {
-        let at = slots + 0x78 * n;
-        if get(at)? != 0 {
-            draw_slot_object(at)?;
+    for slot in slots {
+        if slot.part.get() != 0 {
+            draw_slot_object(slot)?;
         }
     }
     Ok(())

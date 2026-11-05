@@ -63,8 +63,8 @@ pub fn sort_players() -> Result<(), Refused> {
         return Err(BadInput("more than eight players").into());
     }
     movsb(
-        crate::pointers::game_address(NET.sorted.as_ptr()),
-        crate::pointers::game_address(NET.received.as_ptr()),
+        crate::pointers::GamePtr::to(&NET.sorted),
+        crate::pointers::GamePtr::to(&NET.received),
         ALL,
     )?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).

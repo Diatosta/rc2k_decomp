@@ -14,18 +14,24 @@
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::reset_car_grades's operand");
+fn put(b: crate::pointers::GamePtr, offset: u32, v: u32) {
+    b.offset(offset)
+        .write::<u32>(v, "physics::reset_car_grades's operand")
+        .unwrap_or_else(|e| crate::fatal::raise::end("physics::reset_car_grades", e));
 }
 
 /// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at
 /// any precision).
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
-pub fn reset_grades_at(b: u32, s0c: &crate::session::Dword, s08: &crate::session::Dword) {
+pub fn reset_grades_at(
+    b: crate::pointers::GamePtr,
+    s0c: &crate::session::Dword,
+    s08: &crate::session::Dword,
+) {
     let (k256, k100) = (NUMBERS.k256.get(), NUMBERS.hundred.get());
     let a = percentage(s0c.get() as i32, k256, k100);
     let c = percentage(s08.get() as i32, k256, k100);
     for (offset, v) in reset_writes(NUMBERS.one.get(), a, c) {
-        put(b + offset, v);
+        put(b, offset, v);
     }
 }

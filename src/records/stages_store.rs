@@ -1381,7 +1381,10 @@ impl StageTables {
     pub fn event_table(&self, k: usize) -> RecordTable {
         RecordTable::Event(k)
     }
+}
 
+#[cfg(test)]
+impl StageTables {
     /// The track pack's head.
     pub fn trak_pak(&self) -> u32 {
         crate::pointers::game_address(&raw const self.trak_pak)

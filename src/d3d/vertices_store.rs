@@ -54,15 +54,14 @@ pub const END: usize = 0x960DA0;
 
 const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
 
-/// Where IDA 0x9605A0 is now.
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::mem::offset_of;
+
+    fn piece_addr() -> u32 {
+        crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
+    }
 
     #[test]
     fn piece_sits_on_the_buffers() {

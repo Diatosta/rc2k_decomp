@@ -13,16 +13,14 @@ use crate::errors::Refused;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::pushes::{record_count, CLEARED_DWORDS}`.
-pub fn clear_records(at: u32, count: u32) -> Result<(), Refused> {
+pub fn clear_records(at: crate::pointers::GamePtr, count: u32) -> Result<(), Refused> {
     use rc2k_core::physics::pushes::{CLEARED_DWORDS, record_count};
     let count = record_count(count, "a record count of 0 or above 0x100")?;
     for k in 0..count {
         for d in 0..CLEARED_DWORDS {
-            crate::pointers::write_or_end::<u32>(
-                at + 0x20 * k + 4 * d,
-                0,
-                "physics::clear_records's operand",
-            );
+            at.offset(0x20 * k + 4 * d)
+                .write::<u32>(0, "physics::clear_records's operand")
+                .unwrap_or_else(|e| crate::fatal::raise::end("physics::clear_records", e));
         }
     }
     Ok(())

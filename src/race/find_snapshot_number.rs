@@ -26,8 +26,8 @@ pub const DIGITS_AT: usize = 0x12;
 pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
 
 /// Where the name's three digits are.
-pub fn digits_place() -> *mut u8 {
-    SNAPSHOT.as_ptr().wrapping_add(DIGITS_AT)
+pub fn digits_place() -> GamePtr {
+    GamePtr::to(&SNAPSHOT).offset(DIGITS_AT as u32)
 }
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;

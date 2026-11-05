@@ -78,7 +78,7 @@ pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
     let times = rec.record()?.class_times();
     let (times, _) = scaled(times, held_section());
     let pack = crate::records::trakpak_entry::record_entry(rec)?;
-    let length = get(pack + 0xC)?;
+    let length = pack.offset(0xC).read::<u32>("a track pack entry")?;
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
     }

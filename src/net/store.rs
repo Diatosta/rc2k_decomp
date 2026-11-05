@@ -542,18 +542,23 @@ impl NetVars {
     /// Player `n`'s byte of `synced`, any number (the original's index has no bound; `synced`
     /// is 8 bytes, the bytes after it are `players`).
     pub fn synced(&self, n: usize) -> u8 {
-        crate::pointers::read_or_end(
-            crate::pointers::game_address(self.synced.as_ptr()).wrapping_add(n as u32),
-            "a player's synced byte",
-        )
+        let what = "a player's synced byte";
+        crate::pointers::GamePtr::to(&self.synced)
+            .unbounded()
+            .offset(n as u32)
+            .read(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
     pub fn set_synced(&self, n: usize, value: u8) {
-        crate::pointers::write_or_end(
-            crate::pointers::game_address(self.synced.as_ptr()).wrapping_add(n as u32),
-            value,
-            "a player's synced byte",
-        );
+        let what = "a player's synced byte";
+        if let Err(e) = crate::pointers::GamePtr::to(&self.synced)
+            .unbounded()
+            .offset(n as u32)
+            .write(value, what)
+        {
+            crate::fatal::raise::end(what, e)
+        }
     }
 }
 

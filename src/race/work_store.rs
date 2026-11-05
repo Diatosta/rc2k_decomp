@@ -207,10 +207,12 @@ impl RaceWork {
         if let Some(cell) = self.car_blocks.get(n) {
             return crate::race::blocks_store::block_of(cell.get());
         }
-        crate::pointers::read_or_end(
-            crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32,
-            "a car block's pointer",
-        )
+        let what = "a car block's pointer";
+        crate::pointers::GamePtr::to(&self.car_blocks)
+            .unbounded()
+            .offset((4 * n) as u32)
+            .read(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
     /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,

@@ -45,10 +45,7 @@ pub fn run_installer() -> Result<(), Refused> {
         // A link: `INSTALLER_PATHS.typed`'s IDA address (`InstallerPages::resolved`).
         0x95EBF8,
     );
-    crate::install::installer::wb(
-        crate::pointers::game_address(crate::files::state::base_directory()),
-        0,
-    );
+    crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
     i::read_languages::read_languages(crate::pointers::GamePtr::to(&INSTALLER_NAMES.lang_cfg))?;
     { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
@@ -91,10 +88,7 @@ pub fn run_installer() -> Result<(), Refused> {
             i::read_record::read_record(crate::pointers::GamePtr::to(
                 &crate::install::installer::INSTALL_TEXTS.record_path,
             ))?;
-            crate::install::installer::wb(
-                crate::pointers::game_address(crate::files::state::base_directory()),
-                0,
-            );
+            crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
             set_cd(&INSTALLER_PATHS.game_dir);
             load_language()?;
         }

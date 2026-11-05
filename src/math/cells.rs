@@ -80,9 +80,11 @@ pub fn copy_cells(from: &(impl Cells + ?Sized), to: &(impl Cells + ?Sized), n: u
 
 /// The cells at a game address (not typed yet): dword `n` at `+4 n`, checked as game
 /// memory (`pointers::read_or_end`).
+#[cfg(all(test, target_arch = "x86"))]
 #[derive(Clone, Copy)]
 pub struct At(pub u32);
 
+#[cfg(all(test, target_arch = "x86"))]
 impl Cells for At {
     fn bits(&self, n: usize) -> u32 {
         crate::pointers::read_or_end::<u32>(self.0.wrapping_add(4 * n as u32), "a helper's cell")
@@ -96,6 +98,23 @@ impl Cells for At {
     }
 }
 
+/// The cells at a checked game pointer: dword `n` at `+4 n`, inside the pointer's own field
+/// when it has one (a pointer made `unbounded` runs on, as the original does).
+impl Cells for crate::pointers::GamePtr {
+    fn bits(&self, n: usize) -> u32 {
+        let what = "a helper's cell";
+        self.offset(4 * n as u32)
+            .read::<u32>(what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+    }
+    fn set_bits(&self, n: usize, bits: u32) {
+        let what = "a helper's cell";
+        if let Err(e) = self.offset(4 * n as u32).write::<u32>(bits, what) {
+            crate::fatal::raise::end(what, e)
+        }
+    }
+}
+
 /// `cells` from cell `from` on (a matrix's row).
 pub struct Off<'a, T: Cells + ?Sized>(pub &'a T, pub usize);
 
@@ -106,24 +125,6 @@ impl<T: Cells + ?Sized> Cells for Off<'_, T> {
     fn set_bits(&self, n: usize, bits: u32) {
         self.0.set_bits(self.1 + n, bits);
     }
-}
-
-/// `n` dwords from the game address `from` into `to`'s first cells (a matrix kept in a car
-/// block or a record copied into a typed one: the original's `rep movsd`).
-pub fn cells_from(
-    from: u32,
-    to: &(impl Cells + ?Sized),
-    n: usize,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    if n > to.count() {
-        return Err(crate::errors::BadInput("a copy past its cells"));
-    }
-    for k in 0..n {
-        let v = crate::pointers::GamePtr::new(from.wrapping_add(4 * k as u32)).read::<u32>(what)?;
-        to.set_bits(k, v);
-    }
-    Ok(())
 }
 
 #[cfg(test)]

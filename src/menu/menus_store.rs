@@ -1225,9 +1225,11 @@ impl Default for MenuCell {
 impl MenuItem {
     /// The dword after a menu's last item, and an item's `x` that ends the walk.
     pub const END: u32 = 0xFFFF_FFFF;
+}
 
-    /// The item's game address (for the callers still handed one).
-    pub fn addr(&self) -> u32 {
+#[cfg(test)]
+impl MenuItem {
+    fn addr(&self) -> u32 {
         crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
     }
 }

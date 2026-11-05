@@ -27,7 +27,6 @@ use crate::gfx::glyph_tables::{
 };
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
-use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 
 // ---- game data ----
@@ -75,7 +74,7 @@ fn fatal(code: u32) -> Refused {
 /// `pixels_b` is where the place of the second palette's pixels is read from when they
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
-pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
+pub fn build_game_fonts(pixels_b: &crate::session::Dword) -> Result<(), Refused> {
     let list = crate::pointers::GamePtr::to(&GAME_FONTS.memory);
     let bytes = GAME_FONTS
         .units
@@ -117,7 +116,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     }
 
     // The sheet's palette made brighter where it lies, and its pixels.
-    let to: u32 = GamePtr::new(pixels_b).read("the second palette's place")?;
+    let to: u32 = pixels_b.get();
     let layout = DECODER.format.get();
     if to == 0 || layout == 0 {
         return Err(BadInput("no place for the second palette, or no pixel layout").into());
@@ -145,9 +144,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
 
 /// With the third font's palette's place, as the stage's loading calls it.
 pub fn build_game_fonts_in_game() -> Result<(), Refused> {
-    build_game_fonts(
-        FONTS.game_fonts[3].addr() + core::mem::offset_of!(crate::text::font::Font, palette) as u32,
-    )
+    build_game_fonts(&FONTS.game_fonts[3].palette)
 }
 
 #[cfg(test)]

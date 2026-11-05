@@ -44,13 +44,11 @@ pub fn call_key(function: u32, item: &MenuItem) -> Result<(), Refused> {
 }
 
 /// What a menu item's function is given (typed, 2026-10-24; the original's registers at
-/// the call: eax the item's value, ebp the item, edi the menu; the screen loop's others,
+/// the call: eax the item's value, ebp the item (not kept), edi the menu; the screen loop's others,
 /// which no function reads).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ItemCall {
     pub value: u32,
-    /// The item's game address (the original's ebp; for a refusal's report).
-    pub item: u32,
     pub menu: Option<MenuId>,
 }
 
@@ -60,7 +58,6 @@ impl ItemCall {
         Regs {
             eax: self.value,
             edi: self.menu.map_or(0, MenuId::code),
-            ebp: self.item,
             ..Regs::default()
         }
     }
@@ -68,10 +65,9 @@ impl ItemCall {
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value,
 /// the item and the menu. A refusal ends the program here, as `call`'s.
-pub fn call_action(function: u32, value: u32, item: &MenuItem, menu: MenuId) {
+pub fn call_action(function: u32, value: u32, _item: &MenuItem, menu: MenuId) {
     let given = ItemCall {
         value,
-        item: item.addr(),
         menu: Some(menu),
     };
     let ral = function;

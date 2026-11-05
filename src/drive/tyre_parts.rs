@@ -15,11 +15,6 @@ use crate::math::x87_float::{int, ld, st};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Dword, MACHINE, SCREEN};
 
-/// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
-pub fn verts() -> usize {
-    crate::d3d::vertices_store::piece_addr() as usize
-}
-
 /// `d3d::set_texture` (0x41ACF5): eax the texture.
 pub fn set_texture(texture: u32) {
     crate::d3d::set_texture::set_texture(texture);
@@ -91,7 +86,10 @@ fn quad_tail_math(s: [u32; 4], v: &[Vertex], sc: [u32; 2], t: &Dword) {
 /// its result (Direct3D's, always 0) is read by no one: the quads keep every register
 /// round it (`pusha` / `popa`).
 pub fn draw() -> Result<(), Refused> {
-    crate::d3d::draw_vertex_strip::draw_vertex_strip(verts() as u32, 4)?;
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(
+        crate::pointers::GamePtr::to(&VERTICES.vertices),
+        4,
+    )?;
     Ok(())
 }
 

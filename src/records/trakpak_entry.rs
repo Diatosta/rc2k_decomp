@@ -31,26 +31,31 @@ pub const INVALID_HEADER: FatalError = FatalError {
     message: "Invalid TrakPak Header",
 };
 
-/// Address of entry `index` in the pack header at address `header`.
+/// Entry `index` in the pack header at `header`.
 /// The original loops forever instead of reporting the error when the header's first dword
 /// is non-zero; this version reports it in both cases.
 pub fn trakpak_entry(
-    header: u32,
+    header: crate::pointers::GamePtr,
     index: u32,
     pack_id: u32,
     loaded_pack_id: u32,
-) -> Result<u32, FatalError> {
+) -> Result<crate::pointers::GamePtr, FatalError> {
     // Converted: `rc2k_core::files::records::pack_entry`.
     rc2k_core::files::records::pack_entry(index, pack_id, loaded_pack_id)
-        .map(|place| header.wrapping_add(place as u32))
+        .map(|place| header.offset(place as u32))
         .ok_or(INVALID_HEADER)
 }
 
 /// The entry for `record`'s track (+4, +8 the pack's id), in the pack the game has loaded.
-pub fn record_entry(record: RecordRef) -> Result<u32, Refused> {
+///
+/// The pointer is bounded to the stage tables as a whole (the original's index has no bound
+/// and reads on past the pack into what follows).
+pub fn record_entry(record: RecordRef) -> Result<crate::pointers::GamePtr, Refused> {
     let record = record.record()?;
     Ok(trakpak_entry(
-        crate::records::stages_store::STAGE_TABLES.trak_pak(),
+        crate::pointers::GamePtr::to(&crate::records::stages_store::STAGE_TABLES).offset(
+            core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak) as u32,
+        ),
         record.track(),
         record.pack_id(),
         loaded_pack_id(),

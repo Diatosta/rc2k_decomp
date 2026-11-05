@@ -1260,7 +1260,7 @@ impl RallyTimes {
         let table = RALLY_TIMES.rallies.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        if at != crate::pointers::game_address(core::ptr::from_ref(table)) {
+        if crate::pointers::GamePtr::new(at) != crate::pointers::GamePtr::to(table) {
             return Err(crate::errors::BadInput(
                 "a rally's best-times name not at its own table",
             ));

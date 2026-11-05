@@ -19,8 +19,6 @@ use rc2k_core::saves::rankings::{BKey, ChampHistory, HistoryEntry, RankedTimes};
 /// "Any group" for the first-player searches.
 pub const ANY_GROUP: u32 = standings::ANY_GROUP;
 
-pub use crate::menu::event_flow::dword as get;
-
 /// A player's record, typed.
 pub type PlayerCell = &'static crate::session::Shared<rc2k_core::menu::player::Player>;
 

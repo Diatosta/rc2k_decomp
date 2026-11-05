@@ -184,10 +184,7 @@ pub fn install_files() -> Result<(), Refused> {
     if !i::write_record::write_record()? {
         return message(2, &INSTALLER_PAGES.msg_error, 0);
     }
-    if crate::install::installer::rb(crate::pointers::game_address(
-        crate::files::state::locale_directory(),
-    )) != 0
-    {
+    if crate::install::installer::rb(crate::files::state::locale_directory_place()) != 0 {
         // readme.txt then manual.pdf
         for (full, base) in [
             (

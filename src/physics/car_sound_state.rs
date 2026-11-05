@@ -31,10 +31,6 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
-fn get(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
-}
-
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 fn shares(so: &crate::sound::store::SoundObject) {
     x87_1();
@@ -46,20 +42,24 @@ fn shares(so: &crate::sound::store::SoundObject) {
     x87_2(so);
 }
 
-fn listener() -> u32 {
+/// The car the sound is heard from: view 0's block with one player (none if it has no
+/// block), else the work car.
+fn listener() -> Option<&'static crate::physics::car_store::Car> {
     if RACE_VIEW.players.get() == 1 {
-        RACE_VIEW.view_block(0)
+        crate::race::blocks_store::car_of(RACE_VIEW.view_blocks[0].get())
     } else {
-        crate::physics::car_store::car_addr()
+        Some(&CAR)
     }
 }
 
+const _: () =
+    assert!(core::mem::offset_of!(crate::physics::car_store::Car, camera_position) == 0x6A4);
+
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state() -> Result<(), Refused> {
-    let l = listener();
-    if l == 0 {
+    let Some(l) = listener() else {
         return Err(BadInput("a null view block").into());
-    }
+    };
     let so = crate::sound::store::current_object();
     so.new_revs.set(1);
     so.revs.set(CAR.engine_sound_revs.get());
@@ -75,11 +75,11 @@ pub fn car_sound_state() -> Result<(), Refused> {
     so.flag_ac
         .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
     so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
-    let d = |c: &Dword, k: u32| ints_diff_80(c.get() as i32, get(l + k) as i32);
+    let d = |c: &Dword, other: &Dword| ints_diff_80(c.get() as i32, other.get() as i32);
     let place = [
-        d(&CAR.position[0], 0x6A4),
-        d(&CAR.position[1], 0x6A8),
-        d(&CAR.position[2], 0x6AC),
+        d(&CAR.position[0], &l.camera_position[0]),
+        d(&CAR.position[1], &l.camera_position[1]),
+        d(&CAR.position[2], &l.camera_position[2]),
     ];
     let m = &MATRICES.view_turn_matrix;
     let out = rotate_point(m, place);

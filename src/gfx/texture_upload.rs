@@ -133,10 +133,6 @@ impl RecordCell {
         change(&mut record);
         self.set(record);
     }
-
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
-    }
 }
 
 impl TextureFormat {
@@ -359,22 +355,23 @@ impl Textures {
         if n < self.kinds.len() {
             return self.kind(n);
         }
-        crate::pointers::read_or_end(
-            crate::pointers::game_address(self.kinds.as_ptr()).wrapping_add(4 * n as u32),
-            "a texture kind",
-        )
+        // Bounded to the whole table (the kinds are followed by the descriptions).
+        crate::pointers::GamePtr::to(self)
+            .offset((core::mem::offset_of!(Textures, kinds) + 4 * n) as u32)
+            .read::<u32>("a texture kind")
+            .unwrap_or_else(|e| crate::fatal::raise::end("gfx::texture_upload::kind_entry", e))
     }
 }
 
 /// A system texture's record where it lies.
-pub struct Record(u32);
+pub struct Record(&'static RecordCell);
 
 impl Record {
     pub fn of(texture: u32) -> Result<Self, Refused> {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record = Record(TEXTURE_TABLES.system.records[texture as usize].addr());
+        let record = Record(&TEXTURE_TABLES.system.records[texture as usize]);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }
@@ -382,13 +379,11 @@ impl Record {
     }
 
     pub fn get(&self) -> TextureRecord {
-        crate::pointers::read_or_end(self.0, "a texture's record")
+        self.0.get()
     }
 
     pub fn set_keeps_alpha(&self, keeps: u32) {
-        let mut record = self.get();
-        record.keeps_alpha = keeps;
-        crate::pointers::write_or_end(self.0, record, "a texture's record");
+        self.0.update(|record| record.keeps_alpha = keeps);
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
