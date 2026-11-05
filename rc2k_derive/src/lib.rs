@@ -57,6 +57,19 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     } else {
         quote! { let starts = [#( ::core::mem::offset_of!(Self, #names) ),*]; }
     };
+    // The runs, kept where the record has no generics (a static inside the function cannot
+    // name them).
+    let runs = if input.generics.params.is_empty() {
+        quote! {
+            fn runs() -> Option<&'static [crate::pointers::CellAt]> {
+                static RUNS: ::std::sync::OnceLock<Vec<crate::pointers::CellAt>> =
+                    ::std::sync::OnceLock::new();
+                Some(RUNS.get_or_init(crate::pointers::flatten::<Self>))
+            }
+        }
+    } else {
+        quote! {}
+    };
     quote! {
         const _: () = {
             const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
@@ -81,6 +94,8 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
                     _ => panic!("Cells: byte {offset} outside the record"),
                 }
             }
+
+            #runs
         }
     }
     .into()

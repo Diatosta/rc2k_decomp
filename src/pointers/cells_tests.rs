@@ -31,6 +31,11 @@ fn check_tiling<T: Cells>(record: &T, name: &str) {
         }
         for inside in at..at + cell.len {
             assert_eq!(T::cell_at(inside), cell, "{name}: byte {inside:#x}");
+            assert_eq!(
+                cell_of::<T>(inside),
+                cell,
+                "{name}: byte {inside:#x}, by its runs"
+            );
         }
         at += cell.len;
     }
@@ -212,7 +217,8 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
         CellAt {
             start: 4,
             len: 2,
-            kind: CellKind::U16
+            kind: CellKind::U16,
+            run_end: 6,
         }
     );
     assert_eq!(
@@ -220,7 +226,8 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
         CellAt {
             start: 8,
             len: 4,
-            kind: CellKind::U32
+            kind: CellKind::U32,
+            run_end: 16,
         }
     );
     assert_eq!(
@@ -228,7 +235,8 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
         CellAt {
             start: 12,
             len: 4,
-            kind: CellKind::U32
+            kind: CellKind::U32,
+            run_end: 16,
         }
     );
     store_cells(&m, 1, &[0xEE]).unwrap();

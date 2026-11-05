@@ -158,9 +158,19 @@ impl BlockRange {
     }
 }
 
-impl crate::pointers::Store for BlockRange {
+// SAFETY: a range of the block's plain shared bytes, one run.
+unsafe impl crate::pointers::Store for BlockRange {
     fn size(&self) -> usize {
         self.len
+    }
+
+    fn cell(&self, _: usize) -> Option<crate::pointers::CellAt> {
+        Some(crate::pointers::CellAt {
+            start: 0,
+            len: self.len,
+            kind: crate::pointers::CellKind::Bytes,
+            run_end: self.len,
+        })
     }
 
     fn first(&self) -> *const u8 {

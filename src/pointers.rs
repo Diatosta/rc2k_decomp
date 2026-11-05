@@ -61,7 +61,7 @@ static GENERATION: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::
 struct Cache {
     generation: u32,
     map_generation: u32,
-    regions: [(u32, u32); 4],
+    regions: [(u32, u32, Backing); 4],
     next: usize,
     /// The region the last check was in.
     last: usize,
@@ -70,32 +70,57 @@ struct Cache {
 
 thread_local! {
     static CACHE: std::cell::RefCell<Cache> = const {
-        std::cell::RefCell::new(Cache { generation: u32::MAX, map_generation: u32::MAX, regions: [(0, 0); 4], next: 0, last: 0, stack: None })
+        std::cell::RefCell::new(Cache { generation: u32::MAX, map_generation: u32::MAX, regions: [(0, 0, Backing::Raw); 4], next: 0, last: 0, stack: None })
     };
+}
+
+/// What holds a region's bytes: a moved range's store (and the game address of its first
+/// byte), or plain memory read raw (a block from the system, Rust memory lent by address).
+#[derive(Clone, Copy, Default)]
+enum Backing {
+    Store(&'static dyn Store, u32),
+    #[default]
+    Raw,
+}
+
+impl std::fmt::Debug for Backing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Backing::Store(_, home) => write!(f, "Store({home:#x})"),
+            Backing::Raw => f.write_str("Raw"),
+        }
+    }
+}
+
+/// The backing of the region that starts at `start`.
+fn backing_of(start: u32) -> Backing {
+    match crate::moved::store_of(start as usize) {
+        Some((store, 0)) => Backing::Store(store, start),
+        _ => Backing::Raw,
+    }
 }
 
 /// Whether `len` bytes from `addr` lie in one region, as `region_of` finds them, through the
-/// thread's cache: a recent block or store, the stack, then the lookups.
+/// thread's cache: a recent block or store, the stack, then the lookups; and what holds them.
 #[inline]
-fn inside(addr: u32, len: usize) -> bool {
-    let Some(end) = addr.checked_add(len as u32) else {
-        return false;
-    };
+fn inside(addr: u32, len: usize) -> Option<Backing> {
+    let end = addr.checked_add(len as u32)?;
     // Most reads follow one another in one region.
     let same_region = CACHE.with(|cache| {
         let cache = cache.borrow();
-        let (start, top) = cache.regions[cache.last];
-        addr >= start
+        let (start, top, backing) = cache.regions[cache.last];
+        (addr >= start
             && end <= top
             // Compared only: a change sends the check to the lookups, which take the locks.
             && cache.generation == GENERATION.load(std::sync::atomic::Ordering::Relaxed)
-            && cache.map_generation == crate::address_map::generation()
+            && cache.map_generation == crate::address_map::generation())
+        .then_some(backing)
     });
-    same_region || inside_found(addr, end)
+    same_region.or_else(|| inside_found(addr, end))
 }
 
 /// `inside` past its last region: the regions held, the stack, then the lookups.
-fn inside_found(addr: u32, end: u32) -> bool {
+fn inside_found(addr: u32, end: u32) -> Option<Backing> {
     let fits = |(start, top): (u32, u32)| addr >= start && end <= top;
     CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
@@ -104,26 +129,28 @@ fn inside_found(addr: u32, end: u32) -> bool {
         if cache.generation != generation || cache.map_generation != map_generation {
             cache.generation = generation;
             cache.map_generation = map_generation;
-            cache.regions = [(0, 0); 4];
+            cache.regions = [(0, 0, Backing::Raw); 4];
             // A range taken off may have been the stack's (a dead thread's stale range
             // overlapping): it is looked up afresh.
             cache.stack = None;
         }
-        if let Some(k) = cache.regions.iter().position(|&r| fits(r)) {
+        if let Some(k) = cache.regions.iter().position(|&(s, t, _)| fits((s, t))) {
             cache.last = k;
-            return true;
+            return Some(cache.regions[k].2);
         }
         let stack = *cache.stack.get_or_insert_with(|| to_game(stack()));
         if (stack.0..stack.1).contains(&addr) {
-            return fits(stack);
+            return fits(stack).then_some(Backing::Raw);
         }
         if let Some(region) = exact_region(addr) {
             let next = cache.next;
-            cache.regions[next] = region;
+            let backing = backing_of(region.0);
+            cache.regions[next] = (region.0, region.1, backing);
             cache.next = (next + 1) % 4;
-            return fits(region);
+            return fits(region).then_some(backing);
         }
-        !crate::race::store::is_dead(addr) && own_section(addr).is_some_and(fits)
+        (!crate::race::store::is_dead(addr) && own_section(addr).is_some_and(fits))
+            .then_some(Backing::Raw)
     })
 }
 
@@ -496,7 +523,7 @@ impl GamePtr {
     #[track_caller]
     pub fn bytes(self, what: &str) -> Result<GameBytes, BadInput> {
         watched(self.at, 1, what);
-        let (_, end) = region_of(self.at).ok_or_else(|| outside(self.at, 1, what))?;
+        let (first, end) = region_of(self.at).ok_or_else(|| outside(self.at, 1, what))?;
         // Inside its field, when it has one.
         let end = if self.field.1 == 0 {
             end
@@ -506,6 +533,7 @@ impl GamePtr {
         Ok(GameBytes {
             start: self.at,
             len: end.saturating_sub(self.at) as usize,
+            backing: backing_of(first),
         })
     }
 
@@ -528,45 +556,45 @@ impl GamePtr {
     /// one region.
     #[track_caller]
     pub fn read<T: Plain>(self, what: &str) -> Result<T, BadInput> {
-        self.check(size_of::<T>(), what)?;
+        let backing = self.check(size_of::<T>(), what)?;
         let mut value = zeroed::<T>();
-        load_at(self.at, bytes_mut(&mut value))?;
+        load_at(self.at, backing, bytes_mut(&mut value))?;
         Ok(value)
     }
 
     /// The `T` written at the address, when all of it lies in one region.
     #[track_caller]
     pub fn write<T: Plain>(self, value: T, what: &str) -> Result<(), BadInput> {
-        self.check(size_of::<T>(), what)?;
-        store_at(self.at, bytes_of(&value))
+        let backing = self.check(size_of::<T>(), what)?;
+        store_at(self.at, backing, bytes_of(&value))
     }
 
     /// `len` bytes from the address, copied out.
     #[track_caller]
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-        self.check(len, what)?;
+        let backing = self.check(len, what)?;
         let mut bytes = vec![0; len];
-        load_at(self.at, &mut bytes)?;
+        load_at(self.at, backing, &mut bytes)?;
         Ok(bytes)
     }
 
     /// `bytes` written from the address on.
     #[track_caller]
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), BadInput> {
-        self.check(bytes.len(), what)?;
-        store_at(self.at, bytes)
+        let backing = self.check(bytes.len(), what)?;
+        store_at(self.at, backing, bytes)
     }
 
     /// `len` bytes copied from here to `to` (overlapping as `memmove`), each side inside one
     /// region.
     #[track_caller]
     pub fn copy_to(self, to: GamePtr, len: usize, what: &str) -> Result<(), BadInput> {
-        self.check(len, what)?;
-        to.check(len, what)?;
-        let stores = |p: GamePtr| crate::moved::store_of(p.at as usize).is_some();
-        if stores(self) || stores(to) {
+        let (from, into) = (self.check(len, what)?, to.check(len, what)?);
+        if matches!(from, Backing::Store(..)) || matches!(into, Backing::Store(..)) {
             // Through a copy, as `memmove`: either side may be a store's cells.
-            return to.write_bytes(&self.read_bytes(len, what)?, what);
+            let mut bytes = vec![0; len];
+            load_at(self.at, from, &mut bytes)?;
+            return store_at(to.at, into, &bytes);
         }
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
@@ -578,9 +606,8 @@ impl GamePtr {
     /// `len` bytes set to `value` from the address on.
     #[track_caller]
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
-        self.check(len, what)?;
-        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
-            return store.store(at, &vec![value; len]);
+        if let backing @ Backing::Store(..) = self.check(len, what)? {
+            return store_at(self.at, backing, &vec![value; len]);
         }
         // SAFETY: the run lies in one live region.
         unsafe { crate::shared_memory::fill(host(self.at), value, len) };
@@ -603,7 +630,7 @@ impl GamePtr {
 
     /// Whether `len` bytes from the address lie in one region.
     #[track_caller]
-    fn check(self, len: usize, what: &str) -> Result<(), BadInput> {
+    fn check(self, len: usize, what: &str) -> Result<Backing, BadInput> {
         watched(self.at, len, what);
         let (first, end) = self.field;
         if end != 0 && (self.at < first || u64::from(self.at) + len as u64 > u64::from(end)) {
@@ -613,11 +640,7 @@ impl GamePtr {
             ));
             return Err(BadInput("past the end of a field"));
         }
-        if inside(self.at, len) {
-            Ok(())
-        } else {
-            Err(outside(self.at, len, what))
-        }
+        inside(self.at, len).ok_or_else(|| outside(self.at, len, what))
     }
 }
 
@@ -632,6 +655,41 @@ pub unsafe trait Cells {
     /// The primitive cell holding byte `offset` (below the type's size), placed from the
     /// record's first byte.
     fn cell_at(offset: usize) -> CellAt;
+
+    /// The record's runs of like cells in order (each the first cell of its run), when the
+    /// type keeps them (the derive does for records without generics, built at first use
+    /// by `flatten`): a lookup is then one search, and a copy walks them in turn.
+    fn runs() -> Option<&'static [CellAt]> {
+        None
+    }
+}
+
+/// `T`'s runs of like cells, in order (`Cells::runs`).
+pub fn flatten<T: Cells>() -> Vec<CellAt> {
+    let mut runs = Vec::new();
+    let mut at = 0;
+    while at < size_of::<T>() {
+        let cell = T::cell_at(at);
+        runs.push(cell);
+        at = cell.run_end;
+    }
+    runs
+}
+
+/// The cell holding byte `offset` of a record whose runs are `runs`, and the run's index.
+fn in_runs(runs: &[CellAt], offset: usize) -> (usize, CellAt) {
+    let i = runs.partition_point(|run| run.start <= offset) - 1;
+    let run = runs[i];
+    let start = run.start + (offset - run.start) / run.len * run.len;
+    (i, CellAt { start, ..run })
+}
+
+/// The cell holding byte `offset` of a `T`: through its runs when it keeps them.
+fn cell_of<T: Cells>(offset: usize) -> CellAt {
+    match T::runs() {
+        Some(runs) => in_runs(runs, offset).1,
+        None => T::cell_at(offset),
+    }
 }
 
 /// What a primitive cell is: an atomic of one width, or a run of plain shared bytes
@@ -650,6 +708,10 @@ pub struct CellAt {
     pub start: usize,
     pub len: usize,
     pub kind: CellKind,
+    /// The end of the run of cells like this one that it begins or lies in (an array of
+    /// one primitive cell: the array's end), so a copy steps through the run without asking
+    /// again.
+    pub run_end: usize,
 }
 
 impl CellAt {
@@ -658,6 +720,7 @@ impl CellAt {
             start: 0,
             len,
             kind,
+            run_end: len,
         }
     }
 
@@ -665,6 +728,7 @@ impl CellAt {
     pub const fn after(self, at: usize) -> Self {
         Self {
             start: self.start + at,
+            run_end: self.run_end + at,
             ..self
         }
     }
@@ -720,7 +784,18 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
             size != 0 && offset < size * N,
             "Cells: byte {offset} outside the array"
         );
-        T::cell_at(offset % size).after(offset - offset % size)
+        let element = offset - offset % size;
+        let inner = T::cell_at(offset % size);
+        if inner.start == 0 && inner.len == size {
+            // An array of one primitive cell: one run to the array's end.
+            CellAt {
+                start: element,
+                run_end: size * N,
+                ..inner
+            }
+        } else {
+            inner.after(element)
+        }
     }
 }
 
@@ -760,11 +835,23 @@ fn bytes_of<T: Plain>(value: &T) -> &[u8] {
 }
 
 /// `to.len()` bytes from the game address `addr`, which the caller checked to lie in one
-/// region: through its store when a moved range holds it, else the region's raw bytes (the
+/// region (`backing`, what holds it): through its store when a moved range holds it, else the region's raw bytes (the
 /// one raw read left: blocks from the system, Rust memory lent by address).
-fn load_at(addr: u32, to: &mut [u8]) -> Result<(), BadInput> {
-    if let Some((store, at)) = crate::moved::store_of(addr as usize) {
-        return store.load(at, to);
+fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
+    if let Backing::Store(store, home) = backing {
+        let at = (addr - home) as usize;
+        match run_of(store, at, to.len()) {
+            Some(Run::Cell(place, kind)) => {
+                to.copy_from_slice(&cell_bytes(place, kind)[..to.len()]);
+                return Ok(());
+            }
+            Some(Run::Bytes(place)) => {
+                // SAFETY: inside one run of the store's shared bytes (`run_of`).
+                unsafe { crate::shared_memory::load(place, to.as_mut_ptr(), to.len()) };
+                return Ok(());
+            }
+            None => return store.load(at, to),
+        }
     }
     // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
     unsafe { crate::shared_memory::load(host(addr), to.as_mut_ptr(), to.len()) };
@@ -772,13 +859,60 @@ fn load_at(addr: u32, to: &mut [u8]) -> Result<(), BadInput> {
 }
 
 /// `from` written at the game address `addr`, as `load_at` reads.
-fn store_at(addr: u32, from: &[u8]) -> Result<(), BadInput> {
-    if let Some((store, at)) = crate::moved::store_of(addr as usize) {
-        return store.store(at, from);
+fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
+    if let Backing::Store(store, home) = backing {
+        let at = (addr - home) as usize;
+        match run_of(store, at, from.len()) {
+            Some(Run::Cell(place, kind)) => {
+                set_cell_bytes(place, kind, 0, from);
+                return Ok(());
+            }
+            Some(Run::Bytes(place)) => {
+                // SAFETY: as `load_at`'s.
+                unsafe { crate::shared_memory::store(place.cast_mut(), from.as_ptr(), from.len()) };
+                return Ok(());
+            }
+            None => return store.store(at, from),
+        }
     }
     // SAFETY: as `load_at`'s; the regions are the game's writable memory.
     unsafe { crate::shared_memory::store(host(addr), from.as_ptr(), from.len()) };
     Ok(())
+}
+
+/// Where a short access in a store goes straight: one whole atomic cell of the access's width,
+/// or a part of a run of shared bytes.
+enum Run {
+    Cell(*const u8, CellKind),
+    Bytes(*const u8),
+}
+
+/// The fast way to `len` bytes at `at` in `store`, when there is one: through the thread's
+/// last run of like cells (most accesses step through one table), else its cell looked up.
+fn run_of(store: &'static dyn Store, at: usize, len: usize) -> Option<Run> {
+    thread_local! {
+        static LAST: std::cell::Cell<Option<(*const u8, CellAt)>> =
+            const { std::cell::Cell::new(None) };
+    }
+    let first = store.first();
+    let cell = match LAST.get() {
+        Some((was, cell)) if was == first && (cell.start..cell.run_end).contains(&at) => cell,
+        _ => {
+            let cell = store.cell(at)?;
+            LAST.set(Some((first, cell)));
+            cell
+        }
+    };
+    if at + len > cell.run_end {
+        return None;
+    }
+    let place = first.wrapping_add(at);
+    match cell.kind {
+        CellKind::Bytes => Some(Run::Bytes(place)),
+        // One whole cell of the run, of the access's width.
+        kind => ((at - cell.start).is_multiple_of(cell.len) && len == cell.len)
+            .then_some(Run::Cell(place, kind)),
+    }
 }
 
 /// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
@@ -800,7 +934,12 @@ plain_record!(
 /// One of the game's stores: a static whose every byte is a cell, read and written by
 /// offset through its own cells (`load_cells`, `store_cells`). What a game address in a moved
 /// range resolves to (`moved::Home`).
-pub trait Store: Sync {
+///
+/// # Safety
+/// `cell(offset)`, when it answers, names the primitive cell at `first() + offset` truly (an
+/// atomic of that width there, or a run of shared bytes), as `Cells::cell_at` does: reads and
+/// writes go straight to it.
+pub unsafe trait Store: Sync {
     /// Its length in bytes.
     #[cfg_attr(
         not(test),
@@ -812,13 +951,21 @@ pub trait Store: Sync {
     fn size(&self) -> usize;
     /// Its first byte, to find the store a host address lies in: compared, never followed.
     fn first(&self) -> *const u8;
+    /// The primitive cell around byte `offset`, placed from `first()`; `None` where it begins
+    /// before `first()` (the reads there take `load` and `store`).
+    fn cell(&self, offset: usize) -> Option<CellAt>;
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
-impl<T: Cells + Sync> Store for T {
+// SAFETY: `cell` is `Cells::cell_at`, from the record's first byte.
+unsafe impl<T: Cells + Sync> Store for T {
     fn size(&self) -> usize {
         size_of::<T>()
+    }
+
+    fn cell(&self, offset: usize) -> Option<CellAt> {
+        Some(cell_of::<T>(offset))
     }
 
     fn first(&self) -> *const u8 {
@@ -906,12 +1053,34 @@ fn each_cell<T: Cells>(
         .checked_add(len)
         .filter(|&end| end <= size_of::<T>())
         .ok_or(BadInput("past the end of a record"))?;
+    let runs = T::runs();
+    let mut next: Option<usize> = None;
     let mut at = offset;
     while at < end {
-        let cell = T::cell_at(at);
-        let to = end.min(cell.start + cell.len);
-        visit(cell, at, to);
-        at = to;
+        // The cell at `at` (the next run, when the record keeps its runs), then the rest of
+        // its run, cell by cell.
+        let mut cell = match (runs, next) {
+            (Some(runs), Some(i)) if i < runs.len() && runs[i].start == at => {
+                next = Some(i + 1);
+                runs[i]
+            }
+            (Some(runs), _) => {
+                let (i, cell) = in_runs(runs, at);
+                next = Some(i + 1);
+                cell
+            }
+            (None, _) => T::cell_at(at),
+        };
+        let run_end = end.min(cell.run_end);
+        loop {
+            let to = run_end.min(cell.start + cell.len);
+            visit(cell, at, to);
+            at = to;
+            if at >= run_end {
+                break;
+            }
+            cell.start += cell.len;
+        }
     }
     Ok(())
 }
@@ -991,13 +1160,15 @@ pub fn dwords_in<T: Cells, const N: usize>(cells: &T, at: usize) -> &[crate::ses
 pub struct GameBytes {
     start: u32,
     len: usize,
+    backing: Backing,
 }
 
 impl rc2k_core::strings::bytes::Bytes for GameBytes {
     fn byte(&self, at: usize) -> Option<u8> {
         let mut byte = [0];
         // `at` is inside the region (checked against its length).
-        (at < self.len && load_at(self.start + at as u32, &mut byte).is_ok()).then_some(byte[0])
+        (at < self.len && load_at(self.start + at as u32, self.backing, &mut byte).is_ok())
+            .then_some(byte[0])
     }
 }
 
@@ -1006,7 +1177,7 @@ impl rc2k_core::strings::bytes::Bytes for GameBytes {
 #[track_caller]
 pub fn check_or_end(addr: u32, len: usize, what: &str) {
     watched(addr, len, what);
-    if !inside(addr, len) {
+    if inside(addr, len).is_none() {
         crate::fatal::raise::end(what, outside(addr, len, what))
     }
 }
@@ -1047,7 +1218,7 @@ pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
 /// read inside it costs a compare, one outside looks its region up again. Keep a window for
 /// one pass only: a block can be given back between passes.
 #[derive(Default)]
-pub struct Window(std::cell::Cell<(u32, u32)>);
+pub struct Window(std::cell::Cell<(u32, u32, Backing)>);
 
 impl Window {
     pub fn new() -> Self {
@@ -1055,17 +1226,18 @@ impl Window {
     }
 
     #[track_caller]
-    fn check(&self, addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
+    fn check(&self, addr: u32, len: usize, what: &str) -> Result<Backing, BadInput> {
         watched(addr, len, what);
         let end = addr.checked_add(len as u32);
-        let (start, top) = self.0.get();
+        let (start, top, backing) = self.0.get();
         if addr >= start && end.is_some_and(|end| end <= top) {
-            return Ok(());
+            return Ok(backing);
         }
         match region_of(addr) {
             Some((start, top)) if end.is_some_and(|end| end <= top) => {
-                self.0.set((start, top));
-                Ok(())
+                let backing = backing_of(start);
+                self.0.set((start, top, backing));
+                Ok(backing)
             }
             _ => Err(outside(addr, len, what)),
         }
@@ -1076,7 +1248,7 @@ impl Window {
         let mut value = zeroed::<T>();
         if let Err(e) = self
             .check(addr, size_of::<T>(), what)
-            .and_then(|()| load_at(addr, bytes_mut(&mut value)))
+            .and_then(|backing| load_at(addr, backing, bytes_mut(&mut value)))
         {
             crate::fatal::raise::end(what, e)
         }
@@ -1087,7 +1259,7 @@ impl Window {
     pub fn write_or_end<T: Plain>(&self, addr: u32, value: T, what: &str) {
         if let Err(e) = self
             .check(addr, size_of::<T>(), what)
-            .and_then(|()| store_at(addr, bytes_of(&value)))
+            .and_then(|backing| store_at(addr, backing, bytes_of(&value)))
         {
             crate::fatal::raise::end(what, e)
         }
@@ -1098,7 +1270,7 @@ impl Window {
     pub fn write_bytes_or_end(&self, addr: u32, bytes: &[u8], what: &str) {
         if let Err(e) = self
             .check(addr, bytes.len(), what)
-            .and_then(|()| store_at(addr, bytes))
+            .and_then(|backing| store_at(addr, backing, bytes))
         {
             crate::fatal::raise::end(what, e)
         }
@@ -1253,7 +1425,7 @@ mod tests {
         let start = block.addr();
         let window = Window::new();
         assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
-        assert_eq!(window.0.get(), (start, start + 32));
+        assert_eq!((window.0.get().0, window.0.get().1), (start, start + 32));
         window.write_or_end(start + 28, 0x0102_0304u32, "test");
         assert_eq!(block.to_vec()[28], 4);
         assert!(

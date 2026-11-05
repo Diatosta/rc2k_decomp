@@ -594,9 +594,25 @@ impl<T: crate::pointers::Cells + Sync + 'static> Window<T> {
     }
 }
 
-impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for Window<T> {
+// SAFETY: `cell` is the whole record's `Cells::cell_at`, moved by the window's offset, and
+// none when the cell begins before the window.
+#[allow(
+    unsafe_code,
+    reason = "Store's promise: the window's cells are the record's"
+)]
+unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for Window<T> {
     fn size(&self) -> usize {
         size_of::<T>() - self.offset
+    }
+
+    fn cell(&self, offset: usize) -> Option<crate::pointers::CellAt> {
+        let cell = T::cell_at(self.offset + offset);
+        let start = cell.start.checked_sub(self.offset)?;
+        Some(crate::pointers::CellAt {
+            start,
+            run_end: cell.run_end - self.offset,
+            ..cell
+        })
     }
 
     fn first(&self) -> *const u8 {
