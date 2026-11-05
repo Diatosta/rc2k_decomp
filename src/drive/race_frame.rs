@@ -49,6 +49,8 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         crate::sound::race_sound_tick::race_sound_tick()?;
         stop(Stage::SoundTick, begun);
         { crate::race::replay_screenshot::replay_screenshot() }?;
+        #[cfg(feature = "remote")]
+        crate::remote::shot_frame_drawn();
         let shown = { crate::race::show_frame::show_frame() }?;
         eax = shown.eax;
         if !shown.lost {

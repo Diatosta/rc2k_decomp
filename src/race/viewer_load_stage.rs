@@ -56,6 +56,8 @@ fn settings() -> [(&'static Dword, &'static Dword); 5] {
 /// The Rust version (every register kept).
 pub fn viewer_load_stage() -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
+    #[cfg(feature = "remote")]
+    crate::remote::shots_loading();
     if REPLAY_FILE.replay_open.get() == 1 {
         stage_free::render3d_tidy()?;
         stage_free::objects_tidy()?;

@@ -9,6 +9,13 @@
 //!     <id> shot <name>                   the next frame to <name>.raw, BGRA; answers its size
 //!     <id> state                         frames, race flag, menu, highlighted item
 //!     <id> quit                          as closing the window
+//!
+//! `RC2K_SHOT_CLOCKS` (car 0's replay clocks, comma-separated): playing a replay, the frame
+//! drawn after each of those ticks is saved as `replay_<clock>.raw` (BGRA; its size in
+//! `reply`). From the replay's stage load on, the game's clock is the one it keeps for
+//! recording a replay as pictures (`VIEWER_PANEL.picture_clock`), 10 ms a drawn frame
+//! (`shots_loading`, `shot_frame_drawn`), and the random numbers start from one state, so the
+//! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
 #![allow(unsafe_code)]
 
@@ -354,6 +361,72 @@ pub fn poll() {
     if let Ok(text) = std::fs::read_to_string(&path) {
         let _ = std::fs::remove_file(&path);
         text.lines().for_each(run);
+    }
+}
+
+/// The replay clocks to save the frame after (`RC2K_SHOT_CLOCKS`).
+fn shot_clocks() -> &'static [u32] {
+    static CLOCKS: OnceLock<Vec<u32>> = OnceLock::new();
+    CLOCKS.get_or_init(|| {
+        std::env::var("RC2K_SHOT_CLOCKS")
+            .map(|v| v.split(',').filter_map(|c| c.trim().parse().ok()).collect())
+            .unwrap_or_default()
+    })
+}
+
+/// A replay's tick played, car 0's clock `clock`: a shot asked for when it is one of
+/// `RC2K_SHOT_CLOCKS`.
+pub fn replay_tick(clock: u32) {
+    if folder().is_some() && shot_clocks().contains(&clock) {
+        pending().shot = Some(("replay".to_string(), format!("replay_{clock}")));
+    }
+}
+
+/// Whether shots are asked for (`RC2K_SHOT_CLOCKS` in a remote-driven run).
+pub fn shots_on() -> bool {
+    folder().is_some() && !shot_clocks().is_empty()
+}
+
+/// The replay's stage about to load (`race::viewer_load_stage`): with `RC2K_SHOT_CLOCKS`
+/// set, the game's clock held as when it records a replay as pictures (`tick_count` reads
+/// `picture_clock`), from one value, and the random numbers (the camera's shake, the
+/// replay's cameras, some sounds) from one state: the menus before took a number of them
+/// that depends on the timing (the effects' generator builds the snow's tables at load).
+/// The viewer then plays at once (`shots_on`): no frame waits for a key.
+pub fn shots_loading() {
+    use crate::race::viewer_screen_store::VIEWER_PANEL;
+    if !shots_on() {
+        return;
+    }
+    VIEWER_PANEL.pictures_started.set_bits(1u32);
+    VIEWER_PANEL.picture_clock.set(0x10000);
+    reseed();
+    // The scene's clock as the menus left it (their time on screen) is the snow's first
+    // step's start: the held clock's from here.
+    crate::physics::tables_store::PHYSICS
+        .scene_clock
+        .set(0x10000u32);
+    // The frame rate's text measures the host: not drawn.
+    crate::race::frame_counter_store::FRAME_COUNTER.show.set(0);
+}
+
+/// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
+fn reseed() {
+    crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
+    crate::effects::work_store::MARKS_WORK.seed.set(0x8765_4321);
+}
+
+/// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is
+/// recording pictures itself (`race::replay_screenshot` moves it then).
+pub fn shot_frame_drawn() {
+    use crate::race::viewer_screen_store::VIEWER_PANEL;
+    if !shots_on() {
+        return;
+    }
+    if VIEWER_PANEL.pictures_started.bits() == 1 && VIEWER_PANEL.replay_recording.bits() != 1 {
+        VIEWER_PANEL
+            .picture_clock
+            .set(VIEWER_PANEL.picture_clock.bits().wrapping_add(10));
     }
 }
 

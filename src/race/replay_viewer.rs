@@ -154,6 +154,12 @@ fn view(mode: Mode) -> Result<(), Refused> {
     // The pending key dropped.
     crate::input::take_key::take_key();
     mark_viewer_items::mark_viewer_items(list)?;
+    // A test run's picture check: the item chosen (play) at once, as Return would.
+    #[cfg(feature = "remote")]
+    if crate::remote::shots_on() {
+        let chosen = list.item(INSTALLER_PAGES.choice.get());
+        action_next(u32::from(chosen.viewer_action()))?;
+    }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
         if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {

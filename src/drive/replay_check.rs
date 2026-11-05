@@ -60,6 +60,10 @@ pub fn note() -> Result<(), BadInput> {
         _ => return Ok(()),
     };
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
+    #[cfg(feature = "remote")]
+    if mode == "playing" {
+        crate::remote::replay_tick(clock);
+    }
     if !clock.is_multiple_of(EVERY) && clock != 1 {
         return Ok(());
     }
