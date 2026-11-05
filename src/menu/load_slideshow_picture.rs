@@ -50,23 +50,26 @@ pub fn load_slideshow_picture(
     let template =
         crate::menu::texts_store::text_at(MENU_LISTS.slideshow_templates[car as usize].get())?;
     let start: u32 = EVENT_STATE.picture.get();
-    let mut path = GamePtr::new(0);
+    // Set by the first try (`search` always makes one).
+    let mut path = None;
     slides::search(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            path = numbered_path_in_game(template, number)?;
-            if file_exists_at(path)? {
+            let at = numbered_path_in_game(template, number)?;
+            path = Some(at);
+            if file_exists_at(at)? {
                 return Ok(true);
             }
-            let length = crate::strings::text_length::nul_at(path, "a picture path")? as usize;
-            let mut text = path.read_bytes(length, "a picture path")?;
+            let length = crate::strings::text_length::nul_at(at, "a picture path")? as usize;
+            let mut text = at.read_bytes(length, "a picture path")?;
             slides::pcx(&mut text)?;
-            path.write_bytes(&text, "a picture path")?;
-            Ok(file_exists_at(path)?)
+            at.write_bytes(&text, "a picture path")?;
+            Ok(file_exists_at(at)?)
         },
         |next| EVENT_STATE.picture.set(next),
     )?;
+    let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
     let title_bar = GamePtr::to(&crate::menu::texts_store::MENU_TEXTS.titlebar_png);
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;

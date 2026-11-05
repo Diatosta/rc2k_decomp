@@ -31,15 +31,6 @@ pub fn inc(v: &Dword) {
     set(v, get(v).wrapping_add(1));
 }
 
-pub fn dword(p: u32) -> Result<u32, crate::errors::BadInput> {
-    dword_what(p, "a game value")
-}
-
-/// The dword at `p`, named `what` in a refusal.
-pub fn dword_what(p: u32, what: &str) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(p).read::<u32>(what)
-}
-
 /// Reads for closures that a core function calls (they cannot return an error): the first
 /// refusal is kept and the reads after it answer 0; the caller runs `check` right after the
 /// core call, before it uses anything the core made.
@@ -55,10 +46,6 @@ impl Fault {
             }
             T::default()
         })
-    }
-
-    pub fn get(&self, p: u32) -> u32 {
-        self.ok(dword(p))
     }
 
     /// A `T` at the place `at`.

@@ -74,7 +74,7 @@ fn film(f: Film) -> crate::pointers::GamePtr {
 
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
 /// flag it leaves (the film's end).
-fn play(path: u32) -> bool {
+fn play(path: crate::pointers::GamePtr) -> bool {
     crate::film::play_film_now(path)
 }
 
@@ -91,7 +91,7 @@ impl Game {
                 crate::files::swap_missing_extension::swap_missing_extension(&film(f))?;
             }
             Step::Player(f) => {
-                flags.zero = play(film(f.unwrap_or(Film::AlLogo)).addr());
+                flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
             }
             Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
             Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,

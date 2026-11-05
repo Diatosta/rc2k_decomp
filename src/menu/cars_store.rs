@@ -1184,13 +1184,18 @@ pub fn cars_addr() -> u32 {
 
 /// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA
 /// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
-pub fn description_table(entry: u32) -> Result<u32, crate::errors::BadInput> {
+pub fn description_table(entry: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
     let table = description(entry)?.get().figures;
     if table == 0 {
         return Err(crate::errors::BadInput("a car without its table"));
     }
-    crate::moved::named_in(table, TEXTS, 4224, "a description's table off the texts")
+    if !(TEXTS..TEXTS + 4224).contains(&(table as usize)) {
+        return Err(crate::errors::BadInput(
+            "a description's table off the texts",
+        ));
+    }
+    crate::moved::named(table as usize)
 }
 
 #[cfg(test)]
@@ -1241,7 +1246,7 @@ mod tests {
             );
         }
         for car in 0..34 {
-            let found = description_table(car_entry(car).unwrap()).unwrap();
+            let found = description_table(car_entry(car).unwrap()).unwrap().addr();
             assert!(
                 (CAR_TABLE.description_texts.addr()..).contains(&found),
                 "{car}"

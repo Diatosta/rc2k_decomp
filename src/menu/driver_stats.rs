@@ -53,7 +53,7 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table() -> Result<(PlayerCell, u32), BadInput> {
+pub fn player_and_table() -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
     let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
@@ -63,7 +63,7 @@ pub fn player_and_table() -> Result<(PlayerCell, u32), BadInput> {
 }
 
 /// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
-pub fn car_table(p: PlayerCell) -> Result<u32, BadInput> {
+pub fn car_table(p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
     let car = match p.get().car_number {
         0x21 => 0x17,
         c => c,
@@ -79,7 +79,7 @@ pub fn driver_stats() -> Result<(), Refused> {
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table()?;
     let fault = Fault::default();
-    let table = Table::read(|o| fault.get(t + o as u32));
+    let table = Table::read(|o| fault.read_at::<u32>(t.offset(o as u32), "a car's figures"));
     let car = Car {
         wear: std::array::from_fn(|k| p.get().damage[k]),
         fitted: p.get().state_flags,

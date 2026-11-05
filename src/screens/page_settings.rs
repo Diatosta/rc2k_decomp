@@ -122,10 +122,9 @@ pub fn stage_options_texts() -> Result<(), Refused> {
 pub fn stage_choice_texts() -> Result<(), Refused> {
     let (a, b) = (EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get());
     stage_refuses(a, b)?;
-    let pointed = crate::menu::menus_store::labels_place_of(&MENUS.view_courses.head)?;
-    if pointed == 0 {
-        return Err(BadInput("no item table").into());
-    }
+    // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
+    let item_1 = crate::menu::menus_store::labels_slot(&MENUS.view_courses.head, 4 + 0x5C + 0x14)?
+        .ok_or(BadInput("no item table"))?;
     let items = &MENUS.view_courses.items;
     set_item(
         items,
@@ -138,8 +137,6 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
         )?,
     )?;
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
-    // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
-    crate::pointers::GamePtr::new(pointed + 4 + 0x5C + 0x14)
-        .write::<u32>(base.title()?, "a menu item")?;
+    item_1.write::<u32>(base.title()?, "a menu item")?;
     stage_line(0x482, record)
 }

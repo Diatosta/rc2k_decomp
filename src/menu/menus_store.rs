@@ -888,6 +888,22 @@ pub fn labels_place_of(head: &Dword) -> Result<u32, crate::errors::BadInput> {
     }
 }
 
+/// The place `offset` bytes on from the labels a menu's +0 names, bounded to the menus' store;
+/// None for a menu without labels. For the original's slip of writing item 1 of the "menu"
+/// its labels would be (`notes/bugs.md`): the place lands in the labels' memory.
+pub fn labels_slot(
+    head: &Dword,
+    offset: u32,
+) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
+    let at = labels_place_of(head)?;
+    if at == 0 {
+        return Ok(None);
+    }
+    Ok(Some(crate::pointers::GamePtr::to(&MENUS).offset(
+        at.wrapping_sub(menus_addr()).wrapping_add(offset),
+    )))
+}
+
 /// The font of the label whose font field is at `at` (a game address in the label lists;
 /// `screens::draw_menu_labels` walks them by address). Refused: a place that is no label's
 /// font (the walk gone off the lists' grid: the original would take what is there for a
