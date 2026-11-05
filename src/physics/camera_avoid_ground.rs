@@ -30,7 +30,7 @@ use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::camera_view::{rd, record};
+use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
@@ -113,7 +113,7 @@ pub fn steps() -> Result<(), Refused> {
     RACE_TABLES.camera_turn_step.set(u32::MAX);
     DRAW.camera_heading_kept.set(CAR.camera_heading.get());
     place();
-    if rd(record()? + 0x4C) == 0 {
+    if record()?.halve_tilt.get() == 0 {
         return Ok(());
     }
     if !camera_over_ground()? {

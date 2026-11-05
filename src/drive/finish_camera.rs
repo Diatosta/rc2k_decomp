@@ -10,34 +10,35 @@
 use crate::drive::finish_store::FINISH;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::{ViewRecord, ViewVars};
+
+/// View record 6, the finish camera's (`dword_606728` ..).
+fn record() -> &'static ViewRecord {
+    ViewVars::record(6)
+}
 
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
 fn lines() {
-    VIEW_VARS
-        .finish_value
-        .set_bits(st(ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[0].bits())));
+    record().angles[1].set_bits(st(ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[0].bits())));
     let a =
         ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[4].bits()) + ld(FINISH.unknown_2c[2].bits());
     let b = ld(FINISH.share.bits()) * ld(FINISH.unknown_64.bits());
-    VIEW_VARS.place_e.set_bits(st(a + b));
-    VIEW_VARS.place_f.set_bits(st(ld(FINISH.eased.bits())
+    record().offset[1].set_bits(st(a + b));
+    record().offset[2].set_bits(st(ld(FINISH.eased.bits())
         * ld(FINISH.unknown_2c[3].bits())
         + ld(FINISH.unknown_2c[1].bits())));
 }
 
 /// `dword_606744` from the share and its constant.
 fn last_line() {
-    VIEW_VARS
-        .place_last_c
-        .set_bits(st(ld(FINISH.share.bits()) * ld(FINISH.unknown_60.bits())));
+    record().angles[0].set_bits(st(ld(FINISH.share.bits()) * ld(FINISH.unknown_60.bits())));
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
     lines();
-    VIEW_VARS.finish_zero.set(0);
+    record().offset[0].set(0);
     last_line();
 }
 

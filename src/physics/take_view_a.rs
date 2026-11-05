@@ -16,21 +16,21 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::camera_view::{rd, record};
+use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
+use crate::race::view_vars_store::ViewRecord;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::x87_mem::{Base, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
-pub fn take_view_a(s: u32) -> Result<(), crate::errors::BadInput> {
-    x87_1(crate::pointers::GamePtr::new(s));
-    for (k, put) in copies().iter().enumerate() {
-        put(rd(s + 0x10 + 4 * k as u32));
+pub fn take_view_a(s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
+    x87_1(s.offset_bits());
+    for (put, v) in copies().iter().zip(s.taken()) {
+        put(v);
     }
     CAMERA_WORK.view_a_heading.set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
-    if rd(record()? + 0x4C) != 0 {
+    if record()?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
@@ -60,19 +60,20 @@ fn copies() -> [fn(u32); 11] {
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value)
 /// `[rc + 0x208B98] = [s + 4] + [rc + 0x237638]`
 /// `[rc + 0x208B9C] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BA0] = [s + 0xC] + [rc + 0x237640]`
-fn x87_1(s: impl Base) {
-    let t0 = fld(s, 4);
+fn x87_1(offset: [u32; 3]) {
+    let t0 = ld(offset[0]);
     let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;
     CAMERA_WORK.view_a_offset[0].set_bits(st(t2));
-    let t3 = fld(s, 8);
+    let t3 = ld(offset[1]);
     let t4 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t5 = t3 + t4;
     CAMERA_WORK.view_a_offset[1].set_bits(st(t5));
-    let t6 = fld(s, 0xC);
+    let t6 = ld(offset[2]);
     let t7 = ld(LIGHT_STATE.camera_frame_c.bits());
     let t8 = t6 + t7;
     CAMERA_WORK.view_a_offset[2].set_bits(st(t8));
@@ -101,7 +102,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0]),
+            plain: |a| x87_1([4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o))),
         }]
     }
 

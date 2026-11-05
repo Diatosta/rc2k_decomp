@@ -23,7 +23,7 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::lights_store::LIGHTS_DATA;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
@@ -42,23 +42,21 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     } else {
         &LIGHTS_DATA.place_usual
     };
+    // Records 4, 5 and 6: the offset's y and z, then the first angle.
+    let [r4, r5, r6] = [4, 5, 6].map(ViewVars::record);
     let places = [
-        &VIEW_VARS.place_a,
-        &VIEW_VARS.place_b,
-        &VIEW_VARS.place_c,
-        &VIEW_VARS.place_d,
-        &VIEW_VARS.place_e,
-        &VIEW_VARS.place_f,
+        &r4.offset[1],
+        &r4.offset[2],
+        &r5.offset[1],
+        &r5.offset[2],
+        &r6.offset[1],
+        &r6.offset[2],
     ];
     for (k, to) in places.iter().enumerate() {
         to.set(esi[k].get());
     }
     let last = esi[6].get();
-    for to in [
-        &VIEW_VARS.place_last_a,
-        &VIEW_VARS.place_last_b,
-        &VIEW_VARS.place_last_c,
-    ] {
+    for to in [&r4.angles[0], &r5.angles[0], &r6.angles[0]] {
         to.set(last);
     }
     let (mut eax, mut ebx, mut ecx) = (

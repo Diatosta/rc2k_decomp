@@ -20,7 +20,8 @@ use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::view_vars_store::ViewVars;
+use crate::race::view_vars_store::{ViewRecord, ViewVars};
+use crate::session::Dword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
@@ -55,20 +56,23 @@ const LIGHT_NAMES: [&str; 12] = [
 ];
 
 /// The camera record's figures, as `sub_43B177`: name, offset; the last is whole.
-const CAMERA: [(&str, u32); 12] = [
-    ("xfoc", 0x10),
-    ("yfoc", 0x14),
-    ("zfoc", 0x18),
-    ("xoff", 0x4),
-    ("yoff", 0x8),
-    ("zoff", 0xC),
-    ("xang", 0x1C),
-    ("yang", 0x20),
-    ("zang", 0x24),
-    ("mspx", 0x28),
-    ("mspy", 0x2C),
-    ("mspz", 0x30),
-];
+/// The record's figures the page edits, by the developers' labels.
+fn camera_figures(r: &ViewRecord) -> [(&'static str, &Dword); 12] {
+    [
+        ("xfoc", &r.focus[0]),
+        ("yfoc", &r.focus[1]),
+        ("zfoc", &r.focus[2]),
+        ("xoff", &r.offset[0]),
+        ("yoff", &r.offset[1]),
+        ("zoff", &r.offset[2]),
+        ("xang", &r.angles[0]),
+        ("yang", &r.angles[1]),
+        ("zang", &r.angles[2]),
+        ("mspx", &r.speeds[0]),
+        ("mspy", &r.speeds[1]),
+        ("mspz", &r.speeds[2]),
+    ]
+}
 
 /// The chosen light.
 static LIGHT: AtomicU32 = AtomicU32::new(0);
@@ -197,25 +201,19 @@ fn camera(ui: &Ui) {
         ui.text("This view's record is not readable");
         return;
     };
-    let cell = |offset: u32| GamePtr::new(record.wrapping_add(offset));
-    for (label, offset) in CAMERA {
-        let Ok(bits) = cell(offset).read::<u32>("a view's record") else {
-            ui.text(format!("{label}: ?"));
-            continue;
-        };
-        let mut v = f32::from_bits(bits);
+    for (label, cell) in camera_figures(record) {
+        let mut v = f32::from_bits(cell.get());
         if ui
             .drag_config::<_, f32>(label)
             .speed(1.0 / 64.0)
             .build(ui, &mut v)
         {
-            let _ = cell(offset).write(v.to_bits(), "a view's record");
+            cell.set(v.to_bits());
         }
     }
-    if let Ok(mut fish) = cell(0x38).read::<i32>("a view's record")
-        && ui.drag("fish", &mut fish)
-    {
-        let _ = cell(0x38).write(fish, "a view's record");
+    let mut fish = record.fish.get() as i32;
+    if ui.drag("fish", &mut fish) {
+        record.fish.set(fish as u32);
     }
 }
 

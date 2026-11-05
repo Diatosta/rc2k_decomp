@@ -11,22 +11,17 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
-use crate::race::view_vars_store::ViewVars;
+use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{Base, fild};
 
 /// esi as the original leaves it: the mode's record.
-pub fn record() -> Result<u32, crate::errors::BadInput> {
+pub fn record() -> Result<&'static ViewRecord, crate::errors::BadInput> {
     let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
     ViewVars::record_of(mode as usize)
 }
 
-pub fn rd(x: u32) -> u32 {
-    crate::pointers::read_or_end(x, "a car block's field")
-}
-
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
-pub fn share_done(record: u32) -> u32 {
+pub fn share_done(record: &ViewRecord) -> u32 {
     let mut eax = CAR
         .step_clock
         .get()
@@ -34,11 +29,12 @@ pub fn share_done(record: u32) -> u32 {
     if (eax as i32) < 0 {
         eax = 0;
     }
-    if eax >= rd(record + 0x3C) {
-        eax = rd(record + 0x3C);
+    let change_time = record.change_time.get();
+    if eax >= change_time {
+        eax = change_time;
     }
     DRAW.scratch.set(eax);
-    x87_1(crate::pointers::GamePtr::new(record));
+    x87_1(change_time);
     eax
 }
 
@@ -46,10 +42,11 @@ pub fn share_done(record: u32) -> u32 {
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
-fn x87_1(s: impl Base) {
+/// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]` (`s + 0x3C` the record's
+/// `change_time`, passed by value)
+fn x87_1(change_time: u32) {
     let t0 = int(DRAW.scratch.bits() as i32);
-    let t1 = fild(s, 0x3C);
+    let t1 = int(change_time as i32);
     let t2 = t0 / t1;
     RACE_TABLES.view_share.set_bits(st(t2));
 }
@@ -77,7 +74,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[1]),
+            plain: |a| x87_1(crate::scene::x87_mem::Base::dword(a[1], 0x3C)),
         }]
     }
 

@@ -16,11 +16,11 @@
 //!   overlay. The hud reads its records from `PANEL.split_6` on (+0xF4 at the panel's end:
 //!   `hud::draw_hud`'s layouts). The panel starts 2 bytes past a dword: two lead bytes keep
 //!   the overlay's dwords aligned (the group's home is 2 bytes in).
-//! - `VIEW_AND_RECORDS` (IDA 0x60626C .. 0x6077B0): the view variables and the block's
-//!   bytes after them: the 52 view records of 0x5C (0x606500 .., `off_606320`'s targets)
-//!   run from inside the variables to 0x6077B0; record 6 (0x606728) crosses the
-//!   variables' end (seen 2026-10-29: the third chase view read half its record from the
-//!   wrong memory while the variables had moved alone).
+//! - `VIEW_AND_RECORDS` (IDA 0x60626C .. 0x6077B0): the view variables and the 52 view
+//!   records of 0x5C after them (0x606500 .., `off_606320`'s targets). Until 2026-11-05 the
+//!   variables ran on to 0x60674C over the first records' fields, and record 6 (0x606728)
+//!   crossed their end (seen 2026-10-29: the third chase view read half its record from the
+//!   wrong memory while the variables had moved alone); the records are now one array.
 
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
@@ -30,7 +30,7 @@ use crate::race::marks_settings_store::MarksSettings;
 use crate::race::overlay_store::OverlayBlock;
 use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
-use crate::race::view_vars_store::ViewVars;
+use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::{Bytes, Dword};
 use core::mem::{offset_of, size_of};
@@ -87,9 +87,8 @@ pub struct PanelAndOverlay {
 pub struct ViewAndRecords {
     /// +0x0 (0x60626C): `race::view_vars_store`.
     pub view_vars: ViewVars,
-    /// +0x4E0 (0x60674C): the block's bytes after them, the view records' rest (by IDA
-    /// address and through `off_606320`).
-    pub records_rest: [Dword; (0x6077B0 - 0x60674C) / 4],
+    /// +0x294 (0x606500): the 52 view records (named through `off_606320`).
+    pub records: [ViewRecord; 52],
 }
 
 /// The groups' IDA ranges, in order.
@@ -140,7 +139,7 @@ const _: () = {
     assert!(race::overlay_store::END == PANEL_AND_OVERLAY_RANGE.1);
     assert!(size_of::<ViewAndRecords>() == VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0);
     assert!(
-        offset_of!(ViewAndRecords, records_rest)
+        offset_of!(ViewAndRecords, records)
             == race::view_vars_store::END - race::view_vars_store::START
     );
     assert!(race::view_vars_store::START == VIEW_AND_RECORDS_RANGE.0);

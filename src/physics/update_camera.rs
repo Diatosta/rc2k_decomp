@@ -38,7 +38,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::camera_view::{rd, record};
+use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
 use crate::physics::tables_store::PHYSICS;
@@ -51,7 +51,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::view_vars_store::{VIEW_VARS, ViewVars};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{Base, fild, fld};
+
 use crate::session::Cell32;
 use rc2k_core::physics::camera_view;
 
@@ -101,7 +101,7 @@ fn fixed_camera(second: bool) -> Result<(), crate::errors::BadInput> {
     }));
     CAR.camera_zoom
         .set_bits(CAMERA_WORK.camera_zoom_kept.bits());
-    if rd(record()? + 0x50) != 0 {
+    if record()?.fixed_zoom.get() != 0 {
         CAR.camera_zoom.set_bits(0x180);
         x87_3();
         hold_low(&CAR.camera_zoom, &NUMBERS.k384);
@@ -122,14 +122,22 @@ pub fn steps() -> Result<(), Refused> {
         FRAME_WORK.camera_car[k].set(CAR.position[k].get());
     }
     let car = CAR.car_kind.get();
-    let light = LIGHT_RECORDS.record_addr(car);
-    x87_4(crate::pointers::GamePtr::new(light));
-    VIEW_VARS.light_c.set(rd(light + 0xC));
-    VIEW_VARS.light_c.set(rd(light + 0x1C));
+    // The car kind's light record (the original does not bound the kind; one past the 34
+    // would read on into the gear figures, refused here).
+    let head = LIGHT_RECORDS
+        .records
+        .get(car as usize)
+        .ok_or(crate::errors::BadInput(
+            "a car kind past the 34 light records",
+        ))?
+        .head
+        .each_ref()
+        .map(crate::session::Dword::get);
+    x87_4(&head);
+    ViewVars::record(3).angles[0].set(head[3]);
+    ViewVars::record(3).angles[0].set(head[7]);
     if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
-        VIEW_VARS
-            .light_b
-            .set_bits(crate::math::x87::loaded(rd(light + 0x28)));
+        ViewVars::record(1).focus[2].set_bits(crate::math::x87::loaded(head[10]));
     }
     if CAR.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(CAR.camera_view.get())
@@ -326,41 +334,41 @@ fn x87_3() {
 /// `[rc + 0x20662C] = int [d + 0x18] * [rc + 0x1C5DA0]`
 /// `[rc + 0x206570] = [d + 0x24]`
 /// `[rc + 0x206574] = int [d + 0x20] * [rc + 0x1C5DA0]`
-fn x87_4(d: impl Base) {
-    let t0 = fild(d, 0);
+fn x87_4(d: &[u32; 11]) {
+    let t0 = int(d[0] as i32);
     let t1 = ld(NUMBERS.one_over_65536.bits());
     let t2 = t0 * t1;
-    VIEW_VARS.unknown_30c[20].set_bits(st(t2));
-    let t3 = fild(d, 4);
+    ViewVars::record(2).focus[0].set_bits(st(t2));
+    let t3 = int(d[1] as i32);
     let t4 = ld(NUMBERS.one_over_65536.bits());
     let t5 = t3 * t4;
     let t6 = ld(PHYSICS.camera_drop.bits());
     let t7 = t5 - t6;
-    VIEW_VARS.unknown_30c[21].set_bits(st(t7));
-    let t8 = fild(d, 8);
+    ViewVars::record(2).focus[1].set_bits(st(t7));
+    let t8 = int(d[2] as i32);
     let t9 = ld(NUMBERS.one_over_65536.bits());
     let t10 = t8 * t9;
-    VIEW_VARS.unknown_30c[22].set_bits(st(t10));
-    let t11 = fild(d, 0x10);
+    ViewVars::record(2).focus[2].set_bits(st(t10));
+    let t11 = int(d[4] as i32);
     let t12 = ld(NUMBERS.one_over_65536.bits());
     let t13 = t11 * t12;
-    VIEW_VARS.unknown_30c[43].set_bits(st(t13));
-    let t14 = fild(d, 0x14);
+    ViewVars::record(3).focus[0].set_bits(st(t13));
+    let t14 = int(d[5] as i32);
     let t15 = ld(NUMBERS.one_over_65536.bits());
     let t16 = t14 * t15;
     let t17 = ld(PHYSICS.camera_drop.bits());
     let t18 = t16 - t17;
-    VIEW_VARS.unknown_30c[44].set_bits(st(t18));
-    let t19 = fild(d, 0x18);
+    ViewVars::record(3).focus[1].set_bits(st(t18));
+    let t19 = int(d[6] as i32);
     let t20 = ld(NUMBERS.one_over_65536.bits());
     let t21 = t19 * t20;
-    VIEW_VARS.unknown_30c[45].set_bits(st(t21));
-    let t22 = fld(d, 0x24);
-    VIEW_VARS.light_a.set_bits(st(t22));
-    let t23 = fild(d, 0x20);
+    ViewVars::record(3).focus[2].set_bits(st(t21));
+    let t22 = ld(d[9]);
+    ViewVars::record(1).focus[1].set_bits(st(t22));
+    let t23 = int(d[8] as i32);
     let t24 = ld(NUMBERS.one_over_65536.bits());
     let t25 = t23 * t24;
-    VIEW_VARS.light_b.set_bits(st(t25));
+    ViewVars::record(1).focus[2].set_bits(st(t25));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -540,7 +548,15 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(a[0]),
+                plain: |a| {
+                    x87_4(&core::array::from_fn(|k| {
+                        if k < 10 {
+                            crate::scene::x87_mem::Base::dword(a[0], 4 * k)
+                        } else {
+                            0
+                        }
+                    }))
+                },
             },
             Block {
                 name: "update_camera line 190",

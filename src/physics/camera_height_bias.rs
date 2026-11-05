@@ -16,7 +16,7 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
-use crate::physics::camera_view::{rd, record};
+use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
 use crate::race::numbers_store::NUMBERS;
@@ -26,13 +26,13 @@ use crate::scene::draw_store::DRAW;
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
     let esi = record()?;
-    if rd(esi + 0x54) == 0 {
+    if esi.height_bias.get() == 0 {
         return Ok(());
     }
     x87_1();
     hold_low(&DRAW.scratch, &NUMBERS.zero);
     hold_high(&DRAW.scratch, &NUMBERS.one);
-    if (rd(esi + 0x54) as i32) < 0 {
+    if (esi.height_bias.get() as i32) < 0 {
         x87_2();
     }
     x87_3();

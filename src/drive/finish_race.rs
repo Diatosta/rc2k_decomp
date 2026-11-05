@@ -23,7 +23,7 @@ use crate::race::state_store::RACE_STATE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
@@ -55,8 +55,9 @@ fn var(v: Var) -> Place {
         Var::D6238D0 => var!(RACE_VARS.race_stage),
         Var::D64BB18 => var!(FINISH.no_place),
         Var::D5C2F88 => var!(MARKS_SETTINGS.race_done),
-        Var::D606744 => var!(VIEW_VARS.place_last_c),
-        Var::D606748 => var!(VIEW_VARS.finish_value),
+        // View record 6's first two angles (the finish camera's).
+        Var::D606744 => Place::Var(|| &ViewVars::record(6).angles[0]),
+        Var::D606748 => Place::Var(|| &ViewVars::record(6).angles[1]),
         Var::D63DB84 => var!(RACE_VIEW.after_credits),
     }
 }

@@ -28,10 +28,6 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::Float;
 
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a car block or model word")
-}
-
 fn view_matrix() -> &'static [Float] {
     &MATRICES.view_matrix // g_viewMatrix
 }
@@ -298,7 +294,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         stage = 0x33;
     }
     let record = ViewVars::record_of(stage as usize)?;
-    if get(record + 0x50)? != 0 {
+    if record.fixed_zoom.get() != 0 {
         FRAME_WORK.car_depth.set(0x5_0000);
     }
     let and = |mask: u32| VIEW_VARS.group_mask.set(VIEW_VARS.group_mask.bits() & mask);

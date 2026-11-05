@@ -18,7 +18,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::camera_view::{rd, record, share_done};
+use crate::physics::camera_view::{record, share_done};
 use crate::physics::car_store::CAR;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
@@ -26,11 +26,11 @@ use crate::race::tables_store::RACE_TABLES;
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_blend() -> Result<(), crate::errors::BadInput> {
     let esi = record()?;
-    if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
+    if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }
     share_done(esi);
-    if (rd(esi + 0x58) as i32) < 0 {
+    if (esi.blend.get() as i32) < 0 {
         x87_1();
     }
     x87_2();
