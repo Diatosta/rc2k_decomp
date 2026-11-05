@@ -26,7 +26,6 @@
 //! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
@@ -40,7 +39,6 @@ pub(crate) const ENTRIES: u32 = 0x100;
 /// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
 /// reads the lists that follow in the image, as the original does).
 pub(crate) const OWN: u32 = 0x88;
-const OWN_PLACES_IDA: usize = 0x75950E; // unk_75950E: `MENU_LISTS.own_places`, 12 bytes each
 // g_objectKinds
 
 // ---- Rust version ----
@@ -59,16 +57,14 @@ pub struct Settings {
 
 pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
-/// A kind's own place: its size, y and angle (`own` below `OWN`; past the table's 73, what
-/// the image has after it, each address resolved to its home by `MOVED`).
-pub(crate) fn own_place(own: u32) -> [u32; 3] {
-    match MENU_LISTS.own_places.get(own as usize) {
-        Some(place) => [place.size.get(), place.y.get(), place.angle.get()],
-        None => {
-            let at = OWN_PLACES_IDA + 12 * own as usize;
-            [0, 4, 8].map(|k| game_read::<u32>(rva(at + k)))
-        }
-    }
+/// A kind's own place: its size, y and angle (`unk_75950E`, 12 bytes each). The original
+/// reads on past the table's 73 for a kind below `OWN` (fixed: refused).
+pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
+    let place = MENU_LISTS
+        .own_places
+        .get(own as usize)
+        .ok_or(BadInput("a kind past the 73 own places"))?;
+    Ok([place.size.get(), place.y.get(), place.angle.get()])
 }
 
 /// Reads only.
@@ -105,7 +101,7 @@ fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
         if own >= OWN {
             return Err(BadInput("a kind past the records of the kinds' own places"));
         }
-        let [size, y, angle] = own_place(own);
+        let [size, y, angle] = own_place(own)?;
         set.size = Some(size);
         set.place[1] = y;
         set.angle_x = angle;

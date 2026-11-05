@@ -222,9 +222,7 @@ impl ViewerPanelBlock {
                 "a switch picture's name off the panel",
             ));
         }
-        Ok(crate::pointers::GamePtr::new(
-            crate::moved::place(ida) as u32
-        ))
+        crate::moved::named(ida)
     }
 
     /// The dword at IDA's `ida` in the tail: unaligned, so made of the two cells it spans.

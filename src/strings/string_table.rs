@@ -1,7 +1,6 @@
 //! The packed string table and the two string-pointer tables the string hooks read.
 
 use crate::errors::BadInput;
-use crate::framework::{game_addr, rva};
 use crate::pointers::GamePtr;
 use rc2k_core::strings::table::StringTable;
 
@@ -11,8 +10,8 @@ use rc2k_core::strings::table::StringTable;
 pub static STRING_TABLE: crate::session::Dword = crate::session::Dword::new(0);
 // Still the image's: indexed by the id itself (`base + 4 * id`), they reach other
 // variables' pointers (made texts), set by other modules by address.
-const PTRS_HIGH_RVA: usize = rva(0x525DE8); // dword_525DE8[id], ids with bit 0x1000
-const PTRS_LOW_RVA: usize = rva(0x95D664); // src[id], ids 0x5A5..=0x658
+const PTRS_HIGH: usize = 0x525DE8; // dword_525DE8[id], ids with bit 0x1000
+const PTRS_LOW: usize = 0x95D664; // src[id], ids 0x5A5..=0x658
 
 /// Points the string table at the lexicon (`g_stringTable` = `g_lexicon`).
 pub fn use_lexicon() {
@@ -21,12 +20,12 @@ pub fn use_lexicon() {
 
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
 /// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
-fn table_entry(table_rva: usize, id: u32) -> Result<u32, BadInput> {
-    GamePtr::new(game_addr(table_rva.wrapping_add(4 * id as usize))).read::<u32>("a string pointer")
+fn table_entry(table: usize, id: u32) -> Result<u32, BadInput> {
+    crate::moved::named(table.wrapping_add(4 * id as usize))?.read::<u32>("a string pointer")
 }
 /// The address of the made text of `id` (0 if none).
 pub fn ptr_high(id: u32) -> Result<u32, BadInput> {
-    let entry = table_entry(PTRS_HIGH_RVA, id)?;
+    let entry = table_entry(PTRS_HIGH, id)?;
     if !(MADE_TEXT_IDS.contains(&id) && entry != 0) {
         return Ok(entry);
     }
@@ -40,7 +39,7 @@ pub fn ptr_high(id: u32) -> Result<u32, BadInput> {
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 /// The address of the text of `id` in the pointer table (0 if none).
 pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
-    table_entry(PTRS_LOW_RVA, id)
+    table_entry(PTRS_LOW, id)
 }
 
 /// Where `strings::compile_lexicon` puts the table, and its room: out of the image since

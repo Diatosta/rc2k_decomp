@@ -3,7 +3,7 @@
 //! the same layout; they differ only in where the stage comes from, what goes above the panel
 //! and which best-time table the record rows use.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
@@ -96,10 +96,12 @@ pub fn draw_stage_body_in(
         let f = |o: u32| fault.get(entry.wrapping_add(o));
         let made = Entry {
             // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
-            // has no bound: each address resolved to its home by `MOVED`.
-            duration: crate::store::game_read::<u32>(crate::framework::rva(
-                0x75A49A_usize.wrapping_add((f(8) as usize).wrapping_mul(4)),
-            )),
+            // has no bound (fixed: refused).
+            duration: crate::menu::lists_store::MENU_LISTS
+                .durations
+                .get(f(8) as usize)
+                .ok_or(BadInput("a stage duration past the 37"))?
+                .get(),
             length: f(0x0C),
             description: f(0x10),
             weather: f(0x14),

@@ -25,11 +25,11 @@ pub const SURFACES: [&[u8]; 16] = [
     b"null",
 ];
 
-/// The dword at IDA's address `ida`, where it lives now (`moved::place`); None when it
+/// The dword at IDA's address `ida`, where it lives now (`moved::named`); None when it
 /// cannot be read (shown as such: the UI does not end the game).
 pub fn value_at(ida: usize) -> Option<u32> {
-    crate::pointers::GamePtr::new(crate::moved::place(ida) as u32)
-        .read::<u32>("a debug page's value")
+    crate::moved::named(ida)
+        .and_then(|at| at.read::<u32>("a debug page's value"))
         .ok()
 }
 

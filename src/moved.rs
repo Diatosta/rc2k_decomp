@@ -15,7 +15,9 @@
 
 #![allow(unsafe_code)]
 
-use crate::framework::{IMAGE_BASE, game_addr, rva};
+use crate::framework::IMAGE_BASE;
+#[cfg(test)]
+use crate::framework::{game_addr, rva};
 use std::cell::UnsafeCell;
 
 /// A block of the game's memory that now lives in Rust, at an address that does not move:
@@ -2249,8 +2251,25 @@ pub(crate) const MOVED: &[Moved] = &[
     },
 ];
 
+/// The place IDA's address `ida` names (a table that keeps IDA's addresses as names, a
+/// debug page): in the home of the moved range holding it, bounded to that range. A name
+/// in no moved range is refused.
+pub fn named(ida: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    let ranges = sorted();
+    let i = ranges.partition_point(|&(start, _, _)| start <= ida);
+    let &(start, end, home) = i
+        .checked_sub(1)
+        .and_then(|i| ranges.get(i))
+        .filter(|&&(_, end, _)| ida < end)
+        .ok_or(crate::errors::BadInput("an IDA name in no moved range"))?;
+    Ok(crate::pointers::GamePtr::new(home as u32)
+        .limited((end - start) as u32)
+        .offset((ida - start) as u32))
+}
+
 /// Where the variable at IDA address `ida` lives now: its new home if it moved, else its
 /// place in the image.
+#[cfg(test)]
 pub fn place(ida: usize) -> usize {
     // `game_addr` answers a moved variable's home.
     (game_addr(rva(ida))) as usize

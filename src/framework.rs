@@ -14,11 +14,13 @@ pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 pub const IMAGE_BASE: usize = 0x400000;
 
-/// RVA of an address as IDA shows it.
+/// RVA of an address as IDA shows it (the tests).
+#[cfg(test)]
 pub const fn rva(addr: usize) -> usize {
     addr - IMAGE_BASE
 }
 
+#[cfg(test)]
 /// The address of the game's variable at `rva`: in the image, or for a variable that has
 /// left it (phase 5, `crate::moved`) its new home, so an address the code still names by its
 /// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
@@ -34,12 +36,14 @@ pub fn game_addr(rva: usize) -> u32 {
     }
 }
 
-/// Pointer to game memory at `rva`.
+/// Pointer to game memory at `rva` (the x86 reference tests).
+#[cfg(all(test, target_arch = "x86"))]
 pub fn game_ptr<T>(rva: usize) -> *mut T {
     crate::pointers::host(game_addr(rva)).cast::<T>()
 }
 
-/// Reads a game global. Call it on every use: the game changes these at runtime.
+/// Reads a game global (the x86 reference tests).
+#[cfg(all(test, target_arch = "x86"))]
 pub fn game_read<T: Copy>(rva: usize) -> T {
     let p = game_ptr::<T>(rva);
     crate::pointers::check_or_end(

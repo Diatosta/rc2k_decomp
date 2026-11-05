@@ -7368,19 +7368,17 @@ pub static DRIVERS: DriverTable = DriverTable {
     ],
 };
 
-/// `g_driverNames`' IDA address: a name entry past the 180 is read where the original
-/// reads it (`name_string`).
-const NAMES_IDA: usize = 0x741E88;
-
 /// The string id of name entry `entry` (a driver's first dword). The original does not
-/// check the entry: past the 180 it reads on into what follows, resolved by IDA address.
-pub fn name_string(entry: u32) -> u32 {
-    match DRIVERS.names.get(entry as usize) {
-        Some(n) => n.string.get(),
-        None => {
-            crate::store::ida_read(NAMES_IDA.wrapping_add(0x14usize.wrapping_mul(entry as usize)))
-        }
-    }
+/// check the entry and reads on past the 180 (fixed: refused).
+pub fn name_string(entry: u32) -> Result<u32, crate::errors::BadInput> {
+    Ok(DRIVERS
+        .names
+        .get(entry as usize)
+        .ok_or(crate::errors::BadInput(
+            "a driver's name entry past the 180",
+        ))?
+        .string
+        .get())
 }
 
 /// IDA 0x73B674, the first byte of the piece.

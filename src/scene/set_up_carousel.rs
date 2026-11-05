@@ -33,7 +33,6 @@
 //! through `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::{CarList, MENU_LISTS};
 use crate::menu::state_store::MENU_STATE;
@@ -43,7 +42,6 @@ use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
-const CAR_KINDS_IDA: usize = 0x75A1FE; // dword_75A1FE: `MENU_LISTS.car_kinds`
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
@@ -142,10 +140,13 @@ fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
                 break;
             }
             let first = crate::menu::cars_store::description(car)?.get().car;
-            // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
-            // on past the table, into what the image has after it (other statics now:
-            // `MOVED` resolves each address to its home).
-            let kind = crate::store::game_read::<u32>(rva(CAR_KINDS_IDA + 4 * first as usize));
+            // `car_kinds` (dword_75A1FE) has 35 entries; the original allows numbers up to
+            // 0x400 and reads on past the table (fixed: refused).
+            let kind = MENU_LISTS
+                .car_kinds
+                .get(first as usize)
+                .ok_or(BadInput("a car past the 35 car kinds"))?
+                .get();
             MENU_STATE.carousel.kinds[n].set(kind);
             n += 1;
         }

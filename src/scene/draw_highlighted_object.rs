@@ -58,7 +58,7 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
     OBJECT_WORK.place[0].set_bits(0u32);
     if let Some(own) = own {
-        let [size, y, angle] = own_place(own);
+        let [size, y, angle] = own_place(own)?;
         OBJECT_WORK.size.set_bits(size);
         if y != u32::MAX {
             OBJECT_WORK.place[1].set(y);

@@ -94,9 +94,9 @@ pub fn seal_replay_header() -> Result<(), Refused> {
         0x20,
     )?;
     for &(size, to, from) in &HEADER_MOVES {
-        // `g_noticeKind` has left the image: its place by `crate::moved`.
-        let (to, from) = (crate::moved::place(to), crate::moved::place(from));
-        GamePtr::new(from as u32).copy_to(GamePtr::new(to as u32), size, "the replay header")?;
+        // IDA's names of the header's fields and the settings they copy.
+        let (to, from) = (crate::moved::named(to)?, crate::moved::named(from)?);
+        from.copy_to(to, size, "the replay header")?;
     }
     let sealed_dwords = &REPLAY_WORK.sealed_header;
     let dwords: Vec<u32> = (1..0x40).map(|n| sealed_dwords[n].get()).collect();

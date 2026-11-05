@@ -45,7 +45,7 @@ impl Driver {
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        Ok(crate::menu::drivers_store::name_string(entry))
+        crate::menu::drivers_store::name_string(entry)
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.

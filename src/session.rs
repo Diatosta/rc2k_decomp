@@ -130,7 +130,8 @@ impl Float {
         self.0.store(bits, Relaxed);
     }
 
-    /// Its place, for code that is handed an address.
+    /// Its place (the tests).
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(self.0.as_ptr())
     }

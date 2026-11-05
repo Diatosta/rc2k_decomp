@@ -74,9 +74,7 @@ impl ReplayViewBlock {
         if !range.contains(&(ida as usize)) {
             return Err(crate::errors::BadInput(what));
         }
-        Ok(crate::pointers::GamePtr::new(
-            crate::moved::place(ida as usize) as u32,
-        ))
+        crate::moved::named(ida as usize)
     }
 
     /// Where the list's key table (the header's +0x10) is.

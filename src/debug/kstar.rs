@@ -16,7 +16,7 @@
 //! the stage reloads, as the developers' keys did.
 
 use crate::debug::wear_page::value_at;
-use crate::pointers::GamePtr;
+
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -84,7 +84,7 @@ static KEPT: Mutex<usize> = Mutex::new(0);
 /// `v` at IDA's address `ida`, where it lives now (nothing when it cannot be written: the
 /// UI does not end the game).
 pub fn write_at(ida: usize, v: u32) {
-    let _ = GamePtr::new(crate::moved::place(ida) as u32).write(v, "a debug page's value");
+    let _ = crate::moved::named(ida).and_then(|at| at.write(v, "a debug page's value"));
 }
 
 /// The dword at IDA's address, 0 when unreadable.

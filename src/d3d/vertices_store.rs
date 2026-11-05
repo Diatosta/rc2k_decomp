@@ -56,7 +56,7 @@ const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
 
 /// Where IDA 0x9605A0 is now.
 pub fn piece_addr() -> u32 {
-    crate::moved::place(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&*VERTICES))
 }
 
 #[cfg(test)]
