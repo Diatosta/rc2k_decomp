@@ -145,11 +145,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::strings::load_language::LOCALE),
     },
     Moved {
-        ida: 0x4E07D4, // g_stringTable
-        len: 4,
-        home: Home::Store(&crate::strings::string_table::STRING_TABLE),
-    },
-    Moved {
         ida: 0x4E07F8, // g_lexicon
         len: rc2k_core::strings::lexicon::TABLE_ROOM,
         home: Home::Store(&crate::strings::string_table::LEXICON),

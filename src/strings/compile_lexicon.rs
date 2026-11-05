@@ -25,7 +25,6 @@ use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::session::Bytes;
 use crate::session::Dword;
-use crate::strings::string_table::use_lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
 // ---- game data ----
@@ -193,7 +192,6 @@ pub fn compile_lexicon() -> Result<(), Refused> {
         EMPTY_MESSAGE.set_u32(12, compiled.index_size);
         crate::strings::string_table::lexicon_room()
             .write_bytes(&compiled.table, "the lexicon's memory")?;
-        use_lexicon();
         crate::strings::string_table::publish()?;
 
         if level() as i32 >= 3 {

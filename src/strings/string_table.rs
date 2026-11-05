@@ -4,19 +4,13 @@ use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use rc2k_core::strings::table::StringTable;
 
-/// The packed string table's address (0: none yet): out of the image since 2026-10-24
-/// (phase 5; it was `g_stringTable`, 0x4E07D4). Set by `strings::compile_lexicon` and
-/// `strings::load_language`, always to `LEXICON`.
-pub static STRING_TABLE: crate::session::Dword = crate::session::Dword::new(0);
+// `g_stringTable` (0x4E07D4), the packed table's address, is not kept: the original sets it
+// to the lexicon only (`compile_lexicon`, `load_language`) and the table is always read from
+// `PUBLISHED`.
 // Still the image's: indexed by the id itself (`base + 4 * id`), they reach other
 // variables' pointers (made texts), set by other modules by address.
 const PTRS_HIGH: usize = 0x525DE8; // dword_525DE8[id], ids with bit 0x1000
 const PTRS_LOW: usize = 0x95D664; // src[id], ids 0x5A5..=0x658
-
-/// Points the string table at the lexicon (`g_stringTable` = `g_lexicon`).
-pub fn use_lexicon() {
-    STRING_TABLE.set(crate::pointers::game_address(lexicon()));
-}
 
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
 /// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
@@ -47,10 +41,6 @@ pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 pub static LEXICON: crate::session::Bytes<LEXICON_ROOM> =
     crate::session::Bytes::new([0; LEXICON_ROOM]);
-
-pub fn lexicon() -> *mut u8 {
-    LEXICON.as_ptr().cast()
-}
 
 /// The lexicon's room as a place bounded by it.
 pub fn lexicon_room() -> GamePtr {

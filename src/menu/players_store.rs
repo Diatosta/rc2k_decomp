@@ -14,7 +14,8 @@ use rc2k_core::menu::player::Player;
 pub struct PlayerTable {
     /// `g_player1 .. g_player4`: The players' records (settings, and the state of each player's car).
     pub players: [Shared<Player>; 4],
-    /// `g_players`: The records' addresses, player 1 first (`menu::player::player_at`).
+    /// `g_players`: the records' addresses as the image names them, player 1 first; read by
+    /// nothing (the original's code that follows them is converted to numbers).
     pub pointers: [Dword; 4],
 }
 
@@ -252,16 +253,11 @@ pub fn players_addr() -> u32 {
     crate::pointers::game_address(&raw const PLAYER_TABLE)
 }
 
-/// Sets the table and each player's name pointer to their places now (the image's held the
-/// old ones).
+/// Links each player's name to its player (the image's records held the old links). The
+/// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
+/// players are reached by number.
 pub fn point_players() {
-    for (n, (pointer, player)) in PLAYER_TABLE
-        .pointers
-        .iter()
-        .zip(&PLAYER_TABLE.players)
-        .enumerate()
-    {
-        pointer.set(player.addr());
+    for (n, player) in PLAYER_TABLE.players.iter().enumerate() {
         player.update(|p| p.set_name_player(n));
     }
 }

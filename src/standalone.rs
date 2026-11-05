@@ -384,7 +384,6 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// still `unsafe` (they write the game's state before any thread of the game's runs).
 fn start() {
     let r = Regs::default();
-    crate::sound::store::point_sound_objects();
     crate::menu::players_store::point_players();
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
     crate::gfx::typefaces::FONTS.objects[56]

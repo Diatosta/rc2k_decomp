@@ -48,7 +48,7 @@ use crate::session::Bytes;
 use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::same_text::set_case_table;
-use crate::strings::string_table::{LEXICON_ROOM, use_lexicon};
+use crate::strings::string_table::LEXICON_ROOM;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
 
@@ -145,7 +145,6 @@ fn correct_lexicon() -> Result<(), BadInput> {
 /// `compile` stands for `strings::compile_lexicon`.
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     compile()?;
-    use_lexicon();
     layouts().use_built_in();
 
     let mut locale = LOCALE.read();

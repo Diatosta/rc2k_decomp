@@ -6,8 +6,7 @@
 //! - `RaceClock` (0x5124E4 .. 0x512508): the race sounds' clock and constants;
 //! - `RaceSounds` (0x512A10 .. 0x514F90): the eight sound objects (`SoundObject`, 0x4A8 bytes
 //!   each, with the table of their addresses) and the cars the sound follows. The table
-//!   names the objects as the image holds them (IDA's addresses): `point_sound_objects`
-//!   sets it to where they are now (the standalone's start-up calls it);
+//!   keeps the image's IDA addresses: nothing reads it (the objects are reached by number);
 //! - `SurfaceSounds` (0x516358 .. 0x51639C): the factors the engine, speed, revs and
 //!   throttle sounds scale by, the wheel sounds across and along, the surface sound volume;
 //! - `StageSounds` (0x51655C .. 0x5168C0): the surface sound sets, the stage's one-off,
@@ -454,7 +453,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
-    /// `g_raceSoundObjects`: the eight objects' addresses (IDA's addresses at start; `point_sound_objects` sets them to where the objects are now).
+    /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
     pub table: [Dword; 8],
     /// The eight objects (`dword_512A30` ..), 0x4A8 bytes each.
     pub objects: [SoundObject; 8],
@@ -1102,15 +1101,6 @@ pub static CAR_STREAM: CarStream = CarStream {
 };
 
 pub const CAR_STREAM_IDA: usize = 0xA8C180;
-
-/// Sets `g_raceSoundObjects` to the objects' places now.
-pub fn point_sound_objects() {
-    for (pointer, object) in RACE_SOUNDS.table.iter().zip(&RACE_SOUNDS.objects) {
-        pointer.set(crate::pointers::game_address(std::ptr::from_ref::<
-            SoundObject,
-        >(object)));
-    }
-}
 
 #[cfg(test)]
 mod tests {
