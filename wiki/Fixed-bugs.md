@@ -425,3 +425,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `menu::single_rally_split` (0x48260C .. 0x48261B) and `service::repair_car` (0x486F63, which reads `g_currentPlayer`); not seen in play.
 
 **Fix:** the current player is set to each of the two in turn for its repair, then back to 0 for the race, as the original has it.
+
+## Four tables read past their end
+
+**What it is:** four lookups take an index without checking it against their table and read on into whatever the program has after it: a car's kind in the menus' car carousel (35 entries; the original allows numbers up to 0x400), a kind's own place in the carousel (73 entries; the original allows kinds up to 0x88), a stage's duration on the stage panel (37 entries, the index read from the stage's entry), and a driver's name in the standings and the default best times (180 entries).
+
+**In game:** none seen. With the game's own data every index is in range; a damaged or edited data file would make the menus show a number taken from an unrelated variable.
+
+**Seen or read:** read in `scene::set_up_carousel`, `scene::draw_carousel_entry` / `draw_highlighted_object`, `screens::stage_panel` and the drivers' table (`g_driverNames` 0x741E88); not seen.
+
+**Fix:** an index past its table is refused (the program stops, naming the table) instead of reading the memory after it.
