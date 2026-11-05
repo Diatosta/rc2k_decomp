@@ -35,7 +35,7 @@ pub trait PictureSurface {
     /// Returns whether the surface is now locked.
     fn lock(&mut self) -> bool;
     fn unlock(&mut self);
-    fn pixels(&self) -> *mut u8;
+    fn pixels(&self) -> crate::pointers::GamePtr;
     fn rows(&self) -> u32;
     fn row_dwords(&self) -> u32;
     fn row_gap(&self) -> u32;
@@ -55,8 +55,8 @@ impl PictureSurface for GameSurface {
     fn unlock(&mut self) {
         crate::platform::unlock_surface();
     }
-    fn pixels(&self) -> *mut u8 {
-        crate::pointers::host(
+    fn pixels(&self) -> crate::pointers::GamePtr {
+        crate::pointers::GamePtr::new(
             crate::gfx::surface::address()
                 .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e)),
         )
@@ -101,10 +101,9 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
             let row = from
                 .get(at..at + row_bytes)
                 .ok_or(BadInput("a picture's row past its buffer"))?;
-            crate::pointers::GamePtr::new(crate::pointers::game_address(to))
-                .write_bytes(row, "a picture's row onto the surface")?;
+            to.write_bytes(row, "a picture's row onto the surface")?;
             at += row_bytes;
-            to = to.wrapping_add(row_bytes).wrapping_add(gap);
+            to = to.offset((row_bytes + gap) as u32);
         }
         Ok(())
     })

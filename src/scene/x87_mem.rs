@@ -214,6 +214,33 @@ impl Base for crate::pointers::GamePtr {
     fn address(self) -> usize {
         self.addr() as usize
     }
+    // Read and written within the place's own bounds.
+    #[track_caller]
+    fn dword(self, off: usize) -> u32 {
+        bounded(self.offset(off as u32).read("an x87 operand"))
+    }
+    #[track_caller]
+    fn set_dword(self, off: usize, value: u32) {
+        bounded(self.offset(off as u32).write(value, "an x87 operand"));
+    }
+    #[track_caller]
+    fn set_word(self, off: usize, value: u16) {
+        bounded(self.offset(off as u32).write(value, "an x87 operand"));
+    }
+    #[track_caller]
+    fn tbyte(self, off: usize) -> [u8; 10] {
+        bounded(self.offset(off as u32).read("an x87 operand"))
+    }
+    #[track_caller]
+    fn set_tbyte(self, off: usize, value: [u8; 10]) {
+        bounded(self.offset(off as u32).write(value, "an x87 operand"));
+    }
+}
+
+/// A checked access's value, or the program ended naming it.
+#[track_caller]
+fn bounded<T>(done: Result<T, crate::errors::BadInput>) -> T {
+    done.unwrap_or_else(|e| crate::fatal::raise::end("an x87 operand", e))
 }
 
 /// A test's operand buffer by game address (the assembly references' operands).
@@ -240,31 +267,24 @@ impl Base for *const u8 {
     }
 }
 
-/// The operand's address, its `len` bytes checked to lie in one region (the program ends
-/// otherwise, `pointers::check_or_end`).
+/// The `T` at the operand, read through the checked place layer (the program ends outside
+/// one live region, `pointers::read_or_end`).
 #[track_caller]
 #[inline(always)]
-fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
+fn load<T: crate::pointers::Plain>(base: impl Base, off: usize) -> T {
     // A game address (the race core's base and an RVA, a record's address).
-    let at = base.address().wrapping_add(off) as u32;
-    crate::pointers::check_or_end(at, len, "an x87 operand");
-    crate::pointers::host(at)
+    crate::pointers::read_or_end(base.address().wrapping_add(off) as u32, "an x87 operand")
 }
 
-/// The `T` at the operand.
+/// `value` written at the operand (as `load`).
 #[track_caller]
 #[inline(always)]
-fn load<T: Copy>(base: impl Base, off: usize) -> T {
-    // SAFETY: checked in one live region; any bits make a value of the plain types used here.
-    unsafe { crate::shared_memory::read(operand(base, off, size_of::<T>()).cast::<T>()) }
-}
-
-/// `value` written at the operand.
-#[track_caller]
-#[inline(always)]
-fn store<T: Copy>(base: impl Base, off: usize, value: T) {
-    // SAFETY: checked in one live region.
-    unsafe { crate::shared_memory::write(operand(base, off, size_of::<T>()).cast::<T>(), value) }
+fn store<T: crate::pointers::Plain>(base: impl Base, off: usize, value: T) {
+    crate::pointers::write_or_end(
+        base.address().wrapping_add(off) as u32,
+        value,
+        "an x87 operand",
+    );
 }
 
 /// `fld dword ptr [base + off]`.
