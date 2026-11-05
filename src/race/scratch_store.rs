@@ -50,6 +50,7 @@ pub const END: usize = 0x5C5FB8;
 const _: () = assert!(END - START == core::mem::size_of::<FrameScratch>());
 
 /// Where IDA 0x5C5F48 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&FRAME_SCRATCH))
 }

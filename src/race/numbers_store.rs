@@ -193,6 +193,7 @@ pub const END: usize = 0x5C5E50;
 const _: () = assert!(END - START == core::mem::size_of::<Numbers>());
 
 /// Where IDA 0x5C5CE0 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&NUMBERS))
 }

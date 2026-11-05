@@ -132,6 +132,57 @@ pub fn game_write<T: Copy>(place: impl Where, value: T) {
     unsafe { crate::shared_memory::write(p, value) }
 }
 
+/// A range of a block's plain shared bytes as a store (`pointers::Store`): `len` bytes from
+/// `offset` in the block, whose first IDA byte `first` names. Read and written through
+/// `shared_memory`, the discipline of every `Bytes`.
+pub struct BlockRange {
+    first: fn() -> *mut u8,
+    offset: usize,
+    len: usize,
+}
+
+// SAFETY: raw access only, under the original's discipline (as `Place`).
+unsafe impl Sync for BlockRange {}
+
+impl BlockRange {
+    pub const fn new(first: fn() -> *mut u8, offset: usize, len: usize) -> Self {
+        Self { first, offset, len }
+    }
+
+    fn at(&self, offset: usize, len: usize) -> Result<*mut u8, crate::errors::BadInput> {
+        offset
+            .checked_add(len)
+            .filter(|&end| end <= self.len)
+            .ok_or(crate::errors::BadInput("past the end of a block range"))?;
+        Ok((self.first)().wrapping_add(self.offset + offset))
+    }
+}
+
+impl crate::pointers::Store for BlockRange {
+    fn size(&self) -> usize {
+        self.len
+    }
+
+    fn first(&self) -> *const u8 {
+        (self.first)().wrapping_add(self.offset).cast_const()
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        let from = self.at(offset, to.len())?;
+        // SAFETY: the run lies inside the block's bytes (`at`, the range lies in the block);
+        // shared bytes read through `shared_memory`; `to` is the caller's.
+        unsafe { crate::shared_memory::load(from, to.as_mut_ptr(), to.len()) };
+        Ok(())
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
+        let to = self.at(offset, from.len())?;
+        // SAFETY: as `load`'s.
+        unsafe { crate::shared_memory::store(to, from.as_ptr(), from.len()) };
+        Ok(())
+    }
+}
+
 /// Declares a block: `block!(pub mod name { start: IDA, end: IDA, runs: PATH });` makes
 /// `name::{START, END, LEN, STORE, base(), from_ida(ida)}`; `PATH` is the generated
 /// `&[(offset, &[u8])]` of the non-zero runs of the image's bytes.

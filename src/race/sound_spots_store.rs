@@ -69,6 +69,7 @@ pub const END: usize = 0x6D1DD4;
 const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 
 /// Where IDA 0x6D18C8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&RACE_SOUND_SPOTS))
 }

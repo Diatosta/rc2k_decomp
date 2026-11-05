@@ -28,6 +28,7 @@ pub const END: usize = 0x622910;
 const _: () = assert!(END - START == core::mem::size_of::<PanelClock>());
 
 /// Where IDA 0x62290C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&PANEL_CLOCK))
 }

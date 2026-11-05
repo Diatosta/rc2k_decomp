@@ -40,6 +40,7 @@ pub const END: usize = 0x5CC3C0;
 const _: () = assert!(END - START == core::mem::size_of::<ClockTicks>());
 
 /// Where IDA 0x5CC198 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&CLOCK_TICKS))
 }

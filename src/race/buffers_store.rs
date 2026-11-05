@@ -70,6 +70,7 @@ const _: () = {
 pub static BUFFERS: Buffers = crate::pointers::cells_of_bytes([0u8; END - START]);
 
 /// Where IDA 0x960000 is now (the static).
+#[cfg(test)]
 pub fn home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&BUFFERS)) as usize
 }

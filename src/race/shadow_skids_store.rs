@@ -73,6 +73,7 @@ pub const END: usize = 0x64BB18;
 const _: () = assert!(END - START == core::mem::size_of::<ShadowSkids>());
 
 /// Where IDA 0x641AA4 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&SHADOW_SKIDS))
 }

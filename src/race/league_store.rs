@@ -36,6 +36,7 @@ pub const END: usize = 0x60463C;
 const _: () = assert!(END - START == core::mem::size_of::<League>());
 
 /// Where IDA 0x60410C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&LEAGUE))
 }

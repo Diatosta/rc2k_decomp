@@ -25,6 +25,7 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
 
 /// The damage model's figures.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DamageModel {
     /// `flt_75B340`: a figure times it gives the failure chance (`physics::rate_damage`).
     pub chance_scale: Float,
@@ -646,11 +647,6 @@ pub static DAMAGE: DamageModel = DamageModel {
 pub const START: usize = 0x75B340;
 /// IDA 0X75B940, the end of the piece.
 pub const END: usize = 0x75B940;
-
-/// Where IDA 0X75B340 is now (`moved::MOVED`'s home).
-pub fn damage_addr() -> u32 {
-    crate::pointers::game_address(&raw const DAMAGE)
-}
 
 #[cfg(test)]
 mod tests {

@@ -78,6 +78,7 @@ pub const END: usize = 0x5C906C;
 const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
 
 /// Where IDA 0x5C790C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&CAR_SPECS))
 }

@@ -178,19 +178,28 @@ pub static VIEW_AND_RECORDS: ViewAndRecords =
         { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
     >(VIEW_AND_RECORDS_RANGE.0));
 
+/// The panel and the overlay without the two lead bytes: the group's home in `moved::MOVED`.
+pub static PANEL_WINDOW: crate::race::store::Window<PanelAndOverlay> =
+    crate::race::store::Window::new(&PANEL_AND_OVERLAY, 2);
+
 /// Where each group is (`moved::MOVED`'s homes).
+#[cfg(test)]
 pub fn cars_and_replay_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&CARS_AND_REPLAY)) as usize
 }
+#[cfg(test)]
 pub fn viewer_and_kinds_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&VIEWER_AND_KINDS)) as usize
 }
+#[cfg(test)]
 pub fn lights_and_gear_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&LIGHTS_AND_GEAR)) as usize
 }
+#[cfg(test)]
 pub fn view_and_records_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&VIEW_AND_RECORDS)) as usize
 }
+#[cfg(test)]
 pub fn panel_and_overlay_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&PANEL_AND_OVERLAY.panel)) as usize
 }

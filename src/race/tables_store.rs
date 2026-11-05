@@ -99,6 +99,7 @@ pub const END: usize = 0x60526C;
 const _: () = assert!(END - START == core::mem::size_of::<RaceTables>());
 
 /// Where IDA 0x60463C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&RACE_TABLES))
 }

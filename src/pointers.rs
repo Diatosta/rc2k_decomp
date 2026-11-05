@@ -709,6 +709,12 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
         CellAt::atomic(CellKind::Bytes, N)
     }
 }
+// SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.
+unsafe impl Cells for crate::session::Loose {
+    fn cell_at(_: usize) -> CellAt {
+        CellAt::atomic(CellKind::Bytes, 4)
+    }
+}
 // SAFETY: `N` of a type of cells, one after another.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     fn cell_at(offset: usize) -> CellAt {

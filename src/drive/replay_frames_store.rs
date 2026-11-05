@@ -41,6 +41,7 @@ pub const END: usize = 0x70F3EC;
 const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 
 /// Where IDA 0x6EF7CC is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&REPLAY_FRAMES))
 }

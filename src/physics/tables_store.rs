@@ -565,6 +565,7 @@ pub const END: usize = 0x614D38;
 const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 
 /// Where IDA 0x613828 is now (its own static).
+#[cfg(test)]
 pub fn tables_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&PHYSICS))
 }

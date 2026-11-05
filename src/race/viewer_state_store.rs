@@ -140,6 +140,7 @@ pub const END: usize = 0x5C2714;
 const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
 
 /// Where IDA 0x5C2518 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&REPLAY_VIEW))
 }

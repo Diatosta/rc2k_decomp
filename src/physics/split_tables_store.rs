@@ -64,6 +64,7 @@ pub const END: usize = 0x60230C;
 const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
 
 /// Where IDA 0x60101C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&SPLIT_TABLES))
 }

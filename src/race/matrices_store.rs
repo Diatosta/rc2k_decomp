@@ -80,6 +80,7 @@ pub const END: usize = 0x5EA8C8;
 const _: () = assert!(END - START == core::mem::size_of::<SceneMatrices>());
 
 /// Where IDA 0x5E9EC8 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&MATRICES))
 }

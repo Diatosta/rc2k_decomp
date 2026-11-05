@@ -75,6 +75,7 @@ pub const END: usize = 0x6218B0;
 const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 
 /// Where IDA 0x621480 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&FRAME_SWITCHES))
 }

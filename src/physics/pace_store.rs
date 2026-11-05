@@ -48,6 +48,7 @@ pub const END: usize = 0x61FE18;
 const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
 
 /// Where IDA 0x614D38 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&PACE))
 }

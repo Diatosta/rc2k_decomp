@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The tyre change's constants, layouts and work (IDA 0x5BEAC0 .. 0x5BEC30, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct TyreChange {
     /// 0x5BEAC0: `flt_5BEAC0` (150.0): added to the press time (ms, before the scaling to hundredths) (`race::tyre_change_gauge::press_time`).
     pub time_base: Float,
@@ -165,6 +166,7 @@ impl TyreChange {
     pub const START: usize = 0x5BEAC0;
     pub const LEN: usize = 0x170;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const TYRE_CHANGE) as usize
     }

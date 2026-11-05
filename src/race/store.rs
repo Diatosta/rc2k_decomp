@@ -580,7 +580,62 @@ pub fn piece_of(ida: usize) -> &'static str {
     }
 }
 
+/// A part of a record of cells, from byte `offset` to its end: a moved range that starts
+/// inside a store (`SealWork`'s fields past its alignment lead, the panel past its two lead
+/// bytes). Reads and writes go through the whole record's cells.
+pub struct Window<T: crate::pointers::Cells + Sync + 'static> {
+    whole: &'static T,
+    offset: usize,
+}
+
+impl<T: crate::pointers::Cells + Sync + 'static> Window<T> {
+    pub const fn new(whole: &'static T, offset: usize) -> Self {
+        Self { whole, offset }
+    }
+}
+
+impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for Window<T> {
+    fn size(&self) -> usize {
+        size_of::<T>() - self.offset
+    }
+
+    fn first(&self) -> *const u8 {
+        std::ptr::from_ref(self.whole)
+            .cast::<u8>()
+            .wrapping_add(self.offset)
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::load_cells(self.whole, self.offset + offset, to)
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::store_cells(self.whole, self.offset + offset, from)
+    }
+}
+
+/// `OWN`'s ranges as stores, in the same order.
+pub static OWN_RANGES: [crate::store::BlockRange; OWN.len()] = {
+    let mut ranges = [const { crate::store::BlockRange::new(first_byte, 0, 0) }; OWN.len()];
+    let mut i = 0;
+    while i < OWN.len() {
+        ranges[i] =
+            crate::store::BlockRange::new(first_byte, OWN[i].0 - vars::START, OWN[i].1 - OWN[i].0);
+        i += 1;
+    }
+    ranges
+};
+
+/// The block's first IDA byte in memory (past the alignment padding).
+fn first_byte() -> *mut u8 {
+    vars::STORE
+        .ptr()
+        .cast::<u8>()
+        .wrapping_add(vars::START % 16)
+}
+
 /// Where IDA's address `ida` of the block is.
+#[cfg(test)]
 pub fn home(ida: usize) -> usize {
     vars::base() + (ida - vars::START)
 }

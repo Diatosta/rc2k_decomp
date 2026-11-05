@@ -48,6 +48,7 @@ pub const END: usize = 0x6EF7CC;
 const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
 
 /// Where IDA 0x6D3CF4 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&DRAW_BATCHES))
 }

@@ -65,6 +65,7 @@ pub const END: usize = 0x60B0BD;
 const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
 
 /// Where IDA 0x60AF0C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&LEVEL_PATHS))
 }

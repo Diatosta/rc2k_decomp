@@ -33,6 +33,7 @@ pub const END: usize = 0x5C6610;
 const _: () = assert!(END - START == core::mem::size_of::<TextState>());
 
 /// Where IDA 0x5C6604 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&TEXT_STATE))
 }

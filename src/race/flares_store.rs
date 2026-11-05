@@ -39,6 +39,7 @@ pub const END: usize = 0x64098C;
 const _: () = assert!(END - START == core::mem::size_of::<FlareTables>());
 
 /// Where IDA 0x63F58C is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&FLARE_TABLES))
 }

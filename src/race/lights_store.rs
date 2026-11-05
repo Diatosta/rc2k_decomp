@@ -32,6 +32,7 @@ pub const END: usize = 0x608B08;
 const _: () = assert!(END - START == core::mem::size_of::<LightsData>());
 
 /// Where IDA 0x6077B0 is now.
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&LIGHTS_DATA))
 }

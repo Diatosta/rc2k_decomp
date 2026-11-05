@@ -30,6 +30,7 @@ pub const LEN: usize = 0x5BE9BD - START;
 /// The in-race map's variables. The dwords are at addresses that are not multiples of 4
 /// (`Loose`), as are the lists (16 bytes each, a `MemoryList`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MapVars {
     /// `g_mapList` (`0x5BE90D`): the list the tiles' memory is on.
     pub list: Bytes<16>,
@@ -86,11 +87,6 @@ pub static MAP: MapVars = MapVars {
     use_packed: Loose::new(1),
     packed_2: Loose::new(1),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5BE90D).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const MAP) as usize
-}
 
 const SIDE: u32 = 0x80;
 const TILES: u32 = SIDE * SIDE;

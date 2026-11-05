@@ -142,6 +142,7 @@ pub const END: usize = 0x608CB4;
 const _: () = assert!(END - START == core::mem::size_of::<CameraWork>());
 
 /// Where IDA 0x608B08 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&CAMERA_WORK))
 }

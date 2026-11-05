@@ -27,6 +27,7 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
 /// order less the words the race does not take. Field docs name the record's field and
 /// offset.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceCar {
     /// `Player.tyre` (+0x10C).
     pub tyre: Dword,
@@ -101,6 +102,7 @@ pub struct RaceCar {
 
 /// A car's result as the race leaves it (IDA 0x75B01C and 0x75B08C, 0x70 bytes each).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceResult {
     /// The car's time (`dword_75B01C` / `dword_75B08C`).
     pub time: Dword,
@@ -120,6 +122,7 @@ pub struct RaceResult {
 /// variables, which `race::copy_settings_in` copies to the race's ("Shaun's")): the mode,
 /// the stage, the direction, the two players' settings.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSettings {
     /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
     pub a8_game: Dword,
@@ -169,6 +172,7 @@ pub struct RaceSettings {
 
 /// The race's results (IDA 0x75AFF4 .. 0x75B10C).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceResults {
     /// `dword_75AFF4`: the arcade race's stage (Shaun's `dword_6238D0`).
     pub race_stage: Dword,
@@ -204,6 +208,7 @@ pub struct RaceResults {
 
 /// The race's settings and results.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceState {
     /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
     pub settings: RaceSettings,
@@ -405,11 +410,6 @@ pub static RACE_STATE: RaceState = RaceState {
 pub const START: usize = 0x75ACCC;
 /// IDA 0X75B340, the end of the piece.
 pub const END: usize = 0x75B340;
-
-/// Where IDA 0X75ACCC is now (`moved::MOVED`'s home).
-pub fn race_state_addr() -> u32 {
-    crate::pointers::game_address(&raw const RACE_STATE)
-}
 
 #[cfg(test)]
 mod tests {
