@@ -13,7 +13,7 @@ use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::fild;
+use crate::scene::x87_mem::{Base, fild};
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> Result<u32, crate::errors::BadInput> {
@@ -38,7 +38,7 @@ pub fn share_done(record: u32) -> u32 {
         eax = rd(record + 0x3C);
     }
     DRAW.scratch.set(eax);
-    x87_1(record as usize);
+    x87_1(crate::pointers::GamePtr::new(record));
     eax
 }
 
@@ -47,7 +47,7 @@ pub fn share_done(record: u32) -> u32 {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
-fn x87_1(s: usize) {
+fn x87_1(s: impl Base) {
     let t0 = int(DRAW.scratch.bits() as i32);
     let t1 = fild(s, 0x3C);
     let t2 = t0 / t1;

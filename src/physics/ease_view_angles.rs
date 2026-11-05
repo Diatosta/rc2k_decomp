@@ -19,7 +19,7 @@ use crate::physics::car_store::CAR;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::fld;
+use crate::scene::x87_mem::{Base, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_angles() -> Result<(), crate::errors::BadInput> {
@@ -29,7 +29,7 @@ pub fn ease_view_angles() -> Result<(), crate::errors::BadInput> {
     }
     share_done(esi);
     for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
-        x87_1((esi + 0x40 + 4 * k as u32) as usize);
+        x87_1(crate::pointers::GamePtr::new(esi + 0x40 + 4 * k as u32));
         to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
     Ok(())
@@ -40,7 +40,7 @@ pub fn ease_view_angles() -> Result<(), crate::errors::BadInput> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]`
-fn x87_1(s: usize) {
+fn x87_1(s: impl Base) {
     let t0 = fld(s, 0);
     let t1 = ld(RACE_TABLES.view_share.bits());
     let t2 = t0 * t1;

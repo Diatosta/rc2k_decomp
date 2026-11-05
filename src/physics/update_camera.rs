@@ -51,7 +51,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::view_vars_store::{VIEW_VARS, ViewVars};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{fild, fld};
+use crate::scene::x87_mem::{Base, fild, fld};
 use crate::session::Cell32;
 use rc2k_core::physics::camera_view;
 
@@ -123,7 +123,7 @@ pub fn steps() -> Result<(), Refused> {
     }
     let car = CAR.car_kind.get();
     let light = LIGHT_RECORDS.record_addr(car);
-    x87_4(light as usize);
+    x87_4(crate::pointers::GamePtr::new(light));
     VIEW_VARS.light_c.set(rd(light + 0xC));
     VIEW_VARS.light_c.set(rd(light + 0x1C));
     if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
@@ -326,7 +326,7 @@ fn x87_3() {
 /// `[rc + 0x20662C] = int [d + 0x18] * [rc + 0x1C5DA0]`
 /// `[rc + 0x206570] = [d + 0x24]`
 /// `[rc + 0x206574] = int [d + 0x20] * [rc + 0x1C5DA0]`
-fn x87_4(d: usize) {
+fn x87_4(d: impl Base) {
     let t0 = fild(d, 0);
     let t1 = ld(NUMBERS.one_over_65536.bits());
     let t2 = t0 * t1;

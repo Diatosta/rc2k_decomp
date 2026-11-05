@@ -19,12 +19,12 @@ use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
 use crate::physics::car_store::CAR;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::x87_mem::fld;
+use crate::scene::x87_mem::{Base, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
 pub fn take_view_a(s: u32) -> Result<(), crate::errors::BadInput> {
-    x87_1(s as usize);
+    x87_1(crate::pointers::GamePtr::new(s));
     for (k, put) in copies().iter().enumerate() {
         put(rd(s + 0x10 + 4 * k as u32));
     }
@@ -63,7 +63,7 @@ fn copies() -> [fn(u32); 11] {
 /// `[rc + 0x208B98] = [s + 4] + [rc + 0x237638]`
 /// `[rc + 0x208B9C] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BA0] = [s + 0xC] + [rc + 0x237640]`
-fn x87_1(s: usize) {
+fn x87_1(s: impl Base) {
     let t0 = fld(s, 4);
     let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;

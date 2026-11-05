@@ -216,6 +216,8 @@ impl Base for crate::pointers::GamePtr {
     }
 }
 
+/// A test's operand buffer by game address (the assembly references' operands).
+#[cfg(test)]
 impl Base for usize {
     fn address(self) -> usize {
         self

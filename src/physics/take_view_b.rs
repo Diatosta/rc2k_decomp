@@ -19,13 +19,13 @@ use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::x87_mem::fld;
+use crate::scene::x87_mem::{Base, fld};
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub fn take_view_b(s: u32) {
-    x87_1(s as usize);
+    x87_1(crate::pointers::GamePtr::new(s));
     for (k, x) in copies().iter().enumerate() {
         x.set_bits(rd(s + 0x10 + 4 * k as u32));
     }
@@ -64,7 +64,7 @@ fn copies() -> [&'static dyn Cell32; 11] {
 /// `[rc + 0x208BB0] = [s + 4] + [rc + 0x237638]`
 /// `[rc + 0x208BB4] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BB8] = [s + 0xC] + [rc + 0x237640]`
-fn x87_1(s: usize) {
+fn x87_1(s: impl Base) {
     let t0 = fld(s, 4);
     let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;
