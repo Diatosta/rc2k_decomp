@@ -175,6 +175,34 @@ pub fn reserve(len: usize) -> Option<usize> {
     (at != libc::MAP_FAILED).then(|| at.expose_provenance())
 }
 
+/// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
+/// their first byte, or None. Pages not yet touched take no memory.
+pub fn map_pages(len: usize) -> Option<*mut u8> {
+    // SAFETY: a new anonymous mapping; nothing is passed in.
+    let at = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            len,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+            -1,
+            0,
+        )
+    };
+    (at != libc::MAP_FAILED).then_some(at.cast())
+}
+
+/// The pages of `map_pages`' `len` bytes at `at` handed back to the system, still mapped:
+/// their memory is freed and they read as zeros when next touched. Whether the pages came
+/// back zeroed (they do here).
+///
+/// # Safety
+/// `at` and `len` are a mapping of `map_pages` (whole pages).
+pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
+    // SAFETY: the caller's mapping; private anonymous pages read zero after this.
+    unsafe { libc::madvise(at.cast(), len, libc::MADV_DONTNEED) == 0 }
+}
+
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn terminate(code: u32) -> ! {
     // SAFETY: ends the process.

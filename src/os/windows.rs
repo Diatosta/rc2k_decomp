@@ -7,7 +7,9 @@ use windows_sys::Win32::Storage::FileSystem::{
     GetDiskFreeSpaceA, GetDriveTypeA, GetVolumeInformationA,
 };
 use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
-use windows_sys::Win32::System::Memory::{MEM_RESERVE, PAGE_NOACCESS, VirtualAlloc};
+use windows_sys::Win32::System::Memory::{
+    MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_NOACCESS, PAGE_READWRITE, VirtualAlloc,
+};
 use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
 };
@@ -167,6 +169,33 @@ pub fn reserve(len: usize) -> Option<usize> {
     // SAFETY: a reservation only; nothing is passed in.
     let at = unsafe { VirtualAlloc(std::ptr::null(), len, MEM_RESERVE, PAGE_NOACCESS) };
     (!at.is_null()).then(|| at.expose_provenance())
+}
+
+/// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
+/// their first byte, or None. Pages not yet touched take no memory.
+pub fn map_pages(len: usize) -> Option<*mut u8> {
+    // SAFETY: a new committed range; nothing is passed in.
+    let at = unsafe {
+        VirtualAlloc(
+            std::ptr::null(),
+            len,
+            MEM_RESERVE | MEM_COMMIT,
+            PAGE_READWRITE,
+        )
+    };
+    (!at.is_null()).then_some(at.cast())
+}
+
+/// The pages of `map_pages`' `len` bytes at `at` handed back to the system, still committed
+/// (`MEM_RESET`: their contents need not be kept). Whether the pages came back zeroed (they
+/// do not here: the caller zeroes them when it lends them again).
+///
+/// # Safety
+/// `at` and `len` are a range of `map_pages` (whole pages).
+pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
+    // SAFETY: the caller's committed range; the pages stay readable and writable.
+    unsafe { VirtualAlloc(at.cast(), len, MEM_RESET, PAGE_READWRITE) };
+    false
 }
 
 /// The process ended at once with `code`: no library's leave-taking (it can hang when this

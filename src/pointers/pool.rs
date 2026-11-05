@@ -2,11 +2,14 @@
 //! the system's pages, the installer's and the course's buffers): each a store of its own,
 //! reached through the place layer as the statics are, never by a raw pointer.
 //!
-//! A block is never freed. Given back, it waits in the pool for the next request it fits:
-//! the smallest free block of at least the bytes asked for and at most twice as many (or a
-//! page). Memory stays at the peak the game has reached (the menus' and the race's screens,
-//! the largest stage's textures), and an address kept past its block's end can reach no
-//! freed memory: its region is forgotten (`pointers::forget`), so a read of it is refused.
+//! A block is pages mapped from the system (`os::map_pages`) and is never unmapped. Given
+//! back, its pages are handed back to the system (`os::discard_pages`: still mapped, their
+//! memory freed) and it waits in the pool for the next request it fits: the smallest free
+//! block of at least the bytes asked for and at most twice as many (or a page). So the
+//! program holds the memory of what is lent now, untouched pages cost nothing (textures
+//! made and never filled), and an address kept past its block's release reaches no freed
+//! mapping: its region is forgotten (`pointers::forget`), so a read of it is refused, and a
+//! read already under way meets the pages zeroed or discarded, never a fault.
 
 #![allow(unsafe_code)]
 
@@ -80,7 +83,8 @@ unsafe impl crate::pointers::Store for PoolBlock {
     }
 }
 
-static FREE: Mutex<Vec<&'static PoolBlock>> = Mutex::new(Vec::new());
+/// The free blocks, with whether their pages came back zeroed from the system.
+static FREE: Mutex<Vec<(&'static PoolBlock, bool)>> = Mutex::new(Vec::new());
 /// The blocks made and their bytes, for the log.
 static MADE: AtomicUsize = AtomicUsize::new(0);
 static MADE_BYTES: AtomicUsize = AtomicUsize::new(0);
@@ -96,42 +100,43 @@ pub fn take(len: usize) -> &'static PoolBlock {
         let best = free
             .iter()
             .enumerate()
-            .filter(|(_, b)| b.len() >= need && b.len() <= need.saturating_mul(2).max(PAGE))
-            .min_by_key(|(_, b)| b.len())
+            .filter(|(_, (b, _))| b.len() >= need && b.len() <= need.saturating_mul(2).max(PAGE))
+            .min_by_key(|(_, (b, _))| b.len())
             .map(|(n, _)| n);
         best.map(|n| free.swap_remove(n))
     };
-    if let Some(block) = reused {
-        // SAFETY: the block's own bytes; it is lent to no one while in the pool.
-        unsafe { crate::shared_memory::fill(block.as_ptr(), 0, need) };
+    if let Some((block, zeroed)) = reused {
+        if !zeroed {
+            // SAFETY: the block's own bytes; it is lent to no one while in the pool.
+            unsafe { crate::shared_memory::fill(block.as_ptr(), 0, need) };
+        }
         return block;
     }
-    let layout = std::alloc::Layout::from_size_align(need, PAGE).unwrap_or_else(|_| {
-        crate::fatal::raise::end("pointers::pool", BadInput("a block too large"))
+    let first = crate::os::map_pages(need).unwrap_or_else(|| {
+        crate::fatal::raise::end("pointers::pool", BadInput("no memory for a lent block"))
     });
-    // SAFETY: a layout of a non-zero size.
-    let first = unsafe { std::alloc::alloc_zeroed(layout) };
-    if first.is_null() {
-        std::alloc::handle_alloc_error(layout);
-    }
-    // SAFETY: `need` zeroed bytes at `first`, never freed (the block lives for the program);
-    // `UnsafeCell<u8>` has `u8`'s layout.
+    // SAFETY: `need` zeroed bytes mapped at `first`, never unmapped (the block lives for the
+    // program); `UnsafeCell<u8>` has `u8`'s layout.
     let bytes = unsafe { std::slice::from_raw_parts(first.cast::<UnsafeCell<u8>>(), need) };
     let blocks = MADE.fetch_add(1, Relaxed) + 1;
     let total = MADE_BYTES.fetch_add(need, Relaxed) + need;
     crate::framework::log(&format!(
-        "pointers: the pool's blocks grow to {blocks}, {} KiB (one of {} KiB made)",
+        "pointers: the pool maps {blocks} blocks, {} KiB of addresses (one of {} KiB made; a \
+         free block keeps its addresses, not its memory)",
         total / 1024,
         need / 1024
     ));
     Box::leak(Box::new(PoolBlock { bytes }))
 }
 
-/// A block back in the pool, once nothing reaches it (its region forgotten).
+/// A block back in the pool, once nothing reaches it (its region forgotten): its pages
+/// handed back to the system first.
 pub fn give_back(block: &'static PoolBlock) {
+    // SAFETY: the block is one `map_pages` mapping of whole pages.
+    let zeroed = unsafe { crate::os::discard_pages(block.as_ptr(), block.len()) };
     FREE.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .push(block);
+        .push((block, zeroed));
 }
 
 #[cfg(test)]
