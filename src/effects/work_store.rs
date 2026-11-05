@@ -55,6 +55,7 @@ pub const END: usize = 0x71CA60;
 const _: () = assert!(END - START == core::mem::size_of::<MarksWork>());
 
 /// Where IDA 0x71C814 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&MARKS_WORK))
 }

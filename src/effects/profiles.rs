@@ -158,6 +158,7 @@ impl ProfileRings {
     pub const LEN: usize = 0x804;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_RINGS) as usize
     }
@@ -199,6 +200,7 @@ impl ProfileLists {
     pub const LEN: usize = 0x34;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_LISTS) as usize
     }
@@ -250,6 +252,7 @@ impl ProfileTables {
     pub const LEN: usize = 0x6800;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PROFILE_TABLES) as usize
     }

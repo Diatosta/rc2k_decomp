@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// The windscreen drops' variables (IDA 0x816192 .. 0x82E342, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropVars {
     /// 0x816192: `flt_816192` .. `flt_81619E`: four floats `set_up_windscreen_drops` scales once
     pub scale: [Float; 4],
@@ -156,10 +157,6 @@ pub static HEX: WindscreenDropVars = WindscreenDropVars {
 impl WindscreenDropVars {
     pub const START: usize = 0x816192;
     pub const LEN: usize = 0x181B0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(core::ptr::addr_of!(HEX))) as usize
-    }
 }
 
 #[cfg(test)]

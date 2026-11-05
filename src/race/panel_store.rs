@@ -9,6 +9,10 @@ use crate::session::Bytes;
 pub struct Loose32(Bytes<4>);
 
 impl Loose32 {
+    pub const fn new(value: u32) -> Self {
+        Self(Bytes::new(value.to_le_bytes()))
+    }
+
     pub fn get(&self) -> u32 {
         self.0.get_u32(0)
     }

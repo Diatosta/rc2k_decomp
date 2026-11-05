@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword};
 
 /// The masks' shape picks and pixel tables (IDA 0x844604 .. 0x884E5C, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MaskPicks {
     /// 0x844604: `dword_844604`, `dword_844608`: 2 or 0 by the shape picked (A, B)
     pub flags: [Dword; 2],
@@ -582,10 +583,6 @@ pub static PICKS: MaskPicks = MaskPicks {
 impl MaskPicks {
     pub const START: usize = 0x844604;
     pub const LEN: usize = 0x40858;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(core::ptr::addr_of!(PICKS))) as usize
-    }
 }
 
 #[cfg(test)]

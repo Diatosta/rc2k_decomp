@@ -280,11 +280,6 @@ pub struct FirstTuning;
 impl FirstTuning {
     pub const START: usize = 0x93A3D2;
     pub const LEN: usize = BurstTuning::LEN;
-
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const FIRST_TUNING) as usize
-    }
 }
 
 #[cfg(test)]

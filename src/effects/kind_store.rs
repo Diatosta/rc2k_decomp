@@ -222,10 +222,6 @@ pub struct Quad1;
 impl Quad1 {
     pub const START: usize = 0x9331B4;
     pub const LEN: usize = 0xF8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const QUAD_1) as usize
-    }
 }
 
 /// `QUAD_2`'s place in the image (IDA 0x933ED0).
@@ -234,10 +230,6 @@ pub struct Quad2;
 impl Quad2 {
     pub const START: usize = 0x933ED0;
     pub const LEN: usize = 0xF8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const QUAD_2) as usize
-    }
 }
 
 /// `QUAD_3`'s place in the image (IDA 0x934BD0).
@@ -246,10 +238,6 @@ pub struct Quad3;
 impl Quad3 {
     pub const START: usize = 0x934BD0;
     pub const LEN: usize = 0xF8;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const QUAD_3) as usize
-    }
 }
 
 /// The per-kind tables of one set (IDA after a leading gap of `GAP` bytes: 3 tables of 0x22 triples, then 10 of 0x22 values; phase 7, typed state). The offsets are from its start.
@@ -283,6 +271,26 @@ pub struct KindTables<const GAP: usize> {
     pub high: [Float; 34],
     /// +0xB3C: `low`: per kind (`dword_933DE8`, `flt_933DEC` ..)
     pub low: [Float; 34],
+}
+
+// SAFETY: every field is a cell record and nothing lies between them (the assertion), as
+// the derive checks (it has no generics).
+#[allow(unsafe_code, reason = "the derive's impl, by hand for a const generic")]
+unsafe impl<const GAP: usize> crate::pointers::Cells for KindTables<GAP> {
+    fn cell_at(offset: usize) -> crate::pointers::CellAt {
+        const { assert!(size_of::<KindTables<GAP>>() == GAP + 0xA18) };
+        if offset < GAP {
+            return Bytes::<GAP>::cell_at(offset);
+        }
+        let tail = offset - GAP;
+        // The tail: three tables of triples, then ten of single values, 34 entries each.
+        let (table, within) = (tail / 408, tail % 408);
+        if table < 3 {
+            return <[[Float; 3]; 34]>::cell_at(within).after(GAP + table * 408);
+        }
+        let single = tail - 3 * 408;
+        <[Float; 34]>::cell_at(single % 136).after(GAP + 3 * 408 + single / 136 * 136)
+    }
 }
 
 /// Set 1's tables (IDA 0x9332AC .. 0x933E70); the first values are the image's.
@@ -1782,10 +1790,6 @@ pub struct Tables1;
 impl Tables1 {
     pub const START: usize = 0x9332AC;
     pub const LEN: usize = 0xBC4;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const TABLES_1) as usize
-    }
 }
 
 /// `TABLES_2`'s place in the image (IDA 0x933FC8).
@@ -1794,10 +1798,6 @@ pub struct Tables2;
 impl Tables2 {
     pub const START: usize = 0x933FC8;
     pub const LEN: usize = 0xBB0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const TABLES_2) as usize
-    }
 }
 
 /// Set 1's two outs after its quad (IDA 0x933E70 .. 0x933E7C; phase 7, typed state).
@@ -1844,6 +1844,7 @@ impl KindExtra2 {
 
 /// A set's constants and light (IDA 0x54 bytes; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KindConsts {
     /// +0x0: the kind's size is multiplied by it (`kind_values` c0) (`flt_933E7C`)
     pub size_k: Float,
@@ -1927,10 +1928,6 @@ pub struct Consts1;
 impl Consts1 {
     pub const START: usize = 0x933E7C;
     pub const LEN: usize = 0x54;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CONSTS_1) as usize
-    }
 }
 
 /// `CONSTS_2`'s place in the image (IDA 0x934B7C).
@@ -1939,10 +1936,6 @@ pub struct Consts2;
 impl Consts2 {
     pub const START: usize = 0x934B7C;
     pub const LEN: usize = 0x54;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CONSTS_2) as usize
-    }
 }
 
 #[cfg(test)]

@@ -695,6 +695,7 @@ impl ShapeSetTuning {
     pub const LEN: usize = 0x270;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SHAPE_SET_TUNING) as usize
     }

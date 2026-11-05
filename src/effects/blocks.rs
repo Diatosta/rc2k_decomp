@@ -5,9 +5,8 @@
 use crate::effects::frame_state::DRAW_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::memory::MemoryList;
 use crate::session::write_bits;
-use crate::session::{Bytes, Dword, Float, Shared, Word};
+use crate::session::{Bytes, Dword, Float, Word};
 
 pub const PLACES_LEN: u32 = 0x7024;
 pub const RING_LEN: u32 = 0x4C000;
@@ -176,9 +175,10 @@ pub fn reset_settings_blocks() -> Result<(), Refused> {
 
 /// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PlacesBlock {
     /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
-    pub list: Shared<MemoryList>,
+    pub list: [Dword; 4],
     /// 0x8DB580: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_8db580: Bytes<48>,
     /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes; 0 since phase 12: only
@@ -189,12 +189,12 @@ pub struct PlacesBlock {
 }
 
 pub static PLACES_BLOCK: PlacesBlock = PlacesBlock {
-    list: Shared::new(MemoryList {
-        head: 0x0,
-        total: 0x0,
-        cursor: 0x0,
-        remaining: 0x0,
-    }),
+    list: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
     _gap_8db580: Bytes::new([0; 48]),
     places: Dword::new(0x0),
     start: [
@@ -208,6 +208,7 @@ impl PlacesBlock {
     pub const START: usize = 0x8DB570;
     pub const LEN: usize = 0x50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const PLACES_BLOCK) as usize
     }
@@ -215,9 +216,10 @@ impl PlacesBlock {
 
 /// The links' list and block (IDA 0x9206F0 .. 0x920734, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
     /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
-    pub list: Shared<MemoryList>,
+    pub list: [Dword; 4],
     /// 0x920700: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_920700: Bytes<48>,
     /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes; 0 since phase 12: only
@@ -226,12 +228,12 @@ pub struct MarkLinks {
 }
 
 pub static MARK_LINKS: MarkLinks = MarkLinks {
-    list: Shared::new(MemoryList {
-        head: 0x0,
-        total: 0x0,
-        cursor: 0x0,
-        remaining: 0x0,
-    }),
+    list: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
     _gap_920700: Bytes::new([0; 48]),
     links: Dword::new(0x0),
 };
@@ -240,6 +242,7 @@ impl MarkLinks {
     pub const START: usize = 0x9206F0;
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const MARK_LINKS) as usize
     }
@@ -270,6 +273,7 @@ impl Slope {
 
 /// The corners' slopes (`g_marksCornerSlopes`: 0x100 records of 0x24 bytes) (IDA 0x920734 .. 0x922B34, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CornerSlopes {
     /// 0x920734: `g_marksCornerSlopes`: one record for each corner record.
     pub slopes: [Slope; 0x100],
@@ -283,6 +287,7 @@ impl CornerSlopes {
     pub const START: usize = 0x920734;
     pub const LEN: usize = 0x2400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const CORNER_SLOPES) as usize
     }
@@ -291,6 +296,7 @@ impl CornerSlopes {
 /// A corner record of `g_marksCorners` (0x80 bytes of 16-bit words: four (u, v) pairs of a
 /// cell's texture places, and what `effects::scale_corners` scales).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Corner {
     pub words: [Word; 0x40],
 }
@@ -307,6 +313,7 @@ impl Corner {
 
 /// The marks' corner table (`g_marksCorners`: 0x100 records of 0x80 bytes) (IDA 0x8EB971 .. 0x8F3971, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarkCorners {
     /// 0x8EB971: `g_marksCorners`: the corner records (the course's 0x8000 bytes of `markinfo` are copied here; `effects::scale_corners`).
     pub corners: [Corner; 0x100],
@@ -320,6 +327,7 @@ impl MarkCorners {
     pub const START: usize = 0x8EB971;
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const MARK_CORNERS) as usize
     }

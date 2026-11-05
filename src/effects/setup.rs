@@ -62,6 +62,7 @@ impl MarksClock {
     pub const LEN: usize = 0x34;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const CLOCK) as usize
     }

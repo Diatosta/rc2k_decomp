@@ -8,7 +8,8 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
 use crate::pointers::GamePtr;
-use crate::session::{Bytes, Dword, Float, Loose, read_bits};
+use crate::race::panel_store::Loose32;
+use crate::session::{Bytes, Dword, Float, read_bits};
 
 pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
 const KINDS: u32 = 0x22;
@@ -348,6 +349,7 @@ mod kind_boxes_tests {
 
 /// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
     /// 0x8BC39E: `flt_8BC39E`: what the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: Float,
@@ -360,7 +362,9 @@ pub struct EdgeSettings {
     /// 0x8BC3E6: `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12, +13).
     pub path: Bytes<19>,
     /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float at an address that is 1 more than a multiple of 4).
-    pub tilt_scale: Loose,
+    pub tilt_scale: Loose32,
+    /// 0x8BC3FD: tail padding of the record (outside its range; zero).
+    pub _tail: Bytes<1>,
 }
 
 pub static EDGE_SETTINGS: EdgeSettings = EdgeSettings {
@@ -381,13 +385,15 @@ pub static EDGE_SETTINGS: EdgeSettings = EdgeSettings {
         0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x65, 0x64, 0x67, 0x65, 0x30, 0x30, 0x2E,
         0x70, 0x63, 0x78, 0x00,
     ]),
-    tilt_scale: Loose::new(0x3C8EFA35),
+    tilt_scale: Loose32::new(0x3C8EFA35),
+    _tail: Bytes::new([0]),
 };
 
 impl EdgeSettings {
     pub const START: usize = 0x8BC39E;
     pub const LEN: usize = 0x5F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const EDGE_SETTINGS) as usize
     }

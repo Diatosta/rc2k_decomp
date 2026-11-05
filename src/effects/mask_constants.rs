@@ -93,6 +93,7 @@ impl MaskConstants {
     pub const LEN: usize = 0x9C;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const MASK_CONSTANTS) as usize
     }

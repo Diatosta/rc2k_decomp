@@ -254,11 +254,6 @@ pub struct NineteenthTuning;
 impl NineteenthTuning {
     pub const START: usize = 0x93A48A;
     pub const LEN: usize = TwinTuning::LEN;
-
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const NINETEENTH_TUNING) as usize
-    }
 }
 
 #[cfg(test)]

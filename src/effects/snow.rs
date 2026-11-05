@@ -52,6 +52,7 @@ impl SnowCurve {
 
 /// The snow's variables (IDA 0x8D2000 .. 0x8D2310, the image's layout; phase 7, typed state).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct SnowState {
     /// 0x8D2000: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_8d2000: Bytes<48>,
@@ -240,10 +241,6 @@ pub static SNOW: SnowState = SnowState {
 impl SnowState {
     pub const START: usize = 0x8D2000;
     pub const LEN: usize = 0x310;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SNOW) as usize
-    }
 }
 
 /// The snow curve's walk variables and records (IDA 0x8DA410 .. 0x8DB430, the image's layout; phase 7, typed state).

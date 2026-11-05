@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword, Float, Word};
 
 /// One of the masks' shapes (IDA `g_marksShapesA` / `B`, 0x24 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Shape {
     /// 0x0: the shape picked (`pick_shapes` sets it) and the eased step count `turn_all_shapes` reads (a reading)
     pub step: Dword,
@@ -21,6 +22,7 @@ pub struct Shape {
 
 /// The masks' variables (IDA 0x82E342 .. 0x844602, the image's layout; phase 7, typed state): the work block's list, the corner tables, the shapes, the rasteriser's scratch, the runs, the masks and the ring angles.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MaskVars {
     /// 0x82E342: `g_marksSpansTotal`: the spans made
     pub spans_total: Dword,
@@ -226,10 +228,6 @@ pub static MASKS: MaskVars = MaskVars {
 impl MaskVars {
     pub const START: usize = 0x82E342;
     pub const LEN: usize = 0x162C0;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(core::ptr::addr_of!(MASKS))) as usize
-    }
 }
 
 #[cfg(test)]

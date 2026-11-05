@@ -27,6 +27,7 @@ impl WindscreenFlakeTiming {
     pub const LEN: usize = 0xC;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TIMING) as usize
     }
@@ -170,6 +171,7 @@ impl WindscreenFlakeTables {
     pub const LEN: usize = 0x6A0;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TABLES) as usize
     }
@@ -216,6 +218,7 @@ impl WindscreenFlakeItem {
 
 /// The windscreen flakes' 0x800 items (`g_marksWindscreenFlakeItems`) (IDA 0x89E18A .. 0x8BC18A, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItems {
     /// 0x89E18A: `g_marksWindscreenFlakeItems`: the items, 0x3C bytes each.
     pub items: [WindscreenFlakeItem; 0x800],
@@ -229,6 +232,7 @@ impl WindscreenFlakeItems {
     pub const START: usize = 0x89E18A;
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_ITEMS) as usize
     }
@@ -359,6 +363,7 @@ impl WindscreenFlakeState {
     pub const LEN: usize = 0xDC;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_STATE) as usize
     }

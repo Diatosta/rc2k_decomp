@@ -87,6 +87,7 @@ impl DrawWork {
     pub const LEN: usize = 0x100;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const DRAW_WORK) as usize
     }
@@ -145,6 +146,7 @@ impl ViewVars {
     pub const LEN: usize = 0x58;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const VIEW_VARS) as usize
     }
@@ -252,6 +254,7 @@ impl DrawFrame {
     pub const LEN: usize = 0xA4;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const DRAW_FRAME) as usize
     }
@@ -341,6 +344,7 @@ impl FlareParts {
     pub const LEN: usize = 0xD8;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FLARE_PARTS) as usize
     }
@@ -369,6 +373,7 @@ impl FlareScales {
     pub const LEN: usize = 0x14;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FLARE_SCALES) as usize
     }

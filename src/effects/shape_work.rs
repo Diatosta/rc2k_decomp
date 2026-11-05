@@ -4,6 +4,7 @@ use crate::session::{Bytes, Dword, Float};
 
 /// A shape set (IDA `MarkShapes`, 0xAB8 bytes): the working block `g_marksFarthestA` .. and each set copied from it.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MarkShapes {
     /// 0x0: `g_marksFarthestA`, `dword_884FB8`: list A's farthest pair (inner, outer)
     pub farthest_a: [Dword; 2],
@@ -81,6 +82,7 @@ impl MarkShapes {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ShapeWork {
     /// 0x884E5C: `g_marksShapeFirstPoint`
     pub first_point: Dword,
@@ -163,10 +165,6 @@ pub static SHAPE_WORK: ShapeWork = ShapeWork {
 impl ShapeWork {
     pub const START: usize = 0x884E5C;
     pub const LEN: usize = 0x16E48;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(core::ptr::addr_of!(SHAPE_WORK))) as usize
-    }
 }
 
 #[cfg(test)]

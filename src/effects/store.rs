@@ -21,8 +21,9 @@
 //! Threads: the marks run on the game's thread alone, as the image's bytes did.
 
 use crate::effects::store_data::RUNS;
+use crate::errors::BadInput;
 use crate::framework;
-use crate::moved::Place;
+use crate::session::Bytes;
 #[cfg(test)]
 use core::ops::Add;
 
@@ -32,8 +33,14 @@ pub const START: usize = 0x764F40;
 pub const END: usize = 0x93CCC8;
 pub const LEN: usize = END - START;
 
+/// The block as one record of cells (`Bytes`, one run), with the image's first values, 16-byte
+/// aligned as IDA's `START` is; the tail fills it to the alignment (no byte outside a cell).
 #[repr(C, align(16))]
-pub struct Store([u8; LEN]);
+#[derive(rc2k_derive::Cells)]
+pub struct Store(Bytes<LEN>, Bytes<TAIL>);
+
+const TAIL: usize = LEN.next_multiple_of(16) - LEN;
+const _: () = assert!(START.is_multiple_of(16));
 
 const fn initial() -> Store {
     let mut bytes = [0u8; LEN];
@@ -47,11 +54,78 @@ const fn initial() -> Store {
         }
         r += 1;
     }
-    Store(bytes)
+    Store(Bytes::new(bytes), Bytes::new([0; TAIL]))
+}
+
+impl Store {
+    /// The block's first byte as a game address.
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.0.as_ptr())
+    }
 }
 
 /// The block (its first values are the image's bytes, `RUNS`).
-pub static STORE: Place<Store> = Place::new(initial());
+pub static STORE: Store = initial();
+
+/// One segment of `SEGS` as a store of its own: its bytes in the block, found by offset.
+pub struct Segment {
+    /// The offset in the block of the segment's first byte.
+    from: usize,
+    len: usize,
+}
+
+impl crate::pointers::Store for Segment {
+    fn size(&self) -> usize {
+        self.len
+    }
+
+    fn first(&self) -> *const u8 {
+        self.first_byte()
+    }
+
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+        self.check(offset, to.len())?;
+        crate::pointers::load_cells(&STORE, self.from + offset, to)
+    }
+
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+        self.check(offset, from.len())?;
+        crate::pointers::store_cells(&STORE, self.from + offset, from)
+    }
+}
+
+impl Segment {
+    fn check(&self, offset: usize, len: usize) -> Result<(), BadInput> {
+        if offset.checked_add(len).is_some_and(|end| end <= self.len) {
+            Ok(())
+        } else {
+            Err(BadInput("past the end of a segment of the marks' block"))
+        }
+    }
+
+    fn first_byte(&self) -> *const u8 {
+        STORE.0.as_ptr().cast_const().wrapping_add(self.from)
+    }
+}
+
+const fn segment(n: usize) -> Segment {
+    Segment {
+        from: SEGS[n].0 - START,
+        len: SEGS[n].1 - SEGS[n].0,
+    }
+}
+
+/// The segments of `SEGS`, each the store `moved::MOVED` names for it.
+pub static SEGMENTS: [Segment; SEGS.len()] = {
+    let mut all = [const { Segment { from: 0, len: 0 } }; SEGS.len()];
+    let mut n = 0;
+    while n < SEGS.len() {
+        all[n] = segment(n);
+        n += 1;
+    }
+    all
+};
 
 /// The ranges that left the block, each its own typed static in the module that owns it
 /// (phase 7; each with its own `moved::MOVED` entry). The block's bytes there are dead: a
@@ -212,11 +286,6 @@ pub const SEGS: &[(usize, usize)] = &[
     (0x93CCB0, END),
 ];
 
-/// `moved::MOVED`'s home for the segment of `SEGS` that starts at IDA address `FIRST`.
-pub fn home_of<const FIRST: usize>() -> usize {
-    (STORE.addr() + (FIRST - START) as u32) as usize
-}
-
 #[cfg(test)]
 const fn carved(ida: usize) -> bool {
     let mut n = 0;
@@ -308,7 +377,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         // Read in place: a copy of the block would not fit the test thread's stack.
-        let first = unsafe { &(&(*STORE.ptr()).0)[..] };
+        let first = unsafe { std::slice::from_raw_parts(STORE.0.as_ptr(), LEN) };
         let image = crate::moved::image_bytes(START, LEN);
         // The ranges that left the block have their own statics (and tests); what is left of the
         // block holds the image's bytes.

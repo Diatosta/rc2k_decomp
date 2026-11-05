@@ -1526,7 +1526,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::work_store::START,
         len: crate::effects::work_store::END - crate::effects::work_store::START,
-        home: Home::Address(|| crate::effects::work_store::piece_addr() as usize),
+        home: Home::Store(&crate::effects::work_store::MARKS_WORK),
     },
     // the menus' lists, the menus' working variables, the race's settings and results and
     // the damage model (`menu::lists_store`, `menu::state_store`, `race::state_store`,
@@ -1556,262 +1556,202 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::store::SEGS[0].0,
         len: crate::effects::store::SEGS[0].1 - crate::effects::store::SEGS[0].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[0].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[0]),
     },
     Moved {
         ida: crate::effects::store::SEGS[1].0,
         len: crate::effects::store::SEGS[1].1 - crate::effects::store::SEGS[1].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[1].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[1]),
     },
     Moved {
         ida: crate::effects::store::SEGS[2].0,
         len: crate::effects::store::SEGS[2].1 - crate::effects::store::SEGS[2].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[2].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[2]),
     },
     Moved {
         ida: crate::effects::store::SEGS[3].0,
         len: crate::effects::store::SEGS[3].1 - crate::effects::store::SEGS[3].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[3].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[3]),
     },
     Moved {
         ida: crate::effects::store::SEGS[4].0,
         len: crate::effects::store::SEGS[4].1 - crate::effects::store::SEGS[4].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[4].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[4]),
     },
     Moved {
         ida: crate::effects::store::SEGS[5].0,
         len: crate::effects::store::SEGS[5].1 - crate::effects::store::SEGS[5].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[5].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[5]),
     },
     Moved {
         ida: crate::effects::store::SEGS[6].0,
         len: crate::effects::store::SEGS[6].1 - crate::effects::store::SEGS[6].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[6].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[6]),
     },
     Moved {
         ida: crate::effects::store::SEGS[7].0,
         len: crate::effects::store::SEGS[7].1 - crate::effects::store::SEGS[7].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[7].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[7]),
     },
     Moved {
         ida: crate::effects::store::SEGS[8].0,
         len: crate::effects::store::SEGS[8].1 - crate::effects::store::SEGS[8].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[8].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[8]),
     },
     Moved {
         ida: crate::effects::store::SEGS[9].0,
         len: crate::effects::store::SEGS[9].1 - crate::effects::store::SEGS[9].0,
-        home: Home::Address(crate::effects::store::home_of::<{ crate::effects::store::SEGS[9].0 }>),
+        home: Home::Store(&crate::effects::store::SEGMENTS[9]),
     },
     Moved {
         ida: crate::effects::store::SEGS[10].0,
         len: crate::effects::store::SEGS[10].1 - crate::effects::store::SEGS[10].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[10].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[10]),
     },
     Moved {
         ida: crate::effects::store::SEGS[11].0,
         len: crate::effects::store::SEGS[11].1 - crate::effects::store::SEGS[11].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[11].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[11]),
     },
     Moved {
         ida: crate::effects::store::SEGS[12].0,
         len: crate::effects::store::SEGS[12].1 - crate::effects::store::SEGS[12].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[12].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[12]),
     },
     Moved {
         ida: crate::effects::store::SEGS[13].0,
         len: crate::effects::store::SEGS[13].1 - crate::effects::store::SEGS[13].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[13].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[13]),
     },
     Moved {
         ida: crate::effects::store::SEGS[14].0,
         len: crate::effects::store::SEGS[14].1 - crate::effects::store::SEGS[14].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[14].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[14]),
     },
     Moved {
         ida: crate::effects::store::SEGS[15].0,
         len: crate::effects::store::SEGS[15].1 - crate::effects::store::SEGS[15].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[15].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[15]),
     },
     Moved {
         ida: crate::effects::store::SEGS[16].0,
         len: crate::effects::store::SEGS[16].1 - crate::effects::store::SEGS[16].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[16].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[16]),
     },
     Moved {
         ida: crate::effects::store::SEGS[17].0,
         len: crate::effects::store::SEGS[17].1 - crate::effects::store::SEGS[17].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[17].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[17]),
     },
     Moved {
         ida: crate::effects::store::SEGS[18].0,
         len: crate::effects::store::SEGS[18].1 - crate::effects::store::SEGS[18].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[18].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[18]),
     },
     Moved {
         ida: crate::effects::store::SEGS[19].0,
         len: crate::effects::store::SEGS[19].1 - crate::effects::store::SEGS[19].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[19].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[19]),
     },
     Moved {
         ida: crate::effects::store::SEGS[20].0,
         len: crate::effects::store::SEGS[20].1 - crate::effects::store::SEGS[20].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[20].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[20]),
     },
     Moved {
         ida: crate::effects::store::SEGS[21].0,
         len: crate::effects::store::SEGS[21].1 - crate::effects::store::SEGS[21].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[21].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[21]),
     },
     Moved {
         ida: crate::effects::store::SEGS[22].0,
         len: crate::effects::store::SEGS[22].1 - crate::effects::store::SEGS[22].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[22].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[22]),
     },
     Moved {
         ida: crate::effects::store::SEGS[23].0,
         len: crate::effects::store::SEGS[23].1 - crate::effects::store::SEGS[23].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[23].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[23]),
     },
     Moved {
         ida: crate::effects::store::SEGS[24].0,
         len: crate::effects::store::SEGS[24].1 - crate::effects::store::SEGS[24].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[24].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[24]),
     },
     Moved {
         ida: crate::effects::store::SEGS[25].0,
         len: crate::effects::store::SEGS[25].1 - crate::effects::store::SEGS[25].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[25].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[25]),
     },
     Moved {
         ida: crate::effects::store::SEGS[26].0,
         len: crate::effects::store::SEGS[26].1 - crate::effects::store::SEGS[26].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[26].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[26]),
     },
     Moved {
         ida: crate::effects::store::SEGS[27].0,
         len: crate::effects::store::SEGS[27].1 - crate::effects::store::SEGS[27].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[27].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[27]),
     },
     Moved {
         ida: crate::effects::store::SEGS[28].0,
         len: crate::effects::store::SEGS[28].1 - crate::effects::store::SEGS[28].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[28].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[28]),
     },
     Moved {
         ida: crate::effects::store::SEGS[29].0,
         len: crate::effects::store::SEGS[29].1 - crate::effects::store::SEGS[29].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[29].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[29]),
     },
     Moved {
         ida: crate::effects::store::SEGS[30].0,
         len: crate::effects::store::SEGS[30].1 - crate::effects::store::SEGS[30].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[30].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[30]),
     },
     Moved {
         ida: crate::effects::store::SEGS[31].0,
         len: crate::effects::store::SEGS[31].1 - crate::effects::store::SEGS[31].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[31].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[31]),
     },
     Moved {
         ida: crate::effects::store::SEGS[32].0,
         len: crate::effects::store::SEGS[32].1 - crate::effects::store::SEGS[32].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[32].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[32]),
     },
     Moved {
         ida: crate::effects::store::SEGS[33].0,
         len: crate::effects::store::SEGS[33].1 - crate::effects::store::SEGS[33].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[33].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[33]),
     },
     Moved {
         ida: crate::effects::store::SEGS[34].0,
         len: crate::effects::store::SEGS[34].1 - crate::effects::store::SEGS[34].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[34].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[34]),
     },
     Moved {
         ida: crate::effects::store::SEGS[35].0,
         len: crate::effects::store::SEGS[35].1 - crate::effects::store::SEGS[35].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[35].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[35]),
     },
     Moved {
         ida: crate::effects::store::SEGS[36].0,
         len: crate::effects::store::SEGS[36].1 - crate::effects::store::SEGS[36].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[36].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[36]),
     },
     Moved {
         ida: crate::effects::store::SEGS[37].0,
         len: crate::effects::store::SEGS[37].1 - crate::effects::store::SEGS[37].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[37].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[37]),
     },
     Moved {
         ida: crate::effects::store::SEGS[38].0,
         len: crate::effects::store::SEGS[38].1 - crate::effects::store::SEGS[38].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[38].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[38]),
     },
     Moved {
         ida: crate::effects::store::SEGS[39].0,
         len: crate::effects::store::SEGS[39].1 - crate::effects::store::SEGS[39].0,
-        home: Home::Address(
-            crate::effects::store::home_of::<{ crate::effects::store::SEGS[39].0 }>,
-        ),
+        home: Home::Store(&crate::effects::store::SEGMENTS[39]),
     },
     Moved {
         ida: crate::effects::shape_points::ShapeInputs::START,
@@ -1931,22 +1871,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::windscreen_drop_vars::WindscreenDropVars::START,
         len: crate::effects::windscreen_drop_vars::WindscreenDropVars::LEN,
-        home: Home::Address(crate::effects::windscreen_drop_vars::WindscreenDropVars::home),
+        home: Home::Store(&crate::effects::windscreen_drop_vars::HEX),
     },
     Moved {
         ida: crate::effects::mask_vars::MaskVars::START,
         len: crate::effects::mask_vars::MaskVars::LEN,
-        home: Home::Address(crate::effects::mask_vars::MaskVars::home),
+        home: Home::Store(&crate::effects::mask_vars::MASKS),
     },
     Moved {
         ida: crate::effects::mask_picks::MaskPicks::START,
         len: crate::effects::mask_picks::MaskPicks::LEN,
-        home: Home::Address(crate::effects::mask_picks::MaskPicks::home),
+        home: Home::Store(&crate::effects::mask_picks::PICKS),
     },
     Moved {
         ida: crate::effects::shape_work::ShapeWork::START,
         len: crate::effects::shape_work::ShapeWork::LEN,
-        home: Home::Address(crate::effects::shape_work::ShapeWork::home),
+        home: Home::Store(&crate::effects::shape_work::SHAPE_WORK),
     },
     Moved {
         ida: crate::effects::shape_points::ShapeSetTuning::START,
@@ -1971,7 +1911,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::LEN,
-        home: Home::Address(crate::effects::windscreen_flakes_store::WindscreenFlakeItems::home),
+        home: Home::Store(&crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_ITEMS),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeState::START,
@@ -1981,7 +1921,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::edges::EdgeSettings::START,
         len: crate::effects::edges::EdgeSettings::LEN,
-        home: Home::Address(crate::effects::edges::EdgeSettings::home),
+        home: Home::Store(&crate::effects::edges::EDGE_SETTINGS),
     },
     Moved {
         ida: crate::effects::rain::RainState::START,
@@ -2001,7 +1941,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::snow::SnowState::START,
         len: crate::effects::snow::SnowState::LEN,
-        home: Home::Address(crate::effects::snow::SnowState::home),
+        home: Home::Store(&crate::effects::snow::SNOW),
     },
     Moved {
         ida: crate::effects::snow::SnowCurve::START,
@@ -2021,7 +1961,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::blocks::PlacesBlock::START,
         len: crate::effects::blocks::PlacesBlock::LEN,
-        home: Home::Address(crate::effects::blocks::PlacesBlock::home),
+        home: Home::Store(&crate::effects::blocks::PLACES_BLOCK),
     },
     Moved {
         ida: crate::effects::profiles::ProfileRings::START,
@@ -2041,7 +1981,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::blocks::MarkCorners::START,
         len: crate::effects::blocks::MarkCorners::LEN,
-        home: Home::Address(crate::effects::blocks::MarkCorners::home),
+        home: Home::Store(&crate::effects::blocks::MARK_CORNERS),
     },
     Moved {
         ida: crate::effects::frame_state::ViewVars::START,
@@ -2086,12 +2026,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::blocks::MarkLinks::START,
         len: crate::effects::blocks::MarkLinks::LEN,
-        home: Home::Address(crate::effects::blocks::MarkLinks::home),
+        home: Home::Store(&crate::effects::blocks::MARK_LINKS),
     },
     Moved {
         ida: crate::effects::blocks::CornerSlopes::START,
         len: crate::effects::blocks::CornerSlopes::LEN,
-        home: Home::Address(crate::effects::blocks::CornerSlopes::home),
+        home: Home::Store(&crate::effects::blocks::CORNER_SLOPES),
     },
     Moved {
         ida: crate::effects::run_particles::TrailColours::START,
@@ -2106,12 +2046,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_store::Quad1::START,
         len: crate::effects::kind_store::Quad1::LEN,
-        home: Home::Address(crate::effects::kind_store::Quad1::home),
+        home: Home::Store(&crate::effects::kind_store::QUAD_1),
     },
     Moved {
         ida: crate::effects::kind_store::Tables1::START,
         len: crate::effects::kind_store::Tables1::LEN,
-        home: Home::Address(crate::effects::kind_store::Tables1::home),
+        home: Home::Store(&crate::effects::kind_store::TABLES_1),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtras1::START,
@@ -2121,17 +2061,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_store::Consts1::START,
         len: crate::effects::kind_store::Consts1::LEN,
-        home: Home::Address(crate::effects::kind_store::Consts1::home),
+        home: Home::Store(&crate::effects::kind_store::CONSTS_1),
     },
     Moved {
         ida: crate::effects::kind_store::Quad2::START,
         len: crate::effects::kind_store::Quad2::LEN,
-        home: Home::Address(crate::effects::kind_store::Quad2::home),
+        home: Home::Store(&crate::effects::kind_store::QUAD_2),
     },
     Moved {
         ida: crate::effects::kind_store::Tables2::START,
         len: crate::effects::kind_store::Tables2::LEN,
-        home: Home::Address(crate::effects::kind_store::Tables2::home),
+        home: Home::Store(&crate::effects::kind_store::TABLES_2),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtra2::START,
@@ -2141,27 +2081,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_store::Consts2::START,
         len: crate::effects::kind_store::Consts2::LEN,
-        home: Home::Address(crate::effects::kind_store::Consts2::home),
+        home: Home::Store(&crate::effects::kind_store::CONSTS_2),
     },
     Moved {
         ida: crate::effects::kind_store::Quad3::START,
         len: crate::effects::kind_store::Quad3::LEN,
-        home: Home::Address(crate::effects::kind_store::Quad3::home),
+        home: Home::Store(&crate::effects::kind_store::QUAD_3),
     },
     Moved {
         ida: crate::effects::mask_store::GroundNames::START,
         len: crate::effects::mask_store::GroundNames::LEN,
-        home: Home::Address(crate::effects::mask_store::GroundNames::home),
+        home: Home::Store(&crate::effects::mask_store::GROUND_NAMES),
     },
     Moved {
         ida: crate::effects::mask_store::MaskBlocks::START,
         len: crate::effects::mask_store::MaskBlocks::LEN,
-        home: Home::Address(crate::effects::mask_store::MaskBlocks::home),
+        home: Home::Store(&crate::effects::mask_store::MASK_BLOCKS),
     },
     Moved {
         ida: crate::effects::mask_store::PictureCopy::START,
         len: crate::effects::mask_store::PictureCopy::LEN,
-        home: Home::Address(crate::effects::mask_store::PictureCopy::home),
+        home: Home::Store(&crate::effects::mask_store::PICTURE_COPY),
     },
     Moved {
         ida: crate::effects::mask_store::KindPictures::START,
@@ -2251,12 +2191,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::emit_bursts::FirstTuning::START,
         len: crate::effects::emit_bursts::FirstTuning::LEN,
-        home: Home::Address(crate::effects::emit_bursts::FirstTuning::home),
+        home: Home::Store(&crate::effects::emit_bursts::FIRST_TUNING),
     },
     Moved {
         ida: crate::effects::emit_bursts_2::SecondTuning::START,
         len: crate::effects::emit_bursts_2::SecondTuning::LEN,
-        home: Home::Address(crate::effects::emit_bursts_2::SecondTuning::home),
+        home: Home::Store(&crate::effects::emit_bursts_2::SECOND_TUNING),
     },
     Moved {
         ida: crate::effects::emit_particle_6::Kind6Set::START,
@@ -2271,12 +2211,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::emit_particle_19::NineteenthTuning::START,
         len: crate::effects::emit_particle_19::NineteenthTuning::LEN,
-        home: Home::Address(crate::effects::emit_particle_19::NineteenthTuning::home),
+        home: Home::Store(&crate::effects::emit_particle_19::NINETEENTH_TUNING),
     },
     Moved {
         ida: crate::effects::emit_particle_22::TwentySecondTuning::START,
         len: crate::effects::emit_particle_22::TwentySecondTuning::LEN,
-        home: Home::Address(crate::effects::emit_particle_22::TwentySecondTuning::home),
+        home: Home::Store(&crate::effects::emit_particle_22::TWENTY_SECOND_TUNING),
     },
     Moved {
         ida: crate::effects::run_ring::RingKinds::START,
