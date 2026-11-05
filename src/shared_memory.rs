@@ -1,42 +1,23 @@
 //! Copies in and out of memory the game's threads share. The game keeps its state in memory
 //! every thread reaches, so a plain or volatile copy that meets another thread's write is a
 //! data race: undefined behaviour in Rust (found by ThreadSanitizer: the key table, the sound
-//! options). These copy through relaxed atomics, the same moves on the processor, widest
-//! first on aligned places, so an aligned dword stays whole as it did in the original.
+//! options). These copy through relaxed atomics byte by byte (2026-11-05: wider moves over
+//! the same bytes mixed sizes), so a dword copied here may be seen half written by another
+//! thread; the cells that need a dword whole are `Dword`s, read at their own width.
 
 #![allow(unsafe_code)]
 
 use std::mem::MaybeUninit;
-#[cfg(target_pointer_width = "64")]
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering::Relaxed;
-use std::sync::atomic::{AtomicU8, AtomicU16, AtomicUsize};
 
-/// Calls `$step!(atomic, integer)` over `$len` bytes from `$at`, each on an aligned place.
+/// Calls `$step!(atomic, integer)` over `$len` bytes from `$at`, byte by byte: shared bytes
+/// are reached at one width only, so no access mixes sizes with another (in Rust's model a
+/// mixed-size race is undefined).
 macro_rules! walk {
     ($at:expr, $len:expr, $n:ident, $step:ident) => {
-        let aligned = |n: usize, width: usize| ($at as usize + n).is_multiple_of(width);
-        if $len - $n >= 1 && !aligned($n, 2) {
-            $step!(AtomicU8, u8);
-        }
-        if $len - $n >= 2 && !aligned($n, 4) {
-            $step!(AtomicU16, u16);
-        }
-        #[cfg(target_pointer_width = "64")]
-        if $len - $n >= 4 && !aligned($n, 8) {
-            $step!(AtomicU32, u32);
-        }
-        while $len - $n >= size_of::<usize>() {
-            $step!(AtomicUsize, usize);
-        }
-        #[cfg(target_pointer_width = "64")]
-        if $len - $n >= 4 {
-            $step!(AtomicU32, u32);
-        }
-        if $len - $n >= 2 {
-            $step!(AtomicU16, u16);
-        }
-        if $len - $n >= 1 {
+        let _ = $at;
+        while $n < $len {
             $step!(AtomicU8, u8);
         }
     };
@@ -134,6 +115,78 @@ pub unsafe fn copy(from: *const u8, to: *mut u8, len: usize) {
 ///
 /// # Safety
 /// `from` is valid for reads of a `T`, and its bytes make a valid `T`.
+/// The bytes from `offset` of an object of `size` bytes at `base`, which is 4-aligned, copied
+/// into `to`: each whole dword of the object (`size` rounded down to 4) read as one
+/// `AtomicU32` (whole, as the processor read the original's dwords), the bytes past them as
+/// `AtomicU8`. Every access to the object takes these widths, whatever its offset and length,
+/// so none mixes sizes.
+///
+/// # Safety
+/// `base` is 4-aligned and starts `size` live bytes that are reached only through
+/// `load_words` / `store_words`, and `offset + to.len() <= size`.
+pub unsafe fn load_words(base: *const u8, size: usize, offset: usize, to: &mut [u8]) {
+    use std::sync::atomic::AtomicU32;
+    let words = size & !3;
+    let end = offset + to.len();
+    let mut at = offset;
+    while at < end {
+        if at < words {
+            let word = at & !3;
+            // SAFETY: a whole dword of the object, 4-aligned (the caller's promise).
+            let bytes = unsafe { AtomicU32::from_ptr(base.add(word).cast_mut().cast()) }
+                .load(Relaxed)
+                .to_ne_bytes();
+            let upto = end.min(word + 4);
+            to[at - offset..upto - offset].copy_from_slice(&bytes[at - word..upto - word]);
+            at = upto;
+        } else {
+            // SAFETY: a byte of the object past its whole dwords.
+            to[at - offset] = unsafe { AtomicU8::from_ptr(base.add(at).cast_mut()) }.load(Relaxed);
+            at += 1;
+        }
+    }
+}
+
+/// `from` written at `offset` of the object `load_words` reads: a whole dword stored, a part
+/// of one merged into it by one compare-and-swap (the other bytes kept as another thread left
+/// them), the bytes past the whole dwords one by one.
+///
+/// # Safety
+/// As `load_words`'.
+pub unsafe fn store_words(base: *mut u8, size: usize, offset: usize, from: &[u8]) {
+    use std::sync::atomic::AtomicU32;
+    let words = size & !3;
+    let end = offset + from.len();
+    let mut at = offset;
+    while at < end {
+        if at < words {
+            let word = at & !3;
+            let upto = end.min(word + 4);
+            let new = &from[at - offset..upto - offset];
+            // SAFETY: as `load_words`'.
+            let cell = unsafe { AtomicU32::from_ptr(base.add(word).cast()) };
+            if new.len() == 4 {
+                cell.store(
+                    u32::from_ne_bytes([new[0], new[1], new[2], new[3]]),
+                    Relaxed,
+                );
+            } else {
+                let _ = cell.try_update(Relaxed, Relaxed, |old| {
+                    let mut bytes = old.to_ne_bytes();
+                    bytes[at - word..upto - word].copy_from_slice(new);
+                    Some(u32::from_ne_bytes(bytes))
+                });
+            }
+            at = upto;
+        } else {
+            // SAFETY: as `load_words`'.
+            unsafe { AtomicU8::from_ptr(base.add(at)) }.store(from[at - offset], Relaxed);
+            at += 1;
+        }
+    }
+}
+
+#[cfg(test)]
 #[inline]
 pub unsafe fn read<T: Copy>(from: *const T) -> T {
     let mut value = MaybeUninit::<T>::uninit();
@@ -148,6 +201,7 @@ pub unsafe fn read<T: Copy>(from: *const T) -> T {
 ///
 /// # Safety
 /// `to` is valid for writes of a `T`.
+#[cfg(test)]
 #[inline]
 pub unsafe fn write<T: Copy>(to: *mut T, value: T) {
     // SAFETY: as promised; `value` is private.
@@ -214,27 +268,59 @@ mod tests {
         }
     }
 
-    /// A dword written whole is never seen half written (aligned dwords in a copy).
+    /// A dword written whole is never seen half written (the word copies of a 4-aligned
+    /// object); the writer stops even when the check fails.
     #[test]
     fn an_aligned_dword_stays_whole() {
         use std::sync::atomic::{AtomicBool, AtomicU32};
-        let cell = AtomicU32::new(0);
+        let cell = [AtomicU32::new(0), AtomicU32::new(0)];
+        let base = cell.as_ptr().cast::<u8>().cast_mut();
         let stop = AtomicBool::new(false);
+        struct Stop<'a>(&'a AtomicBool);
+        impl Drop for Stop<'_> {
+            fn drop(&mut self) {
+                self.0.store(true, Relaxed);
+            }
+        }
         std::thread::scope(|s| {
-            s.spawn(|| {
+            let _stop = Stop(&stop);
+            let base = base as usize;
+            let stop = &stop;
+            s.spawn(move || {
                 let mut v = 0u32;
                 while !stop.load(Relaxed) {
                     v = !v;
-                    // SAFETY: the cell is alive and aligned.
-                    unsafe { write(cell.as_ptr(), v) };
+                    // SAFETY: the cells are alive, aligned, and reached only by word copies.
+                    unsafe {
+                        store_words(
+                            base as *mut u8,
+                            8,
+                            0,
+                            &[v.to_ne_bytes(), v.to_ne_bytes()].concat(),
+                        );
+                    }
                 }
             });
             for _ in 0..if cfg!(miri) { 50 } else { 100_000 } {
+                let mut seen = [0u8; 6];
                 // SAFETY: as above.
-                let seen = unsafe { read(cell.as_ptr()) };
-                assert!(seen == 0 || seen == u32::MAX);
+                unsafe { load_words(base as *const u8, 8, 1, &mut seen) };
+                let first = u32::from_ne_bytes([0, seen[0], seen[1], seen[2]]) >> 8;
+                assert!(first == 0 || first == 0x00FF_FFFF, "{seen:?}");
             }
-            stop.store(true, Relaxed);
         });
+    }
+
+    #[test]
+    fn word_copies_keep_the_other_bytes() {
+        let mut object = [0u32; 3];
+        let base = object.as_mut_ptr().cast::<u8>();
+        // SAFETY: the array's own bytes, reached only by word copies here.
+        unsafe {
+            store_words(base, 11, 3, &[1, 2, 3, 4, 5, 6, 7, 8]);
+            let mut back = [0u8; 11];
+            load_words(base, 11, 0, &mut back);
+            assert_eq!(back, [0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        }
     }
 }

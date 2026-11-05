@@ -822,11 +822,30 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
         CellAt::atomic(CellKind::Bytes, N)
     }
 }
-// SAFETY: an `UnsafeCell` over a plain record (any bytes make one, `Plain`), read and
-// written through `shared_memory` as `Bytes`: all of it one run of shared bytes.
+// SAFETY: an `UnsafeCell` over a plain record (any bytes make one, `Plain`), at the widths
+// its `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
+// `AtomicU32`s, the bytes past them `AtomicU8`s; a packed record one run of shared bytes.
 unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::Bytes, size_of::<T>())
+    fn cell_at(offset: usize) -> CellAt {
+        let size = size_of::<T>();
+        let words = size & !3;
+        if !crate::session::Shared::<T>::WORDS {
+            CellAt::atomic(CellKind::Bytes, size)
+        } else if offset < words {
+            CellAt {
+                start: offset & !3,
+                len: 4,
+                kind: CellKind::U32,
+                run_end: words,
+            }
+        } else {
+            CellAt {
+                start: offset,
+                len: 1,
+                kind: CellKind::U8,
+                run_end: size,
+            }
+        }
     }
 }
 // SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.

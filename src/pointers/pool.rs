@@ -25,8 +25,8 @@ pub struct PoolBlock {
     bytes: &'static [UnsafeCell<u8>],
 }
 
-// SAFETY: the bytes are reached only as shared memory (`shared_memory`'s relaxed atomics,
-// the discipline of every `Bytes`), or through the platform's slices under their promises.
+// SAFETY: the bytes are reached only as shared memory (`shared_memory`'s word copies, one
+// width per byte), or through the platform's slices under their promises.
 unsafe impl Sync for PoolBlock {}
 // SAFETY: as above.
 unsafe impl Send for PoolBlock {}
@@ -68,17 +68,16 @@ unsafe impl crate::pointers::Store for PoolBlock {
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         self.check(offset, to.len())?;
-        // SAFETY: inside the block (checked); `to` is Rust's.
-        unsafe { crate::shared_memory::load(self.as_ptr().add(offset), to.as_mut_ptr(), to.len()) };
+        // SAFETY: inside the block (checked), whole pages so 4-aligned, reached only by word
+        // copies; `to` is Rust's.
+        unsafe { crate::shared_memory::load_words(self.as_ptr(), self.len(), offset, to) };
         Ok(())
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         self.check(offset, from.len())?;
         // SAFETY: as `load`'s.
-        unsafe {
-            crate::shared_memory::store(self.as_ptr().add(offset), from.as_ptr(), from.len());
-        }
+        unsafe { crate::shared_memory::store_words(self.as_ptr(), self.len(), offset, from) };
         Ok(())
     }
 }
@@ -107,8 +106,9 @@ pub fn take(len: usize) -> &'static PoolBlock {
     };
     if let Some((block, zeroed)) = reused {
         if !zeroed {
-            // SAFETY: the block's own bytes; it is lent to no one while in the pool.
-            unsafe { crate::shared_memory::fill(block.as_ptr(), 0, need) };
+            for at in (0..block.len()).step_by(PAGE) {
+                let _ = crate::pointers::Store::store(block, at, &[0; PAGE]);
+            }
         }
         return block;
     }

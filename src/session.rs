@@ -299,20 +299,18 @@ impl Byte {
 }
 
 /// A buffer of the game's bytes (a table, a record handed on by address), shared between the
-/// game's threads as the image's bytes were (`shared_memory`).
+/// game's threads as the image's bytes were: each byte an atomic of its own, reached at that
+/// width only (`shared_memory` copies byte by byte too), so no access mixes sizes.
 #[repr(transparent)]
-pub struct Bytes<const N: usize>(UnsafeCell<[u8; N]>);
-
-// SAFETY: as the image's memory: raw access only, under the original's discipline.
-unsafe impl<const N: usize> Sync for Bytes<N> {}
+pub struct Bytes<const N: usize>([AtomicU8; N]);
 
 impl<const N: usize> Bytes<N> {
     pub const fn new(value: [u8; N]) -> Self {
-        Self(UnsafeCell::new(value))
+        Self(atomic_bytes(value))
     }
 
     pub fn as_ptr(&self) -> *mut u8 {
-        self.0.get().cast()
+        self.0.as_ptr().cast::<u8>().cast_mut()
     }
 
     #[cfg(test)]
@@ -321,36 +319,28 @@ impl<const N: usize> Bytes<N> {
     }
 
     pub fn get(&self, index: usize) -> u8 {
-        assert!(index < N);
-        // SAFETY: `index` is under `N` (asserted).
-        unsafe { crate::shared_memory::read(self.as_ptr().add(index)) }
+        self.0[index].load(Relaxed)
     }
 
     pub fn set(&self, index: usize, value: u8) {
-        assert!(index < N);
-        // SAFETY: as `get`.
-        unsafe { crate::shared_memory::write(self.as_ptr().add(index), value) }
+        self.0[index].store(value, Relaxed);
     }
 
     /// The byte at `index` as an atomic (an `xchg` on a key).
     pub fn atomic(&self, index: usize) -> &AtomicU8 {
-        assert!(index < N);
-        // SAFETY: as `get`; a byte is aligned for its atomic.
-        unsafe { AtomicU8::from_ptr(self.as_ptr().add(index)) }
+        &self.0[index]
     }
 
     /// The little-endian dword at byte `offset` (any alignment, as the game's records are
-    /// read).
+    /// read): four byte reads, so another thread's write of it may be seen half done.
     pub fn get_u32(&self, offset: usize) -> u32 {
-        assert!(offset + 4 <= N);
-        // SAFETY: the four bytes are inside (asserted); unaligned read.
-        unsafe { crate::shared_memory::read(self.as_ptr().add(offset).cast::<u32>()) }
+        u32::from_le_bytes(std::array::from_fn(|i| self.get(offset + i)))
     }
 
     pub fn set_u32(&self, offset: usize, value: u32) {
-        assert!(offset + 4 <= N);
-        // SAFETY: as `get_u32`.
-        unsafe { crate::shared_memory::write(self.as_ptr().add(offset).cast::<u32>(), value) }
+        for (i, b) in value.to_le_bytes().into_iter().enumerate() {
+            self.set(offset + i, b);
+        }
     }
 
     /// All of it.
@@ -409,27 +399,43 @@ impl<const N: usize> Bytes<N> {
     }
 }
 
-/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`).
+/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): four
+/// byte atomics, as `Bytes`.
 #[repr(transparent)]
-pub struct Loose(UnsafeCell<[u8; 4]>);
-
-// SAFETY: as the image's memory: raw access only, under the original's discipline.
-unsafe impl Sync for Loose {}
+pub struct Loose([AtomicU8; 4]);
 
 impl Loose {
     pub const fn new(value: u32) -> Self {
-        Self(UnsafeCell::new(value.to_le_bytes()))
+        Self(atomic_bytes(value.to_le_bytes()))
     }
 
     pub fn get(&self) -> u32 {
-        // SAFETY: the cell holds the four bytes; unaligned read.
-        unsafe { crate::shared_memory::read(self.0.get().cast::<u32>()) }
+        u32::from_le_bytes(std::array::from_fn(|i| self.0[i].load(Relaxed)))
     }
 
     pub fn set(&self, value: u32) {
-        // SAFETY: as `get`.
-        unsafe { crate::shared_memory::write(self.0.get().cast::<u32>(), value) }
+        for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
+            cell.store(b, Relaxed);
+        }
     }
+}
+
+/// `value`'s bytes as atomics (a `const` initialiser of `Bytes` and `Loose`), in one move: a
+/// loop over a table of the game's data is too slow for the compiler's evaluator.
+const fn atomic_bytes<const N: usize>(value: [u8; N]) -> [AtomicU8; N] {
+    use std::mem::ManuallyDrop;
+    union Both<const N: usize> {
+        plain: ManuallyDrop<[u8; N]>,
+        atomic: ManuallyDrop<[AtomicU8; N]>,
+    }
+    // SAFETY: `AtomicU8` has `u8`'s size, alignment and bit validity, so the arrays are the
+    // same bytes; the value is moved, not shared.
+    ManuallyDrop::into_inner(unsafe {
+        Both {
+            plain: ManuallyDrop::new(value),
+        }
+        .atomic
+    })
 }
 
 /// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
@@ -447,15 +453,40 @@ impl<T: Copy> Shared<T> {
         Self(UnsafeCell::new(value))
     }
 
-    /// A copy of the record (a record's fields may be read half changed, as the original's).
+    /// Whether the record is reached by dwords (4-aligned: each whole dword one atomic, as
+    /// the original's dwords were whole) or byte by byte (a packed record).
+    pub const WORDS: bool = align_of::<T>() >= 4;
+
+    /// A copy of the record (a record's fields may be read half changed, as the original's;
+    /// a 4-aligned record's dwords are each read whole).
     pub fn get(&self) -> T {
-        // SAFETY: a plain record read through atomics; a racing write is the original's own, kept until the state has one owner.
-        unsafe { crate::shared_memory::read(self.0.get()) }
+        let mut value = std::mem::MaybeUninit::<T>::uninit();
+        // SAFETY: the record's own bytes, reached only at the widths `WORDS` picks (here and
+        // in its cells, `pointers`); every byte of `value` is written before it is taken.
+        unsafe {
+            let to =
+                std::slice::from_raw_parts_mut(value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+            let base = self.0.get().cast::<u8>();
+            if Self::WORDS {
+                crate::shared_memory::load_words(base, size_of::<T>(), 0, to);
+            } else {
+                crate::shared_memory::load(base, to.as_mut_ptr(), to.len());
+            }
+            value.assume_init()
+        }
     }
 
     pub fn set(&self, value: T) {
-        // SAFETY: as `get`.
-        unsafe { crate::shared_memory::write(self.0.get(), value) }
+        // SAFETY: as `get`'s; `value`'s bytes are only read.
+        unsafe {
+            let from = std::slice::from_raw_parts((&raw const value).cast::<u8>(), size_of::<T>());
+            let base = self.0.get().cast::<u8>();
+            if Self::WORDS {
+                crate::shared_memory::store_words(base, size_of::<T>(), 0, from);
+            } else {
+                crate::shared_memory::store(base, from.as_ptr(), from.len());
+            }
+        }
     }
 
     /// The record changed by `change` (read, changed, written back).
