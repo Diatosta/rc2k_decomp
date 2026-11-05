@@ -29,7 +29,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
     for v in [into.width as u32, into.height as u32, into.bits] {
         put(&mut out, v);
     }
-    let mut textures: Vec<usize> = Vec::new();
+    let mut textures: Vec<crate::pointers::GamePtr> = Vec::new();
     for n in noted {
         if let Command::Fan {
             texture: Some(t), ..
@@ -59,7 +59,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
         put(&mut out, t.len as u32);
         let what = "a noted texture's pixels";
         out.extend(
-            crate::pointers::GamePtr::new(t.pixels as u32)
+            t.pixels
                 .read_bytes(t.len, what)
                 .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
         );

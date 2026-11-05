@@ -181,12 +181,12 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
         .unwrap()
         .get(number)
         .and_then(|l| l.as_ref())
-        .map(|l| l.pixels.addr());
+        .map(|l| l.pixels.ptr());
     if pixels.is_none_or(reads_texture) {
         flush();
     }
     if let Some(pixels) = pixels {
-        crate::render::texture_written(pixels as usize);
+        crate::render::texture_written(pixels);
     }
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
@@ -221,7 +221,7 @@ struct Pending {
     into: Option<Target>,
     noted: Vec<Command>,
     /// The memory of each texture the noted fans read.
-    textures: Vec<u32>,
+    textures: Vec<crate::pointers::GamePtr>,
     /// The states as the last fan had them, until one changes (`forget_states`).
     states: Option<std::sync::Arc<[u32; STATES]>>,
     /// The last fan's texture level, the lock of the levels spared while it holds.
@@ -234,8 +234,8 @@ struct NotedLevel {
     surface: usize,
     /// `LEVELS_CHANGED` when it was read.
     changes: u64,
-    /// Its pixels' address and length and its pitch; `None` for no level.
-    level: Option<(usize, usize, u32)>,
+    /// Its pixels' place (bounded to them) and length and its pitch; `None` for no level.
+    level: Option<(crate::pointers::GamePtr, usize, u32)>,
 }
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
@@ -263,7 +263,7 @@ static PENDING: Mutex<Pending> = Mutex::new(Pending {
 });
 
 /// Whether a noted fan reads the texture whose memory is at `pixels`.
-fn reads_texture(pixels: u32) -> bool {
+fn reads_texture(pixels: crate::pointers::GamePtr) -> bool {
     PENDING.lock().unwrap().textures.contains(&pixels)
 }
 
@@ -298,9 +298,9 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
     if let Command::Fan {
         texture: Some(t), ..
     } = &what
-        && !pending.textures.contains(&(t.pixels as u32))
+        && !pending.textures.contains(&t.pixels)
     {
-        pending.textures.push(t.pixels as u32);
+        pending.textures.push(t.pixels);
     }
     pending.noted.push(what);
 }
@@ -399,7 +399,10 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
 
 /// Surface `surface`'s level (its pixels' address and length, its pitch), as the last fan
 /// with it read it while no level has been made or let go since.
-fn level_of(pending: &mut Pending, surface: usize) -> Option<(usize, usize, u32)> {
+fn level_of(
+    pending: &mut Pending,
+    surface: usize,
+) -> Option<(crate::pointers::GamePtr, usize, u32)> {
     let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
     if let Some(noted) = pending.level
         && noted.surface == surface
@@ -411,7 +414,7 @@ fn level_of(pending: &mut Pending, surface: usize) -> Option<(usize, usize, u32)
     let level = memory
         .get(surface)
         .and_then(|l| l.as_ref())
-        .map(|l| (l.pixels.addr() as usize, l.pixels.len(), l.pitch));
+        .map(|l| (l.pixels.ptr(), l.pixels.len(), l.pitch));
     // Read under the lock: a level made or let go meanwhile has bumped it.
     let changes = LEVELS_CHANGED.load(std::sync::atomic::Ordering::Relaxed);
     pending.level = Some(NotedLevel {
@@ -743,7 +746,7 @@ fn release_pool(pool: usize) {
         for level in 0..LEVELS {
             if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
                 if let Some(gone) = slot {
-                    crate::render::texture_gone(gone.pixels.addr() as usize);
+                    crate::render::texture_gone(gone.pixels.ptr());
                 }
                 *slot = None;
             }
@@ -808,7 +811,7 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
             None => continue,
         };
         if let Some(Some(target)) = memory.get_mut(to) {
-            crate::render::texture_written(target.pixels.addr() as usize);
+            crate::render::texture_written(target.pixels.ptr());
             let n = pixels.len().min(target.pixels.len());
             // SAFETY: this thread draws; the target is not locked while it is loaded.
             let to = unsafe { target.pixels.slice_mut() };

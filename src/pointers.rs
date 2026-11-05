@@ -523,6 +523,13 @@ impl PartialEq for GamePtr {
 
 impl Eq for GamePtr {}
 
+/// By the address, as `PartialEq` (a place's field ends do not make it another place).
+impl std::hash::Hash for GamePtr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.at.hash(state);
+    }
+}
+
 impl GamePtr {
     pub const fn new(addr: u32) -> Self {
         Self {

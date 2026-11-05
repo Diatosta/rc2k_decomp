@@ -25,8 +25,8 @@ pub const STATES: usize = 0x40;
 /// A texture's first level as noted: its memory and how it is laid out.
 #[derive(Clone, Copy)]
 pub struct TextureNote {
-    /// The memory's address (a number: the tiles' threads read it).
-    pub pixels: usize,
+    /// The pixels' place, bounded to their `len` bytes (also the texture's identity).
+    pub pixels: crate::pointers::GamePtr,
     pub len: usize,
     pub width: usize,
     pub height: usize,
@@ -156,13 +156,13 @@ pub fn show_on_panel(target: &Target, frame: &[u8], width: usize, height: usize)
 #[derive(Default)]
 pub(crate) struct TextureChanges {
     /// Written: what a GPU holds of them is to be brought up again.
-    pub written: HashSet<usize>,
+    pub written: HashSet<crate::pointers::GamePtr>,
     /// Gone (their memory given back): what a GPU holds of them is to be let go.
-    pub gone: HashSet<usize>,
+    pub gone: HashSet<crate::pointers::GamePtr>,
 }
 
 impl TextureChanges {
-    fn note(&mut self, pixels: usize, gone: bool) {
+    fn note(&mut self, pixels: crate::pointers::GamePtr, gone: bool) {
         if gone {
             self.written.remove(&pixels);
             self.gone.insert(pixels);
@@ -183,7 +183,7 @@ pub(crate) fn gpu_started() {
     GPU_STARTED.store(true, Relaxed);
 }
 
-fn note_texture_change(pixels: usize, gone: bool) {
+fn note_texture_change(pixels: crate::pointers::GamePtr, gone: bool) {
     if GPU_STARTED.load(Relaxed) {
         CHANGED_TEXTURES
             .lock()
@@ -194,12 +194,12 @@ fn note_texture_change(pixels: usize, gone: bool) {
 }
 
 /// The texture at `pixels` is being written.
-pub fn texture_written(pixels: usize) {
+pub fn texture_written(pixels: crate::pointers::GamePtr) {
     note_texture_change(pixels, false);
 }
 
 /// The texture at `pixels` is gone: its memory has been given back.
-pub fn texture_gone(pixels: usize) {
+pub fn texture_gone(pixels: crate::pointers::GamePtr) {
     note_texture_change(pixels, true);
 }
 
@@ -210,9 +210,7 @@ pub(crate) fn take_changed_textures() -> TextureChanges {
 /// A texture's pixels as bytes of 0xAARRGGBB, its rows without gaps.
 pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
     // SAFETY: as the rasteriser's read: a noted texture is not written while it is drawn from.
-    let pixels = unsafe {
-        crate::pointers::GamePtr::new(note.pixels as u32).slice(note.len, "a texture's pixels")
-    };
+    let pixels = unsafe { note.pixels.slice(note.len, "a texture's pixels") };
     let mut out = Vec::with_capacity(note.width * note.height * 4);
     for y in 0..note.height {
         for x in 0..note.width {
@@ -300,16 +298,17 @@ mod tests {
 
     #[test]
     fn a_texture_gone_is_not_also_written() {
+        let p = crate::pointers::GamePtr::new;
         let mut changes = TextureChanges::default();
-        changes.note(0x100, false);
-        changes.note(0x100, false);
-        changes.note(0x200, false);
-        changes.note(0x200, true);
+        changes.note(p(0x100), false);
+        changes.note(p(0x100), false);
+        changes.note(p(0x200), false);
+        changes.note(p(0x200), true);
         // Gone, then made again at the same address and written: still to be let go.
-        changes.note(0x300, true);
-        changes.note(0x300, false);
-        let mut written: Vec<_> = changes.written.iter().copied().collect();
-        let mut gone: Vec<_> = changes.gone.iter().copied().collect();
+        changes.note(p(0x300), true);
+        changes.note(p(0x300), false);
+        let mut written: Vec<_> = changes.written.iter().map(|t| t.addr()).collect();
+        let mut gone: Vec<_> = changes.gone.iter().map(|t| t.addr()).collect();
         written.sort();
         gone.sort();
         assert_eq!(written, [0x100]);

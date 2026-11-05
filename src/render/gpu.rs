@@ -75,7 +75,7 @@ pub struct Gpu {
     samplers: [*mut SDL_GPUSampler; 4],
     nearest: *mut SDL_GPUSampler,
     white: *mut SDL_GPUTexture,
-    textures: HashMap<usize, CachedTexture>,
+    textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
     vertices: *mut SDL_GPUBuffer,
     vertices_room: u32,
     transfer: *mut SDL_GPUTransferBuffer,
@@ -924,7 +924,7 @@ mod comparison {
         let note = |n: usize| {
             let (width, height, pitch, bytes, masks, len) = notes[n];
             TextureNote {
-                pixels: lent[n].addr() as usize,
+                pixels: crate::pointers::GamePtr::new(lent[n].addr()).limited(len as u32),
                 len,
                 width,
                 height,

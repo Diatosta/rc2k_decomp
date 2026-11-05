@@ -167,10 +167,7 @@ fn draw(into: &Target, noted: Vec<Command>) {
                         let texture = texture.map(|t| Texture {
                             // SAFETY: a noted texture is not written while it is drawn
                             // from: locking it flushes the noted fans first (`lock`).
-                            pixels: unsafe {
-                                crate::pointers::GamePtr::new(t.pixels as u32)
-                                    .slice(t.len, "a texture's pixels")
-                            },
+                            pixels: unsafe { t.pixels.slice(t.len, "a texture's pixels") },
                             width: t.width,
                             height: t.height,
                             pitch: t.pitch,
