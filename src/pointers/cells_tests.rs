@@ -243,3 +243,57 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
     load_cells(&m, 7, &mut out).unwrap();
     assert_eq!(out, [0x05, 0x06, 0xAA, 0xBB, 0xCC, 0xDD]);
 }
+
+#[test]
+#[ignore = "a timing, run by hand in release"]
+fn timing_of_a_deep_read() {
+    use crate::race::work_store::RACE_WORK;
+    let field = &RACE_WORK.no_precipitation;
+    let at = GamePtr::to(field);
+    let n = 2_000_000;
+    let t = std::time::Instant::now();
+    let mut sum = 0u32;
+    for _ in 0..n {
+        let mut b = [0; 4];
+        load_cells(
+            &RACE_WORK,
+            std::mem::offset_of!(crate::race::work_store::RaceWork, no_precipitation),
+            &mut b,
+        )
+        .unwrap();
+        sum = sum.wrapping_add(u32::from_le_bytes(b));
+    }
+    let cells = t.elapsed();
+    let t = std::time::Instant::now();
+    for _ in 0..n {
+        sum = sum.wrapping_add(at.read::<u32>("timing").unwrap());
+    }
+    let ptr = t.elapsed();
+    let t = std::time::Instant::now();
+    for _ in 0..n {
+        sum = sum.wrapping_add(std::hint::black_box(field).get());
+    }
+    let typed = t.elapsed();
+    eprintln!(
+        "per read: load_cells {:?}, GamePtr::read {:?}, typed {:?} ({sum})",
+        cells / n,
+        ptr / n,
+        typed / n
+    );
+}
+
+#[test]
+#[ignore = "a timing, run by hand in release"]
+fn timing_of_a_raw_read() {
+    let block = Box::into_raw(Box::new([7u32; 64]));
+    let start = map(block, 256);
+    register(start, 256);
+    let at = GamePtr::new(start + 60);
+    let n = 2_000_000;
+    let t = std::time::Instant::now();
+    let mut sum = 0u32;
+    for _ in 0..n {
+        sum = sum.wrapping_add(std::hint::black_box(at).read::<u32>("timing").unwrap());
+    }
+    eprintln!("raw GamePtr::read {:?} ({sum})", t.elapsed() / n);
+}

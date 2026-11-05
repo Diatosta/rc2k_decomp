@@ -529,43 +529,24 @@ impl GamePtr {
     #[track_caller]
     pub fn read<T: Plain>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
-        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
-            let mut value = zeroed::<T>();
-            store.load(at, bytes_mut(&mut value))?;
-            return Ok(value);
-        }
-        // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
-        Ok(unsafe { crate::shared_memory::read(host(self.at) as *const T) })
+        let mut value = zeroed::<T>();
+        load_at(self.at, bytes_mut(&mut value))?;
+        Ok(value)
     }
 
     /// The `T` written at the address, when all of it lies in one region.
     #[track_caller]
     pub fn write<T: Plain>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
-        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
-            return store.store(at, bytes_of(&value));
-        }
-        // SAFETY: as `read`; the regions are the game's writable memory.
-        unsafe { crate::shared_memory::write(host(self.at).cast::<T>(), value) };
-        Ok(())
+        store_at(self.at, bytes_of(&value))
     }
 
     /// `len` bytes from the address, copied out.
     #[track_caller]
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         self.check(len, what)?;
-        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
-            let mut bytes = vec![0; len];
-            store.load(at, &mut bytes)?;
-            return Ok(bytes);
-        }
-        // SAFETY: the `len` bytes lie in one live region.
-        let mut bytes = Vec::with_capacity(len);
-        // SAFETY: `bytes` has room for `len`, all set by `load`.
-        unsafe {
-            crate::shared_memory::load(host(self.at), bytes.as_mut_ptr(), len);
-            bytes.set_len(len);
-        }
+        let mut bytes = vec![0; len];
+        load_at(self.at, &mut bytes)?;
         Ok(bytes)
     }
 
@@ -573,15 +554,7 @@ impl GamePtr {
     #[track_caller]
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), BadInput> {
         self.check(bytes.len(), what)?;
-        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
-            return store.store(at, bytes);
-        }
-        // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
-        // copied through a temporary by the caller.
-        unsafe {
-            crate::shared_memory::store(host(self.at), bytes.as_ptr(), bytes.len());
-        }
-        Ok(())
+        store_at(self.at, bytes)
     }
 
     /// `len` bytes copied from here to `to` (overlapping as `memmove`), each side inside one
@@ -784,6 +757,28 @@ fn bytes_mut<T: Plain>(value: &mut T) -> &mut [u8] {
 fn bytes_of<T: Plain>(value: &T) -> &[u8] {
     // SAFETY: a `T` has no padding (`Plain`); the slice borrows it.
     unsafe { std::slice::from_raw_parts(std::ptr::from_ref(value).cast(), size_of::<T>()) }
+}
+
+/// `to.len()` bytes from the game address `addr`, which the caller checked to lie in one
+/// region: through its store when a moved range holds it, else the region's raw bytes (the
+/// one raw read left: blocks from the system, Rust memory lent by address).
+fn load_at(addr: u32, to: &mut [u8]) -> Result<(), BadInput> {
+    if let Some((store, at)) = crate::moved::store_of(addr as usize) {
+        return store.load(at, to);
+    }
+    // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
+    unsafe { crate::shared_memory::load(host(addr), to.as_mut_ptr(), to.len()) };
+    Ok(())
+}
+
+/// `from` written at the game address `addr`, as `load_at` reads.
+fn store_at(addr: u32, from: &[u8]) -> Result<(), BadInput> {
+    if let Some((store, at)) = crate::moved::store_of(addr as usize) {
+        return store.store(at, from);
+    }
+    // SAFETY: as `load_at`'s; the regions are the game's writable memory.
+    unsafe { crate::shared_memory::store(host(addr), from.as_ptr(), from.len()) };
+    Ok(())
 }
 
 /// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
@@ -1000,8 +995,9 @@ pub struct GameBytes {
 
 impl rc2k_core::strings::bytes::Bytes for GameBytes {
     fn byte(&self, at: usize) -> Option<u8> {
-        // SAFETY: `at` is inside the region (checked against its length).
-        (at < self.len).then(|| unsafe { crate::shared_memory::read(host(self.start).add(at)) })
+        let mut byte = [0];
+        // `at` is inside the region (checked against its length).
+        (at < self.len && load_at(self.start + at as u32, &mut byte).is_ok()).then_some(byte[0])
     }
 }
 
@@ -1076,31 +1072,36 @@ impl Window {
     }
 
     /// A checked read; outside its region the program ends (`fatal::raise::end`).
-    pub fn read_or_end<T: Copy>(&self, addr: u32, what: &str) -> T {
-        if let Err(e) = self.check(addr, size_of::<T>(), what) {
+    pub fn read_or_end<T: Plain>(&self, addr: u32, what: &str) -> T {
+        let mut value = zeroed::<T>();
+        if let Err(e) = self
+            .check(addr, size_of::<T>(), what)
+            .and_then(|()| load_at(addr, bytes_mut(&mut value)))
+        {
             crate::fatal::raise::end(what, e)
         }
-        // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { crate::shared_memory::read(host(addr) as *const T) }
+        value
     }
 
     /// A checked write, as `read_or_end`.
-    pub fn write_or_end<T: Copy>(&self, addr: u32, value: T, what: &str) {
-        if let Err(e) = self.check(addr, size_of::<T>(), what) {
+    pub fn write_or_end<T: Plain>(&self, addr: u32, value: T, what: &str) {
+        if let Err(e) = self
+            .check(addr, size_of::<T>(), what)
+            .and_then(|()| store_at(addr, bytes_of(&value)))
+        {
             crate::fatal::raise::end(what, e)
         }
-        // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { crate::shared_memory::write(host(addr).cast::<T>(), value) }
     }
 
     /// Checked bytes written, as `write_or_end`.
     #[track_caller]
     pub fn write_bytes_or_end(&self, addr: u32, bytes: &[u8], what: &str) {
-        if let Err(e) = self.check(addr, bytes.len(), what) {
+        if let Err(e) = self
+            .check(addr, bytes.len(), what)
+            .and_then(|()| store_at(addr, bytes))
+        {
             crate::fatal::raise::end(what, e)
         }
-        // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { crate::shared_memory::store(host(addr), bytes.as_ptr(), bytes.len()) }
     }
 }
 

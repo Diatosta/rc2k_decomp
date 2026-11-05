@@ -46,6 +46,17 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         })
         .collect();
     let indices: Vec<_> = (0..fields.len()).collect();
+    let count = fields.len();
+    // A table built once at compile time where the record has no generics (an item inside the
+    // function cannot name them); with generics, the array is built per call.
+    let starts = if input.generics.params.is_empty() {
+        quote! {
+            const STARTS: [usize; #count] = [#( ::core::mem::offset_of!(#name, #names) ),*];
+            let starts = &STARTS;
+        }
+    } else {
+        quote! { let starts = [#( ::core::mem::offset_of!(Self, #names) ),*]; }
+    };
     quote! {
         const _: () = {
             const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
@@ -60,7 +71,7 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             fn cell_at(offset: usize) -> crate::pointers::CellAt {
                 // The fields' first bytes, rising (`repr(C)`): the field holding `offset` is
                 // the last starting at or before it (one of no size never holds it).
-                let starts = [#( ::core::mem::offset_of!(Self, #names) ),*];
+                #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {
                     #( #indices => <#types as crate::pointers::Cells>::cell_at(
