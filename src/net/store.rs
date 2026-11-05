@@ -138,6 +138,7 @@ impl PlayerBlock {
 
 /// DirectPlay's `DPNAME`.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DpName {
     pub size: Dword,
     pub flags: Dword,
@@ -167,6 +168,7 @@ pub fn put_bytes(cells: &[Dword], bytes: &[u8]) {
 
 /// DirectPlay's `DPSESSIONDESC2` (80 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SessionDesc {
     pub size: Dword,
     pub flags: Dword,
@@ -224,6 +226,7 @@ impl SessionDesc {
 
 /// IDA 0x52A4B0 .. 0x5AB419.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct NetVars {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
     pub receive_done: Dword,
@@ -418,7 +421,7 @@ pub struct NetVars {
     /// 0x5AB3F0: `DPAID_INetPort`.
     pub aid_inet_port: Bytes<16>,
     /// 0x5AB400: `aFilesDGfxChatz`: the text `files\d\gfx\chatzone.pcx`.
-    pub chatzone_file: Bytes<25>,
+    pub chatzone_file: Bytes<28>,
 }
 
 pub static NET: NetVars = NetVars {
@@ -516,16 +519,12 @@ pub static NET: NetVars = NetVars {
     _gap_5ab3b0: Bytes::new(with_runs::<48>(&[(0, b"@V\xb9Yg\x96\xd0\x11\xa7}\x00\x00\xf8\x03\xab\xfc\xa0\x89\xecx\xaf\xe0\xcf\x11\x9cN\x00\xa0\xc9\x05B^\x00\xc2\xdc\xf6\xfe\xa2\xd0\x11\x9cO"), (43, b"\xa0\xc9\x05B^")])),
     aid_inet: Bytes::new(with_runs::<16>(&[(0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"), (11, b"\xa0\xc9\x05B^")])),
     aid_inet_port: Bytes::new(with_runs::<16>(&[(0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"), (11, b"`\x97\xb0\x14\x11")])),
-    chatzone_file: Bytes::new(with_runs::<25>(&[(0, b"files\\d\\gfx\\chatzone.pcx")])),
+    chatzone_file: Bytes::new(with_runs::<28>(&[(0, b"files\\d\\gfx\\chatzone.pcx")])),
 };
 
 impl NetVars {
     pub const START: usize = 0x52A4B0;
     pub const LEN: usize = 0x80F69;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        crate::pointers::game_address(&raw const NET) as usize
-    }
 }
 
 impl NetVars {

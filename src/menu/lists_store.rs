@@ -1479,11 +1479,6 @@ pub const START: usize = 0x7594AA;
 /// IDA 0X75A658, the end of the piece.
 pub const END: usize = 0x75A658;
 
-/// Where IDA 0X7594AA is now (`moved::MOVED`'s home).
-pub fn menu_lists_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENU_LISTS)
-}
-
 /// The tables of text handles (IDA start, entries).
 #[cfg(test)]
 const TEXT_TABLES: [(usize, usize); 6] = [

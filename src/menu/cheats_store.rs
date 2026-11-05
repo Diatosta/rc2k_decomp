@@ -7,6 +7,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The notice flag, the kept car and the cheats (IDA 0x7585D8 .. 0x758714).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Cheats {
     /// `g_noticeDue`: Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
     pub notice_due: Dword,
@@ -61,6 +62,7 @@ pub const START: usize = 0x7585D8;
 pub const END: usize = 0x758714;
 
 /// Where IDA 0x7585D8 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn cheats_addr() -> u32 {
     crate::pointers::game_address(&raw const CHEAT_VARS)
 }

@@ -54,6 +54,7 @@ impl FnList {
 
 /// A list pointer: none (0, as the image starts) or a list.
 #[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
 pub struct ListCell(Dword);
 
 impl ListCell {

@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The lists of car numbers (IDA 0x755258 .. 0x7554C0).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarNumbers {
     /// `unk_755258`: The first list's car numbers, ended by -1 (0x28 entries; the options file's first 0xA0 bytes here).
     pub first_numbers: [Dword; 40],
@@ -58,6 +59,7 @@ pub const START: usize = 0x755258;
 pub const END: usize = 0x7554C0;
 
 /// Where IDA 0x755258 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn car_numbers_addr() -> u32 {
     crate::pointers::game_address(&raw const CAR_NUMBERS)
 }

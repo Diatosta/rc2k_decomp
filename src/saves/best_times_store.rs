@@ -13,6 +13,7 @@ use crate::session::{Bytes, Dword};
 /// Where one table is: its address (the game's; 0 since the tables are typed, phase 12)
 /// and its size in bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
     pub address: Dword,
     pub size: Dword,
@@ -28,6 +29,7 @@ impl TablePlace {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
     /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
     pub memory: Bytes<16>,
@@ -1283,6 +1285,7 @@ pub const START: usize = 0x7475D0;
 pub const END: usize = 0x747660;
 
 /// Where IDA 0x7475D0 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn best_times_addr() -> u32 {
     crate::pointers::game_address(&raw const BEST_TIMES)
 }

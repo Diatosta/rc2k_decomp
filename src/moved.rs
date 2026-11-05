@@ -268,12 +268,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x529DA5, // aName000: the driver names' key, made in place
         len: 8,
-        home: Home::Address(|| crate::settings::read_driver_names::KEY.addr() as usize),
+        home: Home::Store(&crate::settings::read_driver_names::KEY),
     },
     Moved {
         ida: 0x95ECF8, // dword_95ECF8 (a pointer a driver) and unk_95EFC8 (the names' pool), up to 0x960000
         len: 0x1308,
-        home: Home::Address(|| crate::settings::read_driver_names::NAMES.addr() as usize),
+        home: Home::Store(&crate::settings::read_driver_names::NAMES),
     },
     Moved {
         ida: 0x5184F4, // the thread slots: input, audio, network, shutdown
@@ -395,7 +395,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
-        home: Home::Address(|| crate::hud::store::hud_addr() as usize),
+        home: Home::Store(&crate::hud::store::HUD),
     },
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette)
@@ -540,7 +540,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::net::store::NetVars::START, // NetVars
         len: crate::net::store::NetVars::LEN,
-        home: Home::Address(crate::net::store::NetVars::home),
+        home: Home::Store(&crate::net::store::NET),
     },
     Moved {
         ida: crate::install::store::LobbyKeys::START, // LobbyKeys
@@ -625,7 +625,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::screens::draw_message_box::BOX_START, // The message box's rectangle
         len: 16,
-        home: Home::Address(crate::screens::draw_message_box::box_home),
+        home: Home::Store(&crate::screens::draw_message_box::BOX),
     },
     Moved {
         ida: crate::race::frame_text::CREDITS_START, // The credits' state and script
@@ -741,9 +741,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
         len: 0x14,
-        home: Home::Address(|| {
-            (crate::pointers::game_address(crate::saves::load_options::KEPT.as_ptr())) as usize
-        }),
+        home: Home::Store(&crate::saves::load_options::KEPT),
     },
     Moved {
         ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
@@ -842,12 +840,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::preview_store::START,
         len: crate::saves::preview_store::END - crate::saves::preview_store::START,
-        home: Home::Address(|| crate::saves::preview_store::savegame_preview_addr() as usize),
+        home: Home::Store(&crate::saves::preview_store::SAVEGAME_PREVIEW),
     },
     Moved {
         ida: crate::screens::controls_store::START,
         len: crate::screens::controls_store::END - crate::screens::controls_store::START,
-        home: Home::Address(|| crate::screens::controls_store::controls_screen_addr() as usize),
+        home: Home::Store(&crate::screens::controls_store::CONTROLS_SCREEN),
     },
     Moved {
         ida: crate::menu::players_store::START,
@@ -862,72 +860,72 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::cheats_store::START,
         len: crate::menu::cheats_store::END - crate::menu::cheats_store::START,
-        home: Home::Address(|| crate::menu::cheats_store::cheats_addr() as usize),
+        home: Home::Store(&crate::menu::cheats_store::CHEAT_VARS),
     },
     Moved {
         ida: crate::menu::results_store::START,
         len: crate::menu::results_store::END - crate::menu::results_store::START,
-        home: Home::Address(|| crate::menu::results_store::results_addr() as usize),
+        home: Home::Store(&crate::menu::results_store::RESULT_FIGURES),
     },
     Moved {
         ida: crate::menu::arcade_store::START,
         len: crate::menu::arcade_store::END - crate::menu::arcade_store::START,
-        home: Home::Address(|| crate::menu::arcade_store::arcade_addr() as usize),
+        home: Home::Store(&crate::menu::arcade_store::ARCADE_GAME),
     },
     Moved {
         ida: crate::menu::captions_store::START,
         len: crate::menu::captions_store::END - crate::menu::captions_store::START,
-        home: Home::Address(|| crate::menu::captions_store::captions_addr() as usize),
+        home: Home::Store(&crate::menu::captions_store::CAPTIONS),
     },
     Moved {
         ida: crate::menu::pages_store::START,
         len: crate::menu::pages_store::END - crate::menu::pages_store::START,
-        home: Home::Address(|| crate::menu::pages_store::menu_pages_addr() as usize),
+        home: Home::Store(&crate::menu::pages_store::MENU_PAGES),
     },
     Moved {
         ida: crate::menu::car_numbers_store::START,
         len: crate::menu::car_numbers_store::END - crate::menu::car_numbers_store::START,
-        home: Home::Address(|| crate::menu::car_numbers_store::car_numbers_addr() as usize),
+        home: Home::Store(&crate::menu::car_numbers_store::CAR_NUMBERS),
     },
     Moved {
         ida: crate::menu::flow_store::START,
         len: crate::menu::flow_store::END - crate::menu::flow_store::START,
-        home: Home::Address(|| crate::menu::flow_store::screen_flow_addr() as usize),
+        home: Home::Store(&crate::menu::flow_store::SCREEN_FLOW),
     },
     Moved {
         ida: crate::menu::loop_store::START,
         len: crate::menu::loop_store::END - crate::menu::loop_store::START,
-        home: Home::Address(|| crate::menu::loop_store::loop_flags_addr() as usize),
+        home: Home::Store(&crate::menu::loop_store::LOOP_FLAGS),
     },
     Moved {
         ida: crate::menu::keys_store::START,
         len: crate::menu::keys_store::END - crate::menu::keys_store::START,
-        home: Home::Address(|| crate::menu::keys_store::key_tables_addr() as usize),
+        home: Home::Store(&crate::menu::keys_store::KEY_TABLES),
     },
     Moved {
         ida: crate::menu::option_work_store::START,
         len: crate::menu::option_work_store::END - crate::menu::option_work_store::START,
-        home: Home::Address(|| crate::menu::option_work_store::option_work_addr() as usize),
+        home: Home::Store(&crate::menu::option_work_store::OPTION_WORK),
     },
     Moved {
         ida: crate::menu::champ_store::START,
         len: crate::menu::champ_store::END - crate::menu::champ_store::START,
-        home: Home::Address(|| crate::menu::champ_store::champ_view_addr() as usize),
+        home: Home::Store(&crate::menu::champ_store::CHAMP_VIEW),
     },
     Moved {
         ida: crate::menu::names_store::START,
         len: crate::menu::names_store::END - crate::menu::names_store::START,
-        home: Home::Address(|| crate::menu::names_store::names_addr() as usize),
+        home: Home::Store(&crate::menu::names_store::NAME_BUFFERS),
     },
     Moved {
         ida: crate::menu::event_store::START,
         len: crate::menu::event_store::END - crate::menu::event_store::START,
-        home: Home::Address(|| crate::menu::event_store::event_addr() as usize),
+        home: Home::Store(&crate::menu::event_store::EVENT_STATE),
     },
     Moved {
         ida: crate::menu::draw_work_store::START,
         len: crate::menu::draw_work_store::END - crate::menu::draw_work_store::START,
-        home: Home::Address(|| crate::menu::draw_work_store::draw_work_addr() as usize),
+        home: Home::Store(&crate::menu::draw_work_store::DRAW_WORK),
     },
     // the race block's tail (phase 7): the menus' texts (`menu::texts_store`), the stages' tables (`records::stages_store`), the drivers (`menu::drivers_store`), the rallies' best times and the best times' memory (`saves::best_times_store`),
     // the screens' kept items (`menu::screen_items_store`), the items' sprite lists
@@ -945,7 +943,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::drivers_store::START,
         len: crate::menu::drivers_store::END - crate::menu::drivers_store::START,
-        home: Home::Address(|| crate::menu::drivers_store::drivers_addr() as usize),
+        home: Home::Store(&crate::menu::drivers_store::DRIVERS),
     },
     Moved {
         ida: crate::saves::best_times_store::RallyTimes::START,
@@ -956,27 +954,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::best_times_store::START,
         len: crate::saves::best_times_store::END - crate::saves::best_times_store::START,
-        home: Home::Address(|| crate::saves::best_times_store::best_times_addr() as usize),
+        home: Home::Store(&crate::saves::best_times_store::BEST_TIMES),
     },
     Moved {
         ida: crate::menu::screen_items_store::START,
         len: crate::menu::screen_items_store::END - crate::menu::screen_items_store::START,
-        home: Home::Address(|| crate::menu::screen_items_store::screen_items_addr() as usize),
+        home: Home::Store(&crate::menu::screen_items_store::SCREEN_ITEMS),
     },
     Moved {
         ida: crate::menu::item_sprites_store::START,
         len: crate::menu::item_sprites_store::END - crate::menu::item_sprites_store::START,
-        home: Home::Address(|| crate::menu::item_sprites_store::item_sprites_addr() as usize),
+        home: Home::Store(&crate::menu::item_sprites_store::ITEM_SPRITES),
     },
     Moved {
         ida: crate::menu::menus_store::START,
         len: crate::menu::menus_store::END - crate::menu::menus_store::START,
-        home: Home::Address(|| crate::menu::menus_store::menus_addr() as usize),
+        home: Home::Store(&crate::menu::menus_store::MENUS),
     },
     Moved {
         ida: crate::menu::draw_lists_store::START,
         len: crate::menu::draw_lists_store::END - crate::menu::draw_lists_store::START,
-        home: Home::Address(|| crate::menu::draw_lists_store::draw_lists_addr() as usize),
+        home: Home::Store(&crate::menu::draw_lists_store::DRAW_LISTS),
     },
     // the former `rest` module's pieces: typed, each in its owner's module
     Moved {
@@ -997,7 +995,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::system::start_texts::StartTexts::START,
         len: crate::system::start_texts::StartTexts::LEN,
-        home: Home::Address(crate::system::start_texts::StartTexts::home),
+        home: Home::Store(&crate::system::start_texts::START_TEXTS),
     },
     Moved {
         ida: crate::input::guids::InputGuids::START,
@@ -1534,12 +1532,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::lists_store::START,
         len: crate::menu::lists_store::END - crate::menu::lists_store::START,
-        home: Home::Address(|| crate::menu::lists_store::menu_lists_addr() as usize),
+        home: Home::Store(&crate::menu::lists_store::MENU_LISTS),
     },
     Moved {
         ida: crate::menu::state_store::START,
         len: crate::menu::state_store::END - crate::menu::state_store::START,
-        home: Home::Address(|| crate::menu::state_store::menu_state_addr() as usize),
+        home: Home::Store(&crate::menu::state_store::MENU_STATE),
     },
     Moved {
         ida: crate::race::state_store::START,

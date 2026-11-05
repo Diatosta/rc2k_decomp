@@ -201,23 +201,24 @@ impl FontId {
 /// A font a table of the game's keeps (a menu item's): the object by number, where the
 /// original kept its address (phase 13, handles: `moved::point_into_homes` passes these
 /// places over).
-pub struct FontCell(std::sync::atomic::AtomicU32);
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct FontCell(crate::session::Dword);
 
 impl FontCell {
     /// The font at IDA's address `ida` (a constant that is not one fails to compile).
     pub const fn at(ida: u32) -> Self {
-        Self(std::sync::atomic::AtomicU32::new(
+        Self(crate::session::Dword::new(
             FontId::at(ida as usize).0 as u32,
         ))
     }
 
     pub fn get(&self) -> FontId {
-        FontId(self.0.load(std::sync::atomic::Ordering::Relaxed) as usize)
+        FontId(self.0.get() as usize)
     }
 
     pub fn set(&self, font: FontId) {
-        self.0
-            .store(font.0 as u32, std::sync::atomic::Ordering::Relaxed);
+        self.0.set(font.0 as u32);
     }
 }
 

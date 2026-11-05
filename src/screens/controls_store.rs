@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, Word};
 
 /// The controller screen's variables (IDA 0x755170 .. 0x755224).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ControlsScreen {
     /// Unreferenced bytes (IDA 0X755170 .. 0X755178).
     pub _gap_755170: Bytes<8>,
@@ -99,6 +100,7 @@ pub const START: usize = 0x755170;
 pub const END: usize = 0x755224;
 
 /// Where IDA 0X755170 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn controls_screen_addr() -> u32 {
     crate::pointers::game_address(&raw const CONTROLS_SCREEN)
 }

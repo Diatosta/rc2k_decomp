@@ -12,6 +12,7 @@ use crate::session::Dword;
 
 /// A driver's record (0x94 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Driver {
     /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
     pub name_entry: Dword,
@@ -128,6 +129,7 @@ impl Driver {
 
 /// A driver's name entry (0x14 bytes): the string's id and four dwords.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverName {
     pub string: Dword,
     pub field_4: [Dword; 4],
@@ -148,6 +150,7 @@ impl DriverName {
 }
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverTable {
     /// `g_drivers` (0x73B674).
     pub drivers: [Driver; 180],
@@ -7386,6 +7389,7 @@ pub const START: usize = 0x73B674;
 pub const END: usize = 0x742C98;
 
 /// Where IDA 0x73B674 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn drivers_addr() -> u32 {
     crate::pointers::game_address(&raw const DRIVERS)
 }

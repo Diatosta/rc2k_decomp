@@ -1231,6 +1231,7 @@ pub const START: usize = 0x758B72;
 pub const END: usize = 0x7594AA;
 
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn draw_lists_addr() -> u32 {
     crate::pointers::game_address(&raw const DRAW_LISTS)
 }

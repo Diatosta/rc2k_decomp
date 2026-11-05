@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ChampView {
     /// `dword_7556B4`: The rows (players or drivers) the results and standings pages show.
     pub count: Dword,
@@ -94,6 +95,7 @@ pub const START: usize = 0x7556B4;
 pub const END: usize = 0x755784;
 
 /// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn champ_view_addr() -> u32 {
     crate::pointers::game_address(&raw const CHAMP_VIEW)
 }

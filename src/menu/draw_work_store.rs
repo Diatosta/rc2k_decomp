@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The drawing work variables (IDA 0x7559A4 .. 0x755A4C).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// `dword_7559A4`: 1 in the visible half of a blink (`menu::update_blink`).
     pub blink: Dword,
@@ -139,6 +140,7 @@ pub const START: usize = 0x7559A4;
 pub const END: usize = 0x755A4C;
 
 /// Where IDA 0x7559A4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn draw_work_addr() -> u32 {
     crate::pointers::game_address(&raw const DRAW_WORK)
 }

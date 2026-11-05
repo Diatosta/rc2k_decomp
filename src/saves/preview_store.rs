@@ -8,6 +8,7 @@ use crate::session::Dword;
 
 /// The savegame preview (IDA 0x755144 .. 0x755170).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SavegamePreview {
     /// `dword_755144`: the `usesavegamekeys` setting of `var\ral.cfg`; 0 lets
     /// `saves::load_savegame` call `maybeCopySomeData`.
@@ -41,6 +42,7 @@ pub const START: usize = 0x755144;
 pub const END: usize = 0x755170;
 
 /// Where IDA 0X755144 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn savegame_preview_addr() -> u32 {
     crate::pointers::game_address(&raw const SAVEGAME_PREVIEW)
 }

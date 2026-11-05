@@ -7,6 +7,7 @@
 use crate::session::Dword;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ItemSprites {
     pub lists: [[Dword; 5]; 16],
 }
@@ -152,7 +153,9 @@ impl ItemSprite {
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
 /// A menu item's +0x20 (phase 13, handles).
-pub struct SpriteCell(std::sync::atomic::AtomicU32);
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct SpriteCell(crate::session::Dword);
 
 impl SpriteCell {
     /// From the image's value (`ida`: a number, or IDA's address of a list; an address inside
@@ -166,11 +169,11 @@ impl SpriteCell {
             assert!(ida & !0xF != LIST_TAG);
             ida
         };
-        Self(std::sync::atomic::AtomicU32::new(value))
+        Self(crate::session::Dword::new(value))
     }
 
     pub fn get(&self) -> ItemSprite {
-        let v = self.0.load(std::sync::atomic::Ordering::Relaxed);
+        let v = self.0.get();
         if v & !0xF == LIST_TAG {
             ItemSprite::List((v & 0xF) as usize)
         } else {
@@ -189,7 +192,7 @@ impl SpriteCell {
             ItemSprite::List(n) if n < 16 => LIST_TAG | n as u32,
             ItemSprite::List(_) => return Err(crate::errors::BadInput("no such sprite list")),
         };
-        self.0.store(v, std::sync::atomic::Ordering::Relaxed);
+        self.0.set(v);
         Ok(())
     }
 }
@@ -200,6 +203,7 @@ pub const START: usize = 0x747998;
 pub const END: usize = 0x747AD8;
 
 /// Where IDA 0x747998 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn item_sprites_addr() -> u32 {
     crate::pointers::game_address(&raw const ITEM_SPRITES)
 }

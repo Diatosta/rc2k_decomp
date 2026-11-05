@@ -8,6 +8,7 @@ use crate::session::Dword;
 
 /// The list pages and the answer (IDA 0x75523C .. 0x755258).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuPages {
     /// `g_savePage`: The page the list of saved games is on (`menu::item_actions`, `menu::name_lists`).
     pub save_page: Dword,
@@ -42,6 +43,7 @@ pub const START: usize = 0x75523C;
 pub const END: usize = 0x755258;
 
 /// Where IDA 0x75523C is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn menu_pages_addr() -> u32 {
     crate::pointers::game_address(&raw const MENU_PAGES)
 }

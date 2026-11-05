@@ -8,6 +8,7 @@ use crate::session::Bytes;
 
 /// The names and the text backup (IDA 0x755784 .. 0x7558C4).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Names {
     /// `g_playerNames`: The four players' names, 0x20 bytes each (`menu::player_names`).
     pub player_names: Bytes<128>,
@@ -33,6 +34,7 @@ pub const START: usize = 0x755784;
 pub const END: usize = 0x7558C4;
 
 /// Where IDA 0x755784 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn names_addr() -> u32 {
     crate::pointers::game_address(&raw const NAME_BUFFERS)
 }

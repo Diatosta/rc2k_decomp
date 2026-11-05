@@ -16,6 +16,7 @@ use crate::session::Dword;
 
 /// A label: x, y, the font, the string id.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuLabel {
     pub x: Dword,
     pub y: Dword,
@@ -38,6 +39,7 @@ impl MenuLabel {
 
 /// A list of labels: the label and the -1 that ends the list.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LabelList {
     pub label: MenuLabel,
     pub end: Dword,
@@ -54,6 +56,7 @@ impl LabelList {
 
 /// A menu item, 0x5C bytes (IDA's `MenuItem`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuItem {
     pub x: Dword,
     pub y: Dword,
@@ -138,6 +141,26 @@ pub struct Menu<const N: usize> {
     pub end: Dword,
 }
 
+#[allow(
+    unsafe_code,
+    reason = "an `unsafe trait` impl; the derive cannot name the const parameter"
+)]
+// SAFETY: `#[repr(C)]` over a dword, `N` items and a dword, no padding (checked in `cell_at`).
+// (Written by hand: the derive's size check cannot name the const parameter.)
+unsafe impl<const N: usize> crate::pointers::Cells for Menu<N> {
+    fn cell_at(offset: usize) -> crate::pointers::CellAt {
+        const { assert!(core::mem::size_of::<Menu<1>>() == 8 + 0x5C) };
+        let items = core::mem::size_of::<[MenuItem; N]>();
+        if offset < 4 {
+            Dword::cell_at(offset)
+        } else if offset < 4 + items {
+            <[MenuItem; N]>::cell_at(offset - 4).after(4)
+        } else {
+            Dword::cell_at(offset - 4 - items).after(4 + items)
+        }
+    }
+}
+
 impl<const N: usize> Menu<N> {
     pub const fn new(head: u32, items: [MenuItem; N]) -> Self {
         Self {
@@ -155,6 +178,7 @@ impl<const N: usize> Menu<N> {
 
 /// The menus of RAL.EXE, in the image's order (IDA 0x747AD8 .. 0x755144).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuTables {
     /// Label list at IDA 0x747AD8 (the labels of the review_options_485f5e menu).
     pub review_options_485f5e_labels: LabelList,
@@ -1175,6 +1199,7 @@ impl MenuId {
 
 /// A menu pointer: none (0, as the image starts) or a menu.
 #[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuCell(Dword);
 
 impl MenuCell {

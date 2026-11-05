@@ -17,7 +17,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::moved::Place;
+use crate::session::Bytes;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
 
@@ -26,14 +26,14 @@ use crate::strings::format_u32::format_u32;
 /// "var\name.cfg" (0x529D98 in the image), what `system::load_game_data` hands in.
 static PATH: &[u8; 13] = b"var\\name.cfg\0";
 /// aName000 (0x529DA5 in the image, 8 bytes): the key, made in place.
-pub static KEY: Place<[u8; 8]> = Place::new(*b"name000\0");
+pub static KEY: Bytes<8> = Bytes::new(*b"name000\0");
 const DRIVERS: usize = 180;
 /// 0x95ECF8 .. 0x960000 in the image (bss): dword_95ECF8, a pointer a driver (`NAMES_LEN`
 /// bytes), then the pool of names, unk_95EFC8, up to unk_960000: room for about 130 names of
 /// the full length, not for 180. Nothing else reads either.
 const NAMES_LEN: usize = DRIVERS * 4;
 const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
-pub static NAMES: Place<[u8; NAMES_LEN + POOL_ROOM]> = Place::new([0; NAMES_LEN + POOL_ROOM]);
+pub static NAMES: Bytes<{ NAMES_LEN + POOL_ROOM }> = Bytes::new([0; NAMES_LEN + POOL_ROOM]);
 
 /// The text of a driver's name from its pointer slot: the slot keeps the name's byte offset
 /// in `NAMES` (the original kept its address), 0 for none. Bounded to `NAMES`.
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn data_starts_as_the_games() {
         assert_eq!(&image_bytes(0x529D98, 13)[..], &super::PATH[..]);
-        let key = unsafe { *super::KEY.ptr() };
+        let key: Vec<u8> = (0..8).map(|i| super::KEY.get(i)).collect();
         assert_eq!(&image_bytes(0x529DA5, 8)[..], &key[..]);
         assert!(
             image_bytes(0x95ECF8, super::NAMES_LEN + super::POOL_ROOM)

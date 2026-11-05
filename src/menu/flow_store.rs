@@ -10,6 +10,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenFlow {
     /// `g_startSection`: The section an event starts at (`menu::run_championship`); the same variable is the first car colour `menu::next_colour_a` chooses, which `saves::gather_savegame` puts in car 0 at +0x14.
     pub start_section: Dword,
@@ -46,7 +47,7 @@ pub struct ScreenFlow {
     /// `g_sceneList`: The screen's 3D list.
     pub scene_list: ListCell,
     /// Unreferenced bytes (IDA 0x755508 .. 0x755525).
-    pub _gap_755508: Bytes<29>,
+    pub _gap_755508: Bytes<32>,
 }
 
 /// First values the image's (`tests::screen_flow_starts_as_the_games`).
@@ -68,7 +69,7 @@ pub static SCREEN_FLOW: ScreenFlow = ScreenFlow {
     overlay_list: ListCell::new(),
     setup_list: ListCell::new(),
     scene_list: ListCell::new(),
-    _gap_755508: Bytes::new(with_runs::<29>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
+    _gap_755508: Bytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
 };
 
 /// IDA 0x7554C0, the first byte of the piece.
@@ -77,6 +78,7 @@ pub const START: usize = 0x7554C0;
 pub const END: usize = 0x755525;
 
 /// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn screen_flow_addr() -> u32 {
     crate::pointers::game_address(&raw const SCREEN_FLOW)
 }

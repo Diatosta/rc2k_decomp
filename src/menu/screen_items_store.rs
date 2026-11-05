@@ -98,6 +98,7 @@ pub mod slot {
 pub const SLOTS: usize = 103;
 
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenItems {
     /// `dword_747660` ..: the item highlighted when the screen was last left.
     pub current: [Dword; SLOTS],
@@ -324,6 +325,7 @@ pub const START: usize = 0x747660;
 pub const END: usize = 0x747998;
 
 /// Where IDA 0x747660 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn screen_items_addr() -> u32 {
     crate::pointers::game_address(&raw const SCREEN_ITEMS)
 }

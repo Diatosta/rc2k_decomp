@@ -352,6 +352,7 @@ pub const START: usize = 0x758806;
 pub const END: usize = 0x758B72;
 
 /// Where IDA 0x758806 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn captions_addr() -> u32 {
     crate::pointers::game_address(&raw const CAPTIONS)
 }

@@ -58,6 +58,7 @@ pub const START: usize = 0x758714;
 pub const END: usize = 0x7587E8;
 
 /// Where IDA 0x758714 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn results_addr() -> u32 {
     crate::pointers::game_address(&raw const RESULT_FIGURES)
 }

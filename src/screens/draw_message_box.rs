@@ -23,11 +23,6 @@ pub const BOX_START: usize = 0x52983C;
 /// `dword_52983C` .. `dword_529848`: the box's rectangle (left, top, width, height).
 pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new(0) }; 4];
 
-/// Where the rectangle is (`moved::MOVED`'s home for IDA 0x52983C).
-pub fn box_home() -> usize {
-    (crate::pointers::game_address(BOX.as_ptr())) as usize
-}
-
 /// The Rust version (`x` the caller's ecx).
 pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use crate::gfx::rect::{Palette, fill_rect, frame_rect};

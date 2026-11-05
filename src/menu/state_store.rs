@@ -313,11 +313,6 @@ pub const START: usize = 0x75A658;
 /// IDA 0X75ACCC, the end of the piece.
 pub const END: usize = 0x75ACCC;
 
-/// Where IDA 0X75A658 is now (`moved::MOVED`'s home).
-pub fn menu_state_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENU_STATE)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

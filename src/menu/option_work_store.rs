@@ -8,6 +8,7 @@ use crate::session::Dword;
 
 /// The options' work copies (IDA 0x755640 .. 0x7556B4).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
     /// `dword_755640`: A visual page switch (a copy of `dword_4F50D0`; `menu::toggle_755640`).
     pub switch_0: Dword,
@@ -108,6 +109,7 @@ pub const START: usize = 0x755640;
 pub const END: usize = 0x7556B4;
 
 /// Where IDA 0x755640 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn option_work_addr() -> u32 {
     crate::pointers::game_address(&raw const OPTION_WORK)
 }

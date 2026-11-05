@@ -9,6 +9,7 @@ use crate::session::{Bytes, Dword};
 
 /// The menu loop's flags (IDA 0x755525 .. 0x755595).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LoopFlags {
     /// `dword_755525`: The highlighted menu item, from 1.
     pub item: Dword,
@@ -76,6 +77,7 @@ pub const START: usize = 0x755525;
 pub const END: usize = 0x755595;
 
 /// Where IDA 0x755525 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn loop_flags_addr() -> u32 {
     crate::pointers::game_address(&raw const LOOP_FLAGS)
 }

@@ -8,6 +8,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The event's state (IDA 0x7558C4 .. 0x7559A4).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Event {
     /// `dword_7558C4`: Not worked out.
     pub dword_7558c4: Dword,
@@ -186,6 +187,7 @@ pub const START: usize = 0x7558C4;
 pub const END: usize = 0x7559A4;
 
 /// Where IDA 0x7558C4 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn event_addr() -> u32 {
     crate::pointers::game_address(&raw const EVENT_STATE)
 }

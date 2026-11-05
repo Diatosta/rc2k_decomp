@@ -20,6 +20,7 @@ pub const LEN: usize = 0x764F2C - START;
 
 /// One of the texture's rectangles (`g_hudRects`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Rect {
     pub left: Dword,
     pub top: Dword,
@@ -40,6 +41,7 @@ impl Rect {
 
 /// A batch vertex (Direct3D's transformed and lit vertex, 0x20 bytes).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Vertex {
     pub x: Float,
     pub y: Float,
@@ -68,6 +70,7 @@ impl Vertex {
 
 /// The HUD's variables (IDA 0x75B940 .. 0x764F2C, the image's layout).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Hud {
     /// `g_hudRects` (92 rectangles) and `dword_75BF00` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
@@ -508,6 +511,7 @@ pub static HUD: Hud = Hud {
 };
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
+#[cfg(test)]
 pub fn hud_addr() -> u32 {
     crate::pointers::game_address(&raw const HUD)
 }

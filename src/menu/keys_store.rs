@@ -8,6 +8,7 @@ use crate::session::{Bytes, with_runs};
 
 /// The keys' tables (IDA 0x755595 .. 0x755640).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct KeyTables {
     /// `g_redefinedKeys`: The copy of the player's twelve keys the page works on (`menu::redefine_keys`).
     pub redefined_keys: Bytes<14>,
@@ -52,6 +53,7 @@ pub const START: usize = 0x755595;
 pub const END: usize = 0x755640;
 
 /// Where IDA 0x755595 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn key_tables_addr() -> u32 {
     crate::pointers::game_address(&raw const KEY_TABLES)
 }
