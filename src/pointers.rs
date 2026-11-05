@@ -26,6 +26,8 @@ use crate::framework::log;
 use std::collections::BTreeMap;
 use std::sync::RwLock;
 
+pub mod pool;
+
 /// The blocks taken from the system: start -> length.
 static BLOCKS: RwLock<BTreeMap<u32, u32>> = RwLock::new(BTreeMap::new());
 
@@ -93,8 +95,14 @@ impl std::fmt::Debug for Backing {
     }
 }
 
+/// The pool's blocks lent to the game, by their game address: each a store of its own.
+static POOL_HOMES: RwLock<BTreeMap<u32, &'static pool::PoolBlock>> = RwLock::new(BTreeMap::new());
+
 /// The backing of the region that starts at `start`.
 fn backing_of(start: u32) -> Backing {
+    if let Some(&block) = POOL_HOMES.read().ok().as_ref().and_then(|h| h.get(&start)) {
+        return Backing::Store(block, start);
+    }
     match crate::moved::store_of(start as usize) {
         Some((store, 0)) => Backing::Store(store, start),
         _ => Backing::Raw,
@@ -309,19 +317,37 @@ pub fn map(p: impl HostPointer, len: usize) -> u32 {
     crate::address_map::map(p.exposed(), len)
 }
 
-/// Host memory handed to the game for good or until `forget`: a game range and a region
-/// (a platform object, a block from the system). Its game address.
+/// Host memory handed to the game until `forget` (the tests' buffers): a game range and a
+/// region. Its game address.
+#[cfg(test)]
 pub fn lend(p: impl HostPointer, len: usize) -> u32 {
     let at = map(p, len);
     register(at, len as u32);
     at
 }
 
-/// As `lend`, for a block from the system (`register_system_block`'s whole pages).
-pub fn lend_system_block(p: impl HostPointer, len: usize) -> u32 {
-    let at = map(p, len.next_multiple_of(0x1000));
-    register_system_block(at, len as u32);
+/// A block of the pool lent to the game until `forget_block`: a game range over the whole
+/// block, a region of `len` bytes from its start (whole pages for a block from the system,
+/// `system`: `register_system_block`), the block its store. Its game address.
+pub fn lend_block(block: &'static pool::PoolBlock, len: usize, system: bool) -> u32 {
+    let at = map(block.as_ptr(), block.len());
+    if let Ok(mut homes) = POOL_HOMES.write() {
+        homes.insert(at, block);
+    }
+    if system {
+        register_system_block(at, len as u32);
+    } else {
+        register(at, len as u32);
+    }
     at
+}
+
+/// A lent block given back: its region, its store and its game range; the block, for the
+/// pool (None for an address `lend_block` did not hand out).
+pub fn forget_block(at: u32) -> Option<&'static pool::PoolBlock> {
+    let block = POOL_HOMES.write().ok()?.remove(&at)?;
+    forget(at);
+    Some(block)
 }
 
 /// Lent memory given back: its region and its game range.
@@ -1301,25 +1327,20 @@ impl Window {
 /// long as they live. They are held by a raw pointer, so a write by address is allowed
 /// (a `Vec` lent through `&[u8]` gives read permission only: Miri, 2026-10-31).
 pub struct LentBytes {
-    at: *mut u8,
+    block: &'static pool::PoolBlock,
     len: usize,
     game: u32,
 }
 
-// SAFETY: the bytes are owned by this value; other threads reach them only as shared memory
-// (`shared_memory`) or under `slice`'s promise.
-unsafe impl Send for LentBytes {}
-// SAFETY: as above.
-unsafe impl Sync for LentBytes {}
-
 impl LentBytes {
     pub fn from_vec(bytes: Vec<u8>) -> Self {
-        let len = bytes.len();
-        let at = Box::into_raw(bytes.into_boxed_slice()).cast::<u8>();
+        let block = pool::take(bytes.len());
+        Store::store(block, 0, &bytes)
+            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::LentBytes", e));
         Self {
-            at,
-            len,
-            game: lend(at, len),
+            block,
+            len: bytes.len(),
+            game: lend_block(block, bytes.len(), false),
         }
     }
 
@@ -1339,12 +1360,9 @@ impl LentBytes {
 
     /// A copy of the bytes.
     pub fn to_vec(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.len);
-        // SAFETY: `bytes` has room for `len`, all set by `load`; `at` holds `len` bytes.
-        unsafe {
-            crate::shared_memory::load(self.at, bytes.as_mut_ptr(), self.len);
-            bytes.set_len(self.len);
-        }
+        let mut bytes = vec![0; self.len];
+        Store::load(self.block, 0, &mut bytes)
+            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::LentBytes", e));
         bytes
     }
 
@@ -1353,8 +1371,8 @@ impl LentBytes {
     /// # Safety
     /// Nothing may write them while the slice lives.
     pub unsafe fn slice(&self) -> &[u8] {
-        // SAFETY: `at` holds `len` bytes; unwritten meanwhile (the caller's promise).
-        unsafe { std::slice::from_raw_parts(self.at, self.len) }
+        // SAFETY: the block holds `len` bytes; unwritten meanwhile (the caller's promise).
+        unsafe { std::slice::from_raw_parts(self.block.as_ptr(), self.len) }
     }
 
     /// The bytes in place, to change.
@@ -1363,15 +1381,15 @@ impl LentBytes {
     /// Nothing else may reach them by address while the slice lives.
     pub unsafe fn slice_mut(&mut self) -> &mut [u8] {
         // SAFETY: as `slice`.
-        unsafe { std::slice::from_raw_parts_mut(self.at, self.len) }
+        unsafe { std::slice::from_raw_parts_mut(self.block.as_ptr(), self.len) }
     }
 }
 
 impl Drop for LentBytes {
     fn drop(&mut self) {
-        forget(self.game);
-        // SAFETY: `at` and `len` are `from_vec`'s box, freed once, its region gone.
-        drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.at, self.len)) });
+        if let Some(block) = forget_block(self.game) {
+            pool::give_back(block);
+        }
     }
 }
 

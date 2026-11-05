@@ -1,54 +1,45 @@
 //! Memory from the system in whole pages, zeroed (phase 11, `notes/conversion.md`: it was
-//! `VirtualAlloc` with MEM_COMMIT | MEM_RESERVE and `VirtualFree` with MEM_RELEASE), on
-//! `std::alloc`. A block is lent to the game (`pointers::lend_system_block`) and known by
-//! its game address; giving it back forgets it before the memory goes.
+//! `VirtualAlloc` with MEM_COMMIT | MEM_RESERVE and `VirtualFree` with MEM_RELEASE), from
+//! `pointers::pool`. A block is lent to the game (`pointers::lend_block`) and known by its
+//! game address; giving it back forgets it, and the block returns to the pool.
 
-#![allow(unsafe_code)]
-
-use std::alloc::Layout;
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Mutex;
 
-const PAGE: usize = 0x1000;
+/// Each block lent, by its game address.
+static BLOCKS: Mutex<Option<HashSet<u32>>> = Mutex::new(None);
 
-/// Each block's layout, by its game address.
-static BLOCKS: Mutex<Option<HashMap<u32, (usize, Layout)>>> = Mutex::new(None);
-
-/// `bytes` of zeroed memory in whole pages, lent to the game: its game address; None when
-/// the system has none (or for 0 bytes).
+/// `bytes` of zeroed memory in whole pages (a block of `pointers::pool`), lent to the game:
+/// its game address; None for 0 bytes.
 pub fn take(bytes: usize) -> Option<u32> {
-    let layout = Layout::from_size_align(bytes.checked_next_multiple_of(PAGE)?, PAGE).ok()?;
-    if layout.size() == 0 {
+    if bytes == 0 {
         return None;
     }
-    // SAFETY: a layout of a non-zero size.
-    let block = unsafe { std::alloc::alloc_zeroed(layout) };
-    if block.is_null() {
-        return None;
-    }
-    let at = crate::pointers::lend_system_block(block, bytes);
+    let block = crate::pointers::pool::take(bytes);
+    let at = crate::pointers::lend_block(block, bytes, true);
     BLOCKS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
-        .insert(at, (block.expose_provenance(), layout));
+        .insert(at);
     Some(at)
 }
 
-/// The block at game address `at` given back (its region and game range forgotten first);
-/// an address `take` did not hand out is refused.
+/// The block at game address `at` given back (its region and game range forgotten, the block
+/// back in the pool); an address `take` did not hand out is refused.
 pub fn give_back(at: u32) -> Result<(), crate::errors::BadInput> {
-    let (host, layout) = BLOCKS
+    BLOCKS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .get_or_insert_default()
         .remove(&at)
+        .then_some(())
         .ok_or(crate::errors::BadInput(
             "memory given back that was not taken",
         ))?;
-    crate::pointers::forget(at);
-    // SAFETY: the block `take` made with this layout, no longer lent.
-    unsafe { std::alloc::dealloc(std::ptr::with_exposed_provenance_mut(host), layout) };
+    if let Some(block) = crate::pointers::forget_block(at) {
+        crate::pointers::pool::give_back(block);
+    }
     Ok(())
 }
 
