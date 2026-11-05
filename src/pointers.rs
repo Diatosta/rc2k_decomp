@@ -227,9 +227,10 @@ fn stack() -> (usize, usize) {
     crate::os::thread_stack()
 }
 
-/// Where a game address's bytes are in this process (phase 9, `notes/conversion.md`): the
-/// one place a game address becomes a host pointer (`address_map`: the same number on 32
-/// bits, a table's range on 64). An address no range covers ends the program.
+/// Where a game address's bytes are in this process, through `address_map` (the tests' raw
+/// regions only: the program's places are found from their stores, `place_of`). An address no
+/// range covers ends the program.
+#[cfg(test)]
 #[inline]
 #[track_caller]
 pub fn host(addr: u32) -> *mut u8 {
@@ -247,6 +248,7 @@ pub fn host(addr: u32) -> *mut u8 {
 
 /// A course place (`race::course_places`) taken for an address: the reader not converted,
 /// named.
+#[cfg(test)]
 #[cold]
 #[track_caller]
 fn course_place(addr: u32) -> ! {
@@ -259,6 +261,7 @@ fn course_place(addr: u32) -> ! {
     )
 }
 
+#[cfg(test)]
 #[cold]
 fn unmapped(addr: u32) -> ! {
     log(&format!(
@@ -581,12 +584,12 @@ impl GamePtr {
     /// Nothing may write the bytes while the slice lives (the game's memory is shared).
     #[track_caller]
     pub unsafe fn slice<'a>(self, len: usize, what: &str) -> &'a [u8] {
-        if let Err(e) = self.check(len, what) {
-            crate::fatal::raise::end(what, e)
-        }
+        let backing = self
+            .check(len, what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
         // SAFETY: the bytes lie in one live region (checked above); unwritten meanwhile
         // (the caller's promise).
-        unsafe { std::slice::from_raw_parts(host(self.at), len) }
+        unsafe { std::slice::from_raw_parts(place_of(self.at, backing), len) }
     }
 
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
@@ -635,7 +638,7 @@ impl GamePtr {
         }
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
-            crate::shared_memory::copy(host(self.at), host(to.at), len);
+            crate::shared_memory::copy(raw_place(self.at), raw_place(to.at), len);
         }
         Ok(())
     }
@@ -647,7 +650,7 @@ impl GamePtr {
             return store_at(self.at, backing, &vec![value; len]);
         }
         // SAFETY: the run lies in one live region.
-        unsafe { crate::shared_memory::fill(host(self.at), value, len) };
+        unsafe { crate::shared_memory::fill(raw_place(self.at), value, len) };
         Ok(())
     }
 
@@ -657,12 +660,13 @@ impl GamePtr {
     /// reads it: a block can be given back later.
     #[track_caller]
     pub fn record<T: Cells>(self, what: &str) -> Result<&'static T, BadInput> {
-        self.check(size_of::<T>(), what)?;
-        if !(self.at as usize).is_multiple_of(align_of::<T>()) {
+        let backing = self.check(size_of::<T>(), what)?;
+        let place = place_of(self.at, backing).cast::<T>();
+        if !place.is_aligned() {
             return Err(outside(self.at, size_of::<T>(), what));
         }
         // SAFETY: inside a live region, aligned, and `T` is made of cells (`Cells`).
-        Ok(unsafe { &*(host(self.at) as *const T) })
+        Ok(unsafe { &*place })
     }
 
     /// Whether `len` bytes from the address lie in one region.
@@ -898,7 +902,7 @@ fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
         }
     }
     // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
-    unsafe { crate::shared_memory::load(host(addr), to.as_mut_ptr(), to.len()) };
+    unsafe { crate::shared_memory::load(raw_place(addr), to.as_mut_ptr(), to.len()) };
     Ok(())
 }
 
@@ -920,8 +924,39 @@ fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
         }
     }
     // SAFETY: as `load_at`'s; the regions are the game's writable memory.
-    unsafe { crate::shared_memory::store(host(addr), from.as_ptr(), from.len()) };
+    unsafe { crate::shared_memory::store(raw_place(addr), from.as_ptr(), from.len()) };
     Ok(())
+}
+
+/// Where `addr`'s bytes are in the region `backing` holds (checked by the caller): in its
+/// store's bytes, from the store's first one.
+fn place_of(addr: u32, backing: Backing) -> *mut u8 {
+    match backing {
+        Backing::Store(store, home) => store
+            .first()
+            .cast_mut()
+            .wrapping_add((addr - home) as usize),
+        Backing::Raw => raw_place(addr),
+    }
+}
+
+/// A raw region's bytes: the tests' only (their stack, the image's sections, buffers lent by
+/// address); every region of the program is a store's.
+#[cfg(test)]
+fn raw_place(addr: u32) -> *mut u8 {
+    host(addr)
+}
+
+#[cfg(not(test))]
+#[cold]
+#[track_caller]
+fn raw_place(addr: u32) -> *mut u8 {
+    crate::fatal::raise::end(
+        "a raw region",
+        BadInput(Box::leak(
+            format!("{addr:#x} in a region no store holds").into_boxed_str(),
+        )),
+    )
 }
 
 /// Where a short access in a store goes straight: one whole atomic cell of the access's width,
@@ -1003,7 +1038,7 @@ pub unsafe trait Store: Sync {
         )
     )]
     fn size(&self) -> usize;
-    /// Its first byte, to find the store a host address lies in: compared, never followed.
+    /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
     fn first(&self) -> *const u8;
     /// The primitive cell around byte `offset`, placed from `first()`; `None` where it begins
     /// before `first()` (the reads there take `load` and `store`).
@@ -1249,8 +1284,10 @@ pub fn read_or_end<T: Plain>(addr: u32, what: &str) -> T {
 /// its region the program ends naming it.
 #[track_caller]
 pub fn cell_or_end(addr: u32, what: &str) -> &'static crate::session::Dword {
-    check_or_end(addr, 4, what);
-    let cell = host(addr) as *const crate::session::Dword;
+    watched(addr, 4, what);
+    let backing =
+        inside(addr, 4).unwrap_or_else(|| crate::fatal::raise::end(what, outside(addr, 4, what)));
+    let cell = place_of(addr, backing) as *const crate::session::Dword;
     assert!(
         cell.is_aligned(),
         "{what}: {addr:#010x} is not a cell's place"

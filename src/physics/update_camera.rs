@@ -555,7 +555,7 @@ mod asm_reference {
                         } else {
                             0
                         }
-                    }))
+                    }));
                 },
             },
             Block {
