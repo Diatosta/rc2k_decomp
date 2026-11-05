@@ -29,6 +29,7 @@ pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
         if entry >= ENTRIES {
             return Err(BadInput("a carousel entry past the records"));
         }
+        // The list is a run of record pointers, one dword per entry.
         record = table.offset(entry * 4).read("a carousel entry's record")?;
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));

@@ -43,6 +43,7 @@ pub fn signs_with(
 ) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
     {
+        // A field of the record by an offset from a table or the caller, as the original walks it.
         let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let places = get(start)?.wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {

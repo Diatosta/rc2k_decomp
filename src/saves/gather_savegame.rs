@@ -60,6 +60,7 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
     let cars = cars()?;
     for (n, at) in head().into_iter().enumerate() {
+        // The savegame is a file's bytes.
         buffer
             .offset(4 * n as u32)
             .write(at.get(), "the savegame's head")?;

@@ -370,6 +370,7 @@ fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadI
     {
         return Ok(bytes.try_into().expect("N bytes"));
     }
+    // A run-on past the infos, as the original (a byte offset into the info words).
     GamePtr::to(&infos[0].words)
         .unbounded()
         .offset(at as u32)
@@ -599,6 +600,7 @@ pub fn draw_face() -> Result<(), Refused> {
     let second: u32 = RACE_VIEW.texture_b.get();
     let trap = Trap::new();
     let picked = || {
+        // A run-on: the picked info number is not bounded, as the original.
         let record = GamePtr::to(&POLYGON_WORK.texture_infos[0].words)
             .unbounded()
             .offset(second << 6);

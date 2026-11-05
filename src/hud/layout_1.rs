@@ -21,6 +21,7 @@ use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
 use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 
 /// A sprite scaled 0xC0 over `flt_75C00C` both ways; the scales then taken off into
 /// `dword_75C060`.
@@ -51,8 +52,9 @@ pub fn pick(field: u32) -> u32 {
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub fn layout_1(record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
+    // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let [f1, f2] = [get(0xF8)?, get(0xFC)?];
+    let [f1, f2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if f1 & 0x10 != 0 {
@@ -70,7 +72,7 @@ pub fn layout_1(record: GamePtr) -> Result<(), Refused> {
     }
     { add_solid_quad::add_solid_quad() }?;
     if f1 & 0x40 != 0 {
-        { draw_stage_bars_1::draw_stage_bars_1(record) }?;
+        { draw_stage_bars_1::draw_stage_bars_1() }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
@@ -81,13 +83,13 @@ pub fn layout_1(record: GamePtr) -> Result<(), Refused> {
     HUD.texture.set(0xC1);
     if f1 & 0x20 != 0 {
         scaled(0x49, 7, 0x223)?;
-        scaled(get(0x18)?.wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(PANEL.view_a.gear.get().wrapping_add(0x41), 0xD, 0x22A)?;
     }
     if f2 & 0x20 != 0 {
         scaled(0x49, 0x198, 0x223)?;
-        scaled(get(0x48)?.wrapping_add(0x41), 0x19E, 0x22A)?;
+        scaled(PANEL.view_b.gear.get().wrapping_add(0x41), 0x19E, 0x22A)?;
     }
-    let p = pick(get(0xCC)?);
+    let p = pick(PANEL.start_values[0].get());
     if f1 & 1 != 0 {
         scaled(p, 0x19, 0x1DE)?;
     }
@@ -95,7 +97,7 @@ pub fn layout_1(record: GamePtr) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(0x5F, 0x116, 0x1DE)?;
     }
-    let p = pick(get(0xD0)?);
+    let p = pick(PANEL.start_values[1].get());
     if f2 & 1 != 0 {
         scaled(p, 0x1AA, 0x1DE)?;
     }
@@ -134,7 +136,7 @@ pub fn layout_1(record: GamePtr) -> Result<(), Refused> {
         ([&HUD.times[0], &HUD.times[1]], 2u32),
         ([&HUD.times[3], &HUD.times[4]], 0x11),
     ] {
-        if f1 & 0x40 != 0 && get(0x28)? != 0xFFFF_FFFF {
+        if f1 & 0x40 != 0 && PANEL.view_a.back.get() != 0xFFFF_FFFF {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
                 { clock_panel(t, xs, y, &mut plain) }?;

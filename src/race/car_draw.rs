@@ -153,18 +153,20 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// The dword `offset` bytes from the first model's groups (the original does not bound it).
-fn model_field(offset: u32) -> Result<u32, BadInput> {
-    GamePtr::to(&LIGHT_RECORDS.records)
-        .offset(core::mem::offset_of!(crate::race::light_records_store::LightRecord, groups) as u32)
-        .offset(offset)
-        .read("a model's record")
+/// The group number at byte `offset` of model `model`'s groups (the original does not
+/// bound the model: one past the 34 records is refused).
+fn model_field(model: u32, offset: u32) -> Result<u32, BadInput> {
+    LIGHT_RECORDS
+        .records
+        .get(model as usize)
+        .and_then(|record| record.groups.get((offset / 4) as usize))
+        .map(crate::session::Dword::get)
+        .ok_or(BadInput("a model's record"))
 }
 
-/// The model's bit at +`offset` of its 0x134-byte record (`dword_5C90C4` ..): 1 << it, 0 for
-/// -1.
-fn model_bit(record: u32, offset: u32) -> Result<u32, BadInput> {
-    let c = model_field(record + offset)?;
+/// The model's bit at +`offset` of its groups (`dword_5C90C4` ..): 1 << it, 0 for -1.
+fn model_bit(model: u32, offset: u32) -> Result<u32, BadInput> {
+    let c = model_field(model, offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
 
@@ -218,11 +220,10 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         .set(car_at(car)?.mode_on.bits());
     let model = car_at(car)?.car_kind.bits();
     MATRICES.known_object.set(model);
-    let rec = model.wrapping_mul(0x134);
     for (to, offset) in [(0usize, 0u32), (1, 4), (2, 8), (3, 0xC), (6, 0x14)] {
-        COURSE.group_masks[to].set(model_bit(rec, offset)?);
+        COURSE.group_masks[to].set(model_bit(model, offset)?);
     }
-    let mut lamps = model_bit(rec, 0x34)?;
+    let mut lamps = model_bit(model, 0x34)?;
     if lamps != 0 {
         if model == 4 || model == 7 {
             lamps |= 0x600_0000;
@@ -239,7 +240,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         (11, 0x28),
         (12, 0x3C),
     ] {
-        COURSE.group_masks[to].set(model_bit(rec, offset)?);
+        COURSE.group_masks[to].set(model_bit(model, offset)?);
     }
     let switches = car_at(car)?.parts_present.bits();
     let mut shown = u32::MAX;
@@ -257,7 +258,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         }
     }
     FRAME_SWITCHES.group_mask.set(shown);
-    let field = |offset: u32| model_field(rec + offset);
+    let field = |offset: u32| model_field(model, offset);
     CAMERA_WORK.faded_bits.set(field(0x10)?);
     COURSE.group_masks[4].set(
         u32::MAX

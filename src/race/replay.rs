@@ -84,6 +84,8 @@ mod block_tests {
 pub fn seal_replay_header() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
+    // The sealed header is the file's bytes: the version byte and the name sit inside its
+    // dwords.
     let sealed = GamePtr::to(&REPLAY_WORK.sealed_header);
     sealed
         .offset(0x719B58 - 0x719B54)
@@ -351,6 +353,7 @@ pub fn open_replay() -> Result<(), Refused> {
     seal_replay_header()?;
     // The store types the stage's 0x400 bytes by their first dword.
     GamePtr::to(&REPLAY_WORK.header_stage).unbounded().copy_to(
+        // The file's header is bytes.
         GamePtr::to(&REPLAYS.header).offset(0x30),
         0x400,
         "the replay header's stage",

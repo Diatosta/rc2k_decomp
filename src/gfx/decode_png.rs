@@ -82,14 +82,20 @@ pub fn decode_png(file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, Bad
     }
     let what = "the PNG info block";
     info_at.write(0u8, what)?;
-    info_at.offset(4).write(header.width, what)?;
-    info_at.offset(8).write(header.height, what)?;
+    info_at
+        .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, width) as u32)
+        .write(header.width, what)?;
+    info_at
+        .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, height) as u32)
+        .write(header.height, what)?;
     if let Some(start) = found.palette {
         info_at.write(1u8, what)?;
         let palette = file
             .get(start..start + 0x300)
             .ok_or(BadInput("a palette chunk that runs past the file"))?;
-        info_at.offset(12).write_bytes(palette, what)?;
+        info_at
+            .offset(core::mem::offset_of!(crate::gfx::png::PngInfo, palette) as u32)
+            .write_bytes(palette, what)?;
     }
     let end = pixel_bytes
         .wrapping_mul(header.width)

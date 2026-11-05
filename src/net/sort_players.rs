@@ -30,6 +30,7 @@ fn standing(block: &PlayerBlock) -> Standing {
 /// The two blocks swapped, a dword at a time.
 pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
     let (one, two) = (GamePtr::to(one), GamePtr::to(two));
+    // Two player blocks swapped as dwords: whole blocks of bytes.
     for n in 0..BLOCK / 4 {
         let v = one.offset(4 * n).read::<u32>("a player's block")?;
         let w = two.offset(4 * n).read::<u32>("a player's block")?;

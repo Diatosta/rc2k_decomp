@@ -75,7 +75,8 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
         .ok_or_else(|| BadInput("a car matrix's cell past its end").into())
 }
 
-/// Reads a dword at an offset from a record inside a car's (a wheel's or the body's).
+/// Reads a dword at an offset from a record inside a car's (a wheel's or the body's: slices
+/// of the car's anonymous words, no wheel type exists yet).
 pub fn field(record: GamePtr, offset: u32) -> Result<u32, Refused> {
     Ok(record.offset(offset).read::<u32>("a mark's field")?)
 }

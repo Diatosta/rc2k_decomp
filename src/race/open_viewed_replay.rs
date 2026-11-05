@@ -130,6 +130,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     if { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }
+    // The file's header is bytes (a byte-level copy of its stage part).
     GamePtr::to(&crate::race::replay::REPLAYS.header)
         .offset(0x30) // unk_528534
         .copy_to(

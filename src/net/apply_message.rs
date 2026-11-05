@@ -50,6 +50,8 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
     }
     let block = RACE_WORK.car_block(player as usize);
     // The block is looked up at each access: a null one refuses at the first, as the original's.
+    // The offsets come from `rc2k_core::net::race`'s field tables: the message and the block
+    // are read by table, so they stay byte places.
     let at = |offset: u32| {
         Ok::<_, BadInput>(GamePtr::to(crate::race::trap::car_at(block)?).offset(offset))
     };

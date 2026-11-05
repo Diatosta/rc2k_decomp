@@ -197,6 +197,7 @@ pub fn load_object() -> Result<(), Refused> {
     let known = find_object_kind(kind);
     MATRICES.known_object.set_bits(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
+    // A run-on past the 34 records into the gear figures, as the original.
     let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
     for part in &PARTS {
         let group: u32 = record.offset(part.group as u32).read("a kind's record")?;

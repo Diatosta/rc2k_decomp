@@ -10,6 +10,7 @@ pub fn clear_car_state(
     block: &crate::physics::car_store::Car,
 ) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::net::cars::CLEARED`.
+    // The offsets come from the core's table of cleared dwords.
     for (offset, v) in rc2k_core::net::cars::CLEARED {
         crate::pointers::GamePtr::to(block)
             .offset(offset)

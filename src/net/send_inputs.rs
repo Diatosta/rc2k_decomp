@@ -37,6 +37,7 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     let dwords = m.kind.pack(|field| {
+        // The field offsets come from the core's table for this kind of message.
         car.offset(field)
             .read::<u32>("the car's work block")
             .unwrap_or_else(|e| {

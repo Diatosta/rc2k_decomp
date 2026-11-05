@@ -15,7 +15,7 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::scene_points::{point_word, put_point_word};
-use crate::race::shadow_skids_store::SHADOW_SKIDS;
+use crate::race::shadow_skids_store::{SHADOW_SKIDS, ShadowPoint};
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -26,23 +26,13 @@ use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 
 // unk_641AA4: the points, 0x20 bytes each
 
-/// The shadow's points (`unk_641AA4`), bounded by their table.
-fn points() -> GamePtr {
-    GamePtr::to(&SHADOW_SKIDS.shadow_points)
-}
-
-/// Point `n` (0x20 bytes each; `dword_643ABC` keeps the farthest one's number), bounded as
-/// `points`.
-fn point_at(n: u32) -> GamePtr {
-    points().offset(n.wrapping_mul(0x20))
-}
-
-fn get(a: GamePtr) -> Result<u32, BadInput> {
-    a.read("a shadow point")
-}
-
-fn put(a: GamePtr, v: u32) -> Result<(), BadInput> {
-    a.write(v, "a shadow point")
+/// Point `n` (0x20 bytes each; `dword_643ABC` keeps the farthest one's number), bounded by
+/// the table (`unk_641AA4`).
+fn point_at(n: u32) -> Result<&'static ShadowPoint, BadInput> {
+    SHADOW_SKIDS
+        .shadow_points
+        .get(n as usize)
+        .ok_or(BadInput("a shadow point"))
 }
 
 /// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
@@ -76,26 +66,26 @@ pub fn shadow_angles() -> Result<(), Refused> {
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow points or more than 0x40").into());
         }
-        let records = points();
-        let farthest = point_at(SHADOW_SKIDS.farthest.get());
-        for k in 0..8 {
-            let (a, b) = (get(records.offset(4 * k))?, get(farthest.offset(4 * k))?);
-            put(records.offset(4 * k), b)?;
-            put(farthest.offset(4 * k), a)?;
+        let records = &SHADOW_SKIDS.shadow_points;
+        let farthest = point_at(SHADOW_SKIDS.farthest.get())?;
+        for (here, there) in records[0].words().into_iter().zip(farthest.words()) {
+            let (a, b) = (here.get(), there.get());
+            here.set(b);
+            there.set(a);
         }
-        let first = get(records.offset(0xC))?;
+        let first = records[0].angle.get();
         SHADOW_SKIDS.first_angle.set_bits(first);
         let zero: u32 = NUMBERS.zero.bits();
         let unit: u32 = NUMBERS.k65536.bits();
         for k in 0..count {
-            let record = records.offset(0x20 * k);
-            let mut v = sub(get(record.offset(0xC))?, first);
+            let record = point_at(k)?;
+            let mut v = sub(record.angle.get(), first);
             if crate::math::x87_load::below_or_unordered(v, zero) {
                 v = two_pi_plus(v);
             }
             DRAW.scratch.set_bits(v);
-            put(record.offset(0xC), mul_to_int(v, unit) as u32)?;
-            put(record.offset(0x14), 0)?;
+            record.angle.set(mul_to_int(v, unit) as u32);
+            record.zeroed.set(0);
         }
         if count >= 2 {
             // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
@@ -124,16 +114,16 @@ pub fn shadow_hull() -> Result<(), Refused> {
         if !(2..=0x40).contains(&count) {
             return Err(BadInput("fewer than two shadow points or more than 0x40").into());
         }
-        let at = |n: usize| GamePtr::to(&SHADOW_SKIDS.shadow_points).offset(0x20 * n as u32);
+        let at = |n: usize| point_at(n as u32).map(GamePtr::to);
         let mut records: Vec<Record> = Vec::new();
         for n in 0..hull_records(count) {
-            records.push(at(n).read::<Record>("a shadow hull record")?);
+            records.push(at(n)?.read::<Record>("a shadow hull record")?);
         }
         let before = records.clone();
         let h = hull(&mut records, count)?;
         for (n, (now, was)) in records.iter().zip(&before).enumerate() {
             if now != was {
-                at(n).write(*now, "a shadow hull record")?;
+                at(n)?.write(*now, "a shadow hull record")?;
             }
         }
         GROUND_PROBE.product[0].set(h.product as u32);
@@ -172,16 +162,11 @@ pub fn shadow_polygon() -> Result<(), Refused> {
             return Err(BadInput("a shadow hull of no points or more than 0x40").into());
         }
         let scene: u32 = COURSE.scene_point_count.get();
-        let records = GamePtr::to(&SHADOW_SKIDS.shadow_points);
         for k in 0..n {
             // The hull's points follow the course's points and 16 more.
-            let (record, point) = (
-                records.offset(0x20 * k),
-                scene.wrapping_add(0x10).wrapping_add(k),
-            );
-            let field = |offset| record.offset(offset).read::<u32>("a shadow point");
-            put_point_word(point, 0, field(0)?)?;
-            put_point_word(point, 2, field(8)?)?;
+            let (record, point) = (point_at(k)?, scene.wrapping_add(0x10).wrapping_add(k));
+            put_point_word(point, 0, record.x.get())?;
+            put_point_word(point, 2, record.z.get())?;
             put_point_word(point, 1, FRAME_WORK.shadow_ground.bits())?;
             let e = &POLYGON_WORK.entries[k as usize];
             e.point.set(point);
@@ -630,9 +615,9 @@ fn sun_slant(sun: u32, turn: u32) {
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
-fn angle_of(at: GamePtr) -> Result<u32, BadInput> {
+fn angle_of(at: &ShadowPoint) -> u32 {
     use crate::math::x87_float::{ld, st};
-    Ok(st(ld(get(at)?).atan2(ld(get(at.offset(8))?))))
+    st(ld(at.x.get()).atan2(ld(at.z.get())))
 }
 
 /// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
@@ -676,8 +661,9 @@ pub fn shadow_points() -> Result<(), Refused> {
     let (sx, sz) = (SHADOW_SKIDS.slant_x.bits(), SHADOW_SKIDS.slant_z.bits());
     let lift: u32 = PHYSICS.camera_drop.bits();
     let unit: u32 = NUMBERS.k65536.bits();
-    let mut at = points();
-    for k in 0..count as usize {
+    for k in 0..count {
+        let at = point_at(k)?;
+        let k = k as usize;
         let p = [
             to_tbyte(CAR.probe_point_x[k].bits()),
             to_tbyte(CAR.probe_point_y[k].bits()),
@@ -685,29 +671,21 @@ pub fn shadow_points() -> Result<(), Refused> {
         ];
         let t = crate::scene::rotate_point::rotate_point(&CAR.body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
-        put(at.offset(4), y)?;
+        at.y.set(y);
         let x = lifted(y, lift, sx, x);
-        put(at, x)?;
+        at.x.set(x);
         let z = lifted(y, lift, sz, z);
-        put(at.offset(8), z)?;
-        let angle = angle_of(at)?;
-        put(at.offset(0xC), angle)?;
+        at.z.set(z);
+        at.angle.set(angle_of(at));
         let length = crate::math::x87_load::float_hypot(x, z);
-        put(at.offset(0x10), length)?;
+        at.length.set(length);
         if !below_or_unordered(length, SHADOW_SKIDS.farthest_length.bits()) {
             SHADOW_SKIDS.farthest_length.set_bits(length);
             SHADOW_SKIDS.farthest.set(k as u32);
         }
-        put(
-            at,
-            (mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()),
-        )?;
-        put(
-            at.offset(8),
-            (mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()),
-        )?;
-        put(at.offset(4), FRAME_WORK.shadow_ground.bits())?;
-        at = at.offset(0x20);
+        at.x.set((mul_to_int(x, unit) as u32).wrapping_add(CAR.position[0].bits()));
+        at.z.set((mul_to_int(z, unit) as u32).wrapping_add(CAR.position[2].bits()));
+        at.y.set(FRAME_WORK.shadow_ground.bits());
     }
     Ok(())
 }
@@ -1318,15 +1296,21 @@ mod asm_reference {
                 // the angle
                 let at = [r.float(), r.float(), r.float()];
                 let _region = crate::race::trap::test_region(&at);
-                let (want, got) = unsafe {
-                    (
-                        angle_asm(crate::pointers::game_address(at.as_ptr())),
-                        angle_of(crate::pointers::GamePtr::new(
-                            crate::pointers::game_address(at.as_ptr()),
-                        ))
-                        .unwrap(),
-                    )
+                use crate::race::shadow_skids_store::ShadowPoint;
+                use crate::session::Dword;
+                let point = ShadowPoint {
+                    x: Dword::new(at[0]),
+                    y: Dword::new(at[1]),
+                    z: Dword::new(at[2]),
+                    angle: Dword::new(0),
+                    length: Dword::new(0),
+                    zeroed: Dword::new(0),
+                    unknown_18: [Dword::new(0), Dword::new(0)],
                 };
+                let (want, got) = (
+                    unsafe { angle_asm(crate::pointers::game_address(at.as_ptr())) },
+                    angle_of(&point),
+                );
                 assert!(within_ulps(want, got, 1), "{at:x?}: {want:#x} {got:#x}");
                 worst = worst.max(want.abs_diff(got));
             }

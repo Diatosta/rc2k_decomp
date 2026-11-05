@@ -33,9 +33,6 @@ pub fn number_places() -> [crate::place::Place; 9] {
     ]
 }
 const TEXTURES: u32 = 0x100;
-fn put(at: GamePtr, value: u32) -> Result<(), BadInput> {
-    at.write(value, "a course variable")
-}
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
@@ -180,8 +177,7 @@ pub fn build_texture_infos() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
-            let out =
-                GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.texture_infos[n as usize]);
+            let out = &crate::scene::polygon_store::POLYGON_WORK.texture_infos[n as usize].words;
             let kind = STAGE_PREFS.texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();
@@ -192,17 +188,18 @@ pub fn build_texture_infos() -> Result<(), Refused> {
                 |o| trap.keep_read(field::<u8>(rec + o, "a course info record")),
             );
             trap.finish()?;
-            put(out.offset(0x24), t.row)?;
-            put(out.offset(0x20), t.group)?;
+            out[9].set(t.row);
+            out[8].set(t.group);
             for (k, &value) in t.values.iter().enumerate() {
-                put(out.offset(0x10 + 4 * k as u32), value)?;
+                out[4 + k].set(value);
             }
-            out.offset(0x1C).write(t.byte, "a texture info")?;
-            out.offset(0x2C).write_bytes(&t.bytes, "a texture info")?;
+            // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
+            GamePtr::to(&out[7]).write(t.byte, "a texture info")?;
+            GamePtr::to(&out[11]).write_bytes(&t.bytes, "a texture info")?;
             for (k, &value) in t.first.iter().enumerate() {
-                put(out.offset(4 * k as u32), value)?;
+                out[k].set(value);
             }
-            put(out.offset(0x28), t.marked)?;
+            out[10].set(t.marked);
         }
     }
     Ok(())

@@ -19,6 +19,7 @@ pub fn reset_cars() -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
         let block = crate::race::trap::car_at(RACE_WORK.car_block(car as usize))?;
         // Converted: `rc2k_core::net::cars::reset_fields`.
+        // The offsets come from the core's table of reset fields.
         for (offset, v) in cars::reset_fields(car) {
             GamePtr::to(block)
                 .offset(offset)

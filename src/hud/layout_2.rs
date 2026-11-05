@@ -20,6 +20,7 @@ use crate::hud::layout_0::*;
 use crate::hud::layout_1::{pick, plain, scaled};
 use crate::hud::store::HUD;
 use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 
 /// The upper half's rows: 0x10 down with `dword_6D1502` 0.
 fn upper(y: u32) -> u32 {
@@ -37,8 +38,9 @@ fn lower(y: u32) -> u32 {
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
+    // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let [f1, f2] = [get(0xF8)?, get(0xFC)?];
+    let [f1, f2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if f1 & 0x10 != 0 {
@@ -56,7 +58,7 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     }
     { add_solid_quad::add_solid_quad() }?;
     if f1 & 0x40 != 0 {
-        { draw_stage_bars_2::draw_stage_bars_2(record) }?;
+        { draw_stage_bars_2::draw_stage_bars_2() }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
@@ -67,13 +69,13 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     HUD.texture.set(0xC1);
     if f1 & 0x20 != 0 {
         scaled(0x49, 7, upper(0xE8))?;
-        scaled(get(0x18)?.wrapping_add(0x41), 0xD, upper(0xEF))?;
+        scaled(PANEL.view_a.gear.get().wrapping_add(0x41), 0xD, upper(0xEF))?;
     }
     if f2 & 0x20 != 0 {
         scaled(0x49, 7, 0x223)?;
-        scaled(get(0x48)?.wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(PANEL.view_b.gear.get().wrapping_add(0x41), 0xD, 0x22A)?;
     }
-    let p = pick(get(0xD0)?);
+    let p = pick(PANEL.start_values[1].get());
     if f1 & 1 != 0 {
         scaled(p, 0x19, upper(0xA3))?;
     }
@@ -81,7 +83,7 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(0x5F, 0x2A7, upper(0xA3))?;
     }
-    let p = pick(get(0xD0)?);
+    let p = pick(PANEL.start_values[1].get());
     if f2 & 1 != 0 {
         scaled(p, 0x19, 0x1DE)?;
     }

@@ -119,6 +119,7 @@ impl std::ops::DerefMut for Machine {
 fn tables() -> GamePtr {
     use crate::physics::pace_store::{END, PACE, START};
     const _: () = assert!(IMAGE_START as usize >= START && IMAGE_START as usize + IMAGE_LEN == END);
+    // The tables are the image's bytes, read by the notes' own offsets.
     GamePtr::to(&PACE).offset(IMAGE_START - START as u32)
 }
 

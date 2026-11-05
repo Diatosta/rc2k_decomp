@@ -18,6 +18,7 @@ use crate::errors::Refused;
 use crate::hud::store::HUD;
 use crate::pointers::GamePtr;
 use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::PANEL;
 use crate::session::Dword;
 
 pub fn set(n: usize, v: u32) {
@@ -38,15 +39,9 @@ pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
 /// (see the header and `hud::draw_stage_bars_1`'s).
 // Converted: `rc2k_core::hud::stage_bars`
-pub fn bars(
-    record: GamePtr,
-    kinds: &[&[Dword]],
-    colour_vars: &[&Dword],
-    dy: u32,
-) -> Result<(), Refused> {
+pub fn bars(kinds: &[&[Dword]], colour_vars: &[&Dword], dy: u32) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let count = get(0x74)?;
+    let count = PANEL.overlay_parts.get();
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
@@ -60,7 +55,7 @@ pub fn bars(
     HUD.bar_width.set(sb::WIDTH);
     HUD.ends[0].set_bits(0);
     HUD.ends[1].set_bits(0);
-    let total = f32::from_bits(get(0x68)?);
+    let total = f32::from_bits(PANEL.overlay_miles.get());
     for n in 0..count {
         let left = count - n;
         // `kind` is a byte offset into the colours (the original's, unchecked).
@@ -100,11 +95,6 @@ pub fn bars(
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
-pub fn draw_stage_bar(record: GamePtr) -> Result<(), Refused> {
-    bars(
-        record,
-        &[&RACE_OVERLAY.overlay_part_kinds_a],
-        &[&HUD.bar_colour],
-        0,
-    )
+pub fn draw_stage_bar() -> Result<(), Refused> {
+    bars(&[&RACE_OVERLAY.overlay_part_kinds_a], &[&HUD.bar_colour], 0)
 }

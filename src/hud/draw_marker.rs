@@ -9,21 +9,20 @@
 
 use crate::errors::Refused;
 use crate::hud::store::{HUD, rect_place};
-use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker(record: GamePtr) -> Result<(), Refused> {
+pub fn draw_marker() -> Result<(), Refused> {
     HUD.quad[5].set(HUD.marker_colours[0].get());
     {
-        let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let f = f32::from_bits;
         let x = marker_x(
-            f(get(0x6C)?),
-            f(get(0x68)?),
+            f(PANEL.distance[0].get()),
+            f(PANEL.overlay_miles.get()),
             HUD.marker_k[0].get(),
             HUD.marker_k[1].get(),
         );

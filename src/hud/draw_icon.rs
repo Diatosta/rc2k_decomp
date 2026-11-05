@@ -22,6 +22,7 @@ use rc2k_core::hud::icons;
 // Converted: `rc2k_core::hud::icons`
 pub fn draw_icon(record: GamePtr, bottom: u32, entry: u32) -> Result<(), Refused> {
     let e = record.offset(entry);
+    // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| e.offset(o).read::<u32>("a hud record's field");
     if !icons::shown(get(0x84)?) {
         return Ok(());

@@ -12,6 +12,7 @@
 use crate::errors::Refused;
 use crate::hud::store::{HUD, rect_place};
 use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
@@ -32,6 +33,7 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
 pub fn markers_with(record: GamePtr, rows: [u32; 2]) -> Result<(), Refused> {
     {
+        // A field of the record by an offset from a table or the caller, as the original walks it.
         let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let k = HUD.uv_scale_x.bits();
         for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
@@ -39,7 +41,7 @@ pub fn markers_with(record: GamePtr, rows: [u32; 2]) -> Result<(), Refused> {
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(get(field)?),
-                f(get(0x68)?),
+                f(PANEL.overlay_miles.get()),
                 HUD.marker_k[0].get(),
                 HUD.marker_k[1].get(),
             );

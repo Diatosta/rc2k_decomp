@@ -15,6 +15,8 @@ pub use rc2k_core::race::cars::GRADES;
 pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
     // tried (the ones before it are written over at once).
+    // The values and grades are named by their byte offsets in the block, as `GRADES` (the
+    // core crate's table, over fields of the block's arrays) gives them.
     let car = GamePtr::to(crate::race::trap::car_at(block)?);
     for &(from, to, thresholds) in &GRADES {
         let x = f32::from_bits(car.offset(from).read::<u32>("a car block's value")?);

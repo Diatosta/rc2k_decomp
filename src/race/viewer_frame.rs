@@ -19,7 +19,6 @@
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -60,9 +59,8 @@ fn stopped() -> Result<(), Refused> {
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    let items = GamePtr::to(&REPLAY_VIEW.viewer_list)
-        .offset(1)
-        .read::<u8>("the viewer list")?;
+    // The list's item count: the byte at +1 of its first dword.
+    let items = (REPLAY_VIEW.viewer_list[0].get() >> 8) as u8;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
     // the 26 there is refused.

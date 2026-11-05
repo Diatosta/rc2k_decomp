@@ -13,13 +13,11 @@
 use crate::errors::Refused;
 use crate::hud::draw_stage_bar::*;
 use crate::hud::store::HUD;
-use crate::pointers::GamePtr;
 use crate::race::overlay_store::RACE_OVERLAY;
 
 /// The two players' bars `dy` lower (see the header).
-pub fn bars_with(record: GamePtr, dy: u32) -> Result<(), Refused> {
+pub fn bars_with(dy: u32) -> Result<(), Refused> {
     bars(
-        record,
         &[
             &RACE_OVERLAY.overlay_part_kinds_a,
             &RACE_OVERLAY.overlay_part_kinds_b,
@@ -31,6 +29,6 @@ pub fn bars_with(record: GamePtr, dy: u32) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub fn draw_stage_bars_1(record: GamePtr) -> Result<(), Refused> {
-    bars_with(record, 0)
+pub fn draw_stage_bars_1() -> Result<(), Refused> {
+    bars_with(0)
 }

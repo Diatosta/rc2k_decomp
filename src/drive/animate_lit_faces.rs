@@ -132,9 +132,13 @@ fn animate_faces() -> Result<(), Refused> {
             let step = pace(d);
             CONTACT_WORK.lit_face_pace.set(step);
             let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
-            let kind: u8 = crate::scene::polygon::materials_ptr()
-                .offset(0x1C_u32.wrapping_add(kind_of.wrapping_mul(0x80)))
-                .read("an object's material")?;
+            // The material's byte +0x1C (the low byte of its eighth word).
+            let kind = crate::scene::polygon_store::POLYGON_WORK
+                .object_materials
+                .get(kind_of as usize)
+                .ok_or(crate::errors::BadInput("an object kind past the materials"))?
+                .words[7]
+                .get() as u8;
             match kind {
                 1 | 9 => {
                     blink(&mut bytes, |n| {

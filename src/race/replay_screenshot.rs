@@ -27,6 +27,7 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     }
     let name = GamePtr::to(&VIEWER_PANEL.picture_name);
     // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
+    // The name is a text: its digits are bytes inside it.
     let digits = name.offset(4);
     let (counted, _, _) =
         rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);

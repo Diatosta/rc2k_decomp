@@ -171,13 +171,13 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::cars::set_up_pick`.
         let stage: u32 = RACE_VARS.stage_number.bits();
         let pick = rc2k_core::race::cars::set_up_pick(stage)?;
-        let car = GamePtr::to(crate::race::trap::car_at(b)?);
-        let put = |off: u32, v: u32| car.offset(off).write(v, "a car block's set-up");
-        for off in [0x20, 0x3C, 0x30, 0x34] {
-            put(off, 0x80)?;
-        }
-        put(0x2C, u32::MAX)?;
-        put(0x28, 2)?;
+        let car = crate::race::trap::car_at(b)?;
+        car.brake_balance.set(0x80);
+        car.steering_sensitivity.set(0x80);
+        car.ride_height.set(0x80);
+        car.suspension_stiffness.set(0x80);
+        car.tyre_kind.set(u32::MAX);
+        car.gear_ratio_setting.set(2);
         text(word(0), false);
         text(word(1), false);
         number(stage, false);
@@ -186,16 +186,21 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         };
         text(word(2), false);
         number(pick.index, false);
-        let set_up =
-            GamePtr::to(&crate::race::league_store::LEAGUE.auto_setups).offset(pick.index << 4);
-        let at = |k: u32| set_up.offset(k).read::<u32>("the auto set-ups");
-        for (value, off, words) in [
-            (at(0)?, 0x30, [3, 4]),
-            (at(4)?, 0x34, [5, 6]),
-            (at(0xC)?.wrapping_sub(1), 0x28, [7, 8]),
-            (at(8)?, 0x2C, [9, 10]),
+        // The pick's set-up: four dwords (h, s, g5, g4 + 1) of the 36, 0x10 bytes each.
+        let set_up = |k: usize| {
+            (pick.index as usize)
+                .checked_mul(4)
+                .and_then(|first| crate::race::league_store::LEAGUE.auto_setups.get(first + k))
+                .map(Dword::get)
+                .ok_or(BadInput("the auto set-ups"))
+        };
+        for (value, field, words) in [
+            (set_up(0)?, &car.ride_height, [3, 4]),
+            (set_up(1)?, &car.suspension_stiffness, [5, 6]),
+            (set_up(3)?.wrapping_sub(1), &car.gear_ratio_setting, [7, 8]),
+            (set_up(2)?, &car.tyre_kind, [9, 10]),
         ] {
-            put(off, value)?;
+            field.set(value);
             text(word(words[0]), false);
             number(value, false);
             text(word(words[1]), false);

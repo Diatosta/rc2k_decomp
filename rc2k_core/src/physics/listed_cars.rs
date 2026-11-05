@@ -35,8 +35,6 @@ pub enum CuePlace {
 
 /// A sound object's +8: 1 when it takes cues (a reading: ready).
 pub const READY: u32 = 1;
-/// The object's queue (+0x298), what `queue_sound_cue` is given in edi.
-pub const QUEUE_OFFSET: u32 = 0x298;
 
 /// `physics::cue_car_sound` and `_last`: for `which` 0 or 1 (unsigned; else nothing), the
 /// car `car_of(which)` (past 7 refused), its sound object `object_of(car)` (a handle of

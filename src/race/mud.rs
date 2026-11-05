@@ -45,6 +45,7 @@ pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
         // As the original: eax the row's address, then `mov ax` of the pixel: the
         // upper half of the result is the row's address's.
+        // A pixel of the surface's row: bytes of a picture, not a record.
         let word = row
             .offset(x.wrapping_mul(2))
             .read::<u16>("the surface's pixel")?;

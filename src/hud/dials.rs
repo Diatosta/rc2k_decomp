@@ -37,6 +37,8 @@ pub fn set_up(record: GamePtr, s: &Setup) -> Result<(), Refused> {
                 continue;
             }
             let v = match from {
+                // A panel field by the setup's offset (a table, as the original).
+                // A record field by the setup's offset (a table, as the original).
                 From::Field(o) => record.offset(o).read::<u32>("a hud record's field")?,
                 From::Var(c) => c(&HUD).bits(),
             };

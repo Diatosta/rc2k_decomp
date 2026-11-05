@@ -27,6 +27,7 @@ pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
 
 /// Where the name's three digits are.
 pub fn digits_place() -> GamePtr {
+    // The name's bytes: a file name.
     GamePtr::to(&SNAPSHOT).offset(DIGITS_AT as u32)
 }
 
@@ -55,6 +56,7 @@ pub fn find_first_at(pattern: GamePtr) -> bool {
 
 /// The Rust version.
 pub fn find_snapshot_number() -> Result<(), BadInput> {
+    // The name's bytes: a file name.
     GamePtr::to(&SNAPSHOT)
         .offset(DIGITS_AT as u32)
         .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;

@@ -27,11 +27,9 @@ pub fn lets_race() -> Result<(u32, u32), Refused> {
     { crate::drive::play_race::play_race() }?;
     crate::net::keep_hud_options::keep_hud_options()?;
     let block = crate::race::trap::car_at(RACE_WORK.car_block(RACE_VIEW.local_car.get() as usize))?;
-    let get = |offset: u32| {
-        crate::pointers::GamePtr::to(block)
-            .offset(offset)
-            .read::<u32>("a car block's field")
-    };
     // Converted: `rc2k_core::net::record::not_finished`.
-    Ok((get(0x88)?, rc2k_core::net::record::not_finished(get(0xB0)?)))
+    Ok((
+        block.stage_time.get(),
+        rc2k_core::net::record::not_finished(block.stop_state.get()),
+    ))
 }

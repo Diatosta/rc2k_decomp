@@ -22,6 +22,7 @@ pub fn sort_records<const N: usize>(
     }
     let size = 4 * N as u32;
     let count = count as usize;
+    // The records are read and written as raw dwords (the sort's own byte layout).
     let at = |n: usize| first.offset((n as u32).wrapping_mul(size));
     let len = count
         .checked_mul(size as usize)

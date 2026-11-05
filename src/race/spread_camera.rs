@@ -22,6 +22,7 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 /// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
 /// camera steps end with it, and `viewer_action` keeps every register.
 pub fn spread_camera(byte: GamePtr, old: u8) -> Result<(), Refused> {
+    // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.offset(n.wrapping_mul(8));
     let dl = byte.read::<u8>("a replay camera byte")?;
     let count = REPLAY_FILE

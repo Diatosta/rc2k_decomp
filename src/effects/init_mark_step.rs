@@ -53,6 +53,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
         for n in 0..count {
             let kind = crate::physics::car_store::Car::at(block(n)).car_kind.get() as i32;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
+            // Rows of the kind's record on, run on past it as the original does.
             let row =
                 GamePtr::to(&LIGHT_RECORDS.records).offset((0x6C + race::kind_row(kind)) as u32);
             let bad = crate::effects::Sticky::default();

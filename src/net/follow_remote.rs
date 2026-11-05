@@ -16,6 +16,7 @@ use rc2k_core::net::race;
 /// The Rust version.
 pub fn follow_remote() -> Result<(), crate::errors::BadInput> {
     let car = GamePtr::to(&crate::physics::car_store::CAR);
+    // The offsets are the core's glide fields (`rc2k_core::net::race`), read by table.
     let rd = |at: u32| car.offset(at).read::<u32>("the car's work block");
     let wr = |at: u32, v: u32| car.offset(at).write(v, "the car's work block");
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).

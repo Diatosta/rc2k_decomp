@@ -59,6 +59,7 @@ pub fn fog_entries(entries: &Listed) -> Result<(), Refused> {
         // A length of 0 reads the byte before the table, as the original.
         let fog = match LIGHT_STATE.fog_table.get(place as usize / 4) {
             Some(cell) => cell.get().to_le_bytes()[place as usize % 4],
+            // A run-on before the table, as the original.
             None => GamePtr::to(&LIGHT_STATE.fog_table)
                 .unbounded()
                 .offset(place)

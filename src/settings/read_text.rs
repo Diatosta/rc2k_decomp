@@ -32,6 +32,7 @@ pub fn read_text(
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
+        // The text up to its NUL.
         text.offset(bytes).write(0u8, "the settings text's end")?;
         Ok(Some((text, bytes)))
     }
