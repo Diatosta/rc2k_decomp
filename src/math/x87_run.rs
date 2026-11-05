@@ -12,34 +12,18 @@
 use crate::math::x87::{set_chop, set_control};
 use crate::math::x87_float::{ONE, X, compare, f80, from_f80, int, ld, st, to_int};
 
-/// The `T` at `p`, checked to lie in one region (the program ends otherwise).
-fn get<T: crate::pointers::Plain, P>(p: *const P) -> T {
-    crate::pointers::read_or_end(crate::pointers::game_address(p), "a math helper's operand")
-}
-
-/// `value` written at `p`, checked as `get`.
-fn put<T: crate::pointers::Plain, P>(p: *mut P, value: T) {
-    crate::pointers::write_or_end(
-        crate::pointers::game_address(p.cast_const()),
-        value,
-        "a math helper's operand",
-    );
-}
-
 /// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
 /// rounded to a float).
-pub fn length_80(v: *const u32) -> [u8; 10] {
-    let [a, b, c]: [u32; 3] = get(v);
-    let (a, b, c) = (ld(a), ld(b), ld(c));
+pub fn length_80(v: [u32; 3]) -> [u8; 10] {
+    let [a, b, c] = v.map(ld);
     let (a2, b2, c2) = (a * a, b * b, c * c);
     f80((a2 + (b2 + c2)).sqrt())
 }
 
-/// The three floats at `v` each times the 80-bit `s` and stored as floats.
-pub fn scale_by_80(v: *mut u32, s: [u8; 10]) {
+/// The three floats `v` each times the 80-bit `s` and stored as floats.
+pub fn scale_by_80(v: [u32; 3], s: [u8; 10]) -> [u32; 3] {
     let s = from_f80(s);
-    let parts: [u32; 3] = get(v);
-    put(v, parts.map(|part| st(ld(part) * s)));
+    v.map(|part| st(ld(part) * s))
 }
 
 /// `((a + b) h) / d`.
@@ -319,9 +303,9 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
 /// angle whose sine is `x`, by `atan2` of `x` over the root of 1 less the square of `x`
 /// stored as a float and held to -limit ..= limit (`fpatan`: libm's `atan2` within 2 ulp
 /// of the instruction's). A compare that finds the values unordered counts as "below".
-pub fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
+pub fn clamped_asin_80(x: [u8; 10], s: &mut u32, l: &mut u32) -> [u8; 10] {
     let x = from_f80(x);
-    let limit = ld(get(l));
+    let limit = ld(*l);
     let mut value = st(x);
     // Not below the limit (and a number): the limit.
     if compare(ld(value), limit) & 0x100 == 0 {
@@ -332,8 +316,8 @@ pub fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
     if compare(ld(value), ld(minus)) & 0x100 != 0 {
         value = st(ld(minus));
     }
-    put(s, value);
-    put(l, st(-ld(minus)));
+    *s = value;
+    *l = st(-ld(minus));
     let v = ld(value);
     f80(x.atan2((ONE - v * v).sqrt()))
 }

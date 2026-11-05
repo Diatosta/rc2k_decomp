@@ -558,9 +558,26 @@ impl Car {
     /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); an
     /// address whose block is not inside one region (or is out of line) ends the program.
     pub fn at(address: u32) -> &'static Car {
-        crate::pointers::GamePtr::new(address)
-            .record::<Car>("a car block")
-            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
+        Car::known(address).unwrap_or_else(|| {
+            crate::pointers::GamePtr::new(address)
+                .record::<Car>("a car block")
+                .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
+        })
+    }
+
+    /// The work car (`CAR`) or a car block when `address` is its first byte, found by
+    /// arithmetic on their game addresses (statics: found once); none for any other
+    /// address, which the callers then look up among the regions.
+    pub fn known(address: u32) -> Option<&'static Car> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
+        static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
+        let &(car, blocks) = HOMES.get_or_init(|| (car_addr(), blocks_addr()));
+        if address == car {
+            return Some(&CAR);
+        }
+        let off = address.wrapping_sub(blocks) as usize;
+        (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT)
+            .then(|| &CAR_BLOCKS.cars[off / BLOCK_LEN])
     }
 }
 
@@ -586,6 +603,30 @@ mod tests {
     use super::*;
     use crate::moved::image_bytes;
     use core::mem::offset_of;
+
+    #[test]
+    fn known_cars_are_the_records_their_addresses_name() {
+        use crate::race::blocks_store::{BLOCK_COUNT, block_addr};
+        let by_region = |at: u32| {
+            crate::pointers::GamePtr::new(at)
+                .record::<Car>("a test's car")
+                .ok()
+                .map(core::ptr::from_ref)
+        };
+        let at = car_addr();
+        assert_eq!(Car::known(at).map(core::ptr::from_ref), by_region(at));
+        for n in 0..BLOCK_COUNT {
+            let at = block_addr(n);
+            assert_eq!(
+                Car::known(at).map(core::ptr::from_ref),
+                by_region(at),
+                "block {n}"
+            );
+            assert!(Car::known(at + 4).is_none(), "inside block {n}");
+        }
+        assert!(Car::known(block_addr(BLOCK_COUNT)).is_none());
+        assert!(Car::known(0).is_none());
+    }
 
     #[test]
     fn car_starts_as_the_games() {

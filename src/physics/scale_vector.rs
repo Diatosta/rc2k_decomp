@@ -12,8 +12,7 @@ use crate::math::x87_run::scale_by_80;
 
 /// The Rust version: the vector at `v` times the 80-bit `factor`.
 pub fn scale_vector(v: &(impl Cells + ?Sized), factor: [u8; 10]) {
-    let mut cells: [u32; 3] = load(v);
-    scale_by_80(cells.as_mut_ptr(), factor);
+    let cells = scale_by_80(load(v), factor);
     for (n, bits) in cells.into_iter().enumerate() {
         v.set_bits(n, bits);
     }

@@ -23,10 +23,25 @@ pub fn sort_records<const N: usize>(
     let size = 4 * N as u32;
     let count = count as usize;
     let at = |n: usize| first.offset((n as u32).wrapping_mul(size));
-    let mut list: Vec<[u32; N]> = Vec::with_capacity(count);
-    for n in 0..count {
-        list.push(at(n).read::<[u32; N]>("a record to sort")?);
-    }
+    let len = count
+        .checked_mul(size as usize)
+        .ok_or(crate::errors::BadInput(
+            "more records to sort than memory holds",
+        ))?;
+    let bytes = first.read_bytes(len, "the records to sort")?;
+    let mut list: Vec<[u32; N]> = bytes
+        .chunks_exact(size as usize)
+        .map(|record| {
+            std::array::from_fn(|k| {
+                u32::from_le_bytes([
+                    record[4 * k],
+                    record[4 * k + 1],
+                    record[4 * k + 2],
+                    record[4 * k + 3],
+                ])
+            })
+        })
+        .collect();
     let before = list.clone();
     quick_sort(&mut list, key, order)?;
     for (n, (now, was)) in list.iter().zip(&before).enumerate() {

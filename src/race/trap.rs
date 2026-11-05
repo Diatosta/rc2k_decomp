@@ -64,7 +64,10 @@ impl Trap {
 /// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie
 /// in one region.
 pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-    GamePtr::new(addr).record::<crate::physics::car_store::Car>("a car block")
+    match crate::physics::car_store::Car::known(addr) {
+        Some(car) => Ok(car),
+        None => GamePtr::new(addr).record::<crate::physics::car_store::Car>("a car block"),
+    }
 }
 
 /// A test's own buffer made a region while the guard lives (any items; see

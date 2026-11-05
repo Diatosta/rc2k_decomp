@@ -49,20 +49,8 @@ impl Ida for usize {
     }
 }
 
-/// A variable named by IDA's address in the image (a plain `usize`, no lookup: for the hot
-/// helpers of the physics, race and drive modules).
-pub trait At: Copy {
-    fn here(self) -> usize;
-}
-
-impl At for usize {
-    fn here(self) -> usize {
-        (framework::game_addr(framework::rva(self))) as usize
-    }
-}
-
-/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`,
-/// `Ida` or `At` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
+/// A typed cell (phase 7) is its own place: the helpers that take a variable by `Where`
+/// or `Ida` (`session.rs`) take the typed field as well, so a module's call sites move to fields one
 /// by one.
 macro_rules! typed_places {
     ($($t:ty),*) => {$(
@@ -80,16 +68,6 @@ macro_rules! typed_places {
 }
 
 typed_places!(crate::session::Dword, crate::session::Float);
-
-/// Reads the variable named by `at` (an IDA address of the image).
-pub fn at_read<T: crate::pointers::Plain>(at: impl At) -> T {
-    crate::pointers::read_or_end(at.here() as u32, "a game variable")
-}
-
-/// Writes the variable named by `at` (an IDA address of the image).
-pub fn at_write<T: crate::pointers::Plain>(at: impl At, value: T) {
-    crate::pointers::write_or_end(at.here() as u32, value, "a game variable");
-}
 
 /// Reads the variable named by `at` (an IDA address, or a typed cell).
 pub fn ida_read<T: crate::pointers::Plain>(at: impl Ida) -> T {

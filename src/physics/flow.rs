@@ -8,14 +8,14 @@ use crate::math::x87_float::{compare, ld, st};
 use crate::math::x87_run::compare_full;
 use crate::session::Float;
 
-/// The game's dword at IDA address `x` (or a place of a moved block).
-pub fn g(x: impl crate::store::At) -> u32 {
-    crate::store::at_read(x)
+/// The game's dword in the cell `x`.
+pub fn g(x: &impl crate::session::Cell32) -> u32 {
+    x.bits()
 }
 
-/// Writes the game's dword at IDA address `x`.
-pub fn p(x: impl crate::store::At, v: u32) {
-    crate::store::at_write(x, v);
+/// Writes the game's dword into the cell `x`.
+pub fn p(x: &impl crate::session::Cell32, v: u32) {
+    x.set_bits(v);
 }
 
 /// `fld a; fcomp b`: C0, a below b or unordered.
@@ -30,7 +30,7 @@ pub fn c3(a: u32, b: u32) -> bool {
 
 /// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
 /// (or unordered).
-pub fn hold_low(v: impl crate::store::At, lim: impl crate::store::At) {
+pub fn hold_low(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {
     if c0(g(v), g(lim)) {
         p(v, x87::loaded(g(lim)));
     }
@@ -38,14 +38,14 @@ pub fn hold_low(v: impl crate::store::At, lim: impl crate::store::At) {
 
 /// `fld lim; fld v; fcompp; jb skip; fld lim; fstp v`: v lowered to lim unless below it
 /// (or unordered).
-pub fn hold_high(v: impl crate::store::At, lim: impl crate::store::At) {
+pub fn hold_high(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {
     if !c0(g(v), g(lim)) {
         p(v, x87::loaded(g(lim)));
     }
 }
 
 /// `fld v; fchs; fstp v`.
-pub fn negate(v: impl crate::store::At) {
+pub fn negate(v: &impl crate::session::Cell32) {
     p(
         v,
         crate::math::x87_run::neg_rounded(crate::scene::matrix3::extended(g(v))),
@@ -54,7 +54,7 @@ pub fn negate(v: impl crate::store::At) {
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
 /// sign) or unordered left alone (`fldz; fld v; fcompp`, C3 then C0, as the originals).
-pub fn ease_zero(v: impl crate::store::At, step: impl crate::store::At) {
+pub fn ease_zero(v: &impl crate::session::Cell32, step: &impl crate::session::Cell32) {
     let x = g(v);
     if c3(x, 0) {
         return;
@@ -79,10 +79,10 @@ pub fn ease_zero(v: impl crate::store::At, step: impl crate::store::At) {
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
 /// value at `zero`), else y1; into `out` (`fstp`).
 pub fn table_lerp(
-    x: impl crate::store::At,
+    x: &impl crate::session::Cell32,
     t: &[crate::session::Float; 4],
-    zero: impl crate::store::At,
-    out: impl crate::store::At,
+    zero: &impl crate::session::Cell32,
+    out: &impl crate::session::Cell32,
 ) {
     if c0(g(x), t[0].bits()) {
         p(out, x87::loaded(t[1].bits()));

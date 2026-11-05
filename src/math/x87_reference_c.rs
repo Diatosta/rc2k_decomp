@@ -1805,13 +1805,7 @@ mod tests {
                 };
                 o
             },
-            |(p, m)| {
-                let mut o = [0xAAAA_AAAAu32; 3];
-                {
-                    x87_load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr());
-                };
-                o
-            },
+            |(p, m)| x87_load::rotate_rounding_z(*p, m),
             |a, b| eqf(&a[0], &b[0]) && eqf(&a[1], &b[1]) && a[2] == b[2],
         );
         check_all(
@@ -1824,13 +1818,7 @@ mod tests {
                 };
                 o
             },
-            |(p, m)| {
-                let mut o = [0xAAAA_AAAAu32; 3];
-                {
-                    x87_load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr());
-                };
-                o
-            },
+            |(p, m)| x87_load::rotate_rounding(*p, m),
             exact,
         );
     }
@@ -2374,7 +2362,7 @@ mod tests {
             &ROUNDING,
             |g| [g.f(), g.f(), g.f()],
             |v| run::length_80(v.as_ptr()),
-            |v| x87_run::length_80(v.as_ptr()),
+            |v| x87_run::length_80(*v),
             eq80,
         );
         check(
@@ -2388,13 +2376,7 @@ mod tests {
                 };
                 v
             },
-            |&(v, s)| {
-                let mut v = v;
-                {
-                    x87_run::scale_by_80(v.as_mut_ptr(), s);
-                };
-                v
-            },
+            |&(v, s)| x87_run::scale_by_80(v, s),
             eqf3,
         );
         check(
@@ -2606,7 +2588,10 @@ mod tests {
                 (x, g.f(), l)
             },
             |&(x, s, l)| call(run::clamped_asin_80, x, s, l),
-            |&(x, s, l)| call(x87_run::clamped_asin_80, x, s, l),
+            |&(x, s, l)| {
+                let (mut s, mut l) = (s, l);
+                (x87_run::clamped_asin_80(x, &mut s, &mut l), s, l)
+            },
             |a, b| near_80(&a.0, &b.0, 2) && eqf(&a.1, &b.1) && eqf(&a.2, &b.2),
         );
     }

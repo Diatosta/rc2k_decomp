@@ -256,19 +256,6 @@ impl Cell32 for Float {
     }
 }
 
-/// A cell named where a variable's IDA address is taken (`physics::flow::g`, `p`, `a`).
-impl crate::store::At for &Dword {
-    fn here(self) -> usize {
-        self.addr() as usize
-    }
-}
-
-impl crate::store::At for &Float {
-    fn here(self) -> usize {
-        self.addr() as usize
-    }
-}
-
 /// One of the game's words (16 bits): an atomic cell.
 #[repr(transparent)]
 pub struct Word(AtomicU16);

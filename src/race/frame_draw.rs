@@ -1225,13 +1225,8 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
-    let mut out = [0u32; 3];
     let matrix: [u32; 16] = crate::session::read_bits(&MATRICES.view_matrix);
-    crate::math::x87_load::rotate_rounding_z(
-        place.as_ptr().cast::<i32>(),
-        matrix.as_ptr(),
-        out.as_mut_ptr(),
-    );
+    let out = crate::math::x87_load::rotate_rounding_z(place.map(|v| v as i32), &matrix);
     turned[0].set(out[0]);
     turned[1].set(out[1]);
     let key = out[2].wrapping_add(0x200_0000) >> 10;
@@ -1446,11 +1441,9 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
         place[1].get().wrapping_sub(car_at(b)?.position[1].bits()),
         place[2].get().wrapping_sub(car_at(b)?.position[2].bits()),
     ];
-    let mut t = [0u32; 3];
-    rotate_rounding(
-        d.as_ptr().cast::<i32>(),
-        crate::session::read_bits(&car_at(b)?.car_inverse_matrix).as_ptr(),
-        t.as_mut_ptr(),
+    let t = rotate_rounding(
+        d.map(|v| v as i32),
+        &crate::session::read_bits(&car_at(b)?.car_inverse_matrix),
     );
     crate::session::write_bits(&LIGHT_STATE.turned_light, t);
     let k: u32 = NUMBERS.one_over_65536.bits();
@@ -2304,12 +2297,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
         OBJECT_WORK.place[k].set_bits(p);
     }
     let matrix: [u32; 16] = crate::session::read_bits(&MATRICES.view_matrix);
-    let mut t = [0u32; 3];
-    crate::math::x87_load::rotate_rounding(
-        place.as_ptr().cast::<i32>(),
-        matrix.as_ptr(),
-        t.as_mut_ptr(),
-    );
+    let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         OBJECT_WORK.turned_place[k].set_bits(v);
     }
@@ -2356,11 +2344,9 @@ fn add_flare() -> Result<(), BadInput> {
     ] {
         table[n as usize].set(v);
     }
-    let mut out = [0u32; 3];
-    crate::math::x87_load::rotate_rounding_z(
-        place.as_ptr().cast::<i32>(),
-        crate::session::read_bits(&MATRICES.view_matrix).as_ptr(),
-        out.as_mut_ptr(),
+    let out = crate::math::x87_load::rotate_rounding_z(
+        place.map(|v| v as i32),
+        &crate::session::read_bits(&MATRICES.view_matrix),
     );
     OBJECT_WORK.place[0].set(out[0]);
     OBJECT_WORK.place[1].set(out[1]);
@@ -2378,11 +2364,9 @@ fn add_flare() -> Result<(), BadInput> {
 /// `sub_4572B0`: a flare at `point` (eax, ebx, ecx) in car block `b`'s (esi) frame (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
 fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
-    let mut t = [0u32; 3];
-    crate::math::x87_load::rotate_rounding(
-        point.as_ptr().cast::<i32>(),
-        crate::session::read_bits(&car_at(b)?.crash_matrix).as_ptr(),
-        t.as_mut_ptr(),
+    let t = crate::math::x87_load::rotate_rounding(
+        point.map(|v| v as i32),
+        &crate::session::read_bits(&car_at(b)?.crash_matrix),
     );
     DRAW.scratch.set_bits(t[2]);
     for (k, v) in t.iter().enumerate() {

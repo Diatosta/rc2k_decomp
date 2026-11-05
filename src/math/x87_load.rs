@@ -45,28 +45,12 @@ pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
     compare(x, ld(b)) & 0x0100 != 0
 }
 
-/// The `T` at `p`, checked to lie in one region (the program ends otherwise).
-fn get<T: crate::pointers::Plain, P>(p: *const P) -> T {
-    crate::pointers::read_or_end(crate::pointers::game_address(p), "a math helper's operand")
-}
-
-/// `value` written at `p`, checked as `get`.
-fn put<T: crate::pointers::Plain, P>(p: *mut P, value: T) {
-    crate::pointers::write_or_end(
-        crate::pointers::game_address(p.cast_const()),
-        value,
-        "a math helper's operand",
-    );
-}
-
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
 /// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
-fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
-    let [x, y, z]: [i32; 3] = get(point);
-    let (x, y, z) = (int(x), int(y), int(z));
-    let matrix: [u32; 15] = get(matrix);
+fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
+    let [x, y, z] = point.map(int);
     let m = |i: usize| ld(matrix[i]);
     let s0 = m(0) * x + (m(4) * y + m(8) * z) + m(12);
     let s1 = m(1) * x + (m(5) * y + m(9) * z) + m(13);
@@ -76,10 +60,10 @@ fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
 
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-/// into `out[2]` from the x87's precision (`sub_4573FA`).
-pub fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
+/// into the third from the x87's precision (`sub_4573FA`).
+pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     let s = rotated(point, matrix);
-    put(out, [st(s[0]), st(s[1]), to_int(s[2]) as u32]);
+    [st(s[0]), st(s[1]), to_int(s[2]) as u32]
 }
 
 /// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
@@ -118,10 +102,9 @@ pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
 }
 
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
-/// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
-pub fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
-    let s = rotated(point, matrix);
-    put(out, s.map(|part| to_int(part) as u32));
+/// numbers) through `matrix`, each part rounded from the x87's precision.
+pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
+    rotated(point, matrix).map(|part| to_int(part) as u32)
 }
 
 /// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
