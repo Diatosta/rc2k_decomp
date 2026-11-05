@@ -153,6 +153,11 @@ impl ViewerPanelBlock {
         self.tail_read(0x5C2CEB)
     }
 
+    /// Sets `dword_5C2CEB` (the `wrreplayenable` setting writes it).
+    pub fn set_developer_keys(&self, value: u32) {
+        self.tail_write(0x5C2CEB, value);
+    }
+
     /// `dword_5C2CEF` (unaligned): pictures a second, 1 .. 100.
     pub fn picture_rate(&self) -> u32 {
         self.tail_read(0x5C2CEF)
