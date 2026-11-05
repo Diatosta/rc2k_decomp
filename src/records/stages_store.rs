@@ -20,6 +20,7 @@ use crate::session::{Bytes, Loose};
 /// the table's end), +0x18 the stage's time or length, +0x1C the temperature, +0x24, +0x3C
 /// which ten entries of a stage table (readings: `rc2k_core::saves::defaults`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Record {
     pub words: [Loose; 41],
 }
@@ -179,6 +180,7 @@ const _: () = assert!(core::mem::size_of::<Record>() == 0xA4);
 
 /// An event's table: seven records and the -1 that ends them.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct EventRecords {
     pub records: [Record; 7],
     pub end: Loose,
@@ -200,6 +202,7 @@ const fn track(v: [u32; 16]) -> TrackEntry {
 /// The track pack (`g_trakPakHeader`): +0 the link, +4 the pack's id, its name, the count,
 /// the entries from +0x34 (`records::trakpak_entry`, `race::single_rally`) and a -1.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct TrakPak {
     pub link: Loose,
     pub pack_id: Loose,
@@ -212,6 +215,7 @@ pub struct TrakPak {
 
 /// Aligned to 4 (its cells are bytes) so that the lead does its work.
 #[repr(C, align(4))]
+#[derive(rc2k_derive::Cells)]
 pub struct StageTables {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.
     pub _lead: Bytes<2>,
@@ -1512,7 +1516,7 @@ pub const START: usize = 0x734BC6;
 /// IDA 0x73B674, the end of the piece.
 pub const END: usize = 0x73B674;
 
-/// Where IDA 0x734BC6 is now (`moved::MOVED`'s home).
+#[cfg(test)]
 pub fn stage_tables_addr() -> u32 {
     crate::pointers::game_address(&raw const STAGE_TABLES) + 2
 }

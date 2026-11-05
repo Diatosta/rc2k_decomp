@@ -16,6 +16,7 @@ use crate::session::{Byte, Bytes, Dword, with_runs};
 
 /// IDA 0x529DAD .. 0x52A263.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallVars {
     /// Not in the image: one byte so that the dwords are aligned (the block starts on an odd address).
     pub _lead: Byte,
@@ -37,6 +38,8 @@ pub struct InstallVars {
     pub clio_car_name: Bytes<27>,
     /// 0x529F1E: The Clio's descriptions (`a1121`, `aSolutionFTuned`, `aRearWheel` ..) in the languages, and the credits' texts.
     pub credits_b: Bytes<837>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<1>,
 }
 
 pub static INSTALL: InstallVars = InstallVars {
@@ -50,15 +53,12 @@ pub static INSTALL: InstallVars = InstallVars {
     credits_a: Bytes::new(with_runs::<27>(&[(0, b"\xe5\x00umlaut\x00\xa7\x00Craig Griffiths")])),
     clio_car_name: Bytes::new(with_runs::<27>(&[(0, b"renault clio sport V6 (A7)")])),
     credits_b: Bytes::new(with_runs::<837>(&[(0, b"11.2:1\x00solution F tuned V6\x0aRS 24 valves\x00rear wheel\x00\xb7 Renault Sport developed chassis and\x0a  engine rekindles the spirit of the\x0a  legendary mid-engined Renault 5 turbo\x0a\x0a\xb7 mid-engine layout for optimal weight\x0a  distribution and dynamic performance\x0a\x0a\xb7 the 3 litre V6 24V engine delivers\x0a  over 280bhp in race trim\x0a\x0a\xb7 developed for a one-make racing\x0a  series with a limited production\x0a  run of road-going models\x0a\x0a\x00V6 24 soupapes\x0a\x09de\x02v\x02eloppe par sol\x01ution F\x00traction arri\xe8re\x00\xb7 les ch\xe2ssis et moteur d\xe9velopp\xe9s par\x0a  Renault Sport reprennent l'esprit du\x0a  l\xe9gendaire moteur central de la\x0a  Renault 5 turbo\x0a\x0a\xb7 support moteur central pour une\x0a  parfaite r\xe9partition du poids et des\x0a  performances optimales\x0a\x0a\xb7 le moteur 3 litres, V6 24 soupapes\x0a  produit plus de 280 ch. en course\x0a\x0a\xb7 d\xe9velopp\xe9e pour des courses\x0a  exclusives et en serie limit\xe9e")])),
+    _tail: Bytes::new([0; 1]),
 };
 
 impl InstallVars {
     pub const START: usize = 0x529DAD;
     pub const LEN: usize = 0x4B6;
-    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
-    pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INSTALL) + 1) as usize
-    }
 }
 
 /// IDA 0x52A30F .. 0x52A4B0.

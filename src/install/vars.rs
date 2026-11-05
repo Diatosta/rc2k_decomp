@@ -15,6 +15,7 @@ use crate::session::{Byte, Bytes, Dword, Loose, Word, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerRun {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -125,6 +126,7 @@ pub static INSTALLER_RUN: InstallerRun = InstallerRun {
 impl InstallerRun {
     pub const START: usize = 0x51B9C8;
     pub const LEN: usize = 0x198;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const INSTALLER_RUN) + 8) as usize
@@ -133,6 +135,7 @@ impl InstallerRun {
 
 /// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
     /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
     pub key_name: Bytes<30>,
@@ -188,6 +191,8 @@ pub struct InstallerNames {
     pub _gap_51c378: Bytes<127>,
     /// 0x51C3F7: `g_roomByMode`: KB needed by installation mode.
     pub room_by_mode: Bytes<16>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<9>,
 }
 
 pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
@@ -218,11 +223,13 @@ pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
     lang_cfg: Bytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
     _gap_51c378: Bytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
     room_by_mode: Bytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
+    _tail: Bytes::new([0; 9]),
 };
 
 impl InstallerNames {
     pub const START: usize = 0x51BB60;
     pub const LEN: usize = 0x8A7;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const INSTALLER_NAMES) as usize
@@ -231,6 +238,7 @@ impl InstallerNames {
 
 /// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<7>,
@@ -330,6 +338,8 @@ pub struct InstallerPages {
     pub _gap_51dda8: Bytes<112>,
     /// 0x51DE18: `g_badFolderChars`: the characters a folder name may not hold.
     pub bad_folder_chars: Bytes<20>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
 /// `bytes`, the installer pages' field that starts at IDA's address `start`, with each link
@@ -403,6 +413,7 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     title_box: Bytes::new(with_runs::<16>(&[(0, b"2\x00\x00\x00\x96\x00\x00\x00\xee\x02\x00\x00\x90\x01")])),
     _gap_51dda8: Bytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
     bad_folder_chars: Bytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
+    _tail: Bytes::new([0; 4]),
 };
 
 impl InstallerPages {
@@ -435,6 +446,7 @@ impl InstallerPages {
     const FONTS_AT: usize = 0x51D4C4;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const INSTALLER_PAGES) + 7) as usize
@@ -443,6 +455,7 @@ impl InstallerPages {
 
 /// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -458,6 +471,8 @@ pub struct InstallerPaths {
     pub script_path: Bytes<256>,
     /// 0x95EBF8: `byte_95EBF8`: the folder typed on the page.
     pub typed: Bytes<256>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
 pub static INSTALLER_PATHS: InstallerPaths = InstallerPaths {
@@ -468,11 +483,13 @@ pub static INSTALLER_PATHS: InstallerPaths = InstallerPaths {
     path_b: Bytes::new([0; 256]),
     script_path: Bytes::new([0; 256]),
     typed: Bytes::new([0; 256]),
+    _tail: Bytes::new([0; 8]),
 };
 
 impl InstallerPaths {
     pub const START: usize = 0x95E6F8;
     pub const LEN: usize = 0x600;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const INSTALLER_PATHS) + 8) as usize
@@ -481,21 +498,26 @@ impl InstallerPaths {
 
 /// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPalette {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
     /// 0x4F3874: `unk_4F3874`: the installer's palette file read here (0x300 bytes, `install::open_installer`).
     pub palette: Bytes<768>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<12>,
 }
 
 pub static INSTALLER_PALETTE: InstallerPalette = InstallerPalette {
     _lead: Bytes::new([0; 4]),
     palette: Bytes::new([0; 768]),
+    _tail: Bytes::new([0; 12]),
 };
 
 impl InstallerPalette {
     pub const START: usize = 0x4F3874;
     pub const LEN: usize = 0x300;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const INSTALLER_PALETTE) + 4) as usize

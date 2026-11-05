@@ -12,6 +12,7 @@
 use crate::session::{Bytes, Loose, with_runs};
 
 #[repr(C, align(4))]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuTexts {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.
     pub _lead: Bytes<2>,
@@ -623,6 +624,8 @@ pub struct MenuTexts {
     pub car_speech: [[Loose; 3]; 24],
     /// 0x734986: per stage, three speech samples' names and a 0.
     pub stage_speech: [[Loose; 4]; 36],
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<2>,
 }
 
 pub static MENU_TEXTS: MenuTexts = MenuTexts {
@@ -2097,6 +2100,7 @@ pub static MENU_TEXTS: MenuTexts = MenuTexts {
             Loose::new(speech_key(0xffffffff)),
         ],
     ],
+    _tail: Bytes::new([0; 2]),
 };
 
 /// IDA 0x731B82, the first byte of the piece.
@@ -2155,16 +2159,16 @@ pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
 /// IDA 0x734BC6, the end of the piece.
 pub const END: usize = 0x734BC6;
 
-/// Where IDA 0x731B82 is now (`moved::MOVED`'s home).
-pub fn menu_texts_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENU_TEXTS) + 2
-}
-
 #[cfg(test)]
 const CAR_SPEECH: usize = 0x734866;
 
 #[cfg(test)]
 const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
+
+#[cfg(test)]
+pub fn menu_texts_addr() -> u32 {
+    crate::pointers::game_address(&raw const MENU_TEXTS) + 2
+}
 
 #[cfg(test)]
 mod tests {

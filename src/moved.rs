@@ -525,7 +525,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::store::InstallVars::START, // InstallVars
         len: crate::install::store::InstallVars::LEN,
-        home: Home::Address(crate::install::store::InstallVars::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::store::INSTALL,
+            1,
+        )),
     },
     Moved {
         ida: crate::menu::build_notice::BuildNotice::START, // BuildNotice
@@ -933,12 +936,18 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::texts_store::START,
         len: crate::menu::texts_store::END - crate::menu::texts_store::START,
-        home: Home::Address(|| crate::menu::texts_store::menu_texts_addr() as usize),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::menu::texts_store::MENU_TEXTS,
+            2,
+        )),
     },
     Moved {
         ida: crate::records::stages_store::START,
         len: crate::records::stages_store::END - crate::records::stages_store::START,
-        home: Home::Address(|| crate::records::stages_store::stage_tables_addr() as usize),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::records::stages_store::STAGE_TABLES,
+            2,
+        )),
     },
     Moved {
         ida: crate::menu::drivers_store::START,
@@ -1035,27 +1044,42 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::install::vars::InstallerRun::START,
         len: crate::install::vars::InstallerRun::LEN,
-        home: Home::Address(crate::install::vars::InstallerRun::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::vars::INSTALLER_RUN,
+            8,
+        )),
     },
     Moved {
         ida: crate::install::vars::InstallerNames::START,
         len: crate::install::vars::InstallerNames::LEN,
-        home: Home::Address(crate::install::vars::InstallerNames::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::vars::INSTALLER_NAMES,
+            0,
+        )),
     },
     Moved {
         ida: crate::install::vars::InstallerPages::START,
         len: crate::install::vars::InstallerPages::LEN,
-        home: Home::Address(crate::install::vars::InstallerPages::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::vars::INSTALLER_PAGES,
+            7,
+        )),
     },
     Moved {
         ida: crate::install::vars::InstallerPaths::START,
         len: crate::install::vars::InstallerPaths::LEN,
-        home: Home::Address(crate::install::vars::InstallerPaths::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::vars::INSTALLER_PATHS,
+            8,
+        )),
     },
     Moved {
         ida: crate::install::vars::InstallerPalette::START,
         len: crate::install::vars::InstallerPalette::LEN,
-        home: Home::Address(crate::install::vars::InstallerPalette::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::install::vars::INSTALLER_PALETTE,
+            4,
+        )),
     },
     Moved {
         ida: crate::system::load_game_data::RunCount::START,
