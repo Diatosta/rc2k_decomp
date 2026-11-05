@@ -170,8 +170,11 @@ pub fn region_of(addr: u32) -> Option<(u32, u32)> {
     exact_region(addr)
         .or_else(|| own_section(addr).filter(|_| cfg!(test) && !crate::race::store::is_dead(addr)))
         .or_else(|| {
+            if !cfg!(test) {
+                return None;
+            }
             let (low, high) = to_game(stack());
-            (cfg!(test) && (low..high).contains(&addr)).then_some((low, high))
+            (low..high).contains(&addr).then_some((low, high))
         })
 }
 
@@ -187,7 +190,15 @@ fn exact_region(addr: u32) -> Option<(u32, u32)> {
     })
 }
 
+/// The image section `addr` lies in, as game addresses (the tests' raw regions: the
+/// program's places are its stores').
+#[cfg(not(test))]
+fn own_section(_addr: u32) -> Option<(u32, u32)> {
+    None
+}
+
 /// The image section `addr` lies in, as game addresses.
+#[cfg(test)]
 fn own_section(addr: u32) -> Option<(u32, u32)> {
     let at = crate::address_map::host(addr)?;
     own_sections()

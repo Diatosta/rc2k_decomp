@@ -159,22 +159,6 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 /// No priority classes on Unix: the process runs as it was started.
 pub fn set_priority_class(_class: u32) {}
 
-/// A range of `len` addresses reserved with no access, for the program's life.
-pub fn reserve(len: usize) -> Option<usize> {
-    // SAFETY: a new anonymous mapping with no access; nothing is passed in.
-    let at = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            len,
-            libc::PROT_NONE,
-            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
-            -1,
-            0,
-        )
-    };
-    (at != libc::MAP_FAILED).then(|| at.expose_provenance())
-}
-
 /// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
 /// their first byte, or None. Pages not yet touched take no memory.
 pub fn map_pages(len: usize) -> Option<*mut u8> {

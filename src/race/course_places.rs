@@ -32,9 +32,7 @@ pub fn reserve() -> Result<u32, BadInput> {
         return Ok(at);
     }
     let len = PARTS as usize * ROOM as usize;
-    let reserved =
-        crate::os::reserve(len).ok_or(BadInput("no addresses for the course's places"))?;
-    let at = crate::address_map::map(reserved, len);
+    let at = crate::address_map::reserve(len);
     WINDOW.store(at, Ordering::Release);
     Ok(at)
 }

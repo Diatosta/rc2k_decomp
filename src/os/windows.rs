@@ -8,7 +8,7 @@ use windows_sys::Win32::Storage::FileSystem::{
 };
 use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
 use windows_sys::Win32::System::Memory::{
-    MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_NOACCESS, PAGE_READWRITE, VirtualAlloc,
+    MEM_COMMIT, MEM_RESERVE, MEM_RESET, PAGE_READWRITE, VirtualAlloc,
 };
 use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
@@ -161,14 +161,6 @@ pub fn set_error_mode(mode: u32) -> u32 {
 pub fn set_priority_class(class: u32) {
     // SAFETY: the process's own pseudo-handle and a plain value.
     unsafe { SetPriorityClass(GetCurrentProcess(), class) };
-}
-
-/// A range of `len` addresses reserved with no access, for the program's life: its first
-/// (a host address), or None.
-pub fn reserve(len: usize) -> Option<usize> {
-    // SAFETY: a reservation only; nothing is passed in.
-    let at = unsafe { VirtualAlloc(std::ptr::null(), len, MEM_RESERVE, PAGE_NOACCESS) };
-    (!at.is_null()).then(|| at.expose_provenance())
 }
 
 /// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
