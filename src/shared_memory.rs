@@ -7,6 +7,7 @@
 
 #![allow(unsafe_code)]
 
+#[cfg(test)]
 use std::mem::MaybeUninit;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering::Relaxed;
@@ -67,6 +68,7 @@ pub unsafe fn store(to: *mut u8, from: *const u8, len: usize) {
     walk!(to, len, n, step);
 }
 
+#[cfg(test)]
 /// `len` shared bytes set to `value`.
 ///
 /// # Safety
@@ -82,6 +84,7 @@ pub unsafe fn fill(to: *mut u8, value: u8, len: usize) {
     }
 }
 
+#[cfg(test)]
 /// `len` shared bytes copied between shared places, overlapping as `memmove`.
 ///
 /// # Safety

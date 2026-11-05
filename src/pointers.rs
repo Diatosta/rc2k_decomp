@@ -648,10 +648,7 @@ impl GamePtr {
             load_at(self.at, from, &mut bytes)?;
             return store_at(to.at, into, &bytes);
         }
-        // SAFETY: both runs lie in live regions; `copy` allows overlap.
-        unsafe {
-            crate::shared_memory::copy(raw_place(self.at), raw_place(to.at), len);
-        }
+        raw_copy(self.at, to.at, len);
         Ok(())
     }
 
@@ -661,8 +658,7 @@ impl GamePtr {
         if let backing @ Backing::Store(..) = self.check(len, what)? {
             return store_at(self.at, backing, &vec![value; len]);
         }
-        // SAFETY: the run lies in one live region.
-        unsafe { crate::shared_memory::fill(raw_place(self.at), value, len) };
+        raw_fill(self.at, value, len);
         Ok(())
     }
 
@@ -970,8 +966,7 @@ fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
             None => store.load(at, to),
         };
     }
-    // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
-    unsafe { crate::shared_memory::load(raw_place(addr), to.as_mut_ptr(), to.len()) };
+    raw_load(addr, to);
     Ok(())
 }
 
@@ -987,8 +982,7 @@ fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
             None => store.store(at, from),
         };
     }
-    // SAFETY: as `load_at`'s; the regions are the game's writable memory.
-    unsafe { crate::shared_memory::store(raw_place(addr), from.as_ptr(), from.len()) };
+    raw_store(addr, from);
     Ok(())
 }
 
@@ -1002,6 +996,52 @@ fn place_of(addr: u32, backing: Backing) -> *mut u8 {
             .wrapping_add((addr - home) as usize),
         Backing::Raw => raw_place(addr),
     }
+}
+
+/// The raw regions' copies (checked by the callers to lie in one live region): the tests'
+/// only; in the program a raw region is refused (`raw_place`).
+#[cfg(test)]
+fn raw_load(addr: u32, to: &mut [u8]) {
+    // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
+    unsafe { crate::shared_memory::load(raw_place(addr), to.as_mut_ptr(), to.len()) };
+}
+
+#[cfg(test)]
+fn raw_store(addr: u32, from: &[u8]) {
+    // SAFETY: as `raw_load`'s; the regions are the game's writable memory.
+    unsafe { crate::shared_memory::store(raw_place(addr), from.as_ptr(), from.len()) };
+}
+
+#[cfg(test)]
+fn raw_copy(from: u32, to: u32, len: usize) {
+    // SAFETY: both runs lie in live regions; `copy` allows overlap.
+    unsafe { crate::shared_memory::copy(raw_place(from), raw_place(to), len) };
+}
+
+#[cfg(test)]
+fn raw_fill(addr: u32, value: u8, len: usize) {
+    // SAFETY: the run lies in one live region.
+    unsafe { crate::shared_memory::fill(raw_place(addr), value, len) };
+}
+
+#[cfg(not(test))]
+fn raw_load(addr: u32, _: &mut [u8]) {
+    raw_place(addr);
+}
+
+#[cfg(not(test))]
+fn raw_store(addr: u32, _: &[u8]) {
+    raw_place(addr);
+}
+
+#[cfg(not(test))]
+fn raw_copy(from: u32, _: u32, _: usize) {
+    raw_place(from);
+}
+
+#[cfg(not(test))]
+fn raw_fill(addr: u32, _: u8, _: usize) {
+    raw_place(addr);
 }
 
 /// A raw region's bytes: the tests' only (their stack, the image's sections, buffers lent by
