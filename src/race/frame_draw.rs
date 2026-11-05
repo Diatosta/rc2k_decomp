@@ -51,11 +51,6 @@ use crate::session::MACHINE;
 use crate::session::SCREEN;
 use crate::sound::store::STAGE_SOUNDS;
 
-/// A dword at game address `a` (frame words and matrices).
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a frame word")
-}
-
 /// Field `offset` of course face `face`.
 fn face_field<T: crate::race::course_places::Whole>(face: u32, offset: u32) -> Result<T, BadInput> {
     crate::race::course_places::face_field(face, offset, "a course face")
@@ -129,10 +124,16 @@ pub fn panel_players() -> Result<(), BadInput> {
         }
         PANEL.view_a.back.set(u32::MAX);
         PANEL.view_a.front.set(u32::MAX);
-        let a = get(RACE_VIEW.view_block(0) + 0xFA4)?;
-        PANEL.view_a.place.set(a);
-        let b = get(RACE_VIEW.view_block(1) + 0xFA4)?;
-        PANEL.view_b.place.set(b);
+        // Each view block's +0xFA4.
+        let field = |n: usize| -> Result<u32, BadInput> {
+            Ok(RACE_VIEW
+                .view_car(n)
+                .ok_or(BadInput("a view without its car block"))?
+                .unknown_fa4
+                .get())
+        };
+        PANEL.view_a.place.set(field(0)?);
+        PANEL.view_b.place.set(field(1)?);
     }
     Ok(())
 }
@@ -2371,13 +2372,23 @@ fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
     Ok(())
 }
 
+/// The car block's part switches' place (+0xAC0), from which `light_pair`'s byte offsets
+/// count.
+const PART_SWITCHES: u32 = 0xAC0;
+
 /// `sub_457241`: a pair of lights at the light record's (edi) +`at` (ecx; three dwords:
 /// none when all are 0) for block `b` (esi): the right one (x as it is) when the block's
 /// byte +`right` (edx) is set, the left (x negated) when +`left` (ebx) is (-1: no byte), each by `place_flare` inside `pusha`;
 /// `dword_641758` / `dword_64175C` the two bytes.
-fn light_pair(b: u32, record: u32, at: u32, left: u32, right: u32) -> Result<(), BadInput> {
+fn light_pair(b: u32, record: GamePtr, at: u32, left: u32, right: u32) -> Result<(), BadInput> {
+    // The bytes are the block's part switches (+0xAC0 ..).
+    let switches = &car_at(b)?.part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
-        Ok(GamePtr::new(b.wrapping_add(o)).read::<u8>("a car block's light byte")? as u32)
+        let n = o.wrapping_sub(PART_SWITCHES) as usize;
+        if n >= switches.atomics().len() {
+            return Err(BadInput("a light byte past the part switches"));
+        }
+        Ok(u32::from(switches.get(n)))
     };
     FRAME_WORK.light_left.set(0u32);
     FRAME_WORK.light_right.set(0u32);
@@ -2387,11 +2398,7 @@ fn light_pair(b: u32, record: u32, at: u32, left: u32, right: u32) -> Result<(),
     if right != u32::MAX {
         FRAME_WORK.light_right.set(byte(right)?);
     }
-    let (x, y, z) = (
-        get(record + at)?,
-        get(record + at + 4)?,
-        get(record + at + 8)?,
-    );
+    let [x, y, z]: [u32; 3] = record.offset(at).read("a light record's place")?;
     if x | y | z == 0 {
         return Ok(());
     }
@@ -2449,7 +2456,7 @@ pub fn car_light_flares(b: u32) -> Result<(), Refused> {
     }
     // `sub_41F4E1`: the kind held to 0 ..= 0x21 (by sign), through `dword_5C59B0`.
     let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].bits();
-    let record = LIGHT_RECORDS.record_addr(index);
+    let record = LIGHT_RECORDS.record_ptr(index);
     LIGHT_STATE.view_kind.set(1u32);
     LIGHT_WORK.light_kind.set(3u32);
     OBJECT_WORK.size.set(2u32);

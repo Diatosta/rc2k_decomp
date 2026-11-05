@@ -134,6 +134,11 @@ impl RaceView {
     pub fn view_block(&self, n: usize) -> u32 {
         crate::race::blocks_store::block_of(self.view_blocks[n].get())
     }
+
+    /// View `n`'s car block (None for none).
+    pub fn view_car(&self, n: usize) -> Option<&'static crate::physics::car_store::Car> {
+        crate::race::blocks_store::car_of(self.view_blocks[n].get())
+    }
 }
 
 /// IDA 0x63D9B8, the first byte of the piece.

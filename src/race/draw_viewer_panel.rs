@@ -37,21 +37,13 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     if crate::d3d::lock_texture::lock_texture(REPLAY_FILE.viewer_panel_texture.get())?.carry {
         return Ok(());
     }
-    // The surface cleared (as `rep stosd` row by row; a height of 0 goes round 2^32
-    // times in the original as here: the texture has rows).
-    let mut at = crate::gfx::surface::address()?;
-    let mut rows = DRAW_SURFACE.height.get();
-    loop {
-        let dwords = DRAW_SURFACE.row_dwords.get();
-        crate::pointers::GamePtr::new(at).fill(0, 4 * dwords as usize, "the panel's surface")?;
-        at = at
-            .wrapping_add(4 * dwords)
-            .wrapping_add(DRAW_SURFACE.row_gap.get());
-        rows = rows.wrapping_sub(1);
-        if rows == 0 {
-            break;
-        }
+    // The surface cleared (as `rep stosd` row by row). A height of 0 is refused: the
+    // original goes round 2^32 times.
+    let height = DRAW_SURFACE.height.get();
+    if height == 0 {
+        return Err(crate::errors::BadInput("a panel texture of no rows").into());
     }
+    crate::gfx::rows::clear_surface_rows(0, height)?;
     // A string of the game's texts drawn with a font at (x, y).
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {

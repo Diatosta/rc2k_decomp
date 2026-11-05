@@ -314,8 +314,7 @@ pub fn forget_view_textures() -> Result<(), Refused> {
             .view_textures_forgotten
             .set(FRAME_WORK.view_textures_forgotten.get() | bit);
         if let Forget::Counted(v) = f {
-            // +0x720: the notice counter.
-            let counter = &crate::race::trap::car_at(blocks[v])?.notice_unknown_6f8;
+            let counter = &crate::race::trap::car_at(blocks[v])?.notice_counter;
             counter.set(counter.get().wrapping_sub(1));
         }
     }

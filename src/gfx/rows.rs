@@ -78,6 +78,21 @@ impl Rows {
     }
 }
 
+/// `rows` rows of the drawing surface (a locked texture) cleared from byte `start` of its
+/// first (`rep stosd` of the row's dwords, then the row's gap, as the original steps).
+pub fn clear_surface_rows(start: u32, rows: u32) -> Result<(), BadInput> {
+    let dwords = DRAW_SURFACE.row_dwords.get();
+    let surface = Rows::new(
+        crate::gfx::surface::address()?,
+        (4 * dwords).wrapping_add(DRAW_SURFACE.row_gap.get()),
+        DRAW_SURFACE.height.get(),
+    );
+    for y in 0..rows {
+        surface.fill(y, start, 0, 4 * dwords as usize, "the surface's rows")?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

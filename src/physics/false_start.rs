@@ -33,7 +33,7 @@ pub fn false_start() -> Result<(), Refused> {
     };
     let notice_was = Notice {
         id: c.notice_id.get(),
-        w6f8: c.notice_unknown_6f8.get(),
+        w6f8: c.notice_counter.get(),
         last: c.notice_last.get(),
         shown: c.notice_shown.get(),
         time: c.notice_time.get(),
@@ -47,7 +47,7 @@ pub fn false_start() -> Result<(), Refused> {
         (&c.stage_time, was.time, car.time),
         (&c.run_ticks, was.timer, car.timer),
         (&c.notice_id, notice_was.id, notice.id),
-        (&c.notice_unknown_6f8, notice_was.w6f8, notice.w6f8),
+        (&c.notice_counter, notice_was.w6f8, notice.w6f8),
         (&c.notice_last, notice_was.last, notice.last),
         (&c.notice_shown, notice_was.shown, notice.shown),
         (&c.notice_time, notice_was.time, notice.time),

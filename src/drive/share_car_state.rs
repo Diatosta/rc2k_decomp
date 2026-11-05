@@ -83,9 +83,9 @@ pub fn share_car_state_at(
         }
     }
     o.put(0x1C, car.light_colour.get())?;
-    let light = LIGHT_RECORDS.record_addr(n);
+    let light = LIGHT_RECORDS.record_ptr(n);
     for (r, l) in sharing::LIGHT_MOVES {
-        o.put(r, GamePtr::new(light + l).read("a light record")?)?;
+        o.put(r, light.offset(l).read("a light record")?)?;
     }
     o.set_block(crate::race::blocks_store::handle_of(
         GamePtr::to(car).addr(),

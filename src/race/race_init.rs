@@ -26,7 +26,7 @@ pub fn state_cell(car: &Car, off: u32) -> Result<&Dword, BadInput> {
     Ok(match off {
         0x8 => &car.step_clock,
         0x71C => &car.notice_id,
-        0x720 => &car.notice_unknown_6f8,
+        0x720 => &car.notice_counter,
         0x724 => &car.notice_last,
         0x728 => &car.notice_shown,
         0x72C => &car.notice_time,

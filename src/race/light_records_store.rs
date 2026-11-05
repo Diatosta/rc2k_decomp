@@ -36,6 +36,7 @@ impl LightRecords {
     /// Where record `index` is, by wrapping arithmetic on the first record's address (the
     /// game's code does not bound the index: callers that read an offset of the record, or
     /// pass it to x87 runs, use this).
+    #[cfg(test)]
     pub fn record_addr(&self, index: u32) -> u32 {
         (self.records[0].head[0].addr()).wrapping_add(index.wrapping_mul(0x134))
     }

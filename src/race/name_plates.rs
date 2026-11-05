@@ -13,21 +13,6 @@ use crate::race::view_store::RACE_VIEW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
-/// `rows` rows of the locked surface cleared from byte `start` of its first (`rep stosd` of
-/// the row's dwords, then the row's gap, as the original steps).
-fn clear_rows(start: u32, rows: u32) -> Result<(), crate::errors::BadInput> {
-    let dwords = DRAW_SURFACE.row_dwords.get();
-    let surface = crate::gfx::rows::Rows::new(
-        crate::gfx::surface::address()?,
-        (4 * dwords).wrapping_add(DRAW_SURFACE.row_gap.get()),
-        DRAW_SURFACE.height.get(),
-    );
-    for y in 0..rows {
-        surface.fill(y, start, 0, 4 * dwords as usize, "a plate's surface")?;
-    }
-    Ok(())
-}
-
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
 /// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
@@ -41,7 +26,7 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
     let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
-    clear_rows(0, name_rows(line))?;
+    crate::gfx::rows::clear_surface_rows(0, name_rows(line))?;
     FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
         draw_text_in_game(&FONTS.game_fonts[2], text, x, y)?;
@@ -79,7 +64,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
     let line = FONTS.game_fonts[0].get().line_height as u32;
     let start = time_start(line, DRAW_SURFACE.pitch.get());
-    clear_rows(start, time_rows(line))?;
+    crate::gfx::rows::clear_surface_rows(start, time_rows(line))?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // block's next dword, so the place is bounded to the block, not the label.
     use crate::race::overlay_store::OverlayBlock;
@@ -108,13 +93,13 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates() -> Result<(), Refused> {
-    let blocks = [RACE_VIEW.view_block(0), RACE_VIEW.view_block(1)];
-    if blocks.contains(&0) {
+    let (Some(a), Some(b)) = (RACE_VIEW.view_car(0), RACE_VIEW.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
-    }
+    };
+    // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.
+    let blocks = [a, b];
     // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
-    let field = |b: u32, o: u32| GamePtr::new(b + o);
     let now = [
         OVERLAY.label_behind[0].get(),
         OVERLAY.label_behind[1].get(),
@@ -138,11 +123,11 @@ pub fn update_name_plates() -> Result<(), Refused> {
             to.set(from.get());
         }
         for &b in &blocks {
-            field(b, 0x720).write(1u32, "a view block's plate flag")?;
+            b.notice_counter.set(1);
         }
     }
     for (b, slot) in blocks.into_iter().zip([196, 197]) {
-        let asked: u32 = field(b, 0x71C).read("a view block's plate ask")?;
+        let asked = b.notice_id.get();
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
@@ -153,10 +138,10 @@ pub fn update_name_plates() -> Result<(), Refused> {
             }
         }
         // ebx at the store: the name asked for (every drawing keeps its registers).
-        field(b, 0x724).write(asked, "a view block's plate ask")?;
-        field(b, 0x71C).write(0u32, "a view block's plate ask")?;
-        field(b, 0x720).write(1u32, "a view block's plate flag")?;
-        field(b, 0x728).write(1u32, "a view block's plate flag")?;
+        b.notice_last.set(asked);
+        b.notice_id.set(0);
+        b.notice_counter.set(1);
+        b.notice_shown.set(1);
     }
     Ok(())
 }

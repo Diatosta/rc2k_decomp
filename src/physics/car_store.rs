@@ -394,8 +394,10 @@ pub struct Car {
     pub shown_engine_speed: Float,
     /// +0x71c (0x71A6F4): id of the notice shown (0 none).
     pub notice_id: Dword,
-    /// +0x720 (0x71A6F8): only false_start reads and clears it.
-    pub notice_unknown_6f8: Dword,
+    /// +0x720 (0x71A6F8): the notice's counter: the name plates set it to 1 when drawn,
+    /// `race::frame_views` counts it down as a view's textures are forgotten, `false_start`
+    /// reads and clears it.
+    pub notice_counter: Dword,
     /// +0x724 (0x71A6FC): id of the last notice shown.
     pub notice_last: Dword,
     /// +0x728 (0x71A700): 1 while a notice is shown.
