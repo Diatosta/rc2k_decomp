@@ -277,19 +277,36 @@ pub struct KindTables<const GAP: usize> {
 // the derive checks (it has no generics).
 #[allow(unsafe_code, reason = "the derive's impl, by hand for a const generic")]
 unsafe impl<const GAP: usize> crate::pointers::Cells for KindTables<GAP> {
-    fn cell_at(offset: usize) -> crate::pointers::CellAt {
+    fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
         const { assert!(size_of::<KindTables<GAP>>() == GAP + 0xA18) };
         if offset < GAP {
-            return Bytes::<GAP>::cell_at(offset);
+            return self._gap_0.cell_run(offset);
         }
         let tail = offset - GAP;
-        // The tail: three tables of triples, then ten of single values, 34 entries each.
         let (table, within) = (tail / 408, tail % 408);
-        if table < 3 {
-            return <[[Float; 3]; 34]>::cell_at(within).after(GAP + table * 408);
-        }
-        let single = tail - 3 * 408;
-        <[Float; 34]>::cell_at(single % 136).after(GAP + 3 * 408 + single / 136 * 136)
+        let (start, run) = match table {
+            0 => self.copied.cell_run(within),
+            1 => self.from.cell_run(within),
+            2 => self.to.cell_run(within),
+            _ => {
+                let single = tail - 3 * 408;
+                let at = 3 * 408 + single / 136 * 136;
+                let (start, run) = match single / 136 {
+                    0 => self.extra.cell_run(single % 136),
+                    1 => self.size.cell_run(single % 136),
+                    2 => self.divisor.cell_run(single % 136),
+                    3 => self.spread.cell_run(single % 136),
+                    4 => self.count.cell_run(single % 136),
+                    5 => self.start.cell_run(single % 136),
+                    6 => self.middle.cell_run(single % 136),
+                    7 => self.end.cell_run(single % 136),
+                    8 => self.high.cell_run(single % 136),
+                    _ => self.low.cell_run(single % 136),
+                };
+                return (GAP + at + start, run);
+            }
+        };
+        (GAP + table * 408 + start, run)
     }
 }
 

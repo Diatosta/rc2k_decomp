@@ -1,43 +1,42 @@
-//! `Cells::cell_at` and the copies on it (`load_cells`, `store_cells`) against every store:
-//! the cells tile each record, each atomic on its own width's boundary, and the copies give
+//! `Cells::cell_run` and the copies on it (`load_cells`, `store_cells`) against every store:
+//! the runs tile each record, each atomic on its own width's boundary, and the copies give
 //! the bytes `shared_memory`'s raw copies give.
 
 use super::*;
 use crate::shared_memory;
 
-/// The cells of `record`, checked to tile it: each holds the bytes it names, and an atomic
-/// starts on a multiple of its width.
+/// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
+/// starts on a multiple of its width, and is the run every byte in it names (sampled in a
+/// store of megabytes, a debug build).
 fn check_tiling<T: Cells>(record: &T, name: &str) {
     let base = std::ptr::from_ref(record) as usize;
+    let size = size_of::<T>();
+    let step = (size / 0x4000).max(1);
     let mut at = 0;
-    while at < size_of::<T>() {
-        let cell = T::cell_at(at);
-        assert_eq!(cell.start, at, "{name}: a cell begins at byte {at:#x}");
+    while at < size {
+        let (start, run) = record.cell_run(at);
+        assert_eq!(start, at, "{name}: a run begins at byte {at:#x}");
         assert!(
-            cell.len > 0 && at + cell.len <= size_of::<T>(),
-            "{name}: {cell:?}"
+            run.len() > 0 && at + run.len() <= size,
+            "{name}: the run at {at:#x}"
         );
-        match cell.kind {
-            CellKind::U8 => assert_eq!(cell.len, 1),
-            CellKind::U16 => assert_eq!(cell.len, 2),
-            CellKind::U32 => assert_eq!(cell.len, 4),
-            CellKind::Bytes => {}
-        }
-        if cell.kind != CellKind::Bytes {
+        assert_eq!(
+            run.first(),
+            base + start,
+            "{name}: the run at {at:#x} lies there"
+        );
+        assert!(
+            (base + at).is_multiple_of(run.width()),
+            "{name}: the run at {at:#x} unaligned"
+        );
+        for inside in (at..at + run.len()).step_by(step) {
+            let (s, r) = record.cell_run(inside);
             assert!(
-                (base + at).is_multiple_of(cell.len),
-                "{name}: {cell:?} unaligned"
+                s <= inside && inside < s + r.len() && r.first() + inside - s == base + inside,
+                "{name}: byte {inside:#x} in its run"
             );
         }
-        for inside in at..at + cell.len {
-            assert_eq!(T::cell_at(inside), cell, "{name}: byte {inside:#x}");
-            assert_eq!(
-                cell_of::<T>(inside),
-                cell,
-                "{name}: byte {inside:#x}, by its runs"
-            );
-        }
-        at += cell.len;
+        at += run.len();
     }
 }
 
@@ -216,33 +215,11 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
         d: Byte::new(0x88),
         e: [Dword::new(0xCCBB_AA99), Dword::new(0x1122_33DD)],
     };
-    assert_eq!(
-        Mixed::cell_at(5),
-        CellAt {
-            start: 4,
-            len: 2,
-            kind: CellKind::U16,
-            run_end: 6,
-        }
-    );
-    assert_eq!(
-        Mixed::cell_at(11),
-        CellAt {
-            start: 8,
-            len: 4,
-            kind: CellKind::U32,
-            run_end: 16,
-        }
-    );
-    assert_eq!(
-        Mixed::cell_at(13),
-        CellAt {
-            start: 12,
-            len: 4,
-            kind: CellKind::U32,
-            run_end: 16,
-        }
-    );
+    // Each scalar its own run; the array one run of dwords.
+    let (start, run) = m.cell_run(5);
+    assert_eq!((start, run.len(), run.width()), (4, 2, 2));
+    let (start, run) = m.cell_run(13);
+    assert_eq!((start, run.len(), run.width()), (8, 8, 4));
     store_cells(&m, 1, &[0xEE]).unwrap();
     assert_eq!(m.a.get(), 0x4433_EE11);
     store_cells(&m, 3, &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]).unwrap();

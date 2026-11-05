@@ -73,7 +73,7 @@ pub struct Segment {
     len: usize,
 }
 
-// SAFETY: the block is one run of shared bytes (`Bytes`); a segment is a part of it.
+// SAFETY: `first` and `size` name a part of the block's one run of shared bytes (`Bytes`).
 #[allow(
     unsafe_code,
     reason = "Store's promise: a segment is bytes of the block's one run"
@@ -81,15 +81,6 @@ pub struct Segment {
 unsafe impl crate::pointers::Store for Segment {
     fn size(&self) -> usize {
         self.len
-    }
-
-    fn cell(&self, _: usize) -> Option<crate::pointers::CellAt> {
-        Some(crate::pointers::CellAt {
-            start: 0,
-            len: self.len,
-            kind: crate::pointers::CellKind::Bytes,
-            run_end: self.len,
-        })
     }
 
     fn first(&self) -> *const u8 {

@@ -594,31 +594,30 @@ impl<T: crate::pointers::Cells + Sync + 'static> Window<T> {
     }
 }
 
-// SAFETY: `cell` is the whole record's `Cells::cell_at`, moved by the window's offset, and
-// none when the cell begins before the window.
+// SAFETY: `first` is the record's byte at the window's offset, and `size` what is left of it.
 #[allow(
     unsafe_code,
-    reason = "Store's promise: the window's cells are the record's"
+    reason = "Store's promise: the window's bytes are the record's"
 )]
 unsafe impl<T: crate::pointers::Cells + Sync + 'static> crate::pointers::Store for Window<T> {
     fn size(&self) -> usize {
         size_of::<T>() - self.offset
     }
 
-    fn cell(&self, offset: usize) -> Option<crate::pointers::CellAt> {
-        let cell = T::cell_at(self.offset + offset);
-        let start = cell.start.checked_sub(self.offset)?;
-        Some(crate::pointers::CellAt {
-            start,
-            run_end: cell.run_end - self.offset,
-            ..cell
-        })
-    }
-
     fn first(&self) -> *const u8 {
         std::ptr::from_ref(self.whole)
             .cast::<u8>()
             .wrapping_add(self.offset)
+    }
+
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::pointers::CellRun<'_>)> {
+        // A run that begins before the window is taken from the window's first byte, when a
+        // cell begins there.
+        let (start, run) = crate::pointers::Cells::cell_run(self.whole, self.offset + offset);
+        match start.checked_sub(self.offset) {
+            Some(start) => Some((start, run)),
+            None => Some((0, run.skip(self.offset - start)?)),
+        }
     }
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {

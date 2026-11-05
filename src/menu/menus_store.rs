@@ -145,18 +145,20 @@ pub struct Menu<const N: usize> {
     unsafe_code,
     reason = "an `unsafe trait` impl; the derive cannot name the const parameter"
 )]
-// SAFETY: `#[repr(C)]` over a dword, `N` items and a dword, no padding (checked in `cell_at`).
+// SAFETY: `#[repr(C)]` over a dword, `N` items and a dword, no padding (checked in `cell_run`).
 // (Written by hand: the derive's size check cannot name the const parameter.)
 unsafe impl<const N: usize> crate::pointers::Cells for Menu<N> {
-    fn cell_at(offset: usize) -> crate::pointers::CellAt {
+    fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
         const { assert!(core::mem::size_of::<Menu<1>>() == 8 + 0x5C) };
         let items = core::mem::size_of::<[MenuItem; N]>();
         if offset < 4 {
-            Dword::cell_at(offset)
+            self.head.cell_run(offset)
         } else if offset < 4 + items {
-            <[MenuItem; N]>::cell_at(offset - 4).after(4)
+            let (start, run) = self.items.cell_run(offset - 4);
+            (4 + start, run)
         } else {
-            Dword::cell_at(offset - 4 - items).after(4 + items)
+            let (start, run) = self.end.cell_run(offset - 4 - items);
+            (4 + items + start, run)
         }
     }
 }

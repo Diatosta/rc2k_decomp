@@ -25,6 +25,7 @@ use crate::errors::BadInput;
 use crate::framework::log;
 use std::collections::BTreeMap;
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32};
 
 pub mod pool;
 
@@ -701,179 +702,222 @@ impl GamePtr {
 ///
 /// # Safety
 /// Every byte of the type is inside an `UnsafeCell` or an atomic, and any bit pattern is a
-/// valid value. `cell_at` names, for each byte below the type's size, the primitive cell that
-/// holds it: an atomic of that width at that offset, or a run of `Bytes`.
+/// valid value (`GamePtr::record` and `cells_of_bytes` rely on both). `cell_run` is safe to
+/// get wrong (it hands out references): a wrong run is a wrong read, which the tests of every
+/// store look for (`cells_tests`).
 pub unsafe trait Cells {
-    /// The primitive cell holding byte `offset` (below the type's size), placed from the
-    /// record's first byte.
-    fn cell_at(offset: usize) -> CellAt;
+    /// The run of like primitive cells holding byte `offset` (below the type's size), as
+    /// references, and the byte it starts at: each field's own, an array of one primitive cell
+    /// whole (`slice_run`).
+    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>);
 
-    /// The record's runs of like cells in order (each the first cell of its run), when the
-    /// type keeps them (the derive does for records without generics, built at first use
-    /// by `flatten`): a lookup is then one search, and a copy walks them in turn.
-    fn runs() -> Option<&'static [CellAt]> {
+    /// A slice of this type as one run, when it is a primitive cell (an array's run).
+    fn slice_run(_slice: &[Self]) -> Option<CellRun<'_>>
+    where
+        Self: Sized,
+    {
         None
     }
 }
 
-/// `T`'s runs of like cells, in order (`Cells::runs`).
-pub fn flatten<T: Cells>() -> Vec<CellAt> {
-    let mut runs = Vec::new();
-    let mut at = 0;
-    while at < size_of::<T>() {
-        let cell = T::cell_at(at);
-        runs.push(cell);
-        at = cell.run_end;
-    }
-    runs
+/// One primitive cell, as its atomic.
+#[derive(Clone, Copy)]
+enum CellRef<'a> {
+    U8(&'a AtomicU8),
+    U16(&'a AtomicU16),
+    U32(&'a AtomicU32),
 }
 
-/// The cell holding byte `offset` of a record whose runs are `runs`, and the run's index.
-fn in_runs(runs: &[CellAt], offset: usize) -> (usize, CellAt) {
-    let i = runs.partition_point(|run| run.start <= offset) - 1;
-    let run = runs[i];
-    let start = run.start + (offset - run.start) / run.len * run.len;
-    (i, CellAt { start, ..run })
+/// A run of like primitive cells of a record, as references (`Cells::cell_run`): an array of
+/// one cell type (or a single cell), a 4-aligned `Shared` record's dwords, or a run of byte
+/// atomics (a `Bytes`). Copied in and out at its cells' width, a part of a cell merged by
+/// compare-and-swap.
+#[derive(Clone, Copy)]
+pub enum CellRun<'a> {
+    Bytes(&'a [AtomicU8]),
+    Byte(&'a [crate::session::Byte]),
+    Word(&'a [crate::session::Word]),
+    Dword(&'a [crate::session::Dword]),
+    Float(&'a [crate::session::Float]),
+    Words(&'a [AtomicU32]),
 }
 
-/// The cell holding byte `offset` of a `T`: through its runs when it keeps them.
-fn cell_of<T: Cells>(offset: usize) -> CellAt {
-    match T::runs() {
-        Some(runs) => in_runs(runs, offset).1,
-        None => T::cell_at(offset),
-    }
-}
-
-/// What a primitive cell is: an atomic of one width, or a run of plain shared bytes
-/// (`Bytes<N>`, copied as `shared_memory` copies).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CellKind {
-    U8,
-    U16,
-    U32,
-    Bytes,
-}
-
-/// A primitive cell of a record: where it starts, how long it is, what it is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct CellAt {
-    pub start: usize,
-    pub len: usize,
-    pub kind: CellKind,
-    /// The end of the run of cells like this one that it begins or lies in (an array of
-    /// one primitive cell: the array's end), so a copy steps through the run without asking
-    /// again.
-    pub run_end: usize,
-}
-
-impl CellAt {
-    const fn atomic(kind: CellKind, len: usize) -> Self {
-        Self {
-            start: 0,
-            len,
-            kind,
-            run_end: len,
+impl<'a> CellRun<'a> {
+    /// Its cells' width in bytes.
+    fn width(self) -> usize {
+        match self {
+            CellRun::Bytes(_) | CellRun::Byte(_) => 1,
+            CellRun::Word(_) => 2,
+            CellRun::Dword(_) | CellRun::Float(_) | CellRun::Words(_) => 4,
         }
     }
 
-    /// The same cell in a record where its holder starts `at` bytes in.
-    pub const fn after(self, at: usize) -> Self {
-        Self {
-            start: self.start + at,
-            run_end: self.run_end + at,
-            ..self
+    /// Its length in bytes.
+    pub fn len(self) -> usize {
+        let cells = match self {
+            CellRun::Bytes(r) => r.len(),
+            CellRun::Byte(r) => r.len(),
+            CellRun::Word(r) => r.len(),
+            CellRun::Dword(r) => r.len(),
+            CellRun::Float(r) => r.len(),
+            CellRun::Words(r) => r.len(),
+        };
+        cells * self.width()
+    }
+
+    /// Its first byte's address, for the tests' check of the tiling.
+    #[cfg(test)]
+    pub fn first(self) -> usize {
+        match self {
+            CellRun::Bytes(r) => r.as_ptr() as usize,
+            CellRun::Byte(r) => r.as_ptr() as usize,
+            CellRun::Word(r) => r.as_ptr() as usize,
+            CellRun::Dword(r) => r.as_ptr() as usize,
+            CellRun::Float(r) => r.as_ptr() as usize,
+            CellRun::Words(r) => r.as_ptr() as usize,
+        }
+    }
+
+    /// The run from its byte `n` on, when that is a cell's first byte.
+    pub fn skip(self, n: usize) -> Option<CellRun<'a>> {
+        if !n.is_multiple_of(self.width()) || n > self.len() {
+            return None;
+        }
+        let i = n / self.width();
+        Some(match self {
+            CellRun::Bytes(r) => CellRun::Bytes(&r[i..]),
+            CellRun::Byte(r) => CellRun::Byte(&r[i..]),
+            CellRun::Word(r) => CellRun::Word(&r[i..]),
+            CellRun::Dword(r) => CellRun::Dword(&r[i..]),
+            CellRun::Float(r) => CellRun::Float(&r[i..]),
+            CellRun::Words(r) => CellRun::Words(&r[i..]),
+        })
+    }
+
+    /// Cell `i`.
+    fn cell(self, i: usize) -> CellRef<'a> {
+        match self {
+            CellRun::Bytes(r) => CellRef::U8(&r[i]),
+            CellRun::Byte(r) => CellRef::U8(r[i].atomic()),
+            CellRun::Word(r) => CellRef::U16(r[i].atomic()),
+            CellRun::Dword(r) => CellRef::U32(r[i].atomic()),
+            CellRun::Float(r) => CellRef::U32(r[i].atomic()),
+            CellRun::Words(r) => CellRef::U32(&r[i]),
+        }
+    }
+
+    /// `to.len()` bytes from its byte `offset` (inside it), each cell read whole.
+    pub fn load(self, offset: usize, to: &mut [u8]) {
+        if let CellRun::Bytes(r) = self {
+            return load_bytes(&r[offset..offset + to.len()], to);
+        }
+        let (w, end) = (self.width(), offset + to.len());
+        let mut at = offset;
+        while at < end {
+            let start = at - at % w;
+            let upto = end.min(start + w);
+            let bytes = cell_bytes(self.cell(start / w));
+            to[at - offset..upto - offset].copy_from_slice(&bytes[at - start..upto - start]);
+            at = upto;
+        }
+    }
+
+    /// `from` written at its byte `offset` (inside it), each cell at its own width.
+    pub fn store(self, offset: usize, from: &[u8]) {
+        if let CellRun::Bytes(r) = self {
+            return store_bytes(&r[offset..offset + from.len()], from);
+        }
+        let (w, end) = (self.width(), offset + from.len());
+        let mut at = offset;
+        while at < end {
+            let start = at - at % w;
+            let upto = end.min(start + w);
+            set_cell_bytes(
+                self.cell(start / w),
+                at - start,
+                &from[at - offset..upto - offset],
+            );
+            at = upto;
         }
     }
 }
 
 // SAFETY: `#[repr(C)]` over its one array of `Dword`s.
 unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N> {
-    fn cell_at(offset: usize) -> CellAt {
-        <[crate::session::Dword; N]>::cell_at(offset)
+    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
+        Cells::cell_run(&self.entries, offset)
     }
 }
 // SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Dword {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::U32, 4)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Dword(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Dword(slice))
     }
 }
 // SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Float {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::U32, 4)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Float(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Float(slice))
     }
 }
 // SAFETY: one `AtomicU16`.
 unsafe impl Cells for crate::session::Word {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::U16, 2)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Word(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Word(slice))
     }
 }
 // SAFETY: one `AtomicU8`.
 unsafe impl Cells for crate::session::Byte {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::U8, 1)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Byte(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Byte(slice))
     }
 }
 // SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
 unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::Bytes, N)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Bytes(self.atomics()))
     }
 }
 // SAFETY: an `UnsafeCell` over a plain record (any bytes make one, `Plain`), at the widths
 // its `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
 // `AtomicU32`s, the bytes past them `AtomicU8`s; a packed record one run of shared bytes.
 unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
-    fn cell_at(offset: usize) -> CellAt {
-        let size = size_of::<T>();
-        let words = size & !3;
-        if !crate::session::Shared::<T>::WORDS {
-            CellAt::atomic(CellKind::Bytes, size)
-        } else if offset < words {
-            CellAt {
-                start: offset & !3,
-                len: 4,
-                kind: CellKind::U32,
-                run_end: words,
-            }
-        } else {
-            CellAt {
-                start: offset,
-                len: 1,
-                kind: CellKind::U8,
-                run_end: size,
-            }
-        }
+    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
+        crate::session::Shared::cell_run(self, offset)
     }
 }
 // SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.
 unsafe impl Cells for crate::session::Loose {
-    fn cell_at(_: usize) -> CellAt {
-        CellAt::atomic(CellKind::Bytes, 4)
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Bytes(self.atomics()))
     }
 }
 // SAFETY: `N` of a type of cells, one after another.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
-    fn cell_at(offset: usize) -> CellAt {
-        let size = size_of::<T>();
-        assert!(
-            size != 0 && offset < size * N,
-            "Cells: byte {offset} outside the array"
-        );
-        let element = offset - offset % size;
-        let inner = T::cell_at(offset % size);
-        if inner.start == 0 && inner.len == size {
-            // An array of one primitive cell: one run to the array's end.
-            CellAt {
-                start: element,
-                run_end: size * N,
-                ..inner
-            }
-        } else {
-            inner.after(element)
+    fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
+        if let Some(run) = T::slice_run(self.as_slice()) {
+            return (0, run);
         }
+        let size = size_of::<T>();
+        let i = offset / size;
+        let (start, run) = self[i].cell_run(offset % size);
+        (i * size + start, run)
     }
 }
 
@@ -918,18 +962,13 @@ fn bytes_of<T: Plain>(value: &T) -> &[u8] {
 fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
     if let Backing::Store(store, home) = backing {
         let at = (addr - home) as usize;
-        match run_of(store, at, to.len()) {
-            Some(Run::Cell(place, kind)) => {
-                to.copy_from_slice(&cell_bytes(place, kind)[..to.len()]);
-                return Ok(());
+        return match run_of(store, at, to.len()) {
+            Some((start, run)) => {
+                run.load(at - start, to);
+                Ok(())
             }
-            Some(Run::Bytes(place)) => {
-                // SAFETY: inside one run of the store's shared bytes (`run_of`).
-                unsafe { crate::shared_memory::load(place, to.as_mut_ptr(), to.len()) };
-                return Ok(());
-            }
-            None => return store.load(at, to),
-        }
+            None => store.load(at, to),
+        };
     }
     // SAFETY: the run lies in one live region (the caller's check); `to` is Rust's.
     unsafe { crate::shared_memory::load(raw_place(addr), to.as_mut_ptr(), to.len()) };
@@ -940,18 +979,13 @@ fn load_at(addr: u32, backing: Backing, to: &mut [u8]) -> Result<(), BadInput> {
 fn store_at(addr: u32, backing: Backing, from: &[u8]) -> Result<(), BadInput> {
     if let Backing::Store(store, home) = backing {
         let at = (addr - home) as usize;
-        match run_of(store, at, from.len()) {
-            Some(Run::Cell(place, kind)) => {
-                set_cell_bytes(place, kind, 0, from);
-                return Ok(());
+        return match run_of(store, at, from.len()) {
+            Some((start, run)) => {
+                run.store(at - start, from);
+                Ok(())
             }
-            Some(Run::Bytes(place)) => {
-                // SAFETY: as `load_at`'s.
-                unsafe { crate::shared_memory::store(place.cast_mut(), from.as_ptr(), from.len()) };
-                return Ok(());
-            }
-            None => return store.store(at, from),
-        }
+            None => store.store(at, from),
+        };
     }
     // SAFETY: as `load_at`'s; the regions are the game's writable memory.
     unsafe { crate::shared_memory::store(raw_place(addr), from.as_ptr(), from.len()) };
@@ -989,39 +1023,25 @@ fn raw_place(addr: u32) -> *mut u8 {
     )
 }
 
-/// Where a short access in a store goes straight: one whole atomic cell of the access's width,
-/// or a part of a run of shared bytes.
-enum Run {
-    Cell(*const u8, CellKind),
-    Bytes(*const u8),
-}
-
-/// The fast way to `len` bytes at `at` in `store`, when there is one: through the thread's
-/// last run of like cells (most accesses step through one table), else its cell looked up.
-fn run_of(store: &'static dyn Store, at: usize, len: usize) -> Option<Run> {
+/// The run of like cells in `store` holding `len` bytes at `at`, and the byte it starts at:
+/// the thread's last run (most accesses step through one table), else its run looked up.
+fn run_of(store: &'static dyn Store, at: usize, len: usize) -> Option<(usize, CellRun<'static>)> {
     thread_local! {
-        static LAST: std::cell::Cell<Option<(*const u8, CellAt)>> =
+        static LAST: std::cell::Cell<Option<(*const u8, usize, CellRun<'static>)>> =
             const { std::cell::Cell::new(None) };
     }
     let first = store.first();
-    let cell = match LAST.get() {
-        Some((was, cell)) if was == first && (cell.start..cell.run_end).contains(&at) => cell,
+    let (start, run) = match LAST.get() {
+        Some((was, start, run)) if was == first && at >= start && at < start + run.len() => {
+            (start, run)
+        }
         _ => {
-            let cell = store.cell(at)?;
-            LAST.set(Some((first, cell)));
-            cell
+            let (start, run) = store.cell_run_at(at)?;
+            LAST.set(Some((first, start, run)));
+            (start, run)
         }
     };
-    if at + len > cell.run_end {
-        return None;
-    }
-    let place = first.wrapping_add(at);
-    match cell.kind {
-        CellKind::Bytes => Some(Run::Bytes(place)),
-        // One whole cell of the run, of the access's width.
-        kind => ((at - cell.start).is_multiple_of(cell.len) && len == cell.len)
-            .then_some(Run::Cell(place, kind)),
-    }
+    (at + len <= start + run.len()).then_some((start, run))
 }
 
 /// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
@@ -1055,9 +1075,8 @@ plain_record!(
 /// range resolves to (`moved::Home`).
 ///
 /// # Safety
-/// `cell(offset)`, when it answers, names the primitive cell at `first() + offset` truly (an
-/// atomic of that width there, or a run of shared bytes), as `Cells::cell_at` does: reads and
-/// writes go straight to it.
+/// `first()` is the store's first byte and `size()` bytes behind it are the store's own, laid
+/// out as it says (`GamePtr::record` and `slice` reach them from `first()`).
 pub unsafe trait Store: Sync {
     /// Its length in bytes.
     #[cfg_attr(
@@ -1070,21 +1089,23 @@ pub unsafe trait Store: Sync {
     fn size(&self) -> usize;
     /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
     fn first(&self) -> *const u8;
-    /// The primitive cell around byte `offset`, placed from `first()`; `None` where it begins
-    /// before `first()` (the reads there take `load` and `store`).
-    fn cell(&self, offset: usize) -> Option<CellAt>;
+    /// The run of like cells holding byte `offset`, as references, and the byte it starts at
+    /// (`None`: the reads there take `load` and `store`).
+    fn cell_run_at(&self, _offset: usize) -> Option<(usize, CellRun<'_>)> {
+        None
+    }
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
-// SAFETY: `cell` is `Cells::cell_at`, from the record's first byte.
+// SAFETY: `first` is the record's first byte and `size` its size.
 unsafe impl<T: Cells + Sync> Store for T {
     fn size(&self) -> usize {
         size_of::<T>()
     }
 
-    fn cell(&self, offset: usize) -> Option<CellAt> {
-        Some(cell_of::<T>(offset))
+    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
+        Some(Cells::cell_run(self, offset))
     }
 
     fn first(&self) -> *const u8 {
@@ -1101,147 +1122,97 @@ unsafe impl<T: Cells + Sync> Store for T {
 }
 
 /// The bytes of a cell's value, as many as it is wide.
-fn cell_bytes(place: *const u8, kind: CellKind) -> [u8; 4] {
-    use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
+fn cell_bytes(cell: CellRef) -> [u8; 4] {
+    use std::sync::atomic::Ordering::Relaxed;
     let mut bytes = [0; 4];
-    // SAFETY: `place` is an atomic of this width inside a borrowed record (`Cells::cell_at`).
-    unsafe {
-        match kind {
-            CellKind::U8 => bytes[0] = AtomicU8::from_ptr(place.cast_mut()).load(Relaxed),
-            CellKind::U16 => bytes[..2].copy_from_slice(
-                &AtomicU16::from_ptr(place.cast_mut().cast())
-                    .load(Relaxed)
-                    .to_ne_bytes(),
-            ),
-            CellKind::U32 => {
-                bytes = AtomicU32::from_ptr(place.cast_mut().cast())
-                    .load(Relaxed)
-                    .to_ne_bytes();
-            }
-            CellKind::Bytes => unreachable!("a run of bytes is no atomic"),
-        }
+    match cell {
+        CellRef::U8(a) => bytes[0] = a.load(Relaxed),
+        CellRef::U16(a) => bytes[..2].copy_from_slice(&a.load(Relaxed).to_ne_bytes()),
+        CellRef::U32(a) => bytes = a.load(Relaxed).to_ne_bytes(),
     }
     bytes
 }
 
 /// A cell's bytes `from ..` set to `new`, the others kept: one store when all of it is new,
 /// else one compare-and-swap, so a byte written into a dword never undoes a write to the
-/// dword's other bytes.
-fn set_cell_bytes(place: *const u8, kind: CellKind, from: usize, new: &[u8]) {
-    use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
+/// `new` written into a cell from its byte `from`: a whole cell stored, a part of one merged
+/// by one compare-and-swap (the other bytes kept as another thread left them).
+fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
+    use std::sync::atomic::Ordering::Relaxed;
     let merge = |old: [u8; 4]| {
         let mut bytes = old;
         bytes[from..from + new.len()].copy_from_slice(new);
         bytes
     };
-    // SAFETY: as `cell_bytes`'.
-    unsafe {
-        match kind {
-            CellKind::U8 => AtomicU8::from_ptr(place.cast_mut()).store(new[0], Relaxed),
-            CellKind::U16 => {
-                let cell = AtomicU16::from_ptr(place.cast_mut().cast());
-                let _ = cell.try_update(Relaxed, Relaxed, |old| {
-                    let [a, b, ..] = old.to_ne_bytes();
-                    let [a, b, ..] = merge([a, b, 0, 0]);
-                    Some(u16::from_ne_bytes([a, b]))
+    match cell {
+        CellRef::U8(a) => a.store(new[0], Relaxed),
+        CellRef::U16(a) => {
+            let _ = a.try_update(Relaxed, Relaxed, |old| {
+                let [a, b, ..] = old.to_ne_bytes();
+                let [a, b, ..] = merge([a, b, 0, 0]);
+                Some(u16::from_ne_bytes([a, b]))
+            });
+        }
+        CellRef::U32(a) => {
+            if new.len() == 4 {
+                a.store(u32::from_ne_bytes(merge([0; 4])), Relaxed);
+            } else {
+                let _ = a.try_update(Relaxed, Relaxed, |old| {
+                    Some(u32::from_ne_bytes(merge(old.to_ne_bytes())))
                 });
             }
-            CellKind::U32 => {
-                let cell = AtomicU32::from_ptr(place.cast_mut().cast());
-                if new.len() == 4 {
-                    cell.store(u32::from_ne_bytes(merge([0; 4])), Relaxed);
-                } else {
-                    let _ = cell.try_update(Relaxed, Relaxed, |old| {
-                        Some(u32::from_ne_bytes(merge(old.to_ne_bytes())))
-                    });
-                }
-            }
-            CellKind::Bytes => unreachable!("a run of bytes is no atomic"),
         }
     }
-}
-
-/// The cells `offset .. offset + len` of `record` that `visit(cell, from, to)` gets in turn:
-/// the cell, and the part of it in the run (offsets from the record's first byte).
-fn each_cell<T: Cells>(
-    offset: usize,
-    len: usize,
-    mut visit: impl FnMut(CellAt, usize, usize),
-) -> Result<(), BadInput> {
-    let end = offset
-        .checked_add(len)
-        .filter(|&end| end <= size_of::<T>())
-        .ok_or(BadInput("past the end of a record"))?;
-    let runs = T::runs();
-    let mut next: Option<usize> = None;
-    let mut at = offset;
-    while at < end {
-        // The cell at `at` (the next run, when the record keeps its runs), then the rest of
-        // its run, cell by cell.
-        let mut cell = match (runs, next) {
-            (Some(runs), Some(i)) if i < runs.len() && runs[i].start == at => {
-                next = Some(i + 1);
-                runs[i]
-            }
-            (Some(runs), _) => {
-                let (i, cell) = in_runs(runs, at);
-                next = Some(i + 1);
-                cell
-            }
-            (None, _) => T::cell_at(at),
-        };
-        let run_end = end.min(cell.run_end);
-        loop {
-            let to = run_end.min(cell.start + cell.len);
-            visit(cell, at, to);
-            at = to;
-            if at >= run_end {
-                break;
-            }
-            cell.start += cell.len;
-        }
-    }
-    Ok(())
 }
 
 /// `to.len()` bytes of `record` from byte `offset` on, each cell read whole at its own
 /// width (a run of `Bytes` as `shared_memory` reads it).
 pub fn load_cells<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-    let base = std::ptr::from_ref(record).cast::<u8>();
-    each_cell::<T>(offset, to.len(), |cell, from, upto| {
-        let out = &mut to[from - offset..upto - offset];
-        if cell.kind == CellKind::Bytes {
-            // SAFETY: the run lies inside the record's `Bytes` (`cell_at`), shared bytes
-            // copied through `shared_memory`; `out` is the caller's.
-            unsafe { crate::shared_memory::load(base.add(from), out.as_mut_ptr(), out.len()) };
-        } else {
-            // SAFETY: the cell lies inside the record (`cell_at`).
-            let bytes = cell_bytes(unsafe { base.add(cell.start) }, cell.kind);
-            out.copy_from_slice(&bytes[from - cell.start..upto - cell.start]);
-        }
-    })
+    let end = record_end::<T>(offset, to.len())?;
+    let mut at = offset;
+    while at < end {
+        let (start, run) = record.cell_run(at);
+        let upto = end.min(start + run.len());
+        run.load(at - start, &mut to[at - offset..upto - offset]);
+        at = upto;
+    }
+    Ok(())
 }
 
-/// `from` written into `record` from byte `offset` on, each cell at its own width (`set_cell_bytes`).
+/// `from` written into `record` from byte `offset` on, each cell at its own width (a part
+/// of one merged by compare-and-swap).
 pub fn store_cells<T: Cells>(record: &T, offset: usize, from: &[u8]) -> Result<(), BadInput> {
-    let base = std::ptr::from_ref(record).cast::<u8>();
-    each_cell::<T>(offset, from.len(), |cell, at, upto| {
-        let new = &from[at - offset..upto - offset];
-        if cell.kind == CellKind::Bytes {
-            // SAFETY: as `load_cells`'.
-            unsafe {
-                crate::shared_memory::store(base.add(at).cast_mut(), new.as_ptr(), new.len());
-            }
-        } else {
-            // SAFETY: the cell lies inside the record (`cell_at`).
-            set_cell_bytes(
-                unsafe { base.add(cell.start) },
-                cell.kind,
-                at - cell.start,
-                new,
-            );
-        }
-    })
+    let end = record_end::<T>(offset, from.len())?;
+    let mut at = offset;
+    while at < end {
+        let (start, run) = record.cell_run(at);
+        let upto = end.min(start + run.len());
+        run.store(at - start, &from[at - offset..upto - offset]);
+        at = upto;
+    }
+    Ok(())
+}
+
+/// The end of `len` bytes from `offset` in a `T`, or refused past its end.
+fn record_end<T>(offset: usize, len: usize) -> Result<usize, BadInput> {
+    offset
+        .checked_add(len)
+        .filter(|&end| end <= size_of::<T>())
+        .ok_or(BadInput("past the end of a record"))
+}
+
+/// A run of byte atomics copied out.
+fn load_bytes(run: &[AtomicU8], to: &mut [u8]) {
+    for (b, a) in to.iter_mut().zip(run) {
+        *b = a.load(std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// A run of byte atomics written.
+fn store_bytes(run: &[AtomicU8], from: &[u8]) {
+    for (a, &b) in run.iter().zip(from) {
+        a.store(b, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:

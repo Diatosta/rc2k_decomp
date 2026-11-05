@@ -51,8 +51,8 @@ impl PoolBlock {
     }
 }
 
-// SAFETY: `cell` answers nothing: every read and write takes `load` and `store`, which reach
-// the block's own shared bytes inside its length.
+// SAFETY: `first` and `size` are the block's own pages; every read and write takes `load` and
+// `store`, which reach them inside its length.
 unsafe impl crate::pointers::Store for PoolBlock {
     fn size(&self) -> usize {
         self.len()
@@ -60,10 +60,6 @@ unsafe impl crate::pointers::Store for PoolBlock {
 
     fn first(&self) -> *const u8 {
         self.as_ptr()
-    }
-
-    fn cell(&self, _offset: usize) -> Option<crate::pointers::CellAt> {
-        None
     }
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {

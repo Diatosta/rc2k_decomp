@@ -1,7 +1,8 @@
 //! `#[derive(Cells)]` for `rc2k_hook::pointers::Cells`: a `#[repr(C)]` or `#[repr(transparent)]` record is made of cells
 //! when each field is, and no byte lies outside its fields. Both are checked at compile time,
-//! so the promise the trait asks for rests on the primitive cells alone. The derived `cell_at`
-//! finds a byte's field by its offset and asks the field's type, down to a primitive cell.
+//! so the promise the trait asks for rests on the primitive cells alone. The derived
+//! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of
+//! primitive cells.
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -57,19 +58,6 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     } else {
         quote! { let starts = [#( ::core::mem::offset_of!(Self, #names) ),*]; }
     };
-    // The runs, kept where the record has no generics (a static inside the function cannot
-    // name them).
-    let runs = if input.generics.params.is_empty() {
-        quote! {
-            fn runs() -> Option<&'static [crate::pointers::CellAt]> {
-                static RUNS: ::std::sync::OnceLock<Vec<crate::pointers::CellAt>> =
-                    ::std::sync::OnceLock::new();
-                Some(RUNS.get_or_init(crate::pointers::flatten::<Self>))
-            }
-        }
-    } else {
-        quote! {}
-    };
     quote! {
         const _: () = {
             const fn is_cells<T: crate::pointers::Cells + ?Sized>() {}
@@ -81,21 +69,20 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         };
         // SAFETY: every field is `Cells` and no byte lies outside them (checked above).
         unsafe impl #with crate::pointers::Cells for #name #of #clause {
-            fn cell_at(offset: usize) -> crate::pointers::CellAt {
-                // The fields' first bytes, rising (`repr(C)`): the field holding `offset` is
-                // the last starting at or before it (one of no size never holds it).
+            fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);
                 match field {
-                    #( #indices => <#types as crate::pointers::Cells>::cell_at(
-                        offset - starts[#indices],
-                    )
-                    .after(starts[#indices]), )*
+                    #( #indices => {
+                        let (start, run) = crate::pointers::Cells::cell_run(
+                            &self.#names,
+                            offset - starts[#indices],
+                        );
+                        (starts[#indices] + start, run)
+                    } )*
                     _ => panic!("Cells: byte {offset} outside the record"),
                 }
             }
-
-            #runs
         }
     }
     .into()

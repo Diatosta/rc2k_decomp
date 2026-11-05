@@ -120,6 +120,11 @@ impl Float {
         self.0.store(value.to_bits(), Relaxed);
     }
 
+    /// The atomic holding its bits (the cells' copies, `pointers::CellRef`).
+    pub fn atomic(&self) -> &AtomicU32 {
+        &self.0
+    }
+
     /// The bits, for the x87 model's loads (`x87_float::ld`).
     pub fn bits(&self) -> u32 {
         self.0.load(Relaxed)
@@ -273,6 +278,11 @@ impl Word {
     pub fn set(&self, value: u16) {
         self.0.store(value, Relaxed);
     }
+
+    /// The atomic itself (the cells' copies, `pointers::CellRef`).
+    pub fn atomic(&self) -> &AtomicU16 {
+        &self.0
+    }
 }
 
 /// One of the game's bytes: an atomic cell (phase 7, typed state).
@@ -311,6 +321,11 @@ impl<const N: usize> Bytes<N> {
 
     pub fn as_ptr(&self) -> *mut u8 {
         self.0.as_ptr().cast::<u8>().cast_mut()
+    }
+
+    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    pub fn atomics(&self) -> &[AtomicU8] {
+        &self.0
     }
 
     #[cfg(test)]
@@ -418,6 +433,11 @@ impl Loose {
             cell.store(b, Relaxed);
         }
     }
+
+    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    pub fn atomics(&self) -> &[AtomicU8] {
+        &self.0
+    }
 }
 
 /// `value`'s bytes as atomics (a `const` initialiser of `Bytes` and `Loose`), in one move: a
@@ -473,6 +493,31 @@ impl<T: Copy> Shared<T> {
                 crate::shared_memory::load(base, to.as_mut_ptr(), to.len());
             }
             value.assume_init()
+        }
+    }
+
+    /// The run of cells holding byte `offset`, at the width `WORDS` picks, and the byte it
+    /// starts at: a 4-aligned record's whole dwords, or the bytes past them; a packed
+    /// record's bytes.
+    pub fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
+        use crate::pointers::CellRun;
+        let size = size_of::<T>();
+        let words = if Self::WORDS { size & !3 } else { 0 };
+        let base = self.0.get().cast::<u8>();
+        assert!(offset < size, "Shared: byte {offset} outside the record");
+        if offset < words {
+            // SAFETY: the record's whole dwords, 4-aligned (`WORDS`), reached only as these
+            // `AtomicU32`s (`get`, `set` and the cells take the same width); they live as
+            // long as `self`.
+            (
+                0,
+                CellRun::Words(unsafe { std::slice::from_raw_parts(base.cast(), words / 4) }),
+            )
+        } else {
+            // SAFETY: the bytes past them (a packed record: all of it), reached only as these
+            // `AtomicU8`s, `u8`'s layout.
+            let tail = unsafe { std::slice::from_raw_parts(base.add(words).cast(), size - words) };
+            (words, CellRun::Bytes(tail))
         }
     }
 
