@@ -18,7 +18,8 @@
 use crate::math::x87::loaded;
 use crate::math::x87_float::{compare, ld};
 use crate::physics::flow::c0;
-use crate::scene::x87_mem::{fld, fld80, fstp, fstp80};
+use crate::scene::x87_mem::{Base, cells, fld, fld80, fstp, fstp80};
+use std::cell::Cell;
 
 /// The work block's dwords (0x71C384 .. 0x71C3D7 in the image until 2026-10-24: the
 /// function's own; `sound::merge_spot_voices` wrote the ends and read the point).
@@ -36,7 +37,7 @@ const ONE: u32 = 0x3F80_0000;
 /// The differences (A - O, B - O and A - B in x and z) into the work block `w`, and the
 /// 80-bit dot (A - O).(A - B) less (B - O).(A - B) into `top`, the dot (A - O).(A - B)
 /// into `below` (`fstp tbyte`).
-fn differences(w: *mut u8, top: *mut u8, below: *mut u8) {
+fn differences(w: impl Base, top: impl Base, below: impl Base) {
     fstp(w, 0x34, fld(w, 0x00) - fld(w, 0x18));
     fstp(w, 0x38, fld(w, 0x08) - fld(w, 0x20));
     fstp(w, 0x3C, fld(w, 0x0C) - fld(w, 0x18));
@@ -50,12 +51,12 @@ fn differences(w: *mut u8, top: *mut u8, below: *mut u8) {
 }
 
 /// t = `below` / `top` into the work block (`fdivp`).
-fn ratio(w: *mut u8, top: *const u8, below: *const u8) {
+fn ratio(w: impl Base, top: impl Base, below: impl Base) {
     fstp(w, 0x30, fld80(below, 0) / fld80(top, 0));
 }
 
 /// The point (A + (B - A) t in x, y and z) into the work block.
-fn point(w: *mut u8) {
+fn point(w: impl Base) {
     for (b, a, out) in [(0x0C, 0x00, 0x24), (0x10, 0x04, 0x28), (0x14, 0x08, 0x2C)] {
         fstp(w, out, (fld(w, b) - fld(w, a)) * fld(w, 0x30) + fld(w, a));
     }
@@ -70,17 +71,13 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
     block[..3].copy_from_slice(&a);
     block[3..6].copy_from_slice(&b);
     block[6..9].copy_from_slice(&o);
-    let (mut top, mut below) = ([0u8; 10], [0u8; 10]);
-    differences(
-        block.as_mut_ptr().cast(),
-        top.as_mut_ptr(),
-        below.as_mut_ptr(),
-    );
+    let (top, below) = ([Cell::new([0u8; 10])], [Cell::new([0u8; 10])]);
+    differences(cells(&mut block), &top[..], &below[..]);
     // fcom flt_71C3C8; C3: equal (or unordered).
-    if compare(fld80(top.as_ptr(), 0), ld(SEGMENT_ZERO)) & 0x4000 != 0 {
+    if compare(fld80(&top[..], 0), ld(SEGMENT_ZERO)) & 0x4000 != 0 {
         block[T] = 0;
     } else {
-        ratio(block.as_mut_ptr().cast(), top.as_ptr(), below.as_ptr());
+        ratio(cells(&mut block), &top[..], &below[..]);
         // `hold_low` / `hold_high` (`physics::flow`) on the block: t held to 0 .. 1.
         if c0(block[T], ZERO) {
             block[T] = loaded(ZERO);
@@ -89,7 +86,7 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
             block[T] = loaded(ONE);
         }
     }
-    point(block.as_mut_ptr().cast());
+    point(cells(&mut block));
     [block[9], block[10], block[11]]
 }
 
@@ -187,13 +184,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_differences(a[0], a[1], a[2]) },
-                plain: |a| {
-                    differences(
-                        crate::pointers::host_at(a[0]),
-                        crate::pointers::host_at(a[1]),
-                        crate::pointers::host_at(a[2]),
-                    );
-                },
+                plain: |a| differences(a[0], a[1], a[2]),
             },
             Block {
                 name: "nearest_on_segment ratio",
@@ -213,13 +204,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_ratio(a[0], a[1], a[2]) },
-                plain: |a| {
-                    ratio(
-                        crate::pointers::host_at(a[0]),
-                        crate::pointers::host_at(a[1]).cast_const(),
-                        crate::pointers::host_at(a[2]).cast_const(),
-                    );
-                },
+                plain: |a| ratio(a[0], a[1], a[2]),
             },
             Block {
                 name: "nearest_on_segment point",
@@ -237,7 +222,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_point(a[0]) },
-                plain: |a| point(crate::pointers::host_at(a[0])),
+                plain: |a| point(a[0]),
             },
         ]
     }

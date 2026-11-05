@@ -13,10 +13,11 @@
 //! one (`memory::take_from_list`), and a read past a piece into the next piece of the same
 //! block still answers, as the original's did.
 //!
-//! Rust's own memory handed on as an address (a static copy of a game literal, a buffer on
-//! the stack) is a region too, coarsely: each section of the program's image, and the
-//! running thread's stack. These come after the game's blocks and the moved stores, so a
-//! read that starts in a store keeps the store's bounds. (Rust buffers become slices later.)
+//! Rust's own memory is not a region (since 2026-11-05, the memory layer's step 5): its
+//! statics are reached as stores or as values, its locals as slices or values, so a game
+//! address into the program's sections or a thread's stack is refused, naming its caller.
+//! Tests alone keep the coarse regions (each section of the image, the running thread's
+//! stack), for the assembly references, which take their buffers by address.
 
 #![allow(unsafe_code)]
 
@@ -138,9 +139,11 @@ fn inside_found(addr: u32, end: u32) -> Option<Backing> {
             cache.last = k;
             return Some(cache.regions[k].2);
         }
-        let stack = *cache.stack.get_or_insert_with(|| to_game(stack()));
-        if (stack.0..stack.1).contains(&addr) {
-            return fits(stack).then_some(Backing::Raw);
+        if cfg!(test) {
+            let stack = *cache.stack.get_or_insert_with(|| to_game(stack()));
+            if (stack.0..stack.1).contains(&addr) {
+                return fits(stack).then_some(Backing::Raw);
+            }
         }
         if let Some(region) = exact_region(addr) {
             let next = cache.next;
@@ -149,7 +152,7 @@ fn inside_found(addr: u32, end: u32) -> Option<Backing> {
             cache.next = (next + 1) % 4;
             return fits(region).then_some(backing);
         }
-        (!crate::race::store::is_dead(addr) && own_section(addr).is_some_and(fits))
+        (cfg!(test) && !crate::race::store::is_dead(addr) && own_section(addr).is_some_and(fits))
             .then_some(Backing::Raw)
     })
 }
@@ -157,10 +160,10 @@ fn inside_found(addr: u32, end: u32) -> Option<Backing> {
 /// The region `addr` lies in: its first byte and the byte past its end.
 pub fn region_of(addr: u32) -> Option<(u32, u32)> {
     exact_region(addr)
-        .or_else(|| own_section(addr).filter(|_| !crate::race::store::is_dead(addr)))
+        .or_else(|| own_section(addr).filter(|_| cfg!(test) && !crate::race::store::is_dead(addr)))
         .or_else(|| {
             let (low, high) = to_game(stack());
-            (low..high).contains(&addr).then_some((low, high))
+            (cfg!(test) && (low..high).contains(&addr)).then_some((low, high))
         })
 }
 
@@ -405,66 +408,8 @@ fn watched(addr: u32, len: usize, what: &str) {
     }
 }
 
-/// The census of the memory layer's step 5 (`RC2K_RAW_CENSUS` set): each checked access
-/// to Rust memory reached by address (the program's own sections outside the blocks and
-/// moved stores, the thread's stack) logged once per source line of its caller, as the
-/// watches are.
-static CENSUS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// Starts the census when `RC2K_RAW_CENSUS` is set (`standalone::run`).
-pub fn start_census() {
-    if std::env::var_os("RC2K_RAW_CENSUS").is_some() {
-        CENSUS.store(true, std::sync::atomic::Ordering::Relaxed);
-        ANY_WATCHED.store(true, std::sync::atomic::Ordering::Relaxed);
-        log("pointers: the census of Rust memory reached by address is on");
-    }
-}
-
-#[track_caller]
-fn census(addr: u32, len: usize, what: &str) {
-    thread_local! {
-        static STACK: std::cell::OnceCell<(u32, u32)> = const { std::cell::OnceCell::new() };
-    }
-    let (low, high) = STACK.with(|s| *s.get_or_init(|| to_game(stack())));
-    let kind = if (low..high).contains(&addr) {
-        "the stack"
-    } else if own_section(addr).is_some() && exact_region(addr).is_none() {
-        "a section"
-    } else {
-        return;
-    };
-    let at = std::panic::Location::caller();
-    let first = SEEN
-        .lock()
-        .map(|mut s| {
-            s.get_or_insert_default()
-                .insert((at.file(), at.line(), kind))
-        })
-        .unwrap_or(false);
-    if first {
-        // The callers above the line: the functions that handed the address on.
-        let trace = std::backtrace::Backtrace::force_capture().to_string();
-        let callers: Vec<&str> = trace
-            .lines()
-            .map(str::trim)
-            .filter(|l| l.contains("rc2k_hook::") && !l.contains("rc2k_hook::pointers::"))
-            .map(|l| l.split_once(": ").map_or(l, |(_, f)| f))
-            .take(6)
-            .collect();
-        log(&format!(
-            "census: {kind} at {addr:#x} ({len} bytes, {what}) by address from {}:{} ({})",
-            at.file(),
-            at.line(),
-            callers.join(" < ")
-        ));
-    }
-}
-
 #[track_caller]
 fn watched_slowly(addr: u32, len: usize, what: &str) {
-    if CENSUS.load(std::sync::atomic::Ordering::Relaxed) {
-        census(addr, len, what);
-    }
     let end = addr.saturating_add(len as u32);
     for (k, w) in WATCHED.iter().enumerate() {
         let w = w.load(std::sync::atomic::Ordering::Relaxed);

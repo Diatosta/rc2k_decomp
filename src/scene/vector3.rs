@@ -7,7 +7,7 @@
 use crate::effects::work_store::MARKS_WORK;
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::scene::x87_mem::{fld, fnstsw, fstp80};
+use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
 
 /// `scene::normalise_vector3` (0x4654EA): the three floats at esi each times 1 over their
 /// length (`fsqrt` of the squares, the last two added first; `fld1; fdivrp`). Every
@@ -26,12 +26,12 @@ pub fn normalise(v: &(impl Cells + ?Sized)) {
 /// `scene::dot_product3` (0x46553C): esi . edi, x x' + (y y' + z z'), unrounded. Every
 /// register kept.
 pub fn dot_product3(a: [u32; 3], b: [u32; 3]) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    dot(a.as_ptr().cast(), b.as_ptr().cast(), out.as_mut_ptr());
-    out
+    let out = [std::cell::Cell::new([0u8; 10])];
+    dot(&a[..], &b[..], &out[..]);
+    out[0].get()
 }
 
-fn dot(a: *const u8, b: *const u8, o: *mut u8) {
+fn dot(a: impl Base, b: impl Base, o: impl Base) {
     let t0 = fld(a, 0x0);
     let t1 = fld(b, 0x0);
     let t2 = t0 * t1;
@@ -48,16 +48,12 @@ fn dot(a: *const u8, b: *const u8, o: *mut u8) {
 
 /// `fld a; fcos; fcomp b; fstsw`: the status word's C0 .. C2 (0x700).
 fn cosine_against(a: u32, b: u32) -> u32 {
-    let mut status = 0u16;
-    cosine(
-        (&raw const a).cast(),
-        (&raw const b).cast(),
-        (&raw mut status).cast(),
-    );
-    status as u32 & 0x700
+    let mut status = [0u32];
+    cosine(&[a][..], &[b][..], cells(&mut status));
+    status[0] & 0x700
 }
 
-fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
+fn cosine(a: impl Base, b: impl Base, s: impl Base) {
     let t0 = fld(a, 0x0);
     let t1 = t0.cos();
     let t2 = fld(b, 0x0);
@@ -188,7 +184,10 @@ mod asm_reference {
                 m[6..].fill(0xAAAA_AAAA);
             },
             |base| unsafe { dot_ref(base, base.add(12), base.add(24)) },
-            |base| unsafe { dot(base, base.add(12), base.add(24)) },
+            |base| {
+                let at = crate::pointers::game_address(base) as usize;
+                dot(at, at + 12, at + 24);
+            },
         );
     }
 
@@ -216,7 +215,8 @@ mod asm_reference {
                 base.add(8).cast::<u32>().write_unaligned(s as u32);
             },
             |base| unsafe {
-                cosine(base, base.add(4), base.add(8));
+                let at = crate::pointers::game_address(base) as usize;
+                cosine(at, at + 4, at + 8);
                 let s = base.add(8).cast::<u16>().read_unaligned() & 0x700;
                 base.add(8).cast::<u32>().write_unaligned(s as u32);
             },

@@ -178,13 +178,6 @@ pub fn game_of(p: usize) -> Option<u32> {
 }
 
 /// The program's own image (code, constants, statics), its range made at the first use.
-/// Whether `len` bytes from host address `at` lie in the program's own image (its statics).
-#[inline]
-pub fn in_image(at: usize, len: usize) -> bool {
-    let image = image();
-    at >= image.host && at.wrapping_add(len) <= image.host + image.len && table()
-}
-
 fn image() -> Range {
     static IMAGE: OnceLock<Range> = OnceLock::new();
     *IMAGE.get_or_init(|| {
