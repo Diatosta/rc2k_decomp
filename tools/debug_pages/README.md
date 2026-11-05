@@ -8,4 +8,5 @@ How `src/debug/display_rows.rs` was made from `debug::draw_wear_bars` (0x429B19)
 3. `groups.py` (plain Python): the names and groups written by hand, duplicates dropped,
    the Rust table written.
 
-The scripts' `D` / output paths were a session scratchpad: change them to run again.
+The IDA scripts read and write their JSON in the folder named by `RC2K_DEBUG_PAGES` (else
+IDA's working folder); `groups.py` runs from the repository's root, with the JSON files there.

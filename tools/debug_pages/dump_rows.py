@@ -1,5 +1,6 @@
 import json, idc, ida_bytes
-D="/tmp/claude-1000/-mnt-discoII-RustRoverProjects-rc2k-hook/e12e57fe-1a50-453f-b240-d0b96a47f5c0/scratchpad/"
+import os
+D=os.path.join(os.environ.get("RC2K_DEBUG_PAGES", os.getcwd()), "")
 it=json.load(open(D+"wear_items.json"))
 rows=[]; label=""
 for x in it[:-1]:

@@ -1,5 +1,6 @@
 import json, idc, idautils
-D="/tmp/claude-1000/-mnt-discoII-RustRoverProjects-rc2k-hook/e12e57fe-1a50-453f-b240-d0b96a47f5c0/scratchpad/"
+import os
+D=os.path.join(os.environ.get("RC2K_DEBUG_PAGES", os.getcwd()), "")
 names={}
 for a in idautils.FuncItems(0x429B19):
   m=idc.print_insn_mnem(a)

@@ -1,4 +1,4 @@
-//! `#[derive(Cells)]` for `rc2k_hook::pointers::Cells`: a `#[repr(C)]` or `#[repr(transparent)]` record is made of cells
+//! `#[derive(Cells)]` for `rc2k_decomp::pointers::Cells`: a `#[repr(C)]` or `#[repr(transparent)]` record is made of cells
 //! when each field is, and no byte lies outside its fields. Both are checked at compile time,
 //! so the promise the trait asks for rests on the primitive cells alone. The derived
 //! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of

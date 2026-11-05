@@ -92,5 +92,5 @@ pub static GROUPS: &[Group] = &[
 %s
 ];
 '''%"\n".join(lines)
-open("/mnt/discoII/RustRoverProjects/rc2k_hook/src/debug/display_rows.rs","w").write(src)
+open("src/debug/display_rows.rs","w").write(src)
 print(sum(len(i) for _,i in out))

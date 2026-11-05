@@ -1,4 +1,4 @@
-# rc2k_hook
+# rc2k_decomp
 
 A Rust reimplementation of *Rally Championship 2000* (`RAL.EXE`), converted one function
 at a time and checked against the original as it went. It now runs as a standalone

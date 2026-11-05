@@ -1,5 +1,6 @@
 import idc, idautils, ida_bytes, json, collections
-OUT="/tmp/claude-1000/-mnt-discoII-RustRoverProjects-rc2k-hook/e12e57fe-1a50-453f-b240-d0b96a47f5c0/scratchpad/wear_items.json"
+import os
+OUT=os.path.join(os.environ.get("RC2K_DEBUG_PAGES", os.getcwd()), "wear_items.json")
 ins=list(idautils.FuncItems(0x429B19))
 items=[]; mode=None; scale=None; regs={}; pushes=[]; unknown=[]; pend={}
 fmt={0x4203A3:"int",0x4203B4:"float",0x4203D6:"hex"}

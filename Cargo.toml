@@ -14,7 +14,7 @@ semicolon_if_nothing_returned = "warn"
 uninlined_format_args = "warn"
 
 [package]
-name = "rc2k_hook"
+name = "rc2k_decomp"
 version = "0.1.0"
 edition = "2024"
 
