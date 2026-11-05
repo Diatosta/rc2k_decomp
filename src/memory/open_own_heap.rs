@@ -15,7 +15,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::logfile::{log_int::log_int, write_line::log_text};
 use crate::memory::state::{HEAP_BASE, HEAP_CURSOR, OWN_HEAP_KB};
-use crate::pointers::GamePtr;
 
 /// The Rust version (see the header).
 pub fn open_own_heap() -> Result<(), Refused> {
@@ -33,7 +32,8 @@ pub fn open_own_heap() -> Result<(), Refused> {
     HEAP_BASE.set(memory);
     HEAP_CURSOR.set(memory);
     let [first, second] = own_heap_head(bytes);
-    GamePtr::new(memory).write(first, "the own heap's head")?;
-    GamePtr::new(memory + 4).write(second, "the own heap's head")?;
+    let head = crate::memory::pages::block(memory)?;
+    head.write(first, "the own heap's head")?;
+    head.offset(4).write(second, "the own heap's head")?;
     Ok(())
 }

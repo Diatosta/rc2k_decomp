@@ -18,7 +18,6 @@
 
 use crate::errors::BadInput;
 use crate::memory::{MemoryList, own_heap, with_figures};
-use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
@@ -50,8 +49,8 @@ pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     let mut block = l.emptied();
     at.write(l, "a memory list")?;
     while block != 0 {
-        let before = GamePtr::new(block).read::<u32>("a block's header")?;
-        // The block is the system's, taken by `allocate`.
+        // The block is the system's, taken by `allocate`; its first dword the next.
+        let before = crate::memory::pages::block(block)?.read::<u32>("a block's header")?;
         crate::memory::pages::give_back(block)?;
         block = before;
     }

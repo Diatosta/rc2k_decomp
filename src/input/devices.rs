@@ -27,13 +27,6 @@ pub fn records() -> &'static [InputDevice; 2] {
 /// The device's state (`g_deviceState`), 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
-/// A dword at `record` (a controller's entry, a property: not a device record).
-pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
-    GamePtr::new(record)
-        .offset(offset)
-        .read("a device record's dword")
-}
-
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
 pub fn record_bytes(record: &InputDevice) -> Result<rc2k_core::input::devices::Record, BadInput> {
     GamePtr::to(record).read("a device record")

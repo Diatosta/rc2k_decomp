@@ -1,9 +1,9 @@
 //! `input::update_car_effects` (0x40F347): one car's force feedback for one device, from
 //! its physics (the view block in ebx) into its sound object (edi) and six requests
 //! (`input::set_effect` on the device in esi). A reading of the code:
-//! - the object's +0xAC = the block's +0x248 (1 while the car is off the ground, it seems);
-//!   +0xB0 = +0x1A4 * 10, +0xB4 = (+0x1B8 - +0x1AC) * 10, +0xB8 = +0x1A4 * 10, +0xBC =
-//!   +0x1AC * 10 (`fistp`, `flt_5180DC`);
+//! - the object's +0xAC = the block's +0x248 (`front_wheels_off`); +0xB0 = +0x1A4
+//!   (`local_velocity` x) * 10, +0xB4 = (+0x1B8 `drive_speed_a` - +0x1AC `local_velocity`
+//!   z) * 10, +0xB8 = +0x1A4 * 10, +0xBC = +0x1AC * 10 (`fistp`, `flt_5180DC`);
 //! - a knock (+0xC0): with +0xD0 and +0xC4 not ±0, (256 - |atan2(+0xCC, +0xC4)| *
 //!   162.97) * +0xD0 * 0.1 (`flt_5180E0`, `flt_5180E4`, `flt_5180EC`; the angle also
 //!   into `g_soundScratch`), else 0; then +0xC4 .. +0xD0 cleared;
@@ -31,7 +31,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::devices::at;
 use crate::input::types::InputDevice;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
@@ -63,7 +62,7 @@ struct Last {
 /// `view` the view block, `o` the car's sound object, `device` the device's record;
 /// the requests through `input::set_effect`.
 fn update_car_effects_with(
-    view: u32,
+    view: &crate::physics::car_store::Car,
     o: &crate::sound::store::SoundObject,
     device: &InputDevice,
     scratch: &crate::session::Dword,
@@ -73,13 +72,17 @@ fn update_car_effects_with(
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
-    o.flag_ac.set(at(view, 0x248)?);
+    o.flag_ac.set(view.front_wheels_off.get());
     let effects = &crate::input::store::FORCE_FEEDBACK;
     let ten = effects.effect_ten.bits();
-    o.effect_in[0].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
-    o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8)?, at(view, 0x1AC)?, ten) as u32);
-    o.effect_in[2].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
-    o.effect_in[3].set(mul_to_int(at(view, 0x1AC)?, ten) as u32);
+    o.effect_in[0].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
+    o.effect_in[1].set(sub_mul_to_int(
+        view.drive_speed_a.bits(),
+        view.local_velocity[2].bits(),
+        ten,
+    ) as u32);
+    o.effect_in[2].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
+    o.effect_in[3].set(mul_to_int(view.local_velocity[2].bits(), ten) as u32);
     if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(
             o.knock_in[2].get(),
@@ -198,7 +201,7 @@ fn update_car_effects_with(
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
 pub fn update_car_effects(
-    view: u32,
+    view: &crate::physics::car_store::Car,
     object: &crate::sound::store::SoundObject,
     device: &InputDevice,
 ) -> Result<(), Refused> {

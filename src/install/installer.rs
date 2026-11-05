@@ -393,7 +393,7 @@ pub fn list_step(
     table: Option<crate::pointers::GamePtr>,
     list: ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
-    crate::menu::list_step::list_step_at(key as u8, table, list)
+    crate::menu::list_step::list_step(key as u8, table, list)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).

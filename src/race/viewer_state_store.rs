@@ -78,13 +78,12 @@ impl ReplayViewBlock {
     }
 
     /// Where the list's key table (the header's +0x10) is.
-    pub fn key_table() -> Result<u32, crate::errors::BadInput> {
-        Ok(Self::named(
+    pub fn key_table() -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+        Self::named(
             REPLAY_VIEW.viewer_list[4].get(),
             Self::RECTANGLES,
             "the viewer list's key table off its place",
-        )?
-        .addr())
+        )
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
@@ -160,7 +159,7 @@ mod tests {
         let key_table = ReplayViewBlock::LIST + 0x10;
         assert_eq!(REPLAY_VIEW.viewer_list[4].get(), name(key_table));
         assert_eq!(
-            ReplayViewBlock::key_table().unwrap() as usize,
+            ReplayViewBlock::key_table().unwrap().addr() as usize,
             crate::moved::place(name(key_table) as usize)
         );
         for k in 0..26u32 {

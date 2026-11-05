@@ -248,7 +248,7 @@ fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
             _ => Next::Sound,
         });
     }
-    if crate::menu::list_step::list_step(key, ReplayViewBlock::key_table()?, list)? {
+    if crate::menu::list_step::list_step(key, Some(ReplayViewBlock::key_table()?), list)? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
@@ -292,7 +292,11 @@ fn mark(list: ListMenu, key: u8) -> Result<(), Refused> {
             }
             // On the way it went while it cannot be chosen.
             loop {
-                if !crate::menu::list_step::list_step(key, ReplayViewBlock::key_table()?, list)? {
+                if !crate::menu::list_step::list_step(
+                    key,
+                    Some(ReplayViewBlock::key_table()?),
+                    list,
+                )? {
                     break;
                 }
                 if !list_item_unusable(list) {

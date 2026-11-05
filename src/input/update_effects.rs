@@ -67,10 +67,8 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
         one_player: v.one_player.get() == 1,
         // the devices by handle: the core only asks whether one is none (0)
         devices: v.devices.each_ref().map(crate::session::Dword::get),
-        views: v
-            .views
-            .each_ref()
-            .map(|c| crate::race::blocks_store::block_of(c.get())),
+        // The view blocks by handle (the core only passes them on).
+        views: v.views.each_ref().map(crate::session::Dword::get),
         one_players_devices: v.two_devices.get() != 0,
     };
     let loaded = loads(&p, |device| {
@@ -83,7 +81,9 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
                 .get(load.car as usize)
                 .ok_or(BadInput("a car past the sound objects' table"))?;
             let device = device_of(load.device).ok_or(BadInput("a load on a null device"))?;
-            crate::input::update_car_effects::update_car_effects(load.view, object, device)?;
+            let view = crate::race::blocks_store::car_of(load.view)
+                .ok_or(BadInput("a load on no view block"))?;
+            crate::input::update_car_effects::update_car_effects(view, object, device)?;
         }
     }
     Ok(())
