@@ -13,12 +13,12 @@ use crate::math::x87::{set_chop, set_control};
 use crate::math::x87_float::{ONE, X, compare, f80, from_f80, int, ld, st, to_int};
 
 /// The `T` at `p`, checked to lie in one region (the program ends otherwise).
-fn get<T: Copy, P>(p: *const P) -> T {
+fn get<T: crate::pointers::Plain, P>(p: *const P) -> T {
     crate::pointers::read_or_end(crate::pointers::game_address(p), "a math helper's operand")
 }
 
 /// `value` written at `p`, checked as `get`.
-fn put<T: Copy, P>(p: *mut P, value: T) {
+fn put<T: crate::pointers::Plain, P>(p: *mut P, value: T) {
     crate::pointers::write_or_end(
         crate::pointers::game_address(p.cast_const()),
         value,

@@ -365,7 +365,7 @@ impl Where for Slot {
 }
 
 /// Reads a variable (`framework::game_read`, over the block or the image).
-pub fn game_read<T: Copy>(place: impl Where) -> T {
+pub fn game_read<T: crate::pointers::Plain>(place: impl Where) -> T {
     crate::pointers::read_or_end(place.address() as u32, "a marks variable")
 }
 

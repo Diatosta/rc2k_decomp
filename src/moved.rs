@@ -2292,6 +2292,43 @@ fn sorted() -> &'static [(usize, usize, usize)] {
     })
 }
 
+/// The store whose moved range holds the game address `addr`, and the offset of `addr` in it
+/// (`pointers::GamePtr`'s reads and writes); `None` for a range not yet a store and anything
+/// outside the moved ranges.
+pub fn store_of(addr: usize) -> Option<(&'static dyn crate::pointers::Store, usize)> {
+    type Entry = (usize, usize, &'static dyn crate::pointers::Store);
+    static BY_HOME: std::sync::OnceLock<Vec<Entry>> = std::sync::OnceLock::new();
+    thread_local! {
+        // The last range found: most reads follow one another in one store.
+        static LAST: std::cell::Cell<Option<Entry>> = const { std::cell::Cell::new(None) };
+    }
+    if let Some((home, end, store)) = LAST.get()
+        && (home..end).contains(&addr)
+    {
+        return Some((store, addr - home));
+    }
+    let homes = BY_HOME.get_or_init(|| {
+        let mut v: Vec<Entry> = MOVED
+            .iter()
+            .filter_map(|m| match &m.home {
+                Home::Store(store) => {
+                    let home = m.home.address();
+                    Some((home, home + m.len, *store))
+                }
+                Home::Address(_) => None,
+            })
+            .collect();
+        v.sort_unstable_by_key(|&(home, _, _)| home);
+        v
+    });
+    let i = homes.partition_point(|&(home, _, _)| home <= addr);
+    let entry @ (home, end, store) = *homes.get(i.checked_sub(1)?)?;
+    (addr < end).then(|| {
+        LAST.set(Some(entry));
+        (store, addr - home)
+    })
+}
+
 /// The moved range whose new home holds `addr`: its home's first byte and the byte past its
 /// end (`pointers::region_of`).
 pub fn home_range(addr: usize) -> Option<(usize, usize)> {
@@ -2478,6 +2515,23 @@ mod tests {
                     unsafe { crate::shared_memory::load(home.add(at), raw.as_mut_ptr(), len) };
                     assert_eq!(mine, raw, "{:#x} + {at:#x}, {len} bytes", m.ida);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn store_of_finds_every_store_s_range() {
+        for m in MOVED {
+            let home = m.home.address();
+            match &m.home {
+                Home::Store(store) => {
+                    for at in [0, m.len / 2, m.len - 1] {
+                        let (found, offset) = store_of(home + at).expect("a store's byte");
+                        assert_eq!(found.first(), store.first(), "{:#x} + {at:#x}", m.ida);
+                        assert_eq!(offset, at, "{:#x}", m.ida);
+                    }
+                }
+                Home::Address(_) => assert!(store_of(home).is_none(), "{:#x}", m.ida),
             }
         }
     }

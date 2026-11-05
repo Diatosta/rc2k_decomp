@@ -527,16 +527,24 @@ impl GamePtr {
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
     /// one region.
     #[track_caller]
-    pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
+    pub fn read<T: Plain>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
+        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
+            let mut value = zeroed::<T>();
+            store.load(at, bytes_mut(&mut value))?;
+            return Ok(value);
+        }
         // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
         Ok(unsafe { crate::shared_memory::read(host(self.at) as *const T) })
     }
 
     /// The `T` written at the address, when all of it lies in one region.
     #[track_caller]
-    pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
+    pub fn write<T: Plain>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
+        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
+            return store.store(at, bytes_of(&value));
+        }
         // SAFETY: as `read`; the regions are the game's writable memory.
         unsafe { crate::shared_memory::write(host(self.at).cast::<T>(), value) };
         Ok(())
@@ -546,6 +554,11 @@ impl GamePtr {
     #[track_caller]
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         self.check(len, what)?;
+        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
+            let mut bytes = vec![0; len];
+            store.load(at, &mut bytes)?;
+            return Ok(bytes);
+        }
         // SAFETY: the `len` bytes lie in one live region.
         let mut bytes = Vec::with_capacity(len);
         // SAFETY: `bytes` has room for `len`, all set by `load`.
@@ -560,6 +573,9 @@ impl GamePtr {
     #[track_caller]
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), BadInput> {
         self.check(bytes.len(), what)?;
+        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
+            return store.store(at, bytes);
+        }
         // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
         // copied through a temporary by the caller.
         unsafe {
@@ -574,6 +590,11 @@ impl GamePtr {
     pub fn copy_to(self, to: GamePtr, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         to.check(len, what)?;
+        let stores = |p: GamePtr| crate::moved::store_of(p.at as usize).is_some();
+        if stores(self) || stores(to) {
+            // Through a copy, as `memmove`: either side may be a store's cells.
+            return to.write_bytes(&self.read_bytes(len, what)?, what);
+        }
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
             crate::shared_memory::copy(host(self.at), host(to.at), len);
@@ -585,6 +606,9 @@ impl GamePtr {
     #[track_caller]
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
+        if let Some((store, at)) = crate::moved::store_of(self.at as usize) {
+            return store.store(at, &vec![value; len]);
+        }
         // SAFETY: the run lies in one live region.
         unsafe { crate::shared_memory::fill(host(self.at), value, len) };
         Ok(())
@@ -727,6 +751,57 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     }
 }
 
+/// A value any bytes make (integers, floats, arrays of them): what a game place's bytes are
+/// read as.
+///
+/// # Safety
+/// Every bit pattern of `size_of::<Self>()` bytes is a valid value, and it has no padding.
+pub unsafe trait Plain: Copy {}
+
+macro_rules! plain {
+    ($($t:ty),*) => { $(
+        // SAFETY: an integer or float: any bits are a value, no padding.
+        unsafe impl Plain for $t {}
+    )* };
+}
+plain!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
+// SAFETY: `N` plain values one after another.
+unsafe impl<T: Plain, const N: usize> Plain for [T; N] {}
+
+/// A `T` of zero bytes.
+fn zeroed<T: Plain>() -> T {
+    // SAFETY: any bytes make a `T` (`Plain`), zeros among them.
+    unsafe { std::mem::zeroed() }
+}
+
+/// The bytes of a `T`, to be read into.
+fn bytes_mut<T: Plain>(value: &mut T) -> &mut [u8] {
+    // SAFETY: a `T` has no padding and any bytes make one (`Plain`); the slice borrows it.
+    unsafe { std::slice::from_raw_parts_mut(std::ptr::from_mut(value).cast(), size_of::<T>()) }
+}
+
+/// The bytes of a `T`.
+fn bytes_of<T: Plain>(value: &T) -> &[u8] {
+    // SAFETY: a `T` has no padding (`Plain`); the slice borrows it.
+    unsafe { std::slice::from_raw_parts(std::ptr::from_ref(value).cast(), size_of::<T>()) }
+}
+
+/// `#[repr(C)]` records of integers, their sizes the sums of their fields (no padding).
+macro_rules! plain_record {
+    ($($t:ty = $size:expr),* $(,)?) => { $(
+        const _: () = assert!(size_of::<$t>() == $size, "padding in a plain record");
+        // SAFETY: `#[repr(C)]` over integers only, no padding (asserted above).
+        unsafe impl Plain for $t {}
+    )* };
+}
+plain_record!(
+    rc2k_core::text::Font = 4 + 7 * 4,
+    rc2k_core::memory::List = 4 * 4,
+    rc2k_core::gfx::pixels::PixelFormat = 5 * 4,
+    crate::gfx::texture_upload::TextureFormat = 3 * 4 + 5 * 4 + 8 * 4,
+    crate::gfx::texture_upload::TextureRecord = (5 + 9 + 9 + 7) * 4,
+);
+
 /// One of the game's stores: a static whose every byte is a cell, read and written by
 /// offset through its own cells (`load_cells`, `store_cells`). What a game address in a moved
 /// range resolves to (`moved::Home`).
@@ -742,18 +817,7 @@ pub trait Store: Sync {
     fn size(&self) -> usize;
     /// Its first byte, to find the store a host address lies in: compared, never followed.
     fn first(&self) -> *const u8;
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "GamePtr reads through stores at step 4 (notes/memory_layer_plan.md)"
-        )
-    )]
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
-    #[expect(
-        dead_code,
-        reason = "GamePtr writes through stores at step 4 (notes/memory_layer_plan.md)"
-    )]
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
 
@@ -954,7 +1018,7 @@ pub fn check_or_end(addr: u32, len: usize, what: &str) {
 /// A checked read where the caller has no way to carry a refusal (generated step code, a
 /// core's closure): outside its region the program ends naming it (`fatal::raise::end`).
 #[track_caller]
-pub fn read_or_end<T: Copy>(addr: u32, what: &str) -> T {
+pub fn read_or_end<T: Plain>(addr: u32, what: &str) -> T {
     GamePtr::new(addr)
         .read(what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
@@ -977,7 +1041,7 @@ pub fn cell_or_end(addr: u32, what: &str) -> &'static crate::session::Dword {
 
 /// A checked write, as `read_or_end`.
 #[track_caller]
-pub fn write_or_end<T: Copy>(addr: u32, value: T, what: &str) {
+pub fn write_or_end<T: Plain>(addr: u32, value: T, what: &str) {
     if let Err(e) = GamePtr::new(addr).write(value, what) {
         crate::fatal::raise::end(what, e)
     }

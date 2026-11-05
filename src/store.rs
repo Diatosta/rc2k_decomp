@@ -82,17 +82,17 @@ macro_rules! typed_places {
 typed_places!(crate::session::Dword, crate::session::Float);
 
 /// Reads the variable named by `at` (an IDA address of the image).
-pub fn at_read<T: Copy>(at: impl At) -> T {
+pub fn at_read<T: crate::pointers::Plain>(at: impl At) -> T {
     crate::pointers::read_or_end(at.here() as u32, "a game variable")
 }
 
 /// Writes the variable named by `at` (an IDA address of the image).
-pub fn at_write<T: Copy>(at: impl At, value: T) {
+pub fn at_write<T: crate::pointers::Plain>(at: impl At, value: T) {
     crate::pointers::write_or_end(at.here() as u32, value, "a game variable");
 }
 
 /// Reads the variable named by `at` (an IDA address, or a typed cell).
-pub fn ida_read<T: Copy>(at: impl Ida) -> T {
+pub fn ida_read<T: crate::pointers::Plain>(at: impl Ida) -> T {
     crate::pointers::read_or_end(at.here() as u32, "a game variable")
 }
 
