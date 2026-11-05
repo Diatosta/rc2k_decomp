@@ -5,7 +5,6 @@
 //! buffer `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword};
 
 #[repr(C)]
@@ -37,12 +36,9 @@ impl ThreadSlot {
     }
 }
 
-/// Slot `n`, checked against the slots' region.
+/// Slot `n`.
 pub fn slot_ref(n: usize) -> Result<&'static ThreadSlot, BadInput> {
-    assert!(n < SLOT_COUNT);
-    GamePtr::to(&SLOTS)
-        .offset((n * SLOT_LEN) as u32)
-        .record::<ThreadSlot>("a thread slot")
+    SLOTS.get(n).ok_or(BadInput("a thread slot past the four"))
 }
 
 /// The slot of the input thread, the audio thread, the network receive thread and the

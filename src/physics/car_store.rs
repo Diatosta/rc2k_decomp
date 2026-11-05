@@ -555,14 +555,11 @@ pub struct Car {
 const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
 
 impl Car {
-    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); an
-    /// address whose block is not inside one region (or is out of line) ends the program.
+    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); any other
+    /// address ends the program (`trap::car_at`).
     pub fn at(address: u32) -> &'static Car {
-        Car::known(address).unwrap_or_else(|| {
-            crate::pointers::GamePtr::new(address)
-                .record::<Car>("a car block")
-                .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
-        })
+        crate::race::trap::car_at(address)
+            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
 
     /// The work car (`CAR`) or a car block when `address` is its first byte, found by

@@ -666,6 +666,7 @@ impl GamePtr {
     /// reference to memory the game also writes is sound), when all of it lies in one region
     /// and the address has the record's alignment. Keep it no longer than the step that
     /// reads it: a block can be given back later.
+    #[cfg(test)]
     #[track_caller]
     pub fn record<T: Cells>(self, what: &str) -> Result<&'static T, BadInput> {
         let backing = self.check(size_of::<T>(), what)?;
