@@ -552,6 +552,15 @@ impl GamePtr {
         }
     }
 
+    /// A store's bytes as a place bounded by them.
+    pub fn of_store(store: &dyn Store) -> Self {
+        let at = game_address(store.first());
+        Self {
+            at,
+            field: (at, at.wrapping_add(store.size() as u32)),
+        }
+    }
+
     pub const fn is_null(self) -> bool {
         self.at == 0
     }
@@ -1127,13 +1136,6 @@ plain_record!(
 /// out as it says (`GamePtr::record` and `slice` reach them from `first()`).
 pub unsafe trait Store: Sync {
     /// Its length in bytes.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "GamePtr reads through stores at step 4 (notes/memory_layer_plan.md)"
-        )
-    )]
     fn size(&self) -> usize;
     /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
     fn first(&self) -> *const u8;

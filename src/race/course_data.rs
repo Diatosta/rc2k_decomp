@@ -35,7 +35,7 @@ pub fn set_cdat_number(number: u32) {
 /// `g_courseHeader`.
 pub fn copy_course_header() -> Result<(), BadInput> {
     let from: u32 = COURSE_LISTS.course_memory.bits();
-    GamePtr::new(from).copy_to(
+    crate::race::level_init::course_memory_at(from)?.copy_to(
         // The store types the header by its first dword.
         GamePtr::to(&COURSE.course_header).unbounded(),
         HEADER_LEN,
@@ -166,7 +166,7 @@ pub fn load_level() -> Result<(), Refused> {
     // The course memory is a region of its own (`level_init::take_course_memory`).
     let out = read_level_file::read_level_file(
         crate::pointers::GamePtr::to(&crate::race::level_paths_store::LEVEL_PATHS.cdat_src),
-        crate::pointers::GamePtr::new(COURSE_LISTS.course_memory.bits()),
+        crate::race::level_init::course_memory_at(COURSE_LISTS.course_memory.bits())?,
         COURSE_LISTS.first_part.bits(),
     )?;
     crate::files::state::BYTES_READ.set(out.eax);

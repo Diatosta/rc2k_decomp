@@ -90,6 +90,19 @@ fn take_course_memory(
     Ok(at)
 }
 
+/// The place at game address `at` inside the course memory, bounded by the memory's bytes;
+/// an address outside it, or no course memory, is refused.
+pub fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
+    let guard = COURSE_MEMORY
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
+    let off = at
+        .checked_sub(memory.addr())
+        .ok_or(BadInput("a place before the course memory"))?;
+    Ok(memory.ptr().offset(off))
+}
+
 /// The course memory given back (the list's `free_list` counts it down).
 pub fn give_back_course_memory() {
     *COURSE_MEMORY

@@ -59,6 +59,13 @@ pub(crate) enum Home {
 }
 
 impl Home {
+    /// The home's bytes as a place bounded by them.
+    fn place(&self) -> crate::pointers::GamePtr {
+        match self {
+            Home::Store(store) => crate::pointers::GamePtr::of_store(*store),
+        }
+    }
+
     /// The home's first byte as a game address.
     fn address(&self) -> usize {
         match self {
@@ -2257,7 +2264,13 @@ pub fn named(ida: usize) -> Result<crate::pointers::GamePtr, crate::errors::BadI
         .and_then(|i| ranges.get(i))
         .filter(|&&(_, end, _)| ida < end)
         .ok_or(crate::errors::BadInput("an IDA name in no moved range"))?;
-    Ok(crate::pointers::GamePtr::new(home as u32)
+    let m = MOVED
+        .iter()
+        .find(|m| m.ida == start)
+        .ok_or(crate::errors::BadInput("an IDA name in no moved range"))?;
+    debug_assert_eq!(m.home.address(), home);
+    Ok(m.home
+        .place()
         .limited((end - start) as u32)
         .offset((ida - start) as u32))
 }

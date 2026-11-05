@@ -12,7 +12,6 @@
 //! that still took one for an address is ended by `pointers::host` with the number named.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
@@ -171,8 +170,10 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
         ));
     }
     reserve()?;
-    let f = GamePtr::new(faces_at).read_bytes(faces as usize, "the course faces")?;
-    let r = GamePtr::new(records_at).read_bytes(records as usize, "the course records")?;
+    let f = crate::race::level_init::course_memory_at(faces_at)?
+        .read_bytes(faces as usize, "the course faces")?;
+    let r = crate::race::level_init::course_memory_at(records_at)?
+        .read_bytes(records as usize, "the course records")?;
     FACES.set(f);
     RECORDS.set(r);
     first_points_changed();
