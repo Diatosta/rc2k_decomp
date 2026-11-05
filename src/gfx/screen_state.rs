@@ -11,6 +11,7 @@ use crate::session::{Bytes, Dword};
 
 /// The screen mode chosen (IDA 0x4F492C .. 0x4F494C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<12>,
@@ -28,6 +29,8 @@ pub struct ScreenMode {
     pub menu_mode: Dword,
     /// 0x4F4948: `g_raceScreenMode`: the race's screen mode.
     pub race_mode: Dword,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
 pub static SCREEN_MODE: ScreenMode = ScreenMode {
@@ -39,11 +42,13 @@ pub static SCREEN_MODE: ScreenMode = ScreenMode {
     _gap_4f493c: Bytes::new([0; 8]),
     menu_mode: Dword::new(0x0),
     race_mode: Dword::new(0x0),
+    _tail: Bytes::new([0; 4]),
 };
 
 impl ScreenMode {
     pub const START: usize = 0x4F492C;
     pub const LEN: usize = 0x20;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const SCREEN_MODE) + 12) as usize
@@ -52,6 +57,7 @@ impl ScreenMode {
 
 /// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct DrawSurface {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
@@ -90,6 +96,8 @@ pub struct DrawSurface {
     pub pixels: Dword,
     /// 0x4F49C4: `g_surface.row_gap`: the bytes after a row's pixels.
     pub row_gap: Dword,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
 pub static DRAW_SURFACE: DrawSurface = DrawSurface {
@@ -111,11 +119,13 @@ pub static DRAW_SURFACE: DrawSurface = DrawSurface {
     pitch: Dword::new(0x0),
     pixels: Dword::new(0x0),
     row_gap: Dword::new(0x0),
+    _tail: Bytes::new([0; 8]),
 };
 
 impl DrawSurface {
     pub const START: usize = 0x4F4984;
     pub const LEN: usize = 0x44;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const DRAW_SURFACE) + 4) as usize

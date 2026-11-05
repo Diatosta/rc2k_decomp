@@ -933,12 +933,18 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::input::guids::InputGuids::START,
         len: crate::input::guids::InputGuids::LEN,
-        home: Home::Address(crate::input::guids::InputGuids::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::input::guids::INPUT_GUIDS,
+            8,
+        )),
     },
     Moved {
         ida: crate::sound::sets_store::MenuSounds::START,
         len: crate::sound::sets_store::MenuSounds::LEN,
-        home: Home::Address(crate::sound::sets_store::MenuSounds::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::sound::sets_store::MENU_SOUNDS,
+            4,
+        )),
     },
     Moved {
         ida: crate::sound::sets_store::RaceSoundSets::START,
@@ -948,7 +954,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::CueLists::START,
         len: crate::sound::sets_store::CueLists::LEN,
-        home: Home::Address(crate::sound::sets_store::CueLists::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::sound::sets_store::CUE_LISTS,
+            8,
+        )),
     },
     Moved {
         ida: crate::sound::sets_store::SoundKinds::START,
@@ -958,7 +967,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::sets_store::SurfaceSets::START,
         len: crate::sound::sets_store::SurfaceSets::LEN,
-        home: Home::Address(crate::sound::sets_store::SurfaceSets::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::sound::sets_store::SURFACE_SETS,
+            12,
+        )),
     },
     Moved {
         ida: crate::sound::sets_store::SpotVoices::START,
@@ -1018,7 +1030,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::strings::keyboard_tables::KeyboardTables::START,
         len: crate::strings::keyboard_tables::KeyboardTables::LEN,
-        home: Home::Address(crate::strings::keyboard_tables::KeyboardTables::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::strings::keyboard_tables::KEYBOARD_TABLES,
+            8,
+        )),
     },
     Moved {
         ida: crate::strings::text_buffer::TextBuffer::START,
@@ -1033,17 +1048,26 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::screen_state::ScreenMode::START,
         len: crate::gfx::screen_state::ScreenMode::LEN,
-        home: Home::Address(crate::gfx::screen_state::ScreenMode::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::gfx::screen_state::SCREEN_MODE,
+            12,
+        )),
     },
     Moved {
         ida: crate::gfx::screen_state::DrawSurface::START,
         len: crate::gfx::screen_state::DrawSurface::LEN,
-        home: Home::Address(crate::gfx::screen_state::DrawSurface::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::gfx::screen_state::DRAW_SURFACE,
+            4,
+        )),
     },
     Moved {
         ida: crate::d3d::cards_store::Cards3d::START,
         len: crate::d3d::cards_store::Cards3d::LEN,
-        home: Home::Address(crate::d3d::cards_store::Cards3d::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::d3d::cards_store::CARDS_3D,
+            4,
+        )),
     },
     Moved {
         ida: crate::gfx::fonts_store::Fonts::START,
@@ -1053,7 +1077,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::audio::names_store::SampleNames::START,
         len: crate::audio::names_store::SampleNames::LEN,
-        home: Home::Address(crate::audio::names_store::SampleNames::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::audio::names_store::SAMPLE_NAMES,
+            12,
+        )),
     },
     Moved {
         ida: crate::gfx::choices_store::ScreenChoices::START,
@@ -1063,7 +1090,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::jade_store::JadeFont::START,
         len: crate::gfx::jade_store::JadeFont::LEN,
-        home: Home::Address(crate::gfx::jade_store::JadeFont::home),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::gfx::jade_store::JADE_FONT,
+            4,
+        )),
     },
     // race: the image's zeroed tail (`race::buffers_store`)
     Moved {

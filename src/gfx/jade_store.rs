@@ -7,6 +7,7 @@ use crate::session::{Bytes, Dword, with_runs};
 
 /// The jade font's glyphs, colour and file name (IDA 0x4F52C4 .. 0x4F66DD, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct JadeFont {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
@@ -16,6 +17,8 @@ pub struct JadeFont {
     pub colour: Dword,
     /// 0x4F66C8: `JADE`: the font's file name (`gfx::texts`).
     pub name: Bytes<21>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<3>,
 }
 
 pub static JADE_FONT: JadeFont = JadeFont {
@@ -23,6 +26,7 @@ pub static JADE_FONT: JadeFont = JadeFont {
     glyphs: Bytes::new([0; 5120]),
     colour: Dword::new(0x1234),
     name: Bytes::new(with_runs::<21>(&[(0, b"files\\d\\gfx\\jade.bun")])),
+    _tail: Bytes::new([0; 3]),
 };
 
 impl JadeFont {

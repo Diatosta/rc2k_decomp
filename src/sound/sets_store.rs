@@ -12,21 +12,26 @@ use crate::session::{Bytes, Dword, Float, with_runs};
 
 /// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuSounds {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
     /// 0x511AE4: `unk_511AE4`: the list `sound::apply_settings` passes as the menu sounds' third argument.
     pub list: Bytes<40>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
 pub static MENU_SOUNDS: MenuSounds = MenuSounds {
     _lead: Bytes::new([0; 4]),
     list: Bytes::new(with_runs::<40>(&[(0, b"\xc7\x01\x00\x00\xc8\x01\x00\x00\xc9\x01\x00\x00\xca\x01\x00\x00c\x01\x00\x00\x97\x01\x00\x00\xcb\x01\x00\x00\xe4\x00\x00\x00\xcc\x01\x00\x00\xff\xff\xff\xff")])),
+    _tail: Bytes::new([0; 4]),
 };
 
 impl MenuSounds {
     pub const START: usize = 0x511AE4;
     pub const LEN: usize = 0x28;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const MENU_SOUNDS) + 4) as usize
@@ -803,6 +808,7 @@ impl RaceSoundSets {
 
 /// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct CueLists {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -821,6 +827,7 @@ pub static CUE_LISTS: CueLists = CueLists {
 impl CueLists {
     pub const START: usize = 0x512508;
     pub const LEN: usize = 0x508;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const CUE_LISTS) + 8) as usize
@@ -1352,6 +1359,7 @@ impl SoundKinds {
 
 /// The surface sound sets (IDA 0x51639C .. 0x51655C, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceSets {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<12>,
@@ -1359,12 +1367,15 @@ pub struct SurfaceSets {
     pub sets: [Dword; 14],
     /// 0x5163D4: `unk_5163D4` ..: the lists.
     pub lists: Bytes<392>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<4>,
 }
 
 pub static SURFACE_SETS: SurfaceSets = SurfaceSets {
     _lead: Bytes::new([0; 12]),
     sets: [Dword::new(0x5163d4), Dword::new(0x5163f8), Dword::new(0x51640c), Dword::new(0x516430), Dword::new(0x516444), Dword::new(0x516468), Dword::new(0x51647c), Dword::new(0x5164a0), Dword::new(0x5164ec), Dword::new(0x516510), Dword::new(0x5164b4), Dword::new(0x5164d8), Dword::new(0x516524), Dword::new(0x516548)],
     lists: Bytes::new(with_runs::<392>(&[(0, b"\x01\x00\x00\x00\x8c\x00\x00\x00\x8d\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x8e\x00\x00\x00\x8f\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x00\x93\x00\x00\x00\x94\x00\x00\x00\x95\x00\x00\x00\x01\x00\x00\x00\x96\x00\x00\x00\x97\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x98\x00\x00\x00\x99\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x02\x00\x00\x00\x9c\x00\x00\x00\x9d\x00\x00\x00\x9e\x00\x00\x00\x9f\x00\x00\x00\x01\x00\x00\x00\xa0\x00\x00\x00\xa1\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\xa2\x00\x00\x00\xa3\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\x02\x00\x00\x00\xa6\x00\x00\x00\xa7\x00\x00\x00\xa8\x00\x00\x00\xa9\x00\x00\x00\x01\x00\x00\x00\xaa\x00\x00\x00\xab\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\xac\x00\x00\x00\xad\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\x02\x00\x00\x00\xb0\x00\x00\x00\xb1\x00\x00\x00\xb2\x00\x00\x00\xb3\x00\x00\x00\x01\x00\x00\x00\xb4\x00\x00\x00\xb5\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\xb6\x00\x00\x00\xb7\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\x02\x00\x00\x00\xba\x00\x00\x00\xbb\x00\x00\x00\xbc\x00\x00\x00\xbd\x00\x00\x00\x01\x00\x00\x00\xbe\x00\x00\x00\xbf\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\xc0\x00\x00\x00\xc1\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\x02\x00\x00\x00\xc4\x00\x00\x00\xc5\x00\x00\x00\xc6\x00\x00\x00\xc7\x00\x00\x00\x01\x00\x00\x00\xc8\x00\x00\x00\xc9\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\xca\x00\x00\x00\xcb\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\x02\x00\x00\x00\xce\x00\x00\x00\xcf\x00\x00\x00\xd0\x00\x00\x00\xd1")])),
+    _tail: Bytes::new([0; 4]),
 };
 
 impl SurfaceSets {
@@ -1385,6 +1396,7 @@ impl SurfaceSets {
 
     pub const START: usize = 0x51639C;
     pub const LEN: usize = 0x1C0;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const SURFACE_SETS) + 12) as usize

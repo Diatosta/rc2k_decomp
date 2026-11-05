@@ -9,6 +9,7 @@ use crate::session::{Bytes, with_runs};
 
 /// The DirectInput GUIDs (IDA 0x4F7E18 .. 0x4F7FD8, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct InputGuids {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: Bytes<8>,
@@ -44,6 +45,8 @@ pub struct InputGuids {
     pub friction: Bytes<16>,
     /// 0x4F7FC8: Not named: 16 bytes (a gap, or data nothing reads here).
     pub _gap_4f7fc8: Bytes<16>,
+    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    pub _tail: Bytes<8>,
 }
 
 pub static INPUT_GUIDS: InputGuids = InputGuids {
@@ -64,11 +67,13 @@ pub static INPUT_GUIDS: InputGuids = InputGuids {
     inertia: Bytes::new(with_runs::<16>(&[(0, b")\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
     friction: Bytes::new(with_runs::<16>(&[(0, b"*\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
     _gap_4f7fc8: Bytes::new(with_runs::<16>(&[(0, b"+\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
+    _tail: Bytes::new([0; 8]),
 };
 
 impl InputGuids {
     pub const START: usize = 0x4F7E18;
     pub const LEN: usize = 0x1C0;
+    #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
         (crate::pointers::game_address(&raw const INPUT_GUIDS) + 8) as usize
