@@ -12,8 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::gfx::fonts_store::FONTS;
-use crate::gfx::pixel_format::PixelFormat;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
@@ -54,12 +52,8 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
     }
     {
         let screen = crate::gfx::pixel_format::surface_format()?;
-        let texture = GamePtr::new(
-            crate::gfx::texture_upload::TEXTURE_TABLES
-                .kind(3)
-                .wrapping_add(8),
-        )
-        .read::<PixelFormat>("the texture pixel format")?;
+        let texture =
+            crate::gfx::pixel_format::layout(crate::gfx::pixel_format::texture_kind_format(3))?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};

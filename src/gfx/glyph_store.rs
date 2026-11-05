@@ -113,16 +113,19 @@ pub fn give_back(list: GamePtr) {
     }
 }
 
-/// Where `place` is when it is an IDA address of the jade font's block (the four menu
-/// fonts name its glyphs and colour by the image's numbers, phase 13); else `place`. No game
-/// address lies there: the image's range is reserved.
-fn resolved(place: u32) -> u32 {
+/// Where `place` is: when it is an IDA address of the jade font's block (the four menu
+/// fonts name its glyphs and colour by the image's numbers, phase 13), a place in
+/// `JADE_FONT`, bounded to it; else the game address itself (the image's palettes, a
+/// screen's own: numbers the font objects keep). No game address lies in the jade range:
+/// the image's range is reserved.
+fn resolved(place: u32) -> GamePtr {
     let ida = place as usize;
     let jade = crate::gfx::jade_store::JadeFont::START;
     if (jade..jade + crate::gfx::jade_store::JadeFont::LEN).contains(&ida) {
-        (crate::gfx::jade_store::JadeFont::home() + (ida - jade)) as u32
+        // The block starts 4 bytes into the store (`JadeFont::home`).
+        GamePtr::to(&crate::gfx::jade_store::JADE_FONT).offset((4 + ida - jade) as u32)
     } else {
-        place
+        GamePtr::new(place)
     }
 }
 
@@ -154,7 +157,7 @@ impl rc2k_core::strings::bytes::Bytes for Glyphs {
 /// The bytes from `place` on: a palette or table of the store, or game memory.
 pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
     if !is_place(place) {
-        return Ok(Glyphs::Game(GamePtr::new(resolved(place)).bytes(what)?));
+        return Ok(Glyphs::Game(resolved(place).bytes(what)?));
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -164,7 +167,7 @@ pub fn bytes(place: u32, what: &str) -> Result<Glyphs, BadInput> {
 /// `len` bytes from `place` + `at`.
 pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
     if !is_place(place) {
-        return GamePtr::new(resolved(place).wrapping_add(at)).read_bytes(len, what);
+        return resolved(place).offset(at).read_bytes(len, what);
     }
     let mut s = store();
     let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
@@ -178,7 +181,7 @@ pub fn read_bytes(place: u32, at: u32, len: usize, what: &str) -> Result<Vec<u8>
 /// write past its end.
 pub fn write_bytes(place: u32, at: u32, bytes: &[u8], what: &str) -> Result<(), BadInput> {
     if !is_place(place) {
-        return GamePtr::new(resolved(place).wrapping_add(at)).write_bytes(bytes, what);
+        return resolved(place).offset(at).write_bytes(bytes, what);
     }
     let table = place >= TABLE_FIRST;
     let mut s = store();
@@ -210,10 +213,13 @@ mod tests {
         let colour = read_bytes(0x4F66C4, 0, 4, "the jade colour").unwrap();
         assert_eq!(colour, JADE_FONT.colour.get().to_le_bytes());
         assert_eq!(table.byte(0), Some(JADE_FONT.glyphs.get(0)));
-        assert_eq!(resolved(0x4F66C4) as usize, JadeFont::home() + 0x1400);
+        assert_eq!(
+            resolved(0x4F66C4).addr() as usize,
+            JadeFont::home() + 0x1400
+        );
         // Anything else is left as it was.
-        assert_eq!(resolved(0x4F66DD + 0x20), 0x4F66DD + 0x20);
-        assert_eq!(resolved(0x4F52C3), 0x4F52C3);
+        assert_eq!(resolved(0x4F66DD + 0x20).addr(), 0x4F66DD + 0x20);
+        assert_eq!(resolved(0x4F52C3).addr(), 0x4F52C3);
     }
 
     #[test]

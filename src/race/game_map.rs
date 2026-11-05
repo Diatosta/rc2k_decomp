@@ -105,15 +105,15 @@ fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format() -> Result<(u32, PixelFormat), BadInput> {
-    let kind: u32 = crate::gfx::texture_upload::TEXTURE_TABLES.kind(3);
-    let description = GamePtr::new(kind);
-    let bytes = description.offset(4).read::<u32>("a map word")?;
+    let kind = crate::gfx::texture_upload::TEXTURE_TABLES
+        .kind_index(3)
+        .ok_or(BadInput("the map's pixel kind has no description"))?;
+    let description = crate::gfx::texture_upload::TEXTURE_TABLES.descriptions[kind].get();
+    let bytes = description.bytes_per_pixel;
     MAP.pixel_bytes.set(bytes);
     MAP.format
         .set(crate::gfx::pixel_format::texture_kind_format(3));
-    let format = description
-        .offset(8)
-        .read::<PixelFormat>("the map's pixel format")?;
+    let format = description.format;
     Ok((bytes, format))
 }
 

@@ -9,7 +9,6 @@ use crate::gfx::texture_pixels::GRADING;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
-use crate::pointers::GamePtr;
 use crate::session::Dword;
 
 pub const RECORD_LEN: usize = 0x78;
@@ -387,7 +386,13 @@ impl Record {
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
-        GamePtr::new(self.get().format).read("a texture's format")
+        let at = self.get().format;
+        TEXTURE_TABLES
+            .descriptions
+            .iter()
+            .find(|d| d.addr() == at)
+            .map(FormatCell::get)
+            .ok_or(BadInput("a texture's format that names no description"))
     }
 
     pub fn format(&self) -> Result<PixelFormat, BadInput> {
