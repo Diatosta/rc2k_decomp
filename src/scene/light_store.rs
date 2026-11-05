@@ -79,6 +79,7 @@ pub const END: usize = 0x637660;
 const _: () = assert!(END - START == core::mem::size_of::<LightState>());
 
 /// Where IDA 0x636588 is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&LIGHT_STATE))
 }

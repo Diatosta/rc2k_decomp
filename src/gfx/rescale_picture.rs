@@ -28,7 +28,7 @@ use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::gfx::picture_store::PICTURE;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::{Bytes, Dword, Shared};
+use crate::session::{Bytes, Dword};
 
 // ---- game data ----
 
@@ -39,9 +39,10 @@ pub const LEN: usize = 0x4F50C0 - START;
 
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Rescaler {
     /// `dword_4F505C`: the list the copy's memory is on (16 bytes).
-    pub copy_memory: Shared<MemoryList>,
+    pub copy_memory: crate::memory::ListCells,
     /// `0x4F506C` .. `0x4F509C`: nothing reads or writes them (a gap).
     pub _gap_10: [Dword; 12],
     /// `dword_4F509C`: whole pixels a step across.
@@ -66,7 +67,7 @@ pub struct Rescaler {
 
 /// The rescaler's variables; the first values are the image's.
 pub static RESCALE: Rescaler = Rescaler {
-    copy_memory: Shared::new(MemoryList {
+    copy_memory: crate::memory::ListCells::new(MemoryList {
         head: 0,
         total: 0,
         cursor: 0,
@@ -83,11 +84,6 @@ pub static RESCALE: Rescaler = Rescaler {
     rows_left: Dword::new(0),
     components: Bytes::new([0; 4]),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x4F505C).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const RESCALE) as usize
-}
 
 // ---- Rust version ----
 

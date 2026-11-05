@@ -2,21 +2,20 @@
 
 use crate::errors::BadInput;
 pub use rc2k_core::math::units::{Figure, Units};
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// 0 = imperial (Fahrenheit, miles) and non-zero = metric: out of the image since
 /// 2026-10-24 (phase 5; it was `g_isImperialUnits`, 0x51DE2C, 0 there). Set by the
 /// language (`load_language`) and player 1's choice (`menu::take_player1_units`,
 /// `menu::options_loop`).
-pub static UNITS: AtomicU32 = AtomicU32::new(0);
+pub static UNITS: crate::session::Dword = crate::session::Dword::new(0);
 
 /// 0 = imperial, non-zero = metric. The game stores Celsius and miles.
 pub fn units() -> u32 {
-    UNITS.load(Ordering::Relaxed)
+    UNITS.get()
 }
 
 pub fn set_units(units: u32) {
-    UNITS.store(units, Ordering::Relaxed);
+    UNITS.set(units);
 }
 
 /// The setting as the core's `Units`; refused past 1 (the label tables have two entries).

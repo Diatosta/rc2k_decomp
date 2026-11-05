@@ -11,6 +11,7 @@ use crate::session::{Bytes, Dword};
 /// in the language file: `tokAVPPrimary` / `tokAVPSecondary`, `tokAVPDoubleBuffer` /
 /// `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct ScreenChoices {
     /// 0x4F50C0: `unk_4F50C0`: 1 once the choices are made (`gfx::screen_mode_choices`).
     pub made: Dword,
@@ -59,6 +60,7 @@ impl ScreenChoices {
     pub const START: usize = 0x4F50C0;
     pub const LEN: usize = 0x130;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SCREEN_CHOICES) as usize
     }

@@ -37,7 +37,7 @@ pub fn read_record(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
             }
         }
         if let Some(mode) = record.mode {
-            crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed);
+            crate::files::state::MEDIA_MODE.set(mode);
         }
         Ok(())
     }

@@ -12,13 +12,12 @@
 
 use crate::fatal::state::{CAPTION, CODE, REPORTED, TEXT};
 use crate::logfile::write_line::log_text;
-use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn show_report_at_exit() {
-    if REPORTED.load(Relaxed) == 1 {
+    if REPORTED.get() == 1 {
         // Converted: `rc2k_core::fatal::caption_cut`.
-        if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
+        if rc2k_core::fatal::caption_cut(CODE.get()) {
             CAPTION.set(rc2k_core::fatal::CAPTION_CUT, 0);
         }
         // MB_ICONEXCLAMATION | MB_TASKMODAL.

@@ -63,13 +63,10 @@ pub fn read_whole_file_into(path: GamePtr, into: &mut [u8]) -> Result<(), BadInp
             into,
         )?;
         if !w.opened {
-            BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+            BYTES_READ.set(0);
             return Ok(());
         }
-        BYTES_READ.store(
-            if w.closed { w.bytes } else { 0 },
-            std::sync::atomic::Ordering::Relaxed,
-        );
+        BYTES_READ.set(if w.closed { w.bytes } else { 0 });
         Ok(())
     }
 }

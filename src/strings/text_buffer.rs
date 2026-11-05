@@ -6,6 +6,7 @@ use crate::session::Bytes;
 
 /// The strings' text buffer (IDA 0x93E430 .. 0x93E830, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct TextBuffer {
     /// 0x93E430: `text`: the shared text buffer (the string of an id is built here, then drawn).
     pub text: Bytes<1024>,
@@ -19,6 +20,7 @@ impl TextBuffer {
     pub const START: usize = 0x93E430;
     pub const LEN: usize = 0x400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const TEXT_BUFFER) as usize
     }

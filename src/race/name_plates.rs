@@ -168,7 +168,7 @@ pub fn update_name_plates() -> Result<(), Refused> {
 /// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
 /// (the original's carry).
 pub fn draw_text_in_game(
-    font: &crate::session::Shared<crate::text::font::Font>,
+    font: &crate::gfx::typefaces::FontObject,
     text: impl Into<crate::place::Place>,
     x: u32,
     y: u32,

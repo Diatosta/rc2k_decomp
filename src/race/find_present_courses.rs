@@ -39,14 +39,14 @@ pub fn find_present_courses() -> Result<(), Refused> {
         set_cdat_number(0);
         FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
         let present = course_present(paths().len() as u32, |file| {
-            BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+            BYTES_READ.set(0);
             let path = paths()[file as usize];
             read_whole_file(
                 path,
                 crate::pointers::GamePtr::to(&DRAW.work_dword),
                 PROBE_BYTES,
             )?;
-            Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
+            Ok::<u32, Refused>(BYTES_READ.get())
         })?;
         if present {
             FRAME_SWITCHES.course_present[n as usize].set(1);

@@ -59,11 +59,11 @@ pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
 
 /// g_mediaMode (`files::state::MEDIA_MODE`).
 pub fn media_mode() -> u32 {
-    crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed)
+    crate::files::state::MEDIA_MODE.get()
 }
 
 pub fn set_media_mode(mode: u32) {
-    crate::files::state::MEDIA_MODE.store(mode, std::sync::atomic::Ordering::Relaxed);
+    crate::files::state::MEDIA_MODE.set(mode);
 }
 // dword_51B9CC (-u)
 // g_removeStartItems
@@ -352,8 +352,8 @@ pub fn measure_string(
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
 /// surface's format into `to`.
 pub fn components_to_pixels(
-    from: &crate::moved::Place<[u32; 256]>,
-    to: &crate::moved::Place<[u32; 256]>,
+    from: &[crate::session::Dword; 256],
+    to: &[crate::session::Dword; 256],
 ) {
     let what = "a pixel format";
     let format = crate::gfx::pixel_format::surface_format()

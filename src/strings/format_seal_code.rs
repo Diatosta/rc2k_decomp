@@ -11,14 +11,13 @@
 //! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
 //! register use above is the original's, for reference.
 
-use crate::moved::Place;
-
 /// `g_sealCodeText`'s room (0x4E0544 .. the `MEMORYSTATUS` at 0x4E0558, whose first byte
 /// was never written by the time the code is read: the text's NUL).
 pub const SEAL_TEXT_LEN: usize = 0x14;
 /// The code's text: out of the image since 2026-10-24 (phase 5). The two dwords stay in
 /// the image, in `race::save_seal`'s cipher block (`value`, `dword_4E0540`).
-pub static SEAL_TEXT: Place<[u8; SEAL_TEXT_LEN]> = Place::new([0; SEAL_TEXT_LEN]);
+pub static SEAL_TEXT: crate::session::Bytes<SEAL_TEXT_LEN> =
+    crate::session::Bytes::new([0; SEAL_TEXT_LEN]);
 
 /// The 19 characters.
 pub fn seal_code(a: u32, b: u32) -> Vec<u8> {

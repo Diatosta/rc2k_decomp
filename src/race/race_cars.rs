@@ -150,7 +150,7 @@ pub fn read_stage_car_numbers() -> Result<(), Refused> {
         len,
         RACE_VARS.stage_number.bits(),
     )?;
-    crate::files::state::BYTES_READ.store(len, std::sync::atomic::Ordering::Relaxed);
+    crate::files::state::BYTES_READ.set(len);
     let mut total = 0u32;
     for (k, &n) in found.numbers.iter().enumerate() {
         SPLIT_TABLES.stage_numbers[k].set(n);
@@ -679,7 +679,7 @@ pub fn set_up_arcade_cars() -> Result<(), Refused> {
             crate::pointers::game_address(SETUP_ARCADE_WORD_RVA.as_ptr()),
             true,
         );
-        let indent = &crate::logfile::write_line::state::INDENT;
+        let indent = crate::logfile::write_line::state::INDENT.atomic();
         indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
         choose_arcade_opponents()?;
         indent.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);

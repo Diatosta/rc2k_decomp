@@ -161,7 +161,7 @@ fn take_scene_points() -> Result<(), BadInput> {
 pub fn load_level() -> Result<(), Refused> {
     use crate::files::read_level_file;
     set_cdat_number(0);
-    crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+    crate::files::state::BYTES_READ.set(0);
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
     let out = read_level_file::read_level_file(
@@ -169,7 +169,7 @@ pub fn load_level() -> Result<(), Refused> {
         crate::pointers::GamePtr::new(COURSE_LISTS.course_memory.bits()),
         COURSE_LISTS.first_part.bits(),
     )?;
-    crate::files::state::BYTES_READ.store(out.eax, std::sync::atomic::Ordering::Relaxed);
+    crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {
         return Err(NOT_READ.into());
     }

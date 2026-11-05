@@ -35,6 +35,7 @@ impl MenuSounds {
 
 /// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSoundSets {
     /// 0x511B10: `unk_511B10` ..: the first car's sets by kind of car, three dwords each (two sounds, -1).
     pub kind_sets_first: [Dword; 102],
@@ -58,11 +59,14 @@ pub struct RaceSoundSets {
     pub kinds: [Dword; 87],
     /// 0x5124BC: `g_raceSoundRequest`: the request `sound::turn_parts` sends (a work area).
     pub request: SoundRequest,
+    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
+    pub _tail: Bytes<12>,
 }
 
 /// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
 /// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
     /// +0: the sound (bit 0x8000: none).
     pub sound: Dword,
@@ -751,6 +755,7 @@ pub static RACE_SOUND_SETS: RaceSoundSets = RaceSoundSets {
         pitch_factor: Dword::new(0),
         volume_factor: Dword::new(0),
     },
+    _tail: Bytes::new([0; 12]),
 };
 
 impl RaceSoundSets {
@@ -790,6 +795,7 @@ impl RaceSoundSets {
     pub const START: usize = 0x511B10;
     pub const LEN: usize = 0x9D4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const RACE_SOUND_SETS) as usize
     }
@@ -840,6 +846,7 @@ impl CueLists {
 
 /// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct SoundKinds {
     /// 0x514F90: `g_carSoundKinds`: a pointer to each sound kind's record (`sound::car_engine_state`).
     pub kinds: [Dword; 36],
@@ -849,6 +856,8 @@ pub struct SoundKinds {
     pub computers: Bytes<40>,
     /// 0x516258: `unk_516258`: 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
     pub sines: [Float; 64],
+    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
+    pub _tail: Bytes<8>,
 }
 
 pub static SOUND_KINDS: SoundKinds = SoundKinds {
@@ -1306,6 +1315,7 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
         ),
     ])),
     sines: [const { Float::from_bits(0x0) }; 64],
+    _tail: Bytes::new([0; 8]),
 };
 
 impl SoundKinds {
@@ -1334,6 +1344,7 @@ impl SoundKinds {
     pub const START: usize = 0x514F90;
     pub const LEN: usize = 0x13C8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SOUND_KINDS) as usize
     }
@@ -1382,6 +1393,7 @@ impl SurfaceSets {
 
 /// The spot voices (IDA 0x5168C0 .. 0x517F40, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct SpotVoices {
     /// 0x5168C0: `g_spotVoices`: 0x48 records of 0x50 bytes (`sound::spot_voices`).
     pub voices: [[Dword; 20]; 72],
@@ -2980,6 +2992,7 @@ impl SpotVoices {
     pub const START: usize = 0x5168C0;
     pub const LEN: usize = 0x1680;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const SPOT_VOICES) as usize
     }

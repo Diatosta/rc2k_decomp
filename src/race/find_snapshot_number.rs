@@ -16,7 +16,6 @@ use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
-use std::sync::atomic::Ordering::Relaxed;
 
 /// IDA's address of the snapshot picture's name.
 pub const SNAPSHOT_START: usize = 0x529731;
@@ -34,7 +33,7 @@ pub fn digits_place() -> *mut u8 {
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
 /// false (carry) when there is none.
 pub fn find_next_wanted() -> bool {
-    crate::files::search::next(SKIPPED_ATTRIBUTES.load(Relaxed))
+    crate::files::search::next(SKIPPED_ATTRIBUTES.get())
 }
 
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
@@ -51,7 +50,7 @@ pub fn find_first_at(pattern: GamePtr) -> bool {
         return false;
     };
     set_last_file_path(Some(&text));
-    crate::files::search::first(&text, SKIPPED_ATTRIBUTES.load(Relaxed))
+    crate::files::search::first(&text, SKIPPED_ATTRIBUTES.get())
 }
 
 /// The Rust version.

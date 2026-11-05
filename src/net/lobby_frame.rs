@@ -101,7 +101,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
             use std::sync::atomic::Ordering::Relaxed;
-            let kept_hours = SHOW_HOURS.swap(1, Relaxed);
+            let kept_hours = SHOW_HOURS.atomic().swap(1, Relaxed);
             let time = block.record.race_time.get();
             let mut cursor = Cursor::text();
             // The total is drawn at the y the drawing before it leaves in edx: the text's,
@@ -150,7 +150,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                     total_y,
                 )
             }?;
-            SHOW_HOURS.store(kept_hours, Relaxed);
+            SHOW_HOURS.set(kept_hours);
             y = y.wrapping_add(NAME_FONT.object().line_height.get());
         }
     }

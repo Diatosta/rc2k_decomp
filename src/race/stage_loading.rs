@@ -41,7 +41,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
 pub fn load_stage() -> Result<(), Refused> {
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
-            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
+            .atomic()
+            .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     };
     let mut word = 0;
     let mut log = || {

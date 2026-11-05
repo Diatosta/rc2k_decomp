@@ -43,6 +43,7 @@ pub const END: usize = 0x621A84;
 const _: () = assert!(END - START == core::mem::size_of::<DrawSwitches>());
 
 /// Where IDA 0x621900 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&DRAW_SWITCHES))
 }

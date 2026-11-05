@@ -64,7 +64,7 @@ pub fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     };
     INSTALLER_PATHS.path_b.write_at(0, &b, "a path")?;
     outside.read_record()?;
-    if crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed) < 2 {
+    if crate::files::state::MEDIA_MODE.get() < 2 {
         outside.log(b"CLIO: Requires normal or full installation");
         return Err(FatalError {
             code: 0x9000_2105,

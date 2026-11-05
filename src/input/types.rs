@@ -55,6 +55,7 @@ const fn dwords_of<const N: usize>(b: &[u8], at: usize) -> [Dword; N] {
 
 /// DirectInput's `DIENVELOPE`.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DiEnvelope {
     pub size: Dword,
     pub attack_level: Dword,
@@ -80,6 +81,7 @@ impl DiEnvelope {
 /// DirectInput stand-in is given the parts (`effect_objects::parameters_of`) and takes only
 /// whether each pointer is set.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct DiEffect {
     pub size: Dword,
     pub flags: Dword,
@@ -118,6 +120,7 @@ impl DiEffect {
 
 /// One of a device record's six force-feedback effects (`input::make_effect`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct ForceEffect {
     /// +0: its function (`input::effect_N_change`, a game address), called with a change.
     pub change: Dword,
@@ -179,6 +182,7 @@ impl ForceEffect {
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Binding {
     pub key: Dword,
     /// The axis's place in the record (0x2C, 0x30, 0x34; 0 none).
@@ -200,6 +204,7 @@ impl Binding {
 
 /// `g_inputRecord1` / `2`: a player's input device (`input/devices.rs`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct InputDevice {
     /// +0: the controller's number in `g_controllers`.
     pub controller: Dword,

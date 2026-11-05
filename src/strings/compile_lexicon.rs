@@ -24,7 +24,7 @@ use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::session::Bytes;
-use crate::session::{Dword, Shared};
+use crate::session::Dword;
 use crate::strings::string_table::use_lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
@@ -59,12 +59,13 @@ pub const MEMORY_LEN: usize = 0x519598 - MEMORY_START;
 
 /// The lexicon compiler's memory (the glyph builder takes the same work memory).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct LexiconMemory {
     /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;
     /// the glyph tables' work memory is sized by it too).
     pub kilobytes: Dword,
     /// `g_lexiconMemory` (`stru_519558`): the list the memory is taken from (16 bytes).
-    pub memory: Shared<MemoryList>,
+    pub memory: crate::memory::ListCells,
     /// `0x519568` .. `0x519598`: nothing reads or writes them (a gap).
     pub _gap_14: [Dword; 12],
 }
@@ -72,7 +73,7 @@ pub struct LexiconMemory {
 /// The lexicon's memory; the first values are the image's.
 pub static LEXICON: LexiconMemory = LexiconMemory {
     kilobytes: Dword::new(0x400),
-    memory: Shared::new(MemoryList {
+    memory: crate::memory::ListCells::new(MemoryList {
         head: 0,
         total: 0,
         cursor: 0,
@@ -81,10 +82,6 @@ pub static LEXICON: LexiconMemory = LexiconMemory {
     _gap_14: [const { Dword::new(0) }; 12],
 };
 
-/// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
-pub fn memory_home() -> usize {
-    crate::pointers::game_address(&raw const LEXICON) as usize
-}
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;

@@ -42,7 +42,7 @@ fn set_clip(edge: &Dword, v: u32) {
 }
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
-fn font() -> &'static crate::session::Shared<crate::text::font::Font> {
+fn font() -> &'static crate::gfx::typefaces::FontObject {
     &FONTS.game_fonts[2]
 }
 
@@ -84,7 +84,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
 fn text(
-    font: &crate::session::Shared<crate::text::font::Font>,
+    font: &crate::gfx::typefaces::FontObject,
     text: impl Into<crate::place::Place>,
     x: u32,
     y: u32,

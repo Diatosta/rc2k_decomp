@@ -132,10 +132,10 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
 pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let folder = folder.into();
     use crate::files::state::SKIPPED_ATTRIBUTES;
-    let saved_skip = SKIPPED_ATTRIBUTES.load(std::sync::atomic::Ordering::Relaxed);
-    SKIPPED_ATTRIBUTES.store(0, std::sync::atomic::Ordering::Relaxed);
+    let saved_skip = SKIPPED_ATTRIBUTES.get();
+    SKIPPED_ATTRIBUTES.set(0);
     let result = walk(folder);
-    SKIPPED_ATTRIBUTES.store(saved_skip, std::sync::atomic::Ordering::Relaxed);
+    SKIPPED_ATTRIBUTES.set(saved_skip);
     result
 }
 

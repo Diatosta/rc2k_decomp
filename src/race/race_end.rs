@@ -224,7 +224,8 @@ impl Tidy {
 
     fn indent(&self, by: i32) {
         crate::logfile::write_line::state::INDENT
-            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
+            .atomic()
+            .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// The word, the indent in, the call, the indent out.
@@ -255,10 +256,11 @@ pub fn tidy_stage() -> Result<(), Refused> {
     s.step(STAGE_WORDS[1], || free(&POINT_RECORDS))?;
     s.log(STAGE_WORDS[2]);
     s.indent(3);
-    let enabled =
-        crate::logfile::write_line::state::ENABLED.swap(0, std::sync::atomic::Ordering::Relaxed);
+    let enabled = crate::logfile::write_line::state::ENABLED
+        .atomic()
+        .swap(0, std::sync::atomic::Ordering::Relaxed);
     crate::effects::tidy_marks::tidy_marks()?;
-    crate::logfile::write_line::state::ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(&FONTS))?;
     s.step(STAGE_WORDS[4], crate::race::game_map::free_game_map)?;
@@ -321,7 +323,7 @@ pub fn run_race() -> Result<(), Refused> {
     crate::physics::split_tables_store::SPLIT_TABLES
         .arcade_kind
         .set(1);
-    crate::logfile::write_line::state::INDENT.store(0, std::sync::atomic::Ordering::Relaxed);
+    crate::logfile::write_line::state::INDENT.set(0);
     if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
         RACE_TABLES
             .noise_seed

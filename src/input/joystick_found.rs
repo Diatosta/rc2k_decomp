@@ -71,7 +71,7 @@ fn look_over(
     at_name.write_bytes(&name, "a controller's name")?;
     use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
     use std::sync::atomic::Ordering::Relaxed;
-    let kept = KEEP_CASE.swap(0, Relaxed);
+    let kept = KEEP_CASE.atomic().swap(0, Relaxed);
     let to = at_name.offset(name.len() as u32);
     // room 0x19 is never refused
     let _ = {
@@ -81,7 +81,7 @@ fn look_over(
             NAME_ROOM,
         )
     };
-    KEEP_CASE.store(kept, Relaxed);
+    KEEP_CASE.set(kept);
     let f = rc2k_core::input::joystick::found(
         caps.flags,
         caps.axes,

@@ -452,6 +452,7 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
 
 /// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
     /// `g_raceSoundObjects`: the eight objects' addresses (IDA's addresses at start; `point_sound_objects` sets them to where the objects are now).
     pub table: [Dword; 8],
@@ -505,6 +506,7 @@ pub static RACE_SOUNDS: RaceSounds = RaceSounds {
 };
 
 /// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
+#[cfg(test)]
 pub fn race_sounds_addr() -> u32 {
     crate::pointers::game_address(&raw const RACE_SOUNDS)
 }
@@ -512,6 +514,7 @@ pub fn race_sounds_addr() -> u32 {
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
 /// .. 0x512508, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
     /// `dword_5124E4`: 1 once the race's sounds are set up (`race::sounds`,
     /// `race::sound_tables`), 0 at the race's end; `sound::race_turn` does nothing before.
@@ -551,6 +554,7 @@ pub static RACE_CLOCK: RaceClock = RaceClock {
 };
 
 /// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
+#[cfg(test)]
 pub fn race_clock_addr() -> u32 {
     crate::pointers::game_address(&raw const RACE_CLOCK)
 }
@@ -559,6 +563,7 @@ pub fn race_clock_addr() -> u32 {
 /// phase 7, typed state): the factors the engine, speed, revs and throttle sounds and the
 /// wheel sounds scale by, and what `sound::surface_sounds` works out.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SurfaceSounds {
     /// `dword_516358`: 1 once `race::prepare_sound_tables` has run.
     pub tables_done: Dword,
@@ -619,6 +624,7 @@ pub static SURFACE_SOUNDS: SurfaceSounds = SurfaceSounds {
 };
 
 /// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
+#[cfg(test)]
 pub fn surface_sounds_addr() -> u32 {
     crate::pointers::game_address(&raw const SURFACE_SOUNDS)
 }
@@ -643,6 +649,7 @@ pub struct SoundSlot {
 
 /// A sound spot shared with the sound side, 0x14 bytes.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct SharedSpot {
     /// The spot's id.
     pub id: Dword,
@@ -668,6 +675,7 @@ pub struct KindRepeats {
 
 /// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0, the image's layout; phase 7, typed state).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
     /// `g_surfaceSoundSet` (`dword_51655C`): a surface's sound set (an index into `off_51639C`'s pairs), 16 surfaces.
     pub surface_sets: [Dword; 16],
@@ -753,6 +761,7 @@ pub static STAGE_SOUNDS: StageSounds = StageSounds {
 };
 
 /// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
+#[cfg(test)]
 pub fn stage_sounds_addr() -> u32 {
     crate::pointers::game_address(&raw const STAGE_SOUNDS)
 }
@@ -1079,6 +1088,7 @@ pub static RACE_SOUNDS_ON: Dword = Dword::new(1);
 /// whether it is on (`sound::play_car_stream`, `sound::step_car_stream`, the stage
 /// view's speech).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CarStream {
     pub place: Dword,  // dword_A8C180
     pub stream: Dword, // dword_A8C184

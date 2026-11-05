@@ -11,21 +11,17 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
 // ---- Rust version ----
 
 /// The generator's state: out of the image since 2026-10-24 (phase 5; it was
 /// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
-pub static STATE: AtomicU32 = AtomicU32::new(0x9570_1114);
+pub static STATE: crate::session::Dword = crate::session::Dword::new(0x9570_1114);
 
 /// The generator loaded from `STATE`, `f` run on it, its state stored back.
 pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
-    let mut random = rc2k_core::math::random::Random {
-        state: STATE.load(Ordering::Relaxed),
-    };
+    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
     let value = f(&mut random);
-    STATE.store(random.state, Ordering::Relaxed);
+    STATE.set(random.state);
     value
 }
 
@@ -66,7 +62,7 @@ mod tests {
         let d = crate::moved::image_bytes(0x4E0140, 4);
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::STATE.load(std::sync::atomic::Ordering::Relaxed)
+            super::STATE.get()
         );
     }
 }

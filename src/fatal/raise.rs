@@ -20,7 +20,7 @@ pub fn raise(error: FatalError, regs: &Regs) {
     // None for an empty one, and for one with a NUL inside (a C string could not hold it).
     let message =
         (!error.message.is_empty() && !error.message.contains('\0')).then_some(error.message);
-    CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);
+    CODE.set(error.code);
     *MESSAGE
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = message;

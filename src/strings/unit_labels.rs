@@ -29,6 +29,7 @@ pub static LABEL_IDS: [Word; 22] = words([
 ]);
 
 /// Where the tables are (`moved::MOVED`'s home for IDA 0x51EB84).
+#[cfg(test)]
 pub fn home() -> usize {
     (crate::pointers::game_address(LABEL_IDS.as_ptr())) as usize
 }

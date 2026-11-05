@@ -22,27 +22,27 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
 /// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` directly.
 pub mod state {
-    use std::sync::atomic::{AtomicI32, AtomicU32};
+    use crate::session::Dword;
     /// On while above 0 (signed). 1 in the image.
-    pub static ENABLED: AtomicI32 = AtomicI32::new(1);
+    pub static ENABLED: Dword = Dword::new(1);
     /// The highest level logged; 0 logs nothing. 1 in the image.
-    pub static LEVEL: AtomicU32 = AtomicU32::new(1);
+    pub static LEVEL: Dword = Dword::new(1);
     /// 1 while a thread writes the log (`acquire`).
-    pub static LOCK: AtomicU32 = AtomicU32::new(0);
+    pub static LOCK: Dword = Dword::new(0);
     /// Spaces before a line.
-    pub static INDENT: AtomicI32 = AtomicI32::new(0);
+    pub static INDENT: Dword = Dword::new(0);
     /// 1 when the next text starts a line.
-    pub static LINE_START: AtomicU32 = AtomicU32::new(0);
+    pub static LINE_START: Dword = Dword::new(0);
 }
 
 /// `g_logLevel` now.
 pub fn level() -> u32 {
-    state::LEVEL.load(Ordering::Relaxed)
+    state::LEVEL.get()
 }
 
 /// Turns the log on or off (`g_logEnabled`).
 pub fn set_enabled(value: i32) {
-    state::ENABLED.store(value, Ordering::Relaxed);
+    state::ENABLED.set(value as u32);
 }
 
 /// `dword_4E06EA` .. (`files`' table of file modes, 16 bytes each): mode 4's access,
@@ -63,7 +63,7 @@ const MODE_SHARE: u32 = 0;
 pub static LOG_PATH: &[u8] = b"var\\logfile.txt\0";
 
 pub fn lock() -> &'static AtomicU32 {
-    &state::LOCK
+    state::LOCK.atomic()
 }
 
 // ---- Rust version ----
@@ -99,10 +99,10 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
 
 fn load_state() -> rc2k_core::files::log::LogState {
     rc2k_core::files::log::LogState {
-        enabled: state::ENABLED.load(Ordering::Relaxed),
-        level: state::LEVEL.load(Ordering::Relaxed),
-        indent: state::INDENT.load(Ordering::Relaxed),
-        line_start: state::LINE_START.load(Ordering::Relaxed),
+        enabled: (state::ENABLED.get() as i32),
+        level: state::LEVEL.get(),
+        indent: (state::INDENT.get() as i32),
+        line_start: state::LINE_START.get(),
     }
 }
 
@@ -120,7 +120,7 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
     acquire();
     let mut now = load_state();
     if let Logged::Line(line) = log_line(&mut now, text, newline, level) {
-        state::LINE_START.store(now.line_start, Ordering::Relaxed);
+        state::LINE_START.set(now.line_start);
         append_to_file(LOG_PATH, &line);
     }
     lock().store(0, Ordering::Release);
@@ -136,7 +136,6 @@ pub fn acquire() {
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
-    use std::sync::atomic::Ordering;
 
     #[test]
     fn modes_are_the_games() {
@@ -158,10 +157,10 @@ mod tests {
         use super::state::*;
         let d = image_bytes(0x4E0094, 0x14);
         let word = |n: usize| u32::from_le_bytes(d[n..n + 4].try_into().unwrap());
-        assert_eq!(word(0) as i32, ENABLED.load(Ordering::Relaxed));
-        assert_eq!(word(4), LEVEL.load(Ordering::Relaxed));
-        assert_eq!(word(8), LOCK.load(Ordering::Relaxed));
-        assert_eq!(word(0xC) as i32, INDENT.load(Ordering::Relaxed));
-        assert_eq!(word(0x10), LINE_START.load(Ordering::Relaxed));
+        assert_eq!(word(0) as i32, (ENABLED.get() as i32));
+        assert_eq!(word(4), LEVEL.get());
+        assert_eq!(word(8), LOCK.get());
+        assert_eq!(word(0xC) as i32, (INDENT.get() as i32));
+        assert_eq!(word(0x10), LINE_START.get());
     }
 }

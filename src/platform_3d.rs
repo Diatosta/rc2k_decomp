@@ -37,7 +37,7 @@ use crate::framework::{Regs, log};
 use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
-use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
+use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::render::{Command, STATES, Target, TextureNote};
 use crate::scene::draw_store::DRAW;
@@ -78,11 +78,13 @@ pub static GUIDS_B: [crate::session::Dword; 8] = crate::gfx::dwords([
 ]);
 
 /// Where the first ids are (`moved::MOVED`'s home for IDA 0x5BE81C).
+#[cfg(test)]
 pub fn guids_a_home() -> usize {
     (crate::pointers::game_address(GUIDS_A.as_ptr())) as usize
 }
 
 /// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
+#[cfg(test)]
 pub fn guids_b_home() -> usize {
     (crate::pointers::game_address(GUIDS_B.as_ptr())) as usize
 }
@@ -134,7 +136,7 @@ pub fn describe_texture_formats(bits: u32) {
 // ---- the textures' memory ----
 
 /// A record of a pool (0 system, 1 video).
-fn record_at(pool: usize, number: u32) -> &'static crate::session::Shared<TextureRecord> {
+fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::RecordCell {
     &TEXTURE_TABLES.pool(pool).records[number as usize]
 }
 

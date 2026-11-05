@@ -5,7 +5,6 @@
 //! buffer `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, Refused};
-use crate::moved::Place;
 use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword};
 
@@ -56,12 +55,12 @@ pub const SHUTDOWN: usize = 3;
 pub const SLOT_COUNT: usize = 4;
 pub const SLOT_LEN: usize = size_of::<ThreadSlot>();
 
-pub static SLOTS: Place<[ThreadSlot; SLOT_COUNT]> = Place::new([
+pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x4078DA),
     ThreadSlot::new(0x409CCE),
     ThreadSlot::new(0x4183C3),
     ThreadSlot::new(0x410C17),
-]);
+];
 
 /// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
 /// an address that is none of the four.
@@ -84,7 +83,7 @@ mod tests {
         let mut mine = vec![0u8; d.len()];
         unsafe {
             std::ptr::copy_nonoverlapping(
-                super::SLOTS.ptr() as *const u8,
+                super::SLOTS.as_ptr().cast::<u8>(),
                 mine.as_mut_ptr(),
                 d.len(),
             );

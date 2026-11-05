@@ -16,7 +16,6 @@ use crate::errors::{BadInput, Refused};
 use crate::logfile::{log_int::log_int, write_line::log_text};
 use crate::memory::state::{HEAP_BASE, HEAP_CURSOR, OWN_HEAP_KB};
 use crate::pointers::GamePtr;
-use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn open_own_heap() -> Result<(), Refused> {
@@ -25,14 +24,14 @@ pub fn open_own_heap() -> Result<(), Refused> {
     if !own_heap_on(crate::memory::own_heap()) {
         return Ok(());
     }
-    let Some((kb, bytes)) = own_heap_size(OWN_HEAP_KB.load(Relaxed)) else {
+    let Some((kb, bytes)) = own_heap_size(OWN_HEAP_KB.get()) else {
         return Err(BadInput("a heap size whose bytes wrap to 0").into());
     };
     log_text(b"MEM: Using alternative scheme, heap=", false, 1);
     log_int(kb as i32, true, 1);
     let memory = crate::memory::virtual_alloc::virtual_alloc(bytes)?;
-    HEAP_BASE.store(memory, Relaxed);
-    HEAP_CURSOR.store(memory, Relaxed);
+    HEAP_BASE.set(memory);
+    HEAP_CURSOR.set(memory);
     let [first, second] = own_heap_head(bytes);
     GamePtr::new(memory).write(first, "the own heap's head")?;
     GamePtr::new(memory + 4).write(second, "the own heap's head")?;

@@ -11,15 +11,14 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::strings::compile_lexicon::compile_lexicon;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting, out of the image
 /// since 2026-10-24 (phase 5; it was `dword_4E0758`, 0 there; set through
 /// `crate::moved::place`).
-pub static RECOMPILE_LEVEL: AtomicU32 = AtomicU32::new(0);
+pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0);
 
 pub fn maybe_compile_lexicon() -> Result<(), Refused> {
-    let level = RECOMPILE_LEVEL.load(Ordering::Relaxed);
+    let level = RECOMPILE_LEVEL.get();
     // byte_4F6B2A: `input`'s key states (key 0x4E).
     let key = DEVICES.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
@@ -36,7 +35,7 @@ mod tests {
         let d = crate::moved::image_bytes(0x4E0758, 4);
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::RECOMPILE_LEVEL.load(std::sync::atomic::Ordering::Relaxed)
+            super::RECOMPILE_LEVEL.get()
         );
     }
 }

@@ -303,6 +303,11 @@ impl Byte {
     pub fn set(&self, value: u8) {
         self.0.store(value, Relaxed);
     }
+
+    /// The atomic itself, for code that wants more than a load and a store (a once-only guard).
+    pub fn atomic(&self) -> &AtomicU8 {
+        &self.0
+    }
 }
 
 /// A buffer of the game's bytes (a table, a record handed on by address), shared between the
@@ -489,6 +494,7 @@ const fn zeros<const N: usize>() -> [Dword; N] {
 
 /// The screen: 0x4F494C .. 0x4F4984.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Screen {
     pub width: Dword,       // g_screenWidth
     pub height: Dword,      // g_screenHeight
@@ -518,6 +524,7 @@ pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
 
 /// The window's state and the main loop's: 0x518370 .. 0x51839C.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Flags {
     pub f370: Dword,           // dword_518370
     pub window_active: Dword,  // g_windowActive
@@ -550,6 +557,7 @@ pub const FLAGS_LEN: usize = core::mem::size_of::<Flags>();
 
 /// What the machine is and has, and the window handles: 0x5183A8 .. 0x5184A8.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Machine {
     pub has_mmx: Dword,          // g_hasMmx
     pub ignore_mmx: Dword,       // dword_5183AC (`ignoremmx`)
@@ -613,6 +621,7 @@ pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
 
 /// The key thread's count and the clocks the menus keep: 0x518998 .. 0x5189A4.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Clocks {
     pub key_ticks: Dword,  // dword_518998: the key thread's turns
     pub frame: Dword,      // dword_51899C: the menus' clock (`update_frame_clock`)

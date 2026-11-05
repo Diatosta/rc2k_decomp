@@ -12,8 +12,8 @@ use crate::gfx::picture_store::PICTURE;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
+use crate::session::Dword;
 use crate::session::SCREEN;
-use crate::session::{Dword, Shared};
 use crate::strings::compile_lexicon::LEXICON;
 
 /// IDA's address of the glyph tables' variables.
@@ -23,13 +23,14 @@ pub const LEN: usize = 0x51B9C4 - START;
 
 /// The fonts' and the sprites' tables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GlyphTables {
     /// `dword_51B980`: the tables' size in units of 0x400 bytes times `dword_4F4958`
     /// (`bundleheapsize`, a `var\ral.cfg` setting).
     pub units: Dword,
     /// `g_glyphTablesMemory` (`stru_51B984`): the list the fonts' and the sprites' tables
     /// lie on (16 bytes).
-    pub memory: Shared<MemoryList>,
+    pub memory: crate::memory::ListCells,
     /// `0x51B994` .. `0x51B9C4`: nothing reads or writes them (a gap).
     pub _gap_14: [Dword; 12],
 }
@@ -37,7 +38,7 @@ pub struct GlyphTables {
 /// The glyph tables' variables; the first values are the image's.
 pub static TABLES: GlyphTables = GlyphTables {
     units: Dword::new(0x15E),
-    memory: Shared::new(MemoryList {
+    memory: crate::memory::ListCells::new(MemoryList {
         head: 0,
         total: 0,
         cursor: 0,
@@ -45,11 +46,6 @@ pub static TABLES: GlyphTables = GlyphTables {
     }),
     _gap_14: [const { Dword::new(0) }; 12],
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x51B980).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const TABLES) as usize
-}
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.

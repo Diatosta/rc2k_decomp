@@ -39,12 +39,13 @@ pub const LEN: usize = 0x5BE8D8 - START;
 
 /// The game fonts' memory.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
     /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `dword_4F4958`
     /// (`gamegfxheapsize`, a `var\ral.cfg` setting).
     pub units: crate::session::Dword,
     /// `g_gameFontMemory` (`stru_5BE898`): the list the fonts' tables lie on (16 bytes).
-    pub memory: crate::session::Shared<MemoryList>,
+    pub memory: crate::memory::ListCells,
     /// `0x5BE8A8` .. `0x5BE8D8`: nothing reads or writes them (a gap).
     pub _gap_14: [crate::session::Dword; 12],
 }
@@ -52,7 +53,7 @@ pub struct GameFontsMemory {
 /// The game fonts' memory; the first values are the image's.
 pub static GAME_FONTS: GameFontsMemory = GameFontsMemory {
     units: crate::session::Dword::new(0x20),
-    memory: crate::session::Shared::new(MemoryList {
+    memory: crate::memory::ListCells::new(MemoryList {
         head: 0,
         total: 0,
         cursor: 0,
@@ -60,11 +61,6 @@ pub static GAME_FONTS: GameFontsMemory = GameFontsMemory {
     }),
     _gap_14: [const { crate::session::Dword::new(0) }; 12],
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5BE894).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const GAME_FONTS) as usize
-}
 
 // The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and
 // glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
@@ -153,8 +149,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
 /// With the third font's palette's place, as the stage's loading calls it.
 pub fn build_game_fonts_in_game() -> Result<(), Refused> {
     build_game_fonts(
-        crate::pointers::game_address(FONTS.game_fonts[3].as_ptr())
-            + core::mem::offset_of!(crate::text::font::Font, palette) as u32,
+        FONTS.game_fonts[3].addr() + core::mem::offset_of!(crate::text::font::Font, palette) as u32,
     )
 }
 

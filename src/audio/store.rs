@@ -2335,6 +2335,7 @@ pub const QUEUE_RECORDS: usize = 0x400;
 /// One command for the audio thread: its number, then the sender's eax, ebx, ecx, edx, esi,
 /// edi and ebp (`sound::queue`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Command {
     pub words: [Dword; 8],
 }
@@ -2353,6 +2354,7 @@ impl Command {
 
 /// The queue of commands (IDA 0x9566F8 .. 0x95E6F8, bss: zero at start).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct CommandQueue {
     pub records: [Command; QUEUE_RECORDS],
 }
@@ -2364,11 +2366,6 @@ pub static COMMANDS: CommandQueue = CommandQueue {
         }
     }; QUEUE_RECORDS],
 };
-
-/// Where the queue is (`moved::MOVED`'s home for IDA 0x9566F8).
-pub fn commands_addr() -> u32 {
-    crate::pointers::game_address(&raw const COMMANDS)
-}
 
 /// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
 /// thread reads it).

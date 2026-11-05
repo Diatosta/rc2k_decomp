@@ -175,12 +175,12 @@ pub fn load_object() -> Result<(), Refused> {
     FILE_NUMBERS
         .text_ptr(name as usize + 7)
         .write(b'3', "an object's file name")?;
-    BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+    BYTES_READ.set(0);
     read_whole_file_bytes(
         FILE_NUMBERS.text_ptr(FILE_NUMBERS.object_ro3_path.bits() as usize),
         crate::scene::objects::file(),
     )?;
-    if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+    if BYTES_READ.get() == 0 {
         return Ok(());
     }
     FILE_NUMBERS

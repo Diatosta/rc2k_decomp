@@ -80,7 +80,8 @@ impl Steps {
     /// `pushf`; `g_logIndent` +- 3; `popf`.
     fn indent(&mut self, by: i32) {
         crate::logfile::write_line::state::INDENT
-            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
+            .atomic()
+            .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// `pusha`; `dword_623700` the mark; `call [dword_623704]`; `popa`. The callback is the
@@ -219,10 +220,11 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     // init mark, with the log off.
     s.log();
     s.indent(3);
-    let enabled =
-        crate::logfile::write_line::state::ENABLED.swap(0, std::sync::atomic::Ordering::Relaxed);
+    let enabled = crate::logfile::write_line::state::ENABLED
+        .atomic()
+        .swap(0, std::sync::atomic::Ordering::Relaxed);
     crate::effects::init_mark_step::init_mark_step()?;
-    crate::logfile::write_line::state::ENABLED.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);
     // refresh init and the refresh flags.

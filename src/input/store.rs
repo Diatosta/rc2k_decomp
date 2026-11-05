@@ -89,6 +89,7 @@ pub const CONTROLLER_LEN: usize = 0x50;
 
 /// The input thread's and the settings' variables.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Devices {
     /// `dword_4F68D8`: the input thread's last tick (ms).
     pub last_tick: Dword,
@@ -266,6 +267,7 @@ pub const DEVICES_IDA: usize = 0x4F68D8;
 pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
 /// Where the devices are (`moved::MOVED`'s home for IDA 0x4F68D8).
+#[cfg(test)]
 pub fn devices_addr() -> u32 {
     crate::pointers::game_address(&raw const DEVICES)
 }
@@ -338,6 +340,7 @@ pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
 
 /// The yes/no key, the built-in layout and the dead keys.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Keyboard {
     /// `g_yesNoKeyGiven`: 1 = the key comes in eax.
     pub yes_no_key_given: Dword,
@@ -382,6 +385,7 @@ pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
+#[cfg(test)]
 pub fn keyboard_addr() -> u32 {
     crate::pointers::game_address(&raw const KEYBOARD)
 }
@@ -390,6 +394,7 @@ pub fn keyboard_addr() -> u32 {
 
 /// The mouse's position, clicks and buttons.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Mouse {
     /// `g_mouseX`, `g_mouseY` (signed).
     pub x: Dword,
@@ -422,6 +427,7 @@ pub const MOUSE_IDA: usize = 0x5C6924;
 pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
 
 /// Where the mouse is (`moved::MOVED`'s home for IDA 0x5C6924).
+#[cfg(test)]
 pub fn mouse_addr() -> u32 {
     crate::pointers::game_address(&raw const MOUSE)
 }

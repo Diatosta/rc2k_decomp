@@ -9,14 +9,16 @@
 //! `#[repr(C)]` structs with the image's layout, first values the image's (`tests`);
 //! `moved::MOVED` points the image's addresses at them (`home`).
 
-use crate::session::{Dword, Shared};
+use crate::gfx::typefaces::FontObject;
+use crate::session::{Bytes, Dword};
 use rc2k_core::text::Font;
 
 /// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384, the image's layout).
 #[repr(C, align(16))]
+#[derive(rc2k_derive::Cells)]
 pub struct Fonts {
     /// 0x51DE30: `stru_51DE50` ..: the four fonts the menus and the race's text use (the third is the race's, `race::frame_text`).
-    pub menu_fonts: [Shared<Font>; 4],
+    pub menu_fonts: [FontObject; 4],
     /// 0x51DEB0: `g_fontPalettes`: the font palettes (a pointer; `gfx::build_fonts`).
     pub palettes: Dword,
     /// 0x51DEB4: `g_font27Glyphs`: the 27-pixel font's glyph table.
@@ -30,12 +32,14 @@ pub struct Fonts {
     /// 0x51DEC4: `g_fontPaletteComponents`: the palette sheet's 256 dwords.
     pub palette_sheet: [Dword; 256],
     /// 0x51E2C4: `unk_51E2C4` ..: the game's six fonts (`gfx::build_game_fonts`): the tyre change's and the name plates' texts.
-    pub game_fonts: [Shared<Font>; 6],
+    pub game_fonts: [FontObject; 6],
+    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
+    pub _tail: Bytes<12>,
 }
 
 pub static FONTS: Fonts = Fonts {
     menu_fonts: [
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0x80,
             mode: 0x4,
@@ -48,7 +52,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x4f52c4,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0x80,
             mode: 0x0,
@@ -61,7 +65,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x4f52c4,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0x80,
             mode: 0x2,
@@ -74,7 +78,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x4f52c4,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0x80,
             mode: 0x3,
@@ -95,7 +99,7 @@ pub static FONTS: Fonts = Fonts {
     font13_glyphs: Dword::new(0x0),
     palette_sheet: [const { Dword::new(0x0) }; 256],
     game_fonts: [
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x0,
@@ -108,7 +112,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x0,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x2,
@@ -121,7 +125,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x0,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x3,
@@ -134,7 +138,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x0,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x0,
@@ -147,7 +151,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x0,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x2,
@@ -160,7 +164,7 @@ pub static FONTS: Fonts = Fonts {
             glyph_table: 0x0,
             box_width: 0x0,
         }),
-        Shared::new(Font {
+        FontObject::from_font(Font {
             first_char: 0x20,
             last_char: 0xff,
             mode: 0x3,
@@ -174,12 +178,14 @@ pub static FONTS: Fonts = Fonts {
             box_width: 0x0,
         }),
     ],
+    _tail: Bytes::new([0; 12]),
 };
 
 impl Fonts {
     pub const START: usize = 0x51DE30;
     pub const LEN: usize = 0x554;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    #[cfg(test)]
     pub fn home() -> usize {
         crate::pointers::game_address(&raw const FONTS) as usize
     }

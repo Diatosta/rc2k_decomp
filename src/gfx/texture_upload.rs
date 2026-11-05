@@ -10,7 +10,7 @@ use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
 use crate::pointers::GamePtr;
-use crate::session::{Dword, Shared};
+use crate::session::Dword;
 
 pub const RECORD_LEN: usize = 0x78;
 pub const TEXTURES: u32 = 0x140;
@@ -63,6 +63,146 @@ pub struct TextureRecord {
 
 const _: () = assert!(std::mem::size_of::<TextureRecord>() == RECORD_LEN);
 
+impl TextureRecord {
+    /// The record's dwords, in the game's order.
+    const fn words(&self) -> [u32; 30] {
+        let mut w = [0u32; 30];
+        w[0] = self.kind;
+        w[1] = self.width;
+        w[2] = self.height;
+        w[3] = self.format;
+        w[4] = self.levels;
+        let mut n = 0;
+        while n < 9 {
+            w[5 + n] = self.surfaces[n];
+            w[14 + n] = self.textures[n];
+            n += 1;
+        }
+        w[23] = self.keeps_alpha;
+        w[24] = self.locked;
+        w[25] = self.holds;
+        w[26] = self.texture;
+        w[27] = self.handle;
+        w[28] = self.material;
+        w[29] = self.material_handle;
+        w
+    }
+
+    fn from_words(w: [u32; 30]) -> Self {
+        Self {
+            kind: w[0],
+            width: w[1],
+            height: w[2],
+            format: w[3],
+            levels: w[4],
+            surfaces: std::array::from_fn(|n| w[5 + n]),
+            textures: std::array::from_fn(|n| w[14 + n]),
+            keeps_alpha: w[23],
+            locked: w[24],
+            holds: w[25],
+            texture: w[26],
+            handle: w[27],
+            material: w[28],
+            material_handle: w[29],
+        }
+    }
+}
+
+/// A texture record kept as dwords (a pool's cell): read and written whole as
+/// `Shared<TextureRecord>` was, through its cells.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct RecordCell([Dword; 30]);
+
+impl RecordCell {
+    pub const fn new(record: TextureRecord) -> Self {
+        Self(crate::gfx::dwords(record.words()))
+    }
+
+    /// A copy of the record (its fields may be read half changed, as the original's).
+    pub fn get(&self) -> TextureRecord {
+        TextureRecord::from_words(crate::session::read_all(&self.0))
+    }
+
+    pub fn set(&self, record: TextureRecord) {
+        crate::session::write_all(&self.0, record.words());
+    }
+
+    pub fn update(&self, change: impl FnOnce(&mut TextureRecord)) {
+        let mut record = self.get();
+        change(&mut record);
+        self.set(record);
+    }
+
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref(self))
+    }
+}
+
+impl TextureFormat {
+    /// The description's dwords, in the game's order.
+    const fn words(&self) -> [u32; 16] {
+        let mut w = [0u32; 16];
+        w[0] = self.found;
+        w[1] = self.bytes_per_pixel;
+        w[2] = self.format.layout;
+        let mut n = 0;
+        while n < 4 {
+            w[3 + n] = self.format.masks[n];
+            n += 1;
+        }
+        w[7] = self.number;
+        let mut n = 0;
+        while n < 8 {
+            w[8 + n] = self.dd[n];
+            n += 1;
+        }
+        w
+    }
+
+    fn from_words(w: [u32; 16]) -> Self {
+        Self {
+            found: w[0],
+            bytes_per_pixel: w[1],
+            format: PixelFormat {
+                layout: w[2],
+                masks: std::array::from_fn(|n| w[3 + n]),
+            },
+            number: w[7],
+            dd: std::array::from_fn(|n| w[8 + n]),
+        }
+    }
+}
+
+/// A pixel kind's description kept as dwords (as `RecordCell`).
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct FormatCell([Dword; 16]);
+
+impl FormatCell {
+    pub const fn new(format: TextureFormat) -> Self {
+        Self(crate::gfx::dwords(format.words()))
+    }
+
+    pub fn get(&self) -> TextureFormat {
+        TextureFormat::from_words(crate::session::read_all(&self.0))
+    }
+
+    pub fn set(&self, format: TextureFormat) {
+        crate::session::write_all(&self.0, format.words());
+    }
+
+    pub fn update(&self, change: impl FnOnce(&mut TextureFormat)) {
+        let mut format = self.get();
+        change(&mut format);
+        self.set(format);
+    }
+
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref(self))
+    }
+}
+
 /// IDA's address of the 3D card's tables.
 pub const START: usize = 0x5ABA8C;
 /// Their length.
@@ -70,16 +210,18 @@ pub const LEN: usize = 0x5BE81C - START;
 
 /// A pool of texture records (the system's or the video's) and how many are made.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Pool {
     /// The textures made (`dword_5B5218` / `dword_5ABC14`), at most `TEXTURES`.
     pub count: Dword,
     /// The records (`stru_5B521C` / `stru_5ABC18`), 0x140 of 0x78 bytes; free ones hold -1
     /// in `holds`.
-    pub records: [Shared<TextureRecord>; TEXTURES as usize],
+    pub records: [RecordCell; TEXTURES as usize],
 }
 
 /// The 3D card's tables and the textures' records.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Textures {
     /// `dword_5ABA8C`: 1 while the textures being made are of the alpha kind.
     pub alpha_kind: Dword,
@@ -95,7 +237,7 @@ pub struct Textures {
     pub kinds: [Dword; 5],
     /// `stru_5ABAD4`: five descriptions of 0x40 bytes: 555, 1555, 4444, 8888 and the
     /// screen's (set by `platform::set_mode`).
-    pub descriptions: [Shared<TextureFormat>; 5],
+    pub descriptions: [FormatCell; 5],
     /// The video textures (`dword_5ABC14`, `stru_5ABC18`).
     pub video: Pool,
     /// The system textures (`dword_5B5218`, `stru_5B521C`).
@@ -133,7 +275,7 @@ const NO_FORMAT: TextureFormat = TextureFormat {
 const fn pool() -> Pool {
     Pool {
         count: Dword::new(0),
-        records: [const { Shared::new(FREE) }; TEXTURES as usize],
+        records: [const { RecordCell::new(FREE) }; TEXTURES as usize],
     }
 }
 
@@ -165,15 +307,10 @@ pub static TEXTURE_TABLES: Textures = Textures {
         format_ref(0x5ABB54),
         format_ref(0x5ABBD4),
     ]),
-    descriptions: [const { Shared::new(NO_FORMAT) }; 5],
+    descriptions: [const { FormatCell::new(NO_FORMAT) }; 5],
     video: pool(),
     system: pool(),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA8C).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const TEXTURE_TABLES) as usize
-}
 
 impl Textures {
     /// A pool: 0 the system's, 1 the video's.
@@ -237,9 +374,7 @@ impl Record {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record = Record(crate::pointers::game_address(
-            TEXTURE_TABLES.system.records[texture as usize].as_ptr(),
-        ));
+        let record = Record(TEXTURE_TABLES.system.records[texture as usize].addr());
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }

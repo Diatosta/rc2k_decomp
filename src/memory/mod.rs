@@ -15,6 +15,44 @@ pub mod virtual_alloc;
 /// game's.)
 pub type MemoryList = rc2k_core::memory::List;
 
+/// A `MemoryList` kept as four cells (a store's field): the list read and written whole as
+/// `Shared<MemoryList>` was, but through its dwords, so that the record is plain cells.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct ListCells {
+    head: crate::session::Dword,
+    total: crate::session::Dword,
+    cursor: crate::session::Dword,
+    remaining: crate::session::Dword,
+}
+
+impl ListCells {
+    pub const fn new(list: MemoryList) -> Self {
+        use crate::session::Dword;
+        Self {
+            head: Dword::new(list.head),
+            total: Dword::new(list.total),
+            cursor: Dword::new(list.cursor),
+            remaining: Dword::new(list.remaining),
+        }
+    }
+
+    /// A copy of the list (its fields may be read half changed, as the original's).
+    pub fn get(&self) -> MemoryList {
+        MemoryList {
+            head: self.head.get(),
+            total: self.total.get(),
+            cursor: self.cursor.get(),
+            remaining: self.remaining.get(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(std::ptr::from_ref(self))
+    }
+}
+
 /// Before each block's memory: +0 the block taken before it on the same list, +4 the bytes
 /// asked for; the rest is not used.
 pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
@@ -24,23 +62,23 @@ pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 /// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
 /// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
 pub mod state {
-    use std::sync::atomic::AtomicU32;
+
     /// dword_4E0578: the most bytes held at once.
-    pub static MOST_HELD: AtomicU32 = AtomicU32::new(0);
+    pub static MOST_HELD: crate::session::Dword = crate::session::Dword::new(0);
     /// dword_4E057C: the bytes held now.
-    pub static HELD: AtomicU32 = AtomicU32::new(0);
+    pub static HELD: crate::session::Dword = crate::session::Dword::new(0);
     /// dword_4E0580: all bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
     /// in the game's log).
-    pub static TURNOVER: AtomicU32 = AtomicU32::new(0);
+    pub static TURNOVER: crate::session::Dword = crate::session::Dword::new(0);
     /// dword_4E0584, the setting `altmemenable`: 1 = blocks come from a heap of the game's
     /// own (`sub_402A05`, `sub_402A92`, not ported) and not from `VirtualAlloc`.
-    pub static OWN_HEAP: AtomicU32 = AtomicU32::new(0);
+    pub static OWN_HEAP: crate::session::Dword = crate::session::Dword::new(0);
     /// dword_4E0588: the heap's Kb (the setting `altmemsize`), 0x10000 in the image.
-    pub static OWN_HEAP_KB: AtomicU32 = AtomicU32::new(0x10000);
+    pub static OWN_HEAP_KB: crate::session::Dword = crate::session::Dword::new(0x10000);
     /// dword_4E058C: the heap's memory.
-    pub static HEAP_BASE: AtomicU32 = AtomicU32::new(0);
+    pub static HEAP_BASE: crate::session::Dword = crate::session::Dword::new(0);
     /// dword_4E0590: the heap's memory (set with `HEAP_BASE`).
-    pub static HEAP_CURSOR: AtomicU32 = AtomicU32::new(0);
+    pub static HEAP_CURSOR: crate::session::Dword = crate::session::Dword::new(0);
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
@@ -54,28 +92,27 @@ pub fn count_owned(list: &crate::session::Shared<MemoryList>, bytes: u32) {
 /// The figures now (tests put them back).
 #[cfg(test)]
 pub fn figures() -> rc2k_core::memory::Figures {
-    use std::sync::atomic::Ordering::Relaxed;
     rc2k_core::memory::Figures {
-        most_held: state::MOST_HELD.load(Relaxed),
-        held: state::HELD.load(Relaxed),
-        turnover: state::TURNOVER.load(Relaxed),
+        most_held: state::MOST_HELD.get(),
+        held: state::HELD.get(),
+        turnover: state::TURNOVER.get(),
     }
 }
 
 /// `altmemenable` now (`dword_4E0584`).
 pub fn own_heap() -> u32 {
-    state::OWN_HEAP.load(std::sync::atomic::Ordering::Relaxed)
+    state::OWN_HEAP.get()
 }
 
 /// The three figures loaded from the game, changed by `f`, stored back (only those that
 /// changed are written, as the original writes only what it counts).
 pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
     use state::{HELD, MOST_HELD, TURNOVER};
-    use std::sync::atomic::Ordering::Relaxed;
+
     let before = rc2k_core::memory::Figures {
-        most_held: MOST_HELD.load(Relaxed),
-        held: HELD.load(Relaxed),
-        turnover: TURNOVER.load(Relaxed),
+        most_held: MOST_HELD.get(),
+        held: HELD.get(),
+        turnover: TURNOVER.get(),
     };
     let mut after = before;
     f(&mut after);
@@ -85,7 +122,7 @@ pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
         (&MOST_HELD, before.most_held, after.most_held),
     ] {
         if old != new {
-            at.store(new, Relaxed);
+            at.set(new);
         }
     }
 }
@@ -94,7 +131,6 @@ pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
 mod tests {
     use super::state::*;
     use crate::moved::image_bytes;
-    use std::sync::atomic::Ordering::Relaxed;
 
     #[test]
     fn variables_start_as_the_games() {
@@ -113,7 +149,7 @@ mod tests {
         .iter()
         .enumerate()
         {
-            assert_eq!(word(n), v.load(Relaxed), "dword {n}");
+            assert_eq!(word(n), v.get(), "dword {n}");
         }
     }
 }

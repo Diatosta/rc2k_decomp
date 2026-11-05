@@ -27,6 +27,7 @@ pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
     [const { Dword::new(0) }; ROW_TABLE_ROOM as usize];
 
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
+#[cfg(test)]
 pub fn home() -> usize {
     (crate::pointers::game_address(ROW_TABLE.as_ptr())) as usize
 }

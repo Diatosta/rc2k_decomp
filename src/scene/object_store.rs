@@ -97,6 +97,7 @@ pub const END: usize = 0x635118;
 const _: () = assert!(END - START == core::mem::size_of::<ObjectWork>());
 
 /// Where IDA 0x634FA0 is now (the piece's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(std::ptr::from_ref(&OBJECT_WORK))
 }

@@ -21,7 +21,6 @@ use crate::files::resolve_path::resolve;
 use crate::files::scratch::SCRATCH;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
-use std::sync::atomic::Ordering::Relaxed;
 
 // ---- game data ----
 
@@ -41,7 +40,7 @@ pub fn first_match_read(
     let pattern = crate::files::cstring(pattern, "a search pattern")?;
     let resolved = resolve(&pattern)?;
     set_last_file_path(Some(&resolved));
-    let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.load(Relaxed));
+    let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.get());
     let read = if found {
         // Converted: `rc2k_core::files::io::match_path`.
         let name = crate::files::search::found_name();

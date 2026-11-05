@@ -7,7 +7,6 @@
 
 use crate::files::state::{FIND_DATA, FIND_HANDLE};
 use std::sync::Mutex;
-use std::sync::atomic::Ordering::Relaxed;
 
 /// FILE_ATTRIBUTE_DIRECTORY, _READONLY, _ARCHIVE: what the record's attributes hold.
 pub const DIRECTORY: u32 = 0x10;
@@ -109,7 +108,7 @@ pub fn first(pattern: &[u8], skipped: u32) -> bool {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) =
         found.map(|found| Search { found, next: 0 });
-    FIND_HANDLE.store(if open { OPEN } else { NO_SEARCH }, Relaxed);
+    FIND_HANDLE.set(if open { OPEN } else { NO_SEARCH });
     open && next(skipped)
 }
 
@@ -118,7 +117,7 @@ pub fn close() {
     *SEARCH
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-    FIND_HANDLE.store(NO_SEARCH, Relaxed);
+    FIND_HANDLE.set(NO_SEARCH);
 }
 
 /// The record's name (up to its NUL).

@@ -29,8 +29,8 @@ use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
 fn indent_by(by: u32) {
-    let indent = &crate::logfile::write_line::state::INDENT;
-    indent.fetch_add(by as i32, std::sync::atomic::Ordering::Relaxed);
+    let indent = crate::logfile::write_line::state::INDENT.atomic();
+    indent.fetch_add(by, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).

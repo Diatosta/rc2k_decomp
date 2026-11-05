@@ -7,11 +7,10 @@ pub mod show_report_at_exit;
 /// The reporter's variables, out of the image since 2026-10-24 (phase 5; each has its own
 /// entry in `moved::MOVED`).
 pub mod state {
-    use crate::session::Bytes;
-    use std::sync::atomic::{AtomicU8, AtomicU32};
+    use crate::session::{Byte, Bytes, Dword};
 
     /// g_fatalCode (0x4F52A4): the code of the error being reported.
-    pub static CODE: AtomicU32 = AtomicU32::new(0);
+    pub static CODE: Dword = Dword::new(0);
     /// g_fatalMessage (0x4F52A8 held a pointer to it, or 0): the error's message, or none.
     pub static MESSAGE: std::sync::Mutex<Option<&'static str>> = std::sync::Mutex::new(None);
 
@@ -23,9 +22,9 @@ pub mod state {
     }
     /// dword_4E0598 (0x4E0598): the Win32 error to name in a report, or 0 (nothing in the
     /// program sets it).
-    pub static W32: AtomicU32 = AtomicU32::new(0);
+    pub static W32: Dword = Dword::new(0);
     /// g_fatalReported (0x4F67BC, a byte): 1 once a report was written.
-    pub static REPORTED: AtomicU8 = AtomicU8::new(0);
+    pub static REPORTED: Byte = Byte::new(0);
     /// `cursor` in IDA (0x4F67BD, 128 bytes): a string added to every report (empty).
     pub const EXTRA_LEN: usize = 128;
     pub static EXTRA: Bytes<EXTRA_LEN> = Bytes::new([0; EXTRA_LEN]);
@@ -56,16 +55,15 @@ pub mod state {
 mod tests {
     use super::state::*;
     use crate::moved::image_bytes;
-    use std::sync::atomic::Ordering::Relaxed;
 
     #[test]
     fn state_starts_as_the_games() {
         let word = |ida| u32::from_le_bytes(image_bytes(ida, 4).try_into().unwrap());
-        assert_eq!(word(0x4F52A4), CODE.load(Relaxed));
+        assert_eq!(word(0x4F52A4), CODE.get());
         assert_eq!(word(0x4F52A8), 0);
         assert_eq!(message(), None);
-        assert_eq!(word(0x4E0598), W32.load(Relaxed));
-        assert_eq!(image_bytes(0x4F67BC, 1)[0], REPORTED.load(Relaxed));
+        assert_eq!(word(0x4E0598), W32.get());
+        assert_eq!(image_bytes(0x4F67BC, 1)[0], REPORTED.get());
         assert_eq!(EXTRA.read().to_vec(), image_bytes(0x4F67BD, EXTRA_LEN));
         assert_eq!(
             TEMPLATE.read().to_vec(),

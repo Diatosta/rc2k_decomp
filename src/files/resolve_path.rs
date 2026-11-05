@@ -28,7 +28,7 @@ fn text_at(at: GamePtr, what: &str) -> Result<Vec<u8>, BadInput> {
 
 fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
-        mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
+        mode: crate::files::state::MEDIA_MODE.get(),
         a: text_at(
             crate::files::state::base_directory_place(),
             "the base directory",

@@ -5,16 +5,14 @@
 //! Out: ebx = new cursor; everything else preserved
 //! The hours field is written from one hour upwards, or always when `g_timeShowHours` is 1.
 
-use std::sync::atomic::{AtomicU32, Ordering};
-
 // ---- game data ----
 
 /// 1 = always write the hours: out of the image since 2026-10-24 (phase 5; it was
 /// `g_timeShowHours`, 0x4E0148, 0 there). The network's lobby sets it for a while.
-pub static SHOW_HOURS: AtomicU32 = AtomicU32::new(0);
+pub static SHOW_HOURS: crate::session::Dword = crate::session::Dword::new(0);
 
 pub fn show_hours() -> bool {
-    SHOW_HOURS.load(Ordering::Relaxed) == 1
+    SHOW_HOURS.get() == 1
 }
 
 // ---- Rust version ----
@@ -30,7 +28,7 @@ mod tests {
         let d = crate::moved::image_bytes(0x4E0148, 4);
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::SHOW_HOURS.load(std::sync::atomic::Ordering::Relaxed)
+            super::SHOW_HOURS.get()
         );
     }
 }

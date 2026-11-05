@@ -53,19 +53,52 @@ pub struct IconUpload {
 
 const _: () = assert!(STORED_LEN == 0x1C);
 
-/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
-pub static ICON_UPLOAD: crate::session::Shared<IconUpload> =
-    crate::session::Shared::new(IconUpload {
-        texture: 0,
-        target_x: 0,
-        target_y: 0,
-        piece: [0; 4],
-    });
+/// The record as bytes (it lies at an address that is no multiple of 4): `get` and `set` turn
+/// them to and from an `IconUpload`.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells)]
+pub struct IconUploadCell(crate::session::Bytes<STORED_LEN>);
 
-/// Where the record is (`moved::MOVED`'s home for IDA 0x5BE8F1).
-pub fn home() -> usize {
-    ICON_UPLOAD.addr() as usize
+impl IconUploadCell {
+    pub fn get(&self) -> IconUpload {
+        let bytes = self.0.read();
+        let word =
+            |n: usize| u32::from_le_bytes([bytes[n], bytes[n + 1], bytes[n + 2], bytes[n + 3]]);
+        IconUpload {
+            texture: word(0),
+            target_x: word(4),
+            target_y: word(8),
+            piece: [word(12), word(16), word(20), word(24)],
+        }
+    }
+
+    pub fn set(&self, upload: IconUpload) {
+        let (texture, target_x, target_y, piece) = (
+            upload.texture,
+            upload.target_x,
+            upload.target_y,
+            upload.piece,
+        );
+        let mut bytes = [0u8; STORED_LEN];
+        for (n, value) in [texture, target_x, target_y]
+            .into_iter()
+            .chain(piece)
+            .enumerate()
+        {
+            bytes[4 * n..4 * n + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        self.0.write(&bytes);
+    }
+
+    #[cfg(test)]
+    pub fn addr(&self) -> u32 {
+        crate::pointers::GamePtr::to(self).addr()
+    }
 }
+
+/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
+pub static ICON_UPLOAD: IconUploadCell =
+    IconUploadCell(crate::session::Bytes::new([0; STORED_LEN]));
 
 /// The piece's place: what `blit_components` gets in ebx, bounded to the piece's four dwords
 /// (the longest read is its 16 bytes).

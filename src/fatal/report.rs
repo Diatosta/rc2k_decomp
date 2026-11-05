@@ -47,11 +47,11 @@ fn text_from_game(context: &Context) -> Result<Vec<u8>, BadInput> {
     let message = crate::fatal::state::message().map(str::as_bytes);
     let last_file = crate::files::state::last_file_path();
     Ok(report_text(
-        CODE.load(Ordering::Relaxed),
+        CODE.get(),
         message,
         &EXTRA.text(),
         last_file.as_deref(),
-        W32.load(Ordering::Relaxed),
+        W32.get(),
         context,
     ))
 }
@@ -67,13 +67,13 @@ pub struct Outside<'a> {
 }
 
 pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInput> {
-    let code: u32 = CODE.load(Ordering::Relaxed);
+    let code: u32 = CODE.get();
     let text = text_from_game(context)?;
     // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
     if !rc2k_core::fatal::fits(text.len()) {
         return Err(BadInput("the report does not fit its buffer"));
     }
-    if REPORTED.swap(1, Ordering::SeqCst) != 1 {
+    if REPORTED.atomic().swap(1, Ordering::SeqCst) != 1 {
         if code & TEXT_ONLY == 0 {
             // The original fills in its template in place, so it keeps the values.
             let dump = register_dump(context);
@@ -125,7 +125,7 @@ pub fn report_now(r: &Regs) {
         },
         thread_slot: &find_thread_slot,
     };
-    let code = CODE.load(Ordering::Relaxed);
+    let code = CODE.get();
     match report(&context, &mut outside) {
         Ok(Leave::Return) => {}
         Ok(Leave::Exit) => crate::standalone::finish(

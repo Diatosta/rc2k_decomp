@@ -60,7 +60,7 @@ pub fn run_after_exit() -> Result<(), Refused> {
         ][n as usize]
             .get()
     };
-    if crate::fatal::state::REPORTED.load(std::sync::atomic::Ordering::Relaxed) == 1 {
+    if crate::fatal::state::REPORTED.get() == 1 {
         return Ok(());
     }
     // The refusals, before anything.

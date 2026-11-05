@@ -10,11 +10,10 @@
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 /// 1 = the case is kept: out of the image since 2026-10-24 (phase 5; it was `dword_4E0144`,
 /// 1 there). `input::joystick_found` sets it to 0 for a while.
-pub static KEEP_CASE: AtomicU32 = AtomicU32::new(1);
+pub static KEEP_CASE: crate::session::Dword = crate::session::Dword::new(1);
 
 // ---- Rust version ----
 
@@ -27,7 +26,7 @@ pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
         .take_while(|&&c| c != 0)
         .copied()
         .collect();
-    let keep_case = KEEP_CASE.load(Ordering::Relaxed) == 1;
+    let keep_case = KEEP_CASE.get() == 1;
     case_table()
         .printable(&looked_at, room as usize, keep_case)
         .ok_or(BadInput("no room for a name: the original runs on"))
@@ -46,7 +45,7 @@ pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, B
             looked_at.push(c);
         }
     }
-    let keep_case = KEEP_CASE.load(Ordering::Relaxed) == 1;
+    let keep_case = KEEP_CASE.get() == 1;
     case_table()
         .printable(&looked_at, room as usize, keep_case)
         .ok_or(BadInput("no room for a name: the original runs on"))
@@ -69,7 +68,7 @@ mod tests {
         let d = crate::moved::image_bytes(0x4E0144, 4);
         assert_eq!(
             u32::from_le_bytes(d.try_into().unwrap()),
-            super::KEEP_CASE.load(std::sync::atomic::Ordering::Relaxed)
+            super::KEEP_CASE.get()
         );
     }
 }

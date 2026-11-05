@@ -72,6 +72,7 @@ pub const END: usize = 0x5D0AE0;
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
 /// Where IDA 0x5CCE7C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(&OBJECT_TABLES))
 }

@@ -65,6 +65,61 @@ impl FontObject {
         }
     }
 
+    /// The object made from a font record.
+    pub const fn from_font(font: Font) -> Self {
+        Self {
+            first_char: Byte::new(font.first_char),
+            last_char: Byte::new(font.last_char),
+            mode: Byte::new(font.mode),
+            flags: Byte::new(font.flags),
+            spacing: Dword::new(font.spacing as u32),
+            line_height: Dword::new(font.line_height as u32),
+            y_offset: Dword::new(font.y_offset as u32),
+            extended_spacing: Dword::new(font.extended_spacing as u32),
+            palette: Dword::new(font.palette),
+            glyph_table: Dword::new(font.glyph_table),
+            box_width: Dword::new(font.box_width),
+        }
+    }
+
+    /// A copy of the font (its fields may be read half changed, as the original's).
+    pub fn get(&self) -> Font {
+        Font {
+            first_char: self.first_char.get(),
+            last_char: self.last_char.get(),
+            mode: self.mode.get(),
+            flags: self.flags.get(),
+            spacing: self.spacing.get() as i32,
+            line_height: self.line_height.get() as i32,
+            y_offset: self.y_offset.get() as i32,
+            extended_spacing: self.extended_spacing.get() as i32,
+            palette: self.palette.get(),
+            glyph_table: self.glyph_table.get(),
+            box_width: self.box_width.get(),
+        }
+    }
+
+    pub fn set(&self, font: Font) {
+        self.first_char.set(font.first_char);
+        self.last_char.set(font.last_char);
+        self.mode.set(font.mode);
+        self.flags.set(font.flags);
+        self.spacing.set(font.spacing as u32);
+        self.line_height.set(font.line_height as u32);
+        self.y_offset.set(font.y_offset as u32);
+        self.extended_spacing.set(font.extended_spacing as u32);
+        self.palette.set(font.palette);
+        self.glyph_table.set(font.glyph_table);
+        self.box_width.set(font.box_width);
+    }
+
+    /// The font changed by `change` (read, changed, written back).
+    pub fn update(&self, change: impl FnOnce(&mut Font)) {
+        let mut font = self.get();
+        change(&mut font);
+        self.set(font);
+    }
+
     /// Where the object is: what `draw_text` and the others take.
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(std::ptr::from_ref::<Self>(self))

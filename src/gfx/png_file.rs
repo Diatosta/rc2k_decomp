@@ -3,7 +3,7 @@
 //! it takes from the list kept here, and gives the list back on every way out.
 
 use crate::memory::MemoryList;
-use crate::session::{Dword, Shared};
+use crate::session::Dword;
 
 /// IDA's address of the block's first byte.
 pub const START: usize = 0x5BEC30;
@@ -12,6 +12,7 @@ pub const LEN: usize = 0x5BEC48 - START;
 
 /// The file being decoded.
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct PngFile {
     /// `dword_5BEC30`: the file's memory (the game's address; unused since the file's
     /// bytes are Rust's, phase 12).
@@ -19,25 +20,20 @@ pub struct PngFile {
     /// `dword_5BEC34`: the file's length.
     pub length: Dword,
     /// `dword_5BEC38`: the list the file's memory is on (16 bytes).
-    pub memory: Shared<MemoryList>,
+    pub memory: crate::memory::ListCells,
 }
 
 /// The file; the first values are the image's.
 pub static PNG_FILE: PngFile = PngFile {
     file: Dword::new(0),
     length: Dword::new(0),
-    memory: Shared::new(MemoryList {
+    memory: crate::memory::ListCells::new(MemoryList {
         head: 0,
         total: 0,
         cursor: 0,
         remaining: 0,
     }),
 };
-
-/// Where the block is (`moved::MOVED`'s home for IDA 0x5BEC30).
-pub fn home() -> usize {
-    crate::pointers::game_address(&raw const PNG_FILE) as usize
-}
 
 #[cfg(test)]
 mod tests {

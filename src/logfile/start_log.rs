@@ -21,7 +21,6 @@ use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::{LOG_PATH, level};
 use crate::session::MACHINE as M;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- game data ----
 
@@ -31,7 +30,7 @@ pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
 pub const SECOND_TEXT: &[u8] = b"\0";
 /// `g_freeSpaceKb` (0x4E073A in the image until 2026-10-24): what the log's head says of
 /// the current drive. Nothing reads it.
-pub static FREE_SPACE_KB: AtomicU32 = AtomicU32::new(0);
+pub static FREE_SPACE_KB: crate::session::Dword = crate::session::Dword::new(0);
 
 // ---- Rust version ----
 
@@ -73,7 +72,7 @@ pub fn start_log() -> Result<(), BadInput> {
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();
-    FREE_SPACE_KB.store(free, Ordering::Relaxed);
+    FREE_SPACE_KB.set(free);
     let m = Machine {
         date: c_text(scratch)?,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
