@@ -20,6 +20,7 @@ use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
+#[track_caller]
 pub fn read_file(
     path: impl GamePath,
     to: GamePtr,

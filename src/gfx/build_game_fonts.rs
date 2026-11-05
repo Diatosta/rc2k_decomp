@@ -95,10 +95,7 @@ pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
     FONTS.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(list)?;
-    build_glyphs(
-        crate::pointers::GamePtr::to(&crate::gfx::texts::FNT22),
-        list,
-    )?;
+    build_glyphs(&crate::gfx::texts::FNT22, list)?;
     let table = SHEET.table.get();
     FONTS.game_fonts[0].update(|f| f.glyph_table = table);
     if SHEET.table_size.get() == 0 {

@@ -606,6 +606,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
+    crate::pointers::start_census();
     // A panic in a hook's dispatch ends the program at once (it cannot unwind out of an
     // `extern "C"` function): say where first.
     std::panic::set_hook(Box::new(|info| {

@@ -74,13 +74,11 @@ fn look_over(
     let kept = KEEP_CASE.atomic().swap(0, Relaxed);
     let to = at_name.offset(name.len() as u32);
     // room 0x19 is never refused
-    let _ = {
-        crate::strings::copy_printable::copy_printable(
-            GamePtr::to(&instance.instance_name),
-            to,
-            NAME_ROOM,
-        )
-    };
+    if let Ok(printable) =
+        crate::strings::copy_printable::printable_from(&instance.instance_name, NAME_ROOM)
+    {
+        to.write_bytes(&printable, "a controller's name")?;
+    }
     KEEP_CASE.set(kept);
     let f = rc2k_core::input::joystick::found(
         caps.flags,

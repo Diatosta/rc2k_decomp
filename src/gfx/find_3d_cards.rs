@@ -22,11 +22,7 @@ pub fn find_3d_cards() {
     CARDS.primary.set(0);
     CARDS.secondary.set(0);
     if CARDS_3D.no_search.get() == 0 {
-        crate::logfile::log_write::log_at(
-            crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D),
-            true,
-            1,
-        );
+        crate::logfile::log_write::log_nul(&crate::gfx::texts::FINDING_3D, true, 1);
         if CARDS_3D.not_primary.get() == 0 {
             CARDS.primary.set(1);
         }

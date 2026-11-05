@@ -33,6 +33,7 @@ pub fn printable_from(text: &[u8], room: u32) -> Result<Vec<u8>, BadInput> {
 }
 
 /// What is written, with its NUL (converted: `rc2k_core::strings::case::CaseTable::printable`).
+#[track_caller]
 pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, BadInput> {
     let mut looked_at = Vec::new();
     if !text.is_null() {
@@ -51,6 +52,7 @@ pub fn printable(text: crate::pointers::GamePtr, room: u32) -> Result<Vec<u8>, B
         .ok_or(BadInput("no room for a name: the original runs on"))
 }
 
+#[track_caller]
 pub fn copy_printable(
     text: crate::pointers::GamePtr,
     to: crate::pointers::GamePtr,

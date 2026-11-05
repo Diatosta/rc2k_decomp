@@ -87,7 +87,7 @@ pub static LEXICON: LexiconMemory = LexiconMemory {
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
 pub static EMPTY_MESSAGE: Bytes<EMPTY_MESSAGE_LEN> = Bytes::new([0; EMPTY_MESSAGE_LEN]);
 /// `aFilesLocaleTxt` (0x4E0770).
-const PATTERN: &[u8] = b"files\\%locale\\*.txt\0";
+const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
 const MESSAGE_COUNT: u32 = 0x757;
 
@@ -130,18 +130,11 @@ pub fn compiled() -> Result<Compiled, FatalError> {
         report("the lexicon's memory is smaller than the file may be");
         return Err(NOT_CREATED);
     }
-    let lent = crate::pointers::LentBytes::from_vec(vec![0u8; FILE_ROOM as usize]);
-    let read = read_first_match(
-        crate::pointers::GamePtr::to(PATTERN),
-        lent.ptr(),
-        FILE_ROOM,
-        0,
-    )
-    .ok()
-    .flatten()
-    .ok_or(NOT_LOADED)?;
-    let mut text = lent.to_vec();
-    drop(lent);
+    let mut text = vec![0u8; FILE_ROOM as usize];
+    let read = read_first_match(PATTERN, &mut text, 0)
+        .ok()
+        .flatten()
+        .ok_or(NOT_LOADED)?;
     text.truncate(read as usize);
     let compiled = compile(&text, memory).map_err(|e| {
         report(e.0);

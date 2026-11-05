@@ -679,6 +679,24 @@ impl<const N: usize> TextPlace for Bytes<N> {
     }
 }
 
+/// A text of the program's own (a literal with its NUL): read only. The writes the
+/// original could make into its copy in the image (a missing `.png`'s ending swapped) are
+/// refused.
+impl<const N: usize> TextPlace for [u8; N] {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        match self.iter().position(|&c| c == 0) {
+            Some(n) => Ok(self[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(&self, _: usize, _: &[u8], _: &str) -> Result<(), crate::errors::BadInput> {
+        Err(crate::errors::BadInput(
+            "a write into one of the program's own texts",
+        ))
+    }
+}
+
 impl TextPlace for crate::pointers::GamePtr {
     fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         crate::files::cstring(*self, what)

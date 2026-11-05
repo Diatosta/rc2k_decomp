@@ -22,24 +22,17 @@
 use crate::errors::Refused;
 use crate::hud::store::HUD;
 use crate::math::x87;
+use crate::math::x87_float::{ld, to_int};
 use crate::scene::matrix3::extended;
-use crate::scene::x87_mem::{fistp, fld};
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
-    let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
+    let a = [v, less.unwrap_or(0), over, plus, k[0], k[1]];
     if less.is_some() {
-        x87_1(
-            (crate::pointers::game_address(a.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut out) as usize,
-        );
+        turn_less(a)
     } else {
-        x87_2(
-            (crate::pointers::game_address(a.as_ptr())) as usize,
-            crate::pointers::game_address(&raw mut out) as usize,
-        );
+        turn_plain(a)
     }
-    out
 }
 
 /// The Rust version (see the header).
@@ -81,38 +74,35 @@ pub fn draw_needle() -> Result<(), Refused> {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = (((([a + 0] - [a + 4]) / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
-fn x87_1(a: usize, o: usize) {
-    let t0 = fld(a, 0);
-    let t1 = fld(a, 4);
-    let t2 = t0 - t1;
-    let t3 = fld(a, 8);
-    let t4 = t2 / t3;
-    let t5 = fld(a, 0xC);
-    let t6 = t4 + t5;
-    let t7 = fld(a, 0x10);
-    let t8 = t6 * t7;
-    let t9 = fld(a, 0x14);
-    let t10 = t8 * t9;
-    fistp(o, 0, t10);
+/// An x87 run of the original, in plain Rust over `X`, on the six floats:
+/// `int = ((((a0 - a1) / a2) + a3) * a4) * a5`
+fn turn_less(a: [u32; 6]) -> u32 {
+    let [v, less, over, plus, k0, k1] = a.map(ld);
+    to_int(((((v - less) / over) + plus) * k0) * k1) as u32
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = ((([a + 0] / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+/// As `turn_less` without the second: `int = (((a0 / a2) + a3) * a4) * a5`
+fn turn_plain(a: [u32; 6]) -> u32 {
+    let [v, _, over, plus, k0, k1] = a.map(ld);
+    to_int((((v / over) + plus) * k0) * k1) as u32
+}
+
+/// The runs over the test's operand buffers (`[a + 4 k]`, the result at `[o]`).
+#[cfg(all(test, target_arch = "x86"))]
+fn x87_1(a: usize, o: usize) {
+    use crate::scene::x87_mem::Base;
+    o.set_dword(0, turn_less(std::array::from_fn(|k| a.dword(4 * k))));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
 fn x87_2(a: usize, o: usize) {
-    let t0 = fld(a, 0);
-    let t1 = fld(a, 8);
-    let t2 = t0 / t1;
-    let t3 = fld(a, 0xC);
-    let t4 = t2 + t3;
-    let t5 = fld(a, 0x10);
-    let t6 = t4 * t5;
-    let t7 = fld(a, 0x14);
-    let t8 = t6 * t7;
-    fistp(o, 0, t8);
+    use crate::scene::x87_mem::Base;
+    o.set_dword(
+        0,
+        turn_plain(std::array::from_fn(
+            |k| if k == 1 { 0 } else { a.dword(4 * k) },
+        )),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]

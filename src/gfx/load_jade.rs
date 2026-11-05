@@ -24,7 +24,7 @@ const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 
 // ---- Rust version ----
 
-pub fn load_jade(path: crate::pointers::GamePtr) -> Result<(), Refused> {
+pub fn load_jade(path: impl crate::files::handle::GamePath) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::screenshot::jade_read`.
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
     let read = read_file(
@@ -42,5 +42,6 @@ pub fn load_jade(path: crate::pointers::GamePtr) -> Result<(), Refused> {
 
 /// The game's `files\d\gfx\jade.bun`.
 pub fn load_jade_in_game() -> Result<(), Refused> {
-    load_jade(crate::pointers::GamePtr::to(&crate::gfx::texts::JADE))
+    let path = &crate::gfx::texts::JADE;
+    load_jade(&path[..path.len() - 1])
 }

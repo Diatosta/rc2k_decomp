@@ -405,8 +405,66 @@ fn watched(addr: u32, len: usize, what: &str) {
     }
 }
 
+/// The census of the memory layer's step 5 (`RC2K_RAW_CENSUS` set): each checked access
+/// to Rust memory reached by address (the program's own sections outside the blocks and
+/// moved stores, the thread's stack) logged once per source line of its caller, as the
+/// watches are.
+static CENSUS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Starts the census when `RC2K_RAW_CENSUS` is set (`standalone::run`).
+pub fn start_census() {
+    if std::env::var_os("RC2K_RAW_CENSUS").is_some() {
+        CENSUS.store(true, std::sync::atomic::Ordering::Relaxed);
+        ANY_WATCHED.store(true, std::sync::atomic::Ordering::Relaxed);
+        log("pointers: the census of Rust memory reached by address is on");
+    }
+}
+
+#[track_caller]
+fn census(addr: u32, len: usize, what: &str) {
+    thread_local! {
+        static STACK: std::cell::OnceCell<(u32, u32)> = const { std::cell::OnceCell::new() };
+    }
+    let (low, high) = STACK.with(|s| *s.get_or_init(|| to_game(stack())));
+    let kind = if (low..high).contains(&addr) {
+        "the stack"
+    } else if own_section(addr).is_some() && exact_region(addr).is_none() {
+        "a section"
+    } else {
+        return;
+    };
+    let at = std::panic::Location::caller();
+    let first = SEEN
+        .lock()
+        .map(|mut s| {
+            s.get_or_insert_default()
+                .insert((at.file(), at.line(), kind))
+        })
+        .unwrap_or(false);
+    if first {
+        // The callers above the line: the functions that handed the address on.
+        let trace = std::backtrace::Backtrace::force_capture().to_string();
+        let callers: Vec<&str> = trace
+            .lines()
+            .map(str::trim)
+            .filter(|l| l.contains("rc2k_hook::") && !l.contains("rc2k_hook::pointers::"))
+            .map(|l| l.split_once(": ").map_or(l, |(_, f)| f))
+            .take(6)
+            .collect();
+        log(&format!(
+            "census: {kind} at {addr:#x} ({len} bytes, {what}) by address from {}:{} ({})",
+            at.file(),
+            at.line(),
+            callers.join(" < ")
+        ));
+    }
+}
+
 #[track_caller]
 fn watched_slowly(addr: u32, len: usize, what: &str) {
+    if CENSUS.load(std::sync::atomic::Ordering::Relaxed) {
+        census(addr, len, what);
+    }
     let end = addr.saturating_add(len as u32);
     for (k, w) in WATCHED.iter().enumerate() {
         let w = w.load(std::sync::atomic::Ordering::Relaxed);

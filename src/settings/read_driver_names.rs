@@ -41,14 +41,14 @@ pub fn name_at(slot: u32) -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(&NAMES).offset(slot)
 }
 
-/// The path of `var\name.cfg`.
-pub fn path() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(PATH)
+/// The path of `var\name.cfg` (without its NUL).
+pub fn path() -> &'static [u8] {
+    &PATH[..PATH.len() - 1]
 }
 
 // ---- Rust version ----
 
-pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
+pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".
@@ -109,8 +109,7 @@ pub fn read_driver_names(path: crate::pointers::GamePtr) -> Result<(), BadInput>
 mod tests {
     #[test]
     fn the_path_is_the_text_not_the_pointer_to_it() {
-        let text = crate::files::cstring(super::path(), "a path").unwrap();
-        assert_eq!(text, b"var\\name.cfg");
+        assert_eq!(super::path(), b"var\\name.cfg");
     }
 
     use crate::moved::image_bytes;

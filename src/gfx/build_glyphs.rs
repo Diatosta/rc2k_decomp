@@ -30,8 +30,8 @@
 //! by dwords drags along.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::file_exists::file_exists_at;
-use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::file_exists::file_exists;
+use crate::files::numbered_path::numbered_path_bytes;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::fill_row_table;
@@ -49,7 +49,6 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::write_line::level;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::compile_lexicon::LEXICON;
 
@@ -121,9 +120,9 @@ fn text(text: &[u8], newline: bool) {
 }
 
 /// `sub_41299B` with eax = 1: the two lines about a sheet.
-fn log_sheet(path: GamePtr, image: bool, backdrop: u32, transparent: u32) {
+fn log_sheet(path: &[u8], image: bool, backdrop: u32, transparent: u32) {
     text(b"Extracting: PCX\0", false);
-    crate::logfile::log_write::log_at(path, false, 1);
+    crate::logfile::log_write::log_nul(path, false, 1);
     log_int(PCX.file_width.get() as i32, false, 1);
     log_int(PCX.file_height.get() as i32, false, 1);
     log_int((PCX.planes.get() as i32).wrapping_mul(8), true, 1);
@@ -217,19 +216,15 @@ fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
 /// picture buffer's second half as the alpha of the one after it. The number moves on
 /// either way.
 /// The path's text, up to its NUL.
-fn path_text(path: GamePtr) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(path, "a sheet's path")
-}
-
-fn read_alpha_sheet(template: GamePtr) -> Result<(), Refused> {
+fn read_alpha_sheet(template: &[u8]) -> Result<(), Refused> {
     SHEET.alpha_loaded.set(0u32);
     let flags: u32 = DECODER.builder_flags.get();
     if flags & ONE_FILE != 0 {
         return Err(fatal(0x80E4_F411, ""));
     }
     let number: u32 = DECODER.number.get();
-    let path = numbered_path_in_game(template, number)?;
-    if file_exists_at(path)? && read_sheet(&path_text(path)?)? {
+    let path = numbered_path_bytes(template, number)?;
+    if file_exists(&path)? && read_sheet(&path)? {
         if PICTURE.flags.get() & 0x100 == 0 {
             return Err(fatal(
                 0x80E4_F412,
@@ -262,8 +257,8 @@ fn read_alpha_sheet(template: GamePtr) -> Result<(), Refused> {
         let transparent = transparent_of(flags, backdrop, &DECODER.palette);
         DECODER.transparent.set(transparent);
         if level() as i32 >= 3 {
-            let path = numbered_path_in_game(template, number)?;
-            log_sheet(path, false, backdrop, transparent);
+            let path = numbered_path_bytes(template, number)?;
+            log_sheet(&path, false, backdrop, transparent);
         }
         SHEET.alpha_loaded.set(1u32);
         let half = 4 * HALF_PICTURE_DWORDS;
@@ -274,10 +269,12 @@ fn read_alpha_sheet(template: GamePtr) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result<(), Refused> {
-    if template.is_null() {
-        return Err(BadInput("no path for the sheets").into());
-    }
+/// `template`: the sheets' path (its NUL, if any, ends it).
+pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(), Refused> {
+    let template = &template[..template
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(template.len())];
     let work = crate::pointers::GamePtr::to(&LEXICON.memory);
     DECODER.number.set(0u32);
     loop {
@@ -286,15 +283,15 @@ pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result
         }
         let mut flags: u32 = DECODER.builder_flags.get();
         let path = if flags & ONE_FILE != 0 {
-            template
+            template.to_vec()
         } else {
-            let path = numbered_path_in_game(template, DECODER.number.get())?;
-            if !file_exists_at(path)? {
+            let path = numbered_path_bytes(template, DECODER.number.get())?;
+            if !file_exists(&path)? {
                 return Ok(());
             }
             path
         };
-        if !read_sheet(&path_text(path)?)? {
+        if !read_sheet(&path)? {
             return Err(fatal(0x80E4_F010, "Error loading PCX file"));
         }
 
@@ -345,10 +342,10 @@ pub fn build_glyphs(template: GamePtr, list: crate::pointers::GamePtr) -> Result
         if logging {
             // The original makes the path anew for the line.
             let path = match flags & ONE_FILE {
-                0 => numbered_path_in_game(template, DECODER.number.get())?,
-                _ => template,
+                0 => numbered_path_bytes(template, DECODER.number.get())?,
+                _ => template.to_vec(),
             };
-            log_sheet(path, true, backdrop, transparent);
+            log_sheet(&path, true, backdrop, transparent);
         }
         if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
             // `sub_4124E9`: the kept sheet's low four bits become the top four here.

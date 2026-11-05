@@ -55,8 +55,8 @@ use rc2k_core::strings::language::Locale;
 // ---- game data ----
 
 /// `aFilesLocaleLoc` (0x4E075C), `aFilesLocaleKim` (0x4E0784).
-const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc\0";
-const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim\0";
+const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc";
+const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim";
 /// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind (`g_noticeKind`), +0xF
 /// units. Out of the image since 2026-10-24 (phase 5; it was `g_localeFile`, 0x4E0798),
 /// with the image's first bytes (`tests::first_values_are_the_games`).
@@ -148,14 +148,10 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     use_lexicon();
     layouts().use_built_in();
 
-    if read_first_match(
-        crate::pointers::GamePtr::to(LOCALE_FILES),
-        crate::pointers::GamePtr::to(&LOCALE),
-        LOCALE_LEN as u32,
-        0,
-    )?
-    .is_none()
-    {
+    let mut locale = LOCALE.read();
+    let found = read_first_match(LOCALE_FILES, &mut locale, 0)?;
+    LOCALE.write(&locale);
+    if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
     }
     // Converted: `rc2k_core::strings::language::Locale`.
@@ -171,14 +167,10 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     // Read over the block the last load left (a shorter file leaves its tail).
     KEYBOARD_BUFFER.write(&layouts().file_bytes());
-    if read_first_match(
-        crate::pointers::GamePtr::to(KEYBOARD_FILES),
-        crate::pointers::GamePtr::to(&KEYBOARD_BUFFER),
-        KEYBOARD_LEN as u32,
-        0,
-    )?
-    .is_some()
-    {
+    let mut keyboard = KEYBOARD_BUFFER.read();
+    let found = read_first_match(KEYBOARD_FILES, &mut keyboard, 0)?;
+    KEYBOARD_BUFFER.write(&keyboard);
+    if found.is_some() {
         let keyboard = KEYBOARD_BUFFER.read();
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));

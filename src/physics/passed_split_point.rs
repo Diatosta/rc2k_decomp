@@ -39,21 +39,16 @@ use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
-/// 0x4416EC .. 0x441727: the distance to the point at `point`.
+/// 0x4416EC .. 0x441727: the distance from `point`: the whole-number gaps
+/// (`GROUND_WORK.ground_x` and `ground_z` less the point's x and z; the last one is left in
+/// the scratch dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into
+/// +0x214D04.
 fn distance(point: [u32; 3]) {
-    let at = crate::pointers::game_address(point.as_ptr());
-    distance_at(at as usize);
-}
-
-/// The distance from the point at `s`: the whole-number gaps (`GROUND_WORK.ground_x` and
-/// `ground_z` less the point's x and z; the last one is left in the scratch
-/// dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into +0x214D04.
-fn distance_at(s: usize) {
-    let word = |o: u32| crate::pointers::read_or_end::<i32>(s as u32 + o, "a split point");
+    let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(GROUND_WORK.ground_x.get() as i32);
     DRAW.scratch.set_bits(dx as u32);
     let first = int(DRAW.scratch.bits() as i32);
-    let dz = word(8).wrapping_sub(GROUND_WORK.ground_z.get() as i32);
+    let dz = word(2).wrapping_sub(GROUND_WORK.ground_z.get() as i32);
     DRAW.scratch.set_bits(dz as u32);
     let second = int(DRAW.scratch.bits() as i32);
     PHYSICS.split_point_distance.set_bits(st(
@@ -61,22 +56,15 @@ fn distance_at(s: usize) {
     ));
 }
 
-/// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
-/// `dword_62400C` (`fistp`, then the low 16 bits).
+/// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `dword_62400C`: the gaps
+/// (the car's x and z less the point's, through the scratch dword +0x22400C), `fpatan`,
+/// over pi, x `flt_5C5E40` x `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
 fn angle(point: [u32; 3]) {
-    let at = crate::pointers::game_address(point.as_ptr());
-    angle_at(at as usize);
-}
-
-/// The angle from the point at `s`: the gaps (the car's x and z less
-/// the point's, through the scratch dword +0x22400C), `fpatan`, over pi, x `flt_5C5E40` x
-/// `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
-fn angle_at(s: usize) {
-    let word = |o: u32| crate::pointers::read_or_end::<i32>(s as u32 + o, "a split point");
+    let word = |k: usize| point[k] as i32;
     let dx = (GROUND_WORK.ground_x.get() as i32).wrapping_sub(word(0));
     DRAW.scratch.set_bits(dx as u32);
     let y = int(DRAW.scratch.bits() as i32);
-    let dz = (GROUND_WORK.ground_z.get() as i32).wrapping_sub(word(8));
+    let dz = (GROUND_WORK.ground_z.get() as i32).wrapping_sub(word(2));
     DRAW.scratch.set_bits(dz as u32);
     let x = int(DRAW.scratch.bits() as i32);
     let turns = y.atan2_over_pi(x) * ld(NUMBERS.half.bits()) * ld(NUMBERS.k65536.bits());
@@ -144,6 +132,11 @@ pub fn passed_split_point() -> Result<bool, Refused> {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+
+    /// The point in a test's operand buffer.
+    fn point_at(s: usize) -> [u32; 3] {
+        crate::pointers::read_or_end(s as u32, "a split point")
+    }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};
 
     reference_eax!(distance_ref(rc, s)
@@ -198,7 +191,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { distance_ref(a[0], a[1]) },
-                plain: |a| distance_at(a[1]),
+                plain: |a| distance(point_at(a[1])),
             },
             Block {
                 name: "passed_split_point angle",
@@ -219,7 +212,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { angle_ref(a[0], a[1]) },
-                plain: |a| angle_at(a[1]),
+                plain: |a| angle(point_at(a[1])),
             },
         ];
         sparse(&blocks, 6000, 202);

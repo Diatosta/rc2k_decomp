@@ -61,6 +61,7 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
 
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with
 /// no NUL before its allocation's end is refused.
+#[track_caller]
 pub fn cstring(
     at: crate::pointers::GamePtr,
     what: &str,

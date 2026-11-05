@@ -27,10 +27,7 @@ pub fn build_menu_sprites(sprite_table: &crate::session::Dword) -> Result<(), Re
     begin_glyph_tables()?;
     DECODER.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(list)?;
-    build_glyphs(
-        crate::pointers::GamePtr::to(&crate::gfx::texts::MBUTS),
-        list,
-    )?;
+    build_glyphs(&crate::gfx::texts::MBUTS, list)?;
     sprite_table.set(SHEET.table.get());
     end_glyph_tables()?;
     all_direct_colour(SHEET.table.get())

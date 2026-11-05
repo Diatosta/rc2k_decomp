@@ -19,17 +19,12 @@ use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;
 use crate::hud::store::HUD;
 use crate::math::x87;
-use crate::scene::x87_mem::{fistp, fld};
+use crate::math::x87_float::{ld, to_int};
 use rc2k_core::hud::disc::SEGMENTS;
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
-    let (v, mut out) = ([a, b, c], 0u32);
-    x87_1(
-        (crate::pointers::game_address(v.as_ptr())) as usize,
-        crate::pointers::game_address(&raw mut out) as usize,
-    );
-    out
+    to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
 /// The Rust version (see the header).
@@ -67,17 +62,15 @@ pub fn draw_disc() -> Result<(), Refused> {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [o + 0] = (-[v + 0] * [v + 4]) * [v + 8]`
+/// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result
+/// at `[o]`), for the comparison with the original's x87 run.
+#[cfg(all(test, target_arch = "x86"))]
 fn x87_1(v: usize, o: usize) {
-    let t0 = fld(v, 0);
-    let t1 = -t0;
-    let t2 = fld(v, 4);
-    let t3 = t1 * t2;
-    let t4 = fld(v, 8);
-    let t5 = t3 * t4;
-    fistp(o, 0, t5);
+    use crate::scene::x87_mem::Base;
+    o.set_dword(
+        0,
+        negated_times_times_to_int(v.dword(0), v.dword(4), v.dword(8)),
+    );
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -148,7 +148,7 @@ pub fn apply_settings(text: GamePtr) -> Result<(), BadInput> {
 }
 
 pub fn read_settings() -> Result<(), BadInput> {
-    match read_text(crate::pointers::GamePtr::to(PATH))? {
+    match read_text(&PATH[..PATH.len() - 1])? {
         Some((text, _)) => apply_settings(text),
         None => Ok(()),
     }
