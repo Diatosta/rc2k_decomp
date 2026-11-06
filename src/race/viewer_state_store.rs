@@ -42,8 +42,11 @@ pub struct ReplayViewBlock {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static REPLAY_VIEW: ReplayViewBlock =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ReplayViewBlock {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
 /// of the three switch tables (0 `off_5C2C70`, 1 `off_5C2C78`, 2 `off_5C2C88`; the original
@@ -80,7 +83,7 @@ impl ReplayViewBlock {
     /// Where the list's key table (the header's +0x10) is.
     pub fn key_table() -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
         Self::named(
-            REPLAY_VIEW.viewer_list[4].get(),
+            crate::race::owner::race().replay.replay_view.viewer_list[4].get(),
             Self::RECTANGLES,
             "the viewer list's key table off its place",
         )
@@ -125,7 +128,9 @@ impl ReplayViewBlock {
         if index >= Self::ITEMS {
             return Err(crate::errors::BadInput("a viewer item past the 26"));
         }
-        Ok(REPLAY_VIEW.viewer_list[6 + 4 * index as usize + field].get())
+        Ok(crate::race::owner::race().replay.replay_view.viewer_list
+            [6 + 4 * index as usize + field]
+            .get())
     }
 }
 
@@ -139,7 +144,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
 /// Where IDA 0x5C2518 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&REPLAY_VIEW))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().replay.replay_view,
+    ))
 }
 
 #[cfg(test)]
@@ -149,7 +156,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPLAY_VIEW, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.replay_view,
+            START,
+            END,
+        );
     }
 
     #[test]
@@ -157,7 +168,10 @@ mod tests {
         let name =
             |ida: usize| u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
         let key_table = ReplayViewBlock::LIST + 0x10;
-        assert_eq!(REPLAY_VIEW.viewer_list[4].get(), name(key_table));
+        assert_eq!(
+            crate::race::owner::race().replay.replay_view.viewer_list[4].get(),
+            name(key_table)
+        );
         assert_eq!(
             ReplayViewBlock::key_table().unwrap().addr() as usize,
             crate::moved::place(name(key_table) as usize)
@@ -166,11 +180,13 @@ mod tests {
             let item = ReplayViewBlock::LIST + 0x18 + 0x10 * k as usize;
             // Kept as the image's names; resolved to the same places.
             assert_eq!(
-                REPLAY_VIEW.viewer_list[6 + 4 * k as usize + 1].get(),
+                crate::race::owner::race().replay.replay_view.viewer_list[6 + 4 * k as usize + 1]
+                    .get(),
                 name(item + 4)
             );
             assert_eq!(
-                REPLAY_VIEW.viewer_list[6 + 4 * k as usize + 3].get(),
+                crate::race::owner::race().replay.replay_view.viewer_list[6 + 4 * k as usize + 3]
+                    .get(),
                 name(item + 0xC)
             );
             assert_eq!(

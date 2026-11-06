@@ -40,7 +40,7 @@ use crate::menu::list_handle::ListMenu;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::{REPLAY_VIEW, ReplayViewBlock};
+use crate::race::viewer_state_store::ReplayViewBlock;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
@@ -114,7 +114,11 @@ fn view(mode: Mode) -> Result<(), Refused> {
     use crate::race::*;
     REPLAY_FILE.viewer_mode.set(mode as u32);
     REPLAY_FILE.hold_car_revs.set(1);
-    REPLAY_VIEW.viewer_only_shown.set(0);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .viewer_only_shown
+        .set(0);
     let slot = match mode {
         Mode::LastRace => LAST_RACE,
         Mode::Saved | Mode::SaveLast => {
@@ -139,10 +143,16 @@ fn view(mode: Mode) -> Result<(), Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .camera_edit
         .set(0);
-    REPLAY_VIEW.last_race_viewed.set((slot == LAST_RACE) as u32);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .last_race_viewed
+        .set((slot == LAST_RACE) as u32);
     find_snapshot_number::find_snapshot_number()?;
     viewer_load_stage::viewer_load_stage()?;
-    let list = ListMenu::of(crate::pointers::GamePtr::to(&REPLAY_VIEW.viewer_list));
+    let list = ListMenu::of(crate::pointers::GamePtr::to(
+        &crate::race::owner::race().replay.replay_view.viewer_list,
+    ));
     REPLAY_FILE.viewer_sound.set(0);
     crate::install::owner::install().pages.list_answer.set(1);
     crate::install::owner::install().pages.list_leave.set(0);
@@ -176,24 +186,57 @@ fn view(mode: Mode) -> Result<(), Refused> {
         if FLAGS.quitting.get() == 1 {
             return Ok(());
         }
-        if REPLAY_VIEW.wait_key_release.get() == 1 {
+        if crate::race::owner::race()
+            .replay
+            .replay_view
+            .wait_key_release
+            .get()
+            == 1
+        {
             if DEVICES.keys_down.get(1) == 0 && DEVICES.keys_down.get(0x1C) == 0 {
-                REPLAY_VIEW.wait_key_release.set(0);
+                crate::race::owner::race()
+                    .replay
+                    .replay_view
+                    .wait_key_release
+                    .set(0);
             }
             key = 0;
         }
         if key == 1 {
-            REPLAY_VIEW.wait_key_release.set(1);
-            REPLAY_VIEW
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .wait_key_release
+                .set(1);
+            crate::race::owner::race()
+                .replay
+                .replay_view
                 .escape_count
-                .set(REPLAY_VIEW.escape_count.get().wrapping_add(1));
-            if REPLAY_VIEW.escape_count.get() == 2 {
+                .set(
+                    crate::race::owner::race()
+                        .replay
+                        .replay_view
+                        .escape_count
+                        .get()
+                        .wrapping_add(1),
+                );
+            if crate::race::owner::race()
+                .replay
+                .replay_view
+                .escape_count
+                .get()
+                == 2
+            {
                 return Ok(());
             }
             key = 0;
         }
         if key != 0 {
-            REPLAY_VIEW.escape_count.set(0);
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .escape_count
+                .set(0);
         }
         if REPLAY_FILE.viewer_stopped.get() != 1 {
             let ended = step_viewed_replay::step_viewed_replay()?;

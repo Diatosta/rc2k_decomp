@@ -19,7 +19,6 @@ use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
@@ -85,8 +84,16 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     };
     string(0x1A4, FONT_A, 4, 0)?;
     append_time(shown_time(
-        REPLAY_VIEW.replay_block.get(),
-        REPLAY_VIEW.replay_frame.get(),
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_block
+            .get(),
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_frame
+            .get(),
     ));
     text(FONT_B, 4, 8)?;
     string(0x1A5, FONT_C, 0x60, 0x19)?;
@@ -96,7 +103,13 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     let mut y = 0x32;
     for byte in 0..2usize {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
-            byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
+            byte.wrapping_add(
+                8 * crate::race::owner::race()
+                    .replay
+                    .replay_view
+                    .replay_block
+                    .get() as usize,
+            ),
         )?);
         let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
         let mut out = 0usize;
@@ -128,7 +141,13 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_device_texture.get());
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
-        5usize.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
+        5usize.wrapping_add(
+            8 * crate::race::owner::race()
+                .replay
+                .replay_view
+                .replay_block
+                .get() as usize,
+        ),
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;

@@ -2,16 +2,8 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::overlay_store::RACE_OVERLAY;
-use crate::race::panel_clock_store::PANEL_CLOCK;
-use crate::race::panel_store::PANEL;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
@@ -68,9 +60,9 @@ pub fn split_colours(car: u32, colours: &[Dword; 64], count: u32) -> Result<(), 
     Ok(())
 }
 
-/// `race::panel_players` (0x45ACDB): unless `RACE_VARS.run_kind` is set, `PANEL.view_a.place` and
-/// `PANEL.view_b.place` -1; with more than one player also `PANEL.view_a.back` and `PANEL.view_a.front` -1,
-/// and `PANEL.view_a.place` / `PANEL.view_b.place` the two view blocks' +0xFA4.
+/// `race::panel_players` (0x45ACDB): unless `RACE_VARS.run_kind` is set, `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.place` and
+/// `crate::race::owner::race().frame.panel_and_overlay.panel.view_b.place` -1; with more than one player also `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.back` and `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.front` -1,
+/// and `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.place` / `crate::race::owner::race().frame.panel_and_overlay.panel.view_b.place` the two view blocks' +0xFA4.
 pub fn panel_players() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::panel_players`.
     use rc2k_core::race::frame::{PanelPlayers, panel_players};
@@ -79,13 +71,37 @@ pub fn panel_players() -> Result<(), BadInput> {
         if step == PanelPlayers::Kept {
             return Ok(());
         }
-        PANEL.view_a.place.set(u32::MAX);
-        PANEL.view_b.place.set(u32::MAX);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_a
+            .place
+            .set(u32::MAX);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_b
+            .place
+            .set(u32::MAX);
         if step == PanelPlayers::One {
             return Ok(());
         }
-        PANEL.view_a.back.set(u32::MAX);
-        PANEL.view_a.front.set(u32::MAX);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_a
+            .back
+            .set(u32::MAX);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_a
+            .front
+            .set(u32::MAX);
         // Each view block's +0xFA4.
         let field = |n: usize| -> Result<u32, BadInput> {
             Ok(RACE_VIEW
@@ -94,8 +110,20 @@ pub fn panel_players() -> Result<(), BadInput> {
                 .unknown_fa4
                 .get())
         };
-        PANEL.view_a.place.set(field(0)?);
-        PANEL.view_b.place.set(field(1)?);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_a
+            .place
+            .set(field(0)?);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .view_b
+            .place
+            .set(field(1)?);
     }
     Ok(())
 }
@@ -131,32 +159,48 @@ pub(super) fn drawn_view() -> Result<u32, Refused> {
     Ok(RACE_VIEW.view_block(n as usize))
 }
 
-/// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `FRAME_WORK.sun_on_screen`.
+/// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `crate::race::owner::race().frame.frame_work.sun_on_screen`.
 pub fn store_view_value() -> Result<(), Refused> {
     let b = drawn_view()?;
-    car_at(b)?
-        .eased_target
-        .set_bits(FRAME_WORK.sun_on_screen.bits());
+    car_at(b)?.eased_target.set_bits(
+        crate::race::owner::race()
+            .frame
+            .frame_work
+            .sun_on_screen
+            .bits(),
+    );
     Ok(())
 }
 
-/// `race::fetch_view_value` (0x45550E): `FRAME_WORK.view_out` = the drawn view's block +0xFBC.
+/// `race::fetch_view_value` (0x45550E): `crate::race::owner::race().frame.frame_work.view_out` = the drawn view's block +0xFBC.
 /// Every register kept.
 pub fn fetch_view_value() -> Result<(), Refused> {
     let b = drawn_view()?;
-    FRAME_WORK.view_out.set_bits(car_at(b)?.eased_value.bits());
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .view_out
+        .set_bits(car_at(b)?.eased_value.bits());
     Ok(())
 }
 
-/// `race::share_sound_spots` (0x45C7B9): the shared count = `RACE_SOUND_SPOTS.sound_spot_count`, and that many
+/// `race::share_sound_spots` (0x45C7B9): the shared count = `crate::race::owner::race().frame.sound_spots.sound_spot_count`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
 /// `sub_40E642`). Refuses (before anything) more than 36 (past both tables).
 pub fn share_sound_spots() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
-    let n: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
+    let n: u32 = crate::race::owner::race()
+        .frame
+        .sound_spots
+        .sound_spot_count
+        .bits();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
     crate::sound::owner::sound().race.stage.shared_count.set(n);
-    let from = RACE_SOUND_SPOTS.sound_spots.chunks(5);
+    let from = crate::race::owner::race()
+        .frame
+        .sound_spots
+        .sound_spots
+        .chunks(5);
     for (spot, d) in crate::sound::owner::sound()
         .race
         .stage
@@ -178,7 +222,11 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with
 /// `g_useSse` set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
 pub fn clear_point_records() -> Result<(), BadInput> {
-    COURSE_LISTS.clear_count.set(0u32);
+    crate::race::owner::race()
+        .course
+        .lists
+        .clear_count
+        .set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
     let sse = crate::scene::owner::scene().draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records(0x1000)? {
@@ -241,7 +289,7 @@ pub fn object_bytes() -> Result<(), BadInput> {
 /// the two last ones).
 pub(super) fn panel_half(car: u32, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
-    let panel = &*PANEL;
+    let panel = &crate::race::owner::race().frame.panel_and_overlay.panel;
     // The two views' records have the same fields in two types.
     macro_rules! shown_cells {
         ($v:expr) => {
@@ -268,10 +316,17 @@ pub(super) fn panel_half(car: u32, first: bool) -> Result<(), BadInput> {
     cells[2].set(car.gear.bits());
     let at =
         |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
-    let from: u32 = SPLIT_TABLES.checkpoints[0].get();
+    let from: u32 = crate::race::owner::race().physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.bits()), at(from));
     DRAW.scratch.set_bits(d);
-    let (unit, miles): (u32, u32) = (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
+    let (unit, miles): (u32, u32) = (
+        crate::race::owner::race().course.numbers.k65536.bits(),
+        crate::race::owner::race()
+            .course
+            .numbers
+            .metres_in_mile
+            .bits(),
+    );
     let shown = distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits();
     distance.set(shown);
     cells[4].set(car.stage_time.bits().wrapping_mul(10));
@@ -305,7 +360,7 @@ pub fn panel_values_plain() -> Result<(), BadInput> {
 /// `race::wake_part_sounds` (0x45D1EA): for each race car (car 0 at least: the loop tests at
 /// its end) and each of its six slots, when +0x48 is 0 and +0x700 at least 10, +0x48 = 1; then,
 /// only when +0x700 was exactly 10 (the `jnz` reads the `cmp`'s flags), and when
-/// `FRAME_WORK.listed_car_sounds[g_currentCar]` is not -1, the car's sound object
+/// `crate::race::owner::race().frame.frame_work.listed_car_sounds[g_currentCar]` is not -1, the car's sound object
 /// (`g_raceSoundObjects[car & 7]`) +0x264 = 1 and +0x10 = 1. Refuses (before anything) more
 /// than eight cars, a null block or object it would write, and `g_currentCar` past 7 when it is
 /// read.
@@ -340,7 +395,11 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
             if current > 7 {
                 return Err(BadInput("g_currentCar past the eight").into());
             }
-            let view: u32 = FRAME_WORK.listed_car_sounds[current as usize].bits();
+            let view: u32 = crate::race::owner::race()
+                .frame
+                .frame_work
+                .listed_car_sounds[current as usize]
+                .bits();
             if view != u32::MAX {
                 wake = true;
             }
@@ -357,11 +416,11 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
 }
 
 /// `race::panel_neighbours` (0x45AD36): in mode 2 (`RACE_VARS.run_kind`), the first view's place
-/// (+0x654) and its neighbours into the panel: `PANEL.view_a.place` the place, `PANEL.view_a.time`
-/// +0x8C x 10, `PANEL.view_a.back` the car behind's +0x24 (-1 at the last place,
-/// `PANEL.view_a.back`), its label at 0x6D1838 (`car_label` of `RACE_TABLES.arcade_car_numbers[place]`),
-/// `PANEL.view_a.split2` +0x634, `PANEL.view_a.front` the car ahead's +0x24 (-1 at place 1), its label at
-/// 0x6D1844 (`RACE_TABLES.number_before_first[place]`), `PANEL.view_a.negated` -(+0x630). Refuses (before anything)
+/// (+0x654) and its neighbours into the panel: `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.place` the place, `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.time`
+/// +0x8C x 10, `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.back` the car behind's +0x24 (-1 at the last place,
+/// `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.back`), its label at 0x6D1838 (`car_label` of `RACE_TABLES.arcade_car_numbers[place]`),
+/// `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.split2` +0x634, `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.front` the car ahead's +0x24 (-1 at place 1), its label at
+/// 0x6D1844 (`RACE_TABLES.number_before_first[place]`), `crate::race::owner::race().frame.panel_and_overlay.panel.view_a.negated` -(+0x630). Refuses (before anything)
 /// a neighbour's car number past 7 or a null block.
 pub fn panel_neighbours() -> Result<(), Refused> {
     if RACE_VARS.run_kind.bits() != 2 {
@@ -392,28 +451,69 @@ pub fn panel_neighbours() -> Result<(), Refused> {
     };
     let behind = block_of(on(&RACE_TABLES.unknown_88c, place.wrapping_add(1))?)?;
     let ahead = block_of(on(&RACE_TABLES.unknown_88c, place)?)?;
-    PANEL.view_a.place.set(place);
-    PANEL.view_a.time.set(a.time_left.get().wrapping_mul(10));
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
+        .view_a
+        .place
+        .set(place);
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
+        .view_a
+        .time
+        .set(a.time_left.get().wrapping_mul(10));
     // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
     // `rc2k_core::race::start::car_label`).
     use rc2k_core::race::frame::neighbour_number;
     let number = behind.car_kind.get();
     let back = neighbour_number(place == RACE_TABLES.arcade_cars.bits(), number);
-    PANEL.view_a.back.set(back);
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
+        .view_a
+        .back
+        .set(back);
     car_label(
-        &RACE_OVERLAY.label_behind,
+        &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .overlay
+            .label_behind,
         on(&RACE_TABLES.arcade_car_numbers[0], place)?,
         back,
     );
-    PANEL.view_a.split2.set(a.pace_gaps_eased[1].get());
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
+        .view_a
+        .split2
+        .set(a.pace_gaps_eased[1].get());
     let front = neighbour_number(place == 1, ahead.car_kind.get());
-    PANEL.view_a.front.set(front);
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
+        .view_a
+        .front
+        .set(front);
     car_label(
-        &RACE_OVERLAY.label_ahead,
+        &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .overlay
+            .label_ahead,
         on(&RACE_TABLES.number_before_first, place)?,
         front,
     );
-    PANEL
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
         .view_a
         .negated
         .set(a.pace_gaps_eased[0].get().wrapping_neg());
@@ -422,8 +522,8 @@ pub fn panel_neighbours() -> Result<(), Refused> {
 
 /// `race::panel_motion` (0x45AE1D), converted (`set_up_panel`'s too): for
 /// each view block, +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
-/// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel (`PANEL.view_a.motion[0]`.. for the first,
-/// `PANEL.view_b.motion[0]`.. for the second); then `DRAW.scratch` = `g_sceneClock` - `PANEL_CLOCK.shown_since` -
+/// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel (`crate::race::owner::race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first,
+/// `crate::race::owner::race().frame.panel_and_overlay.panel.view_b.motion[0]`.. for the second); then `DRAW.scratch` = `g_sceneClock` - `crate::race::owner::race().frame.panel_clock.shown_since` -
 /// 800, 0 when negative.
 // Converted: `rc2k_core::race::panel::{motion, heading_turn, heading, shown_for}`.
 pub fn panel_motion_plain() -> Result<(), BadInput> {
@@ -431,11 +531,34 @@ pub fn panel_motion_plain() -> Result<(), BadInput> {
     {
         // NUMBERS.half (0.5), NUMBERS.one_over_65536, NUMBERS.k65536 (65536.0)
         let (half, small, big) = (
-            NUMBERS.half.get(),
-            NUMBERS.one_over_65536.get(),
-            NUMBERS.k65536.get(),
+            crate::race::owner::race().course.numbers.half.get(),
+            crate::race::owner::race()
+                .course
+                .numbers
+                .one_over_65536
+                .get(),
+            crate::race::owner::race().course.numbers.k65536.get(),
         );
-        for (view, out) in [(0, &PANEL.view_a.motion), (1, &PANEL.view_b.motion)] {
+        for (view, out) in [
+            (
+                0,
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .view_a
+                    .motion,
+            ),
+            (
+                1,
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .view_b
+                    .motion,
+            ),
+        ] {
             let b = RACE_VIEW.view_block(view);
             out[0]
                 .set(motion(car_at(b)?.map_picture_place[0].bits() as i32, half, small).to_bits());
@@ -445,24 +568,43 @@ pub fn panel_motion_plain() -> Result<(), BadInput> {
             DRAW.scratch.set_bits(turn);
             out[2].set(heading(turn as i32, half, big).to_bits());
         }
-        let shown = shown_for(PHYSICS.scene_clock.bits(), PANEL_CLOCK.shown_since.get());
+        let shown = shown_for(
+            PHYSICS.scene_clock.bits(),
+            crate::race::owner::race()
+                .frame
+                .panel_clock
+                .shown_since
+                .get(),
+        );
         DRAW.scratch.set_bits(shown);
     }
     Ok(())
 }
 
 /// `race::panel_marks` (0x45AEFE): the eight dwords at 0x6D14A2 .. 0x6D14C2 (but 0x6D14B2)
-/// 0; for each view block, `PANEL.marks[0].base` / `PANEL.marks[1].base` = 400 + (+0xFA0), and its first
+/// 0; for each view block, `crate::race::owner::race().frame.panel_and_overlay.panel.marks[0].base` / `crate::race::owner::race().frame.panel_and_overlay.panel.marks[1].base` = 400 + (+0xFA0), and its first
 /// +0xF98 (at most 4) values at +0xF78, each + 1, at 0x6D14A2 / 0x6D14B6.
 pub fn panel_marks() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::view_marks`.
     {
-        for view in &PANEL.marks {
+        for view in &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .marks
+        {
             for mark in &view.marks {
                 mark.set(0);
             }
         }
-        for (view, shown) in PANEL.marks.iter().enumerate() {
+        for (view, shown) in crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .marks
+            .iter()
+            .enumerate()
+        {
             let b: u32 = RACE_VIEW.view_block(view);
             let offset = car_at(b)?.car_event_position.bits();
             let count = car_at(b)?.car_event_count.bits();
@@ -510,14 +652,23 @@ pub fn countdown_lights(
         // Converted: `rc2k_core::race::start::lights`.
         use rc2k_core::race::start::lights;
         let Some(l) = lights(
-            car_at(block)?
-                .run_ticks
-                .bits()
-                .wrapping_sub(RACE_OVERLAY.countdown_start.bits()),
+            car_at(block)?.run_ticks.bits().wrapping_sub(
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .countdown_start
+                    .bits(),
+            ),
         ) else {
             return Ok(());
         };
-        RACE_OVERLAY.start_lights_lit.set_bits(l.shown);
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .overlay
+            .start_lights_lit
+            .set_bits(l.shown);
         lit.set(l.lit);
         if l.whole {
             flag.set(1);
@@ -530,30 +681,64 @@ pub fn countdown_lights(
 }
 
 /// `race::both_countdown_lights` (0x45AFDB): `countdown_lights` for the first view (fields
-/// 0, flag `RACE_OVERLAY.forget_flag_0`) and the second (fields 0x10, `RACE_OVERLAY.forget_flag_1`).
+/// 0, flag `crate::race::owner::race().frame.panel_and_overlay.overlay.forget_flag_0`) and the second (fields 0x10, `crate::race::owner::race().frame.panel_and_overlay.overlay.forget_flag_1`).
 pub fn both_countdown_lights() -> Result<(), BadInput> {
     {
         for (view, flag) in [
-            (0, &RACE_OVERLAY.forget_flag_0),
-            (1, &RACE_OVERLAY.forget_flag_1),
+            (
+                0,
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .forget_flag_0,
+            ),
+            (
+                1,
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .forget_flag_1,
+            ),
         ] {
-            countdown_lights(&PANEL.lights[view], RACE_VIEW.view_block(view), flag)?;
+            countdown_lights(
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .lights[view],
+                RACE_VIEW.view_block(view),
+                flag,
+            )?;
         }
     }
     Ok(())
 }
 
-/// The two views' colour buffers for `split_colours`: `RACE_OVERLAY.overlay_part_kinds_a`, `RACE_OVERLAY.overlay_part_kinds_b`.
+/// The two views' colour buffers for `split_colours`: `crate::race::owner::race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, `crate::race::owner::race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`.
 pub fn colour_buffers() -> [&'static [Dword; 64]; 2] {
     [
-        &RACE_OVERLAY.overlay_part_kinds_a,
-        &RACE_OVERLAY.overlay_part_kinds_b,
+        &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .overlay
+            .overlay_part_kinds_a,
+        &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .overlay
+            .overlay_part_kinds_b,
     ]
 }
 
 /// `split_colours`' refusal, for both views, before anything is written.
 pub fn check_split_colours() -> Result<(), Refused> {
-    let fill: u32 = SPLIT_TABLES.split_colour_count.get();
+    let fill: u32 = crate::race::owner::race()
+        .physics
+        .split_tables
+        .split_colour_count
+        .get();
     for view in 0..2 {
         let n = car_at(RACE_VIEW.view_block(view))?.splits_passed.get();
         rc2k_core::race::frame::check_split_colours(fill, n)?;
@@ -562,7 +747,7 @@ pub fn check_split_colours() -> Result<(), Refused> {
 }
 
 /// `race::both_split_colours` (0x45B147): `split_colours` for the first view's block into
-/// `RACE_OVERLAY.overlay_part_kinds_a`, then the second's into `RACE_OVERLAY.overlay_part_kinds_b`. Refuses (before anything) as
+/// `crate::race::owner::race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, then the second's into `crate::race::owner::race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`. Refuses (before anything) as
 /// `split_colours` would for either.
 pub fn both_split_colours() -> Result<(), Refused> {
     check_split_colours()?;
@@ -570,7 +755,11 @@ pub fn both_split_colours() -> Result<(), Refused> {
         split_colours(
             RACE_VIEW.view_block(view),
             buffer,
-            SPLIT_TABLES.split_colour_count.get(),
+            crate::race::owner::race()
+                .physics
+                .split_tables
+                .split_colour_count
+                .get(),
         )?;
     }
     Ok(())
@@ -610,12 +799,16 @@ pub fn set_up_panel() -> Result<(), Refused> {
 }
 
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, `RACE_VIEW.depth_entry_count`, `RACE_VIEW.sort_entry_count` (the sort
-/// entries' count) and `FRAME_WORK.flare_count` 0, then `race::object_bytes`.
+/// entries' count) and `crate::race::owner::race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps() -> Result<(), BadInput> {
     RACE_VIEW.lamp_count.set_bits(0);
     RACE_VIEW.depth_entry_count.set_bits(0);
     RACE_VIEW.sort_entry_count.set_bits(0);
-    FRAME_WORK.flare_count.set_bits(0);
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .flare_count
+        .set_bits(0);
     object_bytes()
 }
 

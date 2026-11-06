@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::Hud as HudBlock;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::session::{Cell32, Float};
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
@@ -112,7 +112,7 @@ fn set_up_disc(hud: &Hud, record: GamePtr, style: &DiscStyle) -> Result<(), Refu
     copy(&own[1], &hud.block.disc_texture_scale);
     copy(&own[2], &hud.block.disc_centre[0]);
     copy(&own[3], &hud.block.disc_centre[1]);
-    if style.lifted_centre && PANEL.flat.get() == 0 {
+    if style.lifted_centre && race().frame.panel_and_overlay.panel.flat.get() == 0 {
         copy(&own[4], &hud.block.disc_centre[1]);
     }
     Ok(())
@@ -127,7 +127,7 @@ fn set_up_needle(hud: &Hud, record: GamePtr, style: &NeedleStyle) -> Result<(), 
     copy(&own[0], &hud.block.needle_centre[0]);
     copy(&own[1], &hud.block.needle_centre[1]);
     let size = if style.lifted_centre {
-        if PANEL.flat.get() == 0 {
+        if race().frame.panel_and_overlay.panel.flat.get() == 0 {
             copy(&own[2], &hud.block.needle_centre[1]);
         }
         3

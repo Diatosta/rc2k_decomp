@@ -47,8 +47,11 @@ pub struct Finish {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static FINISH: Finish =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl Finish {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x64BB18, the first byte of the piece.
 pub const START: usize = 0x64BB18;
@@ -60,7 +63,9 @@ const _: () = assert!(END - START == core::mem::size_of::<Finish>());
 /// Where IDA 0x64BB18 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&FINISH))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().replay.finish,
+    ))
 }
 
 #[cfg(test)]
@@ -70,7 +75,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FINISH, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.finish,
+            START,
+            END,
+        );
     }
 
     #[test]

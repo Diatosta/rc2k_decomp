@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::tables_store::RACE_TABLES;
@@ -30,10 +29,12 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT 
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race() -> Result<(), Refused> {
     crate::framework::log("race::credits_race: the demonstration starts");
-    NUMBERS.replay_mode.set(0);
+    crate::race::owner::race().course.numbers.replay_mode.set(0);
     REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
     RACE_TABLES.noise_seed.set(0x1234_5678);
-    crate::physics::split_tables_store::SPLIT_TABLES
+    crate::race::owner::race()
+        .physics
+        .split_tables
         .arcade_kind
         .set(2);
     FRAME_SWITCHES.editor_mode.set(0);

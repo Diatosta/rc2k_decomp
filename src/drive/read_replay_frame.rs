@@ -15,7 +15,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// The Rust version: CF.
@@ -28,15 +27,29 @@ pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     }
     if past_end(frame, REPLAY_FILE.index_block_count.get()) {
         REPLAY_FILE.replay_at_end.set(1);
-        REPLAY_VIEW
+        crate::race::owner::race()
+            .replay
+            .replay_view
             .replay_block
             .set(REPLAY_FILE.index_block_count.get());
-        REPLAY_VIEW.replay_frame.set(0);
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_frame
+            .set(0);
         return Ok(false);
     }
-    REPLAY_VIEW.replay_frame.set(tenth);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_frame
+        .set(tenth);
     REPLAY_FILE.replay_at_end.set(0);
-    REPLAY_VIEW.replay_block.set(frame);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_block
+        .set(frame);
     let place = crate::race::replay::block_place(2 * frame as usize)?; // (place, count) a frame
     if { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }.is_none() {
         return Ok(true);

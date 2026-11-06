@@ -15,7 +15,6 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
@@ -27,15 +26,21 @@ pub fn blend_at(v: &[&dyn Cell32]) {
     if less(get(0), PHYSICS.wheel_load_limit.bits()) {
         return;
     }
-    let zero: u32 = NUMBERS.zero.bits();
-    let one: u32 = NUMBERS.one.bits();
+    let zero: u32 = crate::race::owner::race().course.numbers.zero.bits();
+    let one: u32 = crate::race::owner::race().course.numbers.one.bits();
     let mut slot = 0;
     for (k, add) in [(1, 4), (2, 2), (3, 1)] {
         if less(get(k), zero) {
             slot += add;
         }
     }
-    put(4, x87::div(get(0), NUMBERS.sixty_four.bits()));
+    put(
+        4,
+        x87::div(
+            get(0),
+            crate::race::owner::race().course.numbers.sixty_four.bits(),
+        ),
+    );
     if less(get(4), zero) {
         put(4, x87::loaded(zero));
     }

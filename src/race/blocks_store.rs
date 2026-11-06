@@ -20,14 +20,14 @@ pub struct CarBlocks {
 
 const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
 
-/// The piece: a field of `race::groups_store::CARS_AND_REPLAY` since 2026-10-29 (it left the race
+/// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     fn deref(&self) -> &CarBlocks {
-        &crate::race::groups_store::CARS_AND_REPLAY.car_blocks
+        &crate::race::owner::race().replay.cars_and_replay.car_blocks
     }
 }
 
@@ -45,7 +45,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 /// Where IDA 0x70F3EC is now (its group's static).
 pub fn blocks_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::CARS_AND_REPLAY.car_blocks,
+        &crate::race::owner::race().replay.cars_and_replay.car_blocks,
     ))
 }
 
@@ -163,7 +163,7 @@ const _: () = assert!(
 /// The replay's starting state: 0xA04 dwords from car block 8, running past the car blocks
 /// into the replay work (their group holds both), as a pointer bounded by that length.
 pub fn replay_state() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&crate::race::groups_store::CARS_AND_REPLAY)
+    crate::pointers::GamePtr::to(&crate::race::owner::race().replay.cars_and_replay)
         .offset((8 * BLOCK_LEN) as u32)
         .limited((4 * REPLAY_STATE_DWORDS) as u32)
 }

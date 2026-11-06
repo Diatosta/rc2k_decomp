@@ -21,7 +21,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::session::Dword;
 
 /// The Rust version: whether the frame was lost (the carry the original leaves; it
@@ -36,8 +35,18 @@ pub fn viewer_frame() -> Result<bool, Refused> {
         crate::drive::replay_frame_marks::replay_frame_marks()?;
         crate::race::show_replay_still::show_replay_still()?;
     }
-    if REPLAY_VIEW.snapshot_asked.get() == 1 {
-        REPLAY_VIEW.snapshot_asked.set(0);
+    if crate::race::owner::race()
+        .replay
+        .replay_view
+        .snapshot_asked
+        .get()
+        == 1
+    {
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .snapshot_asked
+            .set(0);
         // `d3d::end_scene` cannot fail either.
         crate::platform_3d::end_layer();
         crate::race::viewer_snapshot::viewer_snapshot()?;
@@ -60,13 +69,15 @@ fn stopped() -> Result<(), Refused> {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
     // The list's item count: the byte at +1 of its first dword.
-    let items = (REPLAY_VIEW.viewer_list[0].get() >> 8) as u8;
+    let items = (crate::race::owner::race().replay.replay_view.viewer_list[0].get() >> 8) as u8;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
     // the 26 there is refused.
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
         let first = 6 + 4 * index as usize;
-        let item = REPLAY_VIEW
+        let item = crate::race::owner::race()
+            .replay
+            .replay_view
             .viewer_list
             .get(first..)
             .and_then(|rest| rest.first_chunk::<4>())
@@ -97,8 +108,16 @@ fn stopped() -> Result<(), Refused> {
                     .mark_out
                     .get(),
             ),
-            REPLAY_VIEW.replay_block.get(),
-            REPLAY_VIEW.replay_frame.get(),
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .replay_block
+                .get(),
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .replay_frame
+                .get(),
             w,
             blocks,
         )?;

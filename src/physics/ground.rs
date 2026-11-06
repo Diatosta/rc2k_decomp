@@ -14,10 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::cells::Trap;
 use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::plane_height::plane_height;
-use crate::race::course_store::COURSE;
-use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The first and last faces (+8, +0xC) of course record `record`.
@@ -35,45 +32,86 @@ fn record_faces(record: u32) -> Result<(u32, u32), BadInput> {
 pub fn face_shares_at() -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        *c = crate::race::scene_points::point_number(GROUND_WORK.face_corner_numbers[k].get())?;
+        *c = crate::race::scene_points::point_number(
+            crate::race::owner::race()
+                .physics
+                .ground
+                .face_corner_numbers[k]
+                .get(),
+        )?;
         for (n, &v) in c.iter().enumerate() {
-            GROUND_WORK.face_corners[3 * k + n].set(v);
+            crate::race::owner::race().physics.ground.face_corners[3 * k + n].set(v);
         }
     }
-    let (x, z) = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
-    GROUND_WORK.face_point_x.set(x);
-    GROUND_WORK.face_point_z.set(z);
+    let (x, z) = (
+        crate::race::owner::race().physics.ground.ground_x.get(),
+        crate::race::owner::race().physics.ground.ground_z.get(),
+    );
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_point_x
+        .set(x);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_point_z
+        .set(z);
     let d = [
         (
-            &GROUND_WORK.corner_x_differences[0],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_x_differences[0],
             x.wrapping_sub(corner[0][0]),
         ),
         (
-            &GROUND_WORK.corner_x_differences[1],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_x_differences[1],
             corner[1][0].wrapping_sub(corner[0][0]),
         ),
         (
-            &GROUND_WORK.corner_x_differences[2],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_x_differences[2],
             corner[2][0].wrapping_sub(corner[0][0]),
         ),
         (
-            &GROUND_WORK.corner_z_differences[0],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_z_differences[0],
             z.wrapping_sub(corner[0][2]),
         ),
         (
-            &GROUND_WORK.corner_z_differences[1],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_z_differences[1],
             corner[1][2].wrapping_sub(corner[0][2]),
         ),
         (
-            &GROUND_WORK.corner_z_differences[2],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_z_differences[2],
             corner[2][2].wrapping_sub(corner[0][2]),
         ),
         (
-            &GROUND_WORK.corner_y_differences[0],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_y_differences[0],
             corner[1][1].wrapping_sub(corner[0][1]),
         ),
         (
-            &GROUND_WORK.corner_y_differences[1],
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .corner_y_differences[1],
             corner[2][1].wrapping_sub(corner[0][1]),
         ),
     ];
@@ -88,28 +126,59 @@ pub fn face_shares_at() -> Result<(), Refused> {
         d[3].1,
         d[4].1,
         d[5].1,
-        NUMBERS.k65536.bits(),
+        crate::race::owner::race().course.numbers.k65536.bits(),
     ];
     let mut o = [0u32; 8];
     crate::math::x87_run::face_shares(&i, &mut o, sse);
-    GROUND_WORK.face_share_a.set_bits(o[0]);
-    GROUND_WORK.face_share_b.set_bits(o[1]);
-    GROUND_WORK.face_share_c.set_bits(o[2]);
-    GROUND_WORK.plane_f.set_bits(o[3]);
-    GROUND_WORK.share_s.set(o[4]);
-    GROUND_WORK.plane_g.set_bits(o[5]);
-    GROUND_WORK.share_t.set(o[6]);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_share_a
+        .set_bits(o[0]);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_share_b
+        .set_bits(o[1]);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_share_c
+        .set_bits(o[2]);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .plane_f
+        .set_bits(o[3]);
+    crate::race::owner::race().physics.ground.share_s.set(o[4]);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .plane_g
+        .set_bits(o[5]);
+    crate::race::owner::race().physics.ground.share_t.set(o[6]);
     if sse {
-        GROUND_WORK.face_share_scale.set_bits(o[7]);
+        crate::race::owner::race()
+            .physics
+            .ground
+            .face_share_scale
+            .set_bits(o[7]);
     }
     Ok(())
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
 pub fn face_refusal(face: u32) -> Option<&'static str> {
-    ground_search::check_face(face, COURSE.course_face_count.get())
-        .err()
-        .map(|e| e.0)
+    ground_search::check_face(
+        face,
+        crate::race::owner::race()
+            .course
+            .course
+            .course_face_count
+            .get(),
+    )
+    .err()
+    .map(|e| e.0)
 }
 
 /// `physics::face_under_point` (0x442006): whether the point is inside face `number`
@@ -120,7 +189,11 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
     if let Some(why) = face_refusal(number) {
         return Err(BadInput(why).into());
     }
-    COURSE.ground_number.set(number);
+    crate::race::owner::race()
+        .course
+        .course
+        .ground_number
+        .set(number);
     // The face read once: its kind, flags, corners and edges.
     let f = crate::race::course_places::face_number(number, "a course face")?;
     let trap = Trap::new();
@@ -140,7 +213,9 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
     let test = ground_search::face_under_point(
         f.kind(),
         || f.switches(),
-        crate::physics::ground_probe_store::GROUND_PROBE
+        crate::race::owner::race()
+            .physics
+            .ground_probe
             .settle_mark
             .get(),
         |o| f.dword_at(o),
@@ -151,15 +226,31 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
         FaceTest::Inside { half, corners } => (half, corners),
     };
-    COURSE.ground_slot.set(COURSE.ground_number.get());
-    COURSE.ground_half.set(half);
+    crate::race::owner::race()
+        .course
+        .course
+        .ground_slot
+        .set(crate::race::owner::race().course.course.ground_number.get());
+    crate::race::owner::race()
+        .course
+        .course
+        .ground_half
+        .set(half);
     for (k, &o) in corners.iter().enumerate() {
         let corner = f.dword_at(o);
-        GROUND_WORK.face_corner_numbers[k].set(corner);
-        COURSE.ground_corners[k].set(corner);
+        crate::race::owner::race()
+            .physics
+            .ground
+            .face_corner_numbers[k]
+            .set(corner);
+        crate::race::owner::race().course.course.ground_corners[k].set(corner);
     }
     face_shares_at()?;
-    GROUND_WORK.face_under_point_done.set(1);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .face_under_point_done
+        .set(1);
     plane_height();
     Ok(true)
 }
@@ -167,15 +258,30 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
 /// `search_record_faces`' refusal, worked out without writing.
 pub fn record_refusal(record: u32) -> Option<&'static str> {
     {
-        if let Err(e) = ground_search::check_record(record, COURSE.course_record_count.get()) {
+        if let Err(e) = ground_search::check_record(
+            record,
+            crate::race::owner::race()
+                .course
+                .course
+                .course_record_count
+                .get(),
+        ) {
             return Some(e.0);
         }
         let Ok((first, last)) = record_faces(record) else {
             return Some("a course record outside every allocation");
         };
-        ground_search::check_record_faces(first, last, COURSE.course_face_count.get())
-            .err()
-            .map(|e| e.0)
+        ground_search::check_record_faces(
+            first,
+            last,
+            crate::race::owner::race()
+                .course
+                .course
+                .course_face_count
+                .get(),
+        )
+        .err()
+        .map(|e| e.0)
     }
 }
 
@@ -207,8 +313,21 @@ pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
 /// below the count) `face_under_point` on it inside `pusha`/`popa`. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
 pub fn try_last_face_at() -> Result<bool, Refused> {
-    let last = COURSE.ground_face_last.get();
-    if ground_search::last_face(last, COURSE.course_face_count.get()).is_none() {
+    let last = crate::race::owner::race()
+        .course
+        .course
+        .ground_face_last
+        .get();
+    if ground_search::last_face(
+        last,
+        crate::race::owner::race()
+            .course
+            .course
+            .course_face_count
+            .get(),
+    )
+    .is_none()
+    {
         return Ok(false);
     }
     face_under_point_at(last)
@@ -221,10 +340,25 @@ pub fn try_last_face_at() -> Result<bool, Refused> {
 pub fn ground_search_at() -> Result<bool, Refused> {
     let found = ground_search::ground_search(
         try_last_face_at,
-        || COURSE.ground_slot.set(ground_search::NO_FACE),
-        || (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get()),
+        || {
+            crate::race::owner::race()
+                .course
+                .course
+                .ground_slot
+                .set(ground_search::NO_FACE);
+        },
+        || {
+            (
+                crate::race::owner::race().physics.ground.ground_x.get(),
+                crate::race::owner::race().physics.ground.ground_z.get(),
+            )
+        },
         search_cell_at,
     )?;
-    GROUND_WORK.ground_found.set(u32::from(found));
+    crate::race::owner::race()
+        .physics
+        .ground
+        .ground_found
+        .set(u32::from(found));
     Ok(found)
 }

@@ -23,7 +23,6 @@ use crate::files::handle;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
 /// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
@@ -96,7 +95,11 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 .get(),
         );
     };
-    REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .file_offset
+        .set(HEADER_LEN); // the new file's length so far
     if !handle::write_slice(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .to_file
@@ -134,7 +137,13 @@ fn save(slot: u32) -> Result<bool, Refused> {
             &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
             2 * block as usize,
         )
-        .set(REPLAY_VIEW.file_offset.get());
+        .set(
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .file_offset
+                .get(),
+        );
         let (written, failed) = crate::race::replay::write_replay_chunk(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .to_file
@@ -149,9 +158,18 @@ fn save(slot: u32) -> Result<bool, Refused> {
             2 * block as usize + 1,
         )
         .set(written);
-        REPLAY_VIEW
+        crate::race::owner::race()
+            .replay
+            .replay_view
             .file_offset
-            .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
+            .set(next_offset(
+                crate::race::owner::race()
+                    .replay
+                    .replay_view
+                    .file_offset
+                    .get(),
+                written,
+            ));
         block += 1;
         if block == REPLAY_FILE.index_block_count.get() {
             break;

@@ -21,7 +21,6 @@ use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
 use crate::physics::mark_car_started::mark_car_started;
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::start_go_notice::start_go_notice;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_split::take_split;
@@ -35,7 +34,11 @@ pub fn race_timers() -> Result<(), Refused> {
     PHYSICS.weight.set_bits(1.0f32.to_bits());
     let finished = CAR.finish_flag.get() != 0;
     let factor = if finished {
-        SPLIT_TABLES.timer_factor.bits()
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .timer_factor
+            .bits()
     } else {
         0
     };

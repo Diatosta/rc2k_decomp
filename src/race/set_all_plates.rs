@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
@@ -34,9 +33,14 @@ pub fn set_all_plates() -> Result<(), Refused> {
     for (kind, dwords) in PREF_PIECES {
         // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
         // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
-        let from = GamePtr::to(&STAGE_PREFS.picture_lists_a)
-            .unbounded()
-            .offset(4 * kind as u32);
+        let from = GamePtr::to(
+            &crate::race::owner::race()
+                .course
+                .stage_prefs
+                .picture_lists_a,
+        )
+        .unbounded()
+        .offset(4 * kind as u32);
         let to = pictures.offset(4 * kind as u32);
         from.copy_to(to, 4 * dwords, "the picture lists")?;
     }

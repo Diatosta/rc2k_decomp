@@ -19,12 +19,9 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_to_int, int_80};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::matrices_store::MATRICES;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -35,7 +32,7 @@ use rc2k_core::physics::contacts;
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
 pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
-    let number = CONTACT_WORK.face_object.get();
+    let number = crate::race::owner::race().physics.contact.face_object.get();
     contacts::check_object(number)?;
     { object_turn_matrix() }?;
     PHYSICS.object_hits.set(
@@ -50,7 +47,7 @@ pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
     let points = if count == 0 {
         0
     } else {
-        COURSE_LISTS.object_points.get()
+        crate::race::owner::race().course.lists.object_points.get()
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
@@ -74,9 +71,13 @@ pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
                     return false;
                 }
             };
-            let turned = rotate_point(&MATRICES.object_turn_matrix, [x, y, z]);
+            let turned = rotate_point(
+                &crate::race::owner::race().frame.matrices.object_turn_matrix,
+                [x, y, z],
+            );
             for (k, e) in turned.iter().enumerate() {
-                CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
+                crate::race::owner::race().physics.contact.object_offset[k]
+                    .set(ext_to_int(*e) as u32);
             }
             // `point` is the scene point's number (from `face_contact`).
             let place = match crate::race::scene_points::point_number(point) {

@@ -11,7 +11,7 @@
 //! table.
 
 use crate::errors::BadInput;
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
@@ -28,9 +28,14 @@ pub fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Result<()
         return Ok(());
     };
     load(wanted, slot);
-    FRAME_WORK
-        .kind_textures_done
-        .set_bits(FRAME_WORK.kind_textures_done.bits().wrapping_add(1));
+    race().frame.frame_work.kind_textures_done.set_bits(
+        race()
+            .frame
+            .frame_work
+            .kind_textures_done
+            .bits()
+            .wrapping_add(1),
+    );
     TEXTURE_PLACES.slot_loaded[slot as usize].set(wanted);
     Ok(())
 }

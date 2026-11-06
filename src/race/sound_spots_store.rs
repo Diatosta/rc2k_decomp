@@ -1,5 +1,7 @@
 //! The face-drawing, sound-band and sound-spot part of the race block: the face kind flags, view-window limits, sound tables and scratch, and the 36 sound spots with their count. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -58,8 +60,11 @@ pub struct SoundSpotBlock {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static RACE_SOUND_SPOTS: SoundSpotBlock =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl SoundSpotBlock {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x6D18C8, the first byte of the piece.
 pub const START: usize = 0x6D18C8;
@@ -71,7 +76,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 /// Where IDA 0x6D18C8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&RACE_SOUND_SPOTS))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.sound_spots))
 }
 
 #[cfg(test)]
@@ -81,7 +86,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&RACE_SOUND_SPOTS, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
     }
 
     #[test]

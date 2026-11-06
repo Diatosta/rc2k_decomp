@@ -23,7 +23,6 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
@@ -52,9 +51,13 @@ pub fn steps() -> Result<(), Refused> {
     DRAW.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car() }?;
     { crate::physics::lowest_body_point::lowest_body_point() }?;
-    PHYSICS
-        .clear_place_face
-        .set(CONTACT_WORK.lowest_depth.get());
+    PHYSICS.clear_place_face.set(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .lowest_depth
+            .get(),
+    );
     let found = clear_place::tries(clear_place::first_try(CAR.step_clock.get()), |n| {
         PHYSICS.clear_place_count.set(0);
         let m = clear_place::try_move(n);
@@ -72,14 +75,26 @@ pub fn steps() -> Result<(), Refused> {
         return crate::physics::reset_car::reset_car();
     };
     { crate::physics::lowest_body_point::lowest_body_point() }?;
-    let depth = CONTACT_WORK.lowest_depth.get();
+    let depth = crate::race::owner::race()
+        .physics
+        .contact
+        .lowest_depth
+        .get();
     if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
         CAR.position[1].set(height);
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);
     crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
-    crate::logfile::log_hex8::log_hex8(CONTACT_WORK.lowest_depth.get(), true, 1);
+    crate::logfile::log_hex8::log_hex8(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .lowest_depth
+            .get(),
+        true,
+        1,
+    );
     PHYSICS.clear_place_tries.set(
         crate::physics::tables_store::PHYSICS
             .clear_place_tries

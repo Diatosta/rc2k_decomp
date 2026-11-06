@@ -3,6 +3,8 @@
 //! sounds. Stops before the kind tables (`race::kind_records_store`).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -29,8 +31,11 @@ pub struct ClockTicks {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static CLOCK_TICKS: ClockTicks =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ClockTicks {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5CC198, the first byte of the piece.
 pub const START: usize = 0x5CC198;
@@ -42,7 +47,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ClockTicks>());
 /// Where IDA 0x5CC198 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&CLOCK_TICKS))
+    crate::pointers::game_address(std::ptr::from_ref(&race().frame.clock_ticks))
 }
 
 #[cfg(test)]
@@ -52,7 +57,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&CLOCK_TICKS, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.clock_ticks, START, END);
     }
 
     #[test]

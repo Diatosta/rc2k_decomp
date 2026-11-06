@@ -23,7 +23,6 @@ use crate::race::replay::REPLAYS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
@@ -63,8 +62,16 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     };
     REPLAY_FILE.replay_handle.set(file);
     REPLAY_FILE.replay_open.set(1);
-    REPLAY_VIEW.replay_block.set(0);
-    REPLAY_VIEW.replay_frame.set(0);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_block
+        .set(0);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_frame
+        .set(0);
     // Whether a buffer's read is good (`read_good`), given its first word after.
     let good = |(n, ok): (u32, bool), len: u32, first: fn() -> u32, header: bool| {
         read_good(!ok, n, len, first(), header)

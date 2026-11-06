@@ -59,14 +59,17 @@ pub struct ReplayWork {
     pub camera_last_frame: [Dword; 2],
 }
 
-/// The piece: a field of `race::groups_store::CARS_AND_REPLAY` since 2026-10-29 (it left the race
+/// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = ReplayWork;
     fn deref(&self) -> &ReplayWork {
-        &crate::race::groups_store::CARS_AND_REPLAY.replay_work
+        &crate::race::owner::race()
+            .replay
+            .cars_and_replay
+            .replay_work
     }
 }
 
@@ -83,7 +86,10 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::CARS_AND_REPLAY.replay_work,
+        &crate::race::owner::race()
+            .replay
+            .cars_and_replay
+            .replay_work,
     ))
 }
 

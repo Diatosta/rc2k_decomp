@@ -1,5 +1,7 @@
 //! The scratch point, work vector and kept frame (IDA 0x5C5F48 .. 0x5C5FB8; phase 7, typed): the tangent scratch, the scratch point's three floats, the work vector and its squares (`math::normalise_vector`), and the locked surface's kept pitch and pixels. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -39,8 +41,11 @@ pub struct FrameScratch {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static FRAME_SCRATCH: FrameScratch =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl FrameScratch {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5C5F48, the first byte of the piece.
 pub const START: usize = 0x5C5F48;
@@ -52,7 +57,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameScratch>());
 /// Where IDA 0x5C5F48 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&FRAME_SCRATCH))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.scratch))
 }
 
 #[cfg(test)]
@@ -62,7 +67,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FRAME_SCRATCH, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.scratch, START, END);
     }
 
     #[test]

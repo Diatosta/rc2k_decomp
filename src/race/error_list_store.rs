@@ -3,6 +3,8 @@
 //! dwords after them. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`ERROR_LIST`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -19,8 +21,11 @@ pub struct ErrorList {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static ERROR_LIST: ErrorList =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ErrorList {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x637660, the first byte of the piece.
 pub const START: usize = 0x637660;
@@ -32,7 +37,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ErrorList>());
 /// Where IDA 0x637660 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&ERROR_LIST))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.error_list))
 }
 
 #[cfg(test)]
@@ -42,7 +47,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&ERROR_LIST, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.error_list, START, END);
     }
 
     #[test]

@@ -5,11 +5,7 @@
 //! files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::texts;
@@ -19,7 +15,7 @@ const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
 pub fn number_places() -> [crate::place::Place; 9] {
     use crate::place::Place;
-    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    let p = &crate::race::owner::race().course.level_paths;
     [
         Place::from(&p.edit_path).add(0xD),
         Place::from(&p.cdat_src).add(0xD),
@@ -46,13 +42,23 @@ const TEXTURES: u32 = 0x100;
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
 pub fn allocate_course_memory(list: &[crate::session::Dword; 4]) -> Result<(), Refused> {
-    COURSE_LISTS.first_part.set(FIRST_PART);
-    COURSE_LISTS.course_bytes_total.set(
-        COURSE_LISTS
-            .course_bytes_total
-            .get()
-            .wrapping_add(FIRST_PART + INFO_PART),
-    );
+    crate::race::owner::race()
+        .course
+        .lists
+        .first_part
+        .set(FIRST_PART);
+    crate::race::owner::race()
+        .course
+        .lists
+        .course_bytes_total
+        .set(
+            crate::race::owner::race()
+                .course
+                .lists
+                .course_bytes_total
+                .get()
+                .wrapping_add(FIRST_PART + INFO_PART),
+        );
     // Counted whole, as the original's one block; the info part is Rust's own store
     // (`race::course_places::INFO`), named by its place.
     let memory = take_course_memory(
@@ -60,8 +66,14 @@ pub fn allocate_course_memory(list: &[crate::session::Dword; 4]) -> Result<(), R
         FIRST_PART + INFO_PART,
         FIRST_PART,
     )?;
-    COURSE_LISTS.course_memory.set(memory);
-    COURSE_LISTS
+    crate::race::owner::race()
+        .course
+        .lists
+        .course_memory
+        .set(memory);
+    crate::race::owner::race()
+        .course
+        .lists
         .course_info
         .set(crate::race::course_places::take_info(INFO_PART)?);
     Ok(())
@@ -129,7 +141,7 @@ pub fn copy_texture_info_tail() -> Result<(), BadInput> {
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
 pub fn load_texture_info() -> Result<(), Refused> {
-    let info = COURSE_LISTS.course_info.get();
+    let info = crate::race::owner::race().course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
@@ -178,7 +190,7 @@ pub fn load_error_list() -> Result<(), Refused> {
         crate::scene::owner::scene()
             .file_numbers
             .text_ptr(texts::ERROR_LIST_PATH),
-        &crate::race::error_list_store::ERROR_LIST.list,
+        &crate::race::owner::race().frame.error_list.list,
     )?;
     Ok(())
 }
@@ -191,19 +203,22 @@ pub fn load_error_list() -> Result<(), Refused> {
 /// the info.
 pub fn build_texture_infos() -> Result<(), Refused> {
     {
-        let info = COURSE_LISTS.course_info.get();
+        let info = crate::race::owner::race().course.lists.course_info.get();
         if info == 0 {
             return Ok(());
         }
         for n in 0..TEXTURES {
-            if STAGE_PREFS.texture_kinds[n as usize].get() >= INFO_PART / 0x80 {
+            if crate::race::owner::race().course.stage_prefs.texture_kinds[n as usize].get()
+                >= INFO_PART / 0x80
+            {
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
             let out = &crate::scene::polygon_store::POLYGON_WORK.texture_infos[n as usize].words;
-            let kind = STAGE_PREFS.texture_kinds[n as usize].get();
+            let kind =
+                crate::race::owner::race().course.stage_prefs.texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();
             use crate::race::course_places::info_field as field;
@@ -232,8 +247,16 @@ pub fn build_texture_infos() -> Result<(), Refused> {
 
 /// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
 pub fn reset_refresh() {
-    LEVEL_GRID.grid_x.set(0x8000_0000);
-    LEVEL_GRID.grid_z.set(0x8000_0000);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_x
+        .set(0x8000_0000);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_z
+        .set(0x8000_0000);
 }
 
 /// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is
@@ -247,7 +270,11 @@ pub fn init_checkpoints() -> Result<(), Refused> {
     {
         let kinds = RACE_VARS.checkpoint_count.get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
-            SPLIT_TABLES.split_colour_count.set(0);
+            crate::race::owner::race()
+                .physics
+                .split_tables
+                .split_colour_count
+                .set(0);
             return Ok(());
         }
         let end = RACE_VARS.last_checkpoint.get();
@@ -267,13 +294,25 @@ pub fn init_checkpoints() -> Result<(), Refused> {
             )) != 0
         })?;
         trap.finish()?;
-        SPLIT_TABLES.split_colour_count.set(0);
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .split_colour_count
+            .set(0);
         // By address: the list runs on past its 0x101 entries as the original's does.
-        let list = &SPLIT_TABLES.checkpoints;
+        let list = &crate::race::owner::race().physics.split_tables.checkpoints;
         for (k, &n) in listed.iter().enumerate() {
-            crate::session::write_on_in(&SPLIT_TABLES, list, k, n, "a course variable")?;
+            crate::session::write_on_in(
+                &crate::race::owner::race().physics.split_tables,
+                list,
+                k,
+                n,
+                "a course variable",
+            )?;
         }
-        SPLIT_TABLES
+        crate::race::owner::race()
+            .physics
+            .split_tables
             .split_colour_count
             .set((listed.len() as u32).wrapping_sub(1));
     }

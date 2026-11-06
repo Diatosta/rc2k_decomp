@@ -117,8 +117,11 @@ pub struct GroundWork {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static GROUND_WORK: GroundWork =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl GroundWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x63967C, the first byte of the piece.
 pub const START: usize = 0x63967C;
@@ -130,7 +133,9 @@ const _: () = assert!(END - START == core::mem::size_of::<GroundWork>());
 /// Where IDA 0x63967C is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&GROUND_WORK))
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::race::owner::race().physics.ground,
+    ))
 }
 
 #[cfg(test)]
@@ -140,7 +145,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&GROUND_WORK, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().physics.ground,
+            START,
+            END,
+        );
     }
 
     #[test]

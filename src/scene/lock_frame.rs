@@ -10,7 +10,7 @@
 //! maps them.
 
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::owner::race;
 
 /// The back surface locked; its pixels and `dword_4F4984` kept for the drawing. Returns
 /// `g_surfaceLocked` after the lock (the original leaves the flags of comparing it with
@@ -18,11 +18,13 @@ use crate::race::scratch_store::FRAME_SCRATCH;
 pub fn lock_frame() -> (u32, u32) {
     let locked = crate::platform::lock_surface();
     {
-        FRAME_SCRATCH
+        race()
+            .frame
+            .scratch
             .frame_pixels
             .set(DRAW_SURFACE.present_pixels.get());
         let kept: u32 = DRAW_SURFACE.present_pitch.get();
-        FRAME_SCRATCH.frame_pitch.set(kept);
+        race().frame.scratch.frame_pitch.set(kept);
         (locked, kept)
     }
 }

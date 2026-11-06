@@ -19,8 +19,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::{CAR, Car};
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::session::{Dword, Float};
@@ -48,21 +46,27 @@ fn turn_speed(block: &Car) {
 
 fn steps(other_car: u32) -> Result<(), Refused> {
     for k in 0..3 {
-        CONTACT_WORK.contact_point[k].set_bits(loaded(CONTACT_WORK.corner_turned[k].bits()));
+        crate::race::owner::race().physics.contact.contact_point[k].set_bits(loaded(
+            crate::race::owner::race().physics.contact.corner_turned[k].bits(),
+        ));
     }
-    let zero = NUMBERS.zero.bits();
+    let zero = crate::race::owner::race().course.numbers.zero.bits();
     let note = [
         RACE_WORK.current_car.get(),
-        CONTACT_WORK.other_car_number.get(),
-        CONTACT_WORK.corner_in[0].bits(),
+        crate::race::owner::race()
+            .physics
+            .contact
+            .other_car_number
+            .get(),
+        crate::race::owner::race().physics.contact.corner_in[0].bits(),
         zero,
-        CONTACT_WORK.corner_in[2].bits(),
-        CONTACT_WORK.contact_point[0].bits(),
+        crate::race::owner::race().physics.contact.corner_in[2].bits(),
+        crate::race::owner::race().physics.contact.contact_point[0].bits(),
         zero,
-        CONTACT_WORK.contact_point[2].bits(),
+        crate::race::owner::race().physics.contact.contact_point[2].bits(),
     ];
     for (k, v) in note.iter().enumerate() {
-        CONTACT_WORK.bump_note[k].set(*v);
+        crate::race::owner::race().physics.contact.bump_note[k].set(*v);
     }
     for v in &PHYSICS.contacts[6].force {
         v.set_bits(0);
@@ -71,17 +75,41 @@ fn steps(other_car: u32) -> Result<(), Refused> {
     let other_car = crate::race::trap::car_at(other_car)?;
     other_car.contact_flag.set(1);
     relative_speed(&other_car.velocity);
-    CONTACT_WORK.bump_speed_length.set_bits(rounded({
-        vector_length(&CONTACT_WORK.bump_relative_speed)
-    }));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .bump_speed_length
+        .set_bits(rounded({
+            vector_length(
+                &crate::race::owner::race()
+                    .physics
+                    .contact
+                    .bump_relative_speed,
+            )
+        }));
     // The car `dword_6D3BB8` names (the same as `other_car` in play).
-    let met_car = Car::at(CONTACT_WORK.other_car_block.get());
+    let met_car = Car::at(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .other_car_block
+            .get(),
+    );
     share_out_speeds(&met_car.velocity);
     // 0x45F98C: pushed apart by the places' difference.
-    let other = Car::at(CONTACT_WORK.other_car_block.get());
+    let other = Car::at(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .other_car_block
+            .get(),
+    );
     push_apart(&other.position);
-    let factor = extended(NUMBERS.three.bits());
-    scale_vector(&CONTACT_WORK.bump_push, factor);
+    let factor = extended(crate::race::owner::race().course.numbers.three.bits());
+    scale_vector(
+        &crate::race::owner::race().physics.contact.bump_push,
+        factor,
+    );
     DRAW.scratch.set(rounded(factor));
     add_push(&other.velocity);
     turn_speed(met_car);
@@ -92,7 +120,14 @@ fn steps(other_car: u32) -> Result<(), Refused> {
 
 /// The Rust version: `other_car` the other car's block (an address in the game's memory).
 pub fn bump_cars(other_car: u32) -> Result<(), Refused> {
-    if other_car == 0 || CONTACT_WORK.other_car_block.get() == 0 {
+    if other_car == 0
+        || crate::race::owner::race()
+            .physics
+            .contact
+            .other_car_block
+            .get()
+            == 0
+    {
         return Err(BadInput("a null car block").into());
     }
     steps(other_car)
@@ -108,7 +143,11 @@ fn relative_speed(d: &[Float; 3]) {
         let t0 = ld(CAR.velocity[k].bits());
         let t1 = ld(other.bits());
         let t2 = t0 - t1;
-        CONTACT_WORK.bump_relative_speed[k].set_bits(st(t2));
+        crate::race::owner::race()
+            .physics
+            .contact
+            .bump_relative_speed[k]
+            .set_bits(st(t2));
     }
 }
 
@@ -119,17 +158,33 @@ fn relative_speed(d: &[Float; 3]) {
 fn share_out_speeds(s: &[Float; 3]) {
     for (k, other) in s.iter().enumerate() {
         let t0 = ld(CAR.velocity[k].bits());
-        let t1 = ld(CONTACT_WORK.bump_share_b.bits());
+        let t1 = ld(crate::race::owner::race()
+            .physics
+            .contact
+            .bump_share_b
+            .bits());
         let t2 = t0 * t1;
         let t3 = ld(other.bits());
-        let t4 = ld(CONTACT_WORK.bump_share_a.bits());
+        let t4 = ld(crate::race::owner::race()
+            .physics
+            .contact
+            .bump_share_a
+            .bits());
         let t5 = t3 * t4;
         let t6 = t2 + t5;
         let t7 = ld(CAR.velocity[k].bits());
-        let t8 = ld(CONTACT_WORK.bump_share_a.bits());
+        let t8 = ld(crate::race::owner::race()
+            .physics
+            .contact
+            .bump_share_a
+            .bits());
         let t9 = t7 * t8;
         let t10 = ld(other.bits());
-        let t11 = ld(CONTACT_WORK.bump_share_b.bits());
+        let t11 = ld(crate::race::owner::race()
+            .physics
+            .contact
+            .bump_share_b
+            .bits());
         let t12 = t10 * t11;
         let t13 = t9 + t12;
         CAR.velocity[k].set_bits(st(t13));
@@ -146,11 +201,15 @@ fn push_apart(d: &[Dword; 3]) {
         let t0 = int(CAR.position[k].bits() as i32);
         let t1 = int(other.bits() as i32);
         let t2 = t0 - t1;
-        let t3 = ld(NUMBERS.k65536.bits());
+        let t3 = ld(crate::race::owner::race().course.numbers.k65536.bits());
         let t4 = t2 / t3;
-        let t5 = ld(CONTACT_WORK.bump_push_scale.bits());
+        let t5 = ld(crate::race::owner::race()
+            .physics
+            .contact
+            .bump_push_scale
+            .bits());
         let t6 = t4 * t5;
-        CONTACT_WORK.bump_push[k].set_bits(st(t6));
+        crate::race::owner::race().physics.contact.bump_push[k].set_bits(st(t6));
     }
 }
 
@@ -160,13 +219,13 @@ fn push_apart(d: &[Dword; 3]) {
 fn add_push(d: &[Float; 3]) {
     for k in 0..3 {
         let t0 = ld(CAR.velocity[k].bits());
-        let t1 = ld(CONTACT_WORK.bump_push[k].bits());
+        let t1 = ld(crate::race::owner::race().physics.contact.bump_push[k].bits());
         let t2 = t0 + t1;
         CAR.velocity[k].set_bits(st(t2));
     }
     for (k, other) in d.iter().enumerate() {
         let t9 = ld(other.bits());
-        let t10 = ld(CONTACT_WORK.bump_push[k].bits());
+        let t10 = ld(crate::race::owner::race().physics.contact.bump_push[k].bits());
         let t11 = t9 - t10;
         other.set_bits(st(t11));
     }

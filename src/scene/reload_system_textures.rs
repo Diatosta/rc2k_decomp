@@ -22,7 +22,6 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
@@ -70,8 +69,16 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
     }
     let size = [
-        STAGE_PREFS.scene_size_a.get(),
-        STAGE_PREFS.scene_size_b.get(),
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .scene_size_a
+            .get(),
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .scene_size_b
+            .get(),
     ];
     for texture in 0..textures {
         crate::gfx::owner::gfx().grading.reading.set(1u32);

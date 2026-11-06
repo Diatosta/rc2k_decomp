@@ -3,7 +3,6 @@
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;
-use crate::race::seal_store::SEAL_WORK;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
@@ -44,7 +43,7 @@ pub fn seal_block() {
             permutation: &PERMUTATION,
             last: &LAST,
         };
-        let w = &SEAL_WORK;
+        let w = &crate::race::owner::race().replay.seal_work;
         let sealed = rc2k_core::race::seal::seal_block(
             [w.key[0].get(), w.key[1].get()],
             [w.block[0].get(), w.block[1].get()],

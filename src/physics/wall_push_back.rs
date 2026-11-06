@@ -18,31 +18,49 @@ use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::scratch_store::FRAME_SCRATCH;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
 pub fn steps() -> Result<(), Refused> {
-    let work = &FRAME_SCRATCH.work_vector;
+    let work = &crate::race::owner::race().frame.scratch.work_vector;
     copy_cells(work, &CAR.velocity);
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(vector_length(&work), NUMBERS.zero.bits()) & 0x4000 != 0 {
+    if compare_80(
+        vector_length(&work),
+        crate::race::owner::race().course.numbers.zero.bits(),
+    ) & 0x4000
+        != 0
+    {
         fill_cells(work, 0);
     }
     normalise_work_vector();
-    copy_cells(&CONTACT_WORK.contact_normal, work);
-    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
-    fill_cells(&CONTACT_WORK.contact_point, 0);
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    copy_cells(
+        &crate::race::owner::race().physics.contact.contact_normal,
+        work,
+    );
+    copy_cells(
+        &crate::race::owner::race().physics.contact.contact_car_speed,
+        &CAR.velocity,
+    );
+    copy_cells(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_speed,
+        &CAR.spin,
+    );
+    fill_cells(&crate::race::owner::race().physics.contact.contact_point, 0);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit
+        .set_bits(0);
     contact_force(&PHYSICS.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);

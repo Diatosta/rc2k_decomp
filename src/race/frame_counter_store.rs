@@ -2,6 +2,8 @@
 //! (`race::draw_frame_rate`; `settings::read_settings` names it by address, by design).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -16,8 +18,11 @@ pub struct FrameCounter {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static FRAME_COUNTER: FrameCounter =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl FrameCounter {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5EB100, the first byte of the piece.
 pub const START: usize = 0x5EB100;
@@ -29,7 +34,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameCounter>());
 /// Where IDA 0x5EB100 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&FRAME_COUNTER))
+    crate::pointers::game_address(std::ptr::from_ref(&race().frame.counter))
 }
 
 #[cfg(test)]
@@ -39,7 +44,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FRAME_COUNTER, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.counter, START, END);
     }
 
     #[test]

@@ -15,7 +15,7 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{below_or_unordered, c0};
-use crate::physics::store::{DAMAGE, DamageModel};
+use crate::physics::store::DamageModel;
 use crate::race::work_store::RACE_WORK;
 use crate::session::{Cell32, Float};
 
@@ -32,11 +32,21 @@ fn gear_gauge(gear: u32) -> &'static Float {
 fn hold_at(at: &Float) {
     let rd = || at.bits();
     let put = |v: u32| at.set_bits(v);
-    if c0(rd(), DAMAGE.gauge_low.bits()) {
-        put(loaded(DAMAGE.gauge_low.bits()));
+    if c0(
+        rd(),
+        crate::race::owner::race().physics.damage.gauge_low.bits(),
+    ) {
+        put(loaded(
+            crate::race::owner::race().physics.damage.gauge_low.bits(),
+        ));
     }
-    if !c0(rd(), DAMAGE.gauge_top.bits()) {
-        put(loaded(DAMAGE.gauge_top.bits()));
+    if !c0(
+        rd(),
+        crate::race::owner::race().physics.damage.gauge_top.bits(),
+    ) {
+        put(loaded(
+            crate::race::owner::race().physics.damage.gauge_top.bits(),
+        ));
     }
 }
 
@@ -44,73 +54,124 @@ fn hold_at(at: &Float) {
 /// figures, then held 0 ..= `gauge_top`.
 pub fn steps() {
     raise(&CAR.engine_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[0], &DAMAGE.flt_75b38c, g, g);
-    });
-    raise(&CAR.exhaust_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[1], &DAMAGE.flt_75b38c, g, g);
-    });
-    raise(&CAR.cooling_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[2], &DAMAGE.flt_75b38c, g, g);
-    });
-    raise(&CAR.clutch_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[3], &DAMAGE.flt_75b38c, g, g);
-    });
-    raise(&CAR.differential_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[4], &DAMAGE.flt_75b38c, g, g);
-    });
-    raise(&CAR.electrics_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[5], &DAMAGE.flt_75b38c, g, g);
-    });
-    for k in 0..6 {
-        raise(&CAR.light_damage[k], |g| {
-            add_product(&DAMAGE.gauge_rates[6], &DAMAGE.flt_75b38c, g, g);
-        });
-    }
-    raise(&CAR.steering_damage, |g| {
-        add_product(&DAMAGE.gauge_rates[7], &DAMAGE.flt_75b38c, g, g);
-    });
-    for k in 0..4 {
-        raise(&CAR.suspension_damage[k], |g| {
-            add_product(&DAMAGE.gauge_rates[8], &DAMAGE.flt_75b38c, g, g);
-        });
-    }
-    raise(&CAR.turbo_damage, |g| {
-        add_scaled_triple(
-            &DAMAGE,
-            &DAMAGE.wear_rates[11],
-            &DAMAGE.flt_75b3c0,
-            &DAMAGE.engine_speed_share,
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[0],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
             g,
             g,
         );
     });
-    let gear = DAMAGE.dword_75b3bc.bits();
+    raise(&CAR.exhaust_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[1],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&CAR.cooling_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[2],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&CAR.clutch_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[3],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&CAR.differential_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[4],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    raise(&CAR.electrics_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[5],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    for k in 0..6 {
+        raise(&CAR.light_damage[k], |g| {
+            add_product(
+                &crate::race::owner::race().physics.damage.gauge_rates[6],
+                &crate::race::owner::race().physics.damage.flt_75b38c,
+                g,
+                g,
+            );
+        });
+    }
+    raise(&CAR.steering_damage, |g| {
+        add_product(
+            &crate::race::owner::race().physics.damage.gauge_rates[7],
+            &crate::race::owner::race().physics.damage.flt_75b38c,
+            g,
+            g,
+        );
+    });
+    for k in 0..4 {
+        raise(&CAR.suspension_damage[k], |g| {
+            add_product(
+                &crate::race::owner::race().physics.damage.gauge_rates[8],
+                &crate::race::owner::race().physics.damage.flt_75b38c,
+                g,
+                g,
+            );
+        });
+    }
+    raise(&CAR.turbo_damage, |g| {
+        add_scaled_triple(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[11],
+            &crate::race::owner::race().physics.damage.flt_75b3c0,
+            &crate::race::owner::race().physics.damage.engine_speed_share,
+            g,
+            g,
+        );
+    });
+    let gear = crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3bc
+        .bits();
     let gauge = gear_gauge(gear);
-    let factor = DAMAGE
+    let factor = crate::race::owner::race()
+        .physics
+        .damage
         .gear_factors
         .get(gear.wrapping_add(1) as usize)
         .unwrap_or_else(|| {
             crate::fatal::raise::end("a gear's factor", BadInput("the gear is not -1 .. 7"))
         });
-    gear_wear_from_speed(&DAMAGE, factor, gauge);
+    gear_wear_from_speed(&crate::race::owner::race().physics.damage, factor, gauge);
     hold_at(gauge);
-    brake_wear_step(&DAMAGE);
+    brake_wear_step(&crate::race::owner::race().physics.damage);
     hold_at(&CAR.brake_wear_a);
     raise(&CAR.brake_wear_b, |g| {
         add_scaled_triple(
-            &DAMAGE,
-            &DAMAGE.gauge_rates[9],
-            &DAMAGE.flt_75b43c,
-            &DAMAGE.brake_share,
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.gauge_rates[9],
+            &crate::race::owner::race().physics.damage.flt_75b43c,
+            &crate::race::owner::race().physics.damage.brake_share,
             g,
             g,
         );
     });
     raise(&CAR.electrics_damage, |g| {
         add_triple_product(
-            &DAMAGE.gauge_rates[10],
-            &DAMAGE.flt_75b3b4,
-            &DAMAGE.flt_75b38c,
+            &crate::race::owner::race().physics.damage.gauge_rates[10],
+            &crate::race::owner::race().physics.damage.flt_75b3b4,
+            &crate::race::owner::race().physics.damage.flt_75b38c,
             g,
             g,
         );
@@ -118,32 +179,32 @@ pub fn steps() {
     for k in 0..6 {
         raise(&CAR.light_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.gauge_rates[11],
-                &DAMAGE.flt_75b3b4,
-                &DAMAGE.flt_75b38c,
+                &crate::race::owner::race().physics.damage.gauge_rates[11],
+                &crate::race::owner::race().physics.damage.flt_75b3b4,
+                &crate::race::owner::race().physics.damage.flt_75b38c,
                 g,
                 g,
             );
         });
     }
-    part_hit_figures(&DAMAGE);
-    let part = DAMAGE.flt_75b3e4.bits();
+    part_hit_figures(&crate::race::owner::race().physics.damage);
+    let part = crate::race::owner::race().physics.damage.flt_75b3e4.bits();
     let kind = |table: &'static [Float; 2]| {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
         })
     };
     scale_part_hit_figures(
-        &DAMAGE,
-        kind(&DAMAGE.kind_table_a),
-        kind(&DAMAGE.kind_table_b),
+        &crate::race::owner::race().physics.damage,
+        kind(&crate::race::owner::race().physics.damage.kind_table_a),
+        kind(&crate::race::owner::race().physics.damage.kind_table_b),
     );
     for k in 0..2 {
         raise(&CAR.part_hit_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.flt_75b46c,
-                &DAMAGE.flt_75b488,
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b46c,
+                &crate::race::owner::race().physics.damage.flt_75b488,
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -152,9 +213,9 @@ pub fn steps() {
     for k in 2..4 {
         raise(&CAR.part_hit_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.flt_75b470,
-                &DAMAGE.flt_75b48c,
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b470,
+                &crate::race::owner::race().physics.damage.flt_75b48c,
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -162,57 +223,98 @@ pub fn steps() {
     }
     raise(&CAR.engine_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b45c,
-            &DAMAGE.gauge_rates[13],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b45c,
+            &crate::race::owner::race().physics.damage.gauge_rates[13],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.cooling_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b45c,
-            &DAMAGE.gauge_rates[12],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b45c,
+            &crate::race::owner::race().physics.damage.gauge_rates[12],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
-    if !below_or_unordered(DAMAGE.flt_75b464.bits(), DAMAGE.gauge_low.bits()) {
-        engine_damage_carry(&DAMAGE);
+    if !below_or_unordered(
+        crate::race::owner::race().physics.damage.flt_75b464.bits(),
+        crate::race::owner::race().physics.damage.gauge_low.bits(),
+    ) {
+        engine_damage_carry(&crate::race::owner::race().physics.damage);
         hold_at(&CAR.engine_damage);
         raise(&CAR.cooling_damage, |g| {
             add_triple_product(
-                &DAMAGE.flt_75b464,
-                &DAMAGE.gauge_rates[15],
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b464,
+                &crate::race::owner::race().physics.damage.gauge_rates[15],
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
         });
     }
-    if DAMAGE.dword_75b3b8.bits() == 0x1 {
-        add_rate_to_clutch(&DAMAGE.gauge_rates[16]);
+    if crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3b8
+        .bits()
+        == 0x1
+    {
+        add_rate_to_clutch(&crate::race::owner::race().physics.damage.gauge_rates[16]);
     }
-    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
-        add_rate_to_clutch(&DAMAGE.gauge_rates[17]);
+    if crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3b8
+        .bits()
+        == 0xFFFFFFFF
+    {
+        add_rate_to_clutch(&crate::race::owner::race().physics.damage.gauge_rates[17]);
     }
-    let gear = DAMAGE.dword_75b3bc.bits();
-    if DAMAGE.dword_75b3b8.bits() == 0x1 {
+    let gear = crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3bc
+        .bits();
+    if crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3b8
+        .bits()
+        == 0x1
+    {
         let gauge = gear_gauge(gear);
-        add_rate_to_gauge(gauge, &DAMAGE.gauge_rates[18]);
+        add_rate_to_gauge(
+            gauge,
+            &crate::race::owner::race().physics.damage.gauge_rates[18],
+        );
     }
-    let gear = DAMAGE.dword_75b3bc.bits();
-    if DAMAGE.dword_75b3b8.bits() == 0xFFFFFFFF {
+    let gear = crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3bc
+        .bits();
+    if crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3b8
+        .bits()
+        == 0xFFFFFFFF
+    {
         let gauge = gear_gauge(gear);
-        add_rate_to_gauge(gauge, &DAMAGE.gauge_rates[19]);
+        add_rate_to_gauge(
+            gauge,
+            &crate::race::owner::race().physics.damage.gauge_rates[19],
+        );
     }
     for k in 0..4 {
         raise(&CAR.wheel_hit_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.flt_75b450,
-                &DAMAGE.flt_75b670,
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b450,
+                &crate::race::owner::race().physics.damage.flt_75b670,
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -221,9 +323,9 @@ pub fn steps() {
     for k in 0..4 {
         raise(&CAR.suspension_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.flt_75b458,
-                &DAMAGE.figures[0],
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b458,
+                &crate::race::owner::race().physics.damage.figures[0],
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -231,45 +333,45 @@ pub fn steps() {
     }
     raise(&CAR.body_hit_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[1],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[1],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.steering_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[2],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[2],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.engine_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[3],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[3],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.exhaust_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[4],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[4],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.gear_wear[0], |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[5],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[5],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
@@ -277,9 +379,9 @@ pub fn steps() {
     for k in 2..9 {
         raise(&CAR.gear_wear[k], |g| {
             add_triple_product(
-                &DAMAGE.flt_75b454,
-                &DAMAGE.figures[5],
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.flt_75b454,
+                &crate::race::owner::race().physics.damage.figures[5],
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -287,27 +389,38 @@ pub fn steps() {
     }
     raise(&CAR.differential_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b454,
-            &DAMAGE.figures[6],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b454,
+            &crate::race::owner::race().physics.damage.figures[6],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
-    if !below_or_unordered(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[23].bits()) {
+    if !below_or_unordered(
+        crate::race::owner::race().physics.damage.flt_75b3c8.bits(),
+        crate::race::owner::race().physics.damage.gauge_rates[23].bits(),
+    ) {
         raise(&CAR.body_hit_damage, |g| {
-            add_product(&DAMAGE.flt_75b3c8, &DAMAGE.figures[13], g, g);
+            add_product(
+                &crate::race::owner::race().physics.damage.flt_75b3c8,
+                &crate::race::owner::race().physics.damage.figures[13],
+                g,
+                g,
+            );
         });
     }
-    if !below_or_unordered(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[22].bits()) {
+    if !below_or_unordered(
+        crate::race::owner::race().physics.damage.flt_75b3c8.bits(),
+        crate::race::owner::race().physics.damage.gauge_rates[22].bits(),
+    ) {
         side_hit_wear();
     }
     for k in 0..4 {
         raise(&CAR.suspension_damage[k], |g| {
             add_triple_product(
-                &DAMAGE.wheel_loads[k],
-                &DAMAGE.figures[14],
-                &DAMAGE.flt_75b370,
+                &crate::race::owner::race().physics.damage.wheel_loads[k],
+                &crate::race::owner::race().physics.damage.figures[14],
+                &crate::race::owner::race().physics.damage.flt_75b370,
                 g,
                 g,
             );
@@ -315,24 +428,24 @@ pub fn steps() {
     }
     raise(&CAR.exhaust_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b3dc,
-            &DAMAGE.figures[15],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b3dc,
+            &crate::race::owner::race().physics.damage.figures[15],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
     raise(&CAR.steering_damage, |g| {
         add_triple_product(
-            &DAMAGE.flt_75b3dc,
-            &DAMAGE.figures[16],
-            &DAMAGE.flt_75b370,
+            &crate::race::owner::race().physics.damage.flt_75b3dc,
+            &crate::race::owner::race().physics.damage.figures[16],
+            &crate::race::owner::race().physics.damage.flt_75b370,
             g,
             g,
         );
     });
-    gauge_totals(&DAMAGE);
-    if DAMAGE.flt_75b3e4.bits() == 0 {
+    gauge_totals(&crate::race::owner::race().physics.damage);
+    if crate::race::owner::race().physics.damage.flt_75b3e4.bits() == 0 {
         CAR.turbo_damage.set_bits(0x0);
     }
 }
@@ -340,12 +453,21 @@ pub fn steps() {
 /// A hit big enough to count (its size at least `gauge_rates[22]`) wears the gauges of the
 /// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
 fn side_hit_wear() {
-    scale_hit_size(&DAMAGE);
-    let hit = DAMAGE.dword_75b3c4.bits();
+    scale_hit_size(&crate::race::owner::race().physics.damage);
+    let hit = crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3c4
+        .bits();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
     let wear = |gauge: &Float, figure: usize| {
         raise(gauge, |g| {
-            add_product(&DAMAGE.flt_75b3c8, &DAMAGE.figures[figure], g, g);
+            add_product(
+                &crate::race::owner::race().physics.damage.flt_75b3c8,
+                &crate::race::owner::race().physics.damage.figures[figure],
+                g,
+                g,
+            );
         });
     };
     if let Some(side) = side {
@@ -360,8 +482,14 @@ fn side_hit_wear() {
     for gauge in &CAR.gear_wear {
         wear(gauge, 20);
     }
-    let gauge = gear_gauge(DAMAGE.dword_75b3bc.bits());
-    add_hit_to_gear_gauge(&DAMAGE, gauge);
+    let gauge = gear_gauge(
+        crate::race::owner::race()
+            .physics
+            .damage
+            .dword_75b3bc
+            .bits(),
+    );
+    add_hit_to_gear_gauge(&crate::race::owner::race().physics.damage, gauge);
     hold_at(gauge);
     if let Some(side) = side {
         wear(&CAR.wheel_hit_damage[side], 28);

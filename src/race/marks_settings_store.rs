@@ -3,7 +3,7 @@
 //! and the effects read every frame: a head the race's views and `drive::set_listener` write,
 //! the eight cars' records (`effects::init_mark_step` copies them), and a tail of the
 //! listener's figures and switches. One record in the original, between the replay viewer's
-//! panel and the kind tables (`race::groups_store::VIEWER_AND_KINDS`); typed here as one
+//! panel and the kind tables (`VIEWER_AND_KINDS`); typed here as one
 //! (2026-11-02) after the stores had split it in three. Names are readings unless IDA's.
 
 use crate::session::{Dword, Float};
@@ -207,13 +207,16 @@ pub const END: usize = 0x5C56EC;
 
 const _: () = assert!(END - START == core::mem::size_of::<MarksSettings>());
 
-/// The record: a field of `race::groups_store::VIEWER_AND_KINDS`.
+/// The record: a field of `VIEWER_AND_KINDS`.
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = MarksSettings;
     fn deref(&self) -> &MarksSettings {
-        &crate::race::groups_store::VIEWER_AND_KINDS.marks_settings
+        &crate::race::owner::race()
+            .replay
+            .viewer_and_kinds
+            .marks_settings
     }
 }
 

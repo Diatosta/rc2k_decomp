@@ -26,8 +26,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::car_specs_store::{CAR_SPECS, CarSpec};
-use crate::race::numbers_store::NUMBERS;
+use crate::race::car_specs_store::CarSpec;
 use crate::scene::draw_store::DRAW;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
@@ -43,7 +42,7 @@ fn below(a: u32, b: u32) -> bool {
 
 /// The record of the work car's kind (`record_of` holds it to the last).
 fn record() -> &'static CarSpec {
-    &CAR_SPECS.cars[record_of(CAR.car_kind.get()) as usize]
+    &crate::race::owner::race().physics.car_specs.cars[record_of(CAR.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
@@ -76,13 +75,22 @@ pub fn load_car_specs() -> Result<(), Refused> {
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
     load_figures_and_shift_points(spec);
-    if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
-        CAR.engine_speed_limit
-            .set_bits(x87::loaded(NUMBERS.thousand.bits()));
+    if below(
+        CAR.engine_speed_limit.bits(),
+        crate::race::owner::race().course.numbers.thousand.bits(),
+    ) {
+        CAR.engine_speed_limit.set_bits(x87::loaded(
+            crate::race::owner::race().course.numbers.thousand.bits(),
+        ));
     }
     for figure in &GEAR.figures {
-        if below(figure.bits(), NUMBERS.eight.bits()) {
-            figure.set_bits(x87::loaded(NUMBERS.eight.bits()));
+        if below(
+            figure.bits(),
+            crate::race::owner::race().course.numbers.eight.bits(),
+        ) {
+            figure.set_bits(x87::loaded(
+                crate::race::owner::race().course.numbers.eight.bits(),
+            ));
         }
     }
     words(spec);
@@ -139,11 +147,11 @@ fn load_figures_and_shift_points(s: &CarSpec) {
     let t8 = t6 * t7;
     GEAR.shift_ratio_figure.set_bits(st(t8));
     let t9 = ld(s.shift_points[1].bits());
-    let t10 = ld(NUMBERS.tenths[0].bits());
+    let t10 = ld(crate::race::owner::race().course.numbers.tenths[0].bits());
     let t11 = t9 + t10;
     GEAR.shift_down_point.set_bits(st(t11));
     let t12 = ld(s.shift_points[2].bits());
-    let t13 = ld(NUMBERS.tenths[0].bits());
+    let t13 = ld(crate::race::owner::race().course.numbers.tenths[0].bits());
     let t14 = t12 + t13;
     GEAR.shift_down_clutch_point.set_bits(st(t14));
     let t15 = int(s.over_top.get() as i32);
@@ -165,21 +173,21 @@ fn load_figures_and_shift_points(s: &CarSpec) {
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 fn scale_record_ratios(s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(NUMBERS.thousand.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t4 = t2 / t3;
     PHYSICS.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(s.whole_figures[1].get() as i32);
-    let t6 = ld(NUMBERS.k65536.bits());
+    let t6 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = ld(NUMBERS.thousand.bits());
+    let t8 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t9 = t7 / t8;
     PHYSICS.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(s.whole_figures[2].get() as i32);
-    let t11 = ld(NUMBERS.k65536.bits());
+    let t11 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = ld(NUMBERS.thousand.bits());
+    let t13 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t14 = t12 / t13;
     PHYSICS.spec_ints[2].set_bits(to_int(t14) as u32);
 }
@@ -191,21 +199,21 @@ fn scale_record_ratios(s: &CarSpec) {
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 fn scale_default_ratios() {
     let t0 = int(PHYSICS.spec_default_bc0[0].bits() as i32);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(NUMBERS.thousand.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t4 = t2 / t3;
     PHYSICS.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(PHYSICS.spec_default_bc0[1].bits() as i32);
-    let t6 = ld(NUMBERS.k65536.bits());
+    let t6 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = ld(NUMBERS.thousand.bits());
+    let t8 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t9 = t7 / t8;
     PHYSICS.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(PHYSICS.spec_default_bc0[2].bits() as i32);
-    let t11 = ld(NUMBERS.k65536.bits());
+    let t11 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = ld(NUMBERS.thousand.bits());
+    let t13 = ld(crate::race::owner::race().course.numbers.thousand.bits());
     let t14 = t12 / t13;
     PHYSICS.spec_ints[2].set_bits(to_int(t14) as u32);
 }
@@ -239,7 +247,7 @@ fn set_rev_limits(k: usize) {
     ][k];
     let t0 = ld(limit.bits());
     PHYSICS.idle_engine_speed.set_bits(st(t0));
-    let t1 = ld(NUMBERS.hundred.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.hundred.bits());
     let t2 = t0 + t1;
     PHYSICS.stall_engine_speed.set_bits(st(t2));
 }

@@ -43,7 +43,7 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::scene::matrix3::extended;
 use crate::session::{Bytes, Float};
 const TRAIL_COLOURS: i32 = 298;
@@ -341,7 +341,7 @@ pub fn run_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
             s & 0xFFFF
         };
         let r = seed();
-        let view = |o: usize| MATRICES.view_place[o / 4].bits();
+        let view = |o: usize| race().frame.matrices.view_place[o / 4].bits();
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(

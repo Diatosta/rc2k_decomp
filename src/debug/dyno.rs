@@ -16,7 +16,6 @@ use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
@@ -116,14 +115,14 @@ fn torque() {
         PHYSICS.engine_force.bits(),
         PHYSICS.engine_torque.bits(),
         CAR.throttle.get() as i32,
-        NUMBERS.k256.bits(),
+        crate::race::owner::race().course.numbers.k256.bits(),
     ));
     let gear = CAR.gear.get() as i32;
     PHYSICS.drive_torque.set_bits(mul_div2(
         PHYSICS.drive_ratio.bits(),
         GEAR.drive_torque_figure.bits(),
         PHYSICS.gear_ratios[(gear + 1) as usize].bits(),
-        NUMBERS.k10000.bits(),
+        crate::race::owner::race().course.numbers.k10000.bits(),
     ));
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);
@@ -161,7 +160,7 @@ fn measure() -> Option<Measured> {
     let down = figure(&GEAR.shift_down_point);
     let air = figure(&PHYSICS.air_drag);
     let rolling = figure(&PHYSICS.rolling_drag);
-    let k = f32::from_bits(NUMBERS.k10000.bits());
+    let k = f32::from_bits(crate::race::owner::race().course.numbers.k10000.bits());
     Some(kept(|| {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];

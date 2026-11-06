@@ -17,7 +17,7 @@ use crate::hud::layout_0::*;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 
 /// A sprite scaled 0xC0 over `flt_75C00C` both ways; the scales then taken off into
 /// `dword_75C060`.
@@ -50,7 +50,10 @@ pub fn layout_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
     // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let [f1, f2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
+    let [f1, f2] = [
+        race().frame.panel_and_overlay.panel.hud_flags[0].get(),
+        race().frame.panel_and_overlay.panel.hud_flags[1].get(),
+    ];
     hud.block.quad[0].set(0xE0);
     hud.block.texture.set(0xC6);
     if f1 & 0x10 != 0 {
@@ -79,18 +82,40 @@ pub fn layout_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     hud.block.texture.set(0xC1);
     if f1 & 0x20 != 0 {
         scaled(hud, 0x49, 7, 0x223)?;
-        scaled(hud, PANEL.view_a.gear.get().wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(
+            hud,
+            race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .view_a
+                .gear
+                .get()
+                .wrapping_add(0x41),
+            0xD,
+            0x22A,
+        )?;
     }
     if f2 & 0x20 != 0 {
         scaled(hud, 0x49, 0x198, 0x223)?;
         scaled(
             hud,
-            PANEL.view_b.gear.get().wrapping_add(0x41),
+            race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .view_b
+                .gear
+                .get()
+                .wrapping_add(0x41),
             0x19E,
             0x22A,
         )?;
     }
-    let p = pick(hud, PANEL.start_values[0].get());
+    let p = pick(
+        hud,
+        race().frame.panel_and_overlay.panel.start_values[0].get(),
+    );
     if f1 & 1 != 0 {
         scaled(hud, p, 0x19, 0x1DE)?;
     }
@@ -98,7 +123,10 @@ pub fn layout_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(hud, 0x5F, 0x116, 0x1DE)?;
     }
-    let p = pick(hud, PANEL.start_values[1].get());
+    let p = pick(
+        hud,
+        race().frame.panel_and_overlay.panel.start_values[1].get(),
+    );
     if f2 & 1 != 0 {
         scaled(hud, p, 0x1AA, 0x1DE)?;
     }
@@ -139,7 +167,7 @@ pub fn layout_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
         ([&hud.block.times[0], &hud.block.times[1]], 2u32),
         ([&hud.block.times[3], &hud.block.times[4]], 0x11),
     ] {
-        if f1 & 0x40 != 0 && PANEL.view_a.back.get() != 0xFFFF_FFFF {
+        if f1 & 0x40 != 0 && race().frame.panel_and_overlay.panel.view_a.back.get() != 0xFFFF_FFFF {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
                 clock_panel(hud, t, xs, y, &mut |r, x, y| plain(hud, r, x, y))?;

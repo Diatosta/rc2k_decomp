@@ -20,9 +20,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 
@@ -40,7 +38,7 @@ fn steps() -> Result<(), Refused> {
         negate(&PHYSICS.camera_frame_limit);
         DRAW.scratch.set(crate::math::next_random::next_random());
         x87_2();
-        if SPLIT_TABLES.still.get() != 0 {
+        if crate::race::owner::race().physics.split_tables.still.get() != 0 {
             LIGHT_STATE.camera_frame_b.set(0);
             LIGHT_STATE.listener_camera.set_bits(0);
         }
@@ -71,11 +69,11 @@ fn x87_1() {
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
 fn x87_2() {
     let t0 = int(DRAW.scratch.bits() as i32);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 / t1;
-    let t3 = ld(NUMBERS.k4096.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.k4096.bits());
     let t4 = t2 / t3;
-    let t5 = ld(NUMBERS.three.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.three.bits());
     let t6 = t4 * t5;
     let t7 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t8 = t6 * t7;

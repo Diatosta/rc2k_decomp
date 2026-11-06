@@ -13,10 +13,9 @@
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
@@ -29,7 +28,7 @@ pub fn place_sound_object() -> Result<(), Refused> {
     }
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
-        CONTACT_WORK.face_object.get(),
+        crate::race::owner::race().physics.contact.face_object.get(),
         |thing| OBJECT_TABLES.object_kind(thing),
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
@@ -41,7 +40,7 @@ pub fn place_sound_object() -> Result<(), Refused> {
                     .ok_or(crate::errors::BadInput("an object kind past the materials")),
             )
         },
-        |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
+        |n| race().frame.sound_spots.object_kind_sounds[n as usize].get(),
     )?;
     trap.finish()?;
     let b = band_value_plain(TWIN);
@@ -49,7 +48,9 @@ pub fn place_sound_object() -> Result<(), Refused> {
         return Ok(());
     }
     let offset = Some(
-        CONTACT_WORK
+        crate::race::owner::race()
+            .physics
+            .contact
             .object_point_offset
             .each_ref()
             .map(super::super::session::Dword::bits),

@@ -16,7 +16,6 @@ use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::trap::Trap;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: `byte` the changed camera byte, `old` its old value. What
 /// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
@@ -25,10 +24,13 @@ pub fn spread_camera(byte: GamePtr, old: u8) -> Result<(), Refused> {
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.offset(n.wrapping_mul(8));
     let dl = byte.read::<u8>("a replay camera byte")?;
-    let count = REPLAY_FILE
-        .index_block_count
-        .get()
-        .wrapping_sub(REPLAY_VIEW.replay_block.get());
+    let count = REPLAY_FILE.index_block_count.get().wrapping_sub(
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_block
+            .get(),
+    );
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
     let trap = Trap::new();
     let s = rc2k_core::race::viewer::spread(count, old, |n| {

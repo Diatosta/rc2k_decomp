@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
 pub fn row(y: u32) -> u32 {
@@ -15,7 +15,7 @@ pub fn row(y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `dword_6D1502` 0.
 pub fn row_by(y: u32, lift: u32) -> u32 {
-    rc2k_core::hud::signs::row(y, lift, PANEL.flat.get())
+    rc2k_core::hud::signs::row(y, lift, race().frame.panel_and_overlay.panel.flat.get())
 }
 
 /// Where one player's signs are: which record fields hold them and where they are drawn.

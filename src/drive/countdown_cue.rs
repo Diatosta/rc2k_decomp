@@ -7,7 +7,7 @@
 //! Caller: `drive::countdown_beep`. Refuses a current car past 7.
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version: eax.
@@ -15,7 +15,7 @@ use crate::race::work_store::RACE_WORK;
 pub fn countdown_cue(sound: u32) -> Result<u32, Refused> {
     let (slot, listed) =
         rc2k_core::physics::listed_cars::listed_entry(RACE_WORK.current_car.get(), |car| {
-            FRAME_WORK.listed_car_sounds[car as usize].get() // dword_641680
+            race().frame.frame_work.listed_car_sounds[car as usize].get() // dword_641680
         })?;
     if listed {
         crate::drive::countdown_sound::countdown_sound(slot, sound);

@@ -15,8 +15,6 @@
 //! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
@@ -69,7 +67,7 @@ fn game() -> Vec<&'static Dword> {
         &RACE_VIEW.view_cars[1],
         &RACE_VIEW.players,
         &RACE_VIEW.views,
-        &NUMBERS.replay_mode,
+        &crate::race::owner::race().course.numbers.replay_mode,
         &RACE_VIEW.view_switch,
         &RACE_VARS.split,
         &crate::net::store::NET.session, // dword_52A910: in the network's variables
@@ -77,7 +75,13 @@ fn game() -> Vec<&'static Dword> {
         &RACE_VIEW.view_blocks[0],
         &RACE_VIEW.view_blocks[1],
     ];
-    cells.extend(FRAME_WORK.listed_car_sounds.iter());
+    cells.extend(
+        crate::race::owner::race()
+            .frame
+            .frame_work
+            .listed_car_sounds
+            .iter(),
+    );
     cells
 }
 

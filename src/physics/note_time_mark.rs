@@ -14,7 +14,6 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::time_mark;
 
@@ -32,7 +31,7 @@ fn game() -> Vec<&'static dyn Cell32> {
 // Converted: `rc2k_core::physics::motion::time_mark`.
 fn core(v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
-    let limit = f32::from_bits(NUMBERS.sixty.bits());
+    let limit = f32::from_bits(crate::race::owner::race().course.numbers.sixty.bits());
     // The mark, count and start read only where the original reads them.
     if let Some(mark) = time_mark(
         f32::from_bits(get(0)),

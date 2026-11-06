@@ -17,6 +17,7 @@
 
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
+use crate::race::owner::race;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -96,10 +97,9 @@ static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
 /// The first view's scene has been drawn.
 pub fn note_view() {
-    use crate::race::matrices_store::MATRICES;
     use crate::scene::draw_store::DRAW;
     let view = (
-        std::array::from_fn(|n| MATRICES.view_matrix[n].get()),
+        std::array::from_fn(|n| race().frame.matrices.view_matrix[n].get()),
         DRAW.view_scale.get(),
         [
             f32::from_bits(DRAW.view_centre[0].bits()),
@@ -119,7 +119,7 @@ pub fn note_view() {
 /// ground. Above the window, and behind the eye skipped.
 fn draw_probes(ui: &Ui) {
     use crate::physics::car_store::CAR;
-    use crate::physics::contact_store::CONTACT_WORK as W;
+    let wk = &crate::race::owner::race().physics.contact;
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -150,18 +150,18 @@ fn draw_probes(ui: &Ui) {
     let size = ui.current_font_size() / 4.0;
     for n in 0..CAR.probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
-            W.probe_x[n].get() as i32,
-            W.probe_y[n].get() as i32,
-            W.probe_z[n].get() as i32,
+            wk.probe_x[n].get() as i32,
+            wk.probe_y[n].get() as i32,
+            wk.probe_z[n].get() as i32,
         );
         let Some(p) = place([x, y, z]) else {
             continue;
         };
-        let found = W.probe_found[n].get() != 0;
-        if found && let Some(g) = place([x, W.probe_ground_height[n].get() as i32, z]) {
+        let found = wk.probe_found[n].get() != 0;
+        if found && let Some(g) = place([x, wk.probe_ground_height[n].get() as i32, z]) {
             list.add_line(p, g, [1.0, 1.0, 0.0, 1.0]).build();
         }
-        let colour = if found && (W.probe_height[n].get() as i32) <= 0 {
+        let colour = if found && (wk.probe_height[n].get() as i32) <= 0 {
             [1.0, 0.2, 0.2, 1.0]
         } else if n < 4 {
             [0.2, 1.0, 0.2, 1.0]
@@ -559,7 +559,6 @@ fn take_readings(t: &mut Timings) {
 fn profiler(ui: &Ui) {
     use crate::audio::store::AUDIO;
     use crate::debug::timing::Stage;
-    use crate::race::course_lists_store::COURSE_LISTS;
     use crate::race::switches_store::FRAME_SWITCHES;
     use crate::race::view_store::RACE_VIEW;
     use crate::session::MACHINE;
@@ -700,7 +699,15 @@ fn profiler(ui: &Ui) {
         &[
             (
                 "Course memory",
-                format!("{} KiB", COURSE_LISTS.course_bytes_total.get() >> 10),
+                format!(
+                    "{} KiB",
+                    crate::race::owner::race()
+                        .course
+                        .lists
+                        .course_bytes_total
+                        .get()
+                        >> 10
+                ),
             ),
             (
                 "Processor has",
@@ -838,7 +845,6 @@ fn time(t: u32) -> String {
 
 /// The "Rivals" tab.
 fn rivals(ui: &Ui) {
-    use crate::physics::split_tables_store::SPLIT_TABLES;
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {
         return;
@@ -856,13 +862,17 @@ fn rivals(ui: &Ui) {
         ui.table_next_column();
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
-            SPLIT_TABLES.rival_names[n].get(),
+            crate::race::owner::race().physics.split_tables.rival_names[n].get(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(SPLIT_TABLES.rival_scaled[n].get()));
+        ui.text(time(
+            crate::race::owner::race().physics.split_tables.rival_scaled[n].get(),
+        ));
         ui.table_next_column();
-        ui.text(time(SPLIT_TABLES.rival_times[n].get()));
+        ui.text(time(
+            crate::race::owner::race().physics.split_tables.rival_times[n].get(),
+        ));
     }
 }

@@ -180,10 +180,13 @@ pub struct Numbers {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static NUMBERS: Numbers =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl Numbers {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5C5CE0, the first byte of the piece.
 pub const START: usize = 0x5C5CE0;
@@ -195,7 +198,9 @@ const _: () = assert!(END - START == core::mem::size_of::<Numbers>());
 /// Where IDA 0x5C5CE0 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&NUMBERS))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::RACE.course.numbers,
+    ))
 }
 
 #[cfg(test)]
@@ -205,7 +210,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&NUMBERS, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.numbers,
+            START,
+            END,
+        );
     }
 
     #[test]

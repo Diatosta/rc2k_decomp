@@ -18,10 +18,6 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::physics::split_tables_store::SPLIT_TABLES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::overlay_store::RACE_OVERLAY;
-use crate::race::panel_store::PANEL;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
@@ -35,19 +31,39 @@ pub fn init_overlay() -> Result<(), Refused> {
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(RACE_VARS.checkpoint_count.get(), || {
-            SPLIT_TABLES.split_colour_count.get()
+            crate::race::owner::race()
+                .physics
+                .split_tables
+                .split_colour_count
+                .get()
         })?;
         if let Some(count) = found {
-            PANEL.overlay_parts.set(count);
+            crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .overlay_parts
+                .set(count);
         }
         match parts {
             Some(count) => {
-                PANEL.overlay_miles.set(0);
-                let (scale, mile): (u32, u32) =
-                    (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .overlay_miles
+                    .set(0);
+                let (scale, mile): (u32, u32) = (
+                    crate::race::owner::race().course.numbers.k65536.bits(),
+                    crate::race::owner::race()
+                        .course
+                        .numbers
+                        .metres_in_mile
+                        .bits(),
+                );
                 // By address: the list runs past its 0x101 entries, and a face number past
                 // the distances is the original's read.
-                let list = &SPLIT_TABLES.checkpoints;
+                let list = &crate::race::owner::race().physics.split_tables.checkpoints;
                 let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
                 let distance = |k: u32| {
                     crate::session::read_on_in(
@@ -59,13 +75,13 @@ pub fn init_overlay() -> Result<(), Refused> {
                 };
                 for n in 0..count {
                     let end = distance(crate::session::read_on_in(
-                        &SPLIT_TABLES,
+                        &crate::race::owner::race().physics.split_tables,
                         list,
                         n as usize + 1,
                         "an overlay variable",
                     )?)?;
                     let start = distance(crate::session::read_on_in(
-                        &SPLIT_TABLES,
+                        &crate::race::owner::race().physics.split_tables,
                         list,
                         n as usize,
                         "an overlay variable",
@@ -73,30 +89,111 @@ pub fn init_overlay() -> Result<(), Refused> {
                     let half = half_length(end, start);
                     DRAW.scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
-                    RACE_OVERLAY.overlay_part_miles[n as usize].set_bits(miles); // g_overlayPartMiles
-                    PANEL
+                    crate::race::owner::race()
+                        .frame
+                        .panel_and_overlay
+                        .overlay
+                        .overlay_part_miles[n as usize]
+                        .set_bits(miles); // g_overlayPartMiles
+                    crate::race::owner::race()
+                        .frame
+                        .panel_and_overlay
+                        .panel
                         .overlay_miles
-                        .set(x87::add(miles, PANEL.overlay_miles.get()));
-                    RACE_OVERLAY.overlay_part_kinds_a[n as usize].set(0); // dword_6D160C
-                    RACE_OVERLAY.overlay_part_kinds_b[n as usize].set(0); // dword_6D170C
+                        .set(x87::add(
+                            miles,
+                            crate::race::owner::race()
+                                .frame
+                                .panel_and_overlay
+                                .panel
+                                .overlay_miles
+                                .get(),
+                        ));
+                    crate::race::owner::race()
+                        .frame
+                        .panel_and_overlay
+                        .overlay
+                        .overlay_part_kinds_a[n as usize]
+                        .set(0); // dword_6D160C
+                    crate::race::owner::race()
+                        .frame
+                        .panel_and_overlay
+                        .overlay
+                        .overlay_part_kinds_b[n as usize]
+                        .set(0); // dword_6D170C
                 }
             }
             None => {
-                PANEL.overlay_parts.set(1);
-                RACE_OVERLAY.overlay_part_miles[0].set_bits(ONE);
-                PANEL.overlay_miles.set(ONE);
-                RACE_OVERLAY.overlay_part_kinds_a[0].set(0);
-                RACE_OVERLAY.overlay_part_kinds_b[0].set(0);
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .overlay_parts
+                    .set(1);
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .overlay_part_miles[0]
+                    .set_bits(ONE);
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .overlay_miles
+                    .set(ONE);
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .overlay_part_kinds_a[0]
+                    .set(0);
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .overlay_part_kinds_b[0]
+                    .set(0);
             }
         }
         // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
         let sizes = [
-            &PANEL.lights[0].fade,
-            &PANEL.lights[0].size,
-            &PANEL.lights[0].shift,
-            &PANEL.lights[1].fade,
-            &PANEL.lights[1].size,
-            &PANEL.lights[1].shift,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[0]
+                .fade,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[0]
+                .size,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[0]
+                .shift,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[1]
+                .fade,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[1]
+                .size,
+            &crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .lights[1]
+                .shift,
         ];
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);
@@ -107,7 +204,12 @@ pub fn init_overlay() -> Result<(), Refused> {
                 crate::race::race_init::state_cell(crate::race::trap::car_at(block)?, off)?.set(0);
             }
         }
-        for distance in &PANEL.distance {
+        for distance in &crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .distance
+        {
             distance.set(0);
         }
     }

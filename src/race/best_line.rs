@@ -7,8 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::course_store::COURSE;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -59,9 +57,9 @@ pub fn add_surface_share(surface: u32) {
     let share = &RACE_VARS.surface_shares[(surface & 0xF) as usize];
     // 256, 0.25, 100
     let [a, b, c] = [
-        NUMBERS.k256.bits(),
-        NUMBERS.quarter.bits(),
-        NUMBERS.hundred.bits(),
+        crate::race::owner::race().course.numbers.k256.bits(),
+        crate::race::owner::race().course.numbers.quarter.bits(),
+        crate::race::owner::race().course.numbers.hundred.bits(),
     ];
     let count = RACE_VARS.checkpoint_count.bits() as i32;
     share.set_bits(x87::surface_share(weight, a, b, count, c, share.bits()));
@@ -164,7 +162,11 @@ fn point_of(face: u32) -> Result<u32, BadInput> {
 }
 
 fn face_count() -> Result<u32, Refused> {
-    let n: u32 = COURSE.course_face_count.bits();
+    let n: u32 = crate::race::owner::race()
+        .course
+        .course
+        .course_face_count
+        .bits();
     if n == 0 || n >= MOST_FACES {
         return Err(BadInput("no faces, or 0x100000 or more: the original counts round").into());
     }
@@ -249,7 +251,12 @@ pub fn checkpoint_angles() -> Result<(), Refused> {
     let n = count()?;
     let trap = Trap::new();
     {
-        let scales = (n >= 2).then(|| (NUMBERS.half.bits(), NUMBERS.k65536.bits()));
+        let scales = (n >= 2).then(|| {
+            (
+                crate::race::owner::race().course.numbers.half.bits(),
+                crate::race::owner::race().course.numbers.k65536.bits(),
+            )
+        });
         let (writes, _) = rc2k_core::race::best_line::link_angles(
             n,
             |b| {
@@ -415,7 +422,11 @@ pub fn surface_shares() -> Result<(), Refused> {
         for share in &RACE_VARS.surface_shares {
             share.set_bits(0u32);
         }
-        let faces: u32 = COURSE.course_face_count.bits();
+        let faces: u32 = crate::race::owner::race()
+            .course
+            .course
+            .course_face_count
+            .bits();
         let byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
             Ok(crate::scene::polygon::texture_info_byte(info, offset)?.into())
         };
@@ -524,7 +535,10 @@ pub fn map_segment() -> Result<(), Refused> {
             ground[1] as i32,
         );
         work(0xC8).set(scale);
-        let (half, unit) = (NUMBERS.half.bits(), NUMBERS.k65536.bits());
+        let (half, unit) = (
+            crate::race::owner::race().course.numbers.half.bits(),
+            crate::race::owner::race().course.numbers.k65536.bits(),
+        );
         let map_angle =
             (x87::angle_scaled5_to_int(map[0] as i32, map[1] as i32, half, unit) as u32) << 2;
         work(0xB8).set(map_angle);

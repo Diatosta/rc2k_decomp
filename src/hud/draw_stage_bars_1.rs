@@ -13,15 +13,15 @@
 use crate::errors::Refused;
 use crate::hud::draw_stage_bar::*;
 use crate::hud::owner::Hud;
-use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::owner::race;
 
 /// The two players' bars `dy` lower (see the header).
 pub fn bars_with(hud: &Hud, dy: u32) -> Result<(), Refused> {
     bars(
         hud,
         &[
-            &RACE_OVERLAY.overlay_part_kinds_a,
-            &RACE_OVERLAY.overlay_part_kinds_b,
+            &race().frame.panel_and_overlay.overlay.overlay_part_kinds_a,
+            &race().frame.panel_and_overlay.overlay.overlay_part_kinds_b,
         ],
         &[&hud.block.bar_colours[0], &hud.block.bar_colours[1]],
         dy,

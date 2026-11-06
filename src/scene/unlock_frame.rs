@@ -6,16 +6,15 @@
 //!
 //! Callers: `race::loading_bar_frame` and three of the game's. The registers above are the
 //! original's; a call by address goes through `routes.rs`, which maps them.
-
-use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::owner::race;
 
 /// The back surface unlocked and the kept pitch and pixels 0. Returns `g_surfaceLocked`
 /// before (the original leaves the flags of comparing it with 1, and eax 0).
 pub fn unlock_frame() -> u32 {
     let locked = crate::platform::unlock_surface();
     {
-        FRAME_SCRATCH.frame_pixels.set(0u32);
-        FRAME_SCRATCH.frame_pitch.set(0u32);
+        race().frame.scratch.frame_pixels.set(0u32);
+        race().frame.scratch.frame_pitch.set(0u32);
     }
     locked
 }

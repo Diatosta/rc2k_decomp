@@ -4,6 +4,8 @@
 //! matrices and decal places, and the car shadow's work. `#[repr(C)]` with the image's
 //! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -125,8 +127,11 @@ pub struct FrameWork {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static FRAME_WORK: FrameWork =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl FrameWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x64158C, the first byte of the piece.
 pub const START: usize = 0x64158C;
@@ -138,7 +143,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
 /// Where IDA 0x64158C is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&FRAME_WORK))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.frame_work))
 }
 
 #[cfg(test)]
@@ -148,7 +153,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FRAME_WORK, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.frame_work, START, END);
     }
 
     #[test]

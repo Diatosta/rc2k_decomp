@@ -4,6 +4,7 @@
 //! unknown bytes. Names are readings unless IDA's; the records' are the developers' own (the
 //! kstar camera page's labels: `xoff`, `xfoc`, `xang`, `mspx`, `fish`).
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -128,19 +129,6 @@ impl ViewRecord {
     }
 }
 
-/// The piece: a field of `race::groups_store::VIEW_AND_RECORDS` since 2026-10-29 (it
-/// left the race block with the view records after it, phase 13).
-pub struct InGroup;
-
-impl core::ops::Deref for InGroup {
-    type Target = ViewVars;
-    fn deref(&self) -> &ViewVars {
-        &crate::race::groups_store::VIEW_AND_RECORDS.view_vars
-    }
-}
-
-pub static VIEW_VARS: InGroup = InGroup;
-
 impl ViewVars {
     /// IDA's address of the table of view records (`off_606320`) and its length (52 dwords).
     #[cfg(test)]
@@ -152,7 +140,7 @@ impl ViewVars {
     /// View record `n` by its place among the 52 (the records the code names by IDA
     /// address: 1 .. 3 refilled from the car, 4 .. 6 placed).
     pub fn record(n: usize) -> &'static ViewRecord {
-        &crate::race::groups_store::VIEW_AND_RECORDS.records[n]
+        &race().frame.view_and_records.records[n]
     }
 
     /// The bytes of a view record.
@@ -167,12 +155,15 @@ impl ViewVars {
                 "a view record's name off a record's start",
             ));
         }
-        Ok(&crate::race::groups_store::VIEW_AND_RECORDS.records[at / Self::RECORD_SIZE])
+        Ok(&race().frame.view_and_records.records[at / Self::RECORD_SIZE])
     }
 
     /// The IDA address view record `n` is named by.
     fn record_name(n: usize) -> Result<usize, crate::errors::BadInput> {
-        let cell = VIEW_VARS
+        let cell = race()
+            .frame
+            .view_and_records
+            .view_vars
             .view_records
             .get(n)
             .ok_or(crate::errors::BadInput("a view past the 52 records"))?;
@@ -196,7 +187,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
 /// Where IDA 0x60626C is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&*VIEW_VARS))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &race().frame.view_and_records.view_vars,
+    ))
 }
 
 #[cfg(test)]
@@ -206,7 +199,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&*VIEW_VARS, START, END);
+        crate::gfx::first_values_are_the_games(
+            &race().frame.view_and_records.view_vars,
+            START,
+            END,
+        );
     }
 
     #[test]
@@ -215,7 +212,10 @@ mod tests {
             let ida = ViewVars::TABLE + 4 * n;
             let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
             // Kept as the image's name; resolved to the same record's place.
-            assert_eq!(VIEW_VARS.view_records[n].get(), image);
+            assert_eq!(
+                race().frame.view_and_records.view_vars.view_records[n].get(),
+                image
+            );
             assert_eq!(image as usize, ViewVars::RECORDS + 0x5C * n);
             assert!(core::ptr::eq(
                 ViewVars::record_of(n).unwrap(),

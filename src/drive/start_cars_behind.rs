@@ -31,7 +31,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
@@ -164,7 +163,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
                     RACE_TABLES.pace_back_gap.get().wrapping_neg(),
-                    NUMBERS.twenty.bits(),
+                    crate::race::owner::race().course.numbers.twenty.bits(),
                 )?;
                 lead.mode2_behind
                     .set(lead.mode2_behind.get().wrapping_sub(1));
@@ -207,7 +206,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
             &lead.pace_cars[0],
             &lead.pace_starts[0],
             RACE_TABLES.pace_back_gap.get(),
-            NUMBERS.twenty.bits(),
+            crate::race::owner::race().course.numbers.twenty.bits(),
         )?;
         lead.mode2_behind
             .set(lead.mode2_behind.get().wrapping_add(1));

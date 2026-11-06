@@ -35,15 +35,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::face_faces_away::face_faces_away;
@@ -64,7 +59,7 @@ struct GameFace(crate::scene::reading::Reading);
 
 impl FaceWorld for GameFace {
     fn in_race(&self) -> bool {
-        NUMBERS.in_race.bits() != 0
+        crate::race::owner::race().course.numbers.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
         FRAME_SWITCHES.object_number.bits()
@@ -85,13 +80,16 @@ impl FaceWorld for GameFace {
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::session::read_first(&COURSE.group_masks[13..15])
+        crate::session::read_first(&crate::race::owner::race().course.course.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::session::write_first(&COURSE.group_masks[13..15], &groups);
+        crate::session::write_first(
+            &crate::race::owner::race().course.course.group_masks[13..15],
+            &groups,
+        );
     }
     fn other_groups(&self) -> [u32; 2] {
-        [15, 16].map(|k| COURSE.group_masks[k].get())
+        [15, 16].map(|k| crate::race::owner::race().course.course.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
         FRAME_SWITCHES.group_mask.bits()
@@ -112,29 +110,51 @@ impl FaceWorld for GameFace {
         CAR.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
-        VIEW_VARS.group_mask.bits()
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .group_mask
+            .bits()
     }
     fn lone_group(&self) -> u32 {
-        COURSE.group_masks[17].bits()
+        crate::race::owner::race().course.course.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
         LIGHT_WORK.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
-        RACE_SOUND_SPOTS.groups_which.bits()
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .groups_which
+            .bits()
     }
     fn see_through_on(&self) -> u32 {
-        GROUND_WORK.object_fading.bits()
+        crate::race::owner::race()
+            .physics
+            .ground
+            .object_fading
+            .bits()
     }
     fn see_through_value(&self) -> u32 {
-        GROUND_WORK.object_fade[0].bits()
+        crate::race::owner::race().physics.ground.object_fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        GROUND_WORK.object_see_through.set_bits(value);
+        crate::race::owner::race()
+            .physics
+            .ground
+            .object_see_through
+            .set_bits(value);
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = VIEW_VARS.drawn_car.bits();
+            let which: u32 = crate::race::owner::race()
+                .frame
+                .view_and_records
+                .view_vars
+                .drawn_car
+                .bits();
             let block: u32 = if which < BLOCKS {
                 RACE_WORK.car_block(which as usize)
             } else {
@@ -181,7 +201,11 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     if listed >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
-    GROUND_WORK.object_see_through.set_bits(0x100u32);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .object_see_through
+        .set_bits(0x100u32);
     let bytes = face_bytes(face)?;
     let mut world = GameFace(crate::scene::reading::Reading::new());
     let answer = dropped(&mut world, bytes);
@@ -208,7 +232,11 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
         RACE_VARS.face_number.bits(),
         key,
         DRAW.entry_third.bits(),
-        GROUND_WORK.object_see_through.bits(),
+        crate::race::owner::race()
+            .physics
+            .ground
+            .object_see_through
+            .bits(),
     ]
     .into_iter()
     .enumerate()

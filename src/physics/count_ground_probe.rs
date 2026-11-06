@@ -14,9 +14,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls::ProbeCounts;
 
 /// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
@@ -24,24 +21,46 @@ use rc2k_core::physics::walls::ProbeCounts;
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
 pub fn count_ground_probe() -> Result<(), Refused> {
     let mut counts = ProbeCounts {
-        tries: CAMERA_WORK.ground_probes.get(),
-        found: CAMERA_WORK.ground_found.get(),
-        same: CAMERA_WORK.ground_same.get(),
+        tries: crate::race::owner::race()
+            .physics
+            .camera
+            .ground_probes
+            .get(),
+        found: crate::race::owner::race().physics.camera.ground_found.get(),
+        same: crate::race::owner::race().physics.camera.ground_same.get(),
     };
-    crate::physics::ground_probe_store::GROUND_PROBE
+    crate::race::owner::race()
+        .physics
+        .ground_probe
         .settle_mark
         .set(0x40);
     counts.tried();
-    CAMERA_WORK.ground_probes.set(counts.tries);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .ground_probes
+        .set(counts.tries);
     { crate::physics::find_ground::find_ground() }?;
-    if GROUND_WORK.ground_found.get() != 0 {
+    if crate::race::owner::race().physics.ground.ground_found.get() != 0 {
         counts.searched(
             true,
-            COURSE.ground_face_last.get(),
-            COURSE.ground_slot.get(),
+            crate::race::owner::race()
+                .course
+                .course
+                .ground_face_last
+                .get(),
+            crate::race::owner::race().course.course.ground_slot.get(),
         );
-        CAMERA_WORK.ground_found.set(counts.found);
-        CAMERA_WORK.ground_same.set(counts.same);
+        crate::race::owner::race()
+            .physics
+            .camera
+            .ground_found
+            .set(counts.found);
+        crate::race::owner::race()
+            .physics
+            .camera
+            .ground_same
+            .set(counts.same);
     }
     Ok(())
 }

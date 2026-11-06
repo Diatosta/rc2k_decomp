@@ -12,8 +12,6 @@
 //! `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::numbers_store::NUMBERS;
 
 // ---- game data ----
 
@@ -25,17 +23,32 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 /// 13), counted on the list as the game's block was.
 // Converted: `rc2k_core::scene::objects::object_rooms`
 pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
-    let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
-    let list = crate::pointers::GamePtr::to(&COURSE_LISTS.object_points_list);
-    COURSE_LISTS.course_bytes_total.set_bits(
-        COURSE_LISTS
-            .course_bytes_total
-            .bits()
-            .wrapping_add(points + faces),
-    );
+    let (points, faces) = rooms(crate::race::owner::race().course.numbers.in_race.bits() != 0);
+    let list =
+        crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.object_points_list);
+    crate::race::owner::race()
+        .course
+        .lists
+        .course_bytes_total
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .lists
+                .course_bytes_total
+                .bits()
+                .wrapping_add(points + faces),
+        );
     crate::scene::object_points::take(list, points)?;
     crate::scene::object_faces::take(list, faces)?;
-    COURSE_LISTS.object_points_room.set_bits(points);
-    COURSE_LISTS.face_memory_room.set_bits(faces);
+    crate::race::owner::race()
+        .course
+        .lists
+        .object_points_room
+        .set_bits(points);
+    crate::race::owner::race()
+        .course
+        .lists
+        .face_memory_room
+        .set_bits(faces);
     Ok(())
 }

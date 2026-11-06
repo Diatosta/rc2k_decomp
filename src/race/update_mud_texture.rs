@@ -24,8 +24,6 @@ use crate::errors::Refused;
 use crate::math::x87_float::{int, ld, st, to_int};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::panel_store::PANEL;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
@@ -46,7 +44,7 @@ fn subtract_units(a: &impl Cell32, u: &impl Cell32) {
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: &Float, to: &Dword) -> i32 {
     round_units(from, to);
-    let zero: u32 = NUMBERS.zero.bits();
+    let zero: u32 = crate::race::owner::race().course.numbers.zero.bits();
     if c0(to.bits(), zero) {
         to.set_bits(zero);
     }
@@ -65,9 +63,20 @@ pub fn update_mud_texture() -> Result<(), Refused> {
     crate::scene::forget_slot_texture::forget_slot_texture(
         KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
     )?;
-    PANEL
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
         .texture_changes
-        .set(PANEL.texture_changes.get().wrapping_add(0x1_0000));
+        .set(
+            crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .texture_changes
+                .get()
+                .wrapping_add(0x1_0000),
+        );
     let texture = KIND_TEXTURES.kind_first_textures[256]
         .bits()
         .wrapping_add(n);

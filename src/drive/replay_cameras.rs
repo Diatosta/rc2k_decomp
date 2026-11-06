@@ -15,13 +15,11 @@
 //! Callers: `drive::play_replay_frame`, `sub_46062E`. Refuses what `pick_replay_camera`
 //! refuses (everything written put back).
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
@@ -46,10 +44,14 @@ fn wish_of(byte: usize) -> Result<u32, BadInput> {
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps() -> Result<(), Refused> {
-    REPLAY_FRAMES
+    crate::race::owner::race()
+        .replay
+        .replay_frames
         .camera_word_0
         .set(CAR_BLOCKS.cars[0].unknown_0[0].bits());
-    REPLAY_FRAMES
+    crate::race::owner::race()
+        .replay
+        .replay_frames
         .camera_word_1
         .set(CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
@@ -57,12 +59,22 @@ fn steps() -> Result<(), Refused> {
         let wish = wish_of(head_byte(c)? as usize)?;
         match wish_step(
             wish,
-            REPLAY_VIEW.replay_block.get(),
+            crate::race::owner::race()
+                .replay
+                .replay_view
+                .replay_block
+                .get(),
             REPLAY_WORK.camera_last_frame[c].get(),
             || car.camera_view.get(),
         ) {
             WishStep::Draw(_) => {
-                REPLAY_WORK.camera_last_frame[c].set(REPLAY_VIEW.replay_block.get());
+                REPLAY_WORK.camera_last_frame[c].set(
+                    crate::race::owner::race()
+                        .replay
+                        .replay_view
+                        .replay_block
+                        .get(),
+                );
                 // `Draw` comes only for the wishes that draw: the mode is there.
                 if let Some(mode) = { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
                 {

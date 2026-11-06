@@ -9,7 +9,7 @@
 //! null sound object when written.
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 use crate::sound::store::SoundObject;
@@ -34,5 +34,8 @@ pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refus
 
 /// The Rust version.
 pub fn sound_cue_e5() -> Result<(), Refused> {
-    sound_cue_e5_at(&RACE_WORK.current_car, &FRAME_WORK.listed_car_sounds)
+    sound_cue_e5_at(
+        &RACE_WORK.current_car,
+        &race().frame.frame_work.listed_car_sounds,
+    )
 }

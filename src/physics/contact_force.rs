@@ -32,7 +32,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::{X, f80};
 use crate::math::x87_run::{compare_80, neg_rounded};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
@@ -41,7 +40,6 @@ use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
@@ -65,122 +63,219 @@ fn fill3(to: &[Float], v: u32) {
 /// `dword_614B40`, set by each caller just before).
 pub fn contact_force(record: &ForceRecord) {
     cross_product(
-        &CONTACT_WORK.contact_turn_speed,
-        &CONTACT_WORK.contact_point,
-        &CONTACT_WORK.contact_turn_cross,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_speed,
+        &crate::race::owner::race().physics.contact.contact_point,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_cross,
     );
     x87_1(
-        &CONTACT_WORK.contact_turn_cross,
-        &CONTACT_WORK.contact_car_speed,
-        &CONTACT_WORK.contact_point_speed,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_cross,
+        &crate::race::owner::race().physics.contact.contact_car_speed,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_point_speed,
     );
     p(
-        &CONTACT_WORK.contact_depth,
+        &crate::race::owner::race().physics.contact.contact_depth,
         neg_rounded({
             dot_product(
-                &CONTACT_WORK.contact_point_speed,
-                &CONTACT_WORK.contact_normal,
+                &crate::race::owner::race()
+                    .physics
+                    .contact
+                    .contact_point_speed,
+                &crate::race::owner::race().physics.contact.contact_normal,
             )
         }),
     );
     x87_2();
-    hold_low(&CONTACT_WORK.contact_depth, &DRAW.scratch);
+    hold_low(
+        &crate::race::owner::race().physics.contact.contact_depth,
+        &DRAW.scratch,
+    );
     // 0x45F222: the push the turn would give.
     cross_product(
-        &CONTACT_WORK.contact_point,
-        &CONTACT_WORK.contact_normal,
-        &CONTACT_WORK.contact_scratch_a,
+        &crate::race::owner::race().physics.contact.contact_point,
+        &crate::race::owner::race().physics.contact.contact_normal,
+        &crate::race::owner::race().physics.contact.contact_scratch_a,
     );
-    turn_by_inverse(&CONTACT_WORK.contact_scratch_a);
+    turn_by_inverse(&crate::race::owner::race().physics.contact.contact_scratch_a);
     multiply_parts(
-        &CONTACT_WORK.contact_scratch_a,
+        &crate::race::owner::race().physics.contact.contact_scratch_a,
         &PHYSICS.inertia,
-        &CONTACT_WORK.contact_scratch_b,
+        &crate::race::owner::race().physics.contact.contact_scratch_b,
     );
-    turn_by_car_matrix(&CONTACT_WORK.contact_scratch_b);
+    turn_by_car_matrix(&crate::race::owner::race().physics.contact.contact_scratch_b);
     cross_product(
-        &CONTACT_WORK.contact_point,
-        &CONTACT_WORK.contact_scratch_b,
-        &CONTACT_WORK.contact_scratch_a,
+        &crate::race::owner::race().physics.contact.contact_point,
+        &crate::race::owner::race().physics.contact.contact_scratch_b,
+        &crate::race::owner::race().physics.contact.contact_scratch_a,
     );
     p(
-        &CONTACT_WORK.contact_turn_push,
+        &crate::race::owner::race().physics.contact.contact_turn_push,
         neg_rounded({
             dot_product(
-                &CONTACT_WORK.contact_scratch_a,
-                &CONTACT_WORK.contact_normal,
+                &crate::race::owner::race().physics.contact.contact_scratch_a,
+                &crate::race::owner::race().physics.contact.contact_normal,
             )
         }),
     );
     x87_3();
     // 0x45F2C2: the normal push, the speed along the normal and across it.
     copy3(
-        &CONTACT_WORK.contact_normal_push,
-        &CONTACT_WORK.contact_normal,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
+        &crate::race::owner::race().physics.contact.contact_normal,
     );
-    let factor = extended(CONTACT_WORK.contact_factor.bits());
-    scale_vector(&CONTACT_WORK.contact_normal_push, factor);
+    let factor = extended(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .contact_factor
+            .bits(),
+    );
+    scale_vector(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
+        factor,
+    );
     DRAW.scratch.set(rounded(factor));
     let along = {
         dot_product(
-            &CONTACT_WORK.contact_point_speed,
-            &CONTACT_WORK.contact_normal,
+            &crate::race::owner::race()
+                .physics
+                .contact
+                .contact_point_speed,
+            &crate::race::owner::race().physics.contact.contact_normal,
         )
     };
     copy3(
-        &CONTACT_WORK.contact_normal_speed,
-        &CONTACT_WORK.contact_normal,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_speed,
+        &crate::race::owner::race().physics.contact.contact_normal,
     );
-    scale_vector(&CONTACT_WORK.contact_normal_speed, along);
+    scale_vector(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_speed,
+        along,
+    );
     DRAW.scratch.set(rounded(along));
     copy3(
-        &CONTACT_WORK.contact_side_speed,
-        &CONTACT_WORK.contact_point_speed,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_side_speed,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_point_speed,
     );
     x87_4();
-    CONTACT_WORK.contact_speed_length.set_bits(rounded({
-        vector_length(&CONTACT_WORK.contact_normal_speed)
-    }));
-    CONTACT_WORK
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_speed_length
+        .set_bits(rounded({
+            vector_length(
+                &crate::race::owner::race()
+                    .physics
+                    .contact
+                    .contact_normal_speed,
+            )
+        }));
+    crate::race::owner::race()
+        .physics
+        .contact
         .contact_value
-        .set_bits(rounded(vector_length(&CONTACT_WORK.contact_side_speed)));
-    fill3(&CONTACT_WORK.contact_extra, 0);
+        .set_bits(rounded(vector_length(
+            &crate::race::owner::race()
+                .physics
+                .contact
+                .contact_side_speed,
+        )));
+    fill3(&crate::race::owner::race().physics.contact.contact_extra, 0);
     if PHYSICS.contact_step.get() != 0 {
-        fill3(&CONTACT_WORK.contact_normal_push, 0);
-        copy3(&CONTACT_WORK.contact_extra, &CONTACT_WORK.contact_normal);
+        fill3(
+            &crate::race::owner::race()
+                .physics
+                .contact
+                .contact_normal_push,
+            0,
+        );
+        copy3(
+            &crate::race::owner::race().physics.contact.contact_extra,
+            &crate::race::owner::race().physics.contact.contact_normal,
+        );
         let part = x87_5();
-        scale_vector(&CONTACT_WORK.contact_extra, part);
+        scale_vector(
+            &crate::race::owner::race().physics.contact.contact_extra,
+            part,
+        );
         DRAW.scratch.set(rounded(part));
     }
     x87_1(
-        &CONTACT_WORK.contact_normal_push,
-        &CONTACT_WORK.contact_extra,
-        &CONTACT_WORK.contact_normal_push,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
+        &crate::race::owner::race().physics.contact.contact_extra,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
     );
     copy3(
-        &CONTACT_WORK.contact_total,
-        &CONTACT_WORK.contact_normal_push,
+        &crate::race::owner::race().physics.contact.contact_total,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
     );
-    CONTACT_WORK
+    crate::race::owner::race()
+        .physics
+        .contact
         .contact_slide_limit_held
         .set_bits(crate::math::x87::loaded(
-            CONTACT_WORK.contact_slide_limit.bits(),
+            crate::race::owner::race()
+                .physics
+                .contact
+                .contact_slide_limit
+                .bits(),
         ));
     // 0x45F48D: the slide against the motion, held to `flt_6D30FC` long.
     copy3(
-        &CONTACT_WORK.contact_slide,
-        &CONTACT_WORK.contact_side_speed,
+        &crate::race::owner::race().physics.contact.contact_slide,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_side_speed,
     );
-    negate(&CONTACT_WORK.contact_slide[0]);
-    negate(&CONTACT_WORK.contact_slide[1]);
-    negate(&CONTACT_WORK.contact_slide[2]);
+    negate(&crate::race::owner::race().physics.contact.contact_slide[0]);
+    negate(&crate::race::owner::race().physics.contact.contact_slide[1]);
+    negate(&crate::race::owner::race().physics.contact.contact_slide[2]);
     if compare_80(
-        vector_length(&CONTACT_WORK.contact_slide),
-        NUMBERS.zero.bits(),
+        vector_length(&crate::race::owner::race().physics.contact.contact_slide),
+        crate::race::owner::race().course.numbers.zero.bits(),
     ) & 0x4000
         != 0
     {
-        fill3(&CONTACT_WORK.contact_slide, 0);
+        fill3(&crate::race::owner::race().physics.contact.contact_slide, 0);
     }
     let status = x87_6();
     if status & 0x4100 == 0 {
@@ -188,15 +283,19 @@ pub fn contact_force(record: &ForceRecord) {
     }
     // 0x45F57E: the sum into the record.
     x87_1(
-        &CONTACT_WORK.contact_slide,
-        &CONTACT_WORK.contact_normal_push,
-        &CONTACT_WORK.contact_total,
+        &crate::race::owner::race().physics.contact.contact_slide,
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_normal_push,
+        &crate::race::owner::race().physics.contact.contact_total,
     );
-    turn_by_inverse(&CONTACT_WORK.contact_total);
+    turn_by_inverse(&crate::race::owner::race().physics.contact.contact_total);
     x87_8(&record.force);
-    turn_by_inverse(&CONTACT_WORK.contact_point);
+    turn_by_inverse(&crate::race::owner::race().physics.contact.contact_point);
     for k in 0..3 {
-        record.point[k].set_bits(CONTACT_WORK.contact_point[k].bits());
+        record.point[k]
+            .set_bits(crate::race::owner::race().physics.contact.contact_point[k].bits());
     }
 }
 
@@ -215,10 +314,10 @@ fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
 /// `[rc + 0x22400C] = (1 - |[rc + 0x2D307C]|) + [rc + 0x1C5CFC]`
 fn x87_2() {
     let t0 = X(1.0);
-    let t1 = ld(CONTACT_WORK.contact_normal[1].bits());
+    let t1 = ld(crate::race::owner::race().physics.contact.contact_normal[1].bits());
     let t2 = t1.abs();
     let t3 = t0 - t2;
-    let t4 = ld(NUMBERS.hundredth_a.bits());
+    let t4 = ld(crate::race::owner::race().course.numbers.hundredth_a.bits());
     let t5 = t3 + t4;
     DRAW.scratch.set_bits(st(t5));
 }
@@ -228,16 +327,40 @@ fn x87_2() {
 /// `[rc + 0x2D31E0] = [rc + 0x2D1DF4] / ([rc + 0x2D31D8] + [rc + 0x1C5D38])`
 /// `[rc + 0x2D3204] = [rc + 0x2D31DC] * [rc + 0x2D31E0]`
 fn x87_3() {
-    let t0 = ld(CONTACT_WORK.contact_share_numerator.bits());
-    let t1 = ld(CONTACT_WORK.contact_turn_push.bits());
-    let t2 = ld(NUMBERS.one.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_share_numerator
+        .bits());
+    let t1 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_turn_push
+        .bits());
+    let t2 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t3 = t1 + t2;
     let t4 = t0 / t3;
-    CONTACT_WORK.contact_share.set_bits(st(t4));
-    let t5 = ld(CONTACT_WORK.contact_depth.bits());
-    let t6 = ld(CONTACT_WORK.contact_share.bits());
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_share
+        .set_bits(st(t4));
+    let t5 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_depth
+        .bits());
+    let t6 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_share
+        .bits());
     let t7 = t5 * t6;
-    CONTACT_WORK.contact_factor.set_bits(st(t7));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_factor
+        .set_bits(st(t7));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -246,25 +369,65 @@ fn x87_3() {
 /// `[rc + 0x2D30F4] = [rc + 0x2D30F4] - [rc + 0x2D30E8]`
 /// `[rc + 0x2D30F8] = [rc + 0x2D30F8] - [rc + 0x2D30EC]`
 fn x87_4() {
-    let t0 = ld(CONTACT_WORK.contact_side_speed[0].bits());
-    let t1 = ld(CONTACT_WORK.contact_normal_speed[0].bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[0]
+        .bits());
+    let t1 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_normal_speed[0]
+        .bits());
     let t2 = t0 - t1;
-    CONTACT_WORK.contact_side_speed[0].set_bits(st(t2));
-    let t3 = ld(CONTACT_WORK.contact_side_speed[1].bits());
-    let t4 = ld(CONTACT_WORK.contact_normal_speed[1].bits());
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[0]
+        .set_bits(st(t2));
+    let t3 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[1]
+        .bits());
+    let t4 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_normal_speed[1]
+        .bits());
     let t5 = t3 - t4;
-    CONTACT_WORK.contact_side_speed[1].set_bits(st(t5));
-    let t6 = ld(CONTACT_WORK.contact_side_speed[2].bits());
-    let t7 = ld(CONTACT_WORK.contact_normal_speed[2].bits());
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[1]
+        .set_bits(st(t5));
+    let t6 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[2]
+        .bits());
+    let t7 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_normal_speed[2]
+        .bits());
     let t8 = t6 - t7;
-    CONTACT_WORK.contact_side_speed[2].set_bits(st(t8));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_side_speed[2]
+        .set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = ([rc + 0x2D1DF8] * int [rc + 0x214148]) / int [rc + 0x21414C]`
 fn x87_5() -> [u8; 10] {
-    let t0 = ld(CONTACT_WORK.contact_normal_factor.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_normal_factor
+        .bits());
     let t1 = int(PHYSICS.contact_step.bits() as i32);
     let t2 = t0 * t1;
     let t3 = int(PHYSICS.contact_steps.bits() as i32);
@@ -277,17 +440,21 @@ fn x87_5() -> [u8; 10] {
 /// `[rc + 0x22400C] = sqrt((([rc + 0x2D3140] * [rc + 0x2D3140]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
 /// `status [s + 0] = status`
 fn x87_6() -> u16 {
-    let t0 = ld(CONTACT_WORK.contact_slide[0].bits());
+    let t0 = ld(crate::race::owner::race().physics.contact.contact_slide[0].bits());
     let t1 = t0 * t0;
-    let t2 = ld(CONTACT_WORK.contact_slide[1].bits());
+    let t2 = ld(crate::race::owner::race().physics.contact.contact_slide[1].bits());
     let t3 = t2 * t2;
-    let t4 = ld(CONTACT_WORK.contact_slide[2].bits());
+    let t4 = ld(crate::race::owner::race().physics.contact.contact_slide[2].bits());
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     DRAW.scratch.set_bits(st(t8));
-    let t9 = ld(CONTACT_WORK.contact_slide_limit_held.bits());
+    let t9 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit_held
+        .bits());
     compare(t8, t9)
 }
 
@@ -298,18 +465,22 @@ fn x87_6() -> u16 {
 /// `[rc + 0x2D3148] = [rc + 0x2D3148] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x22400C] = [rc + 0x2D30FC] / [rc + 0x22400C]`
 fn x87_7() {
-    let t0 = ld(CONTACT_WORK.contact_slide_limit_held.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit_held
+        .bits());
     let t1 = ld(DRAW.scratch.bits());
     let t2 = t0 / t1;
-    let t3 = ld(CONTACT_WORK.contact_slide[0].bits());
+    let t3 = ld(crate::race::owner::race().physics.contact.contact_slide[0].bits());
     let t4 = t3 * t2;
-    CONTACT_WORK.contact_slide[0].set_bits(st(t4));
-    let t5 = ld(CONTACT_WORK.contact_slide[1].bits());
+    crate::race::owner::race().physics.contact.contact_slide[0].set_bits(st(t4));
+    let t5 = ld(crate::race::owner::race().physics.contact.contact_slide[1].bits());
     let t6 = t5 * t2;
-    CONTACT_WORK.contact_slide[1].set_bits(st(t6));
-    let t7 = ld(CONTACT_WORK.contact_slide[2].bits());
+    crate::race::owner::race().physics.contact.contact_slide[1].set_bits(st(t6));
+    let t7 = ld(crate::race::owner::race().physics.contact.contact_slide[2].bits());
     let t8 = t7 * t2;
-    CONTACT_WORK.contact_slide[2].set_bits(st(t8));
+    crate::race::owner::race().physics.contact.contact_slide[2].set_bits(st(t8));
     DRAW.scratch.set_bits(st(t2));
 }
 
@@ -319,15 +490,15 @@ fn x87_7() {
 /// `[d + 4] = [rc + 0x2D3154] / [rc + 0x21388C]`
 /// `[d + 8] = [rc + 0x2D3158] / [rc + 0x21388C]`
 fn x87_8(d: &[Float; 3]) {
-    let t0 = ld(CONTACT_WORK.contact_total[0].bits());
+    let t0 = ld(crate::race::owner::race().physics.contact.contact_total[0].bits());
     let t1 = ld(PHYSICS.step_time.bits());
     let t2 = t0 / t1;
     d[0].set_bits(st(t2));
-    let t3 = ld(CONTACT_WORK.contact_total[1].bits());
+    let t3 = ld(crate::race::owner::race().physics.contact.contact_total[1].bits());
     let t4 = ld(PHYSICS.step_time.bits());
     let t5 = t3 / t4;
     d[1].set_bits(st(t5));
-    let t6 = ld(CONTACT_WORK.contact_total[2].bits());
+    let t6 = ld(crate::race::owner::race().physics.contact.contact_total[2].bits());
     let t7 = ld(PHYSICS.step_time.bits());
     let t8 = t6 / t7;
     d[2].set_bits(st(t8));
@@ -370,9 +541,15 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &CONTACT_WORK.contact_turn_cross,
-                        &CONTACT_WORK.contact_car_speed,
-                        &CONTACT_WORK.contact_point_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_turn_cross,
+                        &crate::race::owner::race().physics.contact.contact_car_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_point_speed,
                     );
                 },
             },
@@ -452,9 +629,15 @@ mod asm_reference {
                 reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &CONTACT_WORK.contact_normal_push,
-                        &CONTACT_WORK.contact_extra,
-                        &CONTACT_WORK.contact_normal_push,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_extra,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
                     );
                 },
             },
@@ -517,9 +700,12 @@ mod asm_reference {
                 reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &CONTACT_WORK.contact_slide,
-                        &CONTACT_WORK.contact_normal_push,
-                        &CONTACT_WORK.contact_total,
+                        &crate::race::owner::race().physics.contact.contact_slide,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_total,
                     );
                 },
             },

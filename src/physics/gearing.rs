@@ -11,7 +11,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::session::{Cell32, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
@@ -62,7 +61,7 @@ pub fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
         crate::math::x87_run::sum_times_over(
             p.drive_speed.bits(),
             p.drive_speed_2.bits(),
-            NUMBERS.half.bits(),
+            crate::race::owner::race().course.numbers.half.bits(),
             ratio,
         )
     } else {

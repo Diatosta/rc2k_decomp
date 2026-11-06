@@ -19,10 +19,13 @@ pub struct KindRecords {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static KIND_RECORDS: KindRecords =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl KindRecords {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5CC3C0, the first byte of the piece.
 pub const START: usize = 0x5CC3C0;
@@ -34,7 +37,9 @@ const _: () = assert!(END - START == core::mem::size_of::<KindRecords>());
 /// Where IDA 0x5CC3C0 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&KIND_RECORDS))
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::race::owner::RACE.course.kind_records,
+    ))
 }
 
 #[cfg(test)]
@@ -44,7 +49,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&KIND_RECORDS, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::RACE.course.kind_records,
+            START,
+            END,
+        );
     }
 
     #[test]

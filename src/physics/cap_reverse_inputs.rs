@@ -10,7 +10,6 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
@@ -26,8 +25,8 @@ pub fn cap_reverse_inputs_at(gear: &dyn Cell32, speed: &dyn Cell32, values: [&dy
         return; // the speed and the values not read, as the original
     }
     let f = |a: &dyn Cell32| f32::from_bits(at(a));
-    let zero = f32::from_bits(NUMBERS.zero.bits());
-    let cap = f32::from_bits(NUMBERS.two.bits());
+    let zero = f32::from_bits(crate::race::owner::race().course.numbers.zero.bits());
+    let cap = f32::from_bits(crate::race::owner::race().course.numbers.two.bits());
     let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
     else {
         return;

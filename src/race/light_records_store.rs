@@ -3,6 +3,7 @@
 //! numbers and the lights' data (`race::copy_lights_data` lays the last in from `ldata`).
 //! Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 /// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
@@ -47,22 +48,22 @@ impl LightRecords {
     /// figures after them): the original does not bound the index and reads on past the 34
     /// records into the gear figures (`scene::load_object`).
     pub fn record_ptr(&self, index: u32) -> crate::pointers::GamePtr {
-        use crate::race::groups_store::{LIGHTS_AND_GEAR, LightsAndGear};
-        crate::pointers::GamePtr::to(&LIGHTS_AND_GEAR).offset(
+        use crate::race::groups_store::LightsAndGear;
+        crate::pointers::GamePtr::to(&race().frame.lights_and_gear).offset(
             (core::mem::offset_of!(LightsAndGear, light_records) as u32)
                 .wrapping_add(index.wrapping_mul(0x134)),
         )
     }
 }
 
-/// The piece: a field of `race::groups_store::LIGHTS_AND_GEAR` since 2026-10-29 (it left the race
+/// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = LightRecords;
     fn deref(&self) -> &LightRecords {
-        &crate::race::groups_store::LIGHTS_AND_GEAR.light_records
+        &race().frame.lights_and_gear.light_records
     }
 }
 
@@ -79,7 +80,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::LIGHTS_AND_GEAR.light_records,
+        &race().frame.lights_and_gear.light_records,
     ))
 }
 

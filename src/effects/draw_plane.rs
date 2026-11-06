@@ -27,9 +27,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::frame_store::FRAME_WORK;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise;
@@ -122,7 +120,7 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
     if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    if FRAME_WORK.lead_kept[7].bits() == 0 {
+    if crate::race::owner::race().frame.frame_work.lead_kept[7].bits() == 0 {
         return Ok(());
     }
     if corner >= 0x100 {
@@ -151,12 +149,18 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
             .v
             .set_bits(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
     }
-    let light: u32 = FRAME_WORK.view_light.bits();
+    let light: u32 = crate::race::owner::race()
+        .frame
+        .frame_work
+        .view_light
+        .bits();
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (QUAD_3.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
+        if (QUAD_3.corners[n][2].bits() as i32)
+            <= (crate::race::owner::race().course.numbers.k4096_a.bits() as i32)
+        {
             return Ok(());
         }
     }

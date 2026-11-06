@@ -7,16 +7,15 @@
 //!
 //! Caller: `sub_43907F` (0x4392CD).
 
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAMERA_WORK.pitch_ceiling as &dyn Cell32,
+        &crate::race::owner::race().physics.camera.pitch_ceiling as &dyn Cell32,
         &CAR.camera_pitch,
-        &CAMERA_WORK.pitch_step,
+        &crate::race::owner::race().physics.camera.pitch_step,
     ]
 }
 

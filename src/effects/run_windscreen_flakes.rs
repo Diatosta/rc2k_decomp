@@ -18,10 +18,10 @@ use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::race::owner::race;
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::frame_store::FRAME_WORK;
 use crate::scene::matrix3::extended;
 use crate::session::read_bits;
 
@@ -78,7 +78,7 @@ fn run(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<
             }
             let alpha =
                 x87::int_over_int_to_int(item.age.get() as i32, fl.state.fade.get() as i32) as u32;
-            let colour = ((!alpha) << 24) | (FRAME_WORK.view_light.bits() & 0xFF_FFFF);
+            let colour = ((!alpha) << 24) | (race().frame.frame_work.view_light.bits() & 0xFF_FFFF);
             let values = [
                 less(fl.state.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),

@@ -529,7 +529,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::find_snapshot_number::SNAPSHOT_START, // The snapshot picture's name
         len: 26,
-        home: Home::Store(&crate::race::find_snapshot_number::SNAPSHOT),
+        home: Home::Store(&crate::race::owner::RACE.replay.snapshot),
     },
     Moved {
         ida: crate::menu::play_films::FILMS_START, // The films' file names
@@ -544,7 +544,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::frame_text::CREDITS_START, // The credits' state and script
         len: crate::race::frame_text::CREDITS_LEN,
-        home: Home::Store(&crate::race::frame_text::CREDITS),
+        home: Home::Store(&crate::race::owner::RACE.frame.credits),
     },
     Moved {
         ida: crate::system::check_developer_machine::DEVELOPER_START, // g_developerMachine
@@ -574,7 +574,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::game_map::START, // The in-race map's variables
         len: crate::race::game_map::LEN,
-        home: Home::Store(&crate::race::game_map::MAP),
+        home: Home::Store(&crate::race::owner::RACE.frame.map),
     },
     Moved {
         ida: crate::gfx::front::START, // The DirectDraw front and back surface handles
@@ -647,7 +647,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F66F9, // the race record's seal key (`race::replay::SEAL_KEY`)
         len: 4,
-        home: Home::Store(&crate::race::replay::SEAL_KEY),
+        home: Home::Store(&crate::race::owner::RACE.replay.seal_key),
     },
     Moved {
         ida: 0x512A10, // the race sounds' objects (`sound::store::RaceSounds`)
@@ -885,7 +885,10 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::seal_store::SealWork::START,
         len: crate::race::seal_store::SealWork::LEN,
-        home: Home::Store(&crate::race::seal_store::SEAL_WINDOW),
+        home: Home::Store(&crate::race::store::Window::new(
+            &crate::race::owner::RACE.replay.seal_work,
+            12,
+        )),
     },
     Moved {
         ida: crate::system::set_error_mode::ErrorMode::START,
@@ -1181,19 +1184,19 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::groups_store::VIEWER_AND_KINDS_RANGE.0,
         len: crate::race::groups_store::VIEWER_AND_KINDS_RANGE.1
             - crate::race::groups_store::VIEWER_AND_KINDS_RANGE.0,
-        home: Home::Store(&crate::race::groups_store::VIEWER_AND_KINDS),
+        home: Home::Store(&crate::race::owner::RACE.replay.viewer_and_kinds),
     },
     Moved {
         ida: crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.0,
         len: crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.1
             - crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.0,
-        home: Home::Store(&crate::race::groups_store::LIGHTS_AND_GEAR),
+        home: Home::Store(&crate::race::owner::RACE.frame.lights_and_gear),
     },
     Moved {
         ida: crate::race::groups_store::CARS_AND_REPLAY_RANGE.0,
         len: crate::race::groups_store::CARS_AND_REPLAY_RANGE.1
             - crate::race::groups_store::CARS_AND_REPLAY_RANGE.0,
-        home: Home::Store(&crate::race::groups_store::CARS_AND_REPLAY),
+        home: Home::Store(&crate::race::owner::RACE.replay.cars_and_replay),
     },
     Moved {
         ida: crate::race::groups_store::PANEL_AND_OVERLAY_RANGE.0,
@@ -1205,37 +1208,37 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::split_tables_store::START,
         len: crate::physics::split_tables_store::END - crate::physics::split_tables_store::START,
-        home: Home::Store(&crate::physics::split_tables_store::SPLIT_TABLES),
+        home: Home::Store(&crate::race::owner::RACE.physics.split_tables),
     },
     Moved {
         ida: crate::race::league_store::START,
         len: crate::race::league_store::END - crate::race::league_store::START,
-        home: Home::Store(&crate::race::league_store::LEAGUE),
+        home: Home::Store(&crate::race::owner::RACE.course.league),
     },
     Moved {
         ida: crate::race::lights_store::START,
         len: crate::race::lights_store::END - crate::race::lights_store::START,
-        home: Home::Store(&crate::race::lights_store::LIGHTS_DATA),
+        home: Home::Store(&crate::race::owner::RACE.course.lights_data),
     },
     Moved {
         ida: crate::race::level_paths_store::START,
         len: crate::race::level_paths_store::END - crate::race::level_paths_store::START,
-        home: Home::Store(&crate::race::level_paths_store::LEVEL_PATHS),
+        home: Home::Store(&crate::race::owner::RACE.course.level_paths),
     },
     Moved {
         ida: crate::physics::pace_store::START,
         len: crate::physics::pace_store::END - crate::physics::pace_store::START,
-        home: Home::Store(&crate::physics::pace_store::PACE),
+        home: Home::Store(&crate::race::owner::RACE.physics.pace),
     },
     Moved {
         ida: crate::physics::ground_probe_store::START,
         len: crate::physics::ground_probe_store::END - crate::physics::ground_probe_store::START,
-        home: Home::Store(&crate::physics::ground_probe_store::GROUND_PROBE),
+        home: Home::Store(&crate::race::owner::RACE.physics.ground_probe),
     },
     Moved {
         ida: crate::race::panel_clock_store::START,
         len: crate::race::panel_clock_store::END - crate::race::panel_clock_store::START,
-        home: Home::Store(&crate::race::panel_clock_store::PANEL_CLOCK),
+        home: Home::Store(&crate::race::owner::RACE.frame.panel_clock),
     },
     Moved {
         ida: crate::scene::object_slots_store::START,
@@ -1250,22 +1253,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::error_list_store::START,
         len: crate::race::error_list_store::END - crate::race::error_list_store::START,
-        home: Home::Store(&crate::race::error_list_store::ERROR_LIST),
+        home: Home::Store(&crate::race::owner::RACE.frame.error_list),
     },
     Moved {
         ida: crate::race::flares_store::START,
         len: crate::race::flares_store::END - crate::race::flares_store::START,
-        home: Home::Store(&crate::race::flares_store::FLARE_TABLES),
+        home: Home::Store(&crate::race::owner::RACE.course.flare_tables),
     },
     Moved {
         ida: crate::race::shadow_skids_store::START,
         len: crate::race::shadow_skids_store::END - crate::race::shadow_skids_store::START,
-        home: Home::Store(&crate::race::shadow_skids_store::SHADOW_SKIDS),
+        home: Home::Store(&crate::race::owner::RACE.frame.shadow_skids),
     },
     Moved {
         ida: crate::drive::finish_store::START,
         len: crate::drive::finish_store::END - crate::drive::finish_store::START,
-        home: Home::Store(&crate::drive::finish_store::FINISH),
+        home: Home::Store(&crate::race::owner::RACE.replay.finish),
     },
     Moved {
         ida: crate::race::replay_file_store::START,
@@ -1275,32 +1278,32 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::viewer_state_store::START,
         len: crate::race::viewer_state_store::END - crate::race::viewer_state_store::START,
-        home: Home::Store(&crate::race::viewer_state_store::REPLAY_VIEW),
+        home: Home::Store(&crate::race::owner::RACE.replay.replay_view),
     },
     Moved {
         ida: crate::race::numbers_store::START,
         len: crate::race::numbers_store::END - crate::race::numbers_store::START,
-        home: Home::Store(&crate::race::numbers_store::NUMBERS),
+        home: Home::Store(&crate::race::owner::RACE.course.numbers),
     },
     Moved {
         ida: crate::race::scratch_store::START,
         len: crate::race::scratch_store::END - crate::race::scratch_store::START,
-        home: Home::Store(&crate::race::scratch_store::FRAME_SCRATCH),
+        home: Home::Store(&crate::race::owner::RACE.frame.scratch),
     },
     Moved {
         ida: crate::race::course_lists_store::START,
         len: crate::race::course_lists_store::END - crate::race::course_lists_store::START,
-        home: Home::Store(&crate::race::course_lists_store::COURSE_LISTS),
+        home: Home::Store(&crate::race::owner::RACE.course.lists),
     },
     Moved {
         ida: crate::race::car_specs_store::START,
         len: crate::race::car_specs_store::END - crate::race::car_specs_store::START,
-        home: Home::Store(&crate::race::car_specs_store::CAR_SPECS),
+        home: Home::Store(&crate::race::owner::RACE.physics.car_specs),
     },
     Moved {
         ida: crate::race::course_store::START,
         len: crate::race::course_store::END - crate::race::course_store::START,
-        home: Home::Store(&crate::race::course_store::COURSE),
+        home: Home::Store(&crate::race::owner::RACE.course.course),
     },
     Moved {
         ida: crate::scene::object_tables_store::START,
@@ -1315,7 +1318,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::matrices_store::START,
         len: crate::race::matrices_store::END - crate::race::matrices_store::START,
-        home: Home::Store(&crate::race::matrices_store::MATRICES),
+        home: Home::Store(&crate::race::owner::RACE.frame.matrices),
     },
     Moved {
         ida: crate::race::tables_store::START,
@@ -1326,17 +1329,17 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
         len: crate::race::groups_store::VIEW_AND_RECORDS_RANGE.1
             - crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
-        home: Home::Store(&crate::race::groups_store::VIEW_AND_RECORDS),
+        home: Home::Store(&crate::race::owner::RACE.frame.view_and_records),
     },
     Moved {
         ida: crate::physics::camera_store::START,
         len: crate::physics::camera_store::END - crate::physics::camera_store::START,
-        home: Home::Store(&crate::physics::camera_store::CAMERA_WORK),
+        home: Home::Store(&crate::race::owner::RACE.physics.camera),
     },
     Moved {
         ida: crate::race::prefs_store::START,
         len: crate::race::prefs_store::END - crate::race::prefs_store::START,
-        home: Home::Store(&crate::race::prefs_store::STAGE_PREFS),
+        home: Home::Store(&crate::race::owner::RACE.course.stage_prefs),
     },
     Moved {
         ida: crate::scene::file_numbers_store::START,
@@ -1371,27 +1374,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::level_grid_store::START,
         len: crate::race::level_grid_store::END - crate::race::level_grid_store::START,
-        home: Home::Store(&crate::race::level_grid_store::LEVEL_GRID),
+        home: Home::Store(&crate::race::owner::RACE.course.level_grid),
     },
     Moved {
         ida: crate::race::frame_store::START,
         len: crate::race::frame_store::END - crate::race::frame_store::START,
-        home: Home::Store(&crate::race::frame_store::FRAME_WORK),
+        home: Home::Store(&crate::race::owner::RACE.frame.frame_work),
     },
     Moved {
         ida: crate::race::sound_spots_store::START,
         len: crate::race::sound_spots_store::END - crate::race::sound_spots_store::START,
-        home: Home::Store(&crate::race::sound_spots_store::RACE_SOUND_SPOTS),
+        home: Home::Store(&crate::race::owner::RACE.frame.sound_spots),
     },
     Moved {
         ida: crate::physics::contact_store::START,
         len: crate::physics::contact_store::END - crate::physics::contact_store::START,
-        home: Home::Store(&crate::physics::contact_store::CONTACT_WORK),
+        home: Home::Store(&crate::race::owner::RACE.physics.contact),
     },
     Moved {
         ida: crate::drive::replay_frames_store::START,
         len: crate::drive::replay_frames_store::END - crate::drive::replay_frames_store::START,
-        home: Home::Store(&crate::drive::replay_frames_store::REPLAY_FRAMES),
+        home: Home::Store(&crate::race::owner::RACE.replay.replay_frames),
     },
     Moved {
         ida: crate::physics::car_store::START,
@@ -1406,17 +1409,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::text_state_store::START,
         len: crate::race::text_state_store::END - crate::race::text_state_store::START,
-        home: Home::Store(&crate::race::text_state_store::TEXT_STATE),
+        home: Home::Store(&crate::race::owner::RACE.frame.text_state),
     },
     Moved {
         ida: crate::race::clock_ticks_store::START,
         len: crate::race::clock_ticks_store::END - crate::race::clock_ticks_store::START,
-        home: Home::Store(&crate::race::clock_ticks_store::CLOCK_TICKS),
+        home: Home::Store(&crate::race::owner::RACE.frame.clock_ticks),
     },
     Moved {
         ida: crate::race::kind_records_store::START,
         len: crate::race::kind_records_store::END - crate::race::kind_records_store::START,
-        home: Home::Store(&crate::race::kind_records_store::KIND_RECORDS),
+        home: Home::Store(&crate::race::owner::RACE.course.kind_records),
     },
     Moved {
         ida: crate::scene::kind_texture_store::START,
@@ -1426,7 +1429,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::frame_counter_store::START,
         len: crate::race::frame_counter_store::END - crate::race::frame_counter_store::START,
-        home: Home::Store(&crate::race::frame_counter_store::FRAME_COUNTER),
+        home: Home::Store(&crate::race::owner::RACE.frame.counter),
     },
     Moved {
         ida: crate::race::switches_store::START,
@@ -1451,12 +1454,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::ground_store::START,
         len: crate::physics::ground_store::END - crate::physics::ground_store::START,
-        home: Home::Store(&crate::physics::ground_store::GROUND_WORK),
+        home: Home::Store(&crate::race::owner::RACE.physics.ground),
     },
     Moved {
         ida: crate::race::draw_batches_store::START,
         len: crate::race::draw_batches_store::END - crate::race::draw_batches_store::START,
-        home: Home::Store(&crate::race::draw_batches_store::DRAW_BATCHES),
+        home: Home::Store(&crate::race::owner::RACE.frame.draw_batches),
     },
     Moved {
         ida: crate::effects::work_store::START,
@@ -1484,7 +1487,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::store::START,
         len: crate::physics::store::END - crate::physics::store::START,
-        home: Home::Store(&crate::physics::store::DAMAGE),
+        home: Home::Store(&crate::race::owner::RACE.physics.damage),
     },
     // marks: 0x764F40 .. 0x93CCC8 (`effects::store`), less the ranges that left it (`CARVED`),
     // in the segments of `SEGS`; then the ranges that left it, each its own typed static

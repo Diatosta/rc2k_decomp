@@ -7,7 +7,6 @@
 //!
 //! Caller: `drive::replay_step` (`sub_460B2F`).
 
-use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
@@ -15,7 +14,7 @@ use crate::race::work_store::RACE_WORK;
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
 pub fn record_inputs_if() -> Result<(), crate::errors::BadInput> {
     let records = rc2k_core::drive::replay_frames::records_inputs(
-        NUMBERS.replay_mode.get(),
+        crate::race::owner::race().course.numbers.replay_mode.get(),
         RACE_WORK.current_car.get(),
         || RACE_VIEW.players.get(),
     );

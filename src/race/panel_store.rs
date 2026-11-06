@@ -1,6 +1,8 @@
 //! The race panel: the HUD record the race frame fills for the HUD (`hud::draw_hud` walks it from `g_hudRecord`, IDA 0x6D13FE, by address) and the variables around it: the two views' values (place, times, split gaps, motion), the overlay's miles and parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings unless IDA's.
 //! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Bytes;
 
 /// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
@@ -132,19 +134,6 @@ pub struct Panel {
     pub texture_changes: Loose32,
 }
 
-/// The piece: a field of `race::groups_store::PANEL_AND_OVERLAY` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
-pub struct InGroup;
-
-impl core::ops::Deref for InGroup {
-    type Target = Panel;
-    fn deref(&self) -> &Panel {
-        &crate::race::groups_store::PANEL_AND_OVERLAY.panel
-    }
-}
-
-pub static PANEL: InGroup = InGroup;
-
 /// IDA 0x6D13FE, the first byte of the piece.
 pub const START: usize = 0x6D13FE;
 /// IDA 0x6D150C, the end of the piece.
@@ -155,9 +144,7 @@ const _: () = assert!(END - START == core::mem::size_of::<Panel>());
 /// Where IDA 0x6D13FE is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::PANEL_AND_OVERLAY.panel,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.panel))
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::owner::race;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
@@ -97,19 +97,19 @@ pub fn reset_car_race_state() -> Result<(), BadInput> {
     }
     // dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
     for cell in [
-        &RACE_OVERLAY.label_behind[0],
-        &RACE_OVERLAY.label_behind[1],
-        &RACE_OVERLAY.label_ahead[0],
-        &RACE_OVERLAY.label_ahead[1],
+        &race().frame.panel_and_overlay.overlay.label_behind[0],
+        &race().frame.panel_and_overlay.overlay.label_behind[1],
+        &race().frame.panel_and_overlay.overlay.label_ahead[0],
+        &race().frame.panel_and_overlay.overlay.label_ahead[1],
     ] {
         cell.set(BLANK_TEXT);
     }
     // dword_6D1850, a64_0, dword_6D185C, a32_0: four dwords of -1.
     for cell in [
-        &RACE_OVERLAY.kept_behind[0],
-        &RACE_OVERLAY.kept_behind[1],
-        &RACE_OVERLAY.kept_ahead[0],
-        &RACE_OVERLAY.kept_ahead[1],
+        &race().frame.panel_and_overlay.overlay.kept_behind[0],
+        &race().frame.panel_and_overlay.overlay.kept_behind[1],
+        &race().frame.panel_and_overlay.overlay.kept_ahead[0],
+        &race().frame.panel_and_overlay.overlay.kept_ahead[1],
     ] {
         cell.set(UNSET_TEXT);
     }

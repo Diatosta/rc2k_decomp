@@ -4,7 +4,7 @@
 //! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -33,7 +33,7 @@ fn offsets(angle: u32, y: u32) -> (u32, u32) {
 pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
-    let skids = &crate::race::shadow_skids_store::SHADOW_SKIDS;
+    let skids = &race().frame.shadow_skids;
     let n = skids.skid_next.get();
     let last = slot.get();
     // The ring read out of its tables (and written back after, what changed).
@@ -61,8 +61,7 @@ pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
         })
         .collect();
     let (points_before, links_before) = (points.clone(), links.clone());
-    let place =
-        crate::session::read_bits(&crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place);
+    let place = crate::session::read_bits(&race().frame.shadow_skids.skid_place);
     let a = add_skid_point(
         Ring {
             points: &mut points,
@@ -71,9 +70,7 @@ pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
         n,
         last,
         place,
-        crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_cars
-            .get() as u16,
+        race().frame.shadow_skids.skid_cars.get() as u16,
         crate::scene::angle_between::angle_of,
         offsets,
     )?;
@@ -97,35 +94,25 @@ pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
         }
     }
     slot.set(n);
-    crate::race::shadow_skids_store::SHADOW_SKIDS
-        .skid_angle
-        .set(a.angle);
-    crate::race::shadow_skids_store::SHADOW_SKIDS
-        .skid_offset_x
-        .set(a.offset.0);
-    crate::race::shadow_skids_store::SHADOW_SKIDS
-        .skid_offset_z
-        .set(a.offset.1);
+    race().frame.shadow_skids.skid_angle.set(a.angle);
+    race().frame.shadow_skids.skid_offset_x.set(a.offset.0);
+    race().frame.shadow_skids.skid_offset_z.set(a.offset.1);
     if let Some(m) = a.from {
         for (i, v) in m.iter().enumerate() {
-            crate::race::shadow_skids_store::SHADOW_SKIDS.skid_from[i].set(*v);
+            race().frame.shadow_skids.skid_from[i].set(*v);
         }
     }
     if let Some((turned, m)) = a.turned {
-        crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_turned_angle
-            .set(turned);
+        race().frame.shadow_skids.skid_turned_angle.set(turned);
         for (i, v) in m.iter().enumerate() {
-            crate::race::shadow_skids_store::SHADOW_SKIDS.skid_turned[i].set(*v);
+            race().frame.shadow_skids.skid_turned[i].set(*v);
         }
     }
-    crate::race::shadow_skids_store::SHADOW_SKIDS
+    race()
+        .frame
+        .shadow_skids
         .skid_next
-        .set(next_point(
-            crate::race::shadow_skids_store::SHADOW_SKIDS
-                .skid_next
-                .get(),
-        ));
+        .set(next_point(race().frame.shadow_skids.skid_next.get()));
     Ok(())
 }
 
@@ -156,14 +143,10 @@ pub fn lay_skidmarks() -> Result<(), Refused> {
     if count == 0 {
         return Ok(());
     }
-    let grip: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
-        .skid_grip
-        .bits();
+    let grip: u32 = race().frame.shadow_skids.skid_grip.bits();
     let zero = int_80(0);
     for c in 0..count {
-        crate::race::shadow_skids_store::SHADOW_SKIDS
-            .skid_cars
-            .set(1 << (c & 31));
+        race().frame.shadow_skids.skid_cars.set(1 << (c & 31));
         let car = car_at(RACE_WORK.car_block(c as usize))?;
         for wheel in 0..4usize {
             let slot = &car.skid_slots[wheel];
@@ -183,7 +166,7 @@ pub fn lay_skidmarks() -> Result<(), Refused> {
                 &car.wheel_ground_z,
             ];
             for (i, run) in place.into_iter().enumerate() {
-                crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i].set(run[wheel].get());
+                race().frame.shadow_skids.skid_place[i].set(run[wheel].get());
             }
             let side = if wheel % 2 == 0 {
                 0x1555u32
@@ -198,8 +181,8 @@ pub fn lay_skidmarks() -> Result<(), Refused> {
             for (i, v) in t.into_iter().enumerate() {
                 let n = crate::math::x87_load::tbyte_to_int(v);
                 DRAW.scratch.set(n);
-                crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i].set(
-                    crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i]
+                race().frame.shadow_skids.skid_place[i].set(
+                    race().frame.shadow_skids.skid_place[i]
                         .get()
                         .wrapping_add(n),
                 );
@@ -214,7 +197,7 @@ pub fn lay_skidmarks() -> Result<(), Refused> {
 /// `dword_6416BC` is set. Its one caller, `race::draw_race_scene`, reads no register it
 /// leaves.
 pub fn lay_skidmarks_if_on() -> Result<(), Refused> {
-    if RACE_VARS.scene_switch.get() != 0 || FRAME_WORK.still_2.get() != 0 {
+    if RACE_VARS.scene_switch.get() != 0 || race().frame.frame_work.still_2.get() != 0 {
         return Ok(());
     }
     lay_skidmarks()

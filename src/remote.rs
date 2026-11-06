@@ -19,6 +19,7 @@
 
 #![allow(unsafe_code)]
 
+use crate::race::owner::race;
 use sdl3_sys::everything::*;
 use std::ffi::CString;
 use std::io::Write;
@@ -127,7 +128,7 @@ fn driven_car() -> &'static crate::physics::car_store::Car {
     let viewed =
         crate::race::blocks_store::car_of(crate::race::view_store::RACE_VIEW.view_blocks[0].get());
     match viewed {
-        Some(car) if crate::race::numbers_store::NUMBERS.in_race.get() != 0 => car,
+        Some(car) if crate::race::owner::race().course.numbers.in_race.get() != 0 => car,
         _ => &crate::physics::car_store::CAR,
     }
 }
@@ -145,7 +146,7 @@ fn state() -> String {
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         screen_frames(),
-        crate::race::numbers_store::NUMBERS.in_race.get(),
+        crate::race::owner::race().course.numbers.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
         LOOP_FLAGS.item.get(),
         crate::session::FLAGS.window_focused.get(),
@@ -315,7 +316,10 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
 fn screen_now() -> (Option<crate::menu::menus_store::MenuId>, u32) {
     let menu = crate::menu::loop_store::LOOP_FLAGS.menu.get().ok();
-    (menu, crate::race::numbers_store::NUMBERS.in_race.get())
+    (
+        menu,
+        crate::race::owner::race().course.numbers.in_race.get(),
+    )
 }
 
 /// A change of screen noted at its first frame.
@@ -407,7 +411,7 @@ pub fn shots_loading() {
         .scene_clock
         .set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
-    crate::race::frame_counter_store::FRAME_COUNTER.show.set(0);
+    race().frame.counter.show.set(0);
 }
 
 /// Both random generators (the game's and the effects' `g_marksSeed`) from one state.

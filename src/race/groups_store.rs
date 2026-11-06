@@ -28,6 +28,8 @@ use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::race::overlay_store::OverlayBlock;
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
@@ -149,58 +151,78 @@ const _: () = {
 // records of them): any bit pattern is a valid value.
 
 /// The cars' blocks and the replay's work, with the image's first values.
-pub static CARS_AND_REPLAY: CarsAndReplay =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-        { CARS_AND_REPLAY_RANGE.1 - CARS_AND_REPLAY_RANGE.0 },
-    >(CARS_AND_REPLAY_RANGE.0));
+impl CarsAndReplay {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+            { CARS_AND_REPLAY_RANGE.1 - CARS_AND_REPLAY_RANGE.0 },
+        >(CARS_AND_REPLAY_RANGE.0))
+    }
+}
 /// The viewer's panel .. the kinds' tables, with the image's first values.
-pub static VIEWER_AND_KINDS: ViewerAndKinds =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-        { VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0 },
-    >(VIEWER_AND_KINDS_RANGE.0));
+impl ViewerAndKinds {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+            { VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0 },
+        >(VIEWER_AND_KINDS_RANGE.0))
+    }
+}
 /// The light records and the gear figures, with the image's first values.
-pub static LIGHTS_AND_GEAR: LightsAndGear =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-        { LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0 },
-    >(LIGHTS_AND_GEAR_RANGE.0));
+impl LightsAndGear {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+            { LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0 },
+        >(LIGHTS_AND_GEAR_RANGE.0))
+    }
+}
 
 /// The hud's panel and the race's overlay, with the image's first values (the two lead
 /// bytes the block's before the panel).
-pub static PANEL_AND_OVERLAY: PanelAndOverlay =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-        { 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0 },
-    >(PANEL_AND_OVERLAY_RANGE.0 - 2));
+impl PanelAndOverlay {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+            { 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0 },
+        >(PANEL_AND_OVERLAY_RANGE.0 - 2))
+    }
+}
 
 /// The view variables and the view records, with the image's first values.
-pub static VIEW_AND_RECORDS: ViewAndRecords =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-        { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
-    >(VIEW_AND_RECORDS_RANGE.0));
+impl ViewAndRecords {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+            { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
+        >(VIEW_AND_RECORDS_RANGE.0))
+    }
+}
 
 /// The panel and the overlay without the two lead bytes: the group's home in `moved::MOVED`.
 pub static PANEL_WINDOW: crate::race::store::Window<PanelAndOverlay> =
-    crate::race::store::Window::new(&PANEL_AND_OVERLAY, 2);
+    crate::race::store::Window::new(&crate::race::owner::RACE.frame.panel_and_overlay, 2);
 
 /// Where each group is (`moved::MOVED`'s homes).
 #[cfg(test)]
 pub fn cars_and_replay_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&CARS_AND_REPLAY)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().replay.cars_and_replay,
+    )) as usize
 }
 #[cfg(test)]
 pub fn viewer_and_kinds_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&VIEWER_AND_KINDS)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().replay.viewer_and_kinds,
+    )) as usize
 }
 #[cfg(test)]
 pub fn lights_and_gear_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&LIGHTS_AND_GEAR)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.lights_and_gear)) as usize
 }
 #[cfg(test)]
 pub fn view_and_records_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&VIEW_AND_RECORDS)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.view_and_records)) as usize
 }
 #[cfg(test)]
 pub fn panel_and_overlay_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&PANEL_AND_OVERLAY.panel)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.panel))
+        as usize
 }
 
 #[cfg(test)]
@@ -210,16 +232,32 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let (a, b) = CARS_AND_REPLAY_RANGE;
-        crate::gfx::first_values_are_the_games(&CARS_AND_REPLAY, a, b);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.cars_and_replay,
+            a,
+            b,
+        );
         let (a, b) = VIEWER_AND_KINDS_RANGE;
-        crate::gfx::first_values_are_the_games(&VIEWER_AND_KINDS, a, b);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.viewer_and_kinds,
+            a,
+            b,
+        );
         let (a, b) = LIGHTS_AND_GEAR_RANGE;
-        crate::gfx::first_values_are_the_games(&LIGHTS_AND_GEAR, a, b);
+        crate::gfx::first_values_are_the_games(&race().frame.lights_and_gear, a, b);
         let (a, b) = VIEW_AND_RECORDS_RANGE;
-        crate::gfx::first_values_are_the_games(&VIEW_AND_RECORDS, a, b);
+        crate::gfx::first_values_are_the_games(&race().frame.view_and_records, a, b);
         let (a, b) = PANEL_AND_OVERLAY_RANGE;
-        crate::gfx::first_values_are_the_games(&PANEL_AND_OVERLAY.panel, a, race_panel_end());
-        crate::gfx::first_values_are_the_games(&PANEL_AND_OVERLAY.overlay, race_panel_end(), b);
+        crate::gfx::first_values_are_the_games(
+            &race().frame.panel_and_overlay.panel,
+            a,
+            race_panel_end(),
+        );
+        crate::gfx::first_values_are_the_games(
+            &race().frame.panel_and_overlay.overlay,
+            race_panel_end(),
+            b,
+        );
     }
 
     fn race_panel_end() -> usize {

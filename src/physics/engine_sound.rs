@@ -26,7 +26,6 @@ use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
@@ -43,13 +42,22 @@ fn run() {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
 fn run_at() {
-    CAR.engine_speed_scaled.set_bits(st(
-        ld(CAR.local_velocity[2].bits()) * ld(NUMBERS.two_and_a_quarter.bits())
-    ));
+    CAR.engine_speed_scaled
+        .set_bits(st(ld(CAR.local_velocity[2].bits())
+            * ld(crate::race::owner::race()
+                .course
+                .numbers
+                .two_and_a_quarter
+                .bits())));
     let speed = ld(CAR.engine_speed_scaled.bits());
     let flags = CAR.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
-        speed * ld(NUMBERS.kilometres_in_mile.bits())
+        speed
+            * ld(crate::race::owner::race()
+                .course
+                .numbers
+                .kilometres_in_mile
+                .bits())
     } else {
         speed
     };
@@ -60,8 +68,12 @@ fn run_at() {
         ld(CAR.velocity[1].bits()),
     );
     let sum = z * z + (x * x + y * y);
-    CAR.sound_speed
-        .set_bits(st(sum.sqrt() * ld(NUMBERS.two_and_a_quarter.bits())));
+    CAR.sound_speed.set_bits(st(sum.sqrt()
+        * ld(crate::race::owner::race()
+            .course
+            .numbers
+            .two_and_a_quarter
+            .bits())));
 }
 
 /// The Rust version.

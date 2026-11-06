@@ -26,7 +26,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{c0, ease_zero, hold_high, hold_low};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
@@ -48,7 +47,10 @@ fn store_loaded(to: &Float, from: &Float) {
 fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Float) {
     slip_ratio(drive, ratio);
     let s = abs_of(slip.bits());
-    let signed = if c0(ratio.bits(), NUMBERS.zero.bits()) {
+    let signed = if c0(
+        ratio.bits(),
+        crate::race::owner::race().course.numbers.zero.bits(),
+    ) {
         neg_rounded(extended(s))
     } else {
         s
@@ -85,14 +87,32 @@ fn status_above(status: u16) -> bool {
 fn steps() -> Result<(), Refused> {
     let gear = CAR.gear.get();
     one_less_abs(&CAR.crash_matrix[1], &PHYSICS.drive_shares[0]);
-    hold_low(&PHYSICS.drive_shares[0], &NUMBERS.tenth);
-    hold_high(&PHYSICS.drive_shares[0], &NUMBERS.one);
+    hold_low(
+        &PHYSICS.drive_shares[0],
+        &crate::race::owner::race().course.numbers.tenth,
+    );
+    hold_high(
+        &PHYSICS.drive_shares[0],
+        &crate::race::owner::race().course.numbers.one,
+    );
     one_less_abs(&CAR.crash_matrix[9], &PHYSICS.drive_shares[1]);
-    hold_low(&PHYSICS.drive_shares[1], &NUMBERS.tenth);
-    hold_high(&PHYSICS.drive_shares[1], &NUMBERS.one);
+    hold_low(
+        &PHYSICS.drive_shares[1],
+        &crate::race::owner::race().course.numbers.tenth,
+    );
+    hold_high(
+        &PHYSICS.drive_shares[1],
+        &crate::race::owner::race().course.numbers.one,
+    );
     signed_share();
-    hold_low(&PHYSICS.drive_shares[2], &NUMBERS.zero);
-    hold_high(&PHYSICS.drive_shares[2], &NUMBERS.one);
+    hold_low(
+        &PHYSICS.drive_shares[2],
+        &crate::race::owner::race().course.numbers.zero,
+    );
+    hold_high(
+        &PHYSICS.drive_shares[2],
+        &crate::race::owner::race().course.numbers.one,
+    );
     if CAR.driven_wheels_off.get() == 0 {
         if gear == 0 {
             PHYSICS.drive_torque.set_bits(0);
@@ -137,7 +157,7 @@ fn steps() -> Result<(), Refused> {
             let status = handbrake_stop_status([
                 CAR.drive_speed_a.bits(),
                 CAR.drive_speed_b.bits(),
-                NUMBERS.one.bits(),
+                crate::race::owner::race().course.numbers.one.bits(),
             ]);
             if status_below(status) {
                 CAR.drive_speed_a.set_bits(0);
@@ -154,11 +174,11 @@ fn steps() -> Result<(), Refused> {
         if CAR.parts_state.get() != 0 {
             PHYSICS.drive_forces[0].set_bits(x87::mul(
                 PHYSICS.drive_forces[0].bits(),
-                NUMBERS.half.bits(),
+                crate::race::owner::race().course.numbers.half.bits(),
             ));
             PHYSICS.drive_forces[1].set_bits(x87::mul(
                 PHYSICS.drive_forces[1].bits(),
-                NUMBERS.half.bits(),
+                crate::race::owner::race().course.numbers.half.bits(),
             ));
         }
         slip_limit(
@@ -215,9 +235,15 @@ fn steps() -> Result<(), Refused> {
     }
     // 0x43E957: the wheels' slip figures.
     slip_figure_a();
-    hold_low(&DRAW.work_float_a, &NUMBERS.zero);
+    hold_low(
+        &DRAW.work_float_a,
+        &crate::race::owner::race().course.numbers.zero,
+    );
     slip_figure_b();
-    hold_low(&DRAW.work_float_b, &NUMBERS.zero);
+    hold_low(
+        &DRAW.work_float_b,
+        &crate::race::owner::race().course.numbers.zero,
+    );
     slip_lengths();
     Ok(())
 }
@@ -245,7 +271,7 @@ pub fn drive_wheels_step() -> Result<(), Refused> {
 fn one_less_abs(v: &dyn Cell32, t: &dyn Cell32) {
     let t0 = ld(v.bits());
     let t1 = t0.abs();
-    let t2 = ld(NUMBERS.one.bits());
+    let t2 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t3 = t1 - t2;
     let t4 = -t3;
     t.set_bits(st(t4));
@@ -282,7 +308,7 @@ fn slip_ratio(d: &dyn Cell32, r: &dyn Cell32) {
 fn apply_slip_to_drive(d: &dyn Cell32, s: &dyn Cell32, f1: &dyn Cell32, f2: &dyn Cell32) {
     let t0 = ld(d.bits());
     let t1 = ld(PHYSICS.spec_wheel.bits());
-    let t2 = ld(NUMBERS.one.bits());
+    let t2 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t3 = t1 - t2;
     let t4 = ld(s.bits());
     let t5 = t3 * t4;
@@ -291,7 +317,7 @@ fn apply_slip_to_drive(d: &dyn Cell32, s: &dyn Cell32, f1: &dyn Cell32, f2: &dyn
     let t7 = ld(s.bits());
     let t8 = ld(PHYSICS.step_time.bits());
     let t9 = t7 / t8;
-    let t10 = ld(NUMBERS.half.bits());
+    let t10 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t11 = t9 * t10;
     f1.set_bits(st(t11));
     f2.set_bits(st(t11));
@@ -316,7 +342,7 @@ fn slip_ratio_size(d: &dyn Cell32, r: &dyn Cell32) {
 fn signed_share() {
     let t0 = ld(PHYSICS.drive_shares[1].bits());
     let t1 = t0 + t0;
-    let t2 = ld(NUMBERS.one.bits());
+    let t2 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t3 = t1 - t2;
     PHYSICS.drive_shares[2].set_bits(st(t3));
 }
@@ -380,7 +406,7 @@ fn drive_forces_from_grips(grips: &[Float; 5]) {
 /// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
 fn throttle_drive_limit() {
     let t0 = int(DRAW.scratch.bits() as i32);
-    let t1 = ld(NUMBERS.k256.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t2 = t0 / t1;
     let t3 = ld(CAR.local_velocity[0].bits());
     let t4 = ld(PHYSICS.wheel_load.bits());
@@ -402,7 +428,7 @@ fn throttle_drive_limit() {
 /// `[rc + 0x31A194] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A194]`
 fn push_both_drive_speeds() {
     let t0 = ld(PHYSICS.drive_torque.bits());
-    let t1 = ld(NUMBERS.half.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t2 = t0 * t1;
     let t3 = ld(PHYSICS.step_time.bits());
     let t4 = t2 * t3;
@@ -412,7 +438,7 @@ fn push_both_drive_speeds() {
     let t8 = t6 + t7;
     CAR.drive_speed_a.set_bits(st(t8));
     let t9 = ld(PHYSICS.drive_torque.bits());
-    let t10 = ld(NUMBERS.half.bits());
+    let t10 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t11 = t9 * t10;
     let t12 = ld(PHYSICS.step_time.bits());
     let t13 = t11 * t12;
@@ -448,7 +474,7 @@ fn brake_step_for_a() {
     let t4 = t2 * t3;
     let t5 = int(CAR.brake.bits() as i32);
     let t6 = t4 * t5;
-    let t7 = ld(NUMBERS.k256.bits());
+    let t7 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t8 = t6 / t7;
     let t9 = ld(PHYSICS.step_time.bits());
     let t10 = t8 * t9;
@@ -468,7 +494,7 @@ fn brake_step_for_b() {
     let t2 = t0 * t1;
     let t3 = int(CAR.brake.bits() as i32);
     let t4 = t2 * t3;
-    let t5 = ld(NUMBERS.k256.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t6 = t4 / t5;
     let t7 = ld(PHYSICS.step_time.bits());
     let t8 = t6 * t7;
@@ -486,7 +512,7 @@ fn handbrake_step_for_b() {
     let t0 = ld(PHYSICS.spec_drive[0].bits());
     let t1 = int(CAR.handbrake.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = ld(NUMBERS.k256.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t4 = t2 / t3;
     let t5 = ld(PHYSICS.step_time.bits());
     let t6 = t4 * t5;
@@ -560,7 +586,7 @@ fn side_slip_forces() {
     PHYSICS.drive_slip[0].set_bits(st(t2));
     let t3 = ld(PHYSICS.step_time.bits());
     let t4 = t2 / t3;
-    let t5 = ld(NUMBERS.quarter.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.quarter.bits());
     let t6 = t4 * t5;
     PHYSICS.forces[11].force[0].set_bits(st(t6));
     PHYSICS.forces[12].force[0].set_bits(st(t6));
@@ -646,25 +672,25 @@ fn rolling_drag_forces() {
 /// `[rc + 0x214930] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214930]`
 fn share_wheel_forces() {
     let t0 = ld(PHYSICS.forces[19].force[0].bits());
-    let t1 = ld(NUMBERS.half.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t2 = t0 * t1;
     let t3 = ld(PHYSICS.forces[11].force[0].bits());
     let t4 = t2 + t3;
     PHYSICS.forces[11].force[0].set_bits(st(t4));
     let t5 = ld(PHYSICS.forces[19].force[0].bits());
-    let t6 = ld(NUMBERS.half.bits());
+    let t6 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t7 = t5 * t6;
     let t8 = ld(PHYSICS.forces[12].force[0].bits());
     let t9 = t7 + t8;
     PHYSICS.forces[12].force[0].set_bits(st(t9));
     let t10 = ld(PHYSICS.forces[20].force[0].bits());
-    let t11 = ld(NUMBERS.half.bits());
+    let t11 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t12 = t10 * t11;
     let t13 = ld(PHYSICS.forces[13].force[0].bits());
     let t14 = t12 + t13;
     PHYSICS.forces[13].force[0].set_bits(st(t14));
     let t15 = ld(PHYSICS.forces[20].force[0].bits());
-    let t16 = ld(NUMBERS.half.bits());
+    let t16 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t17 = t15 * t16;
     let t18 = ld(PHYSICS.forces[14].force[0].bits());
     let t19 = t17 + t18;

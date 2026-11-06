@@ -4,20 +4,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::pointers::GamePtr;
-use crate::race::frame_store::FRAME_WORK;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::overlay_store::RACE_OVERLAY;
-use crate::race::panel_store::PANEL;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::{Trap, car_at};
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -42,7 +34,11 @@ pub fn full_view_window(first: bool) {
     if first {
         LIGHT_STATE.draw_mode.set(0);
     }
-    GROUND_WORK.view_mirrored.set(0);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .view_mirrored
+        .set(0);
 }
 
 /// `race::mirror_view_window` (0x455F17): the rear-view mirror's window: its corner from
@@ -57,18 +53,24 @@ pub fn mirror_view_window() -> Result<(), Refused> {
     let n = mirror_entry(
         RACE_VARS.split.get(),
         RACE_VIEW.drawn_view.get(),
-        PANEL.flat.get() == 0,
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
+            .flat
+            .get()
+            == 0,
     );
     // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
     // original.
-    let places = &FRAME_WORK.mirror_places;
+    let places = &crate::race::owner::race().frame.frame_work.mirror_places;
     let trap = Trap::new();
     let at = |word: usize| {
         let k = (n as usize).wrapping_mul(2).wrapping_add(word);
         places.get(k).map_or_else(
             || {
                 trap.keep_read(crate::session::read_on_in(
-                    &FRAME_WORK,
+                    &crate::race::owner::race().frame.frame_work,
                     places,
                     k,
                     "the mirror places",
@@ -100,7 +102,11 @@ pub fn mirror_view_window() -> Result<(), Refused> {
     crate::scene::set_view_window::set_view_window();
     crate::race::frame_draw::set_up_fog()?;
     LIGHT_STATE.draw_mode.set(0);
-    GROUND_WORK.view_mirrored.set(1);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .view_mirrored
+        .set(1);
     Ok(())
 }
 
@@ -187,11 +193,11 @@ pub fn copy_mirror_picture() -> Result<(), Refused> {
         return Ok(());
     }
     let esi = crate::gfx::surface::address()?;
-    FRAME_WORK.view_kept[0].set(esi);
+    crate::race::owner::race().frame.frame_work.view_kept[0].set(esi);
     let ebp = DRAW_SURFACE.pitch.get();
     if !lock_texture(to)?.carry {
         let edi = crate::gfx::surface::address()?;
-        FRAME_WORK.view_kept[1].set(edi);
+        crate::race::owner::race().frame.frame_work.view_kept[1].set(edi);
         let format = DRAW_SURFACE.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
@@ -282,13 +288,33 @@ pub fn forget_view_textures() -> Result<(), Refused> {
         Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
         Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
         Forget::Extra(n) => (
-            [&RACE_OVERLAY.forget_flag_0, &RACE_OVERLAY.forget_flag_1][n].get(),
+            [
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .forget_flag_0,
+                &crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .forget_flag_1,
+            ][n]
+                .get(),
             slot_of(220 + n),
         ),
     };
     let mirror = mirror_on(
-        FRAME_WORK.mirror_wanted.get(),
-        FRAME_WORK.mirror_switch.get(),
+        crate::race::owner::race()
+            .frame
+            .frame_work
+            .mirror_wanted
+            .get(),
+        crate::race::owner::race()
+            .frame
+            .frame_work
+            .mirror_switch
+            .get(),
     );
     let uploaded = crate::input::store::DEVICES.keys_now.get(0x18) != 0; // byte_4F6B74
     let mut slots: Vec<u32> = FORGET_ORDER
@@ -302,19 +328,43 @@ pub fn forget_view_textures() -> Result<(), Refused> {
     }
     trap.finish()?;
     check_slots(&slots)?;
-    FRAME_WORK.view_textures_forgotten.set(0);
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .view_textures_forgotten
+        .set(0);
     for (f, bit) in FORGET_ORDER {
         let (switch, slot) = source(f);
         if !forgets(switch) {
             continue;
         }
         forget_slot_texture(slot.get())?;
-        PANEL
+        crate::race::owner::race()
+            .frame
+            .panel_and_overlay
+            .panel
             .texture_changes
-            .set(PANEL.texture_changes.get().wrapping_add(FORGET_COST));
-        FRAME_WORK
+            .set(
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .panel
+                    .texture_changes
+                    .get()
+                    .wrapping_add(FORGET_COST),
+            );
+        crate::race::owner::race()
+            .frame
+            .frame_work
             .view_textures_forgotten
-            .set(FRAME_WORK.view_textures_forgotten.get() | bit);
+            .set(
+                crate::race::owner::race()
+                    .frame
+                    .frame_work
+                    .view_textures_forgotten
+                    .get()
+                    | bit,
+            );
         if let Forget::Counted(v) = f {
             let counter = &crate::race::trap::car_at(blocks[v])?.notice_counter;
             counter.set(counter.get().wrapping_sub(1));
@@ -323,9 +373,18 @@ pub fn forget_view_textures() -> Result<(), Refused> {
     if !mirror {
         return Ok(());
     }
-    FRAME_WORK
+    crate::race::owner::race()
+        .frame
+        .frame_work
         .view_textures_forgotten
-        .set(FRAME_WORK.view_textures_forgotten.get() | MIRROR_BIT);
+        .set(
+            crate::race::owner::race()
+                .frame
+                .frame_work
+                .view_textures_forgotten
+                .get()
+                | MIRROR_BIT,
+        );
     if !uploaded {
         copy_mirror_picture()?;
         forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
@@ -334,9 +393,20 @@ pub fn forget_view_textures() -> Result<(), Refused> {
         // game, esi the picture, eax the slot (the only registers it reads).
         crate::standalone::not_ported(0x44E828, "race::frame_views");
     }
-    PANEL
+    crate::race::owner::race()
+        .frame
+        .panel_and_overlay
+        .panel
         .texture_changes
-        .set(PANEL.texture_changes.get().wrapping_add(MIRROR_COST));
+        .set(
+            crate::race::owner::race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .texture_changes
+                .get()
+                .wrapping_add(MIRROR_COST),
+        );
     Ok(())
 }
 
@@ -362,22 +432,35 @@ pub fn draw_screen_tint() -> Result<(), Refused> {
         RACE_VARS.quad_colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
-    let sun = FRAME_WORK.sun_on_screen.get();
+    let sun = crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .get();
     let a = glare_alpha(LIGHT_STATE.fog_far.get());
     RACE_VARS.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
         window_corners();
         // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
-        let byte = |k: usize| STAGE_PREFS.unknown_18c0[k].get() as u8;
+        let byte =
+            |k: usize| crate::race::owner::race().course.stage_prefs.unknown_18c0[k].get() as u8;
         RACE_VARS.quad_colour[0].set(glare_colour(
-            STAGE_PREFS.lamp_table_c.get(),
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .lamp_table_c
+                .get(),
             byte(0),
             byte(1),
         ));
         done = crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
-    FRAME_WORK.sun_on_screen.set(sun);
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .set(sun);
     done
 }
 
@@ -413,7 +496,12 @@ pub fn draw_own_car() -> Result<(), Refused> {
     if car == 0 {
         return Err(BadInput("the drawn car without its block").into());
     }
-    VIEW_VARS.drawn_car.set(number);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .drawn_car
+        .set(number);
     let block = car_at(car)?;
     if !seen_inside(block.state_bits.get()) {
         return Ok(());
@@ -430,7 +518,12 @@ pub fn draw_own_car() -> Result<(), Refused> {
     }
     // `race::draw_car_shined` reads only esi, the car's block.
     crate::race::car_draw::draw_car_shined(car)?;
-    VIEW_VARS.group_mask.set(u32::MAX);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .group_mask
+        .set(u32::MAX);
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     DRAW.polygon_vertex_count.set(4);
@@ -472,14 +565,18 @@ pub fn run_view_marks() -> Result<(), Refused> {
     let (other, own) = marks_shown(
         view,
         RACE_VARS.scene_switch.get(),
-        crate::physics::split_tables_store::SPLIT_TABLES.still.get(),
+        crate::race::owner::race().physics.split_tables.still.get(),
     );
     MARKS_SETTINGS.other_marks_shown.set(other);
     MARKS_SETTINGS.own_marks_shown.set(own);
     let layout_at = layout_index(view, RACE_VARS.split.get());
-    let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
+    let layout = crate::race::owner::race().frame.frame_work.view_layouts[layout_at as usize].get();
     MARKS_SETTINGS.marks_layout.set(layout);
-    crate::math::cells::copy_cells(&car_at(block)?.whole_matrix, &MATRICES.view_place, 16);
+    crate::math::cells::copy_cells(
+        &car_at(block)?.whole_matrix,
+        &crate::race::owner::race().frame.matrices.view_place,
+        16,
+    );
     crate::drive::share_all_cars::share_all_cars()?;
     let first = first_word(RACE_VARS.run_kind.get());
     for b in 0..CAR_RECORDS {
@@ -493,21 +590,22 @@ pub fn run_view_marks() -> Result<(), Refused> {
         .at(0)
         .write(1u32, "a car record's first word")?;
     let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
-    let n = FRAME_WORK.view_layouts[layout_at as usize].get() as usize;
+    let n =
+        crate::race::owner::race().frame.frame_work.view_layouts[layout_at as usize].get() as usize;
     DRAW.view_centre[0].set_bits(int_over_times(
         SCREEN.width.get(),
-        NUMBERS.k800.bits(),
-        FRAME_WORK.view_scale_x[n].bits(),
+        crate::race::owner::race().course.numbers.k800.bits(),
+        crate::race::owner::race().frame.frame_work.view_scale_x[n].bits(),
     ));
     DRAW.view_centre[1].set_bits(int_over_times(
         SCREEN.height.get(),
-        NUMBERS.k600.bits(),
-        FRAME_WORK.view_scale_y[n].bits(),
+        crate::race::owner::race().course.numbers.k600.bits(),
+        crate::race::owner::race().frame.frame_work.view_scale_y[n].bits(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done =
         crate::effects::frame_marks::frame_marks(crate::effects::owner::effects()).and_then(|_| {
-            if FRAME_WORK.drawing.get() == 0 {
+            if crate::race::owner::race().frame.frame_work.drawing.get() == 0 {
                 crate::effects::run_frame::run_frame()
             } else {
                 Ok(())

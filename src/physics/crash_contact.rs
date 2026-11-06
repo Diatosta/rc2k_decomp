@@ -29,14 +29,12 @@ use crate::math::x87_float::st;
 use crate::math::x87_run::neg_rounded;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::dot_product::dot_product;
 use crate::physics::flow::hold_high;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Float;
@@ -61,23 +59,41 @@ pub fn sign(v: u32) -> bool {
 /// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
 /// `dword_6D3090` ...
 pub fn take_contact(n: usize) -> Result<(), Refused> {
-    copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy3(
+        &crate::race::owner::race().physics.contact.contact_car_speed,
+        &CAR.velocity,
+    );
     let face = CAR.probe_point_face[n].get();
-    let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
+    let parts = contacts::normal_offsets(
+        crate::race::owner::race().physics.contact.probe_face_flip[n].get(),
+    );
     for (k, &o) in parts.iter().enumerate() {
         let v = crate::race::course_places::face_field::<u32>(face, o, "a face's normal")?;
-        CONTACT_WORK.contact_normal[k].set_bits(loaded(v));
+        crate::race::owner::race().physics.contact.contact_normal[k].set_bits(loaded(v));
     }
-    copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
-    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
-    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
-    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
+    copy3(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_speed,
+        &CAR.spin,
+    );
+    crate::race::owner::race().physics.contact.contact_point[0]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_x[n].bits());
+    crate::race::owner::race().physics.contact.contact_point[1]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_y[n].bits());
+    crate::race::owner::race().physics.contact.contact_point[2]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_z[n].bits());
     Ok(())
 }
 
 /// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
 pub fn point_number() -> Result<usize, Refused> {
-    let n = CONTACT_WORK.lowest_point.get();
+    let n = crate::race::owner::race()
+        .physics
+        .contact
+        .lowest_point
+        .get();
     contacts::check_body_point(n)?;
     Ok(n as usize)
 }
@@ -87,7 +103,11 @@ pub fn point_number() -> Result<usize, Refused> {
 fn steps() -> Result<(), Refused> {
     CAR.contact_found.set(0);
     { lowest_body_point() }?;
-    let depth = CONTACT_WORK.lowest_depth.get();
+    let depth = crate::race::owner::race()
+        .physics
+        .contact
+        .lowest_depth
+        .get();
     if !contacts::touches(
         depth,
         PHYSICS.crash_depth.get(),
@@ -97,10 +117,17 @@ fn steps() -> Result<(), Refused> {
         return Ok(());
     }
     let n = point_number()?;
-    CAR.contact_point_x.set(CONTACT_WORK.probe_x[n].get());
-    CAR.contact_point_ground
-        .set(CONTACT_WORK.probe_ground_height[n].get());
-    CAR.contact_point_z.set(CONTACT_WORK.probe_z[n].get());
+    CAR.contact_point_x
+        .set(crate::race::owner::race().physics.contact.probe_x[n].get());
+    CAR.contact_point_ground.set(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .probe_ground_height[n]
+            .get(),
+    );
+    CAR.contact_point_z
+        .set(crate::race::owner::race().physics.contact.probe_z[n].get());
     CAR.contact_found.set(1);
     take_contact(n)?;
     let up = {
@@ -110,27 +137,51 @@ fn steps() -> Result<(), Refused> {
         )
     };
     for (k, e) in up.iter().enumerate() {
-        CONTACT_WORK.crash_car_up[k].set_bits(rounded(*e));
+        crate::race::owner::race().physics.contact.crash_car_up[k].set_bits(rounded(*e));
     }
-    CONTACT_WORK.crash_up_dot.set_bits(neg_rounded({
-        dot_product(&CONTACT_WORK.crash_car_up, &CONTACT_WORK.contact_normal)
-    }));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .crash_up_dot
+        .set_bits(neg_rounded({
+            dot_product(
+                &crate::race::owner::race().physics.contact.crash_car_up,
+                &crate::race::owner::race().physics.contact.contact_normal,
+            )
+        }));
     x87_1();
     contact_force(&PHYSICS.forces[21]);
     { place_sound_e5() }?;
     for k in 0..3 {
-        CONTACT_WORK.ground_force[k].set(PHYSICS.forces[21].force[k].bits());
+        crate::race::owner::race().physics.contact.ground_force[k]
+            .set(PHYSICS.forces[21].force[k].bits());
     }
     for cell in &PHYSICS.forces[21].point {
         cell.set_bits(0);
     }
     x87_2();
-    hold_high(&CONTACT_WORK.crash_ground_scale, &NUMBERS.one);
+    hold_high(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .crash_ground_scale,
+        &crate::race::owner::race().course.numbers.one,
+    );
     CAR.spin[1].set_bits(mul(
-        CONTACT_WORK.crash_ground_scale.bits(),
+        crate::race::owner::race()
+            .physics
+            .contact
+            .crash_ground_scale
+            .bits(),
         CAR.spin[1].bits(),
     ));
-    CAR.contact_value.set(CONTACT_WORK.contact_value.bits());
+    CAR.contact_value.set(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .contact_value
+            .bits(),
+    );
     Ok(())
 }
 
@@ -145,12 +196,16 @@ pub fn crash_contact() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_1() {
-    let t0 = ld(CONTACT_WORK.crash_up_dot.bits());
-    let t1 = ld(NUMBERS.one.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .crash_up_dot
+        .bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t2 = t0 + t1;
-    let t3 = ld(NUMBERS.two.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.two.bits());
     let t4 = t2 / t3;
-    let t5 = ld(NUMBERS.two.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.two.bits());
     let t6 = t4 + t5;
     let t7 = ld(PHYSICS.gravity.bits());
     let t8 = t6 * t7;
@@ -160,7 +215,11 @@ fn x87_1() {
     let t12 = t10 * t11;
     let t13 = ld(PHYSICS.weight.bits());
     let t14 = t12 * t13;
-    CONTACT_WORK.contact_slide_limit.set_bits(st(t14));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit
+        .set_bits(st(t14));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -168,11 +227,15 @@ fn x87_1() {
 /// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
 fn x87_2() {
     let t0 = ld(CAR.crash_matrix[5].bits());
-    let t1 = ld(NUMBERS.sixty_four.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.sixty_four.bits());
     let t2 = t0 + t1;
-    let t3 = ld(NUMBERS.sixty_four.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.sixty_four.bits());
     let t4 = t2 / t3;
-    CONTACT_WORK.crash_ground_scale.set_bits(st(t4));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .crash_ground_scale
+        .set_bits(st(t4));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

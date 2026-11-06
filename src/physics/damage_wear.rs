@@ -13,7 +13,7 @@ use crate::math::x87_float::{X, int, ld, st};
 use crate::physics::car_store::CAR;
 use crate::physics::damage_gauges::raise;
 use crate::physics::flow::{hold_low, table_lerp};
-use crate::physics::store::{DAMAGE, DamageModel};
+use crate::physics::store::DamageModel;
 use crate::pointers::GamePtr;
 use crate::session::Cell32;
 use core::mem::offset_of;
@@ -21,103 +21,186 @@ use core::mem::offset_of;
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
 pub fn steps() {
-    DAMAGE.clock.set_bits(CAR.noise_word.get());
+    crate::race::owner::race()
+        .physics
+        .damage
+        .clock
+        .set_bits(CAR.noise_word.get());
     table_lerp(
-        &DAMAGE.engine_speed_share,
-        &DAMAGE.lerp_tables[0],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b45c,
+        &crate::race::owner::race().physics.damage.engine_speed_share,
+        &crate::race::owner::race().physics.damage.lerp_tables[0],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b45c,
     );
     for k in 0..2 {
         raise(&CAR.brake_heat[k], |g| {
-            add_wear(&DAMAGE, &DAMAGE.wear_rates[3], &DAMAGE.brake_share, g, g);
+            add_wear(
+                &crate::race::owner::race().physics.damage,
+                &crate::race::owner::race().physics.damage.wear_rates[3],
+                &crate::race::owner::race().physics.damage.brake_share,
+                g,
+                g,
+            );
         });
     }
     for k in 0..2 {
         raise(&CAR.brake_heat[k], |g| {
-            subtract_rate(&DAMAGE, &DAMAGE.wear_rates[4], g, g);
+            subtract_rate(
+                &crate::race::owner::race().physics.damage,
+                &crate::race::owner::race().physics.damage.wear_rates[4],
+                g,
+                g,
+            );
         });
     }
     let extrapolated = [
-        &DAMAGE.drive_a_extrapolated_share,
-        &DAMAGE.drive_b_extrapolated_share,
+        &crate::race::owner::race()
+            .physics
+            .damage
+            .drive_a_extrapolated_share,
+        &crate::race::owner::race()
+            .physics
+            .damage
+            .drive_b_extrapolated_share,
     ];
     for (damper, share) in CAR.damper_wear.iter().zip(extrapolated) {
         raise(damper, |g| {
-            add_wear(&DAMAGE, &DAMAGE.wear_rates[5], share, g, g);
+            add_wear(
+                &crate::race::owner::race().physics.damage,
+                &crate::race::owner::race().physics.damage.wear_rates[5],
+                share,
+                g,
+                g,
+            );
         });
     }
     for k in 0..2 {
         raise(&CAR.damper_wear[k], |g| {
-            subtract_rate(&DAMAGE, &DAMAGE.wear_rates[6], g, g);
+            subtract_rate(
+                &crate::race::owner::race().physics.damage,
+                &crate::race::owner::race().physics.damage.wear_rates[6],
+                g,
+                g,
+            );
         });
     }
     raise(&CAR.brake_fade, |g| {
-        add_wear(&DAMAGE, &DAMAGE.wear_rates[7], &DAMAGE.flt_75b3b4, g, g);
+        add_wear(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[7],
+            &crate::race::owner::race().physics.damage.flt_75b3b4,
+            g,
+            g,
+        );
     });
     raise(&CAR.brake_fade, |g| {
-        subtract_rate(&DAMAGE, &DAMAGE.wear_rates[8], g, g);
+        subtract_rate(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[8],
+            g,
+            g,
+        );
     });
     raise(&CAR.brake_fade, |g| {
-        subtract_wear(&DAMAGE, &DAMAGE.wear_rates[9], &DAMAGE.brake_share, g, g);
+        subtract_wear(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[9],
+            &crate::race::owner::race().physics.damage.brake_share,
+            g,
+            g,
+        );
     });
     table_lerp(
         &CAR.cooling_damage,
-        &DAMAGE.lerp_tables[1],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b460,
+        &crate::race::owner::race().physics.damage.lerp_tables[1],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b460,
     );
-    lerp_gap(&DAMAGE);
-    hold_low(&DAMAGE.flt_75b464, &DAMAGE.gauge_low);
+    lerp_gap(&crate::race::owner::race().physics.damage);
+    hold_low(
+        &crate::race::owner::race().physics.damage.flt_75b464,
+        &crate::race::owner::race().physics.damage.gauge_low,
+    );
     raise(&CAR.engine_heat, |g| {
-        add_wear(&DAMAGE, &DAMAGE.wear_rates[0], &DAMAGE.flt_75b464, g, g);
+        add_wear(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[0],
+            &crate::race::owner::race().physics.damage.flt_75b464,
+            g,
+            g,
+        );
     });
     raise(&CAR.engine_heat, |g| {
-        subtract_rate(&DAMAGE, &DAMAGE.wear_rates[1], g, g);
+        subtract_rate(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[1],
+            g,
+            g,
+        );
     });
     raise(&CAR.engine_heat, |g| {
-        subtract_wear(&DAMAGE, &DAMAGE.wear_rates[2], &DAMAGE.speed_share, g, g);
+        subtract_wear(
+            &crate::race::owner::race().physics.damage,
+            &crate::race::owner::race().physics.damage.wear_rates[2],
+            &crate::race::owner::race().physics.damage.speed_share,
+            g,
+            g,
+        );
     });
     table_lerp(
         &CAR.stiffness_mean,
-        &DAMAGE.lerp_tables_b[2],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b44c,
+        &crate::race::owner::race().physics.damage.lerp_tables_b[2],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b44c,
     );
-    square_into(&DAMAGE.flt_75b44c, &DAMAGE.flt_75b44c);
+    square_into(
+        &crate::race::owner::race().physics.damage.flt_75b44c,
+        &crate::race::owner::race().physics.damage.flt_75b44c,
+    );
     table_lerp(
         &CAR.stiffness_mean,
-        &DAMAGE.lerp_tables_b[0],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b448,
+        &crate::race::owner::race().physics.damage.lerp_tables_b[0],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b448,
     );
-    square_into(&DAMAGE.flt_75b448, &DAMAGE.flt_75b448);
+    square_into(
+        &crate::race::owner::race().physics.damage.flt_75b448,
+        &crate::race::owner::race().physics.damage.flt_75b448,
+    );
     table_lerp(
         &CAR.ride_height_mean,
-        &DAMAGE.lerp_tables_b[1],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b468,
+        &crate::race::owner::race().physics.damage.lerp_tables_b[1],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b468,
     );
-    square_into(&DAMAGE.flt_75b468, &DAMAGE.flt_75b468);
-    table_lerp(
-        &DAMAGE.drive_a_slip_share,
-        &DAMAGE.lerp_tables[3],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b46c,
+    square_into(
+        &crate::race::owner::race().physics.damage.flt_75b468,
+        &crate::race::owner::race().physics.damage.flt_75b468,
     );
     table_lerp(
-        &DAMAGE.drive_b_slip_share,
-        &DAMAGE.lerp_tables[3],
-        &DAMAGE.gauge_low,
-        &DAMAGE.flt_75b470,
+        &crate::race::owner::race().physics.damage.drive_a_slip_share,
+        &crate::race::owner::race().physics.damage.lerp_tables[3],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b46c,
     );
-    hit_figures(&DAMAGE);
+    table_lerp(
+        &crate::race::owner::race().physics.damage.drive_b_slip_share,
+        &crate::race::owner::race().physics.damage.lerp_tables[3],
+        &crate::race::owner::race().physics.damage.gauge_low,
+        &crate::race::owner::race().physics.damage.flt_75b470,
+    );
+    hit_figures(&crate::race::owner::race().physics.damage);
     // 0x4AC7C9: two figures of the table `dword_75B73C` (row `dword_75B3E8`, columns
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
-    let row = DAMAGE.dword_75b3e8.bits() << 6;
+    let row = crate::race::owner::race()
+        .physics
+        .damage
+        .dword_75b3e8
+        .bits()
+        << 6;
     // The original runs on through the store, whatever the columns hold.
-    let store = GamePtr::to(&DAMAGE);
+    let store = GamePtr::to(&crate::race::owner::race().physics.damage);
     let at = |field: usize, n: u32| store.offset((field as u32).wrapping_add(n));
     let read = |at: GamePtr| {
         at.read::<u32>("a car block's field")
@@ -126,7 +209,13 @@ pub fn steps() {
     let wear = offset_of!(DamageModel, wear_table);
     let column = read(at(
         offset_of!(DamageModel, dword_75b8c0),
-        (DAMAGE.dword_75b3ec.bits() & 0xF).wrapping_mul(8),
+        (crate::race::owner::race()
+            .physics
+            .damage
+            .dword_75b3ec
+            .bits()
+            & 0xF)
+            .wrapping_mul(8),
     ));
     let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
     let column = read(at(
@@ -134,7 +223,7 @@ pub fn steps() {
         column.wrapping_mul(8),
     ));
     let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    blend_wear_figures(first, &DAMAGE, second);
+    blend_wear_figures(first, &crate::race::owner::race().physics.damage, second);
 }
 
 // ---- the arithmetic that was x87 assembly ----

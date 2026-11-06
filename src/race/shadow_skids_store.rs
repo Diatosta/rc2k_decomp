@@ -5,6 +5,8 @@
 //! point, the cars' bit and the ring of points (0xC bytes each). `#[repr(C)]` with the
 //! image's layout, over the race block's bytes (`SHADOW_SKIDS`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
@@ -101,8 +103,11 @@ pub struct ShadowSkids {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static SHADOW_SKIDS: ShadowSkids =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ShadowSkids {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x641AA4, the first byte of the piece.
 pub const START: usize = 0x641AA4;
@@ -114,7 +119,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ShadowSkids>());
 /// Where IDA 0x641AA4 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&SHADOW_SKIDS))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.shadow_skids))
 }
 
 #[cfg(test)]
@@ -124,7 +129,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SHADOW_SKIDS, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.shadow_skids, START, END);
     }
 
     #[test]

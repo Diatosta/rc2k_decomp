@@ -14,9 +14,7 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
@@ -27,8 +25,16 @@ use rc2k_core::physics::progress;
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub fn find_car_checkpoint() -> Result<u32, Refused> {
-    GROUND_WORK.ground_x.set(CAR.position[0].get());
-    GROUND_WORK.ground_z.set(CAR.position[2].get());
+    crate::race::owner::race()
+        .physics
+        .ground
+        .ground_x
+        .set(CAR.position[0].get());
+    crate::race::owner::race()
+        .physics
+        .ground
+        .ground_z
+        .set(CAR.position[2].get());
     if RACE_VARS.checkpoint_count.get() == 0 {
         return Ok(0);
     }
@@ -38,7 +44,7 @@ pub fn find_car_checkpoint() -> Result<u32, Refused> {
     // g_nearestCheckpointDistance
     PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
         int_80(near.distance as i32, false),
-        NUMBERS.k65536.bits(),
+        crate::race::owner::race().course.numbers.k65536.bits(),
         0x3F80_0000,
     ));
     if progress::search_all(near.distance) {

@@ -22,7 +22,7 @@ use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths() -> [crate::pointers::GamePtr; 2] {
-    let p = &crate::race::level_paths_store::LEVEL_PATHS;
+    let p = &crate::race::owner::race().course.level_paths;
     [
         crate::pointers::GamePtr::to(&p.cdat_src),
         crate::pointers::GamePtr::to(&p.cdat_files),

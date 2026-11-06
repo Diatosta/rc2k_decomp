@@ -6,15 +6,16 @@
 //!
 //! Caller: `drive::replay_step`. Refuses what `flush_replay` refuses.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::flush_due;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::flush_due`.
 pub fn flush_replay_if() -> Result<(), Refused> {
-    if flush_due(NUMBERS.replay_mode.get(), REPLAY_FRAMES.tenth.get()) {
+    if flush_due(
+        crate::race::owner::race().course.numbers.replay_mode.get(),
+        crate::race::owner::race().replay.replay_frames.tenth.get(),
+    ) {
         return crate::drive::flush_replay::flush_replay();
     }
     Ok(())

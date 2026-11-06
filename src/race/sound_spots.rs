@@ -5,12 +5,6 @@
 //! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::course_store::COURSE;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::scene::object_store::OBJECT_WORK;
 
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
@@ -20,8 +14,8 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 /// through, and the original reads on into the variables after the grid (a slip kept).
 fn grid_cell(c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
-        &LEVEL_GRID,
-        &LEVEL_GRID.course_grid,
+        &crate::race::owner::race().course.level_grid,
+        &crate::race::owner::race().course.level_grid.course_grid,
         c as usize,
         "the variables after the course grid",
     )
@@ -36,7 +30,15 @@ fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
 /// the fifth: rows 0x20 apart, from reach - 2 on the diagonal).
 fn cells() -> Vec<u32> {
     // Converted: `rc2k_core::race::view::cells_from`.
-    rc2k_core::race::view::cells_from(STAGE_PREFS.grid_reach.bits().wrapping_sub(2), 5)
+    rc2k_core::race::view::cells_from(
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .grid_reach
+            .bits()
+            .wrapping_sub(2),
+        5,
+    )
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
@@ -49,9 +51,14 @@ fn check() -> Result<(), Refused> {
         if record >= 0x0FFF_FFFF {
             continue;
         }
-        if COURSE.course_records.bits() == 0
-            || COURSE.course_faces.bits() == 0
-            || COURSE.scene_points.bits() == 0
+        if crate::race::owner::race()
+            .course
+            .course
+            .course_records
+            .bits()
+            == 0
+            || crate::race::owner::race().course.course.course_faces.bits() == 0
+            || crate::race::owner::race().course.course.scene_points.bits() == 0
         {
             return Err(BadInput("no course records, faces or points").into());
         }
@@ -80,7 +87,11 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
         }
-        let count: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
+        let count: u32 = crate::race::owner::race()
+            .frame
+            .sound_spots
+            .sound_spot_count
+            .bits();
         if count == MOST_SPOTS {
             return Ok(());
         }
@@ -91,8 +102,8 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         }
         let put = |o: u32, v: u32| {
             crate::session::write_on_in(
-                &RACE_SOUND_SPOTS,
-                &RACE_SOUND_SPOTS.sound_spots,
+                &crate::race::owner::race().frame.sound_spots,
+                &crate::race::owner::race().frame.sound_spots.sound_spots,
                 spot + (o / 4) as usize,
                 v,
                 "a sound spot",
@@ -106,13 +117,25 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);
-        let t =
-            { crate::scene::rotate_point::rotate_point(&MATRICES.view_matrix, place.map(int_80)) };
-        let k: u32 = NUMBERS.one_over_65536.bits();
+        let t = {
+            crate::scene::rotate_point::rotate_point(
+                &crate::race::owner::race().frame.matrices.view_matrix,
+                place.map(int_80),
+            )
+        };
+        let k: u32 = crate::race::owner::race()
+            .course
+            .numbers
+            .one_over_65536
+            .bits();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;
         }
-        RACE_SOUND_SPOTS.sound_spot_count.set_bits(count + 1);
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .sound_spot_count
+            .set_bits(count + 1);
     }
     Ok(())
 }
@@ -149,7 +172,11 @@ pub fn cell_sound_spots(cell: u32) -> Result<(), BadInput> {
 pub fn find_sound_spots() -> Result<(), Refused> {
     {
         check()?;
-        RACE_SOUND_SPOTS.sound_spot_count.set_bits(0u32);
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .sound_spot_count
+            .set_bits(0u32);
         for c in cells() {
             cell_sound_spots(c)?;
         }

@@ -15,7 +15,7 @@ use crate::hud::layout_0::*;
 use crate::hud::layout_1::{pick, plain, scaled};
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 
 /// The upper half's rows: 0x10 down with `dword_6D1502` 0.
 fn upper(y: u32) -> u32 {
@@ -35,7 +35,10 @@ pub fn layout_2(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
     // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let [f1, f2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
+    let [f1, f2] = [
+        race().frame.panel_and_overlay.panel.hud_flags[0].get(),
+        race().frame.panel_and_overlay.panel.hud_flags[1].get(),
+    ];
     hud.block.quad[0].set(0xE0);
     hud.block.texture.set(0xC6);
     if f1 & 0x10 != 0 {
@@ -66,16 +69,38 @@ pub fn layout_2(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
         scaled(hud, 0x49, 7, upper(0xE8))?;
         scaled(
             hud,
-            PANEL.view_a.gear.get().wrapping_add(0x41),
+            race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .view_a
+                .gear
+                .get()
+                .wrapping_add(0x41),
             0xD,
             upper(0xEF),
         )?;
     }
     if f2 & 0x20 != 0 {
         scaled(hud, 0x49, 7, 0x223)?;
-        scaled(hud, PANEL.view_b.gear.get().wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(
+            hud,
+            race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .view_b
+                .gear
+                .get()
+                .wrapping_add(0x41),
+            0xD,
+            0x22A,
+        )?;
     }
-    let p = pick(hud, PANEL.start_values[1].get());
+    let p = pick(
+        hud,
+        race().frame.panel_and_overlay.panel.start_values[1].get(),
+    );
     if f1 & 1 != 0 {
         scaled(hud, p, 0x19, upper(0xA3))?;
     }
@@ -83,7 +108,10 @@ pub fn layout_2(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(hud, 0x5F, 0x2A7, upper(0xA3))?;
     }
-    let p = pick(hud, PANEL.start_values[1].get());
+    let p = pick(
+        hud,
+        race().frame.panel_and_overlay.panel.start_values[1].get(),
+    );
     if f2 & 1 != 0 {
         scaled(hud, p, 0x19, 0x1DE)?;
     }

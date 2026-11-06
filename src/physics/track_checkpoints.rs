@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
@@ -41,14 +40,20 @@ pub fn track_checkpoints() -> Result<(), Refused> {
     }
     if !split_ahead(
         CAR.splits_passed.get(),
-        SPLIT_TABLES.split_colour_count.get(),
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .split_colour_count
+            .get(),
     ) {
         return Ok(());
     }
     if !{ crate::physics::passed_split_point::passed_split_point() }? {
         return Ok(());
     }
-    let split = SPLIT_TABLES.checkpoints[1 + CAR.splits_passed.get() as usize].get();
+    let split = crate::race::owner::race().physics.split_tables.checkpoints
+        [1 + CAR.splits_passed.get() as usize]
+        .get();
     CAR.reset_checkpoint.set(split);
     CAR.checkpoint.set(split);
     CAR.splits_passed.set(

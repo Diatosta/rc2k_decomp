@@ -5,11 +5,7 @@
 //! unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
@@ -102,9 +98,13 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
             let first = OBJECT_SLOTS.first_point[slot].get();
             let points = first
                 .wrapping_mul(12)
-                .wrapping_add(COURSE_LISTS.object_points.get());
+                .wrapping_add(crate::race::owner::race().course.lists.object_points.get());
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            CONTACT_WORK.car_point_count.set(held);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
@@ -116,20 +116,28 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                CONTACT_WORK.car_point_count.set(n);
+                crate::race::owner::race()
+                    .physics
+                    .contact
+                    .car_point_count
+                    .set(n);
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(sort, first, first + n * 12 - 12)?;
                 }
             }
-            CONTACT_WORK.car_point_count.set(held);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
                 crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = f32::from_bits(NUMBERS.k65536.bits());
+            let scale = f32::from_bits(crate::race::owner::race().course.numbers.k65536.bits());
             let car = car_at(block)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
@@ -141,21 +149,40 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
                     list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
-            CONTACT_WORK.car_point_count.set(count);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .set(count);
             let mut points = lists.map(crate::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
                 crate::session::write_bits(l, p);
             }
-            CONTACT_WORK.car_point_count.set(count + 2);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .set(count + 2);
         }
         log(c"carnum", false);
         log_number(car_at(block)?.car_kind.bits(), false);
         log(c"numcollpts", false);
-        log_number(CONTACT_WORK.car_point_count.get(), true);
-        car_at(block)?
-            .probe_count
-            .set_bits(CONTACT_WORK.car_point_count.get());
+        log_number(
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .get(),
+            true,
+        );
+        car_at(block)?.probe_count.set_bits(
+            crate::race::owner::race()
+                .physics
+                .contact
+                .car_point_count
+                .get(),
+        );
     }
     Ok(())
 }
@@ -174,14 +201,28 @@ pub fn set_object_kinds() -> Result<(), Refused> {
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds();
-    crate::session::write_bits(&STAGE_PREFS.fixed_kinds, FIXED_KINDS);
+    crate::session::write_bits(
+        &crate::race::owner::race().course.stage_prefs.fixed_kinds,
+        FIXED_KINDS,
+    );
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the original's table runs on
         // into it (a slip kept).
-        let n_defaults = STAGE_PREFS.slot_kind_defaults.len();
-        let default = match STAGE_PREFS.slot_kind_defaults.get(n as usize) {
+        let n_defaults = crate::race::owner::race()
+            .course
+            .stage_prefs
+            .slot_kind_defaults
+            .len();
+        let default = match crate::race::owner::race()
+            .course
+            .stage_prefs
+            .slot_kind_defaults
+            .get(n as usize)
+        {
             Some(cell) => cell.get(),
-            None => STAGE_PREFS.fixed_kinds[n as usize - n_defaults].get(),
+            None => crate::race::owner::race().course.stage_prefs.fixed_kinds
+                [n as usize - n_defaults]
+                .get(),
         };
         OBJECT_TABLES.slot_kinds[n as usize].set(default);
     }

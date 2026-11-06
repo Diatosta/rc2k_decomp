@@ -14,6 +14,7 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::{Dword, Loose};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
@@ -306,11 +307,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x4F52B4,
         dword!(crate::gfx::owner::gfx().shots.on),
     ),
-    (
-        b"framecounter",
-        0x5EB100,
-        dword!(crate::race::frame_counter_store::FRAME_COUNTER.show),
-    ),
+    (b"framecounter", 0x5EB100, dword!(race().frame.counter.show)),
     (
         b"noreplay",
         0x5BEC7C,
@@ -330,7 +327,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"key",
         0x4E052C,
-        dword!(crate::race::seal_store::SEAL_WORK.key[0]),
+        dword!(crate::race::owner::race().replay.seal_work.key[0]),
     ),
     (
         b"allsecretcars",

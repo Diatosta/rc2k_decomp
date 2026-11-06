@@ -13,9 +13,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
@@ -27,7 +24,12 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(FRAME_WORK.listed_car_sounds[car as usize].get() != u32::MAX)
+    Ok(crate::race::owner::race()
+        .frame
+        .frame_work
+        .listed_car_sounds[car as usize]
+        .get()
+        != u32::MAX)
 }
 
 /// The current car's sound object.
@@ -49,8 +51,15 @@ pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
             None => car_part(car, listener),
         }
     };
-    let out = rotate_point(&MATRICES.view_turn_matrix, [part(0), part(1), part(2)]);
-    let k = NUMBERS.one_over_65536.bits();
+    let out = rotate_point(
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        [part(0), part(1), part(2)],
+    );
+    let k = crate::race::owner::race()
+        .course
+        .numbers
+        .one_over_65536
+        .bits();
     for (cell, e) in into.iter().zip(&out) {
         cell.set_bits(rounded(ext_times(*e, k)));
     }
@@ -64,8 +73,16 @@ pub fn place_plain(into: &[Float; 3], offset: Option<[u32; 3]>) {
         whole(&CAR.position),
         whole(&CAR.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| f32::from_bits(MATRICES.view_turn_matrix[n].bits())),
-        f32::from_bits(NUMBERS.one_over_65536.bits()),
+        &std::array::from_fn(|n| {
+            f32::from_bits(crate::race::owner::race().frame.matrices.view_turn_matrix[n].bits())
+        }),
+        f32::from_bits(
+            crate::race::owner::race()
+                .course
+                .numbers
+                .one_over_65536
+                .bits(),
+        ),
     );
     for (cell, x) in into.iter().zip(&p) {
         cell.set(*x);

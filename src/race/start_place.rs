@@ -7,11 +7,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
-use crate::race::course_store::COURSE;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -52,7 +49,11 @@ pub fn place_car_on_line() -> Result<(), Refused> {
         let (c, n) = line_neighbours(LIGHT_STATE.line_place.bits(), count)?;
         let t: u32 = LIGHT_STATE.line_fraction.bits();
         let (face, a) = check_point(c)?;
-        COURSE.place_face.set_bits(face);
+        crate::race::owner::race()
+            .course
+            .course
+            .place_face
+            .set_bits(face);
         let (_, b) = check_point(n)?;
         let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
         let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
@@ -61,10 +62,14 @@ pub fn place_car_on_line() -> Result<(), Refused> {
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
-        COURSE.place_x.set_bits(x);
-        COURSE.place_y.set_bits(y);
-        COURSE.place_z.set_bits(z);
-        COURSE.place_heading.set_bits(heading);
+        crate::race::owner::race().course.course.place_x.set_bits(x);
+        crate::race::owner::race().course.course.place_y.set_bits(y);
+        crate::race::owner::race().course.course.place_z.set_bits(z);
+        crate::race::owner::race()
+            .course
+            .course
+            .place_heading
+            .set_bits(heading);
         CAR.position[0].set_bits(x);
         CAR.position[2].set(z);
         CAR.car_heading.set_bits(heading);
@@ -89,8 +94,12 @@ pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     }
     {
         let (_, point) = check_point(c)?;
-        let dx = get(point, 0)?.wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
-        let dz = get(point, 2)?.wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
+        let dx = get(point, 0)?
+            .wrapping_sub(crate::race::owner::race().physics.ground.ground_x.bits())
+            as i32;
+        let dz = get(point, 2)?
+            .wrapping_sub(crate::race::owner::race().physics.ground.ground_z.bits())
+            as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
@@ -158,11 +167,16 @@ fn measure_held(
     nearest: &mut rc2k_core::race::checkpoints::Nearest,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
-    if COURSE.course_faces.bits() != faces_base() || COURSE.scene_points.bits() != points_base() {
+    if crate::race::owner::race().course.course.course_faces.bits() != faces_base()
+        || crate::race::owner::race().course.course.scene_points.bits() != points_base()
+    {
         return Ok(());
     }
     let count: u32 = RACE_VARS.checkpoint_count.bits();
-    let (x, z) = (GROUND_WORK.ground_x.bits(), GROUND_WORK.ground_z.bits());
+    let (x, z) = (
+        crate::race::owner::race().physics.ground.ground_x.bits(),
+        crate::race::owner::race().physics.ground.ground_z.bits(),
+    );
     let dword =
         |bytes: &[u8], at: usize| Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?));
     // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,
@@ -170,7 +184,11 @@ fn measure_held(
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;
-    let point_count = COURSE.scene_point_count.get();
+    let point_count = crate::race::owner::race()
+        .course
+        .course
+        .scene_point_count
+        .get();
     let changes = crate::race::course_places::first_points_changes();
     let measured = PLACES.with_borrow_mut(|kept| {
         if kept.changes != changes || kept.point_count != point_count {
@@ -235,8 +253,16 @@ fn measure_held(
 pub fn nearest_checkpoint() -> Result<u32, Refused> {
     let count = count()?;
     {
-        GROUND_WORK.ground_x.set_bits(CAR.position[0].bits());
-        GROUND_WORK.ground_z.set_bits(CAR.position[2].get());
+        crate::race::owner::race()
+            .physics
+            .ground
+            .ground_x
+            .set_bits(CAR.position[0].bits());
+        crate::race::owner::race()
+            .physics
+            .ground
+            .ground_z
+            .set_bits(CAR.position[2].get());
         if count == 0 {
             return Ok(0);
         }
@@ -245,7 +271,7 @@ pub fn nearest_checkpoint() -> Result<u32, Refused> {
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
-            f32::from_bits(NUMBERS.k65536.bits()),
+            f32::from_bits(crate::race::owner::race().course.numbers.k65536.bits()),
         );
         PHYSICS
             .nearest_checkpoint_distance

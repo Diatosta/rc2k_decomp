@@ -40,7 +40,6 @@ use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
@@ -92,8 +91,10 @@ pub fn reverse(quarter: bool) -> Result<(), Refused> {
     }
     CAR.gear.set(u32::MAX);
     if quarter {
-        CAR.engine_speed
-            .set_bits(x87::mul(CAR.engine_speed.bits(), NUMBERS.quarter.bits()));
+        CAR.engine_speed.set_bits(x87::mul(
+            CAR.engine_speed.bits(),
+            crate::race::owner::race().course.numbers.quarter.bits(),
+        ));
     }
     wheels()?;
     settle();

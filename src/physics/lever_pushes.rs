@@ -17,7 +17,6 @@ use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::car_store::CAR;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use std::cmp::Ordering;
 
@@ -44,21 +43,27 @@ pub fn lever_pushes() {
         CAR.grip_forces[3].bits(),
         CAR.grip_forces[1].bits(),
         CAR.grip_forces[2].bits(),
-        NUMBERS.zero.bits(),
+        crate::race::owner::race().course.numbers.zero.bits(),
     );
     PHYSICS.lever_share_start.set_bits(share);
     if zero {
         return;
     }
-    if below(PHYSICS.lever_share_start.bits(), NUMBERS.zero.bits()) {
-        PHYSICS
-            .lever_share_start
-            .set_bits(x87::loaded(NUMBERS.zero.bits()));
+    if below(
+        PHYSICS.lever_share_start.bits(),
+        crate::race::owner::race().course.numbers.zero.bits(),
+    ) {
+        PHYSICS.lever_share_start.set_bits(x87::loaded(
+            crate::race::owner::race().course.numbers.zero.bits(),
+        ));
     }
-    if !below(PHYSICS.lever_share_start.bits(), NUMBERS.one.bits()) {
-        PHYSICS
-            .lever_share_start
-            .set_bits(x87::loaded(NUMBERS.one.bits()));
+    if !below(
+        PHYSICS.lever_share_start.bits(),
+        crate::race::owner::race().course.numbers.one.bits(),
+    ) {
+        PHYSICS.lever_share_start.set_bits(x87::loaded(
+            crate::race::owner::race().course.numbers.one.bits(),
+        ));
     }
     PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[3].bits()));
     PHYSICS

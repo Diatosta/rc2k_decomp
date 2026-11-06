@@ -24,8 +24,6 @@
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -58,7 +56,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         FRAME_SWITCHES.other_way.bits()
     }
     fn shown(&self) -> u32 {
-        STAGE_PREFS.shown.bits()
+        crate::race::owner::race().course.stage_prefs.shown.bits()
     }
     fn which(&self) -> u32 {
         RACE_WORK.stage_direction.bits()
@@ -75,7 +73,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
 /// the tests leave in the registers `draw_object` does not read.
 // Converted: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<bool, Refused> {
-    let race = NUMBERS.in_race.bits() != 0;
+    let race = crate::race::owner::race().course.numbers.in_race.bits() != 0;
     if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }

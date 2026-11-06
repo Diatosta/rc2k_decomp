@@ -13,8 +13,6 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
@@ -29,8 +27,15 @@ pub fn place_car_sound() -> Result<(), Refused> {
         d(&CAR.position[1], &CAR.camera_position[1]),
         d(&CAR.position[2], &CAR.camera_position[2]),
     ];
-    let out = rotate_point(&MATRICES.view_turn_matrix, p);
-    let k = NUMBERS.one_over_65536.bits();
+    let out = rotate_point(
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        p,
+    );
+    let k = crate::race::owner::race()
+        .course
+        .numbers
+        .one_over_65536
+        .bits();
     for (n, e) in out.iter().enumerate() {
         so.place_b[n].set_bits(rounded(ext_times(*e, k)));
     }

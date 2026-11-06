@@ -24,8 +24,6 @@
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
@@ -65,14 +63,27 @@ pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Resu
         crate::session::read_bits::<_, 3>(&OBJECT_WORK.place),
     );
     if own_car {
-        GROUND_WORK
+        crate::race::owner::race()
+            .physics
+            .ground
             .drawn_car_light
-            .set_bits(VIEW_VARS.drawn_car.bits());
+            .set_bits(
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .drawn_car
+                    .bits(),
+            );
     }
     LIGHT_WORK.light_colour.set_bits(0u32);
     gather()?;
     if own_car {
-        GROUND_WORK.drawn_car_light.set_bits(u32::MAX);
+        crate::race::owner::race()
+            .physics
+            .ground
+            .drawn_car_light
+            .set_bits(u32::MAX);
     }
     let mmx = MACHINE.has_mmx.get() != 0;
     OBJECT_WORK.light_added.set_bits(plus(

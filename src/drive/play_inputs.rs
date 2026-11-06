@@ -8,7 +8,6 @@
 //!
 //! Callers: `drive::play_inputs_if`, `sub_460835`.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::BadInput;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
@@ -23,7 +22,14 @@ pub fn play_inputs() -> Result<(), BadInput> {
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
+    let esi = tape_offset(
+        crate::race::owner::race()
+            .replay
+            .replay_frames
+            .step_frame
+            .get(),
+        car,
+    );
     let at = |o: u32| GamePtr::to(&REPLAY_WORK.replay_tape).offset(esi).offset(o);
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);

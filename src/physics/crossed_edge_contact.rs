@@ -25,10 +25,8 @@ use crate::errors::Refused;
 use crate::math::x87::mul;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::race::numbers_store::NUMBERS;
 use crate::session::Float;
 use rc2k_core::physics::walls;
 
@@ -44,17 +42,17 @@ fn copy3(to: &[Float], from: &[Float]) {
 fn side(x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
         (
-            CONTACT_WORK.crossed_figures[0].get(),
-            CONTACT_WORK.crossed_figures[1].get(),
+            crate::race::owner::race().physics.contact.crossed_figures[0].get(),
+            crate::race::owner::race().physics.contact.crossed_figures[1].get(),
         ),
         (
-            CONTACT_WORK.crossed_figures[2].get(),
-            CONTACT_WORK.crossed_figures[3].get(),
+            crate::race::owner::race().physics.contact.crossed_figures[2].get(),
+            crate::race::owner::race().physics.contact.crossed_figures[3].get(),
         ),
         (x, z),
     );
-    crate::physics::ground_probe_store::GROUND_PROBE.product[0].set(first as u32);
-    crate::physics::ground_probe_store::GROUND_PROBE.product[1].set((first >> 32) as u32);
+    crate::race::owner::race().physics.ground_probe.product[0].set(first as u32);
+    crate::race::owner::race().physics.ground_probe.product[1].set((first >> 32) as u32);
     difference >= 0
 }
 
@@ -62,28 +60,36 @@ fn side(x: u32, z: u32) -> bool {
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps() -> Result<(), Refused> {
-    let n = CONTACT_WORK.crossed_probe.get();
-    CONTACT_WORK.probe_index.set(n);
+    let n = crate::race::owner::race()
+        .physics
+        .contact
+        .crossed_probe
+        .get();
+    crate::race::owner::race()
+        .physics
+        .contact
+        .probe_index
+        .set(n);
     let k = n as usize;
-    let figures = &CONTACT_WORK.crossed_figures;
-    figures[0].set(CONTACT_WORK.saved_probe_x[k].get());
-    figures[1].set(CONTACT_WORK.saved_probe_z[k].get());
-    figures[2].set(CONTACT_WORK.probe_x[k].get());
-    figures[3].set(CONTACT_WORK.probe_z[k].get());
-    figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
-    let face = CONTACT_WORK.crossed_figures[4].get();
+    let figures = &crate::race::owner::race().physics.contact.crossed_figures;
+    figures[0].set(crate::race::owner::race().physics.contact.saved_probe_x[k].get());
+    figures[1].set(crate::race::owner::race().physics.contact.saved_probe_z[k].get());
+    figures[2].set(crate::race::owner::race().physics.contact.probe_x[k].get());
+    figures[3].set(crate::race::owner::race().physics.contact.probe_z[k].get());
+    figures[4].set(crate::race::owner::race().physics.contact.saved_probe_faces[k].get());
+    let face = crate::race::owner::race().physics.contact.crossed_figures[4].get();
     for j in 0..4u32 {
         let point =
             crate::race::course_places::face_field::<u32>(face, 4 + 4 * j, "a face's corner")?;
-        CONTACT_WORK.crossed_corners[2 * j as usize]
+        crate::race::owner::race().physics.contact.crossed_corners[2 * j as usize]
             .set(crate::race::scene_points::point_word(point, 0)?);
-        CONTACT_WORK.crossed_corners[2 * j as usize + 1]
+        crate::race::owner::race().physics.contact.crossed_corners[2 * j as usize + 1]
             .set(crate::race::scene_points::point_word(point, 2)?);
     }
     let corner = |j: usize| {
         (
-            CONTACT_WORK.crossed_corners[2 * j].get(),
-            CONTACT_WORK.crossed_corners[2 * j + 1].get(),
+            crate::race::owner::race().physics.contact.crossed_corners[2 * j].get(),
+            crate::race::owner::race().physics.contact.crossed_corners[2 * j + 1].get(),
         )
     };
     // The original's order of tests (each computed, `qword_620460` the last one's).
@@ -97,17 +103,37 @@ pub fn steps() -> Result<(), Refused> {
     PHYSICS.crossed_edge[0].set(from);
     PHYSICS.crossed_edge[1].set(to);
     edge_normal(from, to)?;
-    CONTACT_WORK.crossed_heading.set(PHYSICS.wall_heading.get());
-    copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
-    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[k].bits());
-    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[k].bits());
-    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[k].bits());
-    CONTACT_WORK.contact_point[1].set_bits(mul(
-        CONTACT_WORK.contact_point[1].bits(),
-        NUMBERS.tenth.bits(),
+    crate::race::owner::race()
+        .physics
+        .contact
+        .crossed_heading
+        .set(PHYSICS.wall_heading.get());
+    copy3(
+        &crate::race::owner::race().physics.contact.contact_car_speed,
+        &CAR.velocity,
+    );
+    copy3(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_speed,
+        &CAR.spin,
+    );
+    crate::race::owner::race().physics.contact.contact_point[0]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_x[k].bits());
+    crate::race::owner::race().physics.contact.contact_point[1]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_y[k].bits());
+    crate::race::owner::race().physics.contact.contact_point[2]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_z[k].bits());
+    crate::race::owner::race().physics.contact.contact_point[1].set_bits(mul(
+        crate::race::owner::race().physics.contact.contact_point[1].bits(),
+        crate::race::owner::race().course.numbers.tenth.bits(),
     ));
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit
+        .set_bits(0);
     contact_force(&PHYSICS.contacts[1]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
@@ -115,5 +141,11 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The probe checked: refused past 0x3F.
 pub fn check_probe() -> Result<(), Refused> {
-    Ok(walls::check_probe(CONTACT_WORK.crossed_probe.get())?)
+    Ok(walls::check_probe(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .crossed_probe
+            .get(),
+    )?)
 }

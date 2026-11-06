@@ -16,19 +16,23 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse::turn_by_inverse;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version. The registers the original leaves are read by none of its callers (esi).
 pub fn set_wheel_weights() {
     let scratch = &DRAW.scratch;
-    let one: u32 = NUMBERS.one.bits();
-    let high: u32 = NUMBERS.five.bits();
-    let k: u32 = NUMBERS.quarter.bits();
-    scratch.set(x87::loaded(CONTACT_WORK.wheel_share.bits()));
+    let one: u32 = crate::race::owner::race().course.numbers.one.bits();
+    let high: u32 = crate::race::owner::race().course.numbers.five.bits();
+    let k: u32 = crate::race::owner::race().course.numbers.quarter.bits();
+    scratch.set(x87::loaded(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .wheel_share
+            .bits(),
+    ));
     if compare_full(scratch.get(), one) & 0x100 != 0 {
         scratch.set(x87::loaded(one));
     }

@@ -4,14 +4,12 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
@@ -276,8 +274,13 @@ pub fn tidy_stage() -> Result<(), Refused> {
     s.log(STAGE_WORDS[8]);
     s.indent(3);
     free(&OBJECT_POINTS)?;
-    NUMBERS.in_race.set(0);
-    VIEW_VARS.view_scale.set_bits(RACE_VARS.kept_scale.get());
+    crate::race::owner::race().course.numbers.in_race.set(0);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_scale
+        .set_bits(RACE_VARS.kept_scale.get());
     s.indent(-3);
     s.log(STAGE_WORDS[9]);
     Ok(())
@@ -323,7 +326,9 @@ pub fn tidy_everything() -> Result<(), Refused> {
 /// replay closed, everything tidied, the settings out. `indent` is `g_logIndent`'s
 /// address. Its callers read only esi of what it leaves, which every step keeps.
 pub fn run_race() -> Result<(), Refused> {
-    crate::physics::split_tables_store::SPLIT_TABLES
+    crate::race::owner::race()
+        .physics
+        .split_tables
         .arcade_kind
         .set(1);
     crate::logfile::write_line::state::INDENT.set(0);
@@ -333,7 +338,11 @@ pub fn run_race() -> Result<(), Refused> {
             .set(crate::math::next_random::next_random());
     }
     FRAME_SWITCHES.editor_mode.set(0u32);
-    NUMBERS.replay_mode.set_bits(1u32);
+    crate::race::owner::race()
+        .course
+        .numbers
+        .replay_mode
+        .set_bits(1u32);
     crate::race::settings_copy::copy_settings_in()?;
     crate::race::race_cars::set_up_arcade_cars()?;
     RACE_VARS.settings_words[1].set(1u32);

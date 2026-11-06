@@ -26,7 +26,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -60,7 +59,11 @@ pub fn read_car_controls() -> Result<(), Refused> {
             return Err(BadInput("no checkpoints for the computer's driving").into());
         }
     }
-    COURSE_LISTS.input_keys_mask.set(CAR.input_keys.get());
+    crate::race::owner::race()
+        .course
+        .lists
+        .input_keys_mask
+        .set(CAR.input_keys.get());
     CAR.input_keys.set(0);
     CAR.keys_pressed.set(0);
     // The four input words (recorded or replayed) into the car's inputs.
@@ -73,7 +76,14 @@ pub fn read_car_controls() -> Result<(), Refused> {
     for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
         to.set(from.get());
     }
-    let keys = read_keys(COURSE_LISTS.input_keys_mask.get(), CAR.input_keys.get());
+    let keys = read_keys(
+        crate::race::owner::race()
+            .course
+            .lists
+            .input_keys_mask
+            .get(),
+        CAR.input_keys.get(),
+    );
     let pressed = keys.pressed;
     CAR.keys_pressed.set(pressed);
     PHYSICS.input_throttle.set(CAR.input_throttle.get());

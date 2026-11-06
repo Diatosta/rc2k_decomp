@@ -12,7 +12,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::listed_entry;
 
@@ -20,7 +20,7 @@ use rc2k_core::physics::listed_cars::listed_entry;
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn cue_listed_car_sound_last(cue: u32) -> Result<u32, Refused> {
     let (entry, listed) = listed_entry(RACE_WORK.current_car.get(), |car| {
-        FRAME_WORK.listed_car_sounds[car as usize].get()
+        race().frame.frame_work.listed_car_sounds[car as usize].get()
     })?;
     if listed {
         crate::physics::cue_car_sound_last::cue_car_sound_last(entry, cue)?;

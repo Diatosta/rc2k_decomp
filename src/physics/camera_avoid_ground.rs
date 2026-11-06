@@ -29,7 +29,6 @@
 use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
@@ -140,17 +139,29 @@ pub fn steps() -> Result<(), Refused> {
     if camera_clear_of_ground()? {
         return Ok(());
     }
-    CAMERA_WORK.pitch_ceiling.set(camera_ground::PITCH_START);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .pitch_ceiling
+        .set(camera_ground::PITCH_START);
     let mut up = true;
     loop {
         if up {
-            CAMERA_WORK.pitch_floor.set(CAR.camera_pitch.get());
+            crate::race::owner::race()
+                .physics
+                .camera
+                .pitch_floor
+                .set(CAR.camera_pitch.get());
             crate::physics::ease_pitch_up::ease_pitch_up();
         } else {
-            CAMERA_WORK.pitch_ceiling.set(CAR.camera_pitch.get());
+            crate::race::owner::race()
+                .physics
+                .camera
+                .pitch_ceiling
+                .set(CAR.camera_pitch.get());
             crate::physics::ease_pitch_down::ease_pitch_down();
         }
-        if CAMERA_WORK.pitch_step.get() == 0 {
+        if crate::race::owner::race().physics.camera.pitch_step.get() == 0 {
             return Ok(());
         }
         place();

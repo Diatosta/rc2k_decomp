@@ -7,9 +7,7 @@
 //! Not here: `var\soptions` (the tab keeps no prefs between runs), and 0x459C1B, which reads a
 //! developer's `e:\rally5\bin` file the game does not ship.
 
-use crate::drive::finish_store::FINISH as FINISH_STORE;
 use crate::errors::Refused;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
@@ -154,11 +152,13 @@ fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> 
 fn test_course() -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     round_a_race(|| {
-        NUMBERS.replay_mode.set(1);
+        crate::race::owner::race().course.numbers.replay_mode.set(1);
         crate::race::tables_store::RACE_TABLES
             .noise_seed
             .set(0x1234_5678);
-        crate::physics::split_tables_store::SPLIT_TABLES
+        crate::race::owner::race()
+            .physics
+            .split_tables
             .arcade_kind
             .set(2);
         FRAME_SWITCHES.editor_mode.set(0);
@@ -189,9 +189,9 @@ fn finish_sequence() -> Result<(), Refused> {
     round_a_race(|| {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
-        NUMBERS.replay_mode.set(1);
+        crate::race::owner::race().course.numbers.replay_mode.set(1);
         let results = &crate::race::state_store::RACE_STATE.results;
-        FINISH_STORE.no_place.set(1);
+        crate::race::owner::race().replay.finish.no_place.set(1);
         results
             .stage_index
             .set(s.course.load(Relaxed).saturating_sub(1).min(5));
@@ -199,7 +199,7 @@ fn finish_sequence() -> Result<(), Refused> {
         results.finish_player.set(0x45);
         results.finished.set(car & 1);
         let result = crate::drive::finish_race::finish_race();
-        FINISH_STORE.no_place.set(0);
+        crate::race::owner::race().replay.finish.no_place.set(0);
         result
     })
 }
@@ -215,12 +215,12 @@ fn credits() -> Result<(), Refused> {
 /// `sub_4430C0`: the last race's replay (nothing happens without one).
 fn last_replay() -> Result<(), Refused> {
     round_a_race(|| {
-        NUMBERS.replay_mode.set(2);
+        crate::race::owner::race().course.numbers.replay_mode.set(2);
         RACE_VIEW.player_options[0].set(u32::MAX);
         RACE_VIEW.player_options[1].set(u32::MAX);
         let result =
             crate::race::replay_mode::replay_mode(crate::race::replay_viewer::Mode::LastRace);
-        NUMBERS.replay_mode.set(0);
+        crate::race::owner::race().course.numbers.replay_mode.set(0);
         result
     })
 }
@@ -281,7 +281,7 @@ mod tab {
         });
         number(ui, "Car", &s.car, 0x21);
         ui.same_line();
-        let name = crate::race::car_specs_store::CAR_SPECS.cars[s.car.load(Relaxed) as usize]
+        let name = crate::race::owner::race().physics.car_specs.cars[s.car.load(Relaxed) as usize]
             .name
             .read();
         let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());

@@ -20,8 +20,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -75,7 +73,9 @@ pub fn set_object_fade() -> Result<(), BadInput> {
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if field(record, 0)? != place && COURSE.scene_points.bits() == 0 {
+            if field(record, 0)? != place
+                && crate::race::owner::race().course.course.scene_points.bits() == 0
+            {
                 return Err(BadInput("no points"));
             }
             record
@@ -84,8 +84,12 @@ pub fn set_object_fade() -> Result<(), BadInput> {
     crate::session::write_bits(&FRAME_SWITCHES.fade_words, [other_kind, distance]);
     OBJECT_WORK.object_position[0].set_bits(0u32);
     OBJECT_WORK.object_position[2].set_bits(0u32);
-    GROUND_WORK.object_fading.set_bits(0u32);
-    GROUND_WORK.object_fade[0].set_bits(0x100u32);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .object_fading
+        .set_bits(0u32);
+    crate::race::owner::race().physics.ground.object_fade[0].set_bits(0x100u32);
     if !needs_record {
         return Ok(());
     }
@@ -100,8 +104,15 @@ pub fn set_object_fade() -> Result<(), BadInput> {
         return Ok(());
     }
     let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-    crate::session::write_bits(&GROUND_WORK.object_fade, [fade, fade]);
-    GROUND_WORK.object_fading.set_bits(1u32);
+    crate::session::write_bits(
+        &crate::race::owner::race().physics.ground.object_fade,
+        [fade, fade],
+    );
+    crate::race::owner::race()
+        .physics
+        .ground
+        .object_fading
+        .set_bits(1u32);
     if other_kind != 0 {
         let kinds: [u32; 0x100] = crate::session::read_bits(&OBJECT_TABLES.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {

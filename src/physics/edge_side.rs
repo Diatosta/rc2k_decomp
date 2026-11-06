@@ -11,8 +11,6 @@
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
 
 use crate::physics::flag_result::FlagResult;
-use crate::physics::ground_probe_store::GROUND_PROBE;
-use crate::physics::ground_store::GROUND_WORK;
 use rc2k_core::physics::faces;
 
 /// The Rust version: the ground point's side of the edge from scene point `from` to `to`
@@ -25,7 +23,10 @@ pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refuse
         carry,
         zero: Some(zero),
     };
-    let point = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+    let point = (
+        crate::race::owner::race().physics.ground.ground_x.get(),
+        crate::race::owner::race().physics.ground.ground_z.get(),
+    );
     let scene = |n: u32| -> Result<(u32, u32), crate::errors::BadInput> {
         Ok((
             crate::race::scene_points::point_word(n, 0)?,
@@ -35,8 +36,8 @@ pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refuse
     Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
         None => result(1, false, false),
         Some((kept, negative)) => {
-            GROUND_PROBE.product[0].set(kept as u32);
-            GROUND_PROBE.product[1].set((kept >> 32) as u32);
+            crate::race::owner::race().physics.ground_probe.product[0].set(kept as u32);
+            crate::race::owner::race().physics.ground_probe.product[1].set((kept >> 32) as u32);
             result(0, negative, true)
         }
     })

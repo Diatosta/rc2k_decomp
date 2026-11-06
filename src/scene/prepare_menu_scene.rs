@@ -8,8 +8,7 @@
 //! `dword_624090`); `scene::set_view_window`; the light's lowest 0x50, highest 0xFF, level 0xB4
 //! and strength 0xB4, its direction's angles `dword_635094` = 0x6E and `dword_635098` = 0x1E;
 //! `scene::set_view_matrices`. 29 callers (the screen loops' set-up).
-
-use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::set_view_window::set_view_window;
@@ -20,8 +19,14 @@ use crate::scene::view_matrix::set_view_matrices;
 // ---- Rust version ----
 
 pub fn prepare_menu_scene() {
-    crate::session::write_bits(&VIEW_VARS.view_place, [0u32; 3]);
-    crate::session::write_first(&VIEW_VARS.view_angles, &[0u32; 3]);
+    crate::session::write_bits(
+        &race().frame.view_and_records.view_vars.view_place,
+        [0u32; 3],
+    );
+    crate::session::write_first(
+        &race().frame.view_and_records.view_vars.view_angles,
+        &[0u32; 3],
+    );
     crate::session::write_bits(&DRAW.view_size, [0x320u32, 0x258]);
     set_view_window();
     let o = &OBJECT_WORK;

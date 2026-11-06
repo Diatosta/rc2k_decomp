@@ -15,7 +15,6 @@
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Float;
@@ -34,8 +33,13 @@ fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
     DRAW.scratch.set(0);
     if let Some(s) = speed {
         DRAW.scratch.set(s);
-        if below(DRAW.scratch.get(), NUMBERS.zero.bits()) {
-            DRAW.scratch.set(x87::loaded(NUMBERS.zero.bits()));
+        if below(
+            DRAW.scratch.get(),
+            crate::race::owner::race().course.numbers.zero.bits(),
+        ) {
+            DRAW.scratch.set(x87::loaded(
+                crate::race::owner::race().course.numbers.zero.bits(),
+            ));
         }
     }
     DRAW.scratch

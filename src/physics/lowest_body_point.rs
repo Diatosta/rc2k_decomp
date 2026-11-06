@@ -17,8 +17,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::numbers_store::NUMBERS;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers it leaves (ebx the count, eax
@@ -41,7 +39,13 @@ pub fn lowest_at(v: &[&dyn Cell32]) -> Result<(), Refused> {
             }
         }
     }
-    put(3, x87::int_div(get(1) as i32, NUMBERS.k65536.bits()));
+    put(
+        3,
+        x87::int_div(
+            get(1) as i32,
+            crate::race::owner::race().course.numbers.k65536.bits(),
+        ),
+    );
     Ok(())
 }
 
@@ -49,12 +53,12 @@ pub fn lowest_at(v: &[&dyn Cell32]) -> Result<(), Refused> {
 fn game() -> Vec<&'static dyn Cell32> {
     let mut v = vec![
         &CAR.probe_count as &dyn Cell32,
-        &CONTACT_WORK.lowest_depth,
-        &CONTACT_WORK.lowest_point,
-        &CONTACT_WORK.wheel_share,
+        &crate::race::owner::race().physics.contact.lowest_depth,
+        &crate::race::owner::race().physics.contact.lowest_point,
+        &crate::race::owner::race().physics.contact.wheel_share,
     ];
     v.extend(
-        CONTACT_WORK.probe_height[..0x40]
+        crate::race::owner::race().physics.contact.probe_height[..0x40]
             .iter()
             .map(|c| c as &dyn Cell32),
     );

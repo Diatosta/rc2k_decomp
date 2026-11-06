@@ -9,12 +9,15 @@
 //! Caller: `drive::replay_step`. Refuses what `countdown_beep` refuses.
 
 use crate::errors::Refused;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 pub fn countdown_beeps() -> Result<(), Refused> {
-    for (car, to) in [(0u32, &PANEL.lights[0]), (1, &PANEL.lights[1])] {
+    for (car, to) in [
+        (0u32, &race().frame.panel_and_overlay.panel.lights[0]),
+        (1, &race().frame.panel_and_overlay.panel.lights[1]),
+    ] {
         RACE_WORK.current_car.set(car);
         crate::drive::countdown_beep::countdown_beep(
             &crate::race::blocks_store::CAR_BLOCKS.cars[car as usize],

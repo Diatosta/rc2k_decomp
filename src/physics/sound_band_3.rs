@@ -9,13 +9,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::sound_bands::Twin;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 
 pub const TWIN: Twin = (
     0x45D0F1,
-    || &CONTACT_WORK.bump_speed_length,
-    || &RACE_SOUND_SPOTS.band_scale_3,
+    || &crate::race::owner::race().physics.contact.bump_speed_length,
+    || &crate::race::owner::race().frame.sound_spots.band_scale_3,
     10,
 );

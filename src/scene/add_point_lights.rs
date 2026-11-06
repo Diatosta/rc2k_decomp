@@ -17,9 +17,6 @@
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
-use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -39,7 +36,7 @@ pub fn add_point_lights() -> Result<(), Refused> {
     if lamps == 0 {
         return Ok(());
     }
-    let points: u32 = COURSE.scene_points.bits();
+    let points: u32 = crate::race::owner::race().course.course.scene_points.bits();
     if lamps > MOST || points == 0 {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
@@ -50,8 +47,8 @@ pub fn add_point_lights() -> Result<(), Refused> {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
         let [point, strength, colour] = [0, 1, 2].map(|k| {
             reading.keep(crate::session::read_on_in(
-                &LEVEL_GRID,
-                &LEVEL_GRID.lamps,
+                &crate::race::owner::race().course.level_grid,
+                &crate::race::owner::race().course.level_grid.lamps,
                 4 * n + k,
                 "a lamp of the level",
             ))
@@ -66,7 +63,13 @@ pub fn add_point_lights() -> Result<(), Refused> {
     let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
     reading.finish()?;
     for (to, value) in [
-        (&GROUND_WORK.point_light_strength, out.strength),
+        (
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .point_light_strength,
+            out.strength,
+        ),
         (&LIGHT_WORK.lamp_tint, out.colour),
         (&DRAW.scratch, out.distance),
         (&LIGHT_WORK.light_colour, out.light),

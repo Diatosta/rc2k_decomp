@@ -30,8 +30,11 @@ pub struct ReplayFrames {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static REPLAY_FRAMES: ReplayFrames =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ReplayFrames {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x6EF7CC, the first byte of the piece.
 pub const START: usize = 0x6EF7CC;
@@ -43,7 +46,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 /// Where IDA 0x6EF7CC is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&REPLAY_FRAMES))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().replay.replay_frames,
+    ))
 }
 
 #[cfg(test)]
@@ -53,7 +58,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPLAY_FRAMES, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.replay_frames,
+            START,
+            END,
+        );
     }
 
     #[test]

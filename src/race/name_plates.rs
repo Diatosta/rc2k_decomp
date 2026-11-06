@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
-use crate::race::overlay_store::RACE_OVERLAY as OVERLAY;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -76,7 +76,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     .into_iter()
     .zip(time_places(line))
     {
-        let text = GamePtr::to(&*OVERLAY).offset(label as u32);
+        let text = GamePtr::to(&race().frame.panel_and_overlay.overlay).offset(label as u32);
         FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
         draw_text_in_game(&FONTS.game_fonts[3], text, x, y)?;
     }
@@ -101,24 +101,36 @@ pub fn update_name_plates() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
     let now = [
-        OVERLAY.label_behind[0].get(),
-        OVERLAY.label_behind[1].get(),
-        OVERLAY.label_ahead[0].get(),
-        OVERLAY.label_ahead[1].get(),
+        race().frame.panel_and_overlay.overlay.label_behind[0].get(),
+        race().frame.panel_and_overlay.overlay.label_behind[1].get(),
+        race().frame.panel_and_overlay.overlay.label_ahead[0].get(),
+        race().frame.panel_and_overlay.overlay.label_ahead[1].get(),
     ];
     let kept = [
-        OVERLAY.kept_behind[0].get(),
-        OVERLAY.kept_behind[1].get(),
-        OVERLAY.kept_ahead[0].get(),
-        OVERLAY.kept_ahead[1].get(),
+        race().frame.panel_and_overlay.overlay.kept_behind[0].get(),
+        race().frame.panel_and_overlay.overlay.kept_behind[1].get(),
+        race().frame.panel_and_overlay.overlay.kept_ahead[0].get(),
+        race().frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
         draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
         for (from, to) in [
-            (&OVERLAY.label_behind[0], &OVERLAY.kept_behind[0]),
-            (&OVERLAY.label_behind[1], &OVERLAY.kept_behind[1]),
-            (&OVERLAY.label_ahead[0], &OVERLAY.kept_ahead[0]),
-            (&OVERLAY.label_ahead[1], &OVERLAY.kept_ahead[1]),
+            (
+                &race().frame.panel_and_overlay.overlay.label_behind[0],
+                &race().frame.panel_and_overlay.overlay.kept_behind[0],
+            ),
+            (
+                &race().frame.panel_and_overlay.overlay.label_behind[1],
+                &race().frame.panel_and_overlay.overlay.kept_behind[1],
+            ),
+            (
+                &race().frame.panel_and_overlay.overlay.label_ahead[0],
+                &race().frame.panel_and_overlay.overlay.kept_ahead[0],
+            ),
+            (
+                &race().frame.panel_and_overlay.overlay.label_ahead[1],
+                &race().frame.panel_and_overlay.overlay.kept_ahead[1],
+            ),
         ] {
             to.set(from.get());
         }

@@ -25,8 +25,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -79,15 +77,21 @@ fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
 /// Rust callers in modules not yet converted use.
 pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
-    let v: [u32; 4] = crate::session::read_bits(&FRAME_SCRATCH.work_vector);
+    let v: [u32; 4] =
+        crate::session::read_bits(&crate::race::owner::race().frame.scratch.work_vector);
     if sse {
-        crate::session::write_bits(&FRAME_SCRATCH.work_vector, sse_normalise(v));
+        crate::session::write_bits(
+            &crate::race::owner::race().frame.scratch.work_vector,
+            sse_normalise(v),
+        );
         return Ok(None);
     }
     let sum = squares_sum([v[0], v[1], v[2]]);
-    let root: u32 = COURSE_LISTS.root_table[((sum >> 15) & 0xFF) as usize].bits();
-    let exponent_root: u32 =
-        COURSE_LISTS.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
+    let root: u32 =
+        crate::race::owner::race().course.lists.root_table[((sum >> 15) & 0xFF) as usize].bits();
+    let exponent_root: u32 = crate::race::owner::race().course.lists.exponent_root_table
+        [((sum & 0x7F80_0000) >> 23) as usize]
+        .bits();
     // The product of two floats is exact in a double, as it is in the x87.
     let length = ld(root) * ld(exponent_root);
     if compare(length, ld(NOTHING)) & 0x4000 != 0 {
@@ -95,7 +99,10 @@ pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     }
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
-    crate::session::write_first(&FRAME_SCRATCH.work_vector, &scaled.map(unsigned_zero));
+    crate::session::write_first(
+        &crate::race::owner::race().frame.scratch.work_vector,
+        &scaled.map(unsigned_zero),
+    );
     DRAW.scratch.set_bits(inverse);
     Ok(Some(sum))
 }

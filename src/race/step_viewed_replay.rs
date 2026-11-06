@@ -14,7 +14,6 @@
 
 use crate::errors::Refused;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: whether it stopped (the carry the original leaves; it leaves ebx and
 /// the zero flag too, and no caller reads them).
@@ -29,15 +28,23 @@ pub fn step_viewed_replay() -> Result<bool, Refused> {
     use rc2k_core::race::viewer::{Step, step};
     let open = REPLAY_FILE.replay_open.get() == 1;
     let (block, frame) = (
-        REPLAY_VIEW.replay_block.get(),
-        REPLAY_VIEW.replay_frame.get(),
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_block
+            .get(),
+        crate::race::owner::race()
+            .replay
+            .replay_view
+            .replay_frame
+            .get(),
     );
     let (block, frame) = match step(
         open,
         block,
         frame,
         REPLAY_FILE.index_block_count.get(),
-        REPLAY_VIEW.play_end.get(),
+        crate::race::owner::race().replay.replay_view.play_end.get(),
     ) {
         Step::Closed | Step::AtLast { .. } => return Ok(stop(true)),
         Step::PlayEnd { .. } => return Ok(stop(false)),
@@ -51,7 +58,15 @@ pub fn step_viewed_replay() -> Result<bool, Refused> {
             (block, frame)
         }
     };
-    REPLAY_VIEW.replay_block.set(block);
-    REPLAY_VIEW.replay_frame.set(frame);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_block
+        .set(block);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_frame
+        .set(frame);
     Ok(false)
 }

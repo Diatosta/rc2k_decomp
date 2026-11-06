@@ -19,7 +19,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::matrix3::{extended, rounded};
@@ -55,7 +54,7 @@ pub fn start_car_on_line(distance: u32) -> Result<(), Refused> {
     let share = start_places::start_share(
         start as i32,
         RACE_TABLES.arcade_cars.get() as i32,
-        NUMBERS.one.get(),
+        crate::race::owner::race().course.numbers.one.get(),
         RACE_TABLES.arcade_b.get(),
         RACE_TABLES.arcade_a.get(),
     )

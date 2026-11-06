@@ -14,7 +14,6 @@
 
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
 pub fn mark_viewer_items(
@@ -22,9 +21,18 @@ pub fn mark_viewer_items(
 ) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::race::viewer::item_marks`.
     crate::menu::list_clear_marks::list_clear_marks(list);
-    let block = REPLAY_VIEW.replay_block.get();
+    let block = crate::race::owner::race()
+        .replay
+        .replay_view
+        .replay_block
+        .get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: REPLAY_VIEW.last_race_viewed.get() == 1,
+        last_race: crate::race::owner::race()
+            .replay
+            .replay_view
+            .last_race_viewed
+            .get()
+            == 1,
         block,
         blocks: REPLAY_FILE.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS

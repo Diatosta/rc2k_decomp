@@ -297,14 +297,18 @@ fn whole_at<T: Whole>(table: &'static Table, at: usize) -> Result<T, BadInput> {
 /// Byte `offset` of face `n` in the faces' table.
 #[inline]
 fn face_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = crate::race::course_store::COURSE.course_faces.get();
+    let base = crate::race::owner::race().course.course.course_faces.get();
     index(faces_base(), base, FACE, n, offset)
 }
 
 /// Byte `offset` of record `n` in the records' table.
 #[inline]
 fn record_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = crate::race::course_store::COURSE.course_records.get();
+    let base = crate::race::owner::race()
+        .course
+        .course
+        .course_records
+        .get();
     index(records_base(), base, RECORD, n, offset)
 }
 

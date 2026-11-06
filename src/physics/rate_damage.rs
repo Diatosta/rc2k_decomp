@@ -28,7 +28,6 @@
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::car_store::CAR;
-use crate::physics::store::DAMAGE;
 use crate::scene::matrix3::rounded;
 use crate::session::{Dword, Float};
 
@@ -38,12 +37,12 @@ fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
         (
             &CAR.drive_efficiency[0],
             &CAR.damper_wear[0],
-            &DAMAGE.lerp_tables[4],
+            &crate::race::owner::race().physics.damage.lerp_tables[4],
         ),
         (
             &CAR.drive_efficiency[1],
             &CAR.damper_wear[1],
-            &DAMAGE.lerp_tables[4],
+            &crate::race::owner::race().physics.damage.lerp_tables[4],
         ),
     ]
 }
@@ -51,94 +50,94 @@ fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
 fn ramps_c() -> [(&'static Float, &'static Float, &'static [Float; 4]); 18] {
     [
         (
-            &DAMAGE.flt_75b490,
+            &crate::race::owner::race().physics.damage.flt_75b490,
             &CAR.clutch_damage,
-            &DAMAGE.lerp_tables[7],
+            &crate::race::owner::race().physics.damage.lerp_tables[7],
         ),
         (
-            &DAMAGE.flt_75b494,
+            &crate::race::owner::race().physics.damage.flt_75b494,
             &CAR.gearbox_damage,
-            &DAMAGE.lerp_tables[8],
+            &crate::race::owner::race().physics.damage.lerp_tables[8],
         ),
         (
-            &DAMAGE.flt_75b498,
+            &crate::race::owner::race().physics.damage.flt_75b498,
             &CAR.gearbox_damage,
-            &DAMAGE.lerp_tables[9],
+            &crate::race::owner::race().physics.damage.lerp_tables[9],
         ),
         (
-            &DAMAGE.flt_75b49c,
+            &crate::race::owner::race().physics.damage.flt_75b49c,
             &CAR.brake_damage,
-            &DAMAGE.lerp_tables[10],
+            &crate::race::owner::race().physics.damage.lerp_tables[10],
         ),
         (
-            &DAMAGE.flt_75b404,
+            &crate::race::owner::race().physics.damage.flt_75b404,
             &CAR.electrics_damage,
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b408,
+            &crate::race::owner::race().physics.damage.flt_75b408,
             &CAR.light_damage[0],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b40c,
+            &crate::race::owner::race().physics.damage.flt_75b40c,
             &CAR.light_damage[1],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b410,
+            &crate::race::owner::race().physics.damage.flt_75b410,
             &CAR.light_damage[2],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b414,
+            &crate::race::owner::race().physics.damage.flt_75b414,
             &CAR.light_damage[3],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b418,
+            &crate::race::owner::race().physics.damage.flt_75b418,
             &CAR.light_damage[4],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b41c,
+            &crate::race::owner::race().physics.damage.flt_75b41c,
             &CAR.light_damage[5],
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b420,
+            &crate::race::owner::race().physics.damage.flt_75b420,
             &CAR.electrics_damage,
-            &DAMAGE.lerp_tables[11],
+            &crate::race::owner::race().physics.damage.lerp_tables[11],
         ),
         (
-            &DAMAGE.flt_75b424,
+            &crate::race::owner::race().physics.damage.flt_75b424,
             &CAR.light_damage[0],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
         (
-            &DAMAGE.flt_75b428,
+            &crate::race::owner::race().physics.damage.flt_75b428,
             &CAR.light_damage[1],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
         (
-            &DAMAGE.flt_75b42c,
+            &crate::race::owner::race().physics.damage.flt_75b42c,
             &CAR.light_damage[2],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
         (
-            &DAMAGE.flt_75b430,
+            &crate::race::owner::race().physics.damage.flt_75b430,
             &CAR.light_damage[3],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
         (
-            &DAMAGE.flt_75b434,
+            &crate::race::owner::race().physics.damage.flt_75b434,
             &CAR.light_damage[4],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
         (
-            &DAMAGE.flt_75b438,
+            &crate::race::owner::race().physics.damage.flt_75b438,
             &CAR.light_damage[5],
-            &DAMAGE.lerp_tables[12],
+            &crate::race::owner::race().physics.damage.lerp_tables[12],
         ),
     ]
 }
@@ -147,44 +146,44 @@ fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
     [
         (
             &CAR.electrical_failures[0],
-            &DAMAGE.flt_75b420,
-            &DAMAGE.flt_75b404,
+            &crate::race::owner::race().physics.damage.flt_75b420,
+            &crate::race::owner::race().physics.damage.flt_75b404,
             0x4,
         ),
         (
             &CAR.electrical_failures[1],
-            &DAMAGE.flt_75b424,
-            &DAMAGE.flt_75b408,
+            &crate::race::owner::race().physics.damage.flt_75b424,
+            &crate::race::owner::race().physics.damage.flt_75b408,
             0x5,
         ),
         (
             &CAR.electrical_failures[2],
-            &DAMAGE.flt_75b428,
-            &DAMAGE.flt_75b40c,
+            &crate::race::owner::race().physics.damage.flt_75b428,
+            &crate::race::owner::race().physics.damage.flt_75b40c,
             0x6,
         ),
         (
             &CAR.electrical_failures[3],
-            &DAMAGE.flt_75b42c,
-            &DAMAGE.flt_75b410,
+            &crate::race::owner::race().physics.damage.flt_75b42c,
+            &crate::race::owner::race().physics.damage.flt_75b410,
             0x7,
         ),
         (
             &CAR.electrical_failures[4],
-            &DAMAGE.flt_75b430,
-            &DAMAGE.flt_75b414,
+            &crate::race::owner::race().physics.damage.flt_75b430,
+            &crate::race::owner::race().physics.damage.flt_75b414,
             0x8,
         ),
         (
             &CAR.electrical_failures[5],
-            &DAMAGE.flt_75b434,
-            &DAMAGE.flt_75b418,
+            &crate::race::owner::race().physics.damage.flt_75b434,
+            &crate::race::owner::race().physics.damage.flt_75b418,
             0x9,
         ),
         (
             &CAR.electrical_failures[6],
-            &DAMAGE.flt_75b438,
-            &DAMAGE.flt_75b41c,
+            &crate::race::owner::race().physics.damage.flt_75b438,
+            &crate::race::owner::race().physics.damage.flt_75b41c,
             0xA,
         ),
     ]
@@ -193,7 +192,7 @@ fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
 /// The Rust version (the exact one, for `physics::grade_or_reset` and
 /// `physics::rate_current_car`).
 pub fn rate_damage() {
-    let d = &DAMAGE;
+    let d = &crate::race::owner::race().physics.damage;
     let c = &CAR;
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {

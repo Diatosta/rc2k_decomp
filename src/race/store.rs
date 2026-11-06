@@ -311,12 +311,10 @@ pub const fn first_values<const N: usize>(start: usize) -> [u8; N] {
     let mut r = 0;
     while r < runs.len() {
         let (offset, run) = runs[r];
-        let mut k = 0;
-        while k < run.len() {
-            let at = offset + k;
-            if at >= from && at < from + N {
-                bytes[at - from] = run[k];
-            }
+        // Only the overlap of the run with the wanted range (a long run was walked whole).
+        let mut k = from.saturating_sub(offset);
+        while k < run.len() && offset + k < from + N {
+            bytes[offset + k - from] = run[k];
             k += 1;
         }
         r += 1;

@@ -17,7 +17,6 @@ use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
 pub fn drive_force() -> Result<(), Refused> {
@@ -30,13 +29,13 @@ pub fn drive_force() -> Result<(), Refused> {
         PHYSICS.engine_force.bits(),
         PHYSICS.engine_torque.bits(),
         CAR.throttle.get() as i32,
-        NUMBERS.k256.bits(),
+        crate::race::owner::race().course.numbers.k256.bits(),
     ));
     PHYSICS.drive_torque.set_bits(mul_div2(
         PHYSICS.drive_ratio.bits(),
         GEAR.drive_torque_figure.bits(),
         PHYSICS.gear_ratios[(gear as i32 + 1) as usize].bits(),
-        NUMBERS.k10000.bits(),
+        crate::race::owner::race().course.numbers.k10000.bits(),
     ));
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);

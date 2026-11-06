@@ -15,20 +15,16 @@
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
-use crate::session::Bytes;
 
 /// IDA's address of the snapshot picture's name.
 pub const SNAPSHOT_START: usize = 0x529731;
 /// The three digits' place in the name.
 pub const DIGITS_AT: usize = 0x12;
 
-/// `aSavedataSnapsh`: the viewer's snapshot picture's name, its three digits counted up.
-pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
-
 /// Where the name's three digits are.
 pub fn digits_place() -> GamePtr {
     // The name's bytes: a file name.
-    GamePtr::to(&SNAPSHOT).offset(DIGITS_AT as u32)
+    GamePtr::to(&crate::race::owner::race().replay.snapshot).offset(DIGITS_AT as u32)
 }
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
@@ -57,11 +53,11 @@ pub fn find_first_at(pattern: GamePtr) -> bool {
 /// The Rust version.
 pub fn find_snapshot_number() -> Result<(), BadInput> {
     // The name's bytes: a file name.
-    GamePtr::to(&SNAPSHOT)
+    GamePtr::to(&crate::race::owner::race().replay.snapshot)
         .offset(DIGITS_AT as u32)
         .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
     let mut highest = 0u32;
-    if find_first_at(GamePtr::to(&SNAPSHOT)) {
+    if find_first_at(GamePtr::to(&crate::race::owner::race().replay.snapshot)) {
         loop {
             // Converted: `rc2k_core::race::viewer::snapshot_number`.
             let name = crate::files::search::found_name();
@@ -78,7 +74,7 @@ pub fn find_snapshot_number() -> Result<(), BadInput> {
     }
     crate::files::search::close();
     let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-    GamePtr::to(&SNAPSHOT)
+    GamePtr::to(&crate::race::owner::race().replay.snapshot)
         .offset(DIGITS_AT as u32)
         .write_bytes(&digits, "the snapshot name")?;
     Ok(())
@@ -90,10 +86,14 @@ mod block_tests {
 
     #[test]
     fn first_value_is_the_games() {
-        crate::gfx::first_values_are_the_games(&SNAPSHOT, SNAPSHOT_START, SNAPSHOT_START + 26);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().replay.snapshot,
+            SNAPSHOT_START,
+            SNAPSHOT_START + 26,
+        );
         assert_eq!(
             crate::moved::place(SNAPSHOT_START),
-            SNAPSHOT.addr() as usize
+            crate::race::owner::race().replay.snapshot.addr() as usize
         );
     }
 }

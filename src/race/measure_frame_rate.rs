@@ -12,7 +12,6 @@
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::session::MACHINE;
@@ -26,8 +25,8 @@ static LAST: AtomicU64 = AtomicU64::new(0);
 fn frame_rate_plain(cycles: u64) {
     let rate = rc2k_core::race::frame_rate::frame_rate(
         MACHINE.cpu_mhz.get() as i32,
-        NUMBERS.thousand.get(),
-        NUMBERS.sixteen.get(),
+        crate::race::owner::race().course.numbers.thousand.get(),
+        crate::race::owner::race().course.numbers.sixteen.get(),
         cycles,
     );
     FRAME_SWITCHES.frame_rate.set_bits(rate.to_bits());

@@ -27,18 +27,18 @@ pub struct SealWork {
     pub _tail: Bytes<12>,
 }
 
-pub static SEAL_WORK: SealWork = SealWork {
-    _lead: Bytes::new([0; 12]),
-    subkeys: [const { Dword::new(0x0) }; 32],
-    key: [Dword::new(0x6b726164), Dword::new(0x72617473)],
-    block: [const { Dword::new(0x0) }; 2],
-    sealed: [const { Dword::new(0x0) }; 2],
-    _tail: Bytes::new([0; 12]),
-};
-
-/// The part from IDA's `START` on (past the alignment lead): `moved::MOVED`'s home.
-pub static SEAL_WINDOW: crate::race::store::Window<SealWork> =
-    crate::race::store::Window::new(&SEAL_WORK, 12);
+impl SealWork {
+    pub const fn new() -> Self {
+        SealWork {
+            _lead: Bytes::new([0; 12]),
+            subkeys: [const { Dword::new(0x0) }; 32],
+            key: [Dword::new(0x6b726164), Dword::new(0x72617473)],
+            block: [const { Dword::new(0x0) }; 2],
+            sealed: [const { Dword::new(0x0) }; 2],
+            _tail: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl SealWork {
     pub const START: usize = 0x4E04AC;

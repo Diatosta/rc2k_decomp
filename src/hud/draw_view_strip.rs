@@ -16,7 +16,7 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use rc2k_core::hud::strips;
@@ -61,7 +61,7 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
 pub fn overlay_tail() -> Result<(), Refused> {
     let (shown, players) = (
-        PANEL.hud_flags[0].get(),
+        race().frame.panel_and_overlay.panel.hud_flags[0].get(),
         crate::hud::overlay_pass::shown_layout(),
     );
     if !strips::tail_shown(shown, players) {
@@ -82,7 +82,7 @@ pub fn draw_view_strip(view: u32) -> Result<(), Refused> {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     {
-        let top = strips::top_entry(view, PANEL.flat.get());
+        let top = strips::top_entry(view, race().frame.panel_and_overlay.panel.flat.get());
         let top: u32 = crate::gfx::owner::gfx().strips.tops[top as usize].get();
         let left: u32 = crate::gfx::owner::gfx().strips.lefts[view as usize].get();
         sizes([top, strips::HEIGHT, left, strips::WIDTH]);

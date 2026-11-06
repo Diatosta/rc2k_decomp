@@ -15,7 +15,6 @@
 //! One caller, `sub_45188C`.
 
 use crate::errors::Refused;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::reflection_coordinates::reflection_coordinates;
 
@@ -33,19 +32,40 @@ pub fn cached_reflection_coordinates() -> Result<(), Refused> {
         return Ok(reflection_coordinates()?);
     }
     let asked: [u32; 2] = [
-        GROUND_WORK.reflection_normal_number.bits(),
-        GROUND_WORK.reflection_point_number.bits(),
+        crate::race::owner::race()
+            .physics
+            .ground
+            .reflection_normal_number
+            .bits(),
+        crate::race::owner::race()
+            .physics
+            .ground
+            .reflection_point_number
+            .bits(),
     ];
     let place = cache_place(asked[0]);
-    let slot = |table: usize| &GROUND_WORK.kept_reflections[table * TABLE_CELLS + place];
+    let slot = |table: usize| {
+        &crate::race::owner::race().physics.ground.kept_reflections[table * TABLE_CELLS + place]
+    };
     if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
         [slot(2).bits(), slot(3).bits()]
     }) {
-        crate::session::write_bits(&GROUND_WORK.reflection_coordinates, coordinates);
+        crate::session::write_bits(
+            &crate::race::owner::race()
+                .physics
+                .ground
+                .reflection_coordinates,
+            coordinates,
+        );
         return Ok(());
     }
     reflection_coordinates()?;
-    let coordinates: [u32; 2] = crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
+    let coordinates: [u32; 2] = crate::session::read_bits(
+        &crate::race::owner::race()
+            .physics
+            .ground
+            .reflection_coordinates,
+    );
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()
         .enumerate()

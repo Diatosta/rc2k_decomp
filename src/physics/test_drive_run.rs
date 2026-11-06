@@ -28,7 +28,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Float;
 
@@ -76,7 +75,11 @@ fn steps() -> Result<(), Refused> {
             let slot = (n / 20) as usize;
             GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
                 CAR.drive_speed_a.bits(),
-                NUMBERS.two_and_a_quarter.bits(),
+                crate::race::owner::race()
+                    .course
+                    .numbers
+                    .two_and_a_quarter
+                    .bits(),
             ));
             GEAR.test_gears[slot].set(CAR.gear.get());
         }
@@ -101,7 +104,7 @@ fn x87_1(r: &Float) {
     let t2 = t0 * t1;
     let t3 = ld(r.bits());
     let t4 = t2 / t3;
-    let t5 = ld(NUMBERS.k10000.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.k10000.bits());
     let t6 = t4 / t5;
     PHYSICS.drive_torque.set_bits(st(t6));
 }
@@ -116,7 +119,7 @@ fn x87_2() {
     let t1 = t0 * t0;
     let t2 = ld(PHYSICS.air_drag.bits());
     let t3 = t1 * t2;
-    let t4 = ld(NUMBERS.k10000.bits());
+    let t4 = ld(crate::race::owner::race().course.numbers.k10000.bits());
     let t5 = t3 / t4;
     let t6 = ld(PHYSICS.rolling_drag.bits());
     let t7 = t5 + t6;
@@ -139,15 +142,19 @@ fn x87_2() {
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [rc + 0x1C5D14]`
 fn x87_3() {
     let t0 = ld(CAR.drive_speed_a.bits());
-    let t1 = ld(NUMBERS.two_and_a_quarter.bits());
+    let t1 = ld(crate::race::owner::race()
+        .course
+        .numbers
+        .two_and_a_quarter
+        .bits());
     let t2 = t0 * t1;
     GEAR.test_marks[2].set_bits(st(t2));
     let t3 = int(GEAR.test_marks[0].bits() as i32);
-    let t4 = ld(NUMBERS.hundred.bits());
+    let t4 = ld(crate::race::owner::race().course.numbers.hundred.bits());
     let t5 = t3 / t4;
     GEAR.test_marks[0].set_bits(st(t5));
     let t6 = int(GEAR.test_marks[1].bits() as i32);
-    let t7 = ld(NUMBERS.hundred.bits());
+    let t7 = ld(crate::race::owner::race().course.numbers.hundred.bits());
     let t8 = t6 / t7;
     GEAR.test_marks[1].set_bits(st(t8));
 }

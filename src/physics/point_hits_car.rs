@@ -23,11 +23,9 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::rounded;
 use rc2k_core::physics::contacts;
 
@@ -46,23 +44,43 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
         let v = contacts::point_part(
             point[k as usize],
             rd(0x30 + 4 * k, "an object's place")?,
-            CONTACT_WORK.object_offset[k as usize].get(),
+            crate::race::owner::race().physics.contact.object_offset[k as usize].get(),
             CAR.position[k as usize].get(),
         );
-        CONTACT_WORK.object_point_offset[k as usize].set(v);
+        crate::race::owner::race()
+            .physics
+            .contact
+            .object_point_offset[k as usize]
+            .set(v);
         if k == 1 {
             y = v;
         }
     }
     x87_1();
     for k in 0..3 {
-        CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
+        crate::race::owner::race()
+            .physics
+            .contact
+            .object_point_turned[k]
+            .set_bits(
+                crate::race::owner::race()
+                    .physics
+                    .contact
+                    .object_point_scaled[k]
+                    .bits(),
+            );
     }
-    turn_by_heading(&CONTACT_WORK.object_point_turned, y);
+    turn_by_heading(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .object_point_turned,
+        y,
+    );
     x87_2();
     let (x, z) = (
-        CONTACT_WORK.contact_point[0].bits(),
-        CONTACT_WORK.contact_point[2].bits(),
+        crate::race::owner::race().physics.contact.contact_point[0].bits(),
+        crate::race::owner::race().physics.contact.contact_point[2].bits(),
     );
     if !contacts::inside_box(
         x,
@@ -73,13 +91,27 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
     ) {
         return Ok(false);
     }
-    if contacts::kind_hits(CONTACT_WORK.contact_kind.get()) {
+    if contacts::kind_hits(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .contact_kind
+            .get(),
+    ) {
         x87_3();
-        CONTACT_WORK
+        crate::race::owner::race()
+            .physics
+            .contact
             .contact_speed_length
             .set_bits(rounded(vector_length(&CAR.velocity)));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-            f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
+            f32::from_bits(
+                crate::race::owner::race()
+                    .physics
+                    .contact
+                    .contact_speed_length
+                    .bits(),
+            ),
             f32::from_bits(CAR.contact_depth.bits()),
         ) {
             CAR.contact_depth.set_bits(hit.to_bits());
@@ -98,18 +130,42 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
 /// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [rc + 0x1C5D98]`
 fn x87_1() {
-    let t0 = int(CONTACT_WORK.object_point_offset[0].bits() as i32);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t0 = int(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_offset[0]
+        .bits() as i32);
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 / t1;
-    CONTACT_WORK.object_point_scaled[0].set_bits(st(t2));
-    let t3 = int(CONTACT_WORK.object_point_offset[1].bits() as i32);
-    let t4 = ld(NUMBERS.k65536.bits());
+    crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_scaled[0]
+        .set_bits(st(t2));
+    let t3 = int(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_offset[1]
+        .bits() as i32);
+    let t4 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t5 = t3 / t4;
-    CONTACT_WORK.object_point_scaled[1].set_bits(st(t5));
-    let t6 = int(CONTACT_WORK.object_point_offset[2].bits() as i32);
-    let t7 = ld(NUMBERS.k65536.bits());
+    crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_scaled[1]
+        .set_bits(st(t5));
+    let t6 = int(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_offset[2]
+        .bits() as i32);
+    let t7 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t8 = t6 / t7;
-    CONTACT_WORK.object_point_scaled[2].set_bits(st(t8));
+    crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_scaled[2]
+        .set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -118,18 +174,30 @@ fn x87_1() {
 /// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [rc + 0x1C5D98]`
 fn x87_2() {
-    let t0 = ld(CONTACT_WORK.object_point_turned[0].bits());
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_turned[0]
+        .bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    CONTACT_WORK.contact_point[0].set_bits(to_int(t2) as u32);
-    let t3 = ld(CONTACT_WORK.object_point_turned[1].bits());
-    let t4 = ld(NUMBERS.k65536.bits());
+    crate::race::owner::race().physics.contact.contact_point[0].set_bits(to_int(t2) as u32);
+    let t3 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_turned[1]
+        .bits());
+    let t4 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t5 = t3 * t4;
-    CONTACT_WORK.contact_point[1].set_bits(to_int(t5) as u32);
-    let t6 = ld(CONTACT_WORK.object_point_turned[2].bits());
-    let t7 = ld(NUMBERS.k65536.bits());
+    crate::race::owner::race().physics.contact.contact_point[1].set_bits(to_int(t5) as u32);
+    let t6 = ld(crate::race::owner::race()
+        .physics
+        .contact
+        .object_point_turned[2]
+        .bits());
+    let t7 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t8 = t6 * t7;
-    CONTACT_WORK.contact_point[2].set_bits(to_int(t8) as u32);
+    crate::race::owner::race().physics.contact.contact_point[2].set_bits(to_int(t8) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -138,14 +206,14 @@ fn x87_2() {
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
 fn x87_3() {
-    let t0 = int(CONTACT_WORK.contact_point[0].bits() as i32);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t0 = int(crate::race::owner::race().physics.contact.contact_point[0].bits() as i32);
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 / t1;
     CAR.contact_point[0].set_bits(st(t2));
     let t3 = X(0.0);
     CAR.contact_point[1].set_bits(st(t3));
-    let t4 = int(CONTACT_WORK.contact_point[2].bits() as i32);
-    let t5 = ld(NUMBERS.k65536.bits());
+    let t4 = int(crate::race::owner::race().physics.contact.contact_point[2].bits() as i32);
+    let t5 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t6 = t4 / t5;
     CAR.contact_point[2].set_bits(st(t6));
 }

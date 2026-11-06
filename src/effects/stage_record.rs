@@ -8,13 +8,13 @@
 //! One caller, `effects::run_frame`. Refuses a number past the table (unsigned).
 
 use crate::errors::Refused;
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// The Rust version (see the header): the record (the original's esi; read by no
 /// caller).
 // Converted: `rc2k_core::effects::race::stage_record`
 pub fn stage_record() -> Result<&'static ViewRecord, Refused> {
-    let n = rc2k_core::effects::race::stage_record(FRAME_WORK.lead_kept[0].bits())?;
+    let n = rc2k_core::effects::race::stage_record(race().frame.frame_work.lead_kept[0].bits())?;
     Ok(ViewVars::record_of(n)?)
 }

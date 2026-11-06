@@ -31,14 +31,17 @@ pub struct KindTables {
     pub kind_shows_parts: [Dword; 34],
 }
 
-/// The piece: a field of `race::groups_store::VIEWER_AND_KINDS` since 2026-10-29 (it left the race
+/// The piece: a field of `VIEWER_AND_KINDS` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = KindTables;
     fn deref(&self) -> &KindTables {
-        &crate::race::groups_store::VIEWER_AND_KINDS.kind_tables
+        &crate::race::owner::race()
+            .replay
+            .viewer_and_kinds
+            .kind_tables
     }
 }
 
@@ -55,7 +58,10 @@ const _: () = assert!(END - START == core::mem::size_of::<KindTables>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::VIEWER_AND_KINDS.kind_tables,
+        &crate::race::owner::race()
+            .replay
+            .viewer_and_kinds
+            .kind_tables,
     ))
 }
 

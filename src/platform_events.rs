@@ -241,7 +241,7 @@ fn pad_button(button: SDL_GamepadButton, down: bool) {
         SDL_GAMEPAD_BUTTON_START => B::Start,
         _ => return,
     };
-    let in_race = crate::race::numbers_store::NUMBERS.in_race.get() != 0;
+    let in_race = crate::race::owner::race().course.numbers.in_race.get() != 0;
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(action);

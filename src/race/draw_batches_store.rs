@@ -1,6 +1,8 @@
 //! The race frame's draw batches (part R3): the scene's batch (`race::flush_draw_batch`) with its vertices and indices, and the two batches `race::draw_race_scene` flushes (`race::flush_triangle_batch`, the plain one; `race::flush_texture_batch`, the textured one): vertices, indices, counts, first words and the counts kept. The buffers' lengths are readings (up to the next item). Names are readings unless IDA's.
 //! It stops before the replay's variables at 0x6EF7CC (`drive::replay_frames_store`).
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -37,8 +39,11 @@ pub struct DrawBatches {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static DRAW_BATCHES: DrawBatches =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl DrawBatches {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x6D3CF4, the first byte of the piece.
 pub const START: usize = 0x6D3CF4;
@@ -50,7 +55,7 @@ const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
 /// Where IDA 0x6D3CF4 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&DRAW_BATCHES))
+    crate::pointers::game_address(std::ptr::from_ref(&race().frame.draw_batches))
 }
 
 #[cfg(test)]
@@ -60,7 +65,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&DRAW_BATCHES, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.draw_batches, START, END);
     }
 
     #[test]

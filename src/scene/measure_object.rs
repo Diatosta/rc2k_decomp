@@ -13,7 +13,6 @@
 //! their memory.
 
 use crate::errors::BadInput;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::SLOTS;
@@ -30,7 +29,7 @@ fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
         return Err(BadInput("an object's slot past the tables"));
     }
     let count = OBJECT_SLOTS.point_counts[slot as usize].get();
-    let memory: u32 = COURSE_LISTS.object_points.bits();
+    let memory: u32 = crate::race::owner::race().course.lists.object_points.bits();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }

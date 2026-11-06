@@ -3,6 +3,7 @@
 //! (0x9353A6 .. 0x935412: constants and randoms; on an address 2 more than a multiple of 4
 //! in the image).
 
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// One mark slot (IDA `g_markSlots`, 0x14 bytes): a sprite that lives a number of ticks.
@@ -32,7 +33,7 @@ pub fn slot_matrix(
     handle: u32,
 ) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
     match handle {
-        VIEW_PLACE_MATRIX => Ok(&crate::race::matrices_store::MATRICES.view_place),
+        VIEW_PLACE_MATRIX => Ok(&race().frame.matrices.view_place),
         _ => Err(crate::errors::BadInput(
             "a mark slot's matrix handle that names none",
         )),

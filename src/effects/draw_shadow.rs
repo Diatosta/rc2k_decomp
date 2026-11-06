@@ -27,8 +27,6 @@ use crate::effects::kind_store::{
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
@@ -150,7 +148,7 @@ pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), R
     corners_x87(sh);
     normalise(&q.way);
     corners_in_x87(sh);
-    let view = &MATRICES.listener_matrix;
+    let view = &crate::race::owner::race().frame.matrices.listener_matrix;
     for n in 0..4 {
         let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
         let turned = rotate_point(view, p.map(extended));
@@ -174,7 +172,9 @@ pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), R
         VERTICES.vertices[n].colour.set(c);
     }
     for n in 0..4 {
-        if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
+        if (q.corners[n][2].bits() as i32)
+            <= (crate::race::owner::race().course.numbers.k4096_a.bits() as i32)
+        {
             return Ok(());
         }
     }

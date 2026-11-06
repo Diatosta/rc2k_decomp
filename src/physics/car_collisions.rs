@@ -21,9 +21,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::corner_hits_car::corner_hits_car;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -48,14 +47,26 @@ pub fn car_collisions() -> Result<(), Refused> {
         return Err(BadInput("a null car block").into());
     }
     {
-        CONTACT_WORK.corner_inside.set(0);
+        crate::race::owner::race()
+            .physics
+            .contact
+            .corner_inside
+            .set(0);
         for car in 0..n {
             if car == RACE_WORK.current_car.get() {
                 continue;
             }
-            CONTACT_WORK.other_car_number.set(car);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .other_car_number
+                .set(car);
             let block = RACE_WORK.car_block(car as usize);
-            CONTACT_WORK.other_car_block.set(block);
+            crate::race::owner::race()
+                .physics
+                .contact
+                .other_car_block
+                .set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
@@ -67,18 +78,21 @@ pub fn car_collisions() -> Result<(), Refused> {
             }));
             multiply_matrices(
                 &CAR.crash_matrix,
-                &MATRICES.placed_matrix,
-                &MATRICES.turned_matrix,
+                &race().frame.matrices.placed_matrix,
+                &race().frame.matrices.turned_matrix,
             );
             multiply_matrices(
-                &MATRICES.turned_matrix,
+                &race().frame.matrices.turned_matrix,
                 &Car::at(block).car_inverse_matrix,
-                &CONTACT_WORK.corner_matrix,
+                &crate::race::owner::race().physics.contact.corner_matrix,
             );
             for k in 0..8 {
-                CONTACT_WORK.corner_in[0].set_bits(CONTACT_WORK.corner_x[k].bits());
-                CONTACT_WORK.corner_in[1].set_bits(CONTACT_WORK.corner_y[k].bits());
-                CONTACT_WORK.corner_in[2].set_bits(CONTACT_WORK.corner_z[k].bits());
+                crate::race::owner::race().physics.contact.corner_in[0]
+                    .set_bits(crate::race::owner::race().physics.contact.corner_x[k].bits());
+                crate::race::owner::race().physics.contact.corner_in[1]
+                    .set_bits(crate::race::owner::race().physics.contact.corner_y[k].bits());
+                crate::race::owner::race().physics.contact.corner_in[2]
+                    .set_bits(crate::race::owner::race().physics.contact.corner_z[k].bits());
                 { corner_hits_car(block) }?;
             }
         }

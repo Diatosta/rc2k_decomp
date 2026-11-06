@@ -32,11 +32,9 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file_bytes;
 use crate::files::state::BYTES_READ;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
@@ -152,7 +150,7 @@ fn find_object_kind(kind: u32) -> u32 {
 }
 
 fn mask(at: usize) -> u32 {
-    COURSE.group_masks[at / 4].get()
+    crate::race::owner::race().course.course.group_masks[at / 4].get()
 }
 
 /// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
@@ -197,7 +195,7 @@ pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     }
     scene.draw_switches.loading_group_mask.set_bits(u32::MAX);
     let known = find_object_kind(kind);
-    MATRICES.known_object.set_bits(known);
+    race().frame.matrices.known_object.set_bits(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
     // A run-on past the 34 records into the gear figures, as the original.
     let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
@@ -214,12 +212,12 @@ pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
                 };
             }
         }
-        COURSE.group_masks[part.mask / 4].set_bits(bits);
+        crate::race::owner::race().course.course.group_masks[part.mask / 4].set_bits(bits);
     }
     let rest = FIRST_FIVE[1..]
         .iter()
         .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(at)));
-    COURSE.group_masks[REST / 4].set_bits(rest);
+    crate::race::owner::race().course.course.group_masks[REST / 4].set_bits(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
     crate::session::write_all(&OBJECT_WORK.loading_car, [car, part, first]);
@@ -256,10 +254,22 @@ fn shape(scene: &crate::scene::owner::Scene, mask: u32) -> Result<(), Refused> {
 
 /// The three fatal errors at the end, in the original's order.
 fn check() -> Result<(), Refused> {
-    if OBJECT_WORK.face_cursor.bits() > COURSE_LISTS.face_memory_room.bits() {
+    if OBJECT_WORK.face_cursor.bits()
+        > crate::race::owner::race()
+            .course
+            .lists
+            .face_memory_room
+            .bits()
+    {
         return Err(NO_FACE_MEMORY.into());
     }
-    if OBJECT_TABLES.point_count.get().wrapping_mul(12) > COURSE_LISTS.object_points_room.bits() {
+    if OBJECT_TABLES.point_count.get().wrapping_mul(12)
+        > crate::race::owner::race()
+            .course
+            .lists
+            .object_points_room
+            .bits()
+    {
         return Err(NO_POINT_MEMORY.into());
     }
     if OBJECT_TABLES.face_count.get() >= FACES {

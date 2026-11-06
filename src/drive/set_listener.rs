@@ -26,16 +26,13 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::frame_store::FRAME_WORK;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::matrices_store::MATRICES;
 use crate::race::mud::car_file_number;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -76,39 +73,45 @@ pub fn set_listener() -> Result<(), Refused> {
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
     for k in 0..3 {
-        MARKS_SETTINGS.listener_place[k].set(VIEW_VARS.view_place[k].get().wrapping_neg());
+        MARKS_SETTINGS.listener_place[k].set(
+            race().frame.view_and_records.view_vars.view_place[k]
+                .get()
+                .wrapping_neg(),
+        );
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-        MARKS_SETTINGS.listener_turn[k].set_bits(MATRICES.view_turn_matrix[o as usize / 4].bits());
+        MARKS_SETTINGS.listener_turn[k]
+            .set_bits(race().frame.matrices.view_turn_matrix[o as usize / 4].bits());
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
         RACE_VARS.settings_words[0].get(),
-        || FRAME_WORK.view_out.get(),
+        || race().frame.frame_work.view_out.get(),
     ));
-    MARKS_SETTINGS.listener_figures[1].set(FRAME_WORK.sun_place[0].get());
-    MARKS_SETTINGS.listener_figures[2].set(FRAME_WORK.sun_place[1].get());
+    MARKS_SETTINGS.listener_figures[1].set(race().frame.frame_work.sun_place[0].get());
+    MARKS_SETTINGS.listener_figures[2].set(race().frame.frame_work.sun_place[1].get());
     let f = listener::listener_points(f, PHYSICS.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
-        CAMERA_WORK.listener_points[k].set(v as u32);
+        crate::race::owner::race().physics.camera.listener_points[k].set(v as u32);
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
-        MATRICES.turned_matrix[k].set_bits(car.body_matrix[k].bits());
+        race().frame.matrices.turned_matrix[k].set_bits(car.body_matrix[k].bits());
     }
     multiply_matrices(
-        &MATRICES.turned_matrix,
+        &race().frame.matrices.turned_matrix,
         &car.place_matrix,
-        &MATRICES.lit_matrix,
+        &race().frame.matrices.lit_matrix,
     );
     multiply_matrices(
-        &MATRICES.lit_matrix,
-        &MATRICES.view_matrix,
-        &MATRICES.made_object_matrix,
+        &race().frame.matrices.lit_matrix,
+        &race().frame.matrices.view_matrix,
+        &race().frame.matrices.made_object_matrix,
     );
     for k in 0..16 {
-        MATRICES.listener_matrix[k].set_bits(MATRICES.made_object_matrix[k].bits());
+        race().frame.matrices.listener_matrix[k]
+            .set_bits(race().frame.matrices.made_object_matrix[k].bits());
     }
-    let made = &MATRICES.made_object_matrix;
+    let made = &race().frame.matrices.made_object_matrix;
     for (first, out, negate) in [
         (0, &MARKS_SETTINGS.listener_point_a_negated, true),
         (0, &MARKS_SETTINGS.listener_point_a, false),
@@ -126,7 +129,7 @@ pub fn set_listener() -> Result<(), Refused> {
         }
     }
     let switches = listener::switches(
-        FRAME_WORK.mirror_wanted.get() != 0,
+        race().frame.frame_work.mirror_wanted.get() != 0,
         car.surface_noise_a.get(),
         car.surface_noise_b.get(),
     );
@@ -165,7 +168,7 @@ pub fn set_listener() -> Result<(), Refused> {
     MARKS_SETTINGS
         .listener_float_b
         .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
-    if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
+    if crate::race::owner::race().physics.split_tables.still.get() != 0 {
         MARKS_SETTINGS.listener_flag.set(0);
         MARKS_SETTINGS.listener_gear_changed.set(0);
     }

@@ -9,18 +9,24 @@
 //!      `race::draw_view_overlays`) read
 
 use crate::errors::Refused;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::draw_batches_store::DRAW_BATCHES;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// The Rust version (see the header).
 pub fn flush_draw_batch() -> Result<(), Refused> {
-    let indices: u32 = CONTACT_WORK.batch_index_count.bits();
+    let indices: u32 = crate::race::owner::race()
+        .physics
+        .contact
+        .batch_index_count
+        .bits();
     if indices != 0 {
         let result = crate::platform_3d::draw_indexed(
-            &DRAW_BATCHES.scene_vertices,
-            CONTACT_WORK.batch_vertex_count.bits(),
-            &DRAW_BATCHES.scene_indices,
+            &crate::race::owner::race().frame.draw_batches.scene_vertices,
+            crate::race::owner::race()
+                .physics
+                .contact
+                .batch_vertex_count
+                .bits(),
+            &crate::race::owner::race().frame.draw_batches.scene_indices,
             indices,
         );
         if result != 0 {
@@ -28,7 +34,15 @@ pub fn flush_draw_batch() -> Result<(), Refused> {
             crate::logfile::log_hex8::log_hex8(result, false, 1);
         }
     }
-    CONTACT_WORK.batch_index_count.set_bits(0u32);
-    CONTACT_WORK.batch_vertex_count.set_bits(0u32);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .batch_index_count
+        .set_bits(0u32);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .batch_vertex_count
+        .set_bits(0u32);
     Ok(())
 }

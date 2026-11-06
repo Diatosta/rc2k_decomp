@@ -5,11 +5,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
@@ -80,7 +78,15 @@ pub fn reset_car_blocks() -> Result<(), BadInput> {
         for n in 0..BLOCK_COUNT {
             let b: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
             let car = crate::race::trap::car_at(b)?;
-            for (field, v) in reset_block(n, cars, SPLIT_TABLES.stage_numbers[0].get()) {
+            for (field, v) in reset_block(
+                n,
+                cars,
+                crate::race::owner::race()
+                    .physics
+                    .split_tables
+                    .stage_numbers[0]
+                    .get(),
+            ) {
                 field(car).set_bits(v);
             }
         }
@@ -194,10 +200,18 @@ pub fn read_stage_car_numbers() -> Result<(), Refused> {
     crate::files::state::BYTES_READ.set(len);
     let mut total = 0u32;
     for (k, &n) in found.numbers.iter().enumerate() {
-        SPLIT_TABLES.stage_numbers[k].set(n);
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .stage_numbers[k]
+            .set(n);
         total = total.wrapping_add(n);
     }
-    SPLIT_TABLES.stage_car_total.set(total);
+    crate::race::owner::race()
+        .physics
+        .split_tables
+        .stage_car_total
+        .set(total);
     Ok(())
 }
 
@@ -231,7 +245,13 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         let set_up = |k: usize| {
             (pick.index as usize)
                 .checked_mul(4)
-                .and_then(|first| crate::race::league_store::LEAGUE.auto_setups.get(first + k))
+                .and_then(|first| {
+                    crate::race::owner::race()
+                        .course
+                        .league
+                        .auto_setups
+                        .get(first + k)
+                })
                 .map(Dword::get)
                 .ok_or(BadInput("the auto set-ups"))
         };
@@ -257,7 +277,12 @@ fn brake_value(n: usize) -> u32 {
     // Converted: `rc2k_core::race::cars::held_brake` (the product the x87's).
     rc2k_core::race::cars::held_brake(
         RACE_STATE.settings.cars[n].steering_sensitivity.get() as i32,
-        |v| crate::math::x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32,
+        |v| {
+            crate::math::x87::int_times_to_int(
+                v,
+                crate::race::owner::race().course.numbers.brake_scale.bits(),
+            ) as u32
+        },
     )
 }
 
@@ -386,7 +411,11 @@ pub fn set_car_times() -> Result<(), Refused> {
     let w = |n: usize| TIME_WORDS[n];
     {
         let stage: u32 = RACE_VARS.stage_number.bits();
-        let count: u32 = SPLIT_TABLES.split_colour_count.get();
+        let count: u32 = crate::race::owner::race()
+            .physics
+            .split_tables
+            .split_colour_count
+            .get();
         if stage < rc2k_core::race::stage::UNTIMED_STAGES
             && (count == 0 || count as usize > MOST_NUMBERS)
         {
@@ -397,7 +426,11 @@ pub fn set_car_times() -> Result<(), Refused> {
         use rc2k_core::race::stage::{difficulty, rally_of, timed_kind};
         let kind = timed_kind(RACE_VARS.race_car_kinds[0].bits() as i32);
         let factor = crate::math::x87::loaded(RACE_TABLES.kind_time_factors[kind as usize].bits());
-        SPLIT_TABLES.kind_factor.set_bits(factor);
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .kind_factor
+            .set_bits(factor);
         let Some(rally) = rally_of(stage) else {
             return Ok(());
         };
@@ -415,25 +448,43 @@ pub fn set_car_times() -> Result<(), Refused> {
         text(w(2), false);
         number(percentage, false);
         DRAW.scratch.set_bits(percentage);
-        let total: i32 = SPLIT_TABLES.stage_car_total.get() as i32;
+        let total: i32 = crate::race::owner::race()
+            .physics
+            .split_tables
+            .stage_car_total
+            .get() as i32;
         let extra = crate::math::x87_load::int_times_int_over_to_int(
             percentage as i32,
             total,
-            NUMBERS.hundred.bits(),
+            crate::race::owner::race().course.numbers.hundred.bits(),
         );
-        SPLIT_TABLES.extra_time.set(extra as u32);
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .extra_time
+            .set(extra as u32);
         text(w(3), false);
         number(total as u32, false);
         text(w(4), false);
         number(extra as u32, true);
-        SPLIT_TABLES.stage_numbers[0].set(
-            SPLIT_TABLES.stage_numbers[0]
-                .get()
-                .wrapping_add(extra as u32),
-        );
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .stage_numbers[0]
+            .set(
+                crate::race::owner::race()
+                    .physics
+                    .split_tables
+                    .stage_numbers[0]
+                    .get()
+                    .wrapping_add(extra as u32),
+            );
         let mut k = 0u32;
         loop {
-            let at = &SPLIT_TABLES.stage_numbers[k as usize];
+            let at = &crate::race::owner::race()
+                .physics
+                .split_tables
+                .stage_numbers[k as usize];
             text(w(5), false);
             number(k, false);
             text(w(6), false);
@@ -508,7 +559,14 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     use rc2k_core::race::cars::{
         arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
     };
-    if arcade_start_is_last(SPLIT_TABLES.arcade_kind.get(), stage_in) {
+    if arcade_start_is_last(
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .arcade_kind
+            .get(),
+        stage_in,
+    ) {
         RACE_TABLES.start_place.set_bits(cars);
     }
     RACE_TABLES
@@ -622,7 +680,7 @@ pub fn set_up_cars() -> Result<(), Refused> {
             CarsStep::SetUp(_) => set_up_mode_4_cars()?,
             CarsStep::ClearArcadeTable => {
                 for k in 0..0x40 {
-                    SPLIT_TABLES.kept_times[k].set(0);
+                    crate::race::owner::race().physics.split_tables.kept_times[k].set(0);
                 }
             }
         }

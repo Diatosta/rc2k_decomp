@@ -16,8 +16,7 @@
 //! the stage reloads, as the developers' keys did.
 
 use crate::debug::wear_page::value_at;
-
-use crate::race::frame_store::FRAME_WORK;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
@@ -138,9 +137,9 @@ pub fn tab(ui: &Ui) {
         }
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            FRAME_WORK.sun_on_screen.get(),
-            FRAME_WORK.sun_hit[0].get() as i32,
-            FRAME_WORK.sun_hit[1].get() as i32
+            race().frame.frame_work.sun_on_screen.get(),
+            race().frame.frame_work.sun_hit[0].get() as i32,
+            race().frame.frame_work.sun_hit[1].get() as i32
         ));
     }
 }
@@ -292,7 +291,7 @@ fn lights(ui: &Ui) {
             write_at(at, v as u32);
         }
         // The original's key loop leaves the place where `car_light_flares` reads it.
-        FRAME_WORK.part_place[k].set(dword(at));
+        race().frame.frame_work.part_place[k].set(dword(at));
     }
 }
 
@@ -374,14 +373,14 @@ fn course_map(ui: &Ui) {
 
 /// What goes over the picture (once a UI frame).
 pub fn over_picture(ui: &Ui) {
-    if !SUN.load(Relaxed) || FRAME_WORK.sun_on_screen.get() == 0 {
+    if !SUN.load(Relaxed) || race().frame.frame_work.sun_on_screen.get() == 0 {
         return;
     }
     let [w, h] = ui.io().display_size();
     let (width, height) = crate::platform::screen_size();
     let at = [
-        FRAME_WORK.sun_hit[0].get() as i32 as f32 * w / width.max(1) as f32,
-        FRAME_WORK.sun_hit[1].get() as i32 as f32 * h / height.max(1) as f32,
+        race().frame.frame_work.sun_hit[0].get() as i32 as f32 * w / width.max(1) as f32,
+        race().frame.frame_work.sun_hit[1].get() as i32 as f32 * h / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;
     ui.get_foreground_draw_list()

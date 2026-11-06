@@ -30,9 +30,6 @@
 
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_store::DRAW;
 use crate::scene::next_noise::next_noise;
@@ -58,7 +55,11 @@ fn tangent(angle: u32) -> u32 {
             0x8000,
         ) as u32)
             << 1;
-        FRAME_SCRATCH.tangent_scratch.set_bits(tangent);
+        crate::race::owner::race()
+            .frame
+            .scratch
+            .tangent_scratch
+            .set_bits(tangent);
         tangent
     }
 }
@@ -70,11 +71,15 @@ fn tangent(angle: u32) -> u32 {
 pub fn fill_engine_tables() {
     // sub_42142B
     for n in 0..0x100usize {
-        let root = x87::int_over_root(n as i32 + 0x100, NUMBERS.k256.bits());
-        COURSE_LISTS.root_table[n].set_bits(root);
+        let root = x87::int_over_root(
+            n as i32 + 0x100,
+            crate::race::owner::race().course.numbers.k256.bits(),
+        );
+        crate::race::owner::race().course.lists.root_table[n].set_bits(root);
     }
     for n in 0..0x100usize {
-        COURSE_LISTS.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
+        crate::race::owner::race().course.lists.exponent_root_table[n]
+            .set_bits(x87::sqrt((n as u32) << 23));
     }
     // sub_41F661
     PHYSICS.noise_state.set_bits(SEED);
@@ -97,9 +102,10 @@ pub fn fill_engine_tables() {
     }
     // sub_41F716
     for n in 1..0x100usize {
-        COURSE_LISTS.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
+        crate::race::owner::race().course.lists.face_key_factors[n]
+            .set_bits(x87::int_ratio(1, n as i32));
     }
-    COURSE_LISTS.face_key_factors[0].set_bits(1.0f32.to_bits());
+    crate::race::owner::race().course.lists.face_key_factors[0].set_bits(1.0f32.to_bits());
     // sub_41F5EF
     for n in 0..SINES {
         crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]

@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::clock_ticks_store::CLOCK_TICKS;
+use crate::race::owner::race;
 
 // g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 
@@ -25,14 +25,20 @@ pub fn race_sound_tick() -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
         PHYSICS.scene_clock.get(),
-        CLOCK_TICKS.sound_tick_last.get(),
+        race().frame.clock_ticks.sound_tick_last.get(),
     ) {
         return Ok(());
     }
-    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
+    race()
+        .frame
+        .clock_ticks
+        .sound_tick_last
+        .set(PHYSICS.scene_clock.get());
     crate::sound::race_turn_if::race_turn_if()?;
-    CLOCK_TICKS
+    race()
+        .frame
+        .clock_ticks
         .sound_ticks
-        .set(CLOCK_TICKS.sound_ticks.get().wrapping_add(1));
+        .set(race().frame.clock_ticks.sound_ticks.get().wrapping_add(1));
     Ok(())
 }

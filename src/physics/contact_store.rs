@@ -277,8 +277,11 @@ pub struct ContactWork {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static CONTACT_WORK: ContactWork =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ContactWork {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x6D1DD8, the first byte of the piece.
 pub const START: usize = 0x6D1DD8;
@@ -290,7 +293,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ContactWork>());
 /// Where IDA 0x6D1DD8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&CONTACT_WORK))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().physics.contact,
+    ))
 }
 
 #[cfg(test)]
@@ -300,7 +305,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&CONTACT_WORK, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().physics.contact,
+            START,
+            END,
+        );
     }
 
     #[test]

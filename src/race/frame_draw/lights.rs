@@ -4,17 +4,10 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::faces_store::FACES;
@@ -28,8 +21,8 @@ use crate::session::MACHINE;
 /// (`RACE_VIEW.view_cars[g_drawnView]`); every car block's +0x6FC 0; then for each race car with
 /// lights (+0x25C) that is drawn (any car in modes 0 and 2, else the shown car only; the
 /// shown car not with +0x69C and +0x684 both 0, nor with `GROUND_WORK.view_mirrored` set): +0x6FC's
-/// nibbles set step by step: 0x21; for the shown car with `VIEW_VARS.view_car_flag_b`, 0x12, then 0x14
-/// unless `VIEW_VARS.view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
+/// nibbles set step by step: 0x21; for the shown car with `crate::race::owner::race().frame.view_and_records.view_vars.view_car_flag_b`, 0x12, then 0x14
+/// unless `crate::race::owner::race().frame.view_and_records.view_vars.view_car_stage` is 1, then 0x11 unless it is 2 or 3; then 0x100 in the third
 /// nibble, 0x200 with `RACE_VARS.settings_words[3]` (1: the shown car only). Refuses (before anything) a null block among the eight or more than eight cars.
 pub fn car_light_modes() -> Result<(), Refused> {
     let block = |n: u32| RACE_WORK.car_block(n as usize);
@@ -62,7 +55,14 @@ pub fn car_light_modes() -> Result<(), Refused> {
             mode,
             me,
             || this_car.camera_switch_share.bits() == 0 && this_car.camera_view.bits() == 0,
-            || GROUND_WORK.view_mirrored.get() != 0,
+            || {
+                crate::race::owner::race()
+                    .physics
+                    .ground
+                    .view_mirrored
+                    .get()
+                    != 0
+            },
         );
         if !drawn {
             at.set(0);
@@ -71,8 +71,23 @@ pub fn car_light_modes() -> Result<(), Refused> {
         let word = light_word(
             at.get(),
             me,
-            || VIEW_VARS.view_car_flag_b.get() != 0,
-            || VIEW_VARS.view_car_stage.bits(),
+            || {
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_car_flag_b
+                    .get()
+                    != 0
+            },
+            || {
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_car_stage
+                    .bits()
+            },
             RACE_VARS.settings_words[3].bits(),
         );
         at.set(word);
@@ -81,7 +96,9 @@ pub fn car_light_modes() -> Result<(), Refused> {
 }
 /// Cell `n` of `g_courseGrid` (32 x 32). One past the grid refused (the original reads on).
 pub(super) fn course_grid_cell(n: u32) -> Result<&'static Dword, BadInput> {
-    LEVEL_GRID
+    crate::race::owner::race()
+        .course
+        .level_grid
         .course_grid
         .get(n as usize)
         .ok_or(BadInput("a course grid cell past the 32 x 32"))
@@ -91,7 +108,9 @@ pub(super) fn course_grid_cell(n: u32) -> Result<&'static Dword, BadInput> {
 /// colour). One past the 16 refused (the original reads on).
 pub(super) fn lamp(n: u32) -> Result<&'static [Dword], BadInput> {
     let n = n as usize;
-    LEVEL_GRID
+    crate::race::owner::race()
+        .course
+        .level_grid
         .lamps
         .get(4 * n..4 * n + 4)
         .ok_or(BadInput("a lamp past the sixteen"))
@@ -108,7 +127,7 @@ pub(super) fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
 /// `race::add_lamp_entry` (0x4573FA): the lamp's point (`g_lamps` +0) through
 /// `g_viewMatrix` (the point into `OBJECT_WORK.place` .. `OBJECT_WORK.place[2]`, then x and y turned
 /// there, z rounded into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth
-/// entry of that key with `g_lampCount` + 0x3000000; `FRAME_WORK.lamp_entry_count` + 1. The caller checks
+/// entry of that key with `g_lampCount` + 0x3000000; `crate::race::owner::race().frame.frame_work.lamp_entry_count` + 1. The caller checks
 /// the room.
 pub(super) fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     let point = self::lamp(lamp)?[0].get();
@@ -117,7 +136,8 @@ pub(super) fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&MATRICES.view_matrix);
+    let matrix: [u32; 16] =
+        crate::session::read_bits(&crate::race::owner::race().frame.matrices.view_matrix);
     let out = crate::math::x87_load::rotate_rounding_z(place.map(|v| v as i32), &matrix);
     turned[0].set(out[0]);
     turned[1].set(out[1]);
@@ -129,9 +149,18 @@ pub(super) fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     at[0].set(key);
     at[1].set(second);
     RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
-    FRAME_WORK
+    crate::race::owner::race()
+        .frame
+        .frame_work
         .lamp_entry_count
-        .set_bits(FRAME_WORK.lamp_entry_count.bits().wrapping_add(1));
+        .set_bits(
+            crate::race::owner::race()
+                .frame
+                .frame_work
+                .lamp_entry_count
+                .bits()
+                .wrapping_add(1),
+        );
     Ok(())
 }
 
@@ -141,7 +170,11 @@ pub(super) fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
 /// entry (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth
 /// list without room for 16.
 pub fn gather_lamps() -> Result<(), Refused> {
-    let count: u32 = CONTACT_WORK.lit_face_count.bits();
+    let count: u32 = crate::race::owner::race()
+        .physics
+        .contact
+        .lit_face_count
+        .bits();
     if count > 0x100 {
         return Err(BadInput("more than 0x100 lit faces").into());
     }
@@ -150,7 +183,7 @@ pub fn gather_lamps() -> Result<(), Refused> {
     }
     RACE_VIEW.lamp_count.set_bits(0u32);
     for k in 0..count {
-        let face = CONTACT_WORK.lit_faces[k as usize].bits();
+        let face = crate::race::owner::race().physics.contact.lit_faces[k as usize].bits();
         // Converted: `rc2k_core::race::faces::takes_lamp`.
         let object = face_field::<u8>(face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
@@ -200,7 +233,11 @@ pub(super) fn car_light_on_point(car: &crate::physics::car_store::Car) -> Result
         &crate::session::read_bits(&car.car_inverse_matrix),
     );
     crate::session::write_bits(&LIGHT_STATE.turned_light, t);
-    let k: u32 = NUMBERS.one_over_65536.bits();
+    let k: u32 = crate::race::owner::race()
+        .course
+        .numbers
+        .one_over_65536
+        .bits();
     let s1 = int_square_sum_scaled_to_int(
         t[2].wrapping_sub(0x20_0000) as i32,
         t[0].wrapping_add(t[0]) as i32,
@@ -265,7 +302,11 @@ pub(super) fn lamp_lights_on_point() -> Result<(), BadInput> {
         for n in 0..count {
             let lamp = self::lamp(n)?;
             let strength = lamp[1].get();
-            GROUND_WORK.point_light_strength.set(strength);
+            crate::race::owner::race()
+                .physics
+                .ground
+                .point_light_strength
+                .set(strength);
             if strength == 0 {
                 continue;
             }
@@ -278,7 +319,11 @@ pub(super) fn lamp_lights_on_point() -> Result<(), BadInput> {
             DRAW.scratch.set_bits(distance);
             let (grey, _) = rc2k_core::race::lights::lamp_grey(
                 distance,
-                GROUND_WORK.point_light_strength.bits(),
+                crate::race::owner::race()
+                    .physics
+                    .ground
+                    .point_light_strength
+                    .bits(),
             );
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
@@ -317,7 +362,7 @@ pub fn light_colour_at() -> Result<(), Refused> {
 }
 
 /// `race::view_light` (0x455896): the lit place the work car's (`g_car` +0x134 ..);
-/// `light_colour_at`; `FRAME_WORK.view_light` = `LIGHT_WORK.view_light_base` plus the light
+/// `light_colour_at`; `crate::race::owner::race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
 /// (`add_colours`, through `DRAW.scratch`).
 pub fn view_light() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
@@ -329,7 +374,9 @@ pub fn view_light() -> Result<(), Refused> {
     light_colour_at()?;
     let light: u32 = LIGHT_WORK.light_colour.bits();
     DRAW.scratch.set_bits(light);
-    FRAME_WORK
+    crate::race::owner::race()
+        .frame
+        .frame_work
         .view_light
         .set(add_colours(LIGHT_WORK.view_light_base.bits(), light));
     Ok(())

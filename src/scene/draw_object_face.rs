@@ -32,14 +32,9 @@
 //! through 2^32) or of more than 64, and when there are no records.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;
 use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::draw_object_polygon::{self, draw_object_polygon};
@@ -88,7 +83,7 @@ pub fn draw_object_face(
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries;
     let vertices = (0..count as usize).map(|n| (&entries[n], 0x10 + n * 0x10));
     let view_kind: u32 = LIGHT_STATE.view_kind.bits();
-    let shine: u32 = COURSE.shine.bits();
+    let shine: u32 = crate::race::owner::race().course.course.shine.bits();
 
     DRAW.face_word.set_bits(fw(0xC));
     LIGHT_STATE.face_bits.set_bits(words[7] as u32 & 0x1F);
@@ -119,8 +114,16 @@ pub fn draw_object_face(
     }
 
     let (face_kind, face_unlit): (u32, u32) = (
-        RACE_SOUND_SPOTS.face_kind.bits(),
-        RACE_SOUND_SPOTS.face_unlit.bits(),
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .face_kind
+            .bits(),
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .face_unlit
+            .bits(),
     );
     let lit = view_kind != 4
         && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
@@ -141,15 +144,23 @@ pub fn draw_object_face(
     if reflects {
         FRAME_SWITCHES.face_any_shine.set_bits(0u32);
         for (entry, vertex) in vertices {
-            GROUND_WORK
+            crate::race::owner::race()
+                .physics
+                .ground
                 .reflection_normal_number
                 .set_bits(fw(vertex + 0xC));
-            GROUND_WORK
+            crate::race::owner::race()
+                .physics
+                .ground
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
             cached_reflection_coordinates()?;
-            let coordinates: [u32; 2] =
-                crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
+            let coordinates: [u32; 2] = crate::session::read_bits(
+                &crate::race::owner::race()
+                    .physics
+                    .ground
+                    .reflection_coordinates,
+            );
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
             let first_fog = entries[0].fog.get() as u32;
@@ -161,15 +172,26 @@ pub fn draw_object_face(
         }
         DRAW.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
     }
-    let faded = VIEW_VARS.fade_alpha.bits() != 0
-        && LIGHT_STATE.face_bits.bits() == CAMERA_WORK.faded_bits.bits();
+    let faded = crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .fade_alpha
+        .bits()
+        != 0
+        && LIGHT_STATE.face_bits.bits()
+            == crate::race::owner::race().physics.camera.faded_bits.bits();
     LIGHT_STATE.faded.set_bits(faded as u32);
     if FRAME_SWITCHES.face_any_shine.bits() == 0 {
         FRAME_SWITCHES.face_reflects.set_bits(0u32);
     }
     DRAW.polygon_sides[0].set_bits(1u32);
     DRAW.polygon_sides[1].set_bits(FRAME_SWITCHES.face_reflects.bits());
-    let see_through: u32 = GROUND_WORK.object_see_through.bits();
+    let see_through: u32 = crate::race::owner::race()
+        .physics
+        .ground
+        .object_see_through
+        .bits();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
             entry.amount.set(see_through as u8);

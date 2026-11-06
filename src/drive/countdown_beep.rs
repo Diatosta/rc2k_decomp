@@ -13,7 +13,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::owner::race;
 use crate::race::panel_store::Loose32;
 use rc2k_core::drive::countdown::{self, Beep};
 
@@ -27,7 +27,7 @@ pub fn countdown_beep(block: &Car, to: &Loose32) -> Result<(), Refused> {
             block
                 .run_ticks
                 .bits()
-                .wrapping_sub(RACE_OVERLAY.countdown_start.get())
+                .wrapping_sub(race().frame.panel_and_overlay.overlay.countdown_start.get())
         },
     );
     let (second, cue) = match beep {
@@ -36,7 +36,7 @@ pub fn countdown_beep(block: &Car, to: &Loose32) -> Result<(), Refused> {
     };
     to.set(second);
     if cue {
-        let sound = RACE_OVERLAY.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
+        let sound = race().frame.panel_and_overlay.overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
         PHYSICS.countdown_sound.set(sound);
         crate::drive::countdown_cue::countdown_cue(sound)?;
     }

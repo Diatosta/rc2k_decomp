@@ -9,11 +9,9 @@
 //!
 //! See `race/mud.rs`. One caller, `race::muddy_texel`.
 
-use crate::race::prefs_store::STAGE_PREFS;
-
 /// The mud's colour, as its three dwords (red, green, blue).
 pub fn mud_colour() -> [u32; 3] {
-    crate::session::read_bits(&STAGE_PREFS.mud_colour)
+    crate::session::read_bits(&crate::race::owner::race().course.stage_prefs.mud_colour)
 }
 
 /// The Rust version (see the header): `colour` brought toward the mud's by `amount`.

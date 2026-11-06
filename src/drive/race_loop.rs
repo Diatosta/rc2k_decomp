@@ -23,10 +23,9 @@ use crate::drive::race_parts::{
 use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::clock_ticks_store::CLOCK_TICKS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::session::{Dword, FLAGS};
 
@@ -73,12 +72,24 @@ pub fn race_loop() -> Result<(), Refused> {
     FLAGS.paused.set(0);
     RACE_VARS.scene_switch.set(0);
     restart_clock();
-    CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
-    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
-    for mark in &CLOCK_TICKS.marks {
+    race()
+        .frame
+        .clock_ticks
+        .clock_a
+        .set(PHYSICS.scene_clock.get());
+    race()
+        .frame
+        .clock_ticks
+        .sound_tick_last
+        .set(PHYSICS.scene_clock.get());
+    for mark in &race().frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
-    REPLAY_VIEW.play_end.set(u32::MAX);
+    crate::race::owner::race()
+        .replay
+        .replay_view
+        .play_end
+        .set(u32::MAX);
     loop {
         restart_clock();
         PHYSICS
@@ -96,7 +107,7 @@ pub fn race_loop() -> Result<(), Refused> {
             input_update();
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if RACE_WORK.in_credits.get() != 0 {
-                if crate::race::frame_text::CREDITS.done.get() != 0 {
+                if race().frame.credits.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }

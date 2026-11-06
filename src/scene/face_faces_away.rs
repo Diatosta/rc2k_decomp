@@ -18,8 +18,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp};
 
@@ -138,8 +136,11 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
         triangle(&mut w);
         let work: [u32; 15] = w[..15].try_into().expect("15 dwords");
         let cross: [u32; 3] = w[15..18].try_into().expect("3 dwords");
-        crate::session::write_bits(&GROUND_WORK.normal_work, work);
-        crate::session::write_first(&FRAME_SCRATCH.work_vector, &cross);
+        crate::session::write_bits(&crate::race::owner::race().physics.ground.normal_work, work);
+        crate::session::write_first(
+            &crate::race::owner::race().frame.scratch.work_vector,
+            &cross,
+        );
         // The carry of the compare: 0 below the product, or no number.
         if w[18] & 0x100 == 0 {
             return Ok(false);

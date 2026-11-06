@@ -3,14 +3,10 @@
 //! in-game music, the controls, race init (`sub_4462B9`, the game's until ported), the
 //! clock restarted and the race's starting values; each step logged and indented.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::clock_ticks_store::CLOCK_TICKS;
-use crate::race::overlay_store::RACE_OVERLAY;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -63,7 +59,11 @@ pub fn load_stage() -> Result<(), Refused> {
             &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
         ))?;
     }
-    REPLAY_FRAMES.last_kept.set(u32::MAX);
+    crate::race::owner::race()
+        .replay
+        .replay_frames
+        .last_kept
+        .set(u32::MAX);
     crate::race::sounds::wake_car_sounds()?;
     indent(-3);
     log();
@@ -82,7 +82,7 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    if crate::drive::finish_store::FINISH.no_place.get() != 0 {
+    if crate::race::owner::race().replay.finish.no_place.get() != 0 {
         crate::race::music::game_music();
     } else {
         crate::race::music::game_music_8();
@@ -97,13 +97,22 @@ pub fn load_stage() -> Result<(), Refused> {
     crate::drive::race_init::race_init()?;
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     let clock: u32 = PHYSICS.scene_clock.bits();
-    CLOCK_TICKS.clock_b.set(clock);
-    CLOCK_TICKS.sound_ticks.set(0);
+    race().frame.clock_ticks.clock_b.set(clock);
+    race().frame.clock_ticks.sound_ticks.set(0);
     PHYSICS.race_clock_now.set(clock);
     PHYSICS.race_clock_base.set(clock);
-    RACE_OVERLAY.start_lights_lit.set(0);
-    PANEL.lights[0].lit.set(u32::MAX);
-    PANEL.lights[1].lit.set(u32::MAX);
+    race()
+        .frame
+        .panel_and_overlay
+        .overlay
+        .start_lights_lit
+        .set(0);
+    race().frame.panel_and_overlay.panel.lights[0]
+        .lit
+        .set(u32::MAX);
+    race().frame.panel_and_overlay.panel.lights[1]
+        .lit
+        .set(u32::MAX);
     for car in &CAR_BLOCKS.cars[..8] {
         car.light_hold_steps.set(3);
     }
@@ -112,7 +121,11 @@ pub fn load_stage() -> Result<(), Refused> {
     }
     FRAME_SWITCHES.other_way.set(1);
     FRAME_SWITCHES.view_marks_on.set(1);
-    GROUND_WORK.stage_loading.set(0);
+    crate::race::owner::race()
+        .physics
+        .ground
+        .stage_loading
+        .set(0);
     RACE_VIEW.view_on[0].set(1);
     RACE_VIEW.view_on[1].set(1);
     indent(-3);

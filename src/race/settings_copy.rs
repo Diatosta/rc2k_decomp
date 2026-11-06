@@ -11,7 +11,6 @@ use crate::gfx::owner::GFX;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::state_store::RaceCar;
@@ -20,7 +19,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::{Dword, Float};
 use std::ffi::{CStr, CString};
-use std::sync::LazyLock;
 
 use Step::*;
 pub use rc2k_core::race::settings_copy::Kind;
@@ -154,7 +152,10 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32
+        x87::int_times_to_int(
+            v,
+            crate::race::owner::race().course.numbers.brake_scale.bits(),
+        ) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(&text, nl, 1);
@@ -200,12 +201,12 @@ pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
 pub fn copy_settings_in() -> Result<(), Refused> {
-    run(&GRAHAM_TO_SHAUN)
+    run(&crate::race::owner::race().replay.graham_to_shaun)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
 pub fn copy_settings_out() -> Result<(), Refused> {
-    run(&SHAUN_TO_GRAHAM)
+    run(&crate::race::owner::race().replay.shaun_to_graham)
 }
 
 /// A float of a car block, picked by field.
@@ -420,7 +421,7 @@ fn result_marks(car: usize) -> &'static [Dword; 8] {
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the
 /// original's order.
-fn graham_to_shaun() -> Vec<Step<Place>> {
+pub fn graham_to_shaun() -> Vec<Step<Place>> {
     let mut b = Builder(Vec::with_capacity(446));
     let rule = c"-------------------------------------";
     b.push(Text(rule, true));
@@ -628,7 +629,7 @@ static TAIL_OUT: [Step<Place>; 6] = [
 
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
 /// original's order; skipped while a replay is shown.
-fn shaun_to_graham() -> Vec<Step<Place>> {
+pub fn shaun_to_graham() -> Vec<Step<Place>> {
     let mut b = Builder(Vec::with_capacity(344));
     b.push(Text(c"-------------------------------------", true));
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
@@ -694,9 +695,3 @@ const PLAYER_OPTIONS: [fn() -> &'static Dword; 2] = [
     || &RACE_VIEW.player_options[0],
     || &RACE_VIEW.player_options[1],
 ];
-
-/// `race::copy_settings_in`'s steps, made on first use.
-pub static GRAHAM_TO_SHAUN: LazyLock<Vec<Step<Place>>> = LazyLock::new(graham_to_shaun);
-
-/// `race::copy_settings_out`'s steps, made on first use.
-pub static SHAUN_TO_GRAHAM: LazyLock<Vec<Step<Place>>> = LazyLock::new(shaun_to_graham);

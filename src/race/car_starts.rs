@@ -7,12 +7,9 @@
 //! `physics::probe_ground` (since 2026-10-17).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
-use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -32,7 +29,7 @@ fn zero(cells: &[&Dword]) {
 }
 
 fn wheels() -> [u32; 4] {
-    crate::session::read_first(&CONTACT_WORK.probe_height)
+    crate::session::read_first(&crate::race::owner::race().physics.contact.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
@@ -67,7 +64,9 @@ pub fn settle_car() -> Result<(), Refused> {
     CAR.car_roll.set(0);
     PHYSICS.settle_steps[0].set(0x2000_0000u32);
     PHYSICS.settle_steps[1].set(0x2000_0000u32);
-    crate::physics::ground_probe_store::GROUND_PROBE
+    crate::race::owner::race()
+        .physics
+        .ground_probe
         .settle_mark
         .set(0x80);
     for _ in 0..8 {
@@ -95,10 +94,10 @@ pub fn settle_car() -> Result<(), Refused> {
     CAR.position[1].set(CAR.position[1].get().wrapping_sub(lowest));
     // dword_6D2514 .. 20: the four wheels' heights (made by `sub_45D305`).
     for (k, h) in w.iter().enumerate() {
-        CONTACT_WORK.probe_height[k].set(h.wrapping_sub(lowest));
+        crate::race::owner::race().physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
     }
     // dword_6D1F14 .. 20: four more lowered with them.
-    for cell in &CONTACT_WORK.probe_y[..4] {
+    for cell in &crate::race::owner::race().physics.contact.probe_y[..4] {
         cell.set(cell.get().wrapping_sub(lowest));
     }
     Ok(())
@@ -122,13 +121,25 @@ pub fn reset_car_motion() -> Result<(), Refused> {
         v.set_bits(0);
     }
     let heading = CAR.car_heading.get();
-    CAMERA_WORK.start_heading.set_bits(heading);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .start_heading
+        .set_bits(heading);
     CAR.camera_heading.set(heading);
     let pitch = CAR.car_pitch.get();
-    CAMERA_WORK.start_pitch.set_bits(pitch);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .start_pitch
+        .set_bits(pitch);
     CAR.camera_pitch.set(pitch);
     let roll = CAR.car_roll.get();
-    CAMERA_WORK.start_roll.set_bits(roll);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .start_roll
+        .set_bits(roll);
     CAR.camera_roll_turn.set(roll);
     CAR.stuck_count.set(0);
     CAR.drive_speed_a.set_bits(0);
@@ -155,7 +166,11 @@ fn move_turned(x: u32, z: u32) {
         x as i32,
         0,
         z as i32,
-        COURSE.place_heading.bits(),
+        crate::race::owner::race()
+            .course
+            .course
+            .place_heading
+            .bits(),
     );
     add(&CAR.position[0], x);
     add(&CAR.position[2], z);
@@ -199,12 +214,12 @@ pub fn start_car() -> Result<(), Refused> {
         );
         LIGHT_STATE.line_place.set(place);
         LIGHT_STATE.line_fraction.set(0);
-        if crate::drive::finish_store::FINISH.no_place.get() != 0 {
+        if crate::race::owner::race().replay.finish.no_place.get() != 0 {
             LIGHT_STATE.line_place.set(0);
             LIGHT_STATE.line_fraction.set(0);
         }
         crate::race::start_place::place_car_on_line()?;
-        if crate::drive::finish_store::FINISH.no_place.get() == 0 {
+        if crate::race::owner::race().replay.finish.no_place.get() == 0 {
             move_turned(0, 0xFFFE_0000);
             let side = starts_aside(
                 crate::net::store::NET.session.get(),

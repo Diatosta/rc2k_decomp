@@ -18,8 +18,6 @@
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
@@ -41,25 +39,38 @@ pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(0x50)?,
-            STAGE_PREFS.blit_cleared[0].get(),
-            STAGE_PREFS.blit_cleared[1].get(),
+            crate::race::owner::race().course.stage_prefs.blit_cleared[0].get(),
+            crate::race::owner::race().course.stage_prefs.blit_cleared[1].get(),
         );
         CAR.surface_noise_a.set(first);
         CAR.surface_noise_b.set(first);
         let second = scaled(
             sample(0x20)?,
-            STAGE_PREFS.surface_scale[0].get(),
-            STAGE_PREFS.surface_scale[1].get(),
+            crate::race::owner::race().course.stage_prefs.surface_scale[0].get(),
+            crate::race::owner::race().course.stage_prefs.surface_scale[1].get(),
         );
         CAR.surface_noise_second.set(second);
-        let floor = rough_floor(second, STAGE_PREFS.surface_floor.get());
+        let floor = rough_floor(
+            second,
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .surface_floor
+                .get(),
+        );
         DRAW.scratch.set(floor);
         CAR.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
-            NUMBERS.k256.bits(),
+            crate::race::owner::race().course.numbers.k256.bits(),
             0x3F80_0000,
         ));
-        if STAGE_PREFS.noise_pick.get() != 0 {
+        if crate::race::owner::race()
+            .course
+            .stage_prefs
+            .noise_pick
+            .get()
+            != 0
+        {
             CAR.surface_noise_a.set(0);
         } else {
             CAR.surface_noise_b.set(0);

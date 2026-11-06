@@ -15,7 +15,6 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::light_store::LIGHT_STATE;
@@ -28,19 +27,31 @@ pub fn take_view_b(s: &ViewRecord) {
     for (x, v) in copies().iter().zip(s.taken()) {
         x.set_bits(v);
     }
-    CAMERA_WORK.view_b_heading.set(CAR.car_heading.get());
+    crate::race::owner::race()
+        .physics
+        .camera
+        .view_b_heading
+        .set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
     if !matches!(CAR.camera_blend_view.get(), 1..=3) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    CAMERA_WORK.view_b_pitch.set(eax);
-    CAMERA_WORK.view_b_roll.set(ebx);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .view_b_pitch
+        .set(eax);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .view_b_roll
+        .set(ebx);
 }
 
 /// Where the record's +0x10 .. +0x38 go.
 fn copies() -> [&'static dyn Cell32; 11] {
-    let w = &CAMERA_WORK;
+    let w = &crate::race::owner::race().physics.camera;
     [
         &w.view_b_turn[0],
         &w.view_b_turn[1],
@@ -68,15 +79,15 @@ fn x87_1(offset: [u32; 3]) {
     let t0 = ld(offset[0]);
     let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;
-    CAMERA_WORK.view_b_offset[0].set_bits(st(t2));
+    crate::race::owner::race().physics.camera.view_b_offset[0].set_bits(st(t2));
     let t3 = ld(offset[1]);
     let t4 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t5 = t3 + t4;
-    CAMERA_WORK.view_b_offset[1].set_bits(st(t5));
+    crate::race::owner::race().physics.camera.view_b_offset[1].set_bits(st(t5));
     let t6 = ld(offset[2]);
     let t7 = ld(LIGHT_STATE.camera_frame_c.bits());
     let t8 = t6 + t7;
-    CAMERA_WORK.view_b_offset[2].set_bits(st(t8));
+    crate::race::owner::race().physics.camera.view_b_offset[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

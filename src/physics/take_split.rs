@@ -15,7 +15,6 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::split_by_mode::split_by_mode;
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::splits::put_split_time;
 use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 
@@ -33,7 +32,11 @@ pub fn take_split() -> Result<(), Refused> {
     CAR.splits_recorded.set(CAR.splits_passed.get());
     if finished_at(
         CAR.splits_recorded.get(),
-        SPLIT_TABLES.split_colour_count.get(),
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .split_colour_count
+            .get(),
     ) {
         CAR.finish_flag.set(1);
         CAR.started_stand_timer.set(0);

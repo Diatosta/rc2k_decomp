@@ -3,6 +3,7 @@
 //! marks and samples (`physics::test_drive_run`, `physics::test_drive`).
 //! Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -34,14 +35,14 @@ pub struct GearFigures {
     pub unknown_83c: Dword,
 }
 
-/// The piece: a field of `race::groups_store::LIGHTS_AND_GEAR` since 2026-10-29 (it left the race
+/// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
 /// block with its group, phase 13).
 pub struct InGroup;
 
 impl core::ops::Deref for InGroup {
     type Target = GearFigures;
     fn deref(&self) -> &GearFigures {
-        &crate::race::groups_store::LIGHTS_AND_GEAR.gear
+        &race().frame.lights_and_gear.gear
     }
 }
 
@@ -57,9 +58,7 @@ const _: () = assert!(END - START == core::mem::size_of::<GearFigures>());
 /// Where IDA 0x5CB958 is now (its group's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::LIGHTS_AND_GEAR.gear,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.lights_and_gear.gear))
 }
 
 #[cfg(test)]

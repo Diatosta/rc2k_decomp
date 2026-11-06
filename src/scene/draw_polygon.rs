@@ -40,14 +40,8 @@ use crate::d3d::NO_TEXTURE;
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::light_store::LIGHT_STATE;
@@ -222,10 +216,17 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
 
 /// `sub_450147` with `sub_4501B6`: the hit test.
 fn hit_test(entries: &[Listed]) {
-    if FRAME_WORK.sun_on_screen.bits() == 0 {
+    if crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .bits()
+        == 0
+    {
         return;
     }
-    let point = crate::session::read_bits(&FRAME_WORK.sun_hit).map(|v| v as i32);
+    let point = crate::session::read_bits(&crate::race::owner::race().frame.frame_work.sun_hit)
+        .map(|v| v as i32);
     crate::session::write_first(&LIGHT_STATE.hit_work, &point.map(|v| v as u32));
     if entries.len() < 3 {
         return;
@@ -250,7 +251,11 @@ fn hit_test(entries: &[Listed]) {
             return;
         }
     }
-    FRAME_WORK.sun_on_screen.set_bits(0u32);
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .set_bits(0u32);
 }
 
 /// `sub_44C9A9`, and `sub_44E6F4` for a mirrored view: the positions.
@@ -278,10 +283,18 @@ fn place(entries: &[Listed], mirrored: bool) {
         out.rhw.set_bits(if sse {
             x87::rcpss_times(
                 crate::scene::point_records::vertex(vertex, 0x18),
-                NUMBERS.k65536.bits(),
+                crate::race::owner::race().course.numbers.k65536.bits(),
             )
         } else {
-            x87::reciprocal_times(depth, RACE_OVERLAY.w_factor.bits())
+            x87::reciprocal_times(
+                depth,
+                crate::race::owner::race()
+                    .frame
+                    .panel_and_overlay
+                    .overlay
+                    .w_factor
+                    .bits(),
+            )
         });
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
@@ -308,7 +321,7 @@ fn copy_set(entries: &[Listed], set: Set) {
 /// `sub_44CC8D` with `sub_44E668`: the texture filter's state, and the polygon's
 /// texture from the number in `dword_6240C4`.
 fn choose_texture(outside: &mut dyn Outside) {
-    let smooth = LEVEL_GRID.smooth.bits() == 1;
+    let smooth = crate::race::owner::race().course.level_grid.smooth.bits() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = DRAW.texture_page.bits();
     let loaded: u32 = TEXTURE_PLACES.totals[2].get();
@@ -401,7 +414,12 @@ pub fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         RACE_VIEW.polygon_mode.bits(),
     ];
     crate::session::write_bits(&DRAW.polygon_kept, kept);
-    let mirrored = GROUND_WORK.view_mirrored.bits() != 0;
+    let mirrored = crate::race::owner::race()
+        .physics
+        .ground
+        .view_mirrored
+        .bits()
+        != 0;
     if mirrored && count > 2 {
         // `sub_44E6B9`: the list's entries after the first, turned round.
         entries[1..].reverse();
@@ -414,7 +432,15 @@ pub fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
     if LIGHT_STATE.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (RACE_VIEW.polygon_mode.bits(), DRAW.texture_page.bits());
         // `sub_44CAD5`.
-        let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), VIEW_VARS.fade_alpha.bits());
+        let (from, alpha): (u32, u32) = (
+            CARDS_3D.fade_from.get(),
+            crate::race::owner::race()
+                .frame
+                .view_and_records
+                .view_vars
+                .fade_alpha
+                .bits(),
+        );
         let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(n);
@@ -464,11 +490,21 @@ pub fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         shade(&entries, how);
         for pass in passes {
             let (texture, smooth) = match pass.set {
-                Set::A => (&DRAW.polygon_textures[0], &LEVEL_GRID.plain_first),
-                Set::B => (&DRAW.polygon_textures[1], &LEVEL_GRID.plain_second),
+                Set::A => (
+                    &DRAW.polygon_textures[0],
+                    &crate::race::owner::race().course.level_grid.plain_first,
+                ),
+                Set::B => (
+                    &DRAW.polygon_textures[1],
+                    &crate::race::owner::race().course.level_grid.plain_second,
+                ),
             };
             DRAW.texture_page.set_bits(texture.bits());
-            LEVEL_GRID.smooth.set_bits(smooth.bits());
+            crate::race::owner::race()
+                .course
+                .level_grid
+                .smooth
+                .set_bits(smooth.bits());
             copy_set(&entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
                 RACE_VIEW.polygon_mode.set_bits(as_mode);

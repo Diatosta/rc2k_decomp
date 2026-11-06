@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -122,11 +121,20 @@ pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Own
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the
 /// game's `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
 pub fn init_mud() -> Result<(), Refused> {
-    COURSE_LISTS
+    crate::race::owner::race()
+        .course
+        .lists
         .course_bytes_total
-        .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
+        .set(
+            crate::race::owner::race()
+                .course
+                .lists
+                .course_bytes_total
+                .bits()
+                .wrapping_add(MUD_LEN),
+        );
     MUD.take(
-        crate::pointers::GamePtr::to(&COURSE_LISTS.mud_list),
+        crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.mud_list),
         MUD_LEN,
         vec![0; MUD_LEN as usize],
     )?;

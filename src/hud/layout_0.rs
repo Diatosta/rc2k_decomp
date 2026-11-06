@@ -15,7 +15,7 @@ use crate::hud::draw_signs::row;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use rc2k_core::hud::panels;
 
 /// A time made digits (`dword_75C08C` ..: `rc2k_core::hud::panels::time_digits`), each
@@ -105,7 +105,7 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
     // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let flags = PANEL.hud_flags[0].get();
+    let flags = race().frame.panel_and_overlay.panel.hud_flags[0].get();
     hud.block.quad[0].set(0xE0);
     hud.block.texture.set(0xC6);
     if flags & 0x10 != 0 {
@@ -124,9 +124,24 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     hud.block.texture.set(0xC1);
     if flags & 0x20 != 0 {
         sprite(hud, 0x49, 9, 0x215)?;
-        sprite(hud, PANEL.view_a.gear.get().wrapping_add(0x41), 0x11, 0x21D)?;
+        sprite(
+            hud,
+            race()
+                .frame
+                .panel_and_overlay
+                .panel
+                .view_a
+                .gear
+                .get()
+                .wrapping_add(0x41),
+            0x11,
+            0x21D,
+        )?;
     }
-    let pick = needle_sign(hud, PANEL.start_values[0].get());
+    let pick = needle_sign(
+        hud,
+        race().frame.panel_and_overlay.panel.start_values[0].get(),
+    );
     if flags & 1 != 0 {
         sprite(hud, pick, 0x21, 0x1B8)?;
     }
@@ -170,7 +185,7 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
         }
     }
     if flags & 2 != 0 {
-        let v = PANEL.view_a.place.get();
+        let v = race().frame.panel_and_overlay.panel.view_a.place.get();
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);
@@ -184,7 +199,7 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
         lap_panel(hud, t, xs, row(0x63), &mut |r, x, y| sprite(hud, r, x, y))?;
     }
     if flags & 0x20 != 0 {
-        let v = PANEL.view_a.speed.get();
+        let v = race().frame.panel_and_overlay.panel.view_a.speed.get();
         leading_time(hud, v, [0x43, 0x57, 0x6B], 0x23F, &mut |r, x, y| {
             sprite(hud, r, x, y)
         })?;

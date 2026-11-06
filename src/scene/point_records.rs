@@ -14,7 +14,6 @@
 //! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::session::Dword;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -38,7 +37,11 @@ pub fn take(list: crate::pointers::GamePtr) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
     RECORDS.iter().flatten().for_each(|cell| cell.set(0));
     TAKEN.store(true, Ordering::Relaxed);
-    COURSE_LISTS.point_records.set(HELD);
+    crate::race::owner::race()
+        .course
+        .lists
+        .point_records
+        .set(HELD);
     Ok(())
 }
 
@@ -59,7 +62,7 @@ pub fn first_records(n: usize) -> Result<&'static [[Dword; 8]], BadInput> {
 
 /// Whether the records are taken.
 pub fn held() -> bool {
-    COURSE_LISTS.point_records.get() != 0
+    crate::race::owner::race().course.lists.point_records.get() != 0
 }
 
 /// The record at byte `offset` of the block (the original's `records + offset`).
@@ -191,7 +194,7 @@ mod tests {
     fn records_are_named_by_number() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = COURSE_LISTS.point_records.get();
+        let kept = crate::race::owner::race().course.lists.point_records.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
         take(crate::pointers::GamePtr::new(
@@ -218,7 +221,11 @@ mod tests {
         set(of_pool(POOL - 1), kept_pool).unwrap();
         assert!(get(of_pool(POOL)).is_err() && get(0x1_0000).is_err());
         give_back();
-        COURSE_LISTS.point_records.set(kept);
+        crate::race::owner::race()
+            .course
+            .lists
+            .point_records
+            .set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

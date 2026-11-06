@@ -6,7 +6,6 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -28,9 +27,24 @@ enum Prefs {
 impl Prefs {
     fn list(self) -> &'static [Dword] {
         match self {
-            Prefs::A => &STAGE_PREFS.picture_lists_a,
-            Prefs::B => &STAGE_PREFS.picture_lists_b,
-            Prefs::C => &STAGE_PREFS.picture_lists_c,
+            Prefs::A => {
+                &crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .picture_lists_a
+            }
+            Prefs::B => {
+                &crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .picture_lists_b
+            }
+            Prefs::C => {
+                &crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .picture_lists_c
+            }
         }
     }
 }

@@ -1,5 +1,7 @@
 //! The overlay and countdown part of the race block: the stage-bar parts (distances, two colour tables), the start lights, the countdown sounds and the position labels with their kept copies. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -41,19 +43,6 @@ pub struct OverlayBlock {
     pub unknown_358: [Dword; 3],
 }
 
-/// The piece: a field of `race::groups_store::PANEL_AND_OVERLAY` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
-pub struct InGroup;
-
-impl core::ops::Deref for InGroup {
-    type Target = OverlayBlock;
-    fn deref(&self) -> &OverlayBlock {
-        &crate::race::groups_store::PANEL_AND_OVERLAY.overlay
-    }
-}
-
-pub static RACE_OVERLAY: InGroup = InGroup;
-
 /// IDA 0x6D150C, the first byte of the piece.
 pub const START: usize = 0x6D150C;
 /// IDA 0x6D1870, the end of the piece.
@@ -64,9 +53,7 @@ const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
 /// Where IDA 0x6D150C is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::groups_store::PANEL_AND_OVERLAY.overlay,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.overlay))
 }
 
 #[cfg(test)]

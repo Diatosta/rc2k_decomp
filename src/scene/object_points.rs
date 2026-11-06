@@ -9,7 +9,6 @@
 //! contact walks): the original's arithmetic is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::course_lists_store::COURSE_LISTS;
 
 /// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
@@ -21,7 +20,11 @@ crate::memory::owned::thread_owned!(
 /// `bytes` of points, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     POINTS.take(list, bytes, vec![0; bytes as usize])?;
-    COURSE_LISTS.object_points.set(BASE);
+    crate::race::owner::race()
+        .course
+        .lists
+        .object_points
+        .set(BASE);
     Ok(())
 }
 
@@ -89,7 +92,7 @@ mod tests {
     fn points_are_read_by_place() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = COURSE_LISTS.object_points.get();
+        let kept = crate::race::owner::race().course.lists.object_points.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
         take(
@@ -97,14 +100,18 @@ mod tests {
             36,
         )
         .unwrap();
-        let p = COURSE_LISTS.object_points.get() + 12;
+        let p = crate::race::owner::race().course.lists.object_points.get() + 12;
         set_point(p, [1, 2, 3]).unwrap();
         assert_eq!((point(p).unwrap(), word(p + 8).unwrap()), ([1, 2, 3], 3));
         assert!(point(BASE + 25).is_err() && word(0).is_err());
         clear(36).unwrap();
         assert_eq!(point(p).unwrap(), [0; 3]);
         give_back();
-        COURSE_LISTS.object_points.set(kept);
+        crate::race::owner::race()
+            .course
+            .lists
+            .object_points
+            .set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

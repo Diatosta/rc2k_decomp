@@ -20,9 +20,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::course_store::COURSE;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::light_store::LIGHT_STATE;
@@ -34,7 +31,9 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 /// (0x50 ..) without its block.
 fn check_object(object: u32) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if NUMBERS.in_race.bits() != 0 && car < 0xA0 && RACE_WORK.car_block((car / 0x14) as usize) == 0
+    if crate::race::owner::race().course.numbers.in_race.bits() != 0
+        && car < 0xA0
+        && RACE_WORK.car_block((car / 0x14) as usize) == 0
     {
         return Err(BadInput("a car without its block").into());
     }
@@ -66,7 +65,12 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
-        && place < COURSE.scene_point_count.get()
+        && place
+            < crate::race::owner::race()
+                .course
+                .course
+                .scene_point_count
+                .get()
         && !(FRAME_SWITCHES.other_way.get() != 0 && object == 0x3F);
     if shown {
         check_object(object)?;
@@ -80,7 +84,13 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
         end();
         return Ok(());
     }
-    if place >= COURSE.scene_point_count.get() {
+    if place
+        >= crate::race::owner::race()
+            .course
+            .course
+            .scene_point_count
+            .get()
+    {
         end();
         return Ok(());
     }
@@ -137,12 +147,35 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
         OBJECT_WORK.light_turns[0].set(byte(0x22));
         OBJECT_WORK.light_turns[1].set(byte(0x23));
         if byte(0x24) != 0 {
-            OBJECT_WORK.light_turns[0].set(STAGE_PREFS.sun_turn.get().wrapping_neg());
-            OBJECT_WORK.light_turns[1].set(STAGE_PREFS.sun_height.get());
-            OBJECT_WORK.light_level.set(STAGE_PREFS.light_level.get());
-            OBJECT_WORK
-                .light_strength
-                .set(STAGE_PREFS.light_strength_kept.get());
+            OBJECT_WORK.light_turns[0].set(
+                crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .sun_turn
+                    .get()
+                    .wrapping_neg(),
+            );
+            OBJECT_WORK.light_turns[1].set(
+                crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .sun_height
+                    .get(),
+            );
+            OBJECT_WORK.light_level.set(
+                crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .light_level
+                    .get(),
+            );
+            OBJECT_WORK.light_strength.set(
+                crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .light_strength_kept
+                    .get(),
+            );
             OBJECT_WORK.light_lowest.set(0u32);
             OBJECT_WORK.light_highest.set(0xFFu32);
         }

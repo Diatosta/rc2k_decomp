@@ -11,15 +11,19 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::split_tables_store::SPLIT_TABLES;
 use rc2k_core::physics::splits::kept_split_slot;
 
 /// The Rust version. Converted: `rc2k_core::physics::splits::kept_split_slot` (below 0x40).
 pub fn keep_split_time() -> Result<(), Refused> {
     let k = kept_split_slot(
         CAR.splits_passed.get(),
-        SPLIT_TABLES.split_colour_count.get(),
+        crate::race::owner::race()
+            .physics
+            .split_tables
+            .split_colour_count
+            .get(),
     )?;
-    SPLIT_TABLES.kept_times[k as usize].set(CAR.stage_time.get());
+    crate::race::owner::race().physics.split_tables.kept_times[k as usize]
+        .set(CAR.stage_time.get());
     Ok(())
 }

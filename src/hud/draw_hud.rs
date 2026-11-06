@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
@@ -24,9 +24,9 @@ pub fn draw_hud(hud: &Hud) -> Result<(), Refused> {
         hud.block.batch_texture.set(batch::NO_TEXTURE);
         hud.block.vertex_count.set(0);
         hud.block.index_count.set(0);
-        let record = GamePtr::to(&crate::race::groups_store::PANEL_AND_OVERLAY).offset(2);
+        let record = GamePtr::to(&race().frame.panel_and_overlay).offset(2);
         tenths::tenths(hud, record)?;
-        match batch::Layout::of(PANEL.players.get()) {
+        match batch::Layout::of(race().frame.panel_and_overlay.panel.players.get()) {
             batch::Layout::Single => layout_0::layout_0(hud, record)?,
             batch::Layout::One => layout_1::layout_1(hud, record)?,
             batch::Layout::Two => layout_2::layout_2(hud, record)?,

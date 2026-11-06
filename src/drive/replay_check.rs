@@ -17,7 +17,6 @@
 
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -54,7 +53,7 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 
 /// After the cars' step of a tick.
 pub fn note() -> Result<(), BadInput> {
-    let mode = match NUMBERS.replay_mode.get() {
+    let mode = match crate::race::owner::race().course.numbers.replay_mode.get() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return Ok(()),

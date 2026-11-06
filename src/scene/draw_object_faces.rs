@@ -16,8 +16,6 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -59,16 +57,33 @@ pub fn draw_object_faces(
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }
-        GROUND_WORK
+        crate::race::owner::race()
+            .physics
+            .ground
             .object_see_through
             .set_bits(listed_dword(entry + 3)?);
         RACE_VARS.face_number.set_bits(listed_dword(entry)?);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-        DRAW.polygon_textures[0]
-            .set_bits(texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000);
-        RACE_SOUND_SPOTS.face_kind.set_bits(head[6] as u32);
-        RACE_SOUND_SPOTS.face_unlit.set_bits(head[0xB] as u32);
+        DRAW.polygon_textures[0].set_bits(
+            texture.wrapping_add(
+                crate::race::owner::race()
+                    .physics
+                    .ground
+                    .object_texture_set
+                    .bits(),
+            ) | 0x8000_0000,
+        );
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .face_kind
+            .set_bits(head[6] as u32);
+        crate::race::owner::race()
+            .frame
+            .sound_spots
+            .face_unlit
+            .set_bits(head[0xB] as u32);
         let shade = head[0xA] as u32;
         DRAW.polygon_colour.set_bits(if shade == 0 {
             0x00FF_FFFF

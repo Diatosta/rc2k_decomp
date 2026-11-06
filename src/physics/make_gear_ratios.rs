@@ -20,7 +20,6 @@ use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Cell32;
@@ -35,8 +34,15 @@ pub fn ratios_at(v: &[&dyn Cell32]) -> Result<u32, Refused> {
     if n > 7 {
         return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
-    let (k, d) = (NUMBERS.quarter.bits(), NUMBERS.two_and_a_quarter.bits());
-    let one: u32 = NUMBERS.one.bits();
+    let (k, d) = (
+        crate::race::owner::race().course.numbers.quarter.bits(),
+        crate::race::owner::race()
+            .course
+            .numbers
+            .two_and_a_quarter
+            .bits(),
+    );
+    let one: u32 = crate::race::owner::race().course.numbers.one.bits();
     let i = get(5) as i32;
     put(
         RATIO + n as usize,

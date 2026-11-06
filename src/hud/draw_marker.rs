@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
@@ -22,8 +22,8 @@ pub fn draw_marker(hud: &Hud) -> Result<(), Refused> {
     {
         let f = f32::from_bits;
         let x = marker_x(
-            f(PANEL.distance[0].get()),
-            f(PANEL.overlay_miles.get()),
+            f(race().frame.panel_and_overlay.panel.distance[0].get()),
+            f(race().frame.panel_and_overlay.panel.overlay_miles.get()),
             hud.block.marker_k[0].get(),
             hud.block.marker_k[1].get(),
         );

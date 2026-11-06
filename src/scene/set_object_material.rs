@@ -30,7 +30,6 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -52,7 +51,13 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 /// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`), or None without
 /// the course faces.
 fn state() -> Option<u32> {
-    (COURSE.course_faces.bits() != 0).then(|| COURSE.current_course_face.bits())
+    (crate::race::owner::race().course.course.course_faces.bits() != 0).then(|| {
+        crate::race::owner::race()
+            .course
+            .course
+            .current_course_face
+            .bits()
+    })
 }
 
 /// The state's four dwords from +0x30 of the face.

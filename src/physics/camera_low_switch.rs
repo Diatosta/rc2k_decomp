@@ -19,15 +19,16 @@ use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 
 /// The Rust version. The eax it leaves is read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub fn camera_low_switch() -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(CAR.crash_matrix[5].bits(), NUMBERS.zero.bits()),
+        c0(
+            CAR.crash_matrix[5].bits(),
+            crate::race::owner::race().course.numbers.zero.bits(),
+        ),
         CAR.camera_switch_active.get(),
         CAR.camera_view.get(),
     ) {
@@ -42,7 +43,11 @@ pub fn camera_low_switch() -> Result<(), Refused> {
     }
     if !is_low(over(
         CAR.camera_position[1].get(),
-        GROUND_WORK.ground_height.get(),
+        crate::race::owner::race()
+            .physics
+            .ground
+            .ground_height
+            .get(),
     )) {
         return Ok(());
     }

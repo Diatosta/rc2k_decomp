@@ -6,12 +6,12 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::race::numbers_store::NUMBERS;
-
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
 pub fn play_inputs_if() -> Result<(), crate::errors::BadInput> {
-    if rc2k_core::drive::replay_frames::plays_inputs(NUMBERS.replay_mode.get()) {
+    if rc2k_core::drive::replay_frames::plays_inputs(
+        crate::race::owner::race().course.numbers.replay_mode.get(),
+    ) {
         crate::drive::play_inputs::play_inputs()?;
     }
     Ok(())

@@ -5,17 +5,10 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::course_store::COURSE;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::faces_store::FACES;
 use crate::scene::object_store::OBJECT_WORK;
@@ -62,7 +55,11 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
         PHYSICS.checkpoint_colours[0].set(c.near);
         PHYSICS.checkpoint_colours[1].set(c.far);
         PHYSICS.checkpoint_colours[2].set(c.distance);
-        LEVEL_GRID.far_cell_limit.set(c.level);
+        crate::race::owner::race()
+            .course
+            .level_grid
+            .far_cell_limit
+            .set(c.level);
     }
     Ok(())
 }
@@ -80,15 +77,17 @@ pub fn point_record(point: u32) -> Result<u32, Refused> {
 
 /// What `point_record` needs to make a record: the records and the points.
 pub fn points_there() -> Result<(), Refused> {
-    if !crate::scene::point_records::held() || COURSE.scene_points.bits() == 0 {
+    if !crate::scene::point_records::held()
+        || crate::race::owner::race().course.course.scene_points.bits() == 0
+    {
         return Err(BadInput("no point records or no points").into());
     }
     Ok(())
 }
 
 /// `race::face_hidden` (0x454D92): whether the face record is hidden from the shown view:
-/// when the view's `VIEW_VARS.view_hides` entry is 0, `FRAME_SWITCHES.other_way` is set and the face's +2 word
-/// has a bit of `FRAME_WORK.face_hide_mask`; else by its first point's record (+4): `OBJECT_WORK.object_position` = |x|
+/// when the view's `crate::race::owner::race().frame.view_and_records.view_vars.view_hides` entry is 0, `FRAME_SWITCHES.other_way` is set and the face's +2 word
+/// has a bit of `crate::race::owner::race().frame.frame_work.face_hide_mask`; else by its first point's record (+4): `OBJECT_WORK.object_position` = |x|
 /// and `OBJECT_WORK.face_depth` = depth + `LEVEL_GRID.depth_shift` as whole numbers, hidden when the depth is below
 /// |x| (the sign of the difference). Refuses (before anything) no point records or points.
 pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
@@ -96,12 +95,16 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused>
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
     let view: u32 = CAR.camera_view.bits();
-    // VIEW_VARS.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
+    // crate::race::owner::race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
-    // (notes/bugs.md); 0x33 is still inside `VIEW_VARS`.
+    // (notes/bugs.md); 0x33 is still inside `crate::race::owner::race().frame.view_and_records.view_vars`.
     let shows: u32 = crate::session::read_on_in(
-        &*VIEW_VARS,
-        &VIEW_VARS.view_hides,
+        &crate::race::owner::race().frame.view_and_records.view_vars,
+        &crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_hides,
         view as usize,
         "the view hides",
     )?;
@@ -111,7 +114,12 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused>
         0
     };
     let (_, hidden) = hidden_by_switches(shows, hiding, || {
-        face.switches() as u32 & FRAME_WORK.face_hide_mask.bits()
+        face.switches() as u32
+            & crate::race::owner::race()
+                .frame
+                .frame_work
+                .face_hide_mask
+                .bits()
     });
     if hidden {
         return Ok(true);
@@ -122,7 +130,11 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused>
     OBJECT_WORK.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
-        LEVEL_GRID.depth_shift.bits(),
+        crate::race::owner::race()
+            .course
+            .level_grid
+            .depth_shift
+            .bits(),
     );
     OBJECT_WORK.face_depth.set_bits(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
@@ -208,7 +220,7 @@ pub fn add_depth_entry(face: u32) -> Result<(), Refused> {
 
 /// `race::course_grid` (0x45497E): the course records around the view in a 32 x 32 grid.
 /// The half size `LEVEL_GRID.grid_half` = `hold_to_limit(STAGE_PREFS.grid_reach)`, the span `LEVEL_GRID.grid_span`
-/// twice that; the corner is the view's place (`VIEW_VARS.view_x` / `VIEW_VARS.view_z` >> 21,
+/// twice that; the corner is the view's place (`crate::race::owner::race().frame.view_and_records.view_vars.view_x` / `crate::race::owner::race().frame.view_and_records.view_vars.view_z` >> 21,
 /// arithmetic) less the half. Unchanged corner: nothing more. Else the corner kept, the
 /// grid cleared to 0x0FFFFFFF, and each record (0x20 bytes at `g_courseRecords`, +0 two
 /// 11-bit cell numbers, -1 none; each into `COURSE.record_place` / `COURSE.record_place[1]`) whose cell less
@@ -219,22 +231,63 @@ pub fn course_grid() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
-    let half = hold_to_limit(STAGE_PREFS.grid_reach.bits());
+    let half = hold_to_limit(
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .grid_reach
+            .bits(),
+    );
     let span = half.wrapping_add(half);
-    let (gx, gz) = grid_corner(VIEW_VARS.view_x.bits(), VIEW_VARS.view_z.bits(), half);
-    let unchanged = gx == LEVEL_GRID.grid_x.bits() && gz == LEVEL_GRID.grid_z.bits();
-    let count: u32 = COURSE.course_record_count.bits();
+    let (gx, gz) = grid_corner(
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_x
+            .bits(),
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_z
+            .bits(),
+        half,
+    );
+    let unchanged = gx == crate::race::owner::race().course.level_grid.grid_x.bits()
+        && gz == crate::race::owner::race().course.level_grid.grid_z.bits();
+    let count: u32 = crate::race::owner::race()
+        .course
+        .course
+        .course_record_count
+        .bits();
     if !unchanged && count == 0 {
         return Err(BadInput("no course records (the loop would not end)?").into());
     }
-    LEVEL_GRID.grid_half.set_bits(half);
-    LEVEL_GRID.grid_span.set_bits(span);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_half
+        .set_bits(half);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_span
+        .set_bits(span);
     if unchanged {
         return Ok(());
     }
-    LEVEL_GRID.grid_x.set_bits(gx);
-    LEVEL_GRID.grid_z.set_bits(gz);
-    let grid = &LEVEL_GRID.course_grid;
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_x
+        .set_bits(gx);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_z
+        .set_bits(gz);
+    let grid = &crate::race::owner::race().course.level_grid.course_grid;
     for k in 0..GRID_SIDE * GRID_SIDE {
         grid[k as usize].set(GRID_EMPTY);
     }
@@ -242,8 +295,8 @@ pub fn course_grid() -> Result<(), Refused> {
         let Some((cx, cz)) = record_cell(record_field(n, 0)?) else {
             continue;
         };
-        COURSE.record_place[0].set_bits(cx);
-        COURSE.record_place[1].set_bits(cz);
+        crate::race::owner::race().course.course.record_place[0].set_bits(cx);
+        crate::race::owner::race().course.course.record_place[1].set_bits(cz);
         if let Some(cell) = grid_cell(cx, cz, (gx, gz), span) {
             course_grid_cell(cell)?.set(n);
         }
@@ -264,10 +317,10 @@ pub(super) fn byte_at(table: &crate::session::Bytes<256>, n: u32) -> Result<u32,
 /// The four face tables (`object_bytes`' outputs).
 pub(super) fn face_tables() -> [&'static crate::session::Bytes<256>; 4] {
     [
-        &LEVEL_GRID.face_table_a,
-        &LEVEL_GRID.face_table_b,
-        &LEVEL_GRID.face_table_c,
-        &LEVEL_GRID.face_table_d,
+        &crate::race::owner::race().course.level_grid.face_table_a,
+        &crate::race::owner::race().course.level_grid.face_table_b,
+        &crate::race::owner::race().course.level_grid.face_table_c,
+        &crate::race::owner::race().course.level_grid.face_table_d,
     ]
 }
 
@@ -293,7 +346,11 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
     }
     let mut face = first;
     loop {
-        COURSE.current_course_face.set_bits(face);
+        crate::race::owner::race()
+            .course
+            .course
+            .current_course_face
+            .set_bits(face);
         // The face read once for its kind, objects, switches and first point.
         let read = crate::race::course_places::face_number(face, "a course face")?;
         let kind = read.kind();
@@ -334,7 +391,7 @@ pub fn gather_visible_faces() -> Result<(), Refused> {
 }
 
 /// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
-/// the car (`g_car` +0xE00) is -1, `FRAME_WORK.face_hide_mask` = its +2 word's bits 1 and 3 flipped
+/// the car (`g_car` +0xE00) is -1, `crate::race::owner::race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask() -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground()?;
@@ -344,7 +401,9 @@ pub fn face_hide_mask() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::race::faces::hide_mask`.
     let word: u16 = face_field(ground, 2)?;
-    FRAME_WORK
+    crate::race::owner::race()
+        .frame
+        .frame_work
         .face_hide_mask
         .set_bits(rc2k_core::race::faces::hide_mask(word));
     Ok(())
@@ -358,16 +417,21 @@ pub fn face_hide_mask() -> Result<(), Refused> {
 /// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
 pub fn mark_far_cells() -> Result<(), BadInput> {
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
-    let grid = &LEVEL_GRID.course_grid;
+    let grid = &crate::race::owner::race().course.level_grid.course_grid;
     for k in 0..0x400 {
         grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);
     }
-    let half: u32 = LEVEL_GRID.grid_half.bits();
+    let half: u32 = crate::race::owner::race()
+        .course
+        .level_grid
+        .grid_half
+        .bits();
     // Nothing in the loop writes the matrix: its floats read once.
-    let matrix = crate::session::read_bits(&MATRICES.view_turn_matrix);
-    let two: u32 = NUMBERS.two.bits();
-    let zero: u32 = NUMBERS.zero.bits();
-    let point_five: u32 = NUMBERS.half.bits();
+    let matrix =
+        crate::session::read_bits(&crate::race::owner::race().frame.matrices.view_turn_matrix);
+    let two: u32 = crate::race::owner::race().course.numbers.two.bits();
+    let zero: u32 = crate::race::owner::race().course.numbers.zero.bits();
+    let point_five: u32 = crate::race::owner::race().course.numbers.half.bits();
     let mut out = [0u32; 8];
     for cell in 0..0x400u32 {
         let x = (cell & 0x1F).wrapping_sub(half);
@@ -375,11 +439,25 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
         let point = [x, 0, z];
         crate::scene::project_point::rotate(&point, &matrix, &mut out);
         let (x, z) = (out[4], out[6]);
-        LEVEL_GRID.turned_x.set_bits(x);
-        LEVEL_GRID.turned_z.set_bits(z);
+        crate::race::owner::race()
+            .course
+            .level_grid
+            .turned_x
+            .set_bits(x);
+        crate::race::owner::race()
+            .course
+            .level_grid
+            .turned_z
+            .set_bits(z);
         let length = float_hypot(x, z);
         DRAW.scratch.set_bits(length);
-        let limit = crate::math::x87::from_int(LEVEL_GRID.far_cell_limit.get() as i32);
+        let limit = crate::math::x87::from_int(
+            crate::race::owner::race()
+                .course
+                .level_grid
+                .far_cell_limit
+                .get() as i32,
+        );
         DRAW.work_float_b.set_bits(limit);
         if below_or_unordered(length, two) {
             continue;
@@ -403,12 +481,20 @@ pub fn prepare_course_view() -> Result<(), Refused> {
     // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
     // `LEVEL_GRID.far_cell_limit`, so the 0x10 written before it in the original comes after here.
     face_hide_mask()?;
-    LEVEL_GRID.far_cell_limit.set(0x10u32);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .far_cell_limit
+        .set(0x10u32);
     course_grid()?;
     if FRAME_SWITCHES.other_way.bits() == 0 {
         return Ok(());
     }
-    LEVEL_GRID.far_cell_limit.set(0x10u32);
+    crate::race::owner::race()
+        .course
+        .level_grid
+        .far_cell_limit
+        .set(0x10u32);
     if RACE_VARS.checkpoint_count.get() >= 2 {
         checkpoint_colours()?;
     }
@@ -418,7 +504,13 @@ pub fn prepare_course_view() -> Result<(), Refused> {
 
 /// `course_grid`'s refusal, before anything.
 pub(super) fn check_course_grid() -> Result<(), Refused> {
-    if COURSE.course_record_count.bits() == 0 {
+    if crate::race::owner::race()
+        .course
+        .course
+        .course_record_count
+        .bits()
+        == 0
+    {
         return Err(BadInput("no course records").into());
     }
     Ok(())
@@ -427,10 +519,14 @@ pub(super) fn check_course_grid() -> Result<(), Refused> {
 /// The records `gather_visible_faces` gathers, as it would.
 pub fn visible_records() -> Result<Vec<u32>, BadInput> {
     // Converted: `rc2k_core::race::view::visible_records`.
-    let grid = &LEVEL_GRID.course_grid;
+    let grid = &crate::race::owner::race().course.level_grid.course_grid;
     let list = rc2k_core::race::view::visible_records(
         grid.iter().map(crate::session::Dword::get),
-        COURSE.course_record_count.bits(),
+        crate::race::owner::race()
+            .course
+            .course
+            .course_record_count
+            .bits(),
     )
     .into_iter()
     .collect();

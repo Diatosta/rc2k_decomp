@@ -29,7 +29,6 @@ use crate::math::x87_run::mul_status;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::session::Float;
@@ -50,15 +49,24 @@ pub fn drive_grip_forces() {
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
     DRAW.scratch.set(0x32);
     lever_share_from_timer();
-    hold_low(&PHYSICS.lever_share, &NUMBERS.zero);
-    hold_high(&PHYSICS.lever_share, &NUMBERS.one);
+    hold_low(
+        &PHYSICS.lever_share,
+        &crate::race::owner::race().course.numbers.zero,
+    );
+    hold_high(
+        &PHYSICS.lever_share,
+        &crate::race::owner::race().course.numbers.one,
+    );
     CAR.grip_forces[0].set_bits(0);
     if CAR.front_wheels_off.get() == 0 {
         steer_sine_force(steer_index() as usize);
     }
     // The original takes the force a second time over.
     steer_sine_force(steer_index() as usize);
-    if !c3(CAR.local_velocity[2].bits(), NUMBERS.zero.bits()) {
+    if !c3(
+        CAR.local_velocity[2].bits(),
+        crate::race::owner::race().course.numbers.zero.bits(),
+    ) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
             &PHYSICS.grip_factor[1]
@@ -81,8 +89,14 @@ pub fn drive_grip_forces() {
                 CAR.steering.set(0);
             } else {
                 divide_into_scratch(&CAR.grip_forces[0], &DRAW.scratch);
-                hold_high(&DRAW.scratch, &NUMBERS.one);
-                hold_low(&DRAW.scratch, &NUMBERS.zero);
+                hold_high(
+                    &DRAW.scratch,
+                    &crate::race::owner::race().course.numbers.one,
+                );
+                hold_low(
+                    &DRAW.scratch,
+                    &crate::race::owner::race().course.numbers.zero,
+                );
                 scale_steering();
             }
         }
@@ -121,7 +135,7 @@ pub fn drive_grip_forces() {
     if product_below(
         CAR.grip_forces[1].bits(),
         CAR.grip_forces[0].bits(),
-        NUMBERS.zero.bits(),
+        crate::race::owner::race().course.numbers.zero.bits(),
     ) {
         CAR.grip_forces[1].set_bits(x87::mul(
             CAR.grip_forces[1].bits(),
@@ -159,10 +173,15 @@ pub fn drive_grip_forces() {
     }
     CAR.eased_yaw_spin.set_bits(x87::loaded(CAR.spin[1].bits()));
     let old = CAR.eased_yaw_spin.bits();
-    NUMBERS
+    crate::race::owner::race()
+        .course
+        .numbers
         .grip_change
         .set_bits(x87::sub(old, CAR.grip_force_sum.bits()));
-    ease_zero(&NUMBERS.grip_change, &PHYSICS.grip_ease_step);
+    ease_zero(
+        &crate::race::owner::race().course.numbers.grip_change,
+        &PHYSICS.grip_ease_step,
+    );
     ease_yaw_twist(old);
 }
 
@@ -187,7 +206,7 @@ fn lever_share_from_timer() {
     let t0 = int(CAR.wall_hit_timer.bits() as i32);
     let t1 = int(DRAW.scratch.bits() as i32);
     let t2 = t0 / t1;
-    let t3 = ld(NUMBERS.one.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.one.bits());
     let t4 = t2 - t3;
     let t5 = -t4;
     PHYSICS.lever_share.set_bits(st(t5));
@@ -256,7 +275,7 @@ fn lean_force(e: usize) {
     let t6 = t4 * t5;
     let t7 = int(CAR.handbrake.bits() as i32);
     let t8 = t6 * t7;
-    let t9 = ld(NUMBERS.k256.bits());
+    let t9 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t10 = t8 / t9;
     let t11 = ld(CAR.drive_speed_a.bits());
     let t12 = t10 * t11;
@@ -264,7 +283,7 @@ fn lean_force(e: usize) {
     let t14 = t12 * t13;
     let t15 = int(CAR.throttle.bits() as i32);
     let t16 = t14 * t15;
-    let t17 = ld(NUMBERS.k256.bits());
+    let t17 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t18 = t16 / t17;
     CAR.grip_forces[3].set_bits(st(t18));
 }
@@ -276,7 +295,11 @@ fn braking_count_geared() {
     let t0 = ld(PHYSICS.handling[1].bits());
     let t1 = int(CAR.brake.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = ld(NUMBERS.one_and_a_half.bits());
+    let t3 = ld(crate::race::owner::race()
+        .course
+        .numbers
+        .one_and_a_half
+        .bits());
     let t4 = t2 * t3;
     DRAW.scratch.set_bits(to_int(t4) as u32);
 }
@@ -297,7 +320,7 @@ fn braking_count_neutral() {
 /// `[rc + 0x31A1EC] = (-((int [rc + 0x214164] / [rc + 0x1C5E2C]) * [rc + 0x31A1A0]) * [rc + 0x213ECC]) * [rc + 0x214B78]`
 fn engine_braking_force() {
     let t0 = int(PHYSICS.grip_drive_word.bits() as i32);
-    let t1 = ld(NUMBERS.k256.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t2 = t0 / t1;
     let t3 = ld(CAR.side_speed_held.bits());
     let t4 = t2 * t3;
@@ -339,7 +362,7 @@ fn yaw_force(e: usize) {
     let t2 = t0 / t1;
     let t3 = int(CAR.throttle.bits() as i32);
     let t4 = t2 * t3;
-    let t5 = ld(NUMBERS.k256.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.k256.bits());
     let t6 = t4 / t5;
     let t7 = ld(DRAW.scratch.bits());
     let t8 = t6 * t7;
@@ -377,7 +400,7 @@ fn sum_grip_forces() {
 /// `[rc + 0x2149F0] = -([rc + 0x2149F0] / [rc + 0x31ACD4])`
 /// `[rc + 0x214A04] = -([rc + 0x214A04] * [rc + 0x31ACD4])`
 fn ease_yaw_twist(o: u32) {
-    let t0 = ld(NUMBERS.grip_change.bits());
+    let t0 = ld(crate::race::owner::race().course.numbers.grip_change.bits());
     let t1 = ld(CAR.grip_force_sum.bits());
     let t2 = t0 + t1;
     CAR.eased_yaw_spin.set_bits(st(t2));
@@ -389,7 +412,7 @@ fn ease_yaw_twist(o: u32) {
     let t7 = ld(DRAW.scratch.bits());
     let t8 = ld(PHYSICS.step_time.bits());
     let t9 = t7 / t8;
-    let t10 = ld(NUMBERS.half.bits());
+    let t10 = ld(crate::race::owner::race().course.numbers.half.bits());
     let t11 = t9 * t10;
     let t12 = ld(PHYSICS.inertia[1].bits());
     let t13 = t11 / t12;

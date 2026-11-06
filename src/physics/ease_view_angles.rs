@@ -16,7 +16,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::car_store::CAR;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 
@@ -44,7 +43,7 @@ fn x87_1(rate: u32) {
     let t0 = ld(rate);
     let t1 = ld(RACE_TABLES.view_share.bits());
     let t2 = t0 * t1;
-    let t3 = ld(NUMBERS.k65536.bits());
+    let t3 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t4 = t2 * t3;
     DRAW.scratch.set_bits(to_int(t4) as u32);
 }

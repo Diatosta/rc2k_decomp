@@ -29,7 +29,6 @@
 //! product at the game's double and extended precision.
 
 use crate::physics::tables_store::{PHYSICS, Surface};
-use crate::race::numbers_store::NUMBERS;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
@@ -103,6 +102,9 @@ pub fn apply_patches() {
         return;
     }
     let mut after = before;
-    apply_patches_core(&mut after, NUMBERS.hundred.get());
+    apply_patches_core(
+        &mut after,
+        crate::race::owner::race().course.numbers.hundred.get(),
+    );
     store(&before, &after);
 }

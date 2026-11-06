@@ -19,8 +19,6 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -40,7 +38,7 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
         return Ok(false);
     }
     let edges = Edges {
-        least: NUMBERS.zero.get(),
+        least: crate::race::owner::race().course.numbers.zero.get(),
         right: DRAW.clip_screen[3].get(),
         bottom: DRAW.clip_screen[1].get(),
     };
@@ -75,14 +73,32 @@ pub fn draw_object_polygon(
     DRAW.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(count)?) {
-        GROUND_WORK
+        crate::race::owner::race()
+            .physics
+            .ground
             .whole_polygon_count
-            .set_bits(GROUND_WORK.whole_polygon_count.bits().wrapping_add(1));
+            .set_bits(
+                crate::race::owner::race()
+                    .physics
+                    .ground
+                    .whole_polygon_count
+                    .bits()
+                    .wrapping_add(1),
+            );
         return step(Step::Draw);
     }
-    GROUND_WORK
+    crate::race::owner::race()
+        .physics
+        .ground
         .split_polygon_count
-        .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
+        .set_bits(
+            crate::race::owner::race()
+                .physics
+                .ground
+                .split_polygon_count
+                .bits()
+                .wrapping_add(1),
+        );
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
         .entries

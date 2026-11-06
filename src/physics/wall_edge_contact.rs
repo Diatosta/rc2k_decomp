@@ -27,10 +27,8 @@ use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
-use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::copy_cells;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::walls;
 
@@ -66,15 +64,15 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
     PHYSICS.wall_heading.set(heading);
     let out = {
         turn_float_point_xz(
-            NUMBERS.zero.bits(),
-            NUMBERS.zero.bits(),
-            NUMBERS.one.bits(),
+            crate::race::owner::race().course.numbers.zero.bits(),
+            crate::race::owner::race().course.numbers.zero.bits(),
+            crate::race::owner::race().course.numbers.one.bits(),
             heading,
         )
     };
-    CONTACT_WORK.contact_normal[0].set_bits(out[0]);
-    CONTACT_WORK.contact_normal[1].set_bits(out[1]);
-    CONTACT_WORK.contact_normal[2].set_bits(out[2]);
+    crate::race::owner::race().physics.contact.contact_normal[0].set_bits(out[0]);
+    crate::race::owner::race().physics.contact.contact_normal[1].set_bits(out[1]);
+    crate::race::owner::race().physics.contact.contact_normal[2].set_bits(out[2]);
     Ok(out)
 }
 
@@ -82,29 +80,65 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps() -> Result<(), Refused> {
-    let face_corners = corners(CONTACT_WORK.wall_face_now.get())?;
-    let wall_corners = corners(CONTACT_WORK.wall_face_before.get())?;
+    let face_corners = corners(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .wall_face_now
+            .get(),
+    )?;
+    let wall_corners = corners(
+        crate::race::owner::race()
+            .physics
+            .contact
+            .wall_face_before
+            .get(),
+    )?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
         return crate::physics::wall_push_back::steps();
     }
     // 0x45DA9E: along the edge.
-    let n = CONTACT_WORK.probe_index.get();
+    let n = crate::race::owner::race().physics.contact.probe_index.get();
     walls::check_probe(n)?;
-    CONTACT_WORK.wall_edge_from.set(from);
-    CONTACT_WORK.wall_edge_to.set(to);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .wall_edge_from
+        .set(from);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .wall_edge_to
+        .set(to);
     edge_normal(to, from)?;
-    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
-    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    copy_cells(
+        &crate::race::owner::race().physics.contact.contact_car_speed,
+        &CAR.velocity,
+    );
+    copy_cells(
+        &crate::race::owner::race()
+            .physics
+            .contact
+            .contact_turn_speed,
+        &CAR.spin,
+    );
     let n = n as usize;
-    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
-    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
-    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
-    CONTACT_WORK.contact_point[1].set_bits(mul(
-        CONTACT_WORK.contact_point[1].bits(),
-        NUMBERS.tenth.bits(),
+    crate::race::owner::race().physics.contact.contact_point[0]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_x[n].bits());
+    crate::race::owner::race().physics.contact.contact_point[1]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_y[n].bits());
+    crate::race::owner::race().physics.contact.contact_point[2]
+        .set_bits(crate::race::owner::race().physics.contact.probe_turned_z[n].bits());
+    crate::race::owner::race().physics.contact.contact_point[1].set_bits(mul(
+        crate::race::owner::race().physics.contact.contact_point[1].bits(),
+        crate::race::owner::race().course.numbers.tenth.bits(),
     ));
-    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .contact_slide_limit
+        .set_bits(0);
     contact_force(&PHYSICS.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
@@ -119,9 +153,13 @@ fn x87_1(d: [u32; 2]) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(NUMBERS.one_over_two_pi.bits());
+    let t3 = ld(crate::race::owner::race()
+        .course
+        .numbers
+        .one_over_two_pi
+        .bits());
     let t4 = t2 * t3;
-    let t5 = ld(NUMBERS.k65536.bits());
+    let t5 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t6 = t4 * t5;
     DRAW.scratch.set_bits(to_int(t6) as u32);
 }

@@ -3,15 +3,9 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_store::COURSE;
-use crate::race::frame_store::FRAME_WORK;
-use crate::race::matrices_store::{MATRICES, SceneMatrices};
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::matrices_store::SceneMatrices;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::light_store::LIGHT_STATE;
@@ -19,32 +13,82 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::session::SCREEN;
 
-/// `race::draw_distance_settings` (0x43932A): the draw distance's level (`STAGE_PREFS.draw_distance_level`,
-/// held to 0 ..= 4 by sign) picks from six tables: `STAGE_PREFS.grid_reach` (at least 1, by sign),
-/// `STAGE_PREFS.fog_end`, `STAGE_PREFS.fog_start`, `STAGE_PREFS.fog_low`, `STAGE_PREFS.fog_high`, `STAGE_PREFS.nearer`.
+/// `race::draw_distance_settings` (0x43932A): the draw distance's level (`crate::race::owner::race().course.stage_prefs.draw_distance_level`,
+/// held to 0 ..= 4 by sign) picks from six tables: `crate::race::owner::race().course.stage_prefs.grid_reach` (at least 1, by sign),
+/// `crate::race::owner::race().course.stage_prefs.fog_end`, `crate::race::owner::race().course.stage_prefs.fog_start`, `crate::race::owner::race().course.stage_prefs.fog_low`, `crate::race::owner::race().course.stage_prefs.fog_high`, `crate::race::owner::race().course.stage_prefs.nearer`.
 pub fn draw_distance_settings() {
     // Converted: `rc2k_core::race::view::{draw_distance_level, grid_reach}`.
     use rc2k_core::race::view::{draw_distance_level, grid_reach};
-    let level = draw_distance_level(STAGE_PREFS.draw_distance_level.bits());
+    let level = draw_distance_level(
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .draw_distance_level
+            .bits(),
+    );
     let level = level as usize;
-    STAGE_PREFS
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .grid_reach
-        .set(grid_reach(STAGE_PREFS.reach_by_level[level].bits()));
-    STAGE_PREFS
+        .set(grid_reach(
+            crate::race::owner::race().course.stage_prefs.reach_by_level[level].bits(),
+        ));
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .fog_end
-        .set_bits(STAGE_PREFS.fog_end_by_level[level].bits());
-    STAGE_PREFS
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .fog_end_by_level[level]
+                .bits(),
+        );
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .fog_start
-        .set_bits(STAGE_PREFS.fog_start_by_level[level].bits());
-    STAGE_PREFS
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .fog_start_by_level[level]
+                .bits(),
+        );
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .fog_low
-        .set_bits(STAGE_PREFS.fog_low_by_level[level].bits());
-    STAGE_PREFS
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .fog_low_by_level[level]
+                .bits(),
+        );
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .fog_high
-        .set_bits(STAGE_PREFS.fog_high_by_level[level].bits());
-    STAGE_PREFS
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .fog_high_by_level[level]
+                .bits(),
+        );
+    crate::race::owner::race()
+        .course
+        .stage_prefs
         .nearer
-        .set_bits(STAGE_PREFS.nearer_by_level[level].bits());
+        .set_bits(
+            crate::race::owner::race()
+                .course
+                .stage_prefs
+                .nearer_by_level[level]
+                .bits(),
+        );
 }
 
 /// `race::sample_noise` (0x44FD38): the 64 x 64 byte map `map` bytes into `g_noiseBytes`
@@ -84,12 +128,12 @@ pub fn sample_noise(map: usize) -> Result<u32, BadInput> {
 // g_fogTable: 0x1000 bytes
 
 /// `race::fog_table` (0x44FC33): `draw_distance_settings`; the noise at the car
-/// (`sample_noise` of `g_noiseBytes`) spread between `STAGE_PREFS.fog_low` and `STAGE_PREFS.fog_high` into
-/// the step `LIGHT_WORK.fog_step`; `LIGHT_STATE.fog_near` / `LIGHT_STATE.fog_far` = (`FRAME_WORK.sun_size` x
-/// `FRAME_WORK.view_out` >> 4) x `STAGE_PREFS.fog_near` / `STAGE_PREFS.fog_far` >> 8; `g_fogTableLength` =
-/// `RACE_VIEW.view_depth[1]` x 8 bytes of `g_fogTable`, each ((sum of steps) >> 16) + `STAGE_PREFS.fog_start` +
+/// (`sample_noise` of `g_noiseBytes`) spread between `crate::race::owner::race().course.stage_prefs.fog_low` and `crate::race::owner::race().course.stage_prefs.fog_high` into
+/// the step `LIGHT_WORK.fog_step`; `LIGHT_STATE.fog_near` / `LIGHT_STATE.fog_far` = (`crate::race::owner::race().frame.frame_work.sun_size` x
+/// `crate::race::owner::race().frame.frame_work.view_out` >> 4) x `crate::race::owner::race().course.stage_prefs.fog_near` / `crate::race::owner::race().course.stage_prefs.fog_far` >> 8; `g_fogTableLength` =
+/// `RACE_VIEW.view_depth[1]` x 8 bytes of `g_fogTable`, each ((sum of steps) >> 16) + `crate::race::owner::race().course.stage_prefs.fog_start` +
 /// `LIGHT_STATE.fog_near` held to 0 ..= 0xFF; `LIGHT_STATE.fog_next` the next one's value with
-/// `STAGE_PREFS.fog_end` (held) plus `LIGHT_STATE.fog_near` (held). Refuses (before anything) a table length of 0 or past 0x1000.
+/// `crate::race::owner::race().course.stage_prefs.fog_end` (held) plus `LIGHT_STATE.fog_near` (held). Refuses (before anything) a table length of 0 or past 0x1000.
 pub fn fog_table() -> Result<(), Refused> {
     let length = RACE_VIEW.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
@@ -101,13 +145,20 @@ pub fn fog_table() -> Result<(), Refused> {
     let fog = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
-            low: STAGE_PREFS.fog_low.get(),
-            high: STAGE_PREFS.fog_high.get(),
-            scale: [FRAME_WORK.sun_size.get(), FRAME_WORK.view_out.get()],
-            near: STAGE_PREFS.fog_near.get(),
-            far: STAGE_PREFS.fog_far.get(),
-            start: STAGE_PREFS.fog_start.get(),
-            end: STAGE_PREFS.fog_end.get(),
+            low: crate::race::owner::race().course.stage_prefs.fog_low.get(),
+            high: crate::race::owner::race().course.stage_prefs.fog_high.get(),
+            scale: [
+                crate::race::owner::race().frame.frame_work.sun_size.get(),
+                crate::race::owner::race().frame.frame_work.view_out.get(),
+            ],
+            near: crate::race::owner::race().course.stage_prefs.fog_near.get(),
+            far: crate::race::owner::race().course.stage_prefs.fog_far.get(),
+            start: crate::race::owner::race()
+                .course
+                .stage_prefs
+                .fog_start
+                .get(),
+            end: crate::race::owner::race().course.stage_prefs.fog_end.get(),
             length,
         },
     );
@@ -126,7 +177,7 @@ pub fn fog_table() -> Result<(), Refused> {
 }
 
 /// `race::set_up_fog` (0x44FBD9): `scene::restart_clock`; `DRAW.fog_colour` = the fog colour
-/// from `STAGE_PREFS.fog_colour` (red), `STAGE_PREFS.fog_colour[1]`, `STAGE_PREFS.fog_colour[2]` (each shifted into its byte
+/// from `crate::race::owner::race().course.stage_prefs.fog_colour` (red), `crate::race::owner::race().course.stage_prefs.fog_colour[1]`, `crate::race::owner::race().course.stage_prefs.fog_colour[2]` (each shifted into its byte
 /// and added); `fog_table`; the colour with 0xFF000000 to the device. None of it reads a
 /// register at entry, and its callers (`race::draw_view_scene`, `race::mirror_view_window`)
 /// read none it leaves. Refuses (before anything) what `fog_table` would.
@@ -138,9 +189,9 @@ pub fn set_up_fog() -> Result<(), Refused> {
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     // Converted: `rc2k_core::race::view::{fog_colour, device_fog_colour}`.
     let colour = rc2k_core::race::view::fog_colour(
-        STAGE_PREFS.fog_colour[0].bits(),
-        STAGE_PREFS.fog_colour[1].bits(),
-        STAGE_PREFS.fog_colour[2].bits(),
+        crate::race::owner::race().course.stage_prefs.fog_colour[0].bits(),
+        crate::race::owner::race().course.stage_prefs.fog_colour[1].bits(),
+        crate::race::owner::race().course.stage_prefs.fog_colour[2].bits(),
     );
     DRAW.fog_colour.set_bits(colour);
     fog_table()?;
@@ -150,82 +201,150 @@ pub fn set_up_fog() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::place_view` (0x4389A8): the view's place from the camera (`COURSE.place_x`,
-/// `COURSE.place_y`, `COURSE.place_z`) and its angles. Flat (`STAGE_PREFS.flat_depth` set): the place as
-/// it is, `g_car` +0x6A8 += `COURSE.flat_depth`, `g_viewAngles` = `COURSE.place_heading`,
-/// `VIEW_VARS.view_angles[1]` = 0x40000000. Else the place moved by (-`COURSE.flat_depth`, 0, 0) turned by
-/// `COURSE.camera_first` (`math::turn_point_xz_ecx`) and that turned again by `COURSE.place_heading`
+/// `race::place_view` (0x4389A8): the view's place from the camera (`crate::race::owner::race().course.course.place_x`,
+/// `crate::race::owner::race().course.course.place_y`, `crate::race::owner::race().course.course.place_z`) and its angles. Flat (`crate::race::owner::race().course.stage_prefs.flat_depth` set): the place as
+/// it is, `g_car` +0x6A8 += `crate::race::owner::race().course.course.flat_depth`, `g_viewAngles` = `crate::race::owner::race().course.course.place_heading`,
+/// `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[1]` = 0x40000000. Else the place moved by (-`crate::race::owner::race().course.course.flat_depth`, 0, 0) turned by
+/// `crate::race::owner::race().course.course.camera_first` (`math::turn_point_xz_ecx`) and that turned again by `crate::race::owner::race().course.course.place_heading`
 /// (`math::turn_point_xz`, its x 0, y the first turn's z, z its x), `g_viewAngles` and
-/// `VIEW_VARS.view_angles[1]` the two angles, and the place also as whole numbers and floats
-/// (`VIEW_VARS.view_x` / `VIEW_VARS.view_z`, `VIEW_VARS.view_place_f` ..). `VIEW_VARS.view_angles[2]` .. `VIEW_VARS.view_angles[5]` 0
+/// `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[1]` the two angles, and the place also as whole numbers and floats
+/// (`crate::race::owner::race().frame.view_and_records.view_vars.view_x` / `crate::race::owner::race().frame.view_and_records.view_vars.view_z`, `crate::race::owner::race().frame.view_and_records.view_vars.view_place_f` ..). `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[2]` .. `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[5]` 0
 /// both ways.
 pub fn place_view() -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    let place = &VIEW_VARS.view_place;
-    place[0].set(COURSE.place_x.bits());
-    place[1].set(COURSE.place_y.bits());
-    place[2].set(COURSE.place_z.bits());
+    let place = &crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place;
+    place[0].set(crate::race::owner::race().course.course.place_x.bits());
+    place[1].set(crate::race::owner::race().course.course.place_y.bits());
+    place[2].set(crate::race::owner::race().course.course.place_z.bits());
     let zero = || {
         for a in [2, 4, 3, 5] {
-            VIEW_VARS.view_angles[a].set_bits(0);
+            crate::race::owner::race()
+                .frame
+                .view_and_records
+                .view_vars
+                .view_angles[a]
+                .set_bits(0);
         }
     };
-    if STAGE_PREFS.flat_depth.get() != 0 {
+    if crate::race::owner::race()
+        .course
+        .stage_prefs
+        .flat_depth
+        .get()
+        != 0
+    {
         let at = &CAR.camera_position[1];
-        at.set(at.get().wrapping_add(COURSE.flat_depth.bits()));
-        VIEW_VARS.view_angles[0].set_bits(COURSE.place_heading.get());
-        VIEW_VARS.view_angles[1].set(0x4000_0000u32);
+        at.set(
+            at.get()
+                .wrapping_add(crate::race::owner::race().course.course.flat_depth.bits()),
+        );
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_angles[0]
+            .set_bits(crate::race::owner::race().course.course.place_heading.get());
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_angles[1]
+            .set(0x4000_0000u32);
         zero();
         return Ok(());
     }
-    let first: u32 = COURSE.camera_first.get();
-    let second: u32 = COURSE.place_heading.get();
-    let back = (COURSE.flat_depth.get()).wrapping_neg();
+    let first: u32 = crate::race::owner::race().course.course.camera_first.get();
+    let second: u32 = crate::race::owner::race().course.course.place_heading.get();
+    let back = (crate::race::owner::race().course.course.flat_depth.get()).wrapping_neg();
     let [x1, z1, _] = crate::math::turn_point_xz_ecx::turn_point_xz_ecx(back as i32, 0, 0, first);
     let [x2, _, z2, _] = crate::math::turn_point_xz::turn_point_xz(0, z1 as i32, x1 as i32, second);
     place[0].set(place[0].get().wrapping_add(x2));
     place[1].set(place[1].get().wrapping_add(z1));
     place[2].set(place[2].get().wrapping_add(z2));
-    VIEW_VARS.view_angles[0].set_bits(second);
-    VIEW_VARS.view_angles[1].set(first);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_angles[0]
+        .set_bits(second);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_angles[1]
+        .set(first);
     zero();
-    VIEW_VARS.view_x.set(place[0].get());
-    VIEW_VARS.view_place_f[0].set_bits(from_int(place[0].get() as i32));
-    VIEW_VARS.view_place_f[1].set_bits(from_int(place[1].get() as i32));
-    VIEW_VARS.view_z.set(place[2].get());
-    VIEW_VARS.view_place_f[2].set_bits(from_int(place[2].get() as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_x
+        .set(place[0].get());
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[0]
+        .set_bits(from_int(place[0].get() as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[1]
+        .set_bits(from_int(place[1].get() as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_z
+        .set(place[2].get());
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[2]
+        .set_bits(from_int(place[2].get() as i32));
     Ok(())
 }
 
 /// `race::sky_matrix` (0x42725E): `g_madeObjectMatrix` for the sky: a turn about y by
-/// -(`STAGE_PREFS.sky_turn` << 8), placed at (0, `STAGE_PREFS.sky_height` << 8, 0) (into `OBJECT_WORK.place` ..),
+/// -(`crate::race::owner::race().course.stage_prefs.sky_turn` << 8), placed at (0, `crate::race::owner::race().course.stage_prefs.sky_height` << 8, 0) (into `OBJECT_WORK.place` ..),
 /// the copy with the place (`g_turnedMatrix`) scaled by (`DRAW.farthest_scaled` << 4) / 16
 /// (`OBJECT_WORK.size`, through `DRAW.scratch`), times `g_viewTurnMatrix`.
 pub fn sky_matrix() -> Result<(), BadInput> {
     use crate::scene::matrix;
-    let angle = (STAGE_PREFS.sky_turn.get() << 8).wrapping_neg();
+    let angle = (crate::race::owner::race().course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
     matrix::set_turn_y(angle);
-    let height = STAGE_PREFS.sky_height.get() << 8;
+    let height = crate::race::owner::race()
+        .course
+        .stage_prefs
+        .sky_height
+        .get()
+        << 8;
     OBJECT_WORK.place[0].set(0u32);
     OBJECT_WORK.place[2].set(0u32);
     OBJECT_WORK.place[1].set(height);
     matrix::set_place([0, height, 0]);
     matrix::copy_matrix_with_place(
-        &MATRICES.turn_y_matrix,
-        &MATRICES.placed_matrix,
-        &MATRICES.turned_matrix,
+        &crate::race::owner::race().frame.matrices.turn_y_matrix,
+        &crate::race::owner::race().frame.matrices.placed_matrix,
+        &crate::race::owner::race().frame.matrices.turned_matrix,
     );
     let size = DRAW.farthest_scaled.get() << 4;
     OBJECT_WORK.size.set(size);
     let scale = crate::math::x87::int_over_16(size as i32);
     DRAW.scratch.set_bits(scale);
-    for cell in &MATRICES.turned_matrix {
+    for cell in &crate::race::owner::race().frame.matrices.turned_matrix {
         cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
     }
     matrix::multiply_matrices(
-        &MATRICES.turned_matrix,
-        &MATRICES.view_turn_matrix,
-        &MATRICES.made_object_matrix,
+        &crate::race::owner::race().frame.matrices.turned_matrix,
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        &crate::race::owner::race().frame.matrices.made_object_matrix,
     );
     Ok(())
 }
@@ -235,38 +354,65 @@ pub fn sky_matrix() -> Result<(), BadInput> {
 /// the turn undone into `g_viewBackMatrix`.
 pub(super) fn view_place_tail() -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
-    let p = crate::session::read_bits(&VIEW_VARS.view_place).map(u32::wrapping_neg);
+    let p = crate::session::read_bits(
+        &crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_place,
+    )
+    .map(u32::wrapping_neg);
     matrix::set_place(p);
-    crate::math::cells::copy_cells(&MATRICES.placed_matrix, &MATRICES.view_place_matrix, 16);
-    matrix::multiply_matrices(
-        &MATRICES.placed_matrix,
-        &MATRICES.view_turn_matrix,
-        &MATRICES.view_matrix,
+    crate::math::cells::copy_cells(
+        &crate::race::owner::race().frame.matrices.placed_matrix,
+        &crate::race::owner::race().frame.matrices.view_place_matrix,
+        16,
     );
-    view_matrix::invert_turn(&MATRICES.view_turn_matrix, &MATRICES.view_back_matrix);
+    matrix::multiply_matrices(
+        &crate::race::owner::race().frame.matrices.placed_matrix,
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        &crate::race::owner::race().frame.matrices.view_matrix,
+    );
+    view_matrix::invert_turn(
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        &crate::race::owner::race().frame.matrices.view_back_matrix,
+    );
     Ok(())
 }
 
 /// `race::view_matrices` (0x4386A4): the view's matrices for the frame. With
-/// `GROUND_WORK.view_mirrored` set: `g_viewTurnMatrix` the kept turn (`MATRICES.view_turn_copy`). Else for the car's
+/// `GROUND_WORK.view_mirrored` set: `g_viewTurnMatrix` the kept turn (`crate::race::owner::race().frame.matrices.view_turn_copy`). Else for the car's
 /// views 0 .. 3 (`g_car` +0x684) the car's turn undone (`g_crashMatrix`); for the others
 /// the identity turned by the view's angles (fine y, fine x, z of `g_viewAngles`,
-/// `VIEW_VARS.view_angles[1]`, `VIEW_VARS.view_angles[2]`, each negated; then again by `VIEW_VARS.view_angles[3]` ..
-/// `VIEW_VARS.view_angles[5]`), each step `turn y`, `turn x`, `turn z` multiplied in. Views 1 and 2
+/// `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[1]`, `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[2]`, each negated; then again by `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[3]` ..
+/// `crate::race::owner::race().frame.view_and_records.view_vars.view_angles[5]`), each step `turn y`, `turn x`, `turn z` multiplied in. Views 1 and 2
 /// then roll with the car (`g_car` +0x648 by its speed, eased into `g_car` +0x6A0, turned
 /// about z). Then the place (see `view_place_tail`).
 pub fn view_matrices() -> Result<(), BadInput> {
     use crate::scene::matrix::multiply_matrices;
     use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
     let (view_turn, turn_y, turn_x, turn_z) = (
-        &MATRICES.view_turn_matrix,
-        &MATRICES.turn_y_matrix,
-        &MATRICES.turn_x_matrix,
-        &MATRICES.turn_z_matrix,
+        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        &crate::race::owner::race().frame.matrices.turn_y_matrix,
+        &crate::race::owner::race().frame.matrices.turn_x_matrix,
+        &crate::race::owner::race().frame.matrices.turn_z_matrix,
     );
-    let (turned, lit) = (&MATRICES.turned_matrix, &MATRICES.lit_matrix);
-    if GROUND_WORK.view_mirrored.get() != 0 {
-        crate::math::cells::copy_cells(&MATRICES.view_turn_copy, &view_turn, 16);
+    let (turned, lit) = (
+        &crate::race::owner::race().frame.matrices.turned_matrix,
+        &crate::race::owner::race().frame.matrices.lit_matrix,
+    );
+    if crate::race::owner::race()
+        .physics
+        .ground
+        .view_mirrored
+        .get()
+        != 0
+    {
+        crate::math::cells::copy_cells(
+            &crate::race::owner::race().frame.matrices.view_turn_copy,
+            &view_turn,
+            16,
+        );
         view_place_tail()?;
         return Ok(());
     }
@@ -274,19 +420,41 @@ pub fn view_matrices() -> Result<(), BadInput> {
     if view <= 3 {
         invert_turn(&CAR.crash_matrix, view_turn);
     } else {
-        crate::math::cells::copy_cells(&MATRICES.identity_matrix, &view_turn, 16);
+        crate::math::cells::copy_cells(
+            &crate::race::owner::race().frame.matrices.identity_matrix,
+            &view_turn,
+            16,
+        );
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
             set_fine_turn(
                 Axis::Y,
-                VIEW_VARS.view_angles[angles[0]].bits().wrapping_neg(),
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_angles[angles[0]]
+                    .bits()
+                    .wrapping_neg(),
             );
             set_fine_turn(
                 Axis::X,
-                VIEW_VARS.view_angles[angles[1]].bits().wrapping_neg(),
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_angles[angles[1]]
+                    .bits()
+                    .wrapping_neg(),
             );
             set_fine_turn(
                 Axis::Z,
-                VIEW_VARS.view_angles[angles[2]].bits().wrapping_neg(),
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_angles[angles[2]]
+                    .bits()
+                    .wrapping_neg(),
             );
             multiply_matrices(view_turn, turn_y, turned);
             multiply_matrices(turned, turn_x, lit);
@@ -295,29 +463,40 @@ pub fn view_matrices() -> Result<(), BadInput> {
     }
     if view == 1 || view == 2 {
         use crate::math::x87_load::{below_or_unordered, eased_roll, product4_to_int};
-        let mut v = crate::math::x87::div(CAR.local_velocity[2].bits(), NUMBERS.ten.bits());
-        if below_or_unordered(v, NUMBERS.zero.bits()) {
-            v = NUMBERS.zero.bits();
+        let mut v = crate::math::x87::div(
+            CAR.local_velocity[2].bits(),
+            crate::race::owner::race().course.numbers.ten.bits(),
+        );
+        if below_or_unordered(v, crate::race::owner::race().course.numbers.zero.bits()) {
+            v = crate::race::owner::race().course.numbers.zero.bits();
         }
-        if !below_or_unordered(v, NUMBERS.one.bits()) {
-            v = NUMBERS.one.bits();
+        if !below_or_unordered(v, crate::race::owner::race().course.numbers.one.bits()) {
+            v = crate::race::owner::race().course.numbers.one.bits();
         }
         DRAW.scratch.set_bits(v);
         let roll = eased_roll(
             CAR.steering_raw.get() as i32,
-            NUMBERS.k65536.bits(),
-            NUMBERS.one_over_two_pi.bits(),
+            crate::race::owner::race().course.numbers.k65536.bits(),
+            crate::race::owner::race()
+                .course
+                .numbers
+                .one_over_two_pi
+                .bits(),
             v,
-            NUMBERS.tenth.bits(),
+            crate::race::owner::race().course.numbers.tenth.bits(),
             CAR.camera_roll.bits(),
-            NUMBERS.half.bits(),
+            crate::race::owner::race().course.numbers.half.bits(),
         );
         CAR.camera_roll.set_bits(roll);
         let angle = product4_to_int(
             roll,
-            NUMBERS.k65536.bits(),
-            NUMBERS.k4096.bits(),
-            NUMBERS.one_over_two_pi.bits(),
+            crate::race::owner::race().course.numbers.k65536.bits(),
+            crate::race::owner::race().course.numbers.k4096.bits(),
+            crate::race::owner::race()
+                .course
+                .numbers
+                .one_over_two_pi
+                .bits(),
         ) << 4;
         DRAW.scratch.set_bits(angle);
         set_fine_turn(Axis::Z, angle);
@@ -328,30 +507,52 @@ pub fn view_matrices() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::camera_view` (0x438325): the view for the frame: `VIEW_VARS.view_car_flag_b`,
-/// `VIEW_VARS.view_car_flag_a`, `VIEW_VARS.view_car_stage` from `g_car` +0x6F0, +0x69C, +0x684;
+/// `race::camera_view` (0x438325): the view for the frame: `crate::race::owner::race().frame.view_and_records.view_vars.view_car_flag_b`,
+/// `crate::race::owner::race().frame.view_and_records.view_vars.view_car_flag_a`, `crate::race::owner::race().frame.view_and_records.view_vars.view_car_stage` from `g_car` +0x6F0, +0x69C, +0x684;
 /// then without `FRAME_SWITCHES.other_way` `race::place_view`; else the place from the car's
-/// camera (`g_car` +0x6A4 .., the angles from +0x6B0 .., `VIEW_VARS.view_scale` from +0x6C8)
+/// camera (`g_car` +0x6A4 .., the angles from +0x6B0 .., `crate::race::owner::race().frame.view_and_records.view_vars.view_scale` from +0x6C8)
 /// or, with `GROUND_WORK.view_mirrored`, from the crash (the kept turn made from
-/// `MATRICES.view_work` and `g_crashMatrix`, the place the car's raised by 0x8000), written as
+/// `crate::race::owner::race().frame.matrices.view_work` and `g_crashMatrix`, the place the car's raised by 0x8000), written as
 /// whole numbers and floats (also to `g_car` +0x734 ..), and `scene::set_view_window`; then
 /// `view_matrices`.
 pub fn camera_view() -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    VIEW_VARS
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
         .view_car_flag_b
         .set(CAR.camera_mode_is_2_or_3.get());
-    VIEW_VARS
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
         .view_car_flag_a
         .set(CAR.camera_switch_share.bits());
-    VIEW_VARS.view_car_stage.set(CAR.camera_view.get());
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_car_stage
+        .set(CAR.camera_view.get());
     if FRAME_SWITCHES.other_way.get() == 0 {
         place_view()?;
         view_matrices()?;
         return Ok(());
     }
-    let place: [u32; 3] = if GROUND_WORK.view_mirrored.get() == 0 {
-        VIEW_VARS.view_scale.set_bits(CAR.camera_zoom.bits());
+    let place: [u32; 3] = if crate::race::owner::race()
+        .physics
+        .ground
+        .view_mirrored
+        .get()
+        == 0
+    {
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_scale
+            .set_bits(CAR.camera_zoom.bits());
         for (from, to) in [
             (&CAR.camera_heading, 0usize),
             (&CAR.camera_pitch, 1),
@@ -360,60 +561,115 @@ pub fn camera_view() -> Result<(), BadInput> {
             (&CAR.camera_offset_turns[0], 4),
             (&CAR.camera_offset_turns[2], 5),
         ] {
-            VIEW_VARS.view_angles[to].set_bits(from.get());
+            crate::race::owner::race()
+                .frame
+                .view_and_records
+                .view_vars
+                .view_angles[to]
+                .set_bits(from.get());
         }
         crate::session::read_bits(&CAR.camera_position)
     } else {
         crate::scene::matrix::multiply_matrices(
-            &MATRICES.view_work,
+            &crate::race::owner::race().frame.matrices.view_work,
             &CAR.crash_matrix,
-            &MATRICES.turned_matrix,
+            &crate::race::owner::race().frame.matrices.turned_matrix,
         );
-        crate::scene::view_matrix::invert_turn(&MATRICES.turned_matrix, &MATRICES.view_turn_copy);
+        crate::scene::view_matrix::invert_turn(
+            &crate::race::owner::race().frame.matrices.turned_matrix,
+            &crate::race::owner::race().frame.matrices.view_turn_copy,
+        );
         let kept = &CAR.unknown_6cc;
         kept[0].set(CAR.position[0].get());
         kept[1].set(CAR.position[1].get().wrapping_add(0x8000));
         kept[2].set(CAR.position[2].get());
-        VIEW_VARS
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
             .view_scale
-            .set_bits(VIEW_VARS.view_scale_kept.bits());
+            .set_bits(
+                crate::race::owner::race()
+                    .frame
+                    .view_and_records
+                    .view_vars
+                    .view_scale_kept
+                    .bits(),
+            );
         [kept[0].get(), kept[1].get(), kept[2].get()]
     };
     for (k, &p) in place.iter().enumerate() {
         CAR.kept_view_place[k].set(p);
-        VIEW_VARS.view_place[k].set(p);
+        crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_place[k]
+            .set(p);
     }
-    VIEW_VARS.view_x.set(place[0]);
-    VIEW_VARS.view_z.set(place[2]);
-    VIEW_VARS.view_place_f[0].set_bits(from_int(place[0] as i32));
-    VIEW_VARS.view_place_f[1].set_bits(from_int(place[1] as i32));
-    VIEW_VARS.view_place_f[2].set_bits(from_int(place[2] as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_x
+        .set(place[0]);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_z
+        .set(place[2]);
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[0]
+        .set_bits(from_int(place[0] as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[1]
+        .set_bits(from_int(place[1] as i32));
+    crate::race::owner::race()
+        .frame
+        .view_and_records
+        .view_vars
+        .view_place_f[2]
+        .set_bits(from_int(place[2] as i32));
     crate::scene::set_view_window::set_view_window();
     view_matrices()?;
     Ok(())
 }
 
-/// `race::draw_sky` (0x455540): `race::fetch_view_value`; `COURSE.polygon_flags` 0; unless the
+/// `race::draw_sky` (0x455540): `race::fetch_view_value`; `crate::race::owner::race().course.course.polygon_flags` 0; unless the
 /// scene's mode (`LIGHT_STATE.draw_mode`) is 1 or 2: the sky (object 1 through `sky_matrix`,
 /// kept at 0x5EA34C, full light, `LIGHT_STATE.view_kind` 4 and `FRAME_SWITCHES.no_far_clip` 1
-/// while it is drawn by parts 1 .. 4); then with a sun (`STAGE_PREFS.fog_near` +
-/// `STAGE_PREFS.fog_far` not 0): its direction from `STAGE_PREFS.sky_turn` +
-/// `STAGE_PREFS.sun_turn` and `STAGE_PREFS.sun_height` (`FRAME_WORK.sun_floats` ..), turned by
-/// the sky's matrix (`FRAME_WORK.sun_points` ..), and when in front (z not below
-/// `NUMBERS.k4096_a`) its place on the screen (`FRAME_WORK.sun_place` / `FRAME_WORK.sun_hit`
-/// ..), `FRAME_WORK.sun_on_screen` 1 when on the screen, `FRAME_WORK.sun_size` its size (256
+/// while it is drawn by parts 1 .. 4); then with a sun (`crate::race::owner::race().course.stage_prefs.fog_near` +
+/// `crate::race::owner::race().course.stage_prefs.fog_far` not 0): its direction from `crate::race::owner::race().course.stage_prefs.sky_turn` +
+/// `crate::race::owner::race().course.stage_prefs.sun_turn` and `crate::race::owner::race().course.stage_prefs.sun_height` (`crate::race::owner::race().frame.frame_work.sun_floats` ..), turned by
+/// the sky's matrix (`crate::race::owner::race().frame.frame_work.sun_points` ..), and when in front (z not below
+/// `crate::race::owner::race().course.numbers.k4096_a`) its place on the screen (`crate::race::owner::race().frame.frame_work.sun_place` / `crate::race::owner::race().frame.frame_work.sun_hit`
+/// ..), `crate::race::owner::race().frame.frame_work.sun_on_screen` 1 when on the screen, `crate::race::owner::race().frame.frame_work.sun_size` its size (256
 /// less half its distance from the centre, at least 0).
 pub fn draw_sky() -> Result<(), Refused> {
     fetch_view_value()?;
-    COURSE.polygon_flags.set(0u32);
+    crate::race::owner::race()
+        .course
+        .course
+        .polygon_flags
+        .set(0u32);
     let mode: u32 = LIGHT_STATE.draw_mode.get();
     if mode == 1 || mode == 2 {
         return Ok(());
     }
     sky_matrix()?;
     crate::math::cells::copy_cells(
-        &MATRICES.made_object_matrix,
-        &MATRICES.object_matrix_slots,
+        &crate::race::owner::race().frame.matrices.made_object_matrix,
+        &crate::race::owner::race()
+            .frame
+            .matrices
+            .object_matrix_slots,
         16,
     );
     FRAME_SWITCHES.object_number.set_bits(1);
@@ -442,71 +698,101 @@ pub fn draw_sky() -> Result<(), Refused> {
 /// the sun is behind the view.
 fn place_sun() -> Result<(), Refused> {
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
-    FRAME_WORK.sun_on_screen.set_bits(0);
-    FRAME_WORK.sun_size.set_bits(0);
-    if STAGE_PREFS
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .set_bits(0);
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_size
+        .set_bits(0);
+    if crate::race::owner::race()
+        .course
+        .stage_prefs
         .fog_near
         .get()
-        .wrapping_add(STAGE_PREFS.fog_far.bits())
+        .wrapping_add(crate::race::owner::race().course.stage_prefs.fog_far.bits())
         == 0
     {
         return Ok(());
     }
-    let angle = STAGE_PREFS
+    let angle = crate::race::owner::race()
+        .course
+        .stage_prefs
         .sun_turn
         .get()
-        .wrapping_add(STAGE_PREFS.sky_turn.get())
+        .wrapping_add(crate::race::owner::race().course.stage_prefs.sky_turn.get())
         & 0xFF;
     DRAW.scratch.set_bits(angle);
     let dir = sun_direction(
         angle as i32,
-        NUMBERS.sixty_four.bits(),
-        FRAME_WORK.sun_depth.bits(),
-        STAGE_PREFS.sun_height.get() as i32,
-        NUMBERS.k98304.bits(),
+        crate::race::owner::race().course.numbers.sixty_four.bits(),
+        crate::race::owner::race().frame.frame_work.sun_depth.bits(),
+        crate::race::owner::race()
+            .course
+            .stage_prefs
+            .sun_height
+            .get() as i32,
+        crate::race::owner::race().course.numbers.k98304.bits(),
     );
     for (n, &d) in dir.iter().enumerate() {
-        FRAME_WORK.sun_floats[n].set_bits(d);
+        crate::race::owner::race().frame.frame_work.sun_floats[n].set_bits(d);
     }
     let turned = crate::scene::rotate_point::rotate_point(
-        &MATRICES.made_object_matrix,
+        &crate::race::owner::race().frame.matrices.made_object_matrix,
         [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
     );
     let place = turned.map(tbyte_to_int);
     for (n, &p) in place.iter().enumerate() {
-        FRAME_WORK.sun_points[n].set_bits(p);
+        crate::race::owner::race().frame.frame_work.sun_points[n].set_bits(p);
     }
     let z = crate::math::x87::from_int(place[2] as i32);
-    if crate::math::x87_load::below_or_unordered(z, NUMBERS.k4096_a.bits()) {
+    if crate::math::x87_load::below_or_unordered(
+        z,
+        crate::race::owner::race().course.numbers.k4096_a.bits(),
+    ) {
         return Ok(());
     }
-    let flat = STAGE_PREFS.flat_depth.get() != 0;
+    let flat = crate::race::owner::race()
+        .course
+        .stage_prefs
+        .flat_depth
+        .get()
+        != 0;
     let v = [
         place[0],
         place[1],
         place[2],
-        COURSE.flat_depth.get(),
+        crate::race::owner::race().course.course.flat_depth.get(),
         DRAW.view_scale.bits(),
         DRAW.view_centre[1].bits(),
         DRAW.view_centre[0].bits(),
     ];
     let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &DRAW.scratch);
-    FRAME_WORK.sun_place[0].set(fx);
-    FRAME_WORK.sun_hit[0].set(ix);
-    FRAME_WORK.sun_place[1].set(fy);
-    FRAME_WORK.sun_hit[1].set(iy);
+    crate::race::owner::race().frame.frame_work.sun_place[0].set(fx);
+    crate::race::owner::race().frame.frame_work.sun_hit[0].set(ix);
+    crate::race::owner::race().frame.frame_work.sun_place[1].set(fy);
+    crate::race::owner::race().frame.frame_work.sun_hit[1].set(iy);
     let on = ix < SCREEN.width.get() && iy < SCREEN.height.get();
-    FRAME_WORK.sun_on_screen.set(u32::from(on));
+    crate::race::owner::race()
+        .frame
+        .frame_work
+        .sun_on_screen
+        .set(u32::from(on));
     let size = sun_size(
         fx,
         DRAW.view_centre[0].bits(),
         fy,
         DRAW.view_centre[1].bits(),
-        NUMBERS.half.bits(),
-        NUMBERS.k256.bits(),
+        crate::race::owner::race().course.numbers.half.bits(),
+        crate::race::owner::race().course.numbers.k256.bits(),
     );
     DRAW.scratch.set_bits(size);
-    FRAME_WORK
+    crate::race::owner::race()
+        .frame
+        .frame_work
         .sun_size
         .set(if (size as i32) < 0 { 0 } else { size });
     Ok(())

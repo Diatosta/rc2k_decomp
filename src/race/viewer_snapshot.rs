@@ -11,7 +11,7 @@
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::race::find_snapshot_number::{SNAPSHOT, digits_place};
+use crate::race::find_snapshot_number::digits_place;
 
 /// The Rust version (see the header).
 pub fn viewer_snapshot() -> Result<(), Refused> {
@@ -30,7 +30,7 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
     if crate::platform::lock_surface() >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &crate::gfx::owner::gfx().shots,
-            Some(&SNAPSHOT.text()),
+            Some(&crate::race::owner::race().replay.snapshot.text()),
         )?;
         crate::platform::unlock_surface();
     }

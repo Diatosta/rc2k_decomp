@@ -7,16 +7,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::course_lists_store::COURSE_LISTS;
-use crate::race::course_store::COURSE;
-use crate::race::level_grid_store::LEVEL_GRID;
-use crate::race::numbers_store::NUMBERS;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -101,7 +95,11 @@ fn turned_to_view(f: &Face, triangle: usize) -> Result<u32, BadInput> {
         let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
             Ok((int(at[k] as i32) - ld(view_at.bits())) * ld(normal))
         };
-        let place = &VIEW_VARS.view_place_f;
+        let place = &crate::race::owner::race()
+            .frame
+            .view_and_records
+            .view_vars
+            .view_place_f;
         let (x, y, z) = (
             along(0, &place[0], normal[0])?,
             along(1, &place[1], normal[1])?,
@@ -143,15 +141,22 @@ fn frame_of(t: u32, f: u32, a: u32, b: u32) -> u32 {
 pub fn face_materials(face: &Face) -> Result<(), BadInput> {
     {
         let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
-        let (k1, k2) = (NUMBERS.ten.bits(), NUMBERS.quarter.bits());
+        let (k1, k2) = (
+            crate::race::owner::race().course.numbers.ten.bits(),
+            crate::race::owner::race().course.numbers.quarter.bits(),
+        );
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
-            let speed = table_byte(&STAGE_PREFS.face_speeds, object, "the face speeds")?;
+            let speed = table_byte(
+                &crate::race::owner::race().course.stage_prefs.face_speeds,
+                object,
+                "the face speeds",
+            )?;
             if speed == 0 {
                 return Ok(object);
             }
             let n = frame_of(
                 clock,
-                COURSE_LISTS.face_key_factors[speed as usize].bits(),
+                crate::race::owner::race().course.lists.face_key_factors[speed as usize].bits(),
                 k1,
                 k2,
             );
@@ -160,7 +165,11 @@ pub fn face_materials(face: &Face) -> Result<(), BadInput> {
             if first {
                 RACE_VIEW.face_frame.set(frame);
             }
-            table_byte(&STAGE_PREFS.face_places, place, "the face places")
+            table_byte(
+                &crate::race::owner::race().course.stage_prefs.face_places,
+                place,
+                "the face places",
+            )
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
@@ -335,7 +344,7 @@ pub fn first_set() -> TextureSet {
         order: &RACE_VIEW.order_a,
         size: &DRAW.polygon_textures[0],
         mapping: &RACE_VARS.mapping_a[0],
-        plain: &LEVEL_GRID.plain_first,
+        plain: &crate::race::owner::race().course.level_grid.plain_first,
         uv: &RACE_VIEW.corner_uv,
     }
 }
@@ -347,7 +356,7 @@ pub fn second_set() -> TextureSet {
         order: &RACE_VIEW.order_b,
         size: &DRAW.polygon_textures[1],
         mapping: &RACE_VARS.mapping_b[0],
-        plain: &LEVEL_GRID.plain_second,
+        plain: &crate::race::owner::race().course.level_grid.plain_second,
         uv: &RACE_VIEW.corner_uv_b,
     }
 }
@@ -425,7 +434,11 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::new_points`.
     {
         crate::race::frame_draw::points_there()?;
-        let count: u32 = COURSE.scene_point_count.get();
+        let count: u32 = crate::race::owner::race()
+            .course
+            .course
+            .scene_point_count
+            .get();
         let corners: [u32; 4] = crate::session::read_bits(&RACE_VIEW.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
@@ -651,13 +664,16 @@ fn halfway_record(
 ) {
     use crate::math::x87_float::{ld, st};
     use crate::math::x87_load::below_or_unordered;
-    let half = ld(NUMBERS.half.bits());
+    let half = ld(crate::race::owner::race().course.numbers.half.bits());
     for k in [4, 5, 6] {
         let (from, to) = (ld(a[k]), ld(b[k]));
         v[k] = st((to - from) * half + from);
     }
     (v[3], v[7]) = (0, 0);
-    if below_or_unordered(v[6], NUMBERS.k4096_a.bits()) {
+    if below_or_unordered(
+        v[6],
+        crate::race::owner::race().course.numbers.k4096_a.bits(),
+    ) {
         return;
     }
     crate::race::skidmarks::project_record(v);
@@ -668,7 +684,7 @@ fn halfway_record(
 /// +0x1A the halves of their sums (+0x1B left).
 fn halfway_entry(first: &PolygonEntry, second: &PolygonEntry, to: &PolygonEntry) {
     use crate::math::x87_float::{ld, st};
-    let half = ld(NUMBERS.half.bits());
+    let half = ld(crate::race::owner::race().course.numbers.half.bits());
     for o in [8, 0xC, 0x10, 0x14] {
         let sum = ld(second.word(o)) + ld(first.word(o));
         to.set_word(o, st(sum * half));
@@ -930,7 +946,7 @@ pub fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     let colour: u32 = DRAW.polygon_colour.get();
     let object = crate::race::course_places::face_field::<u8>(face, 1, "a course face")? as u32;
     // `object` is a byte: inside the 256 tints.
-    let tint = STAGE_PREFS.object_tints[object as usize].get();
+    let tint = crate::race::owner::race().course.stage_prefs.object_tints[object as usize].get();
     if tints(tint) {
         DRAW.polygon_colour
             .set(tinted(tint, colour, crate::race::frame_draw::has_mmx()));
@@ -960,7 +976,7 @@ mod asm_reference {
             let e = face + half;
             let p = get(e + 8)
                 .wrapping_mul(12)
-                .wrapping_add(COURSE.scene_points.bits());
+                .wrapping_add(crate::race::owner::race().course.course.scene_points.bits());
             let status: u16;
             let old = crate::race::store::OldPlaces::lay(&[0x6062a4, 0x6062a8, 0x6062ac]);
             core::arch::asm!(
@@ -1048,10 +1064,19 @@ mod asm_reference {
             crate::pointers::host(v + 0x1C)
                 .cast::<u32>()
                 .write_unaligned(0);
-            if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
+            if below_or_unordered(
+                get(v + 0x18),
+                crate::race::owner::race().course.numbers.k4096_a.bits(),
+            ) {
                 return;
             }
-            if STAGE_PREFS.flat_depth.get() != 0 {
+            if crate::race::owner::race()
+                .course
+                .stage_prefs
+                .flat_depth
+                .get()
+                != 0
+            {
                 let old = crate::race::store::OldPlaces::lay(&[
                     0x5ccd80, 0x62400c, 0x624088, 0x62409c, 0x6240a0,
                 ]);
@@ -1163,7 +1188,9 @@ mod asm_reference {
         at_each_control_word(|| {
             for _ in 0..20000 {
                 FRAME_SWITCHES.other_way.set(r.below(8));
-                COURSE
+                crate::race::owner::race()
+                    .course
+                    .course
                     .scene_points
                     .set(crate::pointers::game_address(points.as_ptr()));
                 for a in [0x6062A4, 0x6062A8, 0x6062AC] {
@@ -1225,22 +1252,38 @@ mod asm_reference {
         at_each_control_word(|| {
             for n in 0..20000 {
                 DRAW.scratch.set(0xAAAA_AAAAu32);
-                STAGE_PREFS.flat_depth.set((n % 2) as u32);
-                COURSE.flat_depth.set(r.int() as u32);
+                crate::race::owner::race()
+                    .course
+                    .stage_prefs
+                    .flat_depth
+                    .set((n % 2) as u32);
+                crate::race::owner::race()
+                    .course
+                    .course
+                    .flat_depth
+                    .set(r.int() as u32);
                 DRAW.view_scale.set_bits(r.float());
                 DRAW.view_centre[1].set_bits(r.float());
                 DRAW.view_centre[0].set_bits(r.float());
-                NUMBERS.half.set_bits(if r.below(2) == 0 {
-                    0x3F00_0000
-                } else {
-                    r.float()
-                });
+                crate::race::owner::race()
+                    .course
+                    .numbers
+                    .half
+                    .set_bits(if r.below(2) == 0 {
+                        0x3F00_0000
+                    } else {
+                        r.float()
+                    });
                 // mostly a depth the projection takes
-                NUMBERS.k4096_a.set_bits(if r.below(4) == 0 {
-                    r.float()
-                } else {
-                    0x4580_0000
-                });
+                crate::race::owner::race()
+                    .course
+                    .numbers
+                    .k4096_a
+                    .set_bits(if r.below(4) == 0 {
+                        r.float()
+                    } else {
+                        0x4580_0000
+                    });
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
                 v2.copy_from_slice(&v1);
@@ -1272,11 +1315,15 @@ mod asm_reference {
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                NUMBERS.half.set_bits(if r.below(2) == 0 {
-                    0x3F00_0000
-                } else {
-                    r.float()
-                });
+                crate::race::owner::race()
+                    .course
+                    .numbers
+                    .half
+                    .set_bits(if r.below(2) == 0 {
+                        0x3F00_0000
+                    } else {
+                        r.float()
+                    });
                 let entry = |r: &mut Rng| {
                     let e = PolygonEntry::zeroed();
                     for k in 0..10 {

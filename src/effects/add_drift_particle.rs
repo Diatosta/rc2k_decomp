@@ -16,7 +16,7 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::scene::matrix3::rounded;
 
 const FULL: u32 = 0xFFF;
@@ -55,7 +55,10 @@ pub fn add_drift_particle(
         put(0x38, 0x8000)?;
         put(0x3C, 0xFF00_0000)?;
         put(0x44, LIFE)?;
-        put(0x24, x87::loaded(MATRICES.view_place[13].bits()))?;
+        put(
+            0x24,
+            x87::loaded(race().frame.matrices.view_place[13].bits()),
+        )?;
     }
     Ok(())
 }

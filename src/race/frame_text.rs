@@ -3,9 +3,8 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::race::frame_counter_store::FRAME_COUNTER;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::text_state_store::TEXT_STATE;
 use crate::race::trap::Trap;
 use crate::scene::draw_store::DRAW;
 use crate::session::{Dword, SCREEN, Word};
@@ -18,10 +17,10 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    TEXT_STATE.text_mode.set(2);
+    race().frame.text_state.text_mode.set(2);
     let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
     DRAW.scratch.set(rate as u32);
-    if rate == 0 || FRAME_COUNTER.show.get() == 0 {
+    if rate == 0 || race().frame.counter.show.get() == 0 {
         return Ok(());
     }
     let t = crate::strings::text_from_ids::text_at();
@@ -133,12 +132,16 @@ const fn script_words() -> [Word; SCRIPT_WORDS] {
 }
 
 /// The credits; the first values are the image's.
-pub static CREDITS: Credits = Credits {
-    top: Dword::new(0),
-    clock: Dword::new(0),
-    done: Dword::new(0),
-    script: script_words(),
-};
+impl Credits {
+    pub const fn new() -> Self {
+        Credits {
+            top: Dword::new(0),
+            clock: Dword::new(0),
+            done: Dword::new(0),
+            script: script_words(),
+        }
+    }
+}
 
 /// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
 /// `dword_52984C` the screen's height + 0x15E, `dword_529854` 0, tune 2 by `sound`); else
@@ -159,10 +162,10 @@ pub fn roll_credits(
     let width = SCREEN.width.get() as i32;
     let height: u32 = SCREEN.height.get();
     if eax == 0 {
-        CREDITS.clock.set(tick_count());
+        race().frame.credits.clock.set(tick_count());
         let top = start_top(height);
-        CREDITS.top.set(top);
-        CREDITS.done.set(0);
+        race().frame.credits.top.set(top);
+        race().frame.credits.done.set(0);
         sound();
         return Ok(());
     }
@@ -178,7 +181,7 @@ pub fn roll_credits(
         }
     };
     // Unbounded: the script is read on to its end mark, as the original.
-    let mut at = crate::pointers::GamePtr::to(&CREDITS.script).unbounded();
+    let mut at = crate::pointers::GamePtr::to(&race().frame.credits.script).unbounded();
     let trap = Trap::new();
     let (lines, below) = lay_out(
         || {
@@ -187,20 +190,24 @@ pub fn roll_credits(
             v
         },
         width,
-        CREDITS.top.get() as i32,
+        race().frame.credits.top.get() as i32,
         |f| font_of(f).object().line_height.get() as i32,
     );
     trap.finish()?;
     for line in lines {
         credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
     }
-    let (top, clock, _) = catch_up(CREDITS.top.get(), CREDITS.clock.get(), tick_count);
-    CREDITS.top.set(top);
-    CREDITS.clock.set(clock);
+    let (top, clock, _) = catch_up(
+        race().frame.credits.top.get(),
+        race().frame.credits.clock.get(),
+        tick_count,
+    );
+    race().frame.credits.top.set(top);
+    race().frame.credits.clock.set(clock);
     if !rolled_off(below, AUDIO.music_stream.get().playing) {
         return Ok(());
     }
-    CREDITS.done.set(1);
+    race().frame.credits.done.set(1);
     Ok(())
 }
 
@@ -217,7 +224,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &CREDITS,
+            &race().frame.credits,
             CREDITS_START,
             CREDITS_START + CREDITS_LEN,
         );
@@ -228,11 +235,11 @@ mod block_tests {
         assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
         assert_eq!(
             crate::moved::place(CREDITS_START),
-            CREDITS.top.addr() as usize
+            race().frame.credits.top.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x529858),
-            (crate::pointers::game_address(CREDITS.script.as_ptr())) as usize
+            (crate::pointers::game_address(race().frame.credits.script.as_ptr())) as usize
         );
     }
 }

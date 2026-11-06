@@ -18,25 +18,26 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 pub fn object_turn_matrix() -> Result<(), Refused> {
-    let object = CONTACT_WORK.face_object.get();
+    let object = crate::race::owner::race().physics.contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
     set_turn_y(OBJECT_WORK.angles[0].get().wrapping_neg());
     let (out, turn_y, turn_x) = (
-        &MATRICES.object_turn_matrix,
-        &MATRICES.turn_y_matrix,
-        &MATRICES.turn_x_matrix,
+        &crate::race::owner::race().frame.matrices.object_turn_matrix,
+        &crate::race::owner::race().frame.matrices.turn_y_matrix,
+        &crate::race::owner::race().frame.matrices.turn_x_matrix,
     );
-    let (lit, turned) = (&MATRICES.lit_matrix, &MATRICES.turned_matrix);
+    let (lit, turned) = (
+        &crate::race::owner::race().frame.matrices.lit_matrix,
+        &crate::race::owner::race().frame.matrices.turned_matrix,
+    );
     for k in 0..16 {
         out[k].set_bits(turn_y[k].bits());
     }

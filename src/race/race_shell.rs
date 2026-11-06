@@ -3,7 +3,7 @@
 use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
@@ -76,7 +76,7 @@ pub fn release_stage_textures() {
 pub fn seal_stage_time() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::seal::seal_time`.
     {
-        let key = crate::race::replay::SEAL_KEY.get();
+        let key = crate::race::owner::race().replay.seal_key.get();
         let sealed = rc2k_core::race::seal::seal_time(
             CAR_BLOCKS.cars[0].stop_state.bits(),
             || CAR_BLOCKS.cars[0].stage_time.bits(),
@@ -114,10 +114,10 @@ pub fn copy_league_table() -> Result<(), BadInput> {
         if failed.get() {
             return Err(BadInput("a league record past the summary"));
         }
-        crate::session::write_bits(&crate::race::league_store::LEAGUE.names, l.firsts);
+        crate::session::write_bits(&crate::race::owner::race().course.league.names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {
             crate::session::write_first(
-                &crate::race::league_store::LEAGUE.rows[10 * k..10 * k + 10],
+                &crate::race::owner::race().course.league.rows[10 * k..10 * k + 10],
                 row,
             );
         }
@@ -129,7 +129,7 @@ pub fn copy_league_table() -> Result<(), BadInput> {
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
 fn start_value(kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
-    let record = &crate::race::car_specs_store::CAR_SPECS.cars[start_record(kind) as usize];
+    let record = &crate::race::owner::race().physics.car_specs.cars[start_record(kind) as usize];
     start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
@@ -169,9 +169,9 @@ pub fn set_start_states() -> Result<(), Refused> {
             RACE_VARS.race_car_kinds[0].bits()
         };
         let v = start_value(first_kind);
-        PANEL.start_values[0].set(v);
+        race().frame.panel_and_overlay.panel.start_values[0].set(v);
         let v = start_value(RACE_VARS.race_car_kinds[1].bits());
-        PANEL.start_values[1].set(v);
+        race().frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
             RACE_VARS.split.set_bits(0u32);
@@ -222,7 +222,9 @@ pub fn store_results_by_mode() {
             RACE_STATE.results.results[1]
                 .time
                 .set(CAR_BLOCKS.cars[1].stage_time.get());
-            let total = crate::physics::split_tables_store::SPLIT_TABLES
+            let total = crate::race::owner::race()
+                .physics
+                .split_tables
                 .stage_car_total
                 .get();
             RACE_STATE.results.results[0]

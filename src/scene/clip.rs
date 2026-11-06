@@ -20,8 +20,6 @@
 //! where they are copied.
 
 use crate::errors::BadInput;
-use crate::race::course_store::COURSE;
-use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
@@ -135,9 +133,14 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
                 DRAW.view_scale.bits(),
                 DRAW.view_centre[0].bits(),
                 DRAW.view_centre[1].bits(),
-                COURSE.flat_depth.bits(),
+                crate::race::owner::race().course.course.flat_depth.bits(),
             ];
-            let flat = STAGE_PREFS.flat_depth.bits() != 0;
+            let flat = crate::race::owner::race()
+                .course
+                .stage_prefs
+                .flat_depth
+                .bits()
+                != 0;
             to_screen(
                 &mut point,
                 &v,

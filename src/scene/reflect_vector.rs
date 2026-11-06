@@ -11,8 +11,7 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
-
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
@@ -20,18 +19,20 @@ use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 pub fn reflect_vector() {
     let (v, n): ([u32; 3], [u32; 3]) = (
-        crate::session::read_bits(&MATRICES.reflect_vector),
-        crate::session::read_bits(&MATRICES.reflect_normal),
+        crate::session::read_bits(&race().frame.matrices.reflect_vector),
+        crate::session::read_bits(&race().frame.matrices.reflect_normal),
     );
     // The vector, the normal, d.
     let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
     // The matrix is only read: a copy of its cells.
-    let m = MATRICES
+    let m = race()
+        .frame
+        .matrices
         .view_back_matrix
         .each_ref()
         .map(super::super::session::Float::bits);
     reflect(cells(&mut w), &m[..]);
-    crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
+    crate::session::write_bits(&race().frame.matrices.reflect_vector, [w[0], w[1], w[2]]);
     DRAW.scratch.set_bits(w[6]);
 }
 

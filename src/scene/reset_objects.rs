@@ -11,7 +11,6 @@
 //! memory.
 
 use crate::errors::BadInput;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -21,8 +20,12 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 pub fn reset_objects() -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
-            COURSE_LISTS.object_points.bits(),
-            COURSE_LISTS.object_points_room.bits(),
+            crate::race::owner::race().course.lists.object_points.bits(),
+            crate::race::owner::race()
+                .course
+                .lists
+                .object_points_room
+                .bits(),
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));

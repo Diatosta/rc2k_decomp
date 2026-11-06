@@ -23,7 +23,7 @@ use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::matrices_store::MATRICES;
+use crate::race::owner::race;
 use crate::scene::matrix3::{extended, rounded};
 
 const FULL: u32 = 0xFFF;
@@ -129,7 +129,10 @@ pub fn trail_particles(particles: &Particles, ring: &Ring, p: u32) -> Result<(),
                 0x40,
                 x87::over_int(PARTICLE_TUNING.trail_life_k.bits(), LIFE as i32),
             )?;
-            put(0x24, x87::loaded(MATRICES.view_place[13].bits()))?;
+            put(
+                0x24,
+                x87::loaded(race().frame.matrices.view_place[13].bits()),
+            )?;
         }
     }
     Ok(())

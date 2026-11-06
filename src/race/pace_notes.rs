@@ -74,7 +74,9 @@ impl Stage for GameStage {
         PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        crate::physics::pace_store::PACE
+        crate::race::owner::race()
+            .physics
+            .pace
             .distance_words
             .get(tens as usize)
     }
@@ -117,10 +119,10 @@ impl std::ops::DerefMut for Machine {
 
 /// The tables the machine works on: the pace store from `IMAGE_START` to its end.
 fn tables() -> GamePtr {
-    use crate::physics::pace_store::{END, PACE, START};
+    use crate::physics::pace_store::{END, START};
     const _: () = assert!(IMAGE_START as usize >= START && IMAGE_START as usize + IMAGE_LEN == END);
     // The tables are the image's bytes, read by the notes' own offsets.
-    GamePtr::to(&PACE).offset(IMAGE_START - START as u32)
+    GamePtr::to(&crate::race::owner::race().physics.pace).offset(IMAGE_START - START as u32)
 }
 
 impl Machine {

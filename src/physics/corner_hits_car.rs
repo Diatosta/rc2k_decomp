@@ -18,27 +18,33 @@
 use crate::errors::Refused;
 use crate::math::x87_float::{from_f80, ld, st};
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::contact_store::CONTACT_WORK;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Cell32;
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
-    let k = NUMBERS.k65536.bits();
-    let corner = CONTACT_WORK
+    let k = crate::race::owner::race().course.numbers.k65536.bits();
+    let corner = crate::race::owner::race()
+        .physics
+        .contact
         .corner_in
         .each_ref()
         .map(|x| ext_times(extended(x.bits()), k));
-    let turned = rotate_point(&CONTACT_WORK.corner_matrix, corner);
+    let turned = rotate_point(
+        &crate::race::owner::race().physics.contact.corner_matrix,
+        corner,
+    );
     for (n, e) in turned.iter().enumerate() {
-        x87_1(e, &CONTACT_WORK.corner_turned[n]);
+        x87_1(
+            e,
+            &crate::race::owner::race().physics.contact.corner_turned[n],
+        );
     }
     (0..3).all(|n| {
         abs_compare(
-            CONTACT_WORK.corner_turned[n].bits(),
-            CONTACT_WORK.box_size[n].bits(),
+            crate::race::owner::race().physics.contact.corner_turned[n].bits(),
+            crate::race::owner::race().physics.contact.box_size[n].bits(),
         ) & 0x100
             != 0
     })
@@ -50,7 +56,11 @@ pub fn corner_hits_car(block: u32) -> Result<(), Refused> {
     if !corner_inside() {
         return Ok(());
     }
-    CONTACT_WORK.corner_inside.set(1);
+    crate::race::owner::race()
+        .physics
+        .contact
+        .corner_inside
+        .set(1);
     { crate::physics::restore_saved_car::restore_saved_car() }?;
     { crate::physics::bump_cars::bump_cars(block) }?;
     Ok(())
@@ -63,7 +73,7 @@ pub fn corner_hits_car(block: u32) -> Result<(), Refused> {
 /// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
 fn x87_1(e: &[u8; 10], o: &impl Cell32) {
     let t0 = from_f80(*e);
-    let t1 = ld(NUMBERS.k65536.bits());
+    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t2 = t0 / t1;
     o.set_bits(st(t2));
 }

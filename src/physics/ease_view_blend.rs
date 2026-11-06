@@ -17,10 +17,8 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::car_store::CAR;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
@@ -54,25 +52,53 @@ fn x87_1() {
 /// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
 /// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
 fn x87_2() {
-    let t0 = ld(CAMERA_WORK.view_shift_b.bits());
-    let t1 = ld(CAMERA_WORK.view_shift_a.bits());
+    let t0 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_b
+        .bits());
+    let t1 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_a
+        .bits());
     let t2 = t0 - t1;
     let t3 = ld(RACE_TABLES.view_share.bits());
     let t4 = t2 * t3;
-    let t5 = ld(CAMERA_WORK.view_shift_a.bits());
+    let t5 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_a
+        .bits());
     let t6 = t4 + t5;
     CAR.camera_zoom.set_bits(st(t6));
-    let t7 = ld(CAMERA_WORK.view_shift_d.bits());
-    let t8 = ld(CAMERA_WORK.view_shift_c.bits());
+    let t7 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_d
+        .bits());
+    let t8 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_c
+        .bits());
     let t9 = t7 - t8;
     let t10 = ld(RACE_TABLES.view_share.bits());
     let t11 = t9 * t10;
-    let t12 = ld(CAMERA_WORK.view_shift_c.bits());
+    let t12 = ld(crate::race::owner::race()
+        .physics
+        .camera
+        .view_shift_c
+        .bits());
     let t13 = t11 + t12;
-    let t14 = ld(NUMBERS.k65536.bits());
+    let t14 = ld(crate::race::owner::race().course.numbers.k65536.bits());
     let t15 = t13 * t14;
     let t16 = -t15;
-    CAMERA_WORK.camera_offset_z.set_bits(to_int(t16) as u32);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .camera_offset_z
+        .set_bits(to_int(t16) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

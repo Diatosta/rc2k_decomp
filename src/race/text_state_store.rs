@@ -3,6 +3,8 @@
 //! `debug::draw`), and the two dwords after it (the debug font's pixel, kept per depth).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -22,8 +24,11 @@ pub struct TextState {
 
 /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
 /// `race::store::LEFT`), with the image's first values.
-pub static TEXT_STATE: TextState =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl TextState {
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x5C6604, the first byte of the piece.
 pub const START: usize = 0x5C6604;
@@ -35,7 +40,7 @@ const _: () = assert!(END - START == core::mem::size_of::<TextState>());
 /// Where IDA 0x5C6604 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&TEXT_STATE))
+    crate::pointers::game_address(std::ptr::from_ref(&race().frame.text_state))
 }
 
 #[cfg(test)]
@@ -45,7 +50,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&TEXT_STATE, START, END);
+        crate::gfx::first_values_are_the_games(&race().frame.text_state, START, END);
     }
 
     #[test]

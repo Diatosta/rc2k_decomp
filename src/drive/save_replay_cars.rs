@@ -9,7 +9,7 @@
 
 use crate::pointers::{Cells, GamePtr, copy_cells};
 use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_OFFSET};
-use crate::race::groups_store::{CARS_AND_REPLAY, CarsAndReplay};
+use crate::race::groups_store::CarsAndReplay;
 use crate::race::work_store::{RACE_WORK, RaceWork};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
@@ -32,7 +32,10 @@ pub fn piece_place(piece: StartPiece) -> GamePtr {
 /// the state (`CARS_AND_REPLAY` from car block 8); `save` copies the piece into the state,
 /// else the state back into the piece.
 pub fn copy_piece(piece: StartPiece, offset: usize, n: usize, save: bool) {
-    let state = (&CARS_AND_REPLAY, REPLAY_STATE_OFFSET + 4 * offset);
+    let state = (
+        &crate::race::owner::race().replay.cars_and_replay,
+        REPLAY_STATE_OFFSET + 4 * offset,
+    );
     let len = 4 * n;
     match piece {
         StartPiece::Car(k) => copy_between((&CAR_BLOCKS.cars[k as usize], 0), state, len, save),

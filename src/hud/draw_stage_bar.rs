@@ -17,8 +17,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
-use crate::race::overlay_store::RACE_OVERLAY;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use crate::session::Dword;
 
 pub fn set(hud: &Hud, n: usize, v: u32) {
@@ -41,7 +40,7 @@ pub fn quad(hud: &Hud, colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> 
 // Converted: `rc2k_core::hud::stage_bars`
 pub fn bars(hud: &Hud, kinds: &[&[Dword]], colour_vars: &[&Dword], dy: u32) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
-    let count = PANEL.overlay_parts.get();
+    let count = race().frame.panel_and_overlay.panel.overlay_parts.get();
     sb::check(count, kinds.len() as u32, |p, n| {
         kinds[p as usize][n as usize].get()
     })?;
@@ -55,7 +54,7 @@ pub fn bars(hud: &Hud, kinds: &[&[Dword]], colour_vars: &[&Dword], dy: u32) -> R
     hud.block.bar_width.set(sb::WIDTH);
     hud.block.ends[0].set_bits(0);
     hud.block.ends[1].set_bits(0);
-    let total = f32::from_bits(PANEL.overlay_miles.get());
+    let total = f32::from_bits(race().frame.panel_and_overlay.panel.overlay_miles.get());
     for n in 0..count {
         let left = count - n;
         // `kind` is a byte offset into the colours (the original's, unchecked).
@@ -72,7 +71,7 @@ pub fn bars(hud: &Hud, kinds: &[&[Dword]], colour_vars: &[&Dword], dy: u32) -> R
             to.set(c);
         }
         let end = sb::part_end(
-            RACE_OVERLAY.overlay_part_miles[n as usize].get(),
+            race().frame.panel_and_overlay.overlay.overlay_part_miles[n as usize].get(),
             hud.block.ends[1].get(),
             left == 1,
             total,
@@ -98,7 +97,7 @@ pub fn bars(hud: &Hud, kinds: &[&[Dword]], colour_vars: &[&Dword], dy: u32) -> R
 pub fn draw_stage_bar(hud: &Hud) -> Result<(), Refused> {
     bars(
         hud,
-        &[&RACE_OVERLAY.overlay_part_kinds_a],
+        &[&race().frame.panel_and_overlay.overlay.overlay_part_kinds_a],
         &[&hud.block.bar_colour],
         0,
     )

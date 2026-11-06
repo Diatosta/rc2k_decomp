@@ -11,40 +11,44 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub fn ease_view_turn() {
-    if REPLAY_FRAMES.step_first.get() != 0 {
+    if crate::race::owner::race()
+        .replay
+        .replay_frames
+        .step_first
+        .get()
+        != 0
+    {
         for share in [
-            &CAMERA_WORK.view_share_pitch,
-            &CAMERA_WORK.view_share_heading,
-            &CAMERA_WORK.view_share_roll,
+            &crate::race::owner::race().physics.camera.view_share_pitch,
+            &crate::race::owner::race().physics.camera.view_share_heading,
+            &crate::race::owner::race().physics.camera.view_share_roll,
         ] {
             share.set_bits(0x3F80_0000);
         }
     }
     for (target, turn, share) in [
         (
-            &CAMERA_WORK.start_heading,
+            &crate::race::owner::race().physics.camera.start_heading,
             &CAR.camera_heading,
-            &CAMERA_WORK.view_share_heading,
+            &crate::race::owner::race().physics.camera.view_share_heading,
         ),
         (
-            &CAMERA_WORK.start_pitch,
+            &crate::race::owner::race().physics.camera.start_pitch,
             &CAR.camera_pitch,
-            &CAMERA_WORK.view_share_pitch,
+            &crate::race::owner::race().physics.camera.view_share_pitch,
         ),
         (
-            &CAMERA_WORK.start_roll,
+            &crate::race::owner::race().physics.camera.start_roll,
             &CAR.camera_roll_turn,
-            &CAMERA_WORK.view_share_roll,
+            &crate::race::owner::race().physics.camera.view_share_roll,
         ),
     ] {
         DRAW.scratch.set(target.get().wrapping_sub(turn.get()));

@@ -22,7 +22,6 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 
@@ -114,7 +113,10 @@ pub fn steer_inputs() {
     CAR.steer_angle.set(CAR.steering.get().wrapping_add(trim));
     CAR.steer_angle_visual
         .set(CAR.steering_raw.get().wrapping_add(trim.wrapping_mul(4)));
-    if !c0(CAR.steering_damage.bits(), NUMBERS.hundred.bits()) {
+    if !c0(
+        CAR.steering_damage.bits(),
+        crate::race::owner::race().course.numbers.hundred.bits(),
+    ) {
         CAR.steer_angle.set(0);
         CAR.steer_angle_visual.set(0);
     }

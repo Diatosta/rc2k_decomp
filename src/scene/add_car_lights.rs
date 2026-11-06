@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
-use crate::physics::ground_store::GROUND_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -47,7 +46,11 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
         RACE_VARS.run_kind.bits()
     }
     fn drawn(&self) -> u32 {
-        GROUND_WORK.drawn_car_light.bits()
+        crate::race::owner::race()
+            .physics
+            .ground
+            .drawn_car_light
+            .bits()
     }
     fn viewed(&self) -> u32 {
         // The store holds two views; the original's index is not held to them.

@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
 use crate::pointers::GamePtr;
-use crate::race::panel_store::PANEL;
+use crate::race::owner::race;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
@@ -42,7 +42,7 @@ pub fn markers_with(hud: &Hud, record: GamePtr, rows: [u32; 2]) -> Result<(), Re
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(get(field)?),
-                f(PANEL.overlay_miles.get()),
+                f(race().frame.panel_and_overlay.panel.overlay_miles.get()),
                 hud.block.marker_k[0].get(),
                 hud.block.marker_k[1].get(),
             );

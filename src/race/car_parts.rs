@@ -5,12 +5,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
-use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::frame_store::FRAME_WORK;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::matrices_store::MATRICES;
-use crate::race::numbers_store::NUMBERS;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -74,16 +70,43 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     c.mode_on.set(s.mode_on);
     c.part_switches
         .write_at(0, &s.bytes, "a car block's switches")?;
-    let slow = below_or_unordered(c.electrics_damage.bits(), NUMBERS.hundred.bits());
+    let slow = below_or_unordered(
+        c.electrics_damage.bits(),
+        crate::race::owner::race().course.numbers.hundred.bits(),
+    );
     c.marks_count.set(marks_bytes(s.count, slow, on));
     c.shown_steering.set(steering(c.steer_angle_visual.bits()));
     let [front, rear_lift, height, front_z, _] = ax;
-    CAMERA_WORK.axle_front.set(front);
-    CAMERA_WORK.axle_front_neg.set(front.wrapping_neg());
-    CAMERA_WORK.axle_rear_lift.set(rear_lift);
-    CAMERA_WORK.axle_height.set(height);
-    CAMERA_WORK.axle_front_z.set(front_z);
-    CAMERA_WORK.car_axles.set(ax[4]);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .axle_front
+        .set(front);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .axle_front_neg
+        .set(front.wrapping_neg());
+    crate::race::owner::race()
+        .physics
+        .camera
+        .axle_rear_lift
+        .set(rear_lift);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .axle_height
+        .set(height);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .axle_front_z
+        .set(front_z);
+    crate::race::owner::race()
+        .physics
+        .camera
+        .car_axles
+        .set(ax[4]);
     OBJECT_WORK.size.set(0x10);
     OBJECT_WORK.part_values[2].set(c.shown_steering.get());
     OBJECT_WORK.part_values[0].set_bits(c.driven_wheel_turns[0].bits());
@@ -91,7 +114,11 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     for i in 0..3 {
         OBJECT_WORK.place[i].set_bits(c.position[i].bits());
     }
-    copy_cells(&c.crash_matrix, &MATRICES.body_turn_matrix, 16);
+    copy_cells(
+        &c.crash_matrix,
+        &crate::race::owner::race().frame.matrices.body_turn_matrix,
+        16,
+    );
     for i in 0..4 {
         OBJECT_WORK.part_weights[i].set_bits(c.wheel_spring_force[i].bits());
     }
@@ -100,10 +127,14 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         OBJECT_WORK.place[1].get(),
         OBJECT_WORK.place[2].get(),
     ]);
-    crate::math::cells::copy_cells(&MATRICES.placed_matrix, &FRAME_WORK.placed_matrices, 16);
+    crate::math::cells::copy_cells(
+        &crate::race::owner::race().frame.matrices.placed_matrix,
+        &crate::race::owner::race().frame.frame_work.placed_matrices,
+        16,
+    );
     // (x, z, the x turn, the height, the matrix): the four wheels.
-    let (c, o) = (&CAMERA_WORK, &OBJECT_WORK);
-    let parts = |n: usize| &FRAME_WORK.part_matrices[n..n + 16];
+    let (c, o) = (&crate::race::owner::race().physics.camera, &OBJECT_WORK);
+    let parts = |n: usize| &crate::race::owner::race().frame.frame_work.part_matrices[n..n + 16];
     for (n, (x, z, spin, lift, out)) in [
         (
             &c.axle_front_neg,
@@ -142,16 +173,29 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         }
         set_place([
             x.get().wrapping_neg(),
-            CAMERA_WORK.axle_rear_lift.get().wrapping_neg(),
+            crate::race::owner::race()
+                .physics
+                .camera
+                .axle_rear_lift
+                .get()
+                .wrapping_neg(),
             z.get().wrapping_neg(),
         ]);
         set_turn_x(spin.get());
-        let placed = &MATRICES.placed_matrix;
-        let turned = &MATRICES.turned_matrix;
-        let lit = &MATRICES.lit_matrix;
-        multiply_matrices(placed, &MATRICES.turn_x_matrix, turned);
+        let placed = &crate::race::owner::race().frame.matrices.placed_matrix;
+        let turned = &crate::race::owner::race().frame.matrices.turned_matrix;
+        let lit = &crate::race::owner::race().frame.matrices.lit_matrix;
+        multiply_matrices(
+            placed,
+            &crate::race::owner::race().frame.matrices.turn_x_matrix,
+            turned,
+        );
         set_turn_y(OBJECT_WORK.part_values[2].get());
-        multiply_matrices(turned, &MATRICES.turn_y_matrix, lit);
+        multiply_matrices(
+            turned,
+            &crate::race::owner::race().frame.matrices.turn_y_matrix,
+            lit,
+        );
         set_place([x.get(), lift.get(), z.get()]);
         multiply_matrices(lit, placed, out);
     }
@@ -185,24 +229,28 @@ pub fn ready_car_parts() -> Result<(), Refused> {
                 &block.body_matrix,
                 &block.place_matrix,
             ];
-            let parts = &FRAME_WORK.part_matrices;
+            let parts = &crate::race::owner::race().frame.frame_work.part_matrices;
             let from: [&[Float]; KEPT_MATRICES as usize] = [
                 &parts[..16],
                 &parts[16..32],
                 &parts[32..48],
                 &parts[48..],
-                &MATRICES.body_turn_matrix,
-                &FRAME_WORK.placed_matrices[..16],
+                &crate::race::owner::race().frame.matrices.body_turn_matrix,
+                &crate::race::owner::race().frame.frame_work.placed_matrices[..16],
             ];
             for (from, to) in from.into_iter().zip(kept) {
                 copy_cells(from, to, 16);
             }
             multiply_matrices(
-                &MATRICES.body_turn_matrix,
-                &FRAME_WORK.placed_matrices,
-                &MATRICES.view_place,
+                &crate::race::owner::race().frame.matrices.body_turn_matrix,
+                &crate::race::owner::race().frame.frame_work.placed_matrices,
+                &crate::race::owner::race().frame.matrices.view_place,
             );
-            copy_cells(&MATRICES.view_place, &block.whole_matrix, 16);
+            copy_cells(
+                &crate::race::owner::race().frame.matrices.view_place,
+                &block.whole_matrix,
+                16,
+            );
         }
         c += 1;
         if c == count {
