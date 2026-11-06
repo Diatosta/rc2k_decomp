@@ -244,6 +244,7 @@ pub mod state {
 
     /// g_localeDirectory, as a place limited to its room.
     pub fn locale_directory_place() -> crate::pointers::GamePtr {
+        // The second directory text of the buffer.
         crate::pointers::GamePtr::to(&DIRECTORIES)
             .offset(DIRECTORY_LEN)
             .limited(DIRECTORY_LEN)

@@ -84,6 +84,7 @@ pub fn poll_device(record: &InputDevice) -> Result<(), Refused> {
 /// effects' fields stand where the axes were meant).
 fn poll_shifted(record: &InputDevice) -> Result<(), Refused> {
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
+    // A run-on past the record, as the original's `esi` 0x50 on.
     let at = |offset: u32| GamePtr::to(record).offset(STATE_LEN as u32 + offset);
     let kind = at(8).read::<u32>("a device record's dword")?;
     let late = crate::input::devices::Deferred::default();

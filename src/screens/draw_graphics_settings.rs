@@ -45,9 +45,8 @@ pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         } else {
             disable_item(2)?;
         }
-        let mode = crate::pointers::GamePtr::to(&SCREEN_CHOICES.list)
-            .offset(0x10 * SCREEN_CHOICES.resolution.get());
-        let v = |i: u32| mode.offset(4 * i).read::<u32>("a screen mode");
+        let place = SCREEN_CHOICES.resolution.get();
+        let v = |i: usize| SCREEN_CHOICES.list.dword(place, i, "a screen mode");
         let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),

@@ -7,7 +7,6 @@
 use crate::errors::BadInput;
 use crate::input::store::{DEVICES, KEYBOARD};
 use crate::input::types::InputDevice;
-use crate::pointers::GamePtr;
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
 /// (+0x2C, +0x30, +0x34, +0x38).
@@ -48,11 +47,13 @@ pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
         return Ok(Moved { carry: true, eax });
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
-    let device = DEVICES.records[0].controller.get().wrapping_mul(0x50);
-    let axes: u32 = GamePtr::to(&DEVICES.controllers)
-        .offset(device)
-        .offset(0x14)
-        .read("a controller's axes")?;
+    // The original does not check the number: one past the table's 16 is refused.
+    let axes = DEVICES
+        .controllers
+        .get(DEVICES.records[0].controller.get() as usize)
+        .ok_or(BadInput("a controller's axes past the table"))?
+        .axis_bits
+        .get();
     let rest: [u32; 6] = std::array::from_fn(|n| KEYBOARD.axes_rest[n].get());
     Ok(
         match rc2k_core::input::devices::axis_moved(&now, &rest, axes) {

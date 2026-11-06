@@ -28,8 +28,6 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
-/// The wheel records, then the body's.
-const RECORDS: [u32; 5] = [0xD4, 0x11C, 0x164, 0x1AC, 0x1F4];
 /// The Rust version (see the header): `o` the car's object (the original's esi).
 pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
     o.whole()?;
@@ -69,7 +67,7 @@ pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
             o.put(p + 4 * n as u32, rounded(*v))?;
         }
     }
-    for (n, &r) in RECORDS[..4].iter().enumerate() {
+    for n in 0..4 {
         if n == 2 {
             write_bits(
                 &EMITTER.side_a,
@@ -84,11 +82,11 @@ pub fn emit_car_particles(o: &'static MarkCar) -> Result<(), Refused> {
             );
         }
         EMITTER.record.set(n as u32);
-        emit_wheel_particles(o.at(r), o)?;
+        emit_wheel_particles(&o.records[n], o)?;
     }
     let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
     write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
     write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
-    emit_body_particles(o.at(RECORDS[4]), o)?;
+    emit_body_particles(&o.records[4], o)?;
     Ok(())
 }

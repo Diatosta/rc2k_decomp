@@ -10,13 +10,12 @@
 //! Caller: `input::release_device`. The controller's number is not checked (as the
 //! original's).
 
-use crate::field;
-use crate::input::di_harness::controller_dword;
-use crate::input::types::{Controller, InputDevice};
+use crate::input::di_harness::entry_of;
+use crate::input::types::InputDevice;
 
 /// The Rust version (see the header).
 pub fn end_force(record: &InputDevice) -> Result<(), crate::errors::BadInput> {
-    if controller_dword(record, field!(Controller, force_feedback))? != 1 {
+    if entry_of(record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     let prop = crate::input::begin_force::dword_property(1);

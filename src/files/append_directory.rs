@@ -25,5 +25,6 @@ pub fn append_directory(path: GamePtr, cursor: GamePtr) -> Result<(GamePtr, bool
         return Ok((cursor, false));
     };
     cursor.write_bytes(directory, "a path being built")?;
+    // The cursor moved past the text just written.
     Ok((cursor.offset(directory.len() as u32), true))
 }

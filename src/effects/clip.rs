@@ -1,6 +1,7 @@
 //! The clip's and the glow's variables, out of the marks' block (phase 7, typed state):
 //! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
 
+use crate::d3d::vertices_store::Vertex;
 use crate::session::{Bytes, Dword, Float};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4, the image's layout; phase 7, typed state).
@@ -10,7 +11,20 @@ pub struct ClipScreen {
     /// 0x7687E4: `g_marksScreenMiddleX`, `g_marksScreenMiddleXLess`, `g_marksScreenMiddleY`, `g_marksScreenMiddleYLess`: the screen's middle and one less (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
     pub edges: [Float; 4],
     /// 0x7687F4: `g_marksClipVertices`: six `TLVertex`s (0x20 bytes each) `effects::clip_quad` builds the clipped quad in.
-    pub vertices: [[Dword; 8]; 6],
+    pub vertices: [Vertex; 6],
+}
+
+const fn zero_vertex() -> Vertex {
+    Vertex {
+        x: Float::from_bits(0),
+        y: Float::from_bits(0),
+        z: Float::from_bits(0),
+        rhw: Float::from_bits(0),
+        colour: Dword::new(0),
+        specular: Dword::new(0),
+        u: Float::from_bits(0),
+        v: Float::from_bits(0),
+    }
 }
 
 pub static CLIP: ClipScreen = ClipScreen {
@@ -20,7 +34,7 @@ pub static CLIP: ClipScreen = ClipScreen {
         Float::from_bits(0x43960000),
         Float::from_bits(0x43958000),
     ],
-    vertices: [const { [const { Dword::new(0x0) }; 8] }; 6],
+    vertices: [const { zero_vertex() }; 6],
 };
 
 impl ClipScreen {

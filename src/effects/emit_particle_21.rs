@@ -18,14 +18,12 @@
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::scene::matrix3::rounded;
 use crate::session::{Bytes, Dword, Float};
 
@@ -33,18 +31,25 @@ const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 
 /// The rate, from the wheel's +0xC.
-fn rate(wheel: GamePtr) -> Result<i32, Refused> {
+fn rate(wheel: &MarkRecord) -> Result<i32, Refused> {
     Ok({
         let [k1, k2, k3, k4] = KIND21_SET
             .rate_k
             .each_ref()
             .map(super::super::session::Float::bits);
-        x87::speed_rate_to_int(field(wheel, 0xC)?, k1, k2, k3, MARKS_FLOATS.one.bits(), k4)
+        x87::speed_rate_to_int(
+            wheel.speed_c.bits(),
+            k1,
+            k2,
+            k3,
+            MARKS_FLOATS.one.bits(),
+            k4,
+        )
     })
 }
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-fn refusal(wheel: GamePtr, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !gate_with(wheel, object, rate(wheel)?)?.passes {
             return Ok(None);
@@ -59,7 +64,7 @@ fn refusal(wheel: GamePtr, object: &'static MarkCar) -> Result<Option<&'static s
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(wheel, object)? {
             return Err(BadInput(why).into());
@@ -67,7 +72,7 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
         let g = gate_with(wheel, object, rate(wheel)?)?;
         RING_WORK.rate.set(g.rate as u32);
         if let Some(count) = g.count {
-            wheel.offset(4).write::<u32>(count, "a mark's field")?;
+            wheel.pace.set(count);
         }
         if !g.passes || next_entry()?.is_none() {
             return Ok(());
@@ -87,7 +92,7 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
                 matrix_cell(m, k)?,
                 b,
                 matrix_cell(m, 0x20 + k)?,
-                field(wheel, 0x3C + k)?,
+                wheel.place[k as usize / 4].bits(),
             ))
         })?;
         put(0x18, rounded(place[2]))?;
@@ -101,9 +106,9 @@ pub fn emit_particle_21(wheel: GamePtr, object: &'static MarkCar) -> Result<(), 
             );
             let f = [0, 1, 2].map(|i| KIND21_SET.motion_k[3 * k + i].bits());
             Ok(x87::three_products([
-                [first, field(wheel, 0x10)?, f[0]],
-                [third, field(wheel, 0x18)?, f[1]],
-                [third, field(wheel, 0xC)?, f[2]],
+                [first, wheel.speed_10.bits(), f[0]],
+                [third, wheel.speed_18.bits(), f[1]],
+                [third, wheel.speed_c.bits(), f[2]],
             ]))
         })?;
         put(0x34, motion[2])?;

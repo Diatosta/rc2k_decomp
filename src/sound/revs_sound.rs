@@ -17,10 +17,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::{ld, st};
-use crate::pointers::GamePtr;
-use crate::scene::x87_mem::fld;
-use crate::session::Cell32;
-use crate::sound::sets_store::SoundRequest;
+use crate::session::{Cell32, Dword};
+use crate::sound::sets_store::{SoundRequest, SoundSet};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 // ---- Rust version ----
@@ -37,14 +35,14 @@ pub fn revs_sound(
     let set = if computers(object) {
         crate::sound::sets_store::SoundKinds::computers_set()
     } else {
-        crate::sound::sets_store::SoundKinds::record(kind)?.offset(0x10)
+        &crate::sound::sets_store::SoundKinds::record(kind)?.revs
     };
-    let sound = revs_sound_number(object, set.read::<u32>("a sound set")?);
+    let sound = revs_sound_number(object, set.sound.get());
     request.sound.set(sound);
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    x87_1(so, set, &request.pitch, 0x18, 0x10);
+    x87_1(so, &set.pitch_scale, &set.pitch_low, &request.pitch);
     if so.view_flag.get() == 0 {
         x87_2(
             so,
@@ -53,7 +51,7 @@ pub fn revs_sound(
             &request.volume,
         );
     } else {
-        x87_1(so, set, &request.volume, 0x24, 0x1C);
+        x87_1(so, &set.volume_scale, &set.volume_low, &request.volume);
     }
     x87_3(so, &request.place);
     crate::sound::turn_parts::placed(request)
@@ -64,17 +62,11 @@ pub fn revs_sound(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `out = ([bx + 0x100] * [bp + o1]) + [bp + o2]` (`out` the request's +4 or +8)
-fn x87_1(
-    bx: &crate::sound::store::SoundObject,
-    bp: GamePtr,
-    out: &impl Cell32,
-    o1: usize,
-    o2: usize,
-) {
+fn x87_1(bx: &crate::sound::store::SoundObject, slope: &Dword, start: &Dword, out: &impl Cell32) {
     let t0 = ld(bx.revs_input.bits());
-    let t1 = fld(bp, o1);
+    let t1 = ld(slope.get());
     let t2 = t0 * t1;
-    let t3 = fld(bp, o2);
+    let t3 = ld(start.get());
     let t4 = t2 + t3;
     out.set_bits(st(t4));
 }
@@ -84,14 +76,14 @@ fn x87_1(
 /// `volume = (([bx + 0x100] * [bp + 0x24]) + [bp + 0x1C]) * [sf + 0x28]` (the request's +8)
 fn x87_2(
     bx: &crate::sound::store::SoundObject,
-    bp: GamePtr,
+    bp: &SoundSet,
     sf: &crate::sound::store::SurfaceSounds,
     volume: &impl Cell32,
 ) {
     let t0 = ld(bx.revs_input.bits());
-    let t1 = fld(bp, 0x24);
+    let t1 = ld(bp.volume_scale.get());
     let t2 = t0 * t1;
-    let t3 = fld(bp, 0x1C);
+    let t3 = ld(bp.volume_low.get());
     let t4 = t2 + t3;
     let t5 = ld(sf.revs_gain.bits());
     let t6 = t4 * t5;
@@ -151,15 +143,18 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
+                    let set = unsafe {
+                        &*(crate::pointers::host_at(a[1])
+                            as *const crate::sound::sets_store::SoundSet)
+                    };
                     x87_1(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        crate::pointers::GamePtr::new(a[1] as u32),
+                        &set.pitch_scale,
+                        &set.pitch_low,
                         &HostCell(a[2] + 4),
-                        0x18,
-                        0x10,
                     );
                 },
             },
@@ -191,7 +186,10 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        crate::pointers::GamePtr::new(a[1] as u32),
+                        unsafe {
+                            &*(crate::pointers::host_at(a[1])
+                                as *const crate::sound::sets_store::SoundSet)
+                        },
                         unsafe {
                             &*(crate::pointers::host_at(a[2])
                                 as *const crate::sound::store::SurfaceSounds)
@@ -219,15 +217,18 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2]) },
                 plain: |a| {
+                    let set = unsafe {
+                        &*(crate::pointers::host_at(a[1])
+                            as *const crate::sound::sets_store::SoundSet)
+                    };
                     x87_1(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        crate::pointers::GamePtr::new(a[1] as u32),
+                        &set.volume_scale,
+                        &set.volume_low,
                         &HostCell(a[2] + 8),
-                        0x24,
-                        0x1C,
                     );
                 },
             },

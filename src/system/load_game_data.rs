@@ -105,6 +105,7 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
             push_string(&mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
+            // The name bytes at their slot in the names buffer.
             crate::pointers::GamePtr::to(names)
                 .offset(name as u32)
                 .write_bytes(&bytes, "a default slot name")?;
@@ -132,6 +133,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     }
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
+        // The player's name bytes at their slot in the names buffer.
         let name = crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names)
             .offset((player * NAME_LEN) as u32);
         if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {

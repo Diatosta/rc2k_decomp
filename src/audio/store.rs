@@ -832,6 +832,7 @@ pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
             "a sample record's name key off the names",
         ));
     }
+    // A name's text by its key in the names buffer (read up to its NUL).
     Ok(crate::pointers::GamePtr::to(&SAMPLE_NAMES).offset(at as u32))
 }
 

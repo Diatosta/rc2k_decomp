@@ -51,12 +51,13 @@ pub enum Asked {
 pub fn show_version_and_leave() -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = GamePtr::to(&crate::fatal::state::CAPTION);
-    // byte_4F6702: its `:`
+    // byte_4F6702: its `:` (a byte of the caption text)
     caption
         .offset(5)
         .write(0u8, "the caption")
         .unwrap_or_else(|e| leave(e));
     let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
+    // The text from its seventh byte up to its NUL.
     let mut text = c_text(GamePtr::to(&START_TEXTS.version).offset(6), "the version");
     text.extend(*b"\t\r\n");
     // The second text is empty: its NUL is its one byte.

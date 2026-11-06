@@ -115,6 +115,7 @@ pub fn load_sounds(list: Option<SoundList>) -> Result<(), Refused> {
     let place = list_place(list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {
+        // A list of sounds run through past its array, as the original.
         match place.offset(n as u32 * 4).read::<u32>("a list of sounds") {
             Ok(entry) => entry,
             Err(e) => {

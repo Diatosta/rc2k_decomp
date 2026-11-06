@@ -14,7 +14,6 @@
 //! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and the
 //! emitters' refusals; on a refusal nothing stays written (all it may write is put back).
 
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::ring_store::RING_WORK;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -24,13 +23,12 @@ use crate::effects::{
 };
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 
 /// The chance and the random it would be met by, worked out without writing.
-fn chance(wheel: GamePtr) -> Result<(i32, u32), Refused> {
+fn chance(wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
     Ok({
-        let chance = x87::mul_to_int(field(wheel, 0x34)?, MARKS_FLOATS.two_pow_16.bits());
+        let chance = x87::mul_to_int(wheel.chance.bits(), MARKS_FLOATS.two_pow_16.bits());
         let r = EMITTER
             .wheel_random
             .get()
@@ -57,7 +55,7 @@ pub enum Table {
 pub fn emit(
     table: Table,
     kind: u32,
-    wheel: GamePtr,
+    wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     match kind {
@@ -79,23 +77,14 @@ pub fn emit(
 
 /// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
-pub fn emit_wheel_particles(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_wheel_particles(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         let (chance, _) = chance(wheel)?;
         RING_WORK.whole.set(chance as u32);
         let r = next_c5(&EMITTER.wheel_random);
         if copies(chance, r) {
-            let surface = [
-                field(wheel, 0x28)?,
-                field(wheel, 0x2C)?,
-                field(wheel, 0x30)?,
-            ];
-            for (n, v) in surface.iter().enumerate() {
-                wheel
-                    .offset(0x1C + 4 * n as u32)
-                    .write::<u32>(*v, "a mark's field")?;
-            }
+            wheel.take_surface();
         }
-        emit(Table::Wheel, field(wheel, 0x1C)?, wheel, object)
+        emit(Table::Wheel, wheel.kind.get(), wheel, object)
     }
 }

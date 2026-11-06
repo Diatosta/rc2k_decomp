@@ -47,6 +47,7 @@ use crate::math::x87_float::{X, int, ld, st};
 use crate::pointers::GamePtr;
 use crate::scene::x87_mem::{Base, fild, fld, mov};
 use crate::session::MACHINE;
+use crate::sound::sets_store::KindRecord;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
@@ -130,34 +131,23 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     );
     object.check()?;
     x87_1(so, record);
-    object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
+    so.throttle_input
+        .set_bits(over_256(from_int(so.throttle.get() as i32)));
     x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
-    let flags_failed = std::cell::Cell::new(None);
-    let flags = || {
-        record
-            .read::<u32>("a sound kind's flags")
-            .unwrap_or_else(|e| {
-                flags_failed.set(Some(e));
-                0
-            })
-    };
-    let low = state(&mut object, flags, clock, &mut left);
-    if let Some(e) = flags_failed.take() {
-        return Err(e.into());
-    }
+    let low = state(&mut object, || record.flags.get(), clock, &mut left);
     if let Some(low) = low {
         MACHINE.scratch.set(low);
         x87_3(&MACHINE.scratch, so);
     }
     x87_4(so, &crate::sound::store::RACE_CLOCK);
-    object.set(0x140, 0);
+    so.volume_factor.set_bits(0);
     x87_5(
         so,
         &crate::sound::store::RACE_CLOCK,
         &crate::sound::store::SURFACE_SOUNDS,
     );
-    object.set(0x140, 0x3F80_0000);
-    if object.get(0x134) as i32 > 0x3F80_0000 {
+    so.volume_factor.set_bits(0x3F80_0000);
+    if so.distance.bits() as i32 > 0x3F80_0000 {
         x87_6(so);
     }
     object.check()?;
@@ -169,11 +159,11 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[bx + 0x100] = (int [bx + 0x14] - [di + 4]) * [di + 0xC]`
-fn x87_1(bx: &crate::sound::store::SoundObject, di: GamePtr) {
+fn x87_1(bx: &crate::sound::store::SoundObject, di: &KindRecord) {
     let t0 = int(bx.revs.get() as i32);
-    let t1 = fld(di, 4);
+    let t1 = ld(di.revs_low.get());
     let t2 = t0 - t1;
-    let t3 = fld(di, 0xC);
+    let t3 = ld(di.revs_scale.get());
     let t4 = t2 * t3;
     bx.revs_input.set_bits(st(t4));
 }
@@ -297,7 +287,10 @@ mod asm_reference {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
                         },
-                        crate::pointers::GamePtr::new(a[1] as u32),
+                        unsafe {
+                            &*(crate::pointers::host_at(a[1])
+                                as *const crate::sound::sets_store::KindRecord)
+                        },
                     );
                 },
             },

@@ -16,12 +16,11 @@
 //! device's own.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::input::di_harness::controller_dword;
+use crate::input::di_harness::entry_of;
 use crate::input::di_objects::{Property, set_property};
 
 use crate::input::di_harness::fatal;
-use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use crate::input::types::{DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
@@ -42,7 +41,7 @@ pub fn dword_property(data: u32) -> DiPropDword {
 
 /// The Rust version (see the header).
 pub fn begin_force(record: &InputDevice) -> Result<(), Refused> {
-    if controller_dword(record, field!(Controller, force_feedback))? != 1 {
+    if entry_of(record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);

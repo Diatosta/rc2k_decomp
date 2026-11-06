@@ -13,22 +13,14 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
-use crate::session::Dword;
+use crate::session::{Dword, Float};
 use crate::sound::store::SoundObject;
-use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
-
-/// `v` as the dword at +`at` of the sound object `o`.
-pub fn put(o: &SoundObject, at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::to(o)
-        .offset(at)
-        .write::<u32>(v, "a sound object's dword")
-}
+use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
 /// Whether car `car` (a number) is listed; refused past 7.
 pub fn listed(car: u32) -> Result<bool, Refused> {
@@ -44,8 +36,8 @@ pub fn object() -> &'static SoundObject {
 }
 
 /// The place (with `offset` added to the car's, when given), turned and scaled, into
-/// the object at +`at` .. +`at` + 8.
-pub fn place(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result<(), BadInput> {
+/// the three floats `into`.
+pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
@@ -59,15 +51,14 @@ pub fn place(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result<(), B
     };
     let out = rotate_point(&MATRICES.view_turn_matrix, [part(0), part(1), part(2)]);
     let k = NUMBERS.one_over_65536.bits();
-    for (n, e) in out.iter().enumerate() {
-        put(o, at + 4 * n as u32, rounded(ext_times(*e, k)))?;
+    for (cell, e) in into.iter().zip(&out) {
+        cell.set_bits(rounded(ext_times(*e, k)));
     }
-    Ok(())
 }
 
-/// The converted place (`rc2k_core::physics::sound_places::place`) into the object at
-/// +`at` .. +`at` + 8.
-pub fn place_plain(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result<(), BadInput> {
+/// The converted place (`rc2k_core::physics::sound_places::place`) into the three floats
+/// `into`.
+pub fn place_plain(into: &[Float; 3], offset: Option<[u32; 3]>) {
     let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&CAR.position),
@@ -76,12 +67,19 @@ pub fn place_plain(o: &SoundObject, at: u32, offset: Option<[u32; 3]>) -> Result
         &std::array::from_fn(|n| f32::from_bits(MATRICES.view_turn_matrix[n].bits())),
         f32::from_bits(NUMBERS.one_over_65536.bits()),
     );
-    for (n, x) in p.iter().enumerate() {
-        GamePtr::to(o)
-            .offset(at + 4 * n as u32)
-            .write::<f32>(*x, "a sound object's float")?;
+    for (cell, x) in into.iter().zip(&p) {
+        cell.set(*x);
     }
-    Ok(())
+}
+
+/// The object's one-off sound slot that `slot` (the core's offsets) names: the sound, its
+/// band (the volume) and its place. Any other slot is refused.
+fn one_off(o: &SoundObject, slot: Slot) -> Result<(&Dword, &Dword, &[Float; 3]), BadInput> {
+    match slot {
+        FIRST => Ok((&o.hit_sound, &o.hit_volume, &o.hit_place)),
+        SECOND => Ok((&o.cue_sound, &o.cue_volume, &o.cue_place)),
+        _ => Err(BadInput("a sound object's slot not worked out")),
+    }
 }
 
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
@@ -94,10 +92,13 @@ pub fn cue_plain(
     band: u32,
     offset: Option<[u32; 3]>,
 ) -> Result<(), BadInput> {
-    put(o, slot.sound, sound)?;
-    put(o, slot.band, band)?;
-    place_plain(o, slot.place, offset)?;
-    put(o, PLAYING, PLAY)
+    let (sound_cell, band_cell, place_cells) = one_off(o, slot)?;
+    sound_cell.set(sound);
+    band_cell.set(band);
+    place_plain(place_cells, offset);
+    // +0x10 (`PLAYING`): the play switch, the cell the revs' new reading flag shares.
+    o.new_revs.set(PLAY);
+    Ok(())
 }
 
 /// `fild car; fisub listener`, as an 80-bit value.

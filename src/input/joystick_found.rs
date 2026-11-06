@@ -18,7 +18,6 @@
 //! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
 
 use crate::errors::BadInput;
-use crate::field;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
@@ -27,10 +26,7 @@ use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
-fn look_over(
-    instance: &DiDeviceInstance,
-    entry: &'static crate::session::Bytes<{ crate::input::store::CONTROLLER_LEN }>,
-) -> Result<bool, BadInput> {
+fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<bool, BadInput> {
     use crate::input::di_objects as di;
     let input = DEVICES.direct_input.get();
     let made = di::create_device(input, &instance.instance);
@@ -59,15 +55,13 @@ fn look_over(
     );
     let dev_type = instance.dev_type;
     let guid = instance.instance;
-    entry.set_u32(field!(Controller, dev_type) as usize, dev_type);
-    GamePtr::to(entry)
-        .offset(field!(Controller, instance))
-        .write(guid, "a controller's instance GUID")?;
+    entry.dev_type.set(dev_type);
+    entry.instance.write(&guid);
     // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = DEVICES.controller_count.get();
     let name = name_prefix(count);
-    let at_name = GamePtr::to(entry).offset(field!(Controller, name));
+    let at_name = GamePtr::to(&entry.name);
     at_name.write_bytes(&name, "a controller's name")?;
     use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
     use std::sync::atomic::Ordering::Relaxed;
@@ -87,13 +81,13 @@ fn look_over(
         caps.hats,
         DEVICES.no_force_feedback.get(),
     );
-    entry.set_u32(field!(Controller, caps_flags) as usize, f.caps_flags);
-    entry.set_u32(field!(Controller, axes) as usize, f.axes);
-    entry.set_u32(field!(Controller, buttons) as usize, f.buttons);
-    entry.set_u32(field!(Controller, hats) as usize, f.hats);
-    entry.set_u32(field!(Controller, attached) as usize, f.attached);
+    entry.caps_flags.set(f.caps_flags);
+    entry.axes.set(f.axes);
+    entry.buttons.set(f.buttons);
+    entry.hats.set(f.hats);
+    entry.attached.set(f.attached);
     if let Some(force) = f.force_feedback {
-        entry.set_u32(field!(Controller, force_feedback) as usize, force);
+        entry.force_feedback.set(force);
     }
     DEVICES.controller_count.set(count.wrapping_add(1));
     Ok(true)

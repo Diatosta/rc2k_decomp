@@ -22,7 +22,7 @@ use crate::input::types::InputDevice;
 pub fn release_device(record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     if device != 0 {
-        let effects = controller(record, 0x1C)? == 1;
+        let effects = controller(record)?.force_feedback.get() == 1;
         crate::input::di_objects::unacquire(device);
         if effects {
             crate::input::end_force::end_force(record)?;

@@ -16,17 +16,17 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
-use crate::input::types::InputDevice;
+use crate::input::types::{Controller, InputDevice};
 
 pub const CONTROLLERS: u32 = 16;
 
-/// The controller entry's dword at `offset` for the record's controller, or the refusal.
-pub fn controller(record: &InputDevice, offset: usize) -> Result<u32, Refused> {
+/// The record's controller entry, or the refusal.
+pub fn controller(record: &InputDevice) -> Result<&'static Controller, Refused> {
     let n = record.controller.get();
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(DEVICES.controllers[n as usize].get_u32(offset))
+    Ok(&DEVICES.controllers[n as usize])
 }
 
 /// The pending changes of the device `record`'s effects.
@@ -34,7 +34,7 @@ pub fn device_effects(record: &InputDevice) -> Result<(), Refused> {
     if record.effects_on.get() != 1 || record.device.get() == 0 {
         return Ok(());
     }
-    if controller(record, 0x1C)? != 1 {
+    if controller(record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     for effect in &record.effects {

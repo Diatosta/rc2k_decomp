@@ -134,16 +134,6 @@ const UNKNOWN_TRACK: FatalError = FatalError {
     message: "Unknown Shaun TrakNum",
 };
 
-/// The word of a track entry (`TrackEntry`) that holds its stage number (record +0x34 of
-/// the entry's start, 13 words in).
-const TRACK_STAGE_WORD: usize = 13;
-/// The track entry's two words copied into the race variables (word, variable): the
-/// entry's +0x1C and +0x20.
-const TRACK_TO_RACE: [(usize, &Dword); 2] = [
-    (7, &RACE_STATE.settings.track_1c),
-    (8, &RACE_STATE.settings.track_20),
-];
-
 /// Five settings words copied to the race variables (from, to).
 const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
     (&OPTION_WORK.setting_0, &RACE_STATE.settings.setting_0),
@@ -378,21 +368,21 @@ fn single_rally(
             .tracks
             .get(at)
             .ok_or(BadInput("a track past the pack"))?;
-        if entry[TRACK_STAGE_WORD].get() == stage {
+        if entry.stage.get() == stage {
             break entry;
         }
         at += 1;
         let next_first = match pack.tracks.get(at) {
-            Some(next) => next[0].get(),
+            Some(next) => next.name.get(),
             None => pack.end.get(),
         };
         if next_first == u32::MAX {
             return Err(UNKNOWN_TRACK.into());
         }
     };
-    for &(word, to) in &TRACK_TO_RACE {
-        to.set(entry[word].get());
-    }
+    // The entry's +0x1C (temperature) and +0x20 (wind) into the race variables.
+    RACE_STATE.settings.track_1c.set(entry.temperature.get());
+    RACE_STATE.settings.track_20.set(entry.wind.get());
     for &(from, to) in &SETTINGS_TO_RACE {
         to.set(from.get());
     }

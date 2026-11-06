@@ -90,12 +90,14 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 /// made and drawn at rows 0x80 .. 0xFD.
 fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
     {
+        // A file path (text up to its NUL) at a byte offset in the paths.
         read(crate::pointers::GamePtr::to(&PICTURE_COPY.paths).offset(path as u32))?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             PICTURE.buffer.get(),
             0,
             4 * COPIED as usize,
         )?);
+        // The ground's file path, a text up to its NUL, at the offset the settings name.
         read(
             crate::pointers::GamePtr::to(&GROUND_NAMES.names)
                 .offset(GROUND_NAMES.ground_path.get()),

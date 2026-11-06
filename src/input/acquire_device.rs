@@ -28,14 +28,11 @@
 //! are raised.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::field;
 use crate::input::devices::Deferred;
-use crate::input::di_harness::{controller_dword, entry_of, fatal};
+use crate::input::di_harness::{entry_of, fatal};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
-use crate::input::types::{
-    Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
-};
+use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
 use crate::session::Dword;
 use crate::session::MACHINE;
 use rc2k_core::input::acquire::{
@@ -95,7 +92,7 @@ fn settings(record: &D) -> Result<(), BadInput> {
             end_zone: end,
             axis_pick: pick,
         },
-        || late.get(controller_dword(record, field!(C, axes))),
+        || late.get(entry_of(record).map(|c| c.axes.get())),
         &config,
     );
     late.finish()?;
@@ -112,8 +109,8 @@ fn settings(record: &D) -> Result<(), BadInput> {
     }
     log_text(JOY_RVA);
     log_int(record.controller.get(), false);
-    log_int(controller_dword(record, field!(C, axes))?, false);
-    log_int(controller_dword(record, field!(C, buttons))?, false);
+    log_int(entry_of(record)?.axes.get(), false);
+    log_int(entry_of(record)?.buttons.get(), false);
     log_text(AXMODE_RVA);
     log_int(record.kind.get(), false);
     log_text(AXCODE_RVA);
@@ -122,7 +119,7 @@ fn settings(record: &D) -> Result<(), BadInput> {
     log_int(record.dead_zone.get(), false);
     log_int(record.end_zone.get(), false);
     log_text(FF_RVA);
-    log_int(controller_dword(record, field!(C, force_feedback))?, false);
+    log_int(entry_of(record)?.force_feedback.get(), false);
     log_int(record.strength.get(), true);
     Ok(())
 }
@@ -190,7 +187,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
     let step = acquire(
         record.controller.get(),
         DEVICES.controller_count.get(),
-        || late.get(controller_dword(record, field!(C, attached))),
+        || late.get(entry_of(record).map(|c| c.attached.get())),
         || record.device.get(),
     );
     late.finish()?;
@@ -200,10 +197,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
         Acquire::Acquire => {}
     }
     settings(record)?;
-    let at = field!(C, instance) as usize;
-    let instance: [u8; 16] = entry_of(record)?.read()[at..at + 16]
-        .try_into()
-        .expect("a GUID's 16 bytes");
+    let instance: [u8; 16] = entry_of(record)?.instance.read();
     let made = crate::input::di_objects::create_device(DEVICES.direct_input.get(), &instance);
     if crate::input::di_objects::store(&record.device, made) != 0 {
         return Err(NO_OBJECT.into());
@@ -224,7 +218,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
         return Err(fatal(0x8023_8313).into());
     }
     properties(record);
-    if controller_dword(record, field!(C, force_feedback))? == 1 {
+    if entry_of(record)?.force_feedback.get() == 1 {
         crate::input::begin_force::begin_force(record)?;
     }
     crate::input::di_objects::acquire(device);

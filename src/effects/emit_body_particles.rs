@@ -12,45 +12,32 @@
 //! on a refusal nothing stays written (all it may write is put back).
 
 use crate::effects::emit_wheel_particles::{Table, emit};
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::ring_store::RING_WORK;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
-fn prepare(record: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+fn prepare(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         let size = x87::int_times_to_int(object.word(0x90)? as i32, MARKS_FLOATS.three.bits());
         object.at(0x90).write::<i32>(size, "a mark's field")?;
-        record
-            .offset(4)
-            .write::<u32>(field(record, 4)?.wrapping_add(PACE), "a mark's field")?;
+        record.pace.set(record.pace.get().wrapping_add(PACE));
         EMITTER.record.set(2);
-        let flip = field(record, 0)? ^ 1;
-        record.write::<u32>(flip, "a mark's field")?;
+        let flip = record.flip.get() ^ 1;
+        record.flip.set(flip);
         if flip & 1 == 0 {
             EMITTER.record.set(3);
         }
-        record.offset(0xC).write::<u32>(0, "a mark's field")?;
-        let chance = x87::mul_to_int(field(record, 0x34)?, MARKS_FLOATS.two_pow_16.bits());
+        record.speed_c.set_bits(0);
+        let chance = x87::mul_to_int(record.chance.bits(), MARKS_FLOATS.two_pow_16.bits());
         RING_WORK.whole.set(chance as u32);
         let r = next_c5(&EMITTER.body_random);
         if ((r & 0xFFFF) as i32) < chance {
-            let surface = [
-                field(record, 0x28)?,
-                field(record, 0x2C)?,
-                field(record, 0x30)?,
-            ];
-            for (n, v) in surface.iter().enumerate() {
-                record
-                    .offset(0x1C + 4 * n as u32)
-                    .write::<u32>(*v, "a mark's field")?;
-            }
+            record.take_surface();
         }
     }
     Ok(())
@@ -58,9 +45,9 @@ fn prepare(record: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
 
 /// The Rust version (see the header): `record` the body's record (the original's edi),
 /// `object` the car's object (esi).
-pub fn emit_body_particles(record: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_body_particles(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         prepare(record, object)?;
-        emit(Table::Body, field(record, 0x1C)?, record, object)
+        emit(Table::Body, record.kind.get(), record, object)
     }
 }

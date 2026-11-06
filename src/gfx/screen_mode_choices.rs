@@ -43,7 +43,8 @@ use rc2k_core::gfx::mode_choices as mc;
 use crate::gfx::choices_store::SCREEN_CHOICES as CHOICES;
 use crate::gfx::screen_state::SCREEN_MODE;
 
-/// `system::find_entry` as the original uses it: the entry whose first dword is `key`, or
+/// `system::find_entry` as the original uses it (the mode tables are walked as bytes, a
+/// run-on past their last entry as the original): the entry whose first dword is `key`, or
 /// the place past the table's `count` entries.
 fn entry_or_past(key: u32, table: GamePtr, count: u32) -> Result<GamePtr, BadInput> {
     for n in 0..count {
@@ -60,9 +61,7 @@ fn read(at: GamePtr) -> Result<u32, BadInput> {
 
 /// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
 fn list_mode(place: u32) -> Result<u32, BadInput> {
-    GamePtr::to(&CHOICES.list)
-        .offset(16 * place + 0xC)
-        .read("a screen mode table's dword")
+    CHOICES.list.dword(place, 3, "a screen mode table's dword")
 }
 
 fn read_word(at: GamePtr) -> Result<u32, BadInput> {
@@ -88,6 +87,7 @@ fn modes_of(kind: u32) -> Option<Vec<GamePtr>> {
         if left <= 1 {
             break;
         }
+        // The mode table walked as bytes, its entries 8 bytes each (`Modes::table`).
         (found, at, left) = find_entry_with_bits(bits, at.offset(8), left - 1);
     }
     Some(modes)
@@ -177,17 +177,19 @@ fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> 
         let (size_key, kind_key) = mc::keys(mode);
         let size = entry_or_past(size_key, Modes::sizes_ptr(), 8)?;
         let kind = entry_or_past(kind_key, Modes::pixel_kinds_ptr(), 2)?;
+        // The entries' fields by offset: the place may be the one past the table, as the original.
         let l = mc::Listed {
             width: read_word(size.offset(4))?,
             height: read_word(size.offset(6))?,
             figure: read(kind.offset(4))?,
             mode,
         };
-        let slot = 16 * n;
-        CHOICES.list.set_u32(slot, l.width);
-        CHOICES.list.set_u32(slot + 4, l.height);
-        CHOICES.list.set_u32(slot + 8, l.figure);
-        CHOICES.list.set_u32(slot + 0xC, l.mode);
+        // `n` is below the list's 16: the room was checked before anything was written.
+        let slot = &CHOICES.list.modes[n];
+        slot.width.set(l.width);
+        slot.height.set(l.height);
+        slot.figure.set(l.figure);
+        slot.mode.set(l.mode);
         CHOICES.resolutions.set(CHOICES.resolutions.get() + 1);
         listed.push(l.mode);
     }
@@ -200,6 +202,7 @@ fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> 
     let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
         entry_or_past(mc::third_key(race), Modes::kinds_ptr(), 3)
+            // (a third's entry, the place past the table possible, as above)
             .and_then(|e| read(e.offset(4)))
             .unwrap_or_else(|e| {
                 failed.set(Some(e));

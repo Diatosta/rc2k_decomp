@@ -93,7 +93,7 @@ pub fn cars_particles() -> Result<(), Refused> {
         let car = &crate::effects::setup::marks()?.cars[n as usize];
         EMITTER.car.set(car_handle(n as usize));
         let whole = car.whole()?;
-        adjugate_matrix(whole, &car.words[0x94 / 4..]);
+        adjugate_matrix(whole, &car.head[0x94 / 4..]);
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
             let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
             for (k, x) in v.iter().enumerate() {

@@ -26,6 +26,7 @@ pub fn find_entry_with_bits(
     // Converted: `rc2k_core::system::tables::with_bits`.
     use rc2k_core::system::tables::with_bits;
     let found = with_bits(crate::system::find_entry::entries(table, count), bits);
+    // The entry's place in a caller's table by address (the original returns the pointer).
     match found {
         Some(n) => (true, table.offset(8 * n as u32), count - n as u32),
         None => (false, table.offset(count.wrapping_mul(8)), 0),

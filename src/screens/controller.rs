@@ -149,8 +149,8 @@ pub fn draw_controller_page(
         let c = Controller {
             // Kept in `dword_755A0C` as the original keeps it.
             record: record.addr(),
-            name: HeldText::Place(record.offset(0x30)),
-            has_strength: record.offset(0x1C).read::<u32>("a controller's record")? == 1,
+            name: HeldText::Place(crate::pointers::GamePtr::to(&entry.name)),
+            has_strength: entry.force_feedback.get() == 1,
             mode: p.controller_mode,
             strength: p.strength,
             sensitivity: p.sensitivity_level,

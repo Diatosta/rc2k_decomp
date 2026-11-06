@@ -55,10 +55,10 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
-                    let entry = crate::records::trakpak_entry::record_entry(r)?;
+                    let entry = crate::records::trakpak_entry::track_of(r)?;
                     Ok(Row::Stage {
-                        name: entry.read::<u32>("a track pack entry")?,
-                        length: entry.offset(0xC).read::<u32>("a track pack entry")?,
+                        name: entry.name()?,
+                        length: entry.length()?,
                         hhmm: r.record()?.hhmm(),
                     })
                 }

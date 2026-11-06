@@ -851,6 +851,114 @@ impl CueLists {
     }
 }
 
+/// One sound set of a kind's record (0x28 bytes; `sound::revs_sound`, `throttle_sound`,
+/// `speed_sound`): a sound number, three more values, and a pitch and a volume as a
+/// start, an end and the span between them (`race::sound_tables` makes the whole numbers
+/// floats and the spans once). The sound at the object's pitch is `input * scale + low`.
+/// The values are kept as bits: a whole number in the image until the tables are made ready.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct SoundSet {
+    /// +0: the sound's number, added to the object's `sound_offset`.
+    pub sound: Dword,
+    /// +4: a value made a float by `race::sound_tables::sound_row`, read by no sound code.
+    pub unknown_04: Dword,
+    /// +8: as +4.
+    pub unknown_08: Dword,
+    /// +0xC: as +4.
+    pub unknown_0c: Dword,
+    /// +0x10: the pitch at input 0.
+    pub pitch_low: Dword,
+    /// +0x14: the pitch's end (the span's second value).
+    pub pitch_high: Dword,
+    /// +0x18: the pitch span, `pitch_high - pitch_low`: the pitch's slope.
+    pub pitch_scale: Dword,
+    /// +0x1C: the volume at input 0.
+    pub volume_low: Dword,
+    /// +0x20: the volume's end.
+    pub volume_high: Dword,
+    /// +0x24: the volume span: the volume's slope.
+    pub volume_scale: Dword,
+}
+
+const SOUND_SET_LEN: usize = 0x28;
+const _: () = assert!(size_of::<SoundSet>() == SOUND_SET_LEN);
+
+impl SoundSet {
+    /// The set in `b` from byte `at` (each dword little-endian).
+    const fn from_slice(b: &[u8], at: usize) -> Self {
+        const fn word(b: &[u8], at: usize) -> Dword {
+            Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+        }
+        Self {
+            sound: word(b, at),
+            unknown_04: word(b, at + 0x04),
+            unknown_08: word(b, at + 0x08),
+            unknown_0c: word(b, at + 0x0C),
+            pitch_low: word(b, at + 0x10),
+            pitch_high: word(b, at + 0x14),
+            pitch_scale: word(b, at + 0x18),
+            volume_low: word(b, at + 0x1C),
+            volume_high: word(b, at + 0x20),
+            volume_scale: word(b, at + 0x24),
+        }
+    }
+
+    /// A set of zeros with the byte runs `runs` ((offset, bytes), as `with_runs`).
+    const fn from_runs(runs: &[(usize, &[u8])]) -> Self {
+        Self::from_slice(&with_runs::<SOUND_SET_LEN>(runs), 0)
+    }
+}
+
+/// A sound kind's record (0x88 bytes, `g_carSoundKinds`' entries): the revs' range and
+/// slope, then the engine's three sets.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct KindRecord {
+    /// +0: the kind's flags (`sound::car_engine_state`'s `state` reads them).
+    pub flags: Dword,
+    /// +4: the revs the engine's input starts from (a whole number made a float).
+    pub revs_low: Dword,
+    /// +8: the revs' end.
+    pub revs_high: Dword,
+    /// +0xC: first the span (`revs_high - revs_low`), then its reciprocal
+    /// (`race::sound_tables`): the engine input's slope.
+    pub revs_scale: Dword,
+    /// +0x10: the engine's revs sound (`sound::revs_sound`).
+    pub revs: SoundSet,
+    /// +0x38: the throttle sound (`sound::throttle_sound`).
+    pub throttle: SoundSet,
+    /// +0x60: the speed sound (`sound::speed_sound`).
+    pub speed: SoundSet,
+}
+
+const KIND_RECORD_LEN: usize = 0x88;
+const _: () = assert!(size_of::<KindRecord>() == KIND_RECORD_LEN);
+const _: () = assert!(core::mem::offset_of!(KindRecord, revs) == 0x10);
+const _: () = assert!(core::mem::offset_of!(KindRecord, throttle) == 0x38);
+const _: () = assert!(core::mem::offset_of!(KindRecord, speed) == 0x60);
+const _: () = assert!(core::mem::offset_of!(SoundSet, pitch_scale) == 0x18);
+const _: () = assert!(core::mem::offset_of!(SoundSet, volume_scale) == 0x24);
+
+impl KindRecord {
+    /// A record of zeros with the byte runs `runs` ((offset, bytes), as `with_runs`).
+    const fn from_runs(runs: &[(usize, &[u8])]) -> Self {
+        let b = with_runs::<KIND_RECORD_LEN>(runs);
+        const fn word(b: &[u8], at: usize) -> Dword {
+            Dword::new(u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]]))
+        }
+        Self {
+            flags: word(&b, 0),
+            revs_low: word(&b, 4),
+            revs_high: word(&b, 8),
+            revs_scale: word(&b, 0xC),
+            revs: SoundSet::from_slice(&b, 0x10),
+            throttle: SoundSet::from_slice(&b, 0x38),
+            speed: SoundSet::from_slice(&b, 0x60),
+        }
+    }
+}
+
 /// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
@@ -858,9 +966,9 @@ pub struct SoundKinds {
     /// 0x514F90: `g_carSoundKinds`: a pointer to each sound kind's record (`sound::car_engine_state`).
     pub kinds: [Dword; 36],
     /// 0x515020: `unk_515020` ..: the sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
-    pub records: [Bytes<136>; 34],
+    pub records: [KindRecord; 34],
     /// 0x516230: `g_computerCarSoundSet`: the computer's cars' set (`sound::revs_sound`).
-    pub computers: Bytes<40>,
+    pub computers: SoundSet,
     /// 0x516258: `unk_516258`: 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
     pub sines: [Float; 64],
     /// Not in the image: the bytes that fill the record to its 16-byte alignment.
@@ -907,7 +1015,7 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
         Dword::new(0x515928),
     ],
     records: [
-        Bytes::new(with_runs::<136>(&[
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (32, b"(#\x00\x00x\xe6"),
             (44, b"\x0e\x00\x00\x00 "),
@@ -917,8 +1025,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b"\x04"),
             (32, b"(#\x00\x00x\xe6"),
@@ -929,8 +1037,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\x08"),
             (32, b"(#\x00\x00x\xe6"),
@@ -941,8 +1049,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec \x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\x0c"),
             (32, b"(#\x00\x00x\xe6"),
@@ -953,8 +1061,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xeb\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\x10"),
             (32, b"(#\x00\x00x\xe6"),
@@ -965,8 +1073,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"\x14"),
             (32, b"(#\x00\x00x\xe6"),
@@ -977,8 +1085,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xeb\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\x18"),
             (32, b"(#\x00\x00x\xe6"),
@@ -989,8 +1097,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\x1c"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1001,8 +1109,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b" "),
             (32, b"(#\x00\x00x\xe6"),
@@ -1013,8 +1121,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b"$"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1025,8 +1133,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xea\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"("),
             (32, b"(#\x00\x00x\xe6"),
@@ -1037,8 +1145,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b","),
             (32, b"(#\x00\x00x\xe6"),
@@ -1049,8 +1157,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"0"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1061,8 +1169,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"4"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1073,8 +1181,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"8"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1085,8 +1193,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"<"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1097,8 +1205,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b"@"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1109,8 +1217,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b"D"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1121,8 +1229,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"H"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1133,8 +1241,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"L"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1145,8 +1253,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\x88\x13"),
             (16, b"P"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1157,8 +1265,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"T"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1169,8 +1277,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"X"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1181,8 +1289,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"\\"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1193,8 +1301,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xeb\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"`"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1205,8 +1313,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"d"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1217,8 +1325,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"h"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1229,8 +1337,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xec\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"l"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1241,8 +1349,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (0, b"\xea\x10\x00\x00\xd0\x07\x00\x00\x94\x11"),
             (16, b"p"),
             (32, b"\x98:\x00\x00\xe8\x80"),
@@ -1253,8 +1361,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xd0\x07\x00\x00\xa0\x0f"),
             (16, b"t"),
             (32, b"\xf0U\x00\x00\xe0\xab\x00\x00x\xe6"),
@@ -1264,8 +1372,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (1, b" \x00\x00\xb8\x0b\x00\x00\xa0\x0f"),
             (16, b"x"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1276,8 +1384,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"|"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1288,8 +1396,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\xa0\x0f"),
             (16, b"\x80"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1300,8 +1408,8 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
-        Bytes::new(with_runs::<136>(&[
+        ]),
+        KindRecord::from_runs(&[
             (4, b"\xd0\x07\x00\x00\x88\x13"),
             (16, b"\x84"),
             (32, b"(#\x00\x00x\xe6"),
@@ -1312,40 +1420,44 @@ pub static SOUND_KINDS: SoundKinds = SoundKinds {
             (96, b"\x88"),
             (112, b"PF\x00\x00\x80\xbb"),
             (124, b"\x04\x00\x00\x00\x14"),
-        ])),
+        ]),
     ],
-    computers: Bytes::new(with_runs::<40>(&[
+    computers: SoundSet::from_runs(&[
         (0, b"\x8a"),
         (
             17,
             b"`jF\x00|\x92G\x00`jG\x00\x00\x80A\x00\x00\x80B\x00\x00@B",
         ),
-    ])),
+    ]),
     sines: [const { Float::from_bits(0x0) }; 64],
     _tail: Bytes::new([0; 8]),
 };
 
 impl SoundKinds {
-    /// Kind `n`'s record (0x88 bytes; the original kept its address), a place in the whole
-    /// block: the sets in the record are read by offset from it. The kind past the table, or
-    /// a table entry off the records, is refused.
-    pub fn record(n: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    /// Kind `n`'s record. The kind past the table, or a table entry off the records, is
+    /// refused.
+    pub fn record(n: u32) -> Result<&'static KindRecord, crate::errors::BadInput> {
         let cell = SOUND_KINDS
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        let at = cell.get() as usize;
-        if !(Self::START..Self::START + Self::LEN).contains(&at) {
+        let at = (cell.get() as usize).wrapping_sub(Self::START + 36 * 4);
+        if !at.is_multiple_of(KIND_RECORD_LEN) {
             return Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             ));
         }
-        Ok(crate::pointers::GamePtr::to(&SOUND_KINDS).offset((at - Self::START) as u32))
+        SOUND_KINDS
+            .records
+            .get(at / KIND_RECORD_LEN)
+            .ok_or(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            ))
     }
 
     /// The computers' cars' set (40 bytes).
-    pub fn computers_set() -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&SOUND_KINDS.computers)
+    pub fn computers_set() -> &'static SoundSet {
+        &SOUND_KINDS.computers
     }
 
     pub const START: usize = 0x514F90;
@@ -3103,9 +3215,9 @@ mod tests {
         }
         for n in 0..36 {
             let record = SoundKinds::record(n).unwrap();
-            assert!(record.addr() as usize >= SoundKinds::home() + 36 * 4);
-            // The longest reads: the throttle and speed sets' last dword (+0x60 + 0x24).
-            record.offset(0x60 + 0x24).read::<u32>("a set").unwrap();
+            assert!(
+                crate::pointers::GamePtr::to(record).addr() as usize >= SoundKinds::home() + 36 * 4
+            );
         }
         let size = size_of::<SurfaceSets>();
         assert!(

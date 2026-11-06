@@ -74,6 +74,7 @@ pub fn open_property_set(o: &Opening, holder: u32) -> Result<bool, Refused> {
 /// room's entry. Refuses a room past the table (the original reads past it).
 pub fn set_eax_room(room: u32) -> Result<crate::pointers::GamePtr, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.
+    // The room's entry by the core's byte offset into the table.
     let at = crate::pointers::GamePtr::to(&AUDIO.eax_rooms)
         .offset(rc2k_core::audio::levels::eax_room_offset(room)?);
     let p = AUDIO.eax_properties.get();

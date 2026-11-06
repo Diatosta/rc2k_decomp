@@ -25,7 +25,7 @@
 //! shared (atomic cells and volatile bytes).
 
 use crate::errors::BadInput;
-use crate::input::types::InputDevice;
+use crate::input::types::{Controller, InputDevice};
 use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword, Float};
 
@@ -164,7 +164,7 @@ pub struct Devices {
     /// `g_controllerCount`.
     pub controller_count: Dword,
     /// `g_controllers`: 16 entries (`types::Controller`).
-    pub controllers: [Bytes<CONTROLLER_LEN>; 16],
+    pub controllers: [Controller; 16],
     /// `g_inputCommand`.
     pub input_command: Dword,
     /// 0x4F7DE8 .. 0x4F7E18: three GUIDs the effect slots point at.
@@ -199,11 +199,11 @@ const fn with_guid_refs(mut record: [u8; RECORD_LEN]) -> [u8; RECORD_LEN] {
     record
 }
 
-const fn controllers(runs: Runs, at: usize) -> [Bytes<CONTROLLER_LEN>; 16] {
-    let mut out = [const { Bytes::new([0; CONTROLLER_LEN]) }; 16];
+const fn controllers(runs: Runs, at: usize) -> [Controller; 16] {
+    let mut out = [const { Controller::from_le_bytes(&[0; CONTROLLER_LEN]) }; 16];
     let mut k = 0;
     while k < 16 {
-        out[k] = bytes(runs, at + CONTROLLER_LEN * k);
+        out[k] = Controller::from_le_bytes(&init::<CONTROLLER_LEN>(runs, at + CONTROLLER_LEN * k));
         k += 1;
     }
     out
@@ -297,6 +297,7 @@ impl Devices {
             return Ok(self.device(n));
         }
         let at = 4 * (n - self.input_devices.len());
+        // A run-on past the pointers into the first record's bytes, as the original.
         let held: u32 = GamePtr::to(&self.records[0])
             .offset(at as u32)
             .read("an input device past the table")?;

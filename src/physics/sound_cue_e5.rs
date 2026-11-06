@@ -23,9 +23,11 @@ pub fn sound_cue_e5_at(current: &Dword, listed: &[Dword; 8]) -> Result<(), Refus
     let object = cue_e5_object(current.get(), |car| listed[car as usize].get())?;
     if let Some(number) = object {
         let o = SoundObject::number(number)?;
-        for (offset, v) in CUE_E5 {
-            crate::physics::car_sounds::put(o, offset, v)?;
-        }
+        let [(_, sound), (_, volume), (_, play)] = CUE_E5;
+        o.cue_sound.set(sound);
+        o.cue_volume.set(volume);
+        // +0x10: the play switch, the cell the revs' new reading flag shares.
+        o.new_revs.set(play);
     }
     Ok(())
 }

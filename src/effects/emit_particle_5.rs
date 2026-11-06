@@ -20,13 +20,11 @@
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -68,7 +66,7 @@ pub static FIFTH: JitterSet = JitterSet {
 };
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-pub fn refusal(set: &JitterSet, wheel: GamePtr) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(set: &JitterSet, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !emits(set, wheel)? {
             return Ok(None);
@@ -83,9 +81,9 @@ pub fn refusal(set: &JitterSet, wheel: GamePtr) -> Result<Option<&'static str>, 
 }
 
 /// Whether the wheel's +0x18 passes the set's test.
-fn emits(set: &JitterSet, wheel: GamePtr) -> Result<bool, Refused> {
+fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
     Ok({
-        let speed = field(wheel, 0x18)? & 0x7FFF_FFFF;
+        let speed = wheel.speed_18.bits() & 0x7FFF_FFFF;
         if set.over_one {
             x87::to_int(speed) > 1
         } else {
@@ -95,21 +93,21 @@ fn emits(set: &JitterSet, wheel: GamePtr) -> Result<bool, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_5(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_5(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     emit_particle_5_with(&FIFTH, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_particle_5_with(
     set: &JitterSet,
-    wheel: GamePtr,
+    wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(field(wheel, 0x18)?) & 0x7FFF_FFFF;
+        let strength = x87::loaded(wheel.speed_18.bits()) & 0x7FFF_FFFF;
         EMITTER.strength.set_bits(strength);
         if !emits(set, wheel)? || next_entry()?.is_none() {
             return Ok(());
@@ -117,9 +115,9 @@ pub fn emit_particle_5_with(
         let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, field(wheel, 0x10)?))
+            (-1i32, x87::sub(strength, wheel.speed_10.bits()))
         } else {
-            (1, x87::add(strength, field(wheel, 0x10)?))
+            (1, x87::add(strength, wheel.speed_10.bits()))
         };
         EMITTER.sign.set(sign as u32);
         EMITTER.strength.set_bits(strength);
@@ -137,7 +135,7 @@ pub fn emit_particle_5_with(
                     matrix_cell(m, k)?,
                     b,
                     matrix_cell(m, 0x20 + k)?,
-                    field(wheel, 0x3C + k)?,
+                    wheel.place[k as usize / 4].bits(),
                     matrix_cell(m, 0x30 + k)?,
                 )
             })
@@ -160,7 +158,7 @@ pub fn emit_particle_5_with(
         })?;
         let (moved, last) =
             jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
-        let speed = field(wheel, 0x18)?;
+        let speed = wheel.speed_18.bits();
         for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             put(
@@ -172,7 +170,7 @@ pub fn emit_particle_5_with(
             0x54,
             x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
         )?;
-        put(0x58, field(wheel, 0x20)? & 0x3F)?;
+        put(0x58, wheel.flags.get() & 0x3F)?;
         put(0x60, ((last >> 2) & 0xFFF) + 0x7800)?;
         put(0x74, 0xFF00_0000)?;
         put(0x84, set.life)?;

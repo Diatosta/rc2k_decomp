@@ -20,14 +20,12 @@
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float, read_bits, write_bits};
 
@@ -85,15 +83,15 @@ impl BurstTuning {
 }
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
-fn strength(set: &BurstSet, n: usize, wheel: GamePtr) -> Result<(u32, i32), Refused> {
+fn strength(set: &BurstSet, n: usize, wheel: &MarkRecord) -> Result<(u32, i32), Refused> {
     Ok({
         let scale: u32 = MARKS_FLOATS.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(field(wheel, 0x10)?, set.tuning.strength_k.bits(), scale)
+            x87::times_kept_abs_to_int(wheel.speed_10.bits(), set.tuning.strength_k.bits(), scale)
         } else {
             x87::blend_kept_abs_to_int(
-                field(wheel, 0xC)?,
-                field(wheel, 0x18)?,
+                wheel.speed_c.bits(),
+                wheel.speed_18.bits(),
                 set.tuning.blend_k[0].bits(),
                 set.tuning.blend_k[1].bits(),
                 scale,
@@ -103,9 +101,9 @@ fn strength(set: &BurstSet, n: usize, wheel: GamePtr) -> Result<(u32, i32), Refu
 }
 
 /// The entries each half would make, worked out without writing.
-fn counts(set: &BurstSet, wheel: GamePtr) -> Result<[u32; 2], Refused> {
+fn counts(set: &BurstSet, wheel: &MarkRecord) -> Result<[u32; 2], Refused> {
     Ok({
-        let flags2 = field(wheel, 0x24)?;
+        let flags2 = wheel.flags2.get();
         if flags2 >> 6 == 0 {
             return Ok([0; 2]);
         }
@@ -128,9 +126,9 @@ fn counts(set: &BurstSet, wheel: GamePtr) -> Result<[u32; 2], Refused> {
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub fn refusal(set: &BurstSet, wheel: GamePtr) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if field(wheel, 0x24)? >> 6 == 0 {
+        if wheel.flags2.get() >> 6 == 0 {
             return Ok(None);
         }
         let [a, b] = counts(set, wheel)?;
@@ -142,21 +140,21 @@ pub fn refusal(set: &BurstSet, wheel: GamePtr) -> Result<Option<&'static str>, R
 }
 
 /// The Rust version (see the header).
-pub fn emit_bursts(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_bursts(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     emit_bursts_with(&FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_bursts_with(
     set: &BurstSet,
-    wheel: GamePtr,
+    wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(set, wheel)? {
             return Err(BadInput(why).into());
         }
-        let flags2 = field(wheel, 0x24)?;
+        let flags2 = wheel.flags2.get();
         SURFACE.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
@@ -218,7 +216,7 @@ pub fn emit_bursts_with(
                 let place: [u32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
-                        field(wheel, 0x3C + k4)?,
+                        wheel.place[k4 as usize / 4].bits(),
                         matrix_cell(m, 0x30 + k4)?,
                         h.sides[k].bits(),
                         side as i32,

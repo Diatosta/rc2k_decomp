@@ -565,7 +565,7 @@ use crate::math::x87_float as bh;
 
 /// `fld dword ptr [car + off]` of a car record in the settings.
 fn car_float(car: &MarkCar, off: usize) -> bh::X {
-    bh::ld(car.words[off / 4].get())
+    bh::ld(car.head[off / 4].get())
 }
 
 /// `fld dword ptr [m + off]` of the car's 3 x 3 matrix (the record's +0x94).
@@ -688,7 +688,7 @@ fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t6 = bh::ld(w.away[2].bits());
     let t7 = t1 * t6;
     w.away[2].set_bits(bh::st(t7));
-    let t8 = ldi_cell(&car.words[0x88 / 4]);
+    let t8 = ldi_cell(&car.head[0x88 / 4]);
     let t9 = bh::ld(f.one.bits()) / t8;
     let t10 = car_float(car, 0x4C);
     let t11 = t10 * t9;
@@ -721,7 +721,7 @@ fn pull_strength_x87(
     w: &RingWork,
     rk: &RingKinds,
 ) {
-    let t0 = ldi_cell(&car.words[0x88 / 4]);
+    let t0 = ldi_cell(&car.head[0x88 / 4]);
     let t1 = t0 * ld_cell(&rk.near_scale);
     let t2 = t1 + bh::ld(f.one.bits());
     let t3 = bh::ld(f.one.bits()) / t2;
@@ -1224,10 +1224,14 @@ mod asm_differential {
     /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
     fn car_with(at: usize, base: usize, offsets: &[usize]) -> MarkCar {
         let car = MarkCar {
-            words: std::array::from_fn(|_| Dword::new(0)),
+            head: std::array::from_fn(|_| Dword::new(0)),
+            records: std::array::from_fn(|_| {
+                crate::race::marks_settings_store::MarkRecord::zeroed()
+            }),
+            tail: std::array::from_fn(|_| Dword::new(0)),
         };
         for &o in offsets {
-            car.words[o / 4].set(word(at + o - base));
+            car.head[o / 4].set(word(at + o - base));
         }
         car
     }

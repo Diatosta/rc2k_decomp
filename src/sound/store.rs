@@ -170,8 +170,10 @@ pub struct SoundObject {
     pub pitch_factor: Float,
     /// +0x140: 1, or 1 / the distance when that is over 1.
     pub volume_factor: Float,
-    /// +0x144: not worked out (2 dwords).
-    pub _gap_144: [Dword; 2],
+    /// +0x144: the sound playing from the surface sets of eight (-2: none; `sound::surface_sound`).
+    pub eights_sound: Dword,
+    /// +0x148: the sound playing from the surface sets of four (-2: none).
+    pub fours_sound: Dword,
     /// +0x14C: seven timed sound slots of 0x18 bytes (`sound::car_slot_sounds` the first five, `sound::car_gear_sounds` the last two: +0x1C4 armed by `sound::car_engine_state` when the throttle drops at high revs, +0x1DC by its countdown at low throttle).
     pub slots: [SoundSlot; 7],
     /// +0x1F4: counts down (back-fires).
@@ -321,7 +323,8 @@ const fn initial_object(sound_offset: u32) -> SoundObject {
         approach: Float::from_bits(0),
         pitch_factor: Float::from_bits(0x3F800000),
         volume_factor: Float::from_bits(0),
-        _gap_144: [Dword::new(0xFFFFFFFE), Dword::new(0xFFFFFFFE)],
+        eights_sound: Dword::new(0xFFFFFFFE),
+        fours_sound: Dword::new(0xFFFFFFFE),
         slots: [
             SoundSlot {
                 sound: Dword::new(0xD6),

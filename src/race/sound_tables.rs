@@ -3,56 +3,47 @@
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::{Dword, Float};
-use crate::sound::sets_store::SOUND_KINDS;
-
-fn get(at: GamePtr) -> Result<u32, BadInput> {
-    at.read("a sound table word")
-}
-
-fn put(at: GamePtr, v: u32) -> Result<(), BadInput> {
-    at.write(v, "a sound table word")
-}
+use crate::sound::sets_store::{SOUND_KINDS, SoundSet};
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
 /// mask (`and 0xFF000000`).
-pub fn whole_to_float(at: GamePtr) -> Result<u32, BadInput> {
+pub fn whole_to_float(at: &Dword) -> u32 {
     // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
     // at every precision, so no exact twin).
-    let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at)?);
+    let (top, float) = rc2k_core::race::sound_tables::whole_to_float(at.get());
     if let Some(f) = float {
-        put(at, f)?;
+        at.set(f);
     }
-    Ok(top)
+    top
 }
 
 fn span_plain(second: u32, first: u32) -> u32 {
     rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
 }
 
-/// `race::sound_span` (0x40D71B), converted: the two dwords at `at` made floats, the third
-/// (at `at` + 8) their difference (`fld` / `fsub` / `fstp`). Its leftovers (eax, ebx) are
-/// read by no caller (`prepare_sound_tables` and `sound_row` only).
+/// `race::sound_span` (0x40D71B), converted: the two dwords `first` and `second` made
+/// floats, `span` (the dword after them) their difference (`fld` / `fsub` / `fstp`). Its
+/// leftovers (eax, ebx) are read by no caller (`prepare_sound_tables` and `sound_row` only).
 // Converted: `rc2k_core::race::sound_tables::span`.
-pub fn sound_span(at: GamePtr) -> Result<(), BadInput> {
-    whole_to_float(at)?;
-    whole_to_float(at.offset(4))?;
-    put(at.offset(8), span_plain(get(at.offset(4))?, get(at)?))
+pub fn sound_span(first: &Dword, second: &Dword, span: &Dword) {
+    whole_to_float(first);
+    whole_to_float(second);
+    span.set(span_plain(second.get(), first.get()));
 }
 
-/// `race::sound_row` (0x40D731), converted: a row at `row`: +4, +8, +0xC made floats, spans
+/// `race::sound_row` (0x40D731), converted: a set `row`: +4, +8, +0xC made floats, spans
 /// at +0x10 and +0x1C. Its leftovers are read by no caller.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
-pub fn sound_row(row: GamePtr) -> Result<(), BadInput> {
-    for off in [4, 8, 0xC] {
-        whole_to_float(row.offset(off))?;
+pub fn sound_row(row: &SoundSet) {
+    for cell in [&row.unknown_04, &row.unknown_08, &row.unknown_0c] {
+        whole_to_float(cell);
     }
-    sound_span(row.offset(0x10))?;
-    sound_span(row.offset(0x1C))
+    sound_span(&row.pitch_low, &row.pitch_high, &row.pitch_scale);
+    sound_span(&row.volume_low, &row.volume_high, &row.volume_scale);
 }
 
 /// Where `prepare_sound_tables` finds its variables (the game's, or a test's).
@@ -91,13 +82,12 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     v.done.set(1);
     for n in 0..RECORDS {
         let record = crate::sound::sets_store::SoundKinds::record(n)?;
-        sound_span(record.offset(4))?;
-        put(
-            record.offset(0xC),
-            reciprocal(f32::from_bits(get(record.offset(0xC))?)).to_bits(),
-        )?;
-        for k in 0..3 {
-            sound_row(record.offset(0x10 + 0x28 * k))?;
+        sound_span(&record.revs_low, &record.revs_high, &record.revs_scale);
+        record
+            .revs_scale
+            .set(reciprocal(f32::from_bits(record.revs_scale.get())).to_bits());
+        for set in [&record.revs, &record.throttle, &record.speed] {
+            sound_row(set);
         }
     }
     let (table, last) = sines();

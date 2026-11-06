@@ -32,36 +32,31 @@ pub fn surface_sound(
     set: GamePtr,
     request: &SoundRequest,
 ) -> Result<(), Refused> {
-    let object = o;
-    let o = GamePtr::to(o);
-    let w = |at: u32| o.offset(at).read::<u32>("a sound object's dword");
     // Converted: `rc2k_core::sound::surfaces::pick`.
     let eight = set.read::<u32>("a sound set")? == 1;
-    let late = std::cell::Cell::new(None);
-    let picked = surfaces::pick(eight, w(0)?, || {
-        w(0xC).unwrap_or_else(|e| {
-            late.set(Some(e));
-            0
-        })
-    });
-    if let Some(e) = late.take() {
-        return Err(e.into());
-    }
-    let (n, slot) = picked.map_err(BadInput::from)?;
+    let (n, slot) = surfaces::pick(eight, o.sound_offset.get(), || o.view_flag.get())
+        .map_err(BadInput::from)?;
+    // The core names the object's dword it replaces by its offset.
+    let playing = match slot {
+        0x144 => &o.eights_sound,
+        0x148 => &o.fours_sound,
+        _ => return Err(BadInput("a surface sound's slot not worked out").into()),
+    };
+    // The set is a list of dwords inside the sets' lists, read by position (no record of its own).
     let sound: u32 = set.offset(4 * (1 + n)).read("a sound set")?;
     record(sound)?;
-    if sound != w(slot)? {
-        let old = w(slot)?;
-        o.offset(slot).write(sound, "a sound object's dword")?;
+    if sound != playing.get() {
+        let old = playing.get();
+        playing.set(sound);
         request.sound.set(old);
         crate::sound::turn_parts::stop(request)?;
     }
-    let sound = w(slot)?;
+    let sound = playing.get();
     request.sound.set(sound);
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
     request.pitch.set(from_int(rate as i32));
     x87_1(&crate::sound::store::SURFACE_SOUNDS, &request.volume);
-    for (cell, place) in request.place.iter().zip(&object.place) {
+    for (cell, place) in request.place.iter().zip(&o.place) {
         cell.set(place.bits());
     }
     crate::sound::turn_parts::placed(request)

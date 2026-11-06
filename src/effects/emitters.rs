@@ -9,8 +9,7 @@ use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::session::{Bytes, Dword, Float};
 
 pub use crate::effects::ring_store::RING_WORK;
@@ -75,12 +74,6 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
         .ok_or_else(|| BadInput("a car matrix's cell past its end").into())
 }
 
-/// Reads a dword at an offset from a record inside a car's (a wheel's or the body's: slices
-/// of the car's anonymous words, no wheel type exists yet).
-pub fn field(record: GamePtr, offset: u32) -> Result<u32, Refused> {
-    Ok(record.offset(offset).read::<u32>("a mark's field")?)
-}
-
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
 pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
     crate::race::marks_settings_store::car_or_none(EMITTER.car.get())
@@ -110,29 +103,21 @@ pub struct Gate {
 /// least 1.5 times that sum (both signed), then kept as its remainder by it; the wheel's
 /// +0x10 or +0x18 not 0.
 pub fn gate(
-    wheel: GamePtr,
+    wheel: &MarkRecord,
     object: &'static MarkCar,
-    a: u32,
-    b: u32,
+    a: &Float,
+    b: &Float,
     k: &[crate::session::Float; 4],
 ) -> Result<Gate, Refused> {
     Ok({
         let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::Float::bits);
-        let rate = x87::rate_to_int(
-            field(wheel, a)?,
-            field(wheel, b)?,
-            k1,
-            k2,
-            k3,
-            MARKS_FLOATS.one.bits(),
-            k4,
-        );
+        let rate = x87::rate_to_int(a.bits(), b.bits(), k1, k2, k3, MARKS_FLOATS.one.bits(), k4);
         gate_with(wheel, object, rate)?
     })
 }
 
 /// The gate after the rate (see `gate`).
-pub fn gate_with(wheel: GamePtr, object: &'static MarkCar, rate: i32) -> Result<Gate, Refused> {
+pub fn gate_with(wheel: &MarkRecord, object: &'static MarkCar, rate: i32) -> Result<Gate, Refused> {
     Ok({
         let sum = object.word(0x90)?.wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {
@@ -142,7 +127,7 @@ pub fn gate_with(wheel: GamePtr, object: &'static MarkCar, rate: i32) -> Result<
                 passes: false,
             });
         }
-        let total = field(wheel, 4)?.wrapping_add(object.word(0x88)?);
+        let total = wheel.pace.get().wrapping_add(object.word(0x88)?);
         let limit = sum.wrapping_add(sum).wrapping_sub(sum >> 1);
         if (total as i32) < limit as i32 {
             return Ok(Gate {
@@ -153,7 +138,7 @@ pub fn gate_with(wheel: GamePtr, object: &'static MarkCar, rate: i32) -> Result<
         }
         // `xor edx, edx; idiv`: the dividend the unsigned total.
         let rest = (total as i64 % limit as i32 as i64) as u32;
-        let moving = field(wheel, 0x10)? != 0 || field(wheel, 0x18)? != 0;
+        let moving = wheel.speed_10.bits() != 0 || wheel.speed_18.bits() != 0;
         Gate {
             rate,
             count: Some(rest),

@@ -19,10 +19,42 @@
 
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
-use crate::pointers::GamePtr;
+use crate::race::state_store::RaceCar;
+use crate::session::Dword;
+use std::mem::offset_of;
 
-/// The device `record` set up from its controls at `controls` (see the header).
-pub fn set_up_device(record: &InputDevice, controls: GamePtr) -> Result<(), Refused> {
+// The controls run from the car's `controller` (+0) to the key bytes (+0x54): the words 0x20
+// and 0x48 are the gaps the car's record names.
+const _: () = assert!(offset_of!(RaceCar, controls_78) - offset_of!(RaceCar, controller) == 0x50);
+const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller) == 0x54);
+
+/// The device `record` set up from the controls of `car`, from its `controller` on (see the
+/// header).
+pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused> {
+    // The controls' words by their offset from `controller` (a quarter of it the index).
+    let words: [&Dword; 21] = [
+        &car.controller,
+        &car.gearing,
+        &car.sensitivity_level,
+        &car.axis_codes,
+        &car.controller_mode,
+        &car.dead_zone_1,
+        &car.dead_zone_2,
+        &car.strength,
+        &car._gap_4c,
+        &car.controls_50[0],
+        &car.controls_50[1],
+        &car.controls_50[2],
+        &car.controls_50[3],
+        &car.controls_50[4],
+        &car.controls_50[5],
+        &car.controls_50[6],
+        &car.controls_50[7],
+        &car.controls_50[8],
+        &car._gap_70,
+        &car.controls_74,
+        &car.controls_78,
+    ];
     // +0x414 .. +0x4DC: the reading flag, the hat's kind and the bindings.
     record.reading.set(0);
     record.hat_kind.set(0);
@@ -32,8 +64,8 @@ pub fn set_up_device(record: &InputDevice, controls: GamePtr) -> Result<(), Refu
         binding.sign.set(0);
         binding.button.set(0);
     }
-    let word = |from: u32| controls.offset(from).read::<u32>("a player's controls");
-    let n = word(0)?;
+    let word = |from: usize| words[from / 4].get();
+    let n = word(0);
     if n != 0 {
         record.controller.set(n - 1);
         for (to, from) in [
@@ -43,10 +75,10 @@ pub fn set_up_device(record: &InputDevice, controls: GamePtr) -> Result<(), Refu
             (&record.end_zone, 0x14),
             (&record.axis_code, 0xC),
         ] {
-            to.set(word(from)?);
+            to.set(word(from));
         }
         // Converted: `rc2k_core::input::devices::device_kind`.
-        let kind = word(8)?;
+        let kind = word(8);
         record.sensitivity.set(kind);
         record
             .kind
@@ -59,10 +91,10 @@ pub fn set_up_device(record: &InputDevice, controls: GamePtr) -> Result<(), Refu
         .iter()
         .zip(rc2k_core::input::devices::DEVICE_BINDINGS)
     {
-        let key: u8 = controls.offset(key as u32).read("a device's control key")?;
+        let key = car.keys.get(key - 0x54);
         let b = rc2k_core::input::devices::binding(
             key,
-            word(controls_word as u32)?,
+            word(controls_word),
             record.acquired.get() == 1,
         );
         binding.key.set(b[0]);

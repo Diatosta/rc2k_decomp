@@ -9,11 +9,107 @@
 use crate::session::{Dword, Float};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
-/// `effects::morph_object_points`, `effects::tidy_marks` read its words by offset).
+/// `effects::morph_object_points`, `effects::tidy_marks` read its words by offset). Its five
+/// wheel and body records (0x48 bytes each, from +0xD4) are typed; the rest is words.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkCar {
-    pub words: [Dword; CAR_LEN / 4],
+    /// +0x0 .. +0xD4: the car's words (the object's figures, the matrix at +0x94).
+    pub head: [Dword; RECORDS_AT / 4],
+    /// +0xD4: the four wheels' records, then the body's (+0x1F4).
+    pub records: [MarkRecord; RECORDS],
+    /// +0x23C ..: the car's other words.
+    pub tail: [Dword; (CAR_LEN - RECORDS_AT - RECORDS * RECORD_LEN) / 4],
+}
+
+/// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per
+/// wheel. Names are readings.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct MarkRecord {
+    /// +0x0: a flag the body's emitter flips each time (bit 0 the side).
+    pub flip: Dword,
+    /// +0x4: the pace counter the emitters' rate gates keep (an integer count, or a float
+    /// remainder after `emit_kind_1`).
+    pub pace: Dword,
+    /// +0x8: not named.
+    pub unknown_8: Dword,
+    /// +0xc: a speed figure (`emit_kind_1`, the bursts, kind 6, kind 21); the body's is cleared.
+    pub speed_c: Float,
+    /// +0x10: a speed figure; the gates test it for 0.
+    pub speed_10: Float,
+    /// +0x14: not named.
+    pub unknown_14: Dword,
+    /// +0x18: a speed figure; the gates test it for 0.
+    pub speed_18: Float,
+    /// +0x1c: the surface kind the emitters go by (copied from +0x28).
+    pub kind: Dword,
+    /// +0x20: the surface flags (copied from +0x2c); bits 6 and up count entries.
+    pub flags: Dword,
+    /// +0x24: the second flags word (copied from +0x30); bits 6 and up count entries.
+    pub flags2: Dword,
+    /// +0x28: the kind of the surface under the wheel.
+    pub under_kind: Dword,
+    /// +0x2c: the flags of the surface under the wheel.
+    pub under_flags: Dword,
+    /// +0x30: the second flags of the surface under the wheel.
+    pub under_flags2: Dword,
+    /// +0x34: the chance (a float) the surface under the wheel becomes the current one.
+    pub chance: Float,
+    /// +0x38: the body's size figure (`emit_particle_18`).
+    pub size: Float,
+    /// +0x3c: the wheel's place (three floats, turned by `emit_car_particles`).
+    pub place: [Float; 3],
+}
+
+/// A wheel's or body's record length.
+pub const RECORD_LEN: usize = 0x48;
+/// Where the car's records begin.
+pub const RECORDS_AT: usize = 0xD4;
+/// The records a car has: four wheels, then the body.
+pub const RECORDS: usize = 5;
+
+const _: () = assert!(std::mem::size_of::<MarkRecord>() == RECORD_LEN);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, pace) == 0x4);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, speed_c) == 0xC);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, speed_18) == 0x18);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, kind) == 0x1C);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, under_kind) == 0x28);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, chance) == 0x34);
+const _: () = assert!(std::mem::offset_of!(MarkRecord, place) == 0x3C);
+const _: () = assert!(std::mem::size_of::<MarkCar>() == CAR_LEN);
+const _: () = assert!(std::mem::offset_of!(MarkCar, records) == RECORDS_AT);
+
+impl MarkRecord {
+    /// A record of zeros (for the tests' stand-in cars).
+    #[cfg(all(test, target_arch = "x86"))]
+    pub fn zeroed() -> Self {
+        Self {
+            flip: Dword::new(0),
+            pace: Dword::new(0),
+            unknown_8: Dword::new(0),
+            speed_c: Float::from_bits(0),
+            speed_10: Float::from_bits(0),
+            unknown_14: Dword::new(0),
+            speed_18: Float::from_bits(0),
+            kind: Dword::new(0),
+            flags: Dword::new(0),
+            flags2: Dword::new(0),
+            under_kind: Dword::new(0),
+            under_flags: Dword::new(0),
+            under_flags2: Dword::new(0),
+            chance: Float::from_bits(0),
+            size: Float::from_bits(0),
+            place: std::array::from_fn(|_| Float::from_bits(0)),
+        }
+    }
+
+    /// The surface under the wheel becomes the current one (+0x28 .. +0x30 to +0x1C .. +0x24).
+    pub fn take_surface(&self) {
+        self.kind.set(self.under_kind.get());
+        self.flags.set(self.under_flags.get());
+        self.flags2.set(self.under_flags2.get());
+    }
 }
 
 /// A car record's length.

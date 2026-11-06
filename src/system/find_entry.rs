@@ -32,6 +32,7 @@ pub fn find_entry(key: u32, table: GamePtr, count: u32) -> Result<Option<GamePtr
     if let Some(e) = refused.take() {
         return Err(e);
     }
+    // A table the caller names by address: its entries are read as bytes.
     Ok(found.map(|n| table.offset(n as u32 * ENTRY_LEN)))
 }
 
@@ -51,6 +52,7 @@ pub fn entries_checked(
         if n >= count {
             return None;
         }
+        // A caller's table by address, walked as the original does.
         let at = table.offset(ENTRY_LEN.wrapping_mul(n));
         n += 1;
         match at.read::<rc2k_core::system::tables::Entry>("a table's entry") {
@@ -71,6 +73,7 @@ pub fn entries(
     count: u32,
 ) -> impl Iterator<Item = rc2k_core::system::tables::Entry> {
     (0..count).map(move |n| {
+        // A caller's table by address, walked as the original does.
         table
             .offset(ENTRY_LEN.wrapping_mul(n))
             .read::<rc2k_core::system::tables::Entry>("a table's entry")

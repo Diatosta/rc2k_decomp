@@ -17,46 +17,56 @@
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
-use crate::effects::emitters::field;
 use crate::effects::emitters::*;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
-use crate::race::marks_settings_store::MarkCar;
+use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::scene::matrix3::rounded;
 use crate::session::{Dword, Float};
 
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
 /// `KIND6_SET.motion_k[3 * axis + n]`.
-const MOTION: [[(&Float, u32); 3]; 3] = [
+/// A wheel record's speed figure.
+type Speed = fn(&MarkRecord) -> &Float;
+
+const MOTION: [[(&Float, Speed); 3]; 3] = [
     [
-        (&EMITTER.side_a[0], 0x10),
-        (&EMITTER.side_b[0], 0x18),
-        (&EMITTER.side_b[0], 0x0C),
+        (&EMITTER.side_a[0], |w| &w.speed_10),
+        (&EMITTER.side_b[0], |w| &w.speed_18),
+        (&EMITTER.side_b[0], |w| &w.speed_c),
     ],
     [
-        (&EMITTER.side_a[1], 0x10),
-        (&EMITTER.side_b[1], 0x18),
-        (&EMITTER.side_b[1], 0x0C),
+        (&EMITTER.side_a[1], |w| &w.speed_10),
+        (&EMITTER.side_b[1], |w| &w.speed_18),
+        (&EMITTER.side_b[1], |w| &w.speed_c),
     ],
     [
-        (&EMITTER.side_a[2], 0x10),
-        (&EMITTER.side_b[2], 0x18),
-        (&EMITTER.side_b[2], 0x0C),
+        (&EMITTER.side_a[2], |w| &w.speed_10),
+        (&EMITTER.side_b[2], |w| &w.speed_18),
+        (&EMITTER.side_b[2], |w| &w.speed_c),
     ],
 ];
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-fn refusal(wheel: GamePtr, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let flags = field(wheel, 0x20)?;
+        let flags = wheel.flags.get();
         if flags & 0xC0 == 0 {
             return Ok(None);
         }
-        if !gate(wheel, object, 0xC, 0x18, &KIND6_SET.rate_k)?.passes || next_entry()?.is_none() {
+        if !gate(
+            wheel,
+            object,
+            &wheel.speed_c,
+            &wheel.speed_18,
+            &KIND6_SET.rate_k,
+        )?
+        .passes
+            || next_entry()?.is_none()
+        {
             return Ok(None);
         }
         if !car_with_matrix()? {
@@ -72,20 +82,26 @@ fn refusal(wheel: GamePtr, object: &'static MarkCar) -> Result<Option<&'static s
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(wheel, object)? {
             return Err(BadInput(why).into());
         }
-        let flags = field(wheel, 0x20)?;
+        let flags = wheel.flags.get();
         SURFACE.wheel_flags.set(flags);
         if flags & 0xC0 == 0 {
             return Ok(());
         }
-        let g = gate(wheel, object, 0xC, 0x18, &KIND6_SET.rate_k)?;
+        let g = gate(
+            wheel,
+            object,
+            &wheel.speed_c,
+            &wheel.speed_18,
+            &KIND6_SET.rate_k,
+        )?;
         RING_WORK.rate.set(g.rate as u32);
         if let Some(count) = g.count {
-            wheel.offset(4).write::<u32>(count, "a mark's field")?;
+            wheel.pace.set(count);
         }
         if !g.passes || next_entry()?.is_none() {
             return Ok(());
@@ -106,7 +122,7 @@ pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
                     matrix_cell(m, k)?,
                     b,
                     matrix_cell(m, 0x20 + k)?,
-                    field(wheel, 0x3C + k)?,
+                    wheel.place[k as usize / 4].bits(),
                 )
             })
         })?;
@@ -121,7 +137,7 @@ pub fn emit_particle_6(wheel: GamePtr, object: &'static MarkCar) -> Result<(), R
                         let (f, s) = MOTION[a][n];
                         [
                             f.bits(),
-                            field(wheel, s)?,
+                            s(wheel).bits(),
                             KIND6_SET.motion_k[3 * a + n].bits(),
                         ]
                     })

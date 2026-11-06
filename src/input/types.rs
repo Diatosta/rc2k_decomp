@@ -18,21 +18,58 @@ pub type Guid = [u8; 16];
 
 /// `g_controllers` (16 of them): a listed joystick (`input::joystick_found`).
 #[repr(C)]
+#[derive(rc2k_derive::Cells)]
 pub struct Controller {
-    /// DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
-    pub caps_flags: u32,
-    /// The device's type (DIDEVICEINSTANCEA's).
-    pub dev_type: u32,
-    pub axes: u32,
-    pub buttons: u32,
-    pub hats: u32,
-    /// Which axes it has: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz (`input::axis_found`).
-    pub axis_bits: u32,
-    pub attached: u32,
-    pub force_feedback: u32,
-    pub instance: Guid,
-    /// "(n) name".
-    pub name: [u8; 32],
+    /// +0: DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
+    pub caps_flags: Dword,
+    /// +4: the device's type (DIDEVICEINSTANCEA's).
+    pub dev_type: Dword,
+    /// +8.
+    pub axes: Dword,
+    /// +0xC.
+    pub buttons: Dword,
+    /// +0x10.
+    pub hats: Dword,
+    /// +0x14: which axes it has: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz (`input::axis_found`).
+    pub axis_bits: Dword,
+    /// +0x18.
+    pub attached: Dword,
+    /// +0x1C: 1 with force feedback.
+    pub force_feedback: Dword,
+    /// +0x20: the device's instance GUID.
+    pub instance: Bytes<16>,
+    /// +0x30: "(n) name".
+    pub name: Bytes<32>,
+}
+
+impl Controller {
+    /// An entry from its 0x50 bytes.
+    pub const fn from_le_bytes(b: &[u8; 0x50]) -> Self {
+        let mut instance = [0u8; 16];
+        let mut name = [0u8; 32];
+        let mut k = 0;
+        while k < 16 {
+            instance[k] = b[0x20 + k];
+            k += 1;
+        }
+        k = 0;
+        while k < 32 {
+            name[k] = b[0x30 + k];
+            k += 1;
+        }
+        Self {
+            caps_flags: dword_of(b, 0),
+            dev_type: dword_of(b, 4),
+            axes: dword_of(b, 8),
+            buttons: dword_of(b, 0xC),
+            hats: dword_of(b, 0x10),
+            axis_bits: dword_of(b, 0x14),
+            attached: dword_of(b, 0x18),
+            force_feedback: dword_of(b, 0x1C),
+            instance: Bytes::new(instance),
+            name: Bytes::new(name),
+        }
+    }
 }
 
 // ---- the device records: cells in the store, built from the image's bytes ----
@@ -336,6 +373,7 @@ impl DiJoyState {
 
 const _: () = assert!(size_of::<Controller>() == 0x50);
 const _: () = assert!(offset_of!(Controller, instance) == 0x20);
+const _: () = assert!(offset_of!(Controller, name) == 0x30);
 const _: () = assert!(size_of::<DiEffect>() == 0x34);
 const _: () = assert!(size_of::<ForceEffect>() == 0xA4);
 const _: () = assert!(offset_of!(ForceEffect, object) == 0x30);

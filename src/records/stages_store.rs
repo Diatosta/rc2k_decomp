@@ -186,17 +186,67 @@ pub struct EventRecords {
     pub end: Loose,
 }
 
-/// A track's entry in the track pack (0x40 bytes).
-pub type TrackEntry = [Loose; 16];
+/// A track's entry in the track pack (0x40 bytes; fields read from `screens::stage_panel`,
+/// `menu::calc_cpu_times`, `menu::run_event_races` and `race::single_rally`).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct TrackEntry {
+    /// +0x00: the track's name (a string id; also the first word `race::single_rally`
+    /// checks for the pack's closing -1).
+    pub name: Loose,
+    pub unknown_04: Loose,
+    /// +0x08: the index into `MENU_LISTS.durations`.
+    pub duration: Loose,
+    /// +0x0C: the stage's length.
+    pub length: Loose,
+    /// +0x10: the description's string id.
+    pub description: Loose,
+    /// +0x14: the weather.
+    pub weather: Loose,
+    pub unknown_18: Loose,
+    /// +0x1C: the temperature (signed).
+    pub temperature: Loose,
+    /// +0x20: the wind.
+    pub wind: Loose,
+    /// +0x24 .. +0x30: the four surfaces.
+    pub surfaces: [Loose; 4],
+    /// +0x34: the stage number (what `race::single_rally` looks the entry up by).
+    pub stage: Loose,
+    /// +0x38: the stage's number on the panel.
+    pub number: Loose,
+    /// +0x3C: 1 when the number's label is the singular.
+    pub number_label_one: Loose,
+}
+
+const _: () = assert!(core::mem::size_of::<TrackEntry>() == 0x40);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, duration) == 0x08);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, length) == 0x0C);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, temperature) == 0x1C);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, surfaces) == 0x24);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, stage) == 0x34);
+const _: () = assert!(core::mem::offset_of!(TrackEntry, number_label_one) == 0x3C);
 
 const fn track(v: [u32; 16]) -> TrackEntry {
-    let mut e = [const { Loose::new(0) }; 16];
-    let mut k = 0;
-    while k < 16 {
-        e[k] = Loose::new(v[k]);
-        k += 1;
+    TrackEntry {
+        name: Loose::new(v[0]),
+        unknown_04: Loose::new(v[1]),
+        duration: Loose::new(v[2]),
+        length: Loose::new(v[3]),
+        description: Loose::new(v[4]),
+        weather: Loose::new(v[5]),
+        unknown_18: Loose::new(v[6]),
+        temperature: Loose::new(v[7]),
+        wind: Loose::new(v[8]),
+        surfaces: [
+            Loose::new(v[9]),
+            Loose::new(v[10]),
+            Loose::new(v[11]),
+            Loose::new(v[12]),
+        ],
+        stage: Loose::new(v[13]),
+        number: Loose::new(v[14]),
+        number_label_one: Loose::new(v[15]),
     }
-    e
 }
 
 /// The track pack (`g_trakPakHeader`): +0 the link, +4 the pack's id, its name, the count,

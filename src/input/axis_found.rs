@@ -10,15 +10,12 @@
 //! Caller: DirectInput, from `input::joystick_found`.
 
 use crate::errors::BadInput;
-use crate::field;
 use crate::input::guids::INPUT_GUIDS;
-use crate::input::store::CONTROLLER_LEN;
 use crate::input::types::{Controller, DiDeviceObjectInstance};
-use crate::session::Bytes;
 
 /// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`, the context
 /// the controller's entry.
-pub fn callback(object: &DiDeviceObjectInstance, entry: &Bytes<CONTROLLER_LEN>) -> u32 {
+pub fn callback(object: &DiDeviceObjectInstance, entry: &Controller) -> u32 {
     match axis_found(object, entry) {
         Ok(eax) => eax,
         Err(e) => {
@@ -29,20 +26,14 @@ pub fn callback(object: &DiDeviceObjectInstance, entry: &Bytes<CONTROLLER_LEN>) 
 }
 
 /// The Rust version: eax.
-pub fn axis_found(
-    object: &DiDeviceObjectInstance,
-    entry: &Bytes<CONTROLLER_LEN>,
-) -> Result<u32, BadInput> {
+pub fn axis_found(object: &DiDeviceObjectInstance, entry: &Controller) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::joystick::axis_bits`.
     let mut axes = [[0u8; 16]; 6];
     for (n, axis) in axes.iter_mut().enumerate() {
         axis.copy_from_slice(&INPUT_GUIDS.axes.read_at(16 * n, 16, "an axis GUID")?);
     }
-    let bits = rc2k_core::input::joystick::axis_bits(
-        entry.get_u32(field!(Controller, axis_bits) as usize),
-        &object.guid_type,
-        &axes,
-    );
-    entry.set_u32(field!(Controller, axis_bits) as usize, bits);
+    let bits =
+        rc2k_core::input::joystick::axis_bits(entry.axis_bits.get(), &object.guid_type, &axes);
+    entry.axis_bits.set(bits);
     Ok(1)
 }

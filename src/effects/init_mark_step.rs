@@ -57,6 +57,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             let row =
                 GamePtr::to(&LIGHT_RECORDS.records).offset((0x6C + race::kind_row(kind)) as u32);
             let bad = crate::effects::Sticky::default();
+            // Each field is a dword at a byte offset of the row, a run-on as the original.
             let fields = race::car_fields(n, |offset| {
                 bad.take(row.offset(offset as u32).read::<u32>("a mark's field"))
             });
