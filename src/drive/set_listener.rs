@@ -58,6 +58,7 @@ fn figures() -> Result<[i32; 6], Refused> {
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub fn set_listener() -> Result<(), Refused> {
+    let physics = &race().physics;
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
@@ -91,7 +92,7 @@ pub fn set_listener() -> Result<(), Refused> {
     MARKS_SETTINGS.listener_figures[2].set(race().frame.frame_work.sun_place[1].get());
     let f = listener::listener_points(f, PHYSICS.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
-        crate::race::owner::race().physics.camera.listener_points[k].set(v as u32);
+        physics.camera.listener_points[k].set(v as u32);
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
@@ -168,7 +169,7 @@ pub fn set_listener() -> Result<(), Refused> {
     MARKS_SETTINGS
         .listener_float_b
         .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
-    if crate::race::owner::race().physics.split_tables.still.get() != 0 {
+    if physics.split_tables.still.get() != 0 {
         MARKS_SETTINGS.listener_flag.set(0);
         MARKS_SETTINGS.listener_gear_changed.set(0);
     }

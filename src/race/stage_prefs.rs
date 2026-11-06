@@ -6,30 +6,27 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
-// The stage's localdat is the whole of `crate::race::owner::race().course.stage_prefs` (0x608CB4, 0x206C bytes).
+// The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
 fn prefs_paths() -> [GamePtr; 2] {
-    let p = &crate::race::owner::race().course.level_paths;
+    let p = &race().course.level_paths;
     [GamePtr::to(&p.localdat_files), GamePtr::to(&p.localdat_src)]
 }
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// `g_textureKinds`.
 fn kind(n: u32) -> u32 {
-    crate::race::owner::race().course.stage_prefs.texture_kinds[n as usize].get()
+    race().course.stage_prefs.texture_kinds[n as usize].get()
 }
 
 /// `dword_60A67C`: 0x40 kinds (>> 4) swapped in.
 fn swapped(n: u32) -> u32 {
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .picture_lists_b[n as usize]
-        .get()
+    race().course.stage_prefs.picture_lists_b[n as usize].get()
 }
 
 /// `race::swap_stage_texture` (0x439B03): for the stages of the core's `TEXTURE_SWAPS`,
@@ -38,6 +35,7 @@ fn swapped(n: u32) -> u32 {
 /// list's first free place of 0x40 (the test is made on the kind before the shift:
 /// section 16).
 pub fn swap_stage_texture() {
+    let course = &race().course;
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
     let stage: u32 = RACE_VARS.stage_number.bits();
@@ -46,15 +44,11 @@ pub fn swap_stage_texture() {
         Swap::NotThisStage | Swap::NotFound => return,
         Swap::Listed { kind, .. } | Swap::Full { kind } => kind,
         Swap::Added { kind, at } => {
-            crate::race::owner::race()
-                .course
-                .stage_prefs
-                .picture_lists_b[at as usize]
-                .set(new >> 4);
+            course.stage_prefs.picture_lists_b[at as usize].set(new >> 4);
             kind
         }
     };
-    crate::race::owner::race().course.stage_prefs.texture_kinds[swapped_kind as usize].set(new);
+    course.stage_prefs.texture_kinds[swapped_kind as usize].set(new);
 }
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
@@ -63,13 +57,7 @@ pub fn tweak_stage() {
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
         if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage_number.bits()) {
-            crate::session::write_bits(
-                &crate::race::owner::race()
-                    .course
-                    .stage_prefs
-                    .car_light_table,
-                [0xFFu32; 3],
-            );
+            crate::session::write_bits(&race().course.stage_prefs.car_light_table, [0xFFu32; 3]);
         }
     }
 }
@@ -78,10 +66,7 @@ pub fn tweak_stage() {
 pub fn clear_prefs_qword() {
     {
         if RACE_WORK.no_precipitation.get() != 0 {
-            crate::session::write_bits(
-                &crate::race::owner::race().course.stage_prefs.blit_cleared,
-                [0u32; 2],
-            );
+            crate::session::write_bits(&race().course.stage_prefs.blit_cleared, [0u32; 2]);
         }
     }
 }
@@ -93,7 +78,7 @@ pub fn load_prefs() -> Result<(), Refused> {
     for path in prefs_paths() {
         crate::files::read_whole_file::read_whole_file_cells(
             path,
-            crate::race::owner::race().course.stage_prefs.dwords(),
+            race().course.stage_prefs.dwords(),
         )?;
     }
     swap_stage_texture();
@@ -112,20 +97,17 @@ pub fn reset_skid_slots(object: &crate::physics::car_store::Car) {
 /// `race::init_skidmarks` (0x45857D): the two skid objects' slots, the 0x400 marks' first
 /// two words -1, `dword_645B10` 0.
 pub fn init_skidmarks() -> Result<(), BadInput> {
+    let frame = &race().frame;
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
             reset_skid_slots(&crate::race::blocks_store::CAR_BLOCKS.cars[n]);
         }
-        let links = &crate::race::owner::race().frame.shadow_skids.skid_links;
+        let links = &frame.shadow_skids.skid_links;
         for n in 0..0x400 {
             links.set_u32(8 * n, u32::MAX);
         }
-        crate::race::owner::race()
-            .frame
-            .shadow_skids
-            .skid_next
-            .set(0);
+        frame.shadow_skids.skid_next.set(0);
     }
     Ok(())
 }
@@ -136,7 +118,7 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = GamePtr::to(&crate::race::light_records_store::LIGHT_RECORDS.records);
-    let source = crate::race::owner::race().course.lights_data.lights.read();
+    let source = race().course.lights_data.lights.read();
     let mut laid =
         records.read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
     lay_lights(&source, &mut laid);
@@ -146,9 +128,10 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data() -> Result<(), Refused> {
+    let race = race();
     crate::files::read_whole_file::read_whole_file_bytes(
-        GamePtr::to(&crate::race::owner::race().physics.camera.lights_path), // "files\s\data\ldata"
-        &crate::race::owner::race().course.lights_data.lights,
+        GamePtr::to(&race.physics.camera.lights_path), // "files\s\data\ldata"
+        &race.course.lights_data.lights,
     )?;
     copy_lights_data()?;
     Ok(())
@@ -158,6 +141,7 @@ pub fn load_lights_data() -> Result<(), Refused> {
 /// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of
 /// them, Z x X into the lit matrix, that x Y into `dword_71A08C`.
 pub fn get_mat_crash() {
+    let frame = &race().frame;
     use crate::scene::matrix;
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).
@@ -171,13 +155,13 @@ pub fn get_mat_crash() {
     matrix::set_turn_y(turns[1]);
     matrix::set_turn_z_16(turns[2]);
     matrix::multiply_matrices(
-        &crate::race::owner::race().frame.matrices.turn_z_matrix,
-        &crate::race::owner::race().frame.matrices.turn_x_matrix,
-        &crate::race::owner::race().frame.matrices.lit_matrix,
+        &frame.matrices.turn_z_matrix,
+        &frame.matrices.turn_x_matrix,
+        &frame.matrices.lit_matrix,
     );
     matrix::multiply_matrices(
-        &crate::race::owner::race().frame.matrices.lit_matrix,
-        &crate::race::owner::race().frame.matrices.turn_y_matrix,
+        &frame.matrices.lit_matrix,
+        &frame.matrices.turn_y_matrix,
         &CAR.crash_matrix,
     );
 }

@@ -6,6 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
@@ -81,6 +82,7 @@ fn log_number(value: u32, newline: bool) {
 }
 
 pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
+    let race = race();
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     let slot = 11 + slot as usize;
     {
@@ -98,13 +100,9 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
             let first = OBJECT_SLOTS.first_point[slot].get();
             let points = first
                 .wrapping_mul(12)
-                .wrapping_add(crate::race::owner::race().course.lists.object_points.get());
+                .wrapping_add(race.course.lists.object_points.get());
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .set(held);
+            race.physics.contact.car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
@@ -116,28 +114,20 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                crate::race::owner::race()
-                    .physics
-                    .contact
-                    .car_point_count
-                    .set(n);
+                race.physics.contact.car_point_count.set(n);
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(sort, first, first + n * 12 - 12)?;
                 }
             }
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .set(held);
+            race.physics.contact.car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
                 crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
-            let scale = f32::from_bits(crate::race::owner::race().course.numbers.k65536.bits());
+            let scale = f32::from_bits(race.course.numbers.k65536.bits());
             let car = car_at(block)?;
             let lists = [&car.probe_point_x, &car.probe_point_y, &car.probe_point_z];
             for n in 0..count {
@@ -149,40 +139,21 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
                     list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .set(count);
+            race.physics.contact.car_point_count.set(count);
             let mut points = lists.map(crate::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
                 crate::session::write_bits(l, p);
             }
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .set(count + 2);
+            race.physics.contact.car_point_count.set(count + 2);
         }
         log(c"carnum", false);
         log_number(car_at(block)?.car_kind.bits(), false);
         log(c"numcollpts", false);
-        log_number(
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .get(),
-            true,
-        );
-        car_at(block)?.probe_count.set_bits(
-            crate::race::owner::race()
-                .physics
-                .contact
-                .car_point_count
-                .get(),
-        );
+        log_number(race.physics.contact.car_point_count.get(), true);
+        car_at(block)?
+            .probe_count
+            .set_bits(race.physics.contact.car_point_count.get());
     }
     Ok(())
 }
@@ -193,6 +164,7 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
 /// `car_kind_10` of its block's +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects
 /// loaded; each car's points set up. Refuses more than the eight cars' blocks.
 pub fn set_object_kinds() -> Result<(), Refused> {
+    let course = &race().course;
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
     // original counts edi).
@@ -201,28 +173,14 @@ pub fn set_object_kinds() -> Result<(), Refused> {
         check_object_cars,
     };
     crate::scene::clear_slot_kinds::clear_slot_kinds();
-    crate::session::write_bits(
-        &crate::race::owner::race().course.stage_prefs.fixed_kinds,
-        FIXED_KINDS,
-    );
+    crate::session::write_bits(&course.stage_prefs.fixed_kinds, FIXED_KINDS);
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the original's table runs on
         // into it (a slip kept).
-        let n_defaults = crate::race::owner::race()
-            .course
-            .stage_prefs
-            .slot_kind_defaults
-            .len();
-        let default = match crate::race::owner::race()
-            .course
-            .stage_prefs
-            .slot_kind_defaults
-            .get(n as usize)
-        {
+        let n_defaults = course.stage_prefs.slot_kind_defaults.len();
+        let default = match course.stage_prefs.slot_kind_defaults.get(n as usize) {
             Some(cell) => cell.get(),
-            None => crate::race::owner::race().course.stage_prefs.fixed_kinds
-                [n as usize - n_defaults]
-                .get(),
+            None => course.stage_prefs.fixed_kinds[n as usize - n_defaults].get(),
         };
         OBJECT_TABLES.slot_kinds[n as usize].set(default);
     }

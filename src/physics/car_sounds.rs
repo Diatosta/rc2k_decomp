@@ -13,6 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
@@ -24,12 +25,7 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(crate::race::owner::race()
-        .frame
-        .frame_work
-        .listed_car_sounds[car as usize]
-        .get()
-        != u32::MAX)
+    Ok(race().frame.frame_work.listed_car_sounds[car as usize].get() != u32::MAX)
 }
 
 /// The current car's sound object.
@@ -40,6 +36,7 @@ pub fn object() -> &'static SoundObject {
 /// The place (with `offset` added to the car's, when given), turned and scaled, into
 /// the three floats `into`.
 pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
+    let race = race();
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
@@ -52,14 +49,10 @@ pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
         }
     };
     let out = rotate_point(
-        &crate::race::owner::race().frame.matrices.view_turn_matrix,
+        &race.frame.matrices.view_turn_matrix,
         [part(0), part(1), part(2)],
     );
-    let k = crate::race::owner::race()
-        .course
-        .numbers
-        .one_over_65536
-        .bits();
+    let k = race.course.numbers.one_over_65536.bits();
     for (cell, e) in into.iter().zip(&out) {
         cell.set_bits(rounded(ext_times(*e, k)));
     }
@@ -68,21 +61,14 @@ pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the three floats
 /// `into`.
 pub fn place_plain(into: &[Float; 3], offset: Option<[u32; 3]>) {
+    let race = race();
     let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&CAR.position),
         whole(&CAR.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| {
-            f32::from_bits(crate::race::owner::race().frame.matrices.view_turn_matrix[n].bits())
-        }),
-        f32::from_bits(
-            crate::race::owner::race()
-                .course
-                .numbers
-                .one_over_65536
-                .bits(),
-        ),
+        &std::array::from_fn(|n| f32::from_bits(race.frame.matrices.view_turn_matrix[n].bits())),
+        f32::from_bits(race.course.numbers.one_over_65536.bits()),
     );
     for (cell, x) in into.iter().zip(&p) {
         cell.set(*x);

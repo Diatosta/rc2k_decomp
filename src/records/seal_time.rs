@@ -12,6 +12,7 @@
 //! registers above are the original's, for reference.
 
 use crate::menu::cheats_store::CHEAT_VARS;
+use crate::race::owner::race;
 use crate::race::save_seal::seal_block;
 use crate::race::work_store::RACE_WORK;
 /// The time as sealed (converted: `rc2k_core::files::records::sealed_value`).
@@ -26,15 +27,14 @@ pub use rc2k_core::files::records::seal_block as block;
 /// bl, cl, dl) in; the sealed block's two dwords (its eax, ebx) out. Its callers read
 /// nothing else it leaves (register liveness, 2026-10-23).
 pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
+    let replay = &race().replay;
     let value = sealed_value(time, CHEAT_VARS.cheats.get(), RACE_WORK.patch_switch.bits());
     let bytes = block(value, bytes);
-    crate::race::owner::race().replay.seal_work.block[0]
-        .set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));
-    crate::race::owner::race().replay.seal_work.block[1]
-        .set(u32::from_le_bytes(bytes[4..].try_into().unwrap()));
+    replay.seal_work.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));
+    replay.seal_work.block[1].set(u32::from_le_bytes(bytes[4..].try_into().unwrap()));
     seal_block();
     [
-        crate::race::owner::race().replay.seal_work.sealed[0].get(),
-        crate::race::owner::race().replay.seal_work.sealed[1].get(),
+        replay.seal_work.sealed[0].get(),
+        replay.seal_work.sealed[1].get(),
     ]
 }

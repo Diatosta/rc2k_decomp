@@ -10,6 +10,7 @@
 //! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
 pub fn base() -> u32 {
@@ -124,7 +125,7 @@ fn point(at: u32) -> Result<[u32; 3], BadInput> {
 /// Point `n`'s place.
 fn place(n: u32) -> u32 {
     n.wrapping_mul(12)
-        .wrapping_add(crate::race::owner::race().course.course.scene_points.get())
+        .wrapping_add(race().course.course.scene_points.get())
 }
 
 /// Point `n`'s x, y and z (point -1 as `bytes` reads it).
@@ -163,12 +164,7 @@ fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
-    let counted = (crate::race::owner::race()
-        .course
-        .course
-        .scene_point_count
-        .get() as usize)
-        .saturating_mul(12);
+    let counted = (race().course.course.scene_point_count.get() as usize).saturating_mul(12);
     POINTS
         .with(|p| {
             let range = range(at, data.len())?;
@@ -194,26 +190,19 @@ fn put(at: u32, v: u32) -> Result<(), BadInput> {
 /// reads the same words at their address).
 #[cfg(all(test, target_arch = "x86"))]
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
+    let course = &race().course;
     let kept = POINTS.with(std::mem::take).ok();
-    let kept_at = crate::race::owner::race().course.course.scene_points.get();
+    let kept_at = course.course.scene_points.get();
     crate::race::course_places::reserve().expect("the course's places");
     POINTS.set(words.iter().flat_map(|w| w.to_le_bytes()).collect());
     crate::race::course_places::first_points_changed();
-    crate::race::owner::race()
-        .course
-        .course
-        .scene_points
-        .set(base());
+    course.course.scene_points.set(base());
     let out = f();
     match kept {
         Some(p) => POINTS.set(p),
         None => POINTS.give_back(),
     }
     crate::race::course_places::first_points_changed();
-    crate::race::owner::race()
-        .course
-        .course
-        .scene_points
-        .set(kept_at);
+    course.course.scene_points.set(kept_at);
     out
 }

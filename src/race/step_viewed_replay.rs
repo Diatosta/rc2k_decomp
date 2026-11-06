@@ -13,11 +13,13 @@
 //! `read_replay_frame` refuses (the fatal errors of a block past 0x708).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version: whether it stopped (the carry the original leaves; it leaves ebx and
 /// the zero flag too, and no caller reads them).
 pub fn step_viewed_replay() -> Result<bool, Refused> {
+    let replay = &race().replay;
     let stop = |at_end: bool| {
         if at_end {
             REPLAY_FILE.replay_at_end.set(1);
@@ -28,23 +30,15 @@ pub fn step_viewed_replay() -> Result<bool, Refused> {
     use rc2k_core::race::viewer::{Step, step};
     let open = REPLAY_FILE.replay_open.get() == 1;
     let (block, frame) = (
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_frame
-            .get(),
+        replay.replay_view.replay_block.get(),
+        replay.replay_view.replay_frame.get(),
     );
     let (block, frame) = match step(
         open,
         block,
         frame,
         REPLAY_FILE.index_block_count.get(),
-        crate::race::owner::race().replay.replay_view.play_end.get(),
+        replay.replay_view.play_end.get(),
     ) {
         Step::Closed | Step::AtLast { .. } => return Ok(stop(true)),
         Step::PlayEnd { .. } => return Ok(stop(false)),
@@ -58,15 +52,7 @@ pub fn step_viewed_replay() -> Result<bool, Refused> {
             (block, frame)
         }
     };
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_block
-        .set(block);
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_frame
-        .set(frame);
+    replay.replay_view.replay_block.set(block);
+    replay.replay_view.replay_frame.set(frame);
     Ok(false)
 }

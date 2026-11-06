@@ -11,6 +11,7 @@ use crate::gfx::owner::GFX;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::state_store::RaceCar;
@@ -152,10 +153,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(
-            v,
-            crate::race::owner::race().course.numbers.brake_scale.bits(),
-        ) as u32
+        x87::int_times_to_int(v, race().course.numbers.brake_scale.bits()) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(&text, nl, 1);
@@ -201,12 +199,12 @@ pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
 pub fn copy_settings_in() -> Result<(), Refused> {
-    run(&crate::race::owner::race().replay.graham_to_shaun)
+    run(&race().replay.graham_to_shaun)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
 pub fn copy_settings_out() -> Result<(), Refused> {
-    run(&crate::race::owner::race().replay.shaun_to_graham)
+    run(&race().replay.shaun_to_graham)
 }
 
 /// A float of a car block, picked by field.

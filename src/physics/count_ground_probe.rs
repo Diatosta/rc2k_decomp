@@ -14,53 +14,31 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use rc2k_core::physics::walls::ProbeCounts;
 
 /// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
 pub fn count_ground_probe() -> Result<(), Refused> {
+    let race = race();
     let mut counts = ProbeCounts {
-        tries: crate::race::owner::race()
-            .physics
-            .camera
-            .ground_probes
-            .get(),
-        found: crate::race::owner::race().physics.camera.ground_found.get(),
-        same: crate::race::owner::race().physics.camera.ground_same.get(),
+        tries: race.physics.camera.ground_probes.get(),
+        found: race.physics.camera.ground_found.get(),
+        same: race.physics.camera.ground_same.get(),
     };
-    crate::race::owner::race()
-        .physics
-        .ground_probe
-        .settle_mark
-        .set(0x40);
+    race.physics.ground_probe.settle_mark.set(0x40);
     counts.tried();
-    crate::race::owner::race()
-        .physics
-        .camera
-        .ground_probes
-        .set(counts.tries);
+    race.physics.camera.ground_probes.set(counts.tries);
     { crate::physics::find_ground::find_ground() }?;
-    if crate::race::owner::race().physics.ground.ground_found.get() != 0 {
+    if race.physics.ground.ground_found.get() != 0 {
         counts.searched(
             true,
-            crate::race::owner::race()
-                .course
-                .course
-                .ground_face_last
-                .get(),
-            crate::race::owner::race().course.course.ground_slot.get(),
+            race.course.course.ground_face_last.get(),
+            race.course.course.ground_slot.get(),
         );
-        crate::race::owner::race()
-            .physics
-            .camera
-            .ground_found
-            .set(counts.found);
-        crate::race::owner::race()
-            .physics
-            .camera
-            .ground_same
-            .set(counts.same);
+        race.physics.camera.ground_found.set(counts.found);
+        race.physics.camera.ground_same.set(counts.same);
     }
     Ok(())
 }

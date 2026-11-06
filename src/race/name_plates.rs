@@ -93,6 +93,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates() -> Result<(), Refused> {
+    let frame = &race().frame;
     let (Some(a), Some(b)) = (RACE_VIEW.view_car(0), RACE_VIEW.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
@@ -101,35 +102,35 @@ pub fn update_name_plates() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
     let now = [
-        race().frame.panel_and_overlay.overlay.label_behind[0].get(),
-        race().frame.panel_and_overlay.overlay.label_behind[1].get(),
-        race().frame.panel_and_overlay.overlay.label_ahead[0].get(),
-        race().frame.panel_and_overlay.overlay.label_ahead[1].get(),
+        frame.panel_and_overlay.overlay.label_behind[0].get(),
+        frame.panel_and_overlay.overlay.label_behind[1].get(),
+        frame.panel_and_overlay.overlay.label_ahead[0].get(),
+        frame.panel_and_overlay.overlay.label_ahead[1].get(),
     ];
     let kept = [
-        race().frame.panel_and_overlay.overlay.kept_behind[0].get(),
-        race().frame.panel_and_overlay.overlay.kept_behind[1].get(),
-        race().frame.panel_and_overlay.overlay.kept_ahead[0].get(),
-        race().frame.panel_and_overlay.overlay.kept_ahead[1].get(),
+        frame.panel_and_overlay.overlay.kept_behind[0].get(),
+        frame.panel_and_overlay.overlay.kept_behind[1].get(),
+        frame.panel_and_overlay.overlay.kept_ahead[0].get(),
+        frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
         draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
         for (from, to) in [
             (
-                &race().frame.panel_and_overlay.overlay.label_behind[0],
-                &race().frame.panel_and_overlay.overlay.kept_behind[0],
+                &frame.panel_and_overlay.overlay.label_behind[0],
+                &frame.panel_and_overlay.overlay.kept_behind[0],
             ),
             (
-                &race().frame.panel_and_overlay.overlay.label_behind[1],
-                &race().frame.panel_and_overlay.overlay.kept_behind[1],
+                &frame.panel_and_overlay.overlay.label_behind[1],
+                &frame.panel_and_overlay.overlay.kept_behind[1],
             ),
             (
-                &race().frame.panel_and_overlay.overlay.label_ahead[0],
-                &race().frame.panel_and_overlay.overlay.kept_ahead[0],
+                &frame.panel_and_overlay.overlay.label_ahead[0],
+                &frame.panel_and_overlay.overlay.kept_ahead[0],
             ),
             (
-                &race().frame.panel_and_overlay.overlay.label_ahead[1],
-                &race().frame.panel_and_overlay.overlay.kept_ahead[1],
+                &frame.panel_and_overlay.overlay.label_ahead[1],
+                &frame.panel_and_overlay.overlay.kept_ahead[1],
             ),
         ] {
             to.set(from.get());

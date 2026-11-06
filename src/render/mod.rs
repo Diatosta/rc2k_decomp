@@ -15,6 +15,7 @@ pub use gles as gpu;
 pub mod gpu;
 pub mod software;
 
+use crate::race::owner::race;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -72,7 +73,7 @@ static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
 /// Draws the commands on the backend that holds the frame.
 pub fn draw(target: &Target, commands: Vec<Command>) {
-    let in_race = crate::race::owner::race().course.numbers.in_race.get() != 0;
+    let in_race = race().course.numbers.in_race.get() != 0;
     if target.bits == 32 && in_race {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -116,7 +117,7 @@ pub fn finish_frame(target: &Target) -> Option<(*mut sdl3_sys::everything::SDL_G
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if crate::race::owner::race().course.numbers.in_race.get() == 0 {
+    if race().course.numbers.in_race.get() == 0 {
         give_frame_back(target);
         return None;
     }
@@ -134,8 +135,7 @@ pub fn finish_frame(target: &Target) -> Option<(*mut sdl3_sys::everything::SDL_G
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn show_on_panel(target: &Target, frame: &[u8], width: usize, height: usize) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && crate::race::owner::race().course.numbers.in_race.get() == 0
-    {
+    if GPU_HOLDS_FRAME.load(Relaxed) && race().course.numbers.in_race.get() == 0 {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();

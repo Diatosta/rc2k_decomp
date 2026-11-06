@@ -9,6 +9,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::Dword;
 
 pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
@@ -120,7 +121,7 @@ pub fn make_profiles(paths: &Paths, resume: u32) -> Result<(), Refused> {
             make_tables(paths)?;
             DRAW_FRAME.profiles_done.set(resume);
         }
-        if crate::race::owner::race().course.lists.course_info.bits() == 0 {
+        if race().course.lists.course_info.bits() == 0 {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
         }
         let corners = crate::race::course_places::info_bytes(

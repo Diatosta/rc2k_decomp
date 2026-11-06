@@ -21,13 +21,8 @@ use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e1_other() -> Result<(), Refused> {
-    if !listed(
-        crate::race::owner::race()
-            .physics
-            .contact
-            .other_car_number
-            .get(),
-    )? && !listed(RACE_WORK.current_car.get())?
+    if !listed(race().physics.contact.other_car_number.get())?
+        && !listed(RACE_WORK.current_car.get())?
     {
         return Ok(());
     }

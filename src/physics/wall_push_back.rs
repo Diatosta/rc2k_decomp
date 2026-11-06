@@ -22,45 +22,26 @@ use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
+use crate::race::owner::race;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
 pub fn steps() -> Result<(), Refused> {
-    let work = &crate::race::owner::race().frame.scratch.work_vector;
+    let race = race();
+    let work = &race.frame.scratch.work_vector;
     copy_cells(work, &CAR.velocity);
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(
-        vector_length(&work),
-        crate::race::owner::race().course.numbers.zero.bits(),
-    ) & 0x4000
-        != 0
-    {
+    if compare_80(vector_length(&work), race.course.numbers.zero.bits()) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
     normalise_work_vector();
-    copy_cells(
-        &crate::race::owner::race().physics.contact.contact_normal,
-        work,
-    );
-    copy_cells(
-        &crate::race::owner::race().physics.contact.contact_car_speed,
-        &CAR.velocity,
-    );
-    copy_cells(
-        &crate::race::owner::race()
-            .physics
-            .contact
-            .contact_turn_speed,
-        &CAR.spin,
-    );
-    fill_cells(&crate::race::owner::race().physics.contact.contact_point, 0);
-    crate::race::owner::race()
-        .physics
-        .contact
-        .contact_slide_limit
-        .set_bits(0);
+    copy_cells(&race.physics.contact.contact_normal, work);
+    copy_cells(&race.physics.contact.contact_car_speed, &CAR.velocity);
+    copy_cells(&race.physics.contact.contact_turn_speed, &CAR.spin);
+    fill_cells(&race.physics.contact.contact_point, 0);
+    race.physics.contact.contact_slide_limit.set_bits(0);
     contact_force(&PHYSICS.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);

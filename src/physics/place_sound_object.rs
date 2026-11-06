@@ -23,12 +23,13 @@ use rc2k_core::physics::sound_places::{FIRST, object_sound};
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub fn place_sound_object() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     if !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
-        crate::race::owner::race().physics.contact.face_object.get(),
+        physics_store.contact.face_object.get(),
         |thing| OBJECT_TABLES.object_kind(thing),
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
@@ -48,8 +49,7 @@ pub fn place_sound_object() -> Result<(), Refused> {
         return Ok(());
     }
     let offset = Some(
-        crate::race::owner::race()
-            .physics
+        physics_store
             .contact
             .object_point_offset
             .each_ref()

@@ -23,14 +23,15 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::state_store::RACE_STATE;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car() {
+    let race = race();
     CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
-        ld(crate::race::owner::race().replay.finish.unknown_20.bits())
-            * ld(crate::race::owner::race().course.numbers.k65536.bits())
+        ld(race.replay.finish.unknown_20.bits()) * ld(race.course.numbers.k65536.bits())
             + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
     ) as u32);
 }
@@ -38,29 +39,23 @@ fn lift_car() {
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
 pub fn finish_run() -> Result<(), Refused> {
+    let race = race();
     lift_car();
     restart_clock();
-    crate::race::owner::race()
-        .frame
+    race.frame
         .clock_ticks
         .clock_a
         .set(PHYSICS.scene_clock.get());
-    crate::race::owner::race()
-        .frame
+    race.frame
         .clock_ticks
         .sound_tick_last
         .set(PHYSICS.scene_clock.get());
-    for mark in &crate::race::owner::race().frame.clock_ticks.marks {
+    for mark in &race.frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .play_end
-        .set(u32::MAX);
+    race.replay.replay_view.play_end.set(u32::MAX);
     restart_clock();
-    crate::race::owner::race()
-        .replay
+    race.replay
         .finish
         .start_clock
         .set(PHYSICS.scene_clock.get());
@@ -75,8 +70,8 @@ pub fn finish_run() -> Result<(), Refused> {
             return Err(BadInput("a finish length past the table's two").into());
         }
         if !c0(
-            crate::race::owner::race().replay.finish.time.bits(),
-            crate::race::owner::race().replay.finish.finish_lengths[n as usize].bits(),
+            race.replay.finish.time.bits(),
+            race.replay.finish.finish_lengths[n as usize].bits(),
         ) {
             break;
         }

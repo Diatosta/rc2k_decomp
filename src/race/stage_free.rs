@@ -5,6 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::{MemoryList, own_heap};
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 
 /// One of the freeing functions: its list (where it is, found when it runs: the statics
@@ -121,6 +122,7 @@ pub const FONTS: Freeing = Freeing {
 /// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
 /// block while the game's own heap is in use (`free_list` refuses it).
 pub fn free(f: &Freeing) -> Result<(), Refused> {
+    let course = &race().course;
     let l = (f.list)().unbounded(); // As in `free_list`.
     let list = l.read::<MemoryList>("a memory list")?;
     if list.head != 0 && own_heap() == 1 {
@@ -128,18 +130,13 @@ pub fn free(f: &Freeing) -> Result<(), Refused> {
     }
     if f.counted {
         // dword_5C6F90
-        crate::race::owner::race()
-            .course
-            .lists
-            .course_bytes_total
-            .set(
-                crate::race::owner::race()
-                    .course
-                    .lists
-                    .course_bytes_total
-                    .bits()
-                    .wrapping_sub(list.total),
-            );
+        course.lists.course_bytes_total.set(
+            course
+                .lists
+                .course_bytes_total
+                .bits()
+                .wrapping_sub(list.total),
+        );
     }
     crate::memory::free_list::free_list(l)?;
     for clear in f.cleared {

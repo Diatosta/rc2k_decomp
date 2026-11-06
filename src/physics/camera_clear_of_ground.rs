@@ -15,6 +15,7 @@
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
 /// The Rust version: whether the camera is clear of the ground (CF clear). The registers it
@@ -29,11 +30,7 @@ pub fn camera_clear_of_ground() -> Result<bool, Refused> {
     if clear {
         clear = is_clear(over(
             CAR.camera_position[1].get(),
-            crate::race::owner::race()
-                .physics
-                .ground
-                .ground_height
-                .get(),
+            race().physics.ground.ground_height.get(),
         ));
     }
     Ok(clear)

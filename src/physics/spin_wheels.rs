@@ -11,6 +11,7 @@
 use crate::math::x87_run::div_mul3_to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
@@ -24,11 +25,12 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 
 /// The Rust core on the variables' cells `v`: the last turn added.
 pub fn spin_at(v: &[&dyn Cell32]) -> u32 {
+    let course = &race().course;
     let (wheel, dt, k65536, scale) = (
         PHYSICS.wheel_spin_share.bits(),
         PHYSICS.step_time.bits(),
-        crate::race::owner::race().course.numbers.k65536.bits(),
-        crate::race::owner::race().course.numbers.one_over_pi.bits(),
+        course.numbers.k65536.bits(),
+        course.numbers.one_over_pi.bits(),
     );
     let mut last = 0;
     for (speed, turn) in [(0, 2), (1, 3)] {

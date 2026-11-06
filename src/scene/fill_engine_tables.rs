@@ -30,6 +30,7 @@
 
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_store::DRAW;
 use crate::scene::next_noise::next_noise;
@@ -55,11 +56,7 @@ fn tangent(angle: u32) -> u32 {
             0x8000,
         ) as u32)
             << 1;
-        crate::race::owner::race()
-            .frame
-            .scratch
-            .tangent_scratch
-            .set_bits(tangent);
+        race().frame.scratch.tangent_scratch.set_bits(tangent);
         tangent
     }
 }
@@ -69,17 +66,14 @@ fn tangent(angle: u32) -> u32 {
 /// `scene::set_up_engine`, whose leftovers are `physics::test_drive`'s (edi, ebp: read by
 /// none of its sites, `lq.py -s 442AF6`).
 pub fn fill_engine_tables() {
+    let course = &race().course;
     // sub_42142B
     for n in 0..0x100usize {
-        let root = x87::int_over_root(
-            n as i32 + 0x100,
-            crate::race::owner::race().course.numbers.k256.bits(),
-        );
-        crate::race::owner::race().course.lists.root_table[n].set_bits(root);
+        let root = x87::int_over_root(n as i32 + 0x100, course.numbers.k256.bits());
+        course.lists.root_table[n].set_bits(root);
     }
     for n in 0..0x100usize {
-        crate::race::owner::race().course.lists.exponent_root_table[n]
-            .set_bits(x87::sqrt((n as u32) << 23));
+        course.lists.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
     }
     // sub_41F661
     PHYSICS.noise_state.set_bits(SEED);
@@ -102,10 +96,9 @@ pub fn fill_engine_tables() {
     }
     // sub_41F716
     for n in 1..0x100usize {
-        crate::race::owner::race().course.lists.face_key_factors[n]
-            .set_bits(x87::int_ratio(1, n as i32));
+        course.lists.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
     }
-    crate::race::owner::race().course.lists.face_key_factors[0].set_bits(1.0f32.to_bits());
+    course.lists.face_key_factors[0].set_bits(1.0f32.to_bits());
     // sub_41F5EF
     for n in 0..SINES {
         crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]

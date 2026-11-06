@@ -17,6 +17,7 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
@@ -38,7 +39,7 @@ pub fn project_entries(entries: &Listed) -> Result<(), Refused> {
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
     if !crate::scene::point_records::held()
-        || (scene_point && crate::race::owner::race().course.course.scene_points.bits() == 0)
+        || (scene_point && race().course.course.scene_points.bits() == 0)
     {
         return Err(BadInput("no points or no records for them").into());
     }

@@ -14,41 +14,37 @@
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub fn ease_view_turn() {
-    if crate::race::owner::race()
-        .replay
-        .replay_frames
-        .step_first
-        .get()
-        != 0
-    {
+    let race = race();
+    if race.replay.replay_frames.step_first.get() != 0 {
         for share in [
-            &crate::race::owner::race().physics.camera.view_share_pitch,
-            &crate::race::owner::race().physics.camera.view_share_heading,
-            &crate::race::owner::race().physics.camera.view_share_roll,
+            &race.physics.camera.view_share_pitch,
+            &race.physics.camera.view_share_heading,
+            &race.physics.camera.view_share_roll,
         ] {
             share.set_bits(0x3F80_0000);
         }
     }
     for (target, turn, share) in [
         (
-            &crate::race::owner::race().physics.camera.start_heading,
+            &race.physics.camera.start_heading,
             &CAR.camera_heading,
-            &crate::race::owner::race().physics.camera.view_share_heading,
+            &race.physics.camera.view_share_heading,
         ),
         (
-            &crate::race::owner::race().physics.camera.start_pitch,
+            &race.physics.camera.start_pitch,
             &CAR.camera_pitch,
-            &crate::race::owner::race().physics.camera.view_share_pitch,
+            &race.physics.camera.view_share_pitch,
         ),
         (
-            &crate::race::owner::race().physics.camera.start_roll,
+            &race.physics.camera.start_roll,
             &CAR.camera_roll_turn,
-            &crate::race::owner::race().physics.camera.view_share_roll,
+            &race.physics.camera.view_share_roll,
         ),
     ] {
         DRAW.scratch.set(target.get().wrapping_sub(turn.get()));

@@ -119,7 +119,7 @@ pub fn note_view() {
 /// ground. Above the window, and behind the eye skipped.
 fn draw_probes(ui: &Ui) {
     use crate::physics::car_store::CAR;
-    let wk = &crate::race::owner::race().physics.contact;
+    let wk = &race().physics.contact;
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -699,15 +699,7 @@ fn profiler(ui: &Ui) {
         &[
             (
                 "Course memory",
-                format!(
-                    "{} KiB",
-                    crate::race::owner::race()
-                        .course
-                        .lists
-                        .course_bytes_total
-                        .get()
-                        >> 10
-                ),
+                format!("{} KiB", race().course.lists.course_bytes_total.get() >> 10),
             ),
             (
                 "Processor has",
@@ -845,6 +837,7 @@ fn time(t: u32) -> String {
 
 /// The "Rivals" tab.
 fn rivals(ui: &Ui) {
+    let physics = &race().physics;
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {
         return;
@@ -862,17 +855,13 @@ fn rivals(ui: &Ui) {
         ui.table_next_column();
         let mut name = Vec::new();
         let _ = crate::strings::append_string_by_id::append_string_by_id(
-            crate::race::owner::race().physics.split_tables.rival_names[n].get(),
+            physics.split_tables.rival_names[n].get(),
             &mut |run| name.extend_from_slice(run),
         );
         ui.text(name.iter().map(|&b| char::from(b)).collect::<String>());
         ui.table_next_column();
-        ui.text(time(
-            crate::race::owner::race().physics.split_tables.rival_scaled[n].get(),
-        ));
+        ui.text(time(physics.split_tables.rival_scaled[n].get()));
         ui.table_next_column();
-        ui.text(time(
-            crate::race::owner::race().physics.split_tables.rival_times[n].get(),
-        ));
+        ui.text(time(physics.split_tables.rival_times[n].get()));
     }
 }

@@ -102,6 +102,7 @@ fn plane_projected() {
 
 /// The Rust version (see the header).
 pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
+    let race = race();
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
     let corner: u32 = QUAD_3.corner.get();
@@ -120,7 +121,7 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
     if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    if crate::race::owner::race().frame.frame_work.lead_kept[7].bits() == 0 {
+    if race.frame.frame_work.lead_kept[7].bits() == 0 {
         return Ok(());
     }
     if corner >= 0x100 {
@@ -149,18 +150,12 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
             .v
             .set_bits(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
     }
-    let light: u32 = crate::race::owner::race()
-        .frame
-        .frame_work
-        .view_light
-        .bits();
+    let light: u32 = race.frame.frame_work.view_light.bits();
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (QUAD_3.corners[n][2].bits() as i32)
-            <= (crate::race::owner::race().course.numbers.k4096_a.bits() as i32)
-        {
+        if (QUAD_3.corners[n][2].bits() as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
             return Ok(());
         }
     }
@@ -194,6 +189,7 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.

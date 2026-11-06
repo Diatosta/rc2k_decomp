@@ -22,6 +22,7 @@ use rc2k_core::race::map::TILE;
 
 /// The Rust version (see the header).
 pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Refused> {
+    let frame = &race().frame;
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.
@@ -41,9 +42,9 @@ pub fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result<(), Re
         { unlock_texture(texture) }?;
         return Err(e.into());
     }
-    race().frame.map.row_gap.set(row_gap(pitch, bytes));
+    frame.map.row_gap.set(row_gap(pitch, bytes));
     let surface = crate::gfx::rows::Rows::new(pixels, pitch, DRAW_SURFACE.height.get());
-    let black = race().frame.map.black.get();
+    let black = frame.map.black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));

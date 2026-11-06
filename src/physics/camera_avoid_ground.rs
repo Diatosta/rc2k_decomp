@@ -31,6 +31,7 @@ use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
@@ -107,6 +108,7 @@ fn turn_back() -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     crate::physics::ease_view_turn::ease_view_turn();
     RACE_TABLES.camera_ground_flag.set(0);
     RACE_TABLES.camera_turn_step.set(u32::MAX);
@@ -139,29 +141,23 @@ pub fn steps() -> Result<(), Refused> {
     if camera_clear_of_ground()? {
         return Ok(());
     }
-    crate::race::owner::race()
-        .physics
+    physics_store
         .camera
         .pitch_ceiling
         .set(camera_ground::PITCH_START);
     let mut up = true;
     loop {
         if up {
-            crate::race::owner::race()
-                .physics
-                .camera
-                .pitch_floor
-                .set(CAR.camera_pitch.get());
+            physics_store.camera.pitch_floor.set(CAR.camera_pitch.get());
             crate::physics::ease_pitch_up::ease_pitch_up();
         } else {
-            crate::race::owner::race()
-                .physics
+            physics_store
                 .camera
                 .pitch_ceiling
                 .set(CAR.camera_pitch.get());
             crate::physics::ease_pitch_down::ease_pitch_down();
         }
-        if crate::race::owner::race().physics.camera.pitch_step.get() == 0 {
+        if physics_store.camera.pitch_step.get() == 0 {
             return Ok(());
         }
         place();

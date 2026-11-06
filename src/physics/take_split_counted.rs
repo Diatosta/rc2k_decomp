@@ -20,6 +20,7 @@ use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::set_flag_51659c::set_flag_51659c;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{
     FINISH_NOTICE, SPLIT_NOTICE, finished_at, split_bonus, split_due,
@@ -28,6 +29,7 @@ use rc2k_core::physics::progress::{
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     if RACE_WORK.current_car.get() != 0 {
         return Ok(());
     }
@@ -38,22 +40,12 @@ pub fn take_split_counted() -> Result<(), Refused> {
     { set_flag_51659c() }?;
     split_by_mode()?;
     put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get())?;
-    if CAR.splits_passed.get()
-        < crate::race::owner::race()
-            .physics
-            .split_tables
-            .split_colour_count
-            .get()
-    {
+    if CAR.splits_passed.get() < physics_store.split_tables.split_colour_count.get() {
         CAR.notice_id.set(SPLIT_NOTICE);
         CAR.notice_time_b.set(0x32);
         CAR.notice_time.set(300);
         let bonus = split_bonus(
-            crate::race::owner::race()
-                .physics
-                .split_tables
-                .stage_numbers[1 + CAR.splits_recorded.get() as usize]
-                .get(),
+            physics_store.split_tables.stage_numbers[1 + CAR.splits_recorded.get() as usize].get(),
         );
         CAR.time_left.set(
             crate::physics::car_store::CAR
@@ -66,11 +58,7 @@ pub fn take_split_counted() -> Result<(), Refused> {
     CAR.splits_recorded.set(CAR.splits_passed.get());
     if finished_at(
         CAR.splits_recorded.get(),
-        crate::race::owner::race()
-            .physics
-            .split_tables
-            .split_colour_count
-            .get(),
+        physics_store.split_tables.split_colour_count.get(),
     ) {
         CAR.finish_flag.set(1);
         CAR.notice_id.set(FINISH_NOTICE);

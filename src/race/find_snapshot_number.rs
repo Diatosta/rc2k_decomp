@@ -15,6 +15,7 @@
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 
 /// IDA's address of the snapshot picture's name.
 pub const SNAPSHOT_START: usize = 0x529731;
@@ -24,7 +25,7 @@ pub const DIGITS_AT: usize = 0x12;
 /// Where the name's three digits are.
 pub fn digits_place() -> GamePtr {
     // The name's bytes: a file name.
-    GamePtr::to(&crate::race::owner::race().replay.snapshot).offset(DIGITS_AT as u32)
+    GamePtr::to(&race().replay.snapshot).offset(DIGITS_AT as u32)
 }
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
@@ -52,12 +53,13 @@ pub fn find_first_at(pattern: GamePtr) -> bool {
 
 /// The Rust version.
 pub fn find_snapshot_number() -> Result<(), BadInput> {
+    let replay = &race().replay;
     // The name's bytes: a file name.
-    GamePtr::to(&crate::race::owner::race().replay.snapshot)
+    GamePtr::to(&replay.snapshot)
         .offset(DIGITS_AT as u32)
         .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
     let mut highest = 0u32;
-    if find_first_at(GamePtr::to(&crate::race::owner::race().replay.snapshot)) {
+    if find_first_at(GamePtr::to(&replay.snapshot)) {
         loop {
             // Converted: `rc2k_core::race::viewer::snapshot_number`.
             let name = crate::files::search::found_name();
@@ -74,7 +76,7 @@ pub fn find_snapshot_number() -> Result<(), BadInput> {
     }
     crate::files::search::close();
     let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-    GamePtr::to(&crate::race::owner::race().replay.snapshot)
+    GamePtr::to(&replay.snapshot)
         .offset(DIGITS_AT as u32)
         .write_bytes(&digits, "the snapshot name")?;
     Ok(())
@@ -86,14 +88,15 @@ mod block_tests {
 
     #[test]
     fn first_value_is_the_games() {
+        let replay = &race().replay;
         crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().replay.snapshot,
+            &replay.snapshot,
             SNAPSHOT_START,
             SNAPSHOT_START + 26,
         );
         assert_eq!(
             crate::moved::place(SNAPSHOT_START),
-            crate::race::owner::race().replay.snapshot.addr() as usize
+            replay.snapshot.addr() as usize
         );
     }
 }

@@ -9,42 +9,25 @@
 //! Caller: `drive::replay_step`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub fn play_replay_frame() -> Result<(), Refused> {
-    let Some(whole) = rc2k_core::drive::race_steps::play_frame(
-        crate::race::owner::race().course.numbers.replay_mode.get(),
-        || {
-            crate::race::owner::race()
-                .replay
+    let race = race();
+    let Some(whole) =
+        rc2k_core::drive::race_steps::play_frame(race.course.numbers.replay_mode.get(), || {
+            race.replay
                 .replay_frames
                 .step_block
-                .set(
-                    crate::race::owner::race()
-                        .replay
-                        .replay_view
-                        .replay_block
-                        .get(),
-                );
-            crate::race::owner::race()
-                .replay
+                .set(race.replay.replay_view.replay_block.get());
+            race.replay
                 .replay_frames
                 .step_frame
-                .set(
-                    crate::race::owner::race()
-                        .replay
-                        .replay_view
-                        .replay_frame
-                        .get(),
-                );
-            crate::race::owner::race()
-                .replay
-                .replay_frames
-                .step_frame
-                .get()
-        },
-    ) else {
+                .set(race.replay.replay_view.replay_frame.get());
+            race.replay.replay_frames.step_frame.get()
+        })
+    else {
         return Ok(());
     };
     if whole {

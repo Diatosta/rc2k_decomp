@@ -25,6 +25,7 @@ use crate::physics::start_go_notice::start_go_notice;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
@@ -34,11 +35,7 @@ pub fn race_timers() -> Result<(), Refused> {
     PHYSICS.weight.set_bits(1.0f32.to_bits());
     let finished = CAR.finish_flag.get() != 0;
     let factor = if finished {
-        crate::race::owner::race()
-            .physics
-            .split_tables
-            .timer_factor
-            .bits()
+        race().physics.split_tables.timer_factor.bits()
     } else {
         0
     };

@@ -16,6 +16,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
@@ -36,9 +37,9 @@ pub fn shown_layout() -> u32 {
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
+    let race = race();
     use crate::scene::depth_buffer_on::depth_buffer;
-    crate::race::owner::race()
-        .frame
+    race.frame
         .panel_and_overlay
         .panel
         .players
@@ -46,73 +47,27 @@ pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
     depth_buffer(false);
     crate::hud::overlay_states::overlay_states();
     let kept: [u32; 2] = [
-        crate::race::owner::race()
-            .frame
-            .panel_and_overlay
-            .panel
-            .hud_flags[0]
-            .get(),
-        crate::race::owner::race()
-            .frame
-            .panel_and_overlay
-            .panel
-            .hud_flags[1]
-            .get(),
+        race.frame.panel_and_overlay.panel.hud_flags[0].get(),
+        race.frame.panel_and_overlay.panel.hud_flags[1].get(),
     ];
     if RACE_VIEW.views.bits() == 2 {
         for n in 0..2 {
             if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
-                crate::race::owner::race()
-                    .frame
-                    .panel_and_overlay
-                    .panel
-                    .hud_flags[n]
-                    .set(
-                        crate::race::owner::race()
-                            .frame
-                            .panel_and_overlay
-                            .panel
-                            .hud_flags[n]
-                            .get()
-                            & 0x40,
-                    );
-                crate::race::owner::race()
-                    .frame
-                    .panel_and_overlay
-                    .panel
-                    .lights[n]
-                    .fade
-                    .set(0);
+                race.frame.panel_and_overlay.panel.hud_flags[n]
+                    .set(race.frame.panel_and_overlay.panel.hud_flags[n].get() & 0x40);
+                race.frame.panel_and_overlay.panel.lights[n].fade.set(0);
             }
         }
     }
     let done = crate::hud::draw_hud::draw_hud(hud);
-    crate::race::owner::race()
-        .frame
-        .panel_and_overlay
-        .panel
-        .hud_flags[1]
-        .set(kept[1]);
-    crate::race::owner::race()
-        .frame
-        .panel_and_overlay
-        .panel
-        .hud_flags[0]
-        .set(kept[0]);
+    race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
+    race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
     done?;
     depth_buffer(true);
     crate::scene::full_view_window::full_view_window();
     crate::scene::set_render_state::set_render_state(3, 3);
-    crate::race::owner::race()
-        .course
-        .level_grid
-        .plain_first
-        .set(1);
-    crate::race::owner::race()
-        .course
-        .level_grid
-        .plain_second
-        .set(1);
+    race.course.level_grid.plain_first.set(1);
+    race.course.level_grid.plain_second.set(1);
     crate::hud::draw_view_strips::draw_view_strips()?;
     depth_buffer(false);
     crate::scene::set_filters::set_filters();

@@ -21,6 +21,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::fill_rival_table::fill_rival_table;
+use crate::race::owner::race;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
@@ -50,13 +51,10 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time() -> Result<(), Refused> {
+    let race = race();
     let (split, count) = (
         CAR.splits_recorded.get(),
-        crate::race::owner::race()
-            .physics
-            .split_tables
-            .split_colour_count
-            .get(),
+        race.physics.split_tables.split_colour_count.get(),
     );
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
@@ -66,80 +64,46 @@ pub fn rank_split_time() -> Result<(), Refused> {
         CAR.split_gaps[k].set(u32::MAX);
     }
     for label in [
-        &crate::race::owner::race()
-            .frame
-            .panel_and_overlay
-            .overlay
-            .label_behind,
-        &crate::race::owner::race()
-            .frame
-            .panel_and_overlay
-            .overlay
-            .label_ahead,
+        &race.frame.panel_and_overlay.overlay.label_behind,
+        &race.frame.panel_and_overlay.overlay.label_ahead,
     ] {
         label[0].set(0x2020_2020);
         label[1].set(0x2020_2020);
     }
-    let base =
-        crate::race::owner::race().physics.split_tables.checkpoints[1 + split as usize].get();
-    let d = crate::race::owner::race().physics.split_tables.checkpoints[count as usize].get();
+    let base = race.physics.split_tables.checkpoints[1 + split as usize].get();
+    let d = race.physics.split_tables.checkpoints[count as usize].get();
     let (scale, _) = split_scale(base, d)?;
     for c in 0..RIVALS {
-        let (q, _) = scaled_time(
-            crate::race::owner::race().physics.split_tables.rival_times[c].get(),
-            scale,
-        )?;
-        crate::race::owner::race().physics.split_tables.rival_scaled[c].set(q);
+        let (q, _) = scaled_time(race.physics.split_tables.rival_times[c].get(), scale)?;
+        race.physics.split_tables.rival_scaled[c].set(q);
     }
     // (A loop whose work was cut out: it left only registers, read by no one.)
     let time = CAR.stage_time.get();
-    let (c, _) = rank(time, |c| {
-        crate::race::owner::race().physics.split_tables.rival_scaled[c].get()
-    });
+    let (c, _) = rank(time, |c| race.physics.split_tables.rival_scaled[c].get());
     CAR.split_gaps[0].set(c);
-    crate::race::owner::race()
-        .physics
-        .split_tables
-        .car_time
-        .set(time);
+    race.physics.split_tables.car_time.set(time);
     let c = c as usize;
     if c != 1 {
         // The one ahead: rival c - 2 (its scaled time, car and name).
         CAR.split_gaps[1].set(gap(
-            crate::race::owner::race().physics.split_tables.rival_scaled[c - 2].get(),
+            race.physics.split_tables.rival_scaled[c - 2].get(),
             time,
         ));
-        CAR.split_gaps[3]
-            .set(crate::race::owner::race().physics.split_tables.rival_cars[c - 2].get());
-        let id = crate::race::owner::race().physics.split_tables.rival_names[c - 2].get();
+        CAR.split_gaps[3].set(race.physics.split_tables.rival_cars[c - 2].get());
+        let id = race.physics.split_tables.rival_names[c - 2].get();
         CAR.split_gaps[5].set(id);
-        name(
-            id,
-            &crate::race::owner::race()
-                .frame
-                .panel_and_overlay
-                .overlay
-                .label_ahead,
-        )?;
+        name(id, &race.frame.panel_and_overlay.overlay.label_ahead)?;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
         CAR.split_gaps[2].set(gap(
             time,
-            crate::race::owner::race().physics.split_tables.rival_scaled[c - 1].get(),
+            race.physics.split_tables.rival_scaled[c - 1].get(),
         ));
-        CAR.split_gaps[4]
-            .set(crate::race::owner::race().physics.split_tables.rival_cars[c - 1].get());
-        let id = crate::race::owner::race().physics.split_tables.rival_names[c - 1].get();
+        CAR.split_gaps[4].set(race.physics.split_tables.rival_cars[c - 1].get());
+        let id = race.physics.split_tables.rival_names[c - 1].get();
         CAR.split_gaps[6].set(id);
-        name(
-            id,
-            &crate::race::owner::race()
-                .frame
-                .panel_and_overlay
-                .overlay
-                .label_behind,
-        )?;
+        name(id, &race.frame.panel_and_overlay.overlay.label_behind)?;
     }
     Ok(())
 }

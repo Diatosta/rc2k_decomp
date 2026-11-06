@@ -5,6 +5,7 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 
@@ -12,7 +13,8 @@ use crate::scene::draw_store::DRAW;
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
 /// become 0. The length rounded into `dword_62400C`.
 pub fn normalise_work_vector() {
-    let mut v = crate::race::owner::race()
+    let race = race();
+    let mut v = race
         .frame
         .scratch
         .work_vector
@@ -20,16 +22,13 @@ pub fn normalise_work_vector() {
         .map(super::super::session::Dword::bits);
     let (length, zero) = x87::normalise_in_place(
         v.first_chunk_mut::<3>().expect("four parts"),
-        crate::race::owner::race().course.numbers.zero.bits(),
+        race.course.numbers.zero.bits(),
     );
-    for (cell, &bits) in crate::race::owner::race().frame.scratch.work_vector[..3]
-        .iter()
-        .zip(&v)
-    {
+    for (cell, &bits) in race.frame.scratch.work_vector[..3].iter().zip(&v) {
         cell.set_bits(bits);
     }
     DRAW.scratch.set_bits(length);
-    for part in &crate::race::owner::race().frame.scratch.work_vector[..3] {
+    for part in &race.frame.scratch.work_vector[..3] {
         if zero || part.bits() == 0x8000_0000 {
             part.set_bits(0u32);
         }
@@ -41,6 +40,7 @@ pub fn normalise_work_vector() {
 /// product into `g_workVector` (each part as `math::x87::int_product_difference`),
 /// normalised. Its caller (`store_face_normal`) keeps every register round it.
 pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
+    let race = race();
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
             Ok(crate::race::scene_points::point_number(n)?.map(|v| v as i32))
@@ -59,20 +59,14 @@ pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
         work[3..6].copy_from_slice(&b);
         work[6..9].copy_from_slice(&c);
         work[9..].copy_from_slice(&d);
-        crate::session::write_bits(
-            &crate::race::owner::race().physics.ground.normal_work,
-            work.map(|v| v as u32),
-        );
+        crate::session::write_bits(&race.physics.ground.normal_work, work.map(|v| v as u32));
         // c4 = d[0], c8 = d[1], cc = d[2], d0 = d[3], d4 = d[4], d8 = d[5]
         let normal = [
             x87::int_product_difference(d[5], d[2], d[3], d[4]),
             x87::int_product_difference(d[1], d[4], d[5], d[0]),
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ];
-        crate::session::write_first(
-            &crate::race::owner::race().frame.scratch.work_vector,
-            &normal,
-        );
+        crate::session::write_first(&race.frame.scratch.work_vector, &normal);
         normalise_work_vector();
     }
     Ok(())
@@ -88,6 +82,7 @@ pub fn store_face_normal(
     face_number: u32,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
 ) -> Result<(), BadInput> {
+    let race = race();
     {
         // Converted: `rc2k_core::race::faces::{takes_normals, repeated_points,
         // with_repeated, normal_made}`.
@@ -108,18 +103,13 @@ pub fn store_face_normal(
         crate::race::course_places::update_face_number(face, what, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));
         })?;
-        let count: u32 = crate::race::owner::race()
-            .course
-            .course
-            .scene_point_count
-            .bits();
+        let count: u32 = race.course.course.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
             if normal_made([a, b, c], count) {
                 normal(a, b, c)?;
             }
-            let work: [u32; 3] =
-                crate::session::read_first(&crate::race::owner::race().frame.scratch.work_vector);
+            let work: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
             for (place, value) in places.into_iter().zip(work) {
                 crate::race::course_places::write_face_field(
                     face,
@@ -138,28 +128,17 @@ pub fn store_face_normal(
 /// (`g_scenePoints`, `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its
 /// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
 pub fn lay_out_course() {
+    let course = &race().course;
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
-            crate::race::owner::race().course.lists.course_memory.bits(),
-            crate::race::owner::race()
-                .course
-                .course
-                .course_record_count
-                .bits(),
-            crate::race::owner::race()
-                .course
-                .course
-                .course_face_count
-                .bits(),
-            crate::race::owner::race()
-                .course
-                .course
-                .scene_point_count
-                .bits(),
+            course.lists.course_memory.bits(),
+            course.course.course_record_count.bits(),
+            course.course.course_face_count.bits(),
+            course.course.scene_point_count.bits(),
         );
         let [records, faces, points, after, after_offset] = layout.dwords();
-        let c = &crate::race::owner::race().course.course;
+        let c = &course.course;
         // The faces and records are Rust's too (`race::course_places`).
         if crate::race::course_places::held() {
             c.course_records
@@ -191,11 +170,7 @@ pub fn store_norms(
 ) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::faces::check_face_count`.
-        let count: u32 = crate::race::owner::race()
-            .course
-            .course
-            .course_face_count
-            .bits();
+        let count: u32 = race().course.course.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course();
         for face in 0..count {

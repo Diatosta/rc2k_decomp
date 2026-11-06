@@ -18,6 +18,7 @@
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
@@ -36,41 +37,29 @@ fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
 pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
+    let course = &race().course;
     {
         let first = scaled(
             sample(0x50)?,
-            crate::race::owner::race().course.stage_prefs.blit_cleared[0].get(),
-            crate::race::owner::race().course.stage_prefs.blit_cleared[1].get(),
+            course.stage_prefs.blit_cleared[0].get(),
+            course.stage_prefs.blit_cleared[1].get(),
         );
         CAR.surface_noise_a.set(first);
         CAR.surface_noise_b.set(first);
         let second = scaled(
             sample(0x20)?,
-            crate::race::owner::race().course.stage_prefs.surface_scale[0].get(),
-            crate::race::owner::race().course.stage_prefs.surface_scale[1].get(),
+            course.stage_prefs.surface_scale[0].get(),
+            course.stage_prefs.surface_scale[1].get(),
         );
         CAR.surface_noise_second.set(second);
-        let floor = rough_floor(
-            second,
-            crate::race::owner::race()
-                .course
-                .stage_prefs
-                .surface_floor
-                .get(),
-        );
+        let floor = rough_floor(second, course.stage_prefs.surface_floor.get());
         DRAW.scratch.set(floor);
         CAR.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
-            crate::race::owner::race().course.numbers.k256.bits(),
+            course.numbers.k256.bits(),
             0x3F80_0000,
         ));
-        if crate::race::owner::race()
-            .course
-            .stage_prefs
-            .noise_pick
-            .get()
-            != 0
-        {
+        if course.stage_prefs.noise_pick.get() != 0 {
             CAR.surface_noise_a.set(0);
         } else {
             CAR.surface_noise_b.set(0);

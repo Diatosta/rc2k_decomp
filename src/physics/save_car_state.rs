@@ -13,6 +13,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use rc2k_core::physics::saved_car::save_count;
 
 /// The Rust version (`restore_saved_car`'s, the other way). Converted:
@@ -26,7 +27,7 @@ pub fn save_car_state() -> Result<(), Refused> {
     for (to, from) in PHYSICS.saved_matrix.iter().zip(&CAR.crash_matrix) {
         to.set_bits(from.bits());
     }
-    for (to, from) in crate::race::owner::race().physics.contact.probe_saved_faces[..n]
+    for (to, from) in race().physics.contact.probe_saved_faces[..n]
         .iter()
         .zip(&CAR.probe_point_face[..n])
     {

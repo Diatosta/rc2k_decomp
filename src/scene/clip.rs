@@ -20,6 +20,7 @@
 //! where they are copied.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
@@ -84,6 +85,7 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// what the screen's passes keep in `dword_624008`. Returns the entry's number; the
 /// caller lists it and counts `dword_624114` on.
 fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32, BadInput> {
+    let course = &race().course;
     let number: u32 = DRAW.polygon_next_entry.bits();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
@@ -133,14 +135,9 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
                 DRAW.view_scale.bits(),
                 DRAW.view_centre[0].bits(),
                 DRAW.view_centre[1].bits(),
-                crate::race::owner::race().course.course.flat_depth.bits(),
+                course.course.flat_depth.bits(),
             ];
-            let flat = crate::race::owner::race()
-                .course
-                .stage_prefs
-                .flat_depth
-                .bits()
-                != 0;
+            let flat = course.stage_prefs.flat_depth.bits() != 0;
             to_screen(
                 &mut point,
                 &v,

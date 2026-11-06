@@ -16,6 +16,7 @@ use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
@@ -110,19 +111,20 @@ fn kept<T>(f: impl FnOnce() -> T) -> T {
 
 /// `sub_43CAAB`: the drive at the engine's speed and the car's throttle.
 fn torque() {
+    let course = &race().course;
     engine_torque();
     PHYSICS.drive_ratio.set_bits(sum_times_int_over_minus(
         PHYSICS.engine_force.bits(),
         PHYSICS.engine_torque.bits(),
         CAR.throttle.get() as i32,
-        crate::race::owner::race().course.numbers.k256.bits(),
+        course.numbers.k256.bits(),
     ));
     let gear = CAR.gear.get() as i32;
     PHYSICS.drive_torque.set_bits(mul_div2(
         PHYSICS.drive_ratio.bits(),
         GEAR.drive_torque_figure.bits(),
         PHYSICS.gear_ratios[(gear + 1) as usize].bits(),
-        crate::race::owner::race().course.numbers.k10000.bits(),
+        course.numbers.k10000.bits(),
     ));
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);
@@ -160,7 +162,7 @@ fn measure() -> Option<Measured> {
     let down = figure(&GEAR.shift_down_point);
     let air = figure(&PHYSICS.air_drag);
     let rolling = figure(&PHYSICS.rolling_drag);
-    let k = f32::from_bits(crate::race::owner::race().course.numbers.k10000.bits());
+    let k = f32::from_bits(race().course.numbers.k10000.bits());
     Some(kept(|| {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];

@@ -30,6 +30,7 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -45,6 +46,7 @@ const OBJECTS: u32 = 0x100;
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
 fn moved(from: usize, by: u32) -> Result<(), BadInput> {
+    let course = &race().course;
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
@@ -65,13 +67,9 @@ fn moved(from: usize, by: u32) -> Result<(), BadInput> {
     moved_at(cells(&mut w));
     // The original stores the three from `point_moved`, y and z on over the first two
     // group masks (`notes/bugs.md`).
-    crate::race::owner::race()
-        .course
-        .course
-        .point_moved
-        .set(w[7]);
-    crate::race::owner::race().course.course.group_masks[0].set(w[8]);
-    crate::race::owner::race().course.course.group_masks[1].set(w[9]);
+    course.course.point_moved.set(w[7]);
+    course.course.group_masks[0].set(w[8]);
+    course.course.group_masks[1].set(w[9]);
     DRAW.scratch.set_bits(w[10]);
     Ok(())
 }
@@ -159,7 +157,7 @@ fn object() -> Result<Object, BadInput> {
             as i32,
         normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
             as i32,
-        table: crate::race::owner::race().course.lists.object_points.bits(),
+        table: race().course.lists.object_points.bits(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
@@ -173,15 +171,15 @@ fn object() -> Result<Object, BadInput> {
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points() -> Result<(), Refused> {
+    let race = race();
     let object = object()?;
     if object.points <= 0 {
         return Ok(());
     }
     // A copy: nothing the loop writes is the matrix (`off_5EA40C`'s, the object's own).
     // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
-    let matrix: [u32; 16] = std::array::from_fn(|n| {
-        crate::race::owner::race().frame.matrices.made_object_matrix[n].bits()
-    });
+    let matrix: [u32; 16] =
+        std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].bits());
     let move_by: u32 = RACE_VARS.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
@@ -194,9 +192,9 @@ pub fn place_object_points() -> Result<(), Refused> {
             moved(from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
             [
-                crate::race::owner::race().course.course.point_moved.get(),
-                crate::race::owner::race().course.course.group_masks[0].get(),
-                crate::race::owner::race().course.course.group_masks[1].get(),
+                race.course.course.point_moved.get(),
+                race.course.course.group_masks[0].get(),
+                race.course.course.group_masks[1].get(),
             ]
         } else {
             crate::scene::object_points::point(from)?
@@ -209,14 +207,9 @@ pub fn place_object_points() -> Result<(), Refused> {
                 DRAW.view_scale.bits(),
                 DRAW.view_centre[0].bits(),
                 DRAW.view_centre[1].bits(),
-                crate::race::owner::race().course.course.flat_depth.bits(),
+                race.course.course.flat_depth.bits(),
             ];
-            let flat = crate::race::owner::race()
-                .course
-                .stage_prefs
-                .flat_depth
-                .bits()
-                != 0;
+            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
             to_screen(&mut r, &v, flat, &DRAW.scratch);
         }
         point_records::set(record, r)?;
@@ -250,10 +243,9 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
 /// worked out (`sub_45C237`), and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse() -> Result<(), Refused> {
+    let race = race();
     let object = object()?;
-    let m: [f32; 16] = std::array::from_fn(|n| {
-        crate::race::owner::race().frame.matrices.made_object_matrix[n].get()
-    });
+    let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points.max(0) {
@@ -272,14 +264,9 @@ pub fn place_object_points_sse() -> Result<(), Refused> {
                 DRAW.view_scale.bits(),
                 DRAW.view_centre[0].bits(),
                 DRAW.view_centre[1].bits(),
-                crate::race::owner::race().course.course.flat_depth.bits(),
+                race.course.course.flat_depth.bits(),
             ];
-            let flat = crate::race::owner::race()
-                .course
-                .stage_prefs
-                .flat_depth
-                .bits()
-                != 0;
+            let flat = race.course.stage_prefs.flat_depth.bits() != 0;
             to_screen(&mut r, &v, flat, &DRAW.scratch);
         }
         point_records::set(record, r)?;

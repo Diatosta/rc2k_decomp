@@ -4,6 +4,7 @@
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
 //! draw frames. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -66,10 +67,7 @@ pub struct InGroup;
 impl core::ops::Deref for InGroup {
     type Target = ReplayWork;
     fn deref(&self) -> &ReplayWork {
-        &crate::race::owner::race()
-            .replay
-            .cars_and_replay
-            .replay_work
+        &race().replay.cars_and_replay.replay_work
     }
 }
 
@@ -86,10 +84,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race()
-            .replay
-            .cars_and_replay
-            .replay_work,
+        &race().replay.cars_and_replay.replay_work,
     ))
 }
 

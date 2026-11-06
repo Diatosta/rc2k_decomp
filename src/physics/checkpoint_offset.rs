@@ -16,6 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
@@ -23,15 +24,14 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
 pub fn checkpoint_offset() -> Result<(), Refused> {
+    let course_store = &race().course;
     let c = CAR.checkpoint.get();
     if checkpoint_ahead(c, RACE_VARS.checkpoint_count.get())?.is_none() {
         CAR.checkpoint_offset[0].set(0);
         CAR.checkpoint_offset[1].set(0);
         return Ok(());
     }
-    if crate::race::owner::race().course.course.course_faces.get() == 0
-        || crate::race::owner::race().course.course.scene_points.get() == 0
-    {
+    if course_store.course.course_faces.get() == 0 || course_store.course.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
     let angle = crate::race::checkpoints_store::angle(c as usize).get();

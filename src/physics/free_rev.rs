@@ -20,6 +20,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
@@ -60,16 +61,17 @@ pub fn free_rev() {
 /// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
 /// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
 fn x87_1() {
+    let course = &race().course;
     let t0 = ld(PHYSICS.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
     let t3 = ld(PHYSICS.gear_ratios[1].bits());
     let t4 = t2 / t3;
-    let t5 = ld(crate::race::owner::race().course.numbers.k10000.bits());
+    let t5 = ld(course.numbers.k10000.bits());
     let t6 = t4 / t5;
     let t7 = int(CAR.throttle.bits() as i32);
     let t8 = t6 * t7;
-    let t9 = ld(crate::race::owner::race().course.numbers.k256.bits());
+    let t9 = ld(course.numbers.k256.bits());
     let t10 = t8 / t9;
     PHYSICS.drive_torque.set_bits(st(t10));
     let t11 = ld(PHYSICS.drive_torque.bits());

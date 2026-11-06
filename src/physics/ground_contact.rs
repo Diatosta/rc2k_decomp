@@ -32,64 +32,38 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
-    crate::race::owner::race()
-        .physics
-        .contact
-        .ground_contact_started
-        .set(0);
+    let physics_store = &race().physics;
+    physics_store.contact.ground_contact_started.set(0);
     { lowest_body_point() }?;
-    let depth = crate::race::owner::race()
-        .physics
-        .contact
-        .lowest_depth
-        .get();
+    let depth = physics_store.contact.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {
         return Ok(());
     }
     let n = point_number()?;
-    crate::race::owner::race()
-        .physics
-        .contact
-        .ground_contact_started
-        .set(1);
+    physics_store.contact.ground_contact_started.set(1);
     CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
     CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
     CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
     take_contact(n)?;
-    crate::race::owner::race()
-        .physics
-        .contact
-        .contact_slide_limit
-        .set_bits(0);
+    physics_store.contact.contact_slide_limit.set_bits(0);
     contact_force(&PHYSICS.contacts[2]);
     { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(
-            crate::race::owner::race()
-                .physics
-                .contact
-                .contact_speed_length
-                .bits(),
-        ),
+        f32::from_bits(physics_store.contact.contact_speed_length.bits()),
         f32::from_bits(CAR.contact_depth.bits()),
     ) {
         CAR.contact_depth.set_bits(hit.to_bits());
     }
     copy_cells(
-        &crate::race::owner::race().physics.contact.ground_force,
+        &physics_store.contact.ground_force,
         &PHYSICS.contacts[2].force,
     );
-    if sign(
-        crate::race::owner::race()
-            .physics
-            .contact
-            .lowest_depth
-            .get(),
-    ) {
+    if sign(physics_store.contact.lowest_depth.get()) {
         { restore_saved_car() }?;
         { feel_ground() }?;
     }

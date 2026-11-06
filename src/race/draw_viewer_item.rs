@@ -15,19 +15,14 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
 use crate::session::Dword;
 
 fn camera_byte(byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
-        byte.wrapping_add(
-            8 * crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_block
-                .get() as usize,
-        ),
+        byte.wrapping_add(8 * race().replay.replay_view.replay_block.get() as usize),
     )? as u32)
 }
 

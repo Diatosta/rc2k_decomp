@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -249,6 +250,7 @@ impl Tidy {
 /// 0, `dword_606294` `dword_6235F4`); "finis". What the steps leave in eax, ebx and the
 /// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
 pub fn tidy_stage() -> Result<(), Refused> {
+    let race = race();
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
     };
@@ -274,9 +276,8 @@ pub fn tidy_stage() -> Result<(), Refused> {
     s.log(STAGE_WORDS[8]);
     s.indent(3);
     free(&OBJECT_POINTS)?;
-    crate::race::owner::race().course.numbers.in_race.set(0);
-    crate::race::owner::race()
-        .frame
+    race.course.numbers.in_race.set(0);
+    race.frame
         .view_and_records
         .view_vars
         .view_scale
@@ -326,11 +327,8 @@ pub fn tidy_everything() -> Result<(), Refused> {
 /// replay closed, everything tidied, the settings out. `indent` is `g_logIndent`'s
 /// address. Its callers read only esi of what it leaves, which every step keeps.
 pub fn run_race() -> Result<(), Refused> {
-    crate::race::owner::race()
-        .physics
-        .split_tables
-        .arcade_kind
-        .set(1);
+    let race = race();
+    race.physics.split_tables.arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
     if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
         RACE_TABLES
@@ -338,11 +336,7 @@ pub fn run_race() -> Result<(), Refused> {
             .set(crate::math::next_random::next_random());
     }
     FRAME_SWITCHES.editor_mode.set(0u32);
-    crate::race::owner::race()
-        .course
-        .numbers
-        .replay_mode
-        .set_bits(1u32);
+    race.course.numbers.replay_mode.set_bits(1u32);
     crate::race::settings_copy::copy_settings_in()?;
     crate::race::race_cars::set_up_arcade_cars()?;
     RACE_VARS.settings_words[1].set(1u32);

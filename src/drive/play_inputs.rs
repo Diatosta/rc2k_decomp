@@ -11,6 +11,7 @@
 use crate::errors::BadInput;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
@@ -22,14 +23,7 @@ pub fn play_inputs() -> Result<(), BadInput> {
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .step_frame
-            .get(),
-        car,
-    );
+    let esi = tape_offset(race().replay.replay_frames.step_frame.get(), car);
     let at = |o: u32| GamePtr::to(&REPLAY_WORK.replay_tape).offset(esi).offset(o);
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);

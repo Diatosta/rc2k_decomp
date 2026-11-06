@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -124,15 +125,15 @@ impl Steps {
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
 pub fn loadlevel_init() -> Result<(), Refused> {
+    let race = race();
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
     let mut s = Steps { v, word: 0 };
     s.log();
     s.indent(3);
-    crate::race::owner::race().frame.map.use_packed.set(1u32);
-    crate::race::owner::race()
-        .frame
+    race.frame.map.use_packed.set(1u32);
+    race.frame
         .map
         .packed_2
         .set((FRAME_SWITCHES.editor_mode.bits() == 0) as u32);
@@ -141,7 +142,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
         direction ^= 1;
     }
     RACE_WORK.stage_direction.set(direction);
-    crate::race::owner::race().course.numbers.in_race.set(1);
+    race.course.numbers.in_race.set(1);
     RACE_VARS.bar_function.set_bits(v.bar);
     s.progress(0)?;
     s.indent(-3);
@@ -157,7 +158,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     // stru_5C6D50: the course's MemoryList.
-    level::allocate_course_memory(&crate::race::owner::race().course.lists.course_memory_list)?;
+    level::allocate_course_memory(&race.course.lists.course_memory_list)?;
     s.progress(2)?;
     s.progress(4)?;
     s.indent(-3);
@@ -234,23 +235,14 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     level::reset_refresh();
-    let flags: u32 = crate::race::owner::race()
-        .course
-        .stage_prefs
-        .refresh_flags_a
-        .bits();
+    let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
     LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {
         car.lights_on.set(flags & 1);
     }
-    LIGHT_WORK.lamps_mask.set_bits(
-        crate::race::owner::race()
-            .course
-            .stage_prefs
-            .refresh_flags_b
-            .bits()
-            & 1,
-    );
+    LIGHT_WORK
+        .lamps_mask
+        .set_bits(race.course.stage_prefs.refresh_flags_b.bits() & 1);
     s.indent(-3);
     s.step(
         &mut || {
@@ -296,7 +288,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     crate::race::norms::store_norms(&mut crate::race::norms::game_normal)?;
-    if crate::race::owner::race().replay.finish.no_place.get() == 0 {
+    if race.replay.finish.no_place.get() == 0 {
         s.indent(-3);
         s.step(&mut || level::init_checkpoints(), None)?;
         s.step(

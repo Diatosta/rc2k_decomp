@@ -10,6 +10,7 @@
 //! menus' objects.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::make_object_matrix;
@@ -28,21 +29,14 @@ pub enum Step {
 /// `step`: what stands for the two calls. The original's eax (0x200, then 0x100: the
 /// shine) is read by neither call nor by its callers.
 pub fn draw_menu_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<(), Refused> {
+    let course = &race().course;
     {
-        crate::race::owner::race()
-            .course
-            .course
-            .shine
-            .set_bits(0x200u32);
+        course.course.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
         LIGHT_STATE.view_kind.set_bits(5u32);
         LIGHT_WORK.light_kind.set_bits(4u32);
         step(Step::Draw)?;
-        crate::race::owner::race()
-            .course
-            .course
-            .shine
-            .set_bits(0x100u32);
+        course.course.shine.set_bits(0x100u32);
         Ok(())
     }
 }

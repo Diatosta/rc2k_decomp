@@ -9,6 +9,7 @@
 //! The instructions themselves, as `fpatan`'s result is the processor's. Four callers.
 
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -17,12 +18,13 @@ use crate::scene::draw_store::DRAW;
 
 /// The angle of the two differences.
 pub fn angle_of(first: u32, second: u32) -> u32 {
+    let course = &race().course;
     {
         let angle = x87::angle_scaled_to_int(
             first as i32,
             second as i32,
-            crate::race::owner::race().course.numbers.half.bits(),
-            crate::race::owner::race().course.numbers.k65536.bits(),
+            course.numbers.half.bits(),
+            course.numbers.k65536.bits(),
         ) as u32
             & 0xFFFF;
         DRAW.scratch.set_bits(angle);

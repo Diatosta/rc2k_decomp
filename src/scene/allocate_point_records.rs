@@ -9,6 +9,7 @@
 //! callers, the front end's 3D set-up and the stage's loading.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::scene::point_records::{self, BYTES};
 
 // ---- Rust version ----
@@ -16,19 +17,12 @@ use crate::scene::point_records::{self, BYTES};
 /// The records taken (Rust's since phase 13, `scene::point_records`): counted on the
 /// list, `g_pointRecords` set to `point_records::HELD`.
 pub fn allocate_point_records_in_game() -> Result<(), Refused> {
-    crate::race::owner::race()
-        .course
+    let course = &race().course;
+    course
         .lists
         .course_bytes_total
-        .set_bits(
-            crate::race::owner::race()
-                .course
-                .lists
-                .course_bytes_total
-                .bits()
-                .wrapping_add(BYTES),
-        );
+        .set_bits(course.lists.course_bytes_total.bits().wrapping_add(BYTES));
     point_records::take(crate::pointers::GamePtr::to(
-        &crate::race::owner::race().course.lists.point_records_list,
+        &course.lists.point_records_list,
     ))
 }

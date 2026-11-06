@@ -6,6 +6,7 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -34,18 +35,13 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
 /// the depth is also stored at `dword_62400C`.
 pub(crate) fn project_record(v: &mut crate::scene::point_records::Record) {
+    let course = &race().course;
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
     let reach = ld(DRAW.view_scale.bits());
-    let scale = if crate::race::owner::race()
-        .course
-        .stage_prefs
-        .flat_depth
-        .get()
-        != 0
-    {
+    let scale = if course.stage_prefs.flat_depth.get() != 0 {
         DRAW.scratch.set(st(z));
-        reach / (int(crate::race::owner::race().course.course.flat_depth.get() as i32) + ONE)
+        reach / (int(course.course.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
@@ -82,17 +78,14 @@ fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
 
 /// Skidmark point `n` turned and projected, as `skid_vertex` does it.
 fn turn_skid_point(matrix: &[u32; 15], n: u32) -> Result<Turned, BadInput> {
+    let race = race();
     {
-        let points = &crate::race::owner::race().frame.shadow_skids.skid_points;
+        let points = &race.frame.shadow_skids.skid_points;
         let at = n as usize * 0xC;
         if at + 0xC > 0x6000 {
             return Err(BadInput("a skidmark point past the table"));
         }
-        let lift: u32 = crate::race::owner::race()
-            .frame
-            .shadow_skids
-            .skid_lift
-            .bits();
+        let lift: u32 = race.frame.shadow_skids.skid_lift.bits();
         use crate::math::x87_float::{int, ld, st};
         let point = [
             int(points.get_u32(at) as i32),
@@ -104,18 +97,9 @@ fn turn_skid_point(matrix: &[u32; 15], n: u32) -> Result<Turned, BadInput> {
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&t.map(st));
         let mut scratch = None;
-        if !crate::math::x87_load::below_or_unordered(
-            made[6],
-            crate::race::owner::race().course.numbers.k4096_a.bits(),
-        ) {
+        if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
             project_record(&mut made);
-            if crate::race::owner::race()
-                .course
-                .stage_prefs
-                .flat_depth
-                .get()
-                != 0
-            {
+            if race.course.stage_prefs.flat_depth.get() != 0 {
                 scratch = Some(DRAW.scratch.bits());
             }
         }
@@ -134,16 +118,13 @@ fn turn_skid_point(matrix: &[u32; 15], n: u32) -> Result<Turned, BadInput> {
 /// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
 pub fn draw_skidmarks() -> Result<(), Refused> {
+    let frame = &race().frame;
     let mut views = u32::MAX;
     let mode: u32 = RACE_VARS.run_kind.get();
     if mode != 0 && mode != 2 {
         views = 1u32.wrapping_shl(RACE_VIEW.drawn_view.get() & 0x1F);
     }
-    crate::race::owner::race()
-        .frame
-        .shadow_skids
-        .skid_views
-        .set(views);
+    frame.shadow_skids.skid_views.set(views);
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
     for (k, e) in (0..4u32).zip(entries) {
         e.record.set(crate::scene::point_records::of_quad(k));
@@ -162,16 +143,15 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
     }
     DRAW.polygon_textures[0].set(0xC0u32);
     DRAW.polygon_textures[1].set(0xC0u32);
-    let links = GamePtr::to(&crate::race::owner::race().frame.shadow_skids.skid_links);
-    let matrix: [u32; 15] =
-        crate::math::cells::load(&crate::race::owner::race().frame.matrices.view_matrix);
+    let links = GamePtr::to(&frame.shadow_skids.skid_links);
+    let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): a skidmark's
     // next quad has them as its two before, and nothing it is drawn with changes what they
     // are turned from.
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
-            let table = &crate::race::owner::race().frame.shadow_skids.skid_links;
+            let table = &frame.shadow_skids.skid_links;
             let at = at as usize;
             if at + 2 <= size_of_val(table) {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
@@ -238,7 +218,7 @@ pub fn draw_skidmarks() -> Result<(), Refused> {
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves.
 pub fn draw_skidmarks_if_on() -> Result<(), Refused> {
-    if crate::race::owner::race().frame.frame_work.drawing.get() != 0 {
+    if race().frame.frame_work.drawing.get() != 0 {
         return Ok(());
     }
     draw_skidmarks()
@@ -371,6 +351,7 @@ mod asm_reference {
 
     #[test]
     fn project_vertex_matches() {
+        let course = &race().course;
         let _l = lock();
         let _saved = Saved::new(&[0x62400C, 0x5CCD80, 0x624088, 0x6240A0, 0x62409C, 0x60932C]);
         let mut r = Rng(4);
@@ -378,16 +359,8 @@ mod asm_reference {
             for n in 0..20000 {
                 let flat = n % 2 == 0;
                 {
-                    crate::race::owner::race()
-                        .course
-                        .stage_prefs
-                        .flat_depth
-                        .set(flat as u32);
-                    crate::race::owner::race()
-                        .course
-                        .course
-                        .flat_depth
-                        .set(r.int() as u32);
+                    course.stage_prefs.flat_depth.set(flat as u32);
+                    course.course.flat_depth.set(r.int() as u32);
                     DRAW.view_scale.set_bits(r.float());
                     DRAW.view_centre[1].set_bits(r.float());
                     DRAW.view_centre[0].set_bits(r.float());

@@ -22,6 +22,7 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
@@ -50,6 +51,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let course = &race().course;
     let textures: u32 = TEXTURE_PLACES.totals[3].get();
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
@@ -69,16 +71,8 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
     }
     let size = [
-        crate::race::owner::race()
-            .course
-            .stage_prefs
-            .scene_size_a
-            .get(),
-        crate::race::owner::race()
-            .course
-            .stage_prefs
-            .scene_size_b
-            .get(),
+        course.stage_prefs.scene_size_a.get(),
+        course.stage_prefs.scene_size_b.get(),
     ];
     for texture in 0..textures {
         crate::gfx::owner::gfx().grading.reading.set(1u32);

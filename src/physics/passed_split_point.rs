@@ -24,6 +24,7 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
@@ -33,66 +34,56 @@ use std::cmp::Ordering;
 /// the scratch dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into
 /// +0x214D04.
 fn distance(point: [u32; 3]) {
+    let race = race();
     let word = |k: usize| point[k] as i32;
-    let dx = word(0).wrapping_sub(crate::race::owner::race().physics.ground.ground_x.get() as i32);
+    let dx = word(0).wrapping_sub(race.physics.ground.ground_x.get() as i32);
     DRAW.scratch.set_bits(dx as u32);
     let first = int(DRAW.scratch.bits() as i32);
-    let dz = word(2).wrapping_sub(crate::race::owner::race().physics.ground.ground_z.get() as i32);
+    let dz = word(2).wrapping_sub(race.physics.ground.ground_z.get() as i32);
     DRAW.scratch.set_bits(dz as u32);
     let second = int(DRAW.scratch.bits() as i32);
     PHYSICS
         .split_point_distance
         .set_bits(st((first * first + second * second).sqrt()
-            * ld(crate::race::owner::race()
-                .course
-                .numbers
-                .one_over_65536
-                .bits())));
+            * ld(race.course.numbers.one_over_65536.bits())));
 }
 
 /// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `dword_62400C`: the gaps
 /// (the car's x and z less the point's, through the scratch dword +0x22400C), `fpatan`,
 /// over pi, x `flt_5C5E40` x `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
 fn angle(point: [u32; 3]) {
+    let race = race();
     let word = |k: usize| point[k] as i32;
-    let dx =
-        (crate::race::owner::race().physics.ground.ground_x.get() as i32).wrapping_sub(word(0));
+    let dx = (race.physics.ground.ground_x.get() as i32).wrapping_sub(word(0));
     DRAW.scratch.set_bits(dx as u32);
     let y = int(DRAW.scratch.bits() as i32);
-    let dz =
-        (crate::race::owner::race().physics.ground.ground_z.get() as i32).wrapping_sub(word(2));
+    let dz = (race.physics.ground.ground_z.get() as i32).wrapping_sub(word(2));
     DRAW.scratch.set_bits(dz as u32);
     let x = int(DRAW.scratch.bits() as i32);
     let turns = y.atan2_over_pi(x)
-        * ld(crate::race::owner::race().course.numbers.half.bits())
-        * ld(crate::race::owner::race().course.numbers.k65536.bits());
+        * ld(race.course.numbers.half.bits())
+        * ld(race.course.numbers.k65536.bits());
     DRAW.scratch.set_bits(to_int(turns) as u32);
     DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
 fn point() -> Result<(u32, u32), Refused> {
+    let race_owner = race();
     let split = CAR.splits_passed.get();
     let cp = progress::check_split_point(split, || {
-        crate::race::owner::race().physics.split_tables.checkpoints[1 + split as usize].get()
+        race_owner.physics.split_tables.checkpoints[1 + split as usize].get()
     })?;
     let face = crate::race::checkpoints_store::face(cp as usize).get();
-    if !progress::face_known(
-        face,
-        crate::race::owner::race()
-            .course
-            .course
-            .course_face_count
-            .get(),
-    ) {
+    if !progress::face_known(face, race_owner.course.course.course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",
         }
         .into());
     }
-    if crate::race::owner::race().course.course.course_faces.get() == 0
-        || crate::race::owner::race().course.course.scene_points.get() == 0
+    if race_owner.course.course.course_faces.get() == 0
+        || race_owner.course.course.scene_points.get() == 0
     {
         return Err(BadInput("no course faces or points").into());
     }
@@ -109,18 +100,19 @@ fn point() -> Result<(u32, u32), Refused> {
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub fn passed_split_point() -> Result<bool, Refused> {
-    if crate::race::owner::race().replay.finish.no_place.get() != 0 {
+    let race_owner = race();
+    if race_owner.replay.finish.no_place.get() != 0 {
         return Ok(false);
     }
     let (cp, pt) = point()?;
     // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(pt)?;
-    crate::race::owner::race()
+    race_owner
         .physics
         .ground
         .ground_x
         .set(CAR.position[0].get());
-    crate::race::owner::race()
+    race_owner
         .physics
         .ground
         .ground_z

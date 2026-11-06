@@ -17,15 +17,13 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::crossed_edge_contact::check_probe;
+use crate::race::owner::race;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps() -> Result<(), Refused> {
-    let n = crate::race::owner::race()
-        .physics
-        .contact
-        .crossed_probe
-        .get();
+    let physics_store = &race().physics;
+    let n = physics_store.contact.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
@@ -36,13 +34,7 @@ pub fn steps() -> Result<(), Refused> {
     { crate::physics::restore_saved_car::restore_saved_car() }?;
     crate::physics::crossed_edge_contact::steps()?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(
-            crate::race::owner::race()
-                .physics
-                .contact
-                .contact_speed_length
-                .bits(),
-        ),
+        f32::from_bits(physics_store.contact.contact_speed_length.bits()),
         f32::from_bits(CAR.contact_depth.bits()),
     ) {
         CAR.contact_depth.set_bits(hit.to_bits());
@@ -54,13 +46,7 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The probe checked (-1 is none).
 pub fn check() -> Result<(), Refused> {
-    if crate::race::owner::race()
-        .physics
-        .contact
-        .crossed_probe
-        .get()
-        == rc2k_core::physics::walls::NONE_CROSSED
-    {
+    if race().physics.contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
     check_probe()

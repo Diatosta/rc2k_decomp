@@ -14,6 +14,7 @@
 use crate::errors::BadInput;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
@@ -23,33 +24,23 @@ const SIZE: usize = SLOT_SIZE as usize;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
 pub fn keep_replay_frame() -> Result<(), BadInput> {
-    crate::race::owner::race().replay.replay_frames.frame.set(0);
-    crate::race::owner::race().replay.replay_frames.tenth.set(0);
-    if crate::race::owner::race().course.numbers.replay_mode.get() != PLAYING {
+    let race = race();
+    race.replay.replay_frames.frame.set(0);
+    race.replay.replay_frames.tenth.set(0);
+    if race.course.numbers.replay_mode.get() != PLAYING {
         let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.bits());
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .frame
-            .set(frame);
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .tenth
-            .set(tenth);
+        race.replay.replay_frames.frame.set(frame);
+        race.replay.replay_frames.tenth.set(tenth);
     }
-    if crate::race::owner::race().replay.replay_frames.tenth.get() == 0 {
-        let offset = slot_offset(crate::race::owner::race().replay.replay_frames.frame.get());
+    if race.replay.replay_frames.tenth.get() == 0 {
+        let offset = slot_offset(race.replay.replay_frames.frame.get());
         // The first four blocks (`SLOT_SIZE` is four of them).
         copy_cells(
             (&CAR_BLOCKS.cars, 0),
-            (
-                &crate::race::owner::race().replay.replay_frames.slots,
-                offset as usize,
-            ),
+            (&race.replay.replay_frames.slots, offset as usize),
             SIZE,
         );
-        if crate::race::owner::race().course.numbers.replay_mode.get() == RECORDING {
+        if race.course.numbers.replay_mode.get() == RECORDING {
             crate::drive::save_replay_cars::save_replay_cars();
         }
     }

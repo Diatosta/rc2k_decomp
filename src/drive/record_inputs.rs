@@ -12,6 +12,7 @@
 use crate::errors::BadInput;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
@@ -30,10 +31,7 @@ pub fn record_inputs() -> Result<(), BadInput> {
         PHYSICS.input_words[3].get(),
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
-    let esi = tape_offset(
-        crate::race::owner::race().replay.replay_frames.tenth.get(),
-        car,
-    );
+    let esi = tape_offset(race().replay.replay_frames.tenth.get(), car);
     GamePtr::to(&REPLAY_WORK.replay_tape)
         .offset(esi)
         .write([ebx, packed], "the replay tape")?;

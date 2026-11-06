@@ -11,6 +11,7 @@ use crate::errors::Refused;
 use crate::physics::flow::fill_cells;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 
 /// The Rust version for course face `face` (its number: the original's record and object
 /// are both the face): (inside, the point's number).
@@ -19,7 +20,7 @@ pub fn scene_point_hits_car(face: u32) -> Result<(bool, u32), Refused> {
     PHYSICS
         .scene_point_hits
         .set(PHYSICS.scene_point_hits.get().wrapping_add(1));
-    fill_cells(&crate::race::owner::race().physics.contact.object_offset, 0);
+    fill_cells(&race().physics.contact.object_offset, 0);
     let place = crate::race::scene_points::point_number(number)?;
     Ok(({ point_hits_car(place, face) }?, number))
 }

@@ -20,6 +20,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::dot_product::dot_product;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::session::Cell32;
@@ -29,7 +30,7 @@ pub fn stall_at(v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     put(3, rounded(vector_length(&v[0..3])));
-    let zero: u32 = crate::race::owner::race().course.numbers.zero.bits();
+    let zero: u32 = race().course.numbers.zero.bits();
     if compare_full(get(3), zero) & 0x4000 == 0 {
         put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
     }

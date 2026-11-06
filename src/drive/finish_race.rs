@@ -16,6 +16,7 @@ use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::RACE;
+use crate::race::owner::race;
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
 use crate::race::state_store::RACE_STATE;
@@ -86,10 +87,11 @@ fn set_up() -> Result<(), BadInput> {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub fn finish_race() -> Result<(), Refused> {
+    let replay = &race().replay;
     // The stage index is not checked against the seven (a read past them is the original's).
     RACE_VARS.stage_number.set(crate::session::read_on_in(
-        &crate::race::owner::race().replay.finish,
-        &crate::race::owner::race().replay.finish.finish_stages,
+        &replay.finish,
+        &replay.finish.finish_stages,
         RACE_STATE.results.stage_index.get() as usize,
         "the finish stages",
     )?);

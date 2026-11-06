@@ -16,26 +16,24 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::probe_ground::probe_ground_at;
+use crate::race::owner::race;
 
 /// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
 /// none of its callers.
 pub fn probe_and_keep_at() -> Result<(), Refused> {
+    let physics = &race().physics;
     probe_ground_at()?;
     for k in 0..64 {
-        crate::race::owner::race().physics.contact.saved_probe_x[k]
-            .set(crate::race::owner::race().physics.contact.probe_x[k].get());
+        physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
     }
     for k in 0..64 {
-        crate::race::owner::race().physics.contact.saved_probe_y[k]
-            .set(crate::race::owner::race().physics.contact.probe_y[k].get());
+        physics.contact.saved_probe_y[k].set(physics.contact.probe_y[k].get());
     }
     for k in 0..64 {
-        crate::race::owner::race().physics.contact.saved_probe_z[k]
-            .set(crate::race::owner::race().physics.contact.probe_z[k].get());
+        physics.contact.saved_probe_z[k].set(physics.contact.probe_z[k].get());
     }
     for k in 0..0x40 {
-        crate::race::owner::race().physics.contact.saved_probe_faces[k]
-            .set(CAR.probe_point_face[k].get());
+        physics.contact.saved_probe_faces[k].set(CAR.probe_point_face[k].get());
     }
     Ok(())
 }

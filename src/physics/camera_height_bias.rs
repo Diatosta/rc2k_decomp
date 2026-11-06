@@ -19,30 +19,25 @@ use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
+    let race = race();
     let esi = record()?;
     if esi.height_bias.get() == 0 {
         return Ok(());
     }
     x87_1();
-    hold_low(
-        &DRAW.scratch,
-        &crate::race::owner::race().course.numbers.zero,
-    );
-    hold_high(
-        &DRAW.scratch,
-        &crate::race::owner::race().course.numbers.one,
-    );
+    hold_low(&DRAW.scratch, &race.course.numbers.zero);
+    hold_high(&DRAW.scratch, &race.course.numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
         x87_2();
     }
     x87_3();
     let eax = DRAW.scratch.get();
-    crate::race::owner::race()
-        .frame
+    race.frame
         .view_and_records
         .view_vars
         .camera_height_bias
@@ -57,18 +52,9 @@ pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
 fn x87_1() {
-    let t0 = ld(crate::race::owner::race()
-        .frame
-        .view_and_records
-        .view_vars
-        .camera_distance
-        .bits());
-    let t1 = ld(crate::race::owner::race()
-        .frame
-        .view_and_records
-        .view_vars
-        .camera_bias_limit
-        .bits());
+    let frame = &race().frame;
+    let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
+    let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
     DRAW.scratch.set_bits(st(t2));
 }
@@ -87,10 +73,11 @@ fn x87_2() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
 fn x87_3() {
+    let race = race();
     let t0 = ld(DRAW.scratch.bits());
-    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
+    let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(crate::race::owner::race()
+    let t3 = ld(race
         .frame
         .view_and_records
         .view_vars

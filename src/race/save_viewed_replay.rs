@@ -20,6 +20,7 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
@@ -37,6 +38,7 @@ pub fn save_viewed_replay(slot: u32) -> Result<bool, Refused> {
 
 /// Whether it was saved (`edx` 1).
 fn save(slot: u32) -> Result<bool, Refused> {
+    let replay = &race().replay;
     // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
@@ -95,11 +97,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 .get(),
         );
     };
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .file_offset
-        .set(HEADER_LEN); // the new file's length so far
+    replay.replay_view.file_offset.set(HEADER_LEN); // the new file's length so far
     if !handle::write_slice(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .to_file
@@ -137,13 +135,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
             &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places,
             2 * block as usize,
         )
-        .set(
-            crate::race::owner::race()
-                .replay
-                .replay_view
-                .file_offset
-                .get(),
-        );
+        .set(replay.replay_view.file_offset.get());
         let (written, failed) = crate::race::replay::write_replay_chunk(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .to_file
@@ -158,18 +150,10 @@ fn save(slot: u32) -> Result<bool, Refused> {
             2 * block as usize + 1,
         )
         .set(written);
-        crate::race::owner::race()
-            .replay
+        replay
             .replay_view
             .file_offset
-            .set(next_offset(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .file_offset
-                    .get(),
-                written,
-            ));
+            .set(next_offset(replay.replay_view.file_offset.get(), written));
         block += 1;
         if block == REPLAY_FILE.index_block_count.get() {
             break;

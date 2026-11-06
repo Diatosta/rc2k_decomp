@@ -25,6 +25,7 @@ use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
@@ -35,9 +36,7 @@ pub fn pick_start_gear() -> Result<(), Refused> {
     PHYSICS.start_gear_figures[2].set(CAR.engine_speed.bits());
     revs_speed()?;
     PHYSICS.start_gear_figures[1].set(0);
-    PHYSICS.start_gear_figures[0].set(x87::loaded(
-        crate::race::owner::race().course.numbers.hundred.bits(),
-    ));
+    PHYSICS.start_gear_figures[0].set(x87::loaded(race().course.numbers.hundred.bits()));
     let taken = shifts::pick_start(|gear| {
         if bit(gear)? {
             return Ok::<_, Refused>(false);

@@ -102,6 +102,7 @@ impl Shadow<'_> {
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
 pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), Refused> {
+    let race = race();
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
     let corner: u32 = q.corner.get();
@@ -148,7 +149,7 @@ pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), R
     corners_x87(sh);
     normalise(&q.way);
     corners_in_x87(sh);
-    let view = &crate::race::owner::race().frame.matrices.listener_matrix;
+    let view = &race.frame.matrices.listener_matrix;
     for n in 0..4 {
         let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
         let turned = rotate_point(view, p.map(extended));
@@ -172,9 +173,7 @@ pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), R
         VERTICES.vertices[n].colour.set(c);
     }
     for n in 0..4 {
-        if (q.corners[n][2].bits() as i32)
-            <= (crate::race::owner::race().course.numbers.k4096_a.bits() as i32)
-        {
+        if (q.corners[n][2].bits() as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
             return Ok(());
         }
     }
@@ -194,6 +193,7 @@ pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), R
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.

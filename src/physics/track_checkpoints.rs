@@ -16,12 +16,14 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     let checkpoint = { crate::physics::find_car_checkpoint::find_car_checkpoint() }?;
     check_tracked(checkpoint, CAR.splits_passed.get())?;
     CAR.checkpoint.set(checkpoint);
@@ -40,20 +42,14 @@ pub fn track_checkpoints() -> Result<(), Refused> {
     }
     if !split_ahead(
         CAR.splits_passed.get(),
-        crate::race::owner::race()
-            .physics
-            .split_tables
-            .split_colour_count
-            .get(),
+        physics_store.split_tables.split_colour_count.get(),
     ) {
         return Ok(());
     }
     if !{ crate::physics::passed_split_point::passed_split_point() }? {
         return Ok(());
     }
-    let split = crate::race::owner::race().physics.split_tables.checkpoints
-        [1 + CAR.splits_passed.get() as usize]
-        .get();
+    let split = physics_store.split_tables.checkpoints[1 + CAR.splits_passed.get() as usize].get();
     CAR.reset_checkpoint.set(split);
     CAR.checkpoint.set(split);
     CAR.splits_passed.set(

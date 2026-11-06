@@ -15,6 +15,7 @@
 //! One caller, `sub_45188C`.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::reflection_coordinates::reflection_coordinates;
 
@@ -27,45 +28,25 @@ const TABLE_CELLS: usize = 0x400;
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
 pub fn cached_reflection_coordinates() -> Result<(), Refused> {
+    let physics = &race().physics;
     use rc2k_core::scene::reflection::{cache_place, cached};
     if RACE_VIEW.reflections_kept.bits() == 0 {
         return Ok(reflection_coordinates()?);
     }
     let asked: [u32; 2] = [
-        crate::race::owner::race()
-            .physics
-            .ground
-            .reflection_normal_number
-            .bits(),
-        crate::race::owner::race()
-            .physics
-            .ground
-            .reflection_point_number
-            .bits(),
+        physics.ground.reflection_normal_number.bits(),
+        physics.ground.reflection_point_number.bits(),
     ];
     let place = cache_place(asked[0]);
-    let slot = |table: usize| {
-        &crate::race::owner::race().physics.ground.kept_reflections[table * TABLE_CELLS + place]
-    };
+    let slot = |table: usize| &physics.ground.kept_reflections[table * TABLE_CELLS + place];
     if let Some(coordinates) = cached(asked, [slot(0).bits(), slot(1).bits()], || {
         [slot(2).bits(), slot(3).bits()]
     }) {
-        crate::session::write_bits(
-            &crate::race::owner::race()
-                .physics
-                .ground
-                .reflection_coordinates,
-            coordinates,
-        );
+        crate::session::write_bits(&physics.ground.reflection_coordinates, coordinates);
         return Ok(());
     }
     reflection_coordinates()?;
-    let coordinates: [u32; 2] = crate::session::read_bits(
-        &crate::race::owner::race()
-            .physics
-            .ground
-            .reflection_coordinates,
-    );
+    let coordinates: [u32; 2] = crate::session::read_bits(&physics.ground.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()
         .enumerate()

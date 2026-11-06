@@ -21,6 +21,7 @@
 use crate::errors::BadInput;
 use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::reflect_vector::reflect_vector;
 use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 
@@ -60,67 +61,43 @@ fn negated_at(a: impl Base, o: impl Base) {
 }
 
 pub fn reflection_coordinates() -> Result<(), BadInput> {
+    let race = race();
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
     let table = crate::scene::reading::PointRecords::new()?;
-    let normal = table.place(
-        crate::race::owner::race()
-            .physics
-            .ground
-            .reflection_normal_number
-            .bits(),
-    )?;
+    let normal = table.place(race.physics.ground.reflection_normal_number.bits())?;
     let point = table.place(
-        crate::race::owner::race()
-            .physics
+        race.physics
             .ground
             .reflection_point_number
             .bits()
             .wrapping_neg(),
     )?;
-    crate::session::write_bits(
-        &crate::race::owner::race().frame.matrices.reflect_vector,
-        normal,
-    );
-    crate::session::write_first(
-        &crate::race::owner::race().frame.scratch.work_vector,
-        &point.map(negated),
-    );
+    crate::session::write_bits(&race.frame.matrices.reflect_vector, normal);
+    crate::session::write_first(&race.frame.scratch.work_vector, &point.map(negated));
     normalise_vector()?;
-    let to_eye: [u32; 3] =
-        crate::session::read_first(&crate::race::owner::race().frame.scratch.work_vector);
-    crate::session::write_bits(
-        &crate::race::owner::race().frame.matrices.reflect_normal,
-        to_eye,
-    );
+    let to_eye: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+    crate::session::write_bits(&race.frame.matrices.reflect_normal, to_eye);
     reflect_vector();
-    let mirrored: [u32; 3] =
-        crate::session::read_bits(&crate::race::owner::race().frame.matrices.reflect_vector);
+    let mirrored: [u32; 3] = crate::session::read_bits(&race.frame.matrices.reflect_vector);
     crate::session::write_first(
-        &crate::race::owner::race().frame.scratch.work_vector,
+        &race.frame.scratch.work_vector,
         &[
             x87::loaded(mirrored[0]),
-            x87::add(
-                mirrored[1],
-                crate::race::owner::race().course.numbers.one.bits(),
-            ),
+            x87::add(mirrored[1], race.course.numbers.one.bits()),
             x87::loaded(mirrored[2]),
         ],
     );
     normalise_vector()?;
-    let looks: [u32; 3] =
-        crate::session::read_first(&crate::race::owner::race().frame.scratch.work_vector);
-    let half: u32 = crate::race::owner::race().course.numbers.half.bits();
+    let looks: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
+    let half: u32 = race.course.numbers.half.bits();
     let scales = [
-        crate::race::owner::race().course.numbers.k65536.bits(),
-        crate::race::owner::race().course.numbers.k256.bits(),
+        race.course.numbers.k65536.bits(),
+        race.course.numbers.k256.bits(),
     ];
     crate::session::write_bits(
-        &crate::race::owner::race()
-            .physics
-            .ground
-            .reflection_coordinates,
+        &race.physics.ground.reflection_coordinates,
         [
             coordinate(looks[0], half, scales) as u32,
             coordinate(looks[2], half, scales) as u32,

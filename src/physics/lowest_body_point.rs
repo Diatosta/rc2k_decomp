@@ -17,6 +17,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers it leaves (ebx the count, eax
@@ -41,24 +42,22 @@ pub fn lowest_at(v: &[&dyn Cell32]) -> Result<(), Refused> {
     }
     put(
         3,
-        x87::int_div(
-            get(1) as i32,
-            crate::race::owner::race().course.numbers.k65536.bits(),
-        ),
+        x87::int_div(get(1) as i32, race().course.numbers.k65536.bits()),
     );
     Ok(())
 }
 
 /// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
 fn game() -> Vec<&'static dyn Cell32> {
+    let physics = &race().physics;
     let mut v = vec![
         &CAR.probe_count as &dyn Cell32,
-        &crate::race::owner::race().physics.contact.lowest_depth,
-        &crate::race::owner::race().physics.contact.lowest_point,
-        &crate::race::owner::race().physics.contact.wheel_share,
+        &physics.contact.lowest_depth,
+        &physics.contact.lowest_point,
+        &physics.contact.wheel_share,
     ];
     v.extend(
-        crate::race::owner::race().physics.contact.probe_height[..0x40]
+        physics.contact.probe_height[..0x40]
             .iter()
             .map(|c| c as &dyn Cell32),
     );

@@ -18,6 +18,7 @@
 //! `rc2k_core::scene::shown`.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object::draw_object_in_game;
@@ -46,7 +47,7 @@ fn texture_set() -> Result<(u32, u32), Refused> {
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            crate::race::owner::race().course.numbers.in_race.bits() != 0,
+            race().course.numbers.in_race.bits() != 0,
             |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
@@ -69,11 +70,7 @@ fn texture_set() -> Result<(u32, u32), Refused> {
 // Converted: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Result<(), Refused> {
     let (set, object) = texture_set()?;
-    crate::race::owner::race()
-        .physics
-        .ground
-        .object_texture_set
-        .set_bits(set);
+    race().physics.ground.object_texture_set.set_bits(set);
     let faces: u32 =
         crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {

@@ -31,6 +31,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::drive::lit_faces::{
@@ -76,24 +77,17 @@ fn store(f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 
 /// `g_litFaces`[k] (0x100 of them; the count is checked below).
 fn list(k: u32) -> &'static crate::session::Dword {
-    &crate::race::owner::race().physics.contact.lit_faces[k as usize]
+    &race().physics.contact.lit_faces[k as usize]
 }
 
 /// The refusals, worked out before anything is written.
 fn refusal() -> Option<&'static str> {
-    let count: u32 = crate::race::owner::race()
-        .physics
-        .contact
-        .lit_face_count
-        .bits();
+    let race = race();
+    let count: u32 = race.physics.contact.lit_face_count.bits();
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
-    let faces: u32 = crate::race::owner::race()
-        .course
-        .course
-        .course_face_count
-        .bits();
+    let faces: u32 = race.course.course.course_face_count.bits();
     for k in 0..count {
         if list(k).get() >= faces {
             return Some("a lit face past g_courseFaceCount");
@@ -107,13 +101,7 @@ pub fn animate_at() -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    if crate::race::owner::race()
-        .physics
-        .contact
-        .lit_face_count
-        .bits()
-        == 0
-    {
+    if race().physics.contact.lit_face_count.bits() == 0 {
         return Ok(());
     }
 
@@ -122,6 +110,7 @@ pub fn animate_at() -> Result<(), Refused> {
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
 fn animate_faces() -> Result<(), Refused> {
+    let race = race();
     let mut k = 0;
     loop {
         let f = list(k).get();
@@ -139,17 +128,9 @@ fn animate_faces() -> Result<(), Refused> {
                 .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
             DRAW.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-            crate::race::owner::race()
-                .physics
-                .contact
-                .lit_face_distance
-                .set(d);
+            race.physics.contact.lit_face_distance.set(d);
             let step = pace(d);
-            crate::race::owner::race()
-                .physics
-                .contact
-                .lit_face_pace
-                .set(step);
+            race.physics.contact.lit_face_pace.set(step);
             let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
             let kind = crate::scene::polygon_store::POLYGON_WORK
@@ -162,9 +143,8 @@ fn animate_faces() -> Result<(), Refused> {
                 1 | 9 => {
                     blink(&mut bytes, |n| {
                         // byte_6D1DFC: the step is below 0x18 (`BLINK_STEPS`).
-                        (crate::race::owner::race().physics.contact.blink_levels[n as usize / 4]
-                            .get()
-                            >> (8 * (n % 4))) as u8
+                        (race.physics.contact.blink_levels[n as usize / 4].get() >> (8 * (n % 4)))
+                            as u8
                     })
                     .is_none()
                 }
@@ -180,27 +160,18 @@ fn animate_faces() -> Result<(), Refused> {
                         distance as i32,
                         angle,
                     );
-                    crate::race::owner::race()
-                        .physics
-                        .contact
-                        .lit_face_saved_30
-                        .set(at(f, 0x30)?);
-                    crate::race::owner::race()
-                        .physics
-                        .contact
-                        .lit_face_saved_38
-                        .set(at(f, 0x38)?);
+                    race.physics.contact.lit_face_saved_30.set(at(f, 0x30)?);
+                    race.physics.contact.lit_face_saved_38.set(at(f, 0x38)?);
                     put(f, 0x30, at(f, 0x30)?.wrapping_add(x))?;
                     put(f, 0x38, at(f, 0x38)?.wrapping_add(z))?;
                     let p = at(f, 4)?;
-                    crate::race::owner::race().physics.ground.ground_x.set(
+                    race.physics.ground.ground_x.set(
                         crate::race::scene_points::point_word(p, 0)?.wrapping_add(at(f, 0x30)?),
                     );
-                    crate::race::owner::race().physics.ground.ground_z.set(
+                    race.physics.ground.ground_z.set(
                         crate::race::scene_points::point_word(p, 2)?.wrapping_add(at(f, 0x38)?),
                     );
-                    crate::race::owner::race()
-                        .course
+                    race.course
                         .course
                         .ground_face_last
                         .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
@@ -208,32 +179,15 @@ fn animate_faces() -> Result<(), Refused> {
                     put(
                         f,
                         0x34,
-                        crate::race::owner::race()
-                            .physics
+                        race.physics
                             .ground
                             .ground_height
                             .get()
                             .wrapping_sub(crate::race::scene_points::point_word(p, 1)?),
                     )?;
-                    if crate::race::owner::race().course.course.ground_slot.get() == u32::MAX {
-                        put(
-                            f,
-                            0x30,
-                            crate::race::owner::race()
-                                .physics
-                                .contact
-                                .lit_face_saved_30
-                                .bits(),
-                        )?;
-                        put(
-                            f,
-                            0x38,
-                            crate::race::owner::race()
-                                .physics
-                                .contact
-                                .lit_face_saved_38
-                                .bits(),
-                        )?;
+                    if race.course.course.ground_slot.get() == u32::MAX {
+                        put(f, 0x30, race.physics.contact.lit_face_saved_30.bits())?;
+                        put(f, 0x38, race.physics.contact.lit_face_saved_38.bits())?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
                     false
@@ -243,26 +197,12 @@ fn animate_faces() -> Result<(), Refused> {
         };
         store(f, &bytes)?;
         if leave {
-            let last = crate::race::owner::race()
-                .physics
-                .contact
-                .lit_face_count
-                .bits()
-                .wrapping_sub(1);
+            let last = race.physics.contact.lit_face_count.bits().wrapping_sub(1);
             list(k).set(list(last).get());
-            crate::race::owner::race()
-                .physics
-                .contact
-                .lit_face_count
-                .set_bits(last);
+            race.physics.contact.lit_face_count.set_bits(last);
         }
         k += 1;
-        if k >= crate::race::owner::race()
-            .physics
-            .contact
-            .lit_face_count
-            .bits()
-        {
+        if k >= race.physics.contact.lit_face_count.bits() {
             return Ok(());
         }
     }

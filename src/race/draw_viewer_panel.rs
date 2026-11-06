@@ -17,6 +17,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -30,6 +31,7 @@ const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 
 /// The Rust version (the original keeps every register of its caller).
 pub fn draw_viewer_panel() -> Result<(), Refused> {
+    let replay = &race().replay;
     // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
     // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
@@ -84,16 +86,8 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     };
     string(0x1A4, FONT_A, 4, 0)?;
     append_time(shown_time(
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_frame
-            .get(),
+        replay.replay_view.replay_block.get(),
+        replay.replay_view.replay_frame.get(),
     ));
     text(FONT_B, 4, 8)?;
     string(0x1A5, FONT_C, 0x60, 0x19)?;
@@ -103,13 +97,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     let mut y = 0x32;
     for byte in 0..2usize {
         let camera = camera_name(crate::race::viewer::camera_byte_at(
-            byte.wrapping_add(
-                8 * crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get() as usize,
-            ),
+            byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
         )?);
         let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
         let mut out = 0usize;
@@ -141,13 +129,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
     crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_device_texture.get());
     // The quads.
     let camera_5 = crate::race::viewer::camera_byte_at(
-        5usize.wrapping_add(
-            8 * crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_block
-                .get() as usize,
-        ),
+        5usize.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
     )?;
     let (first, second) = switch_lights(camera_5);
     let white = 0x00FF_FFFF;

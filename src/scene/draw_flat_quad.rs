@@ -19,6 +19,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -57,7 +58,7 @@ pub fn draw_flat_quad() -> Result<(), Refused> {
         v(n, 0xC, x);
         v(n, 0x1C, y);
     }
-    let depth: u32 = crate::race::owner::race().course.numbers.k4096_b.bits();
+    let depth: u32 = race().course.numbers.k4096_b.bits();
     for n in 0..4 {
         v(n, 0x18, depth);
     }

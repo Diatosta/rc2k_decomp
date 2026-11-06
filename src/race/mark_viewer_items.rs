@@ -12,6 +12,7 @@
 //!
 //! Callers: `race::replay_viewer` (two).
 
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -19,20 +20,12 @@ use crate::race::replay_work_store::REPLAY_WORK;
 pub fn mark_viewer_items(
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<(), crate::errors::BadInput> {
+    let replay = &race().replay;
     // Converted: `rc2k_core::race::viewer::item_marks`.
     crate::menu::list_clear_marks::list_clear_marks(list);
-    let block = crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_block
-        .get();
+    let block = replay.replay_view.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
-        last_race: crate::race::owner::race()
-            .replay
-            .replay_view
-            .last_race_viewed
-            .get()
-            == 1,
+        last_race: replay.replay_view.last_race_viewed.get() == 1,
         block,
         blocks: REPLAY_FILE.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS

@@ -23,6 +23,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
 /// "!!! invalid pace data", "data", "ecx", "pointer".
@@ -33,10 +34,11 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
+    let physics_store = &race().physics;
     use crate::logfile::log_int::log_int;
-    let groups = crate::race::owner::race().physics.pace.group_count.get();
+    let groups = physics_store.pace.group_count.get();
     let found = find_group(groups, checkpoint, |n| {
-        crate::race::owner::race().physics.pace.group_checkpoints[n as usize].get()
+        physics_store.pace.group_checkpoints[n as usize].get()
     })?;
     if groups == 0 {
         return Ok(());
@@ -44,13 +46,9 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
     let Some(group) = found else {
         return Ok(());
     };
-    let mut at = crate::race::owner::race().physics.pace.group_texts[group as usize].get();
+    let mut at = physics_store.pace.group_texts[group as usize].get();
     loop {
-        let byte = crate::race::owner::race()
-            .physics
-            .pace
-            .text
-            .get(text_place(at)? as usize) as u32;
+        let byte = physics_store.pace.text.get(text_place(at)? as usize) as u32;
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {

@@ -15,6 +15,7 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -36,7 +37,7 @@ pub fn drive_torque_share_at(v: &[&dyn Cell32]) -> u32 {
         v[3],
         abs_fidiv(v[2].bits(), PHYSICS.torque_share_c.get() as i32),
     );
-    let one = crate::race::owner::race().course.numbers.one.bits();
+    let one = race().course.numbers.one.bits();
     let below = !matches!(
         f32::from_bits(v[3].bits()).partial_cmp(&f32::from_bits(one)),
         Some(Ordering::Greater | Ordering::Equal)

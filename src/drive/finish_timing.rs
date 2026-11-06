@@ -17,95 +17,73 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::c0;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::race;
 use crate::race::state_store::RACE_STATE;
 use crate::scene::draw_store::DRAW;
 
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
 fn time() {
-    crate::race::owner::race()
-        .replay
-        .finish
-        .time
-        .set_bits(st(int(DRAW.scratch.bits() as i32)
-            / ld(crate::race::owner::race().course.numbers.thousand.bits())));
+    let race = race();
+    race.replay.finish.time.set_bits(st(
+        int(DRAW.scratch.bits() as i32) / ld(race.course.numbers.thousand.bits())
+    ));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
 fn eased_middle() {
-    let q = (ld(crate::race::owner::race().replay.finish.time.bits())
-        - ld(crate::race::owner::race().replay.finish.limit_a.bits()))
-        / (ld(crate::race::owner::race().replay.finish.limit_b.bits())
-            - ld(crate::race::owner::race().replay.finish.limit_a.bits()));
+    let race = race();
+    let q = (ld(race.replay.finish.time.bits()) - ld(race.replay.finish.limit_a.bits()))
+        / (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()));
     let square = q * q;
-    let span = (ld(crate::race::owner::race().replay.finish.limit_b.bits())
-        - ld(crate::race::owner::race().replay.finish.limit_a.bits()))
-        * ld(crate::race::owner::race().course.numbers.half.bits());
+    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
+        * ld(race.course.numbers.half.bits());
     let product = square * span;
-    crate::race::owner::race().replay.finish.eased.set_bits(st(
-        -product + ld(crate::race::owner::race().replay.finish.time.bits())
-    ));
+    race.replay
+        .finish
+        .eased
+        .set_bits(st(-product + ld(race.replay.finish.time.bits())));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
 fn eased_end() {
-    let span = (ld(crate::race::owner::race().replay.finish.limit_b.bits())
-        - ld(crate::race::owner::race().replay.finish.limit_a.bits()))
-        * ld(crate::race::owner::race().course.numbers.half.bits());
-    crate::race::owner::race().replay.finish.eased.set_bits(st(
-        span + ld(crate::race::owner::race().replay.finish.limit_a.bits())
-    ));
+    let race = race();
+    let span = (ld(race.replay.finish.limit_b.bits()) - ld(race.replay.finish.limit_a.bits()))
+        * ld(race.course.numbers.half.bits());
+    race.replay
+        .finish
+        .eased
+        .set_bits(st(span + ld(race.replay.finish.limit_a.bits())));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
 fn share() {
-    let q = (ld(crate::race::owner::race().replay.finish.time.bits())
-        - ld(crate::race::owner::race().replay.finish.limit_c.bits()))
-        / (ld(crate::race::owner::race().replay.finish.limit_d.bits())
-            - ld(crate::race::owner::race().replay.finish.limit_c.bits()));
-    crate::race::owner::race()
-        .replay
-        .finish
-        .share
-        .set_bits(st(q));
+    let replay = &race().replay;
+    let q = (ld(replay.finish.time.bits()) - ld(replay.finish.limit_c.bits()))
+        / (ld(replay.finish.limit_d.bits()) - ld(replay.finish.limit_c.bits()));
+    replay.finish.share.set_bits(st(q));
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
 pub fn timing_from(now: u32) {
-    let since = now.wrapping_sub(crate::race::owner::race().replay.finish.start_clock.get());
+    let replay = &race().replay;
+    let since = now.wrapping_sub(replay.finish.start_clock.get());
     DRAW.scratch.set(since);
     time();
-    if c0(
-        crate::race::owner::race().replay.finish.time.bits(),
-        crate::race::owner::race().replay.finish.limit_a.bits(),
-    ) {
-        crate::race::owner::race()
-            .replay
+    if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
+        replay
             .finish
             .eased
-            .set_bits(loaded(crate::race::owner::race().replay.finish.time.bits()));
-    } else if c0(
-        crate::race::owner::race().replay.finish.time.bits(),
-        crate::race::owner::race().replay.finish.limit_b.bits(),
-    ) {
+            .set_bits(loaded(replay.finish.time.bits()));
+    } else if c0(replay.finish.time.bits(), replay.finish.limit_b.bits()) {
         eased_middle();
     } else {
         eased_end();
     }
-    crate::race::owner::race().replay.finish.share.set_bits(0);
-    let late = !c0(
-        crate::race::owner::race().replay.finish.time.bits(),
-        crate::race::owner::race().replay.finish.limit_c.bits(),
-    );
+    replay.finish.share.set_bits(0);
+    let late = !c0(replay.finish.time.bits(), replay.finish.limit_c.bits());
     if RACE_STATE.results.finished.get() != 0 && late {
-        crate::race::owner::race()
-            .replay
-            .finish
-            .share
-            .set_bits(0x3F80_0000);
-        if c0(
-            crate::race::owner::race().replay.finish.time.bits(),
-            crate::race::owner::race().replay.finish.limit_d.bits(),
-        ) {
+        replay.finish.share.set_bits(0x3F80_0000);
+        if c0(replay.finish.time.bits(), replay.finish.limit_d.bits()) {
             share();
         }
     }

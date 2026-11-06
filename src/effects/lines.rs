@@ -10,6 +10,7 @@ use crate::math::x87;
 use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::{MarkCar, MarksSettings};
+use crate::race::owner::race;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::FACES;
 use crate::session::{Bytes, Dword, Float};
@@ -49,7 +50,7 @@ fn lines_with(
 ) -> Result<(), Refused> {
     {
         let count = crate::scene::object_faces::word(from)?;
-        let points: u32 = crate::race::owner::race().course.lists.object_points.bits();
+        let points: u32 = race().course.lists.object_points.bits();
         let mut n = 0u32;
         while n != count {
             let (a, b) = (
@@ -319,7 +320,7 @@ pub fn copy_block_points(paths: &Paths, block: &MarkCar) -> Result<(), Refused> 
         let first: u32 = OBJECT_SLOTS.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
-            .wrapping_add(crate::race::owner::race().course.lists.object_points.bits());
+            .wrapping_add(race().course.lists.object_points.bits());
         for n in 0..count.max(0) as usize {
             let point = crate::scene::object_points::point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?

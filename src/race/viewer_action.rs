@@ -34,12 +34,14 @@
 //! the original moves memory by a negative count).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 
 /// The Rust version: whether the action is one (the zero flag the original leaves; it
 /// keeps the registers). `action` the action (the original's ebx).
 pub fn viewer_action(action: u32) -> Result<bool, Refused> {
+    let replay = &race().replay;
     // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
     // mark_in_here, mark_out_here}`.
     use rc2k_core::race::viewer::{
@@ -51,11 +53,7 @@ pub fn viewer_action(action: u32) -> Result<bool, Refused> {
     match action {
         Action::Goto(goto) => {
             let block = goto_block(goto, |v| match v {
-                Var::Block => crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
+                Var::Block => replay.replay_view.replay_block.get(),
                 Var::Blocks => REPLAY_FILE.index_block_count.get(),
                 Var::MarkIn => crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .mark_in
@@ -69,109 +67,55 @@ pub fn viewer_action(action: u32) -> Result<bool, Refused> {
         }
         Action::MarkIn => {
             if mark_in_here(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
+                replay.replay_view.replay_block.get(),
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .mark_out
                     .get(),
             ) {
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .mark_in
-                    .set(
-                        crate::race::owner::race()
-                            .replay
-                            .replay_view
-                            .replay_block
-                            .get(),
-                    );
+                    .set(replay.replay_view.replay_block.get());
             }
         }
         Action::MarkOut => {
             if mark_out_here(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
+                replay.replay_view.replay_block.get(),
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .mark_in
                     .get(),
             ) {
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .mark_out
-                    .set(
-                        crate::race::owner::race()
-                            .replay
-                            .replay_view
-                            .replay_block
-                            .get(),
-                    );
+                    .set(replay.replay_view.replay_block.get());
             }
         }
         Action::FrameBack => {
             let (block, frame) = frame_back(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_frame
-                    .get(),
+                replay.replay_view.replay_block.get(),
+                replay.replay_view.replay_frame.get(),
             );
             read_at(block, frame)?;
         }
         Action::FrameOn => {
             let (block, frame) = frame_on(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_frame
-                    .get(),
+                replay.replay_view.replay_block.get(),
+                replay.replay_view.replay_frame.get(),
                 REPLAY_FILE.index_block_count.get(),
             );
             read_at(block, frame)?;
         }
         Action::PlayHere { from_here } => {
             if from_here {
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .play_from_here
-                    .set(1);
+                replay.replay_view.play_from_here.set(1);
             }
             crate::race::play_marked::play_from_here()?;
         }
         Action::PlayMarked => crate::race::play_marked::play_marked()?,
         Action::PlayAgain => loop {
-            crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_block
-                .set(0);
-            crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_frame
-                .set(0);
+            replay.replay_view.replay_block.set(0);
+            replay.replay_view.replay_frame.set(0);
             crate::race::play_marked::play_from_here()?;
-            if crate::race::owner::race()
-                .replay
-                .replay_view
-                .key_after_play
-                .get()
-                != 0
-            {
+            if replay.replay_view.key_after_play.get() != 0 {
                 break;
             }
         },
@@ -190,11 +134,7 @@ pub fn viewer_action(action: u32) -> Result<bool, Refused> {
         }
         Action::AnotherReplay => another_replay()?,
         Action::Save { back } => save(back)?,
-        Action::Snapshot => crate::race::owner::race()
-            .replay
-            .replay_view
-            .snapshot_asked
-            .set(1),
+        Action::Snapshot => replay.replay_view.snapshot_asked.set(1),
         Action::Cycle { byte } => {
             if byte == 4 || REPLAY_WORK.header_one_player.get() != 1 {
                 cycle_byte(byte as usize)?;
@@ -202,11 +142,7 @@ pub fn viewer_action(action: u32) -> Result<bool, Refused> {
         }
         Action::Flip { byte } => {
             crate::race::keep_undo::keep_undo();
-            let block = crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_block
-                .get();
+            let block = replay.replay_view.replay_block.get();
             if block != REPLAY_FILE.index_block_count.get() {
                 let at = crate::race::viewer::camera_ptr(byte.wrapping_add(block.wrapping_mul(8)));
                 let old: u8 = at.read("a replay block's camera byte")?;
@@ -238,16 +174,9 @@ pub fn viewer_action(action: u32) -> Result<bool, Refused> {
 /// A frame read (`drive::read_replay_frame`) after the block and frame are stored (whether
 /// it could be read is not looked at).
 fn read_at(block: u32, frame: u32) -> Result<(), Refused> {
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_block
-        .set(block);
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_frame
-        .set(frame);
+    let replay = &race().replay;
+    replay.replay_view.replay_block.set(block);
+    replay.replay_view.replay_frame.set(frame);
     { crate::drive::read_replay_frame::read_replay_frame(block, frame) }?;
     Ok(())
 }
@@ -255,11 +184,7 @@ fn read_at(block: u32, frame: u32) -> Result<(), Refused> {
 /// 0xF, 0x10: the block's camera byte `byte` one on (`viewer::next_byte`), spread on.
 fn cycle_byte(byte: usize) -> Result<(), Refused> {
     crate::race::keep_undo::keep_undo();
-    let block = crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_block
-        .get();
+    let block = race().replay.replay_view.replay_block.get();
     if block == REPLAY_FILE.index_block_count.get() {
         return Ok(());
     }
@@ -312,11 +237,7 @@ fn paste() -> Result<(), Refused> {
         .clip_blocks
         .get();
     let (block, blocks) = (
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
+        race().replay.replay_view.replay_block.get(),
         REPLAY_FILE.index_block_count.get(),
     );
     if !rc2k_core::race::viewer::pastes(clip, blocks, block)? {
@@ -348,13 +269,7 @@ fn paste() -> Result<(), Refused> {
 
 /// 0x14: another replay chosen to view.
 fn another_replay() -> Result<(), Refused> {
-    if crate::race::owner::race()
-        .replay
-        .replay_view
-        .last_race_viewed
-        .get()
-        == 1
-    {
+    if race().replay.replay_view.last_race_viewed.get() == 1 {
         return Ok(());
     }
     crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
@@ -378,6 +293,7 @@ fn another_replay() -> Result<(), Refused> {
 
 /// 0x15, 0x16: saved back into its slot (`back`, a slot below 100) or into one chosen.
 fn save(back: bool) -> Result<(), Refused> {
+    let replay = &race().replay;
     if REPLAY_FILE.index_block_count.get() == 0 {
         return Ok(());
     }
@@ -395,15 +311,7 @@ fn save(back: bool) -> Result<(), Refused> {
         return Ok(());
     }
     read_at(
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_frame
-            .get(),
+        replay.replay_view.replay_block.get(),
+        replay.replay_view.replay_frame.get(),
     )
 }

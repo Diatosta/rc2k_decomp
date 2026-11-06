@@ -11,6 +11,7 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// IDA's address of the last race's replay file's name.
 pub const LAST_RACE_START: usize = 0x5295F0;
@@ -44,7 +45,7 @@ mod block_tests {
     #[test]
     fn values_are_the_games() {
         let image = crate::moved::image_bytes(LAST_RACE_START, LAST_RACE_LEN);
-        assert_eq!(&crate::race::owner::race().replay.last_race[..], &image[..]);
+        assert_eq!(&race().replay.last_race[..], &image[..]);
         let image = crate::moved::image_bytes(TEMPLATES_START, TEMPLATES_LEN);
         let mine = [&TEMPLATES.saved[..], &TEMPLATES.own[..]].concat();
         assert_eq!(mine, image);
@@ -54,7 +55,7 @@ mod block_tests {
 
 /// The last race's file's name (without its NUL).
 pub fn last_race() -> Vec<u8> {
-    let bytes = &crate::race::owner::race().replay.last_race;
+    let bytes = &race().replay.last_race;
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 

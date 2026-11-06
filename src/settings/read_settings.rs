@@ -324,11 +324,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         dword!(crate::logfile::write_line::state::LEVEL),
     ),
     (b"nofmv", 0x5BE870, dword!(crate::film::NO_FMV)),
-    (
-        b"key",
-        0x4E052C,
-        dword!(crate::race::owner::race().replay.seal_work.key[0]),
-    ),
+    (b"key", 0x4E052C, dword!(race().replay.seal_work.key[0])),
     (
         b"allsecretcars",
         0x758710,

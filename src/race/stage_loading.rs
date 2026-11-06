@@ -35,6 +35,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
 pub fn load_stage() -> Result<(), Refused> {
+    let race = race();
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -59,11 +60,7 @@ pub fn load_stage() -> Result<(), Refused> {
             &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
         ))?;
     }
-    crate::race::owner::race()
-        .replay
-        .replay_frames
-        .last_kept
-        .set(u32::MAX);
+    race.replay.replay_frames.last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds()?;
     indent(-3);
     log();
@@ -82,7 +79,7 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    if crate::race::owner::race().replay.finish.no_place.get() != 0 {
+    if race.replay.finish.no_place.get() != 0 {
         crate::race::music::game_music();
     } else {
         crate::race::music::game_music_8();
@@ -97,20 +94,15 @@ pub fn load_stage() -> Result<(), Refused> {
     crate::drive::race_init::race_init()?;
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     let clock: u32 = PHYSICS.scene_clock.bits();
-    race().frame.clock_ticks.clock_b.set(clock);
-    race().frame.clock_ticks.sound_ticks.set(0);
+    race.frame.clock_ticks.clock_b.set(clock);
+    race.frame.clock_ticks.sound_ticks.set(0);
     PHYSICS.race_clock_now.set(clock);
     PHYSICS.race_clock_base.set(clock);
-    race()
-        .frame
-        .panel_and_overlay
-        .overlay
-        .start_lights_lit
-        .set(0);
-    race().frame.panel_and_overlay.panel.lights[0]
+    race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
+    race.frame.panel_and_overlay.panel.lights[0]
         .lit
         .set(u32::MAX);
-    race().frame.panel_and_overlay.panel.lights[1]
+    race.frame.panel_and_overlay.panel.lights[1]
         .lit
         .set(u32::MAX);
     for car in &CAR_BLOCKS.cars[..8] {
@@ -121,11 +113,7 @@ pub fn load_stage() -> Result<(), Refused> {
     }
     FRAME_SWITCHES.other_way.set(1);
     FRAME_SWITCHES.view_marks_on.set(1);
-    crate::race::owner::race()
-        .physics
-        .ground
-        .stage_loading
-        .set(0);
+    race.physics.ground.stage_loading.set(0);
     RACE_VIEW.view_on[0].set(1);
     RACE_VIEW.view_on[1].set(1);
     indent(-3);

@@ -27,6 +27,7 @@ use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, whe
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
@@ -41,6 +42,7 @@ fn below(x: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn wheel_springs() {
+    let race = race();
     let (c, ph) = (&CAR, &PHYSICS);
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
@@ -48,30 +50,18 @@ pub fn wheel_springs() {
         let old = x87::loaded(q.bits());
         DRAW.work_dword.set(old);
         c.wheel_squeeze_last[k].set_bits(old);
-        let eax = crate::race::owner::race().physics.contact.probe_height[k]
-            .get()
-            .wrapping_neg();
+        let eax = race.physics.contact.probe_height[k].get().wrapping_neg();
         DRAW.scratch.set(eax);
         q.set_bits(ext_div2(
             int_80(eax as i32, false),
-            crate::race::owner::race().course.numbers.k65536.bits(),
+            race.course.numbers.k65536.bits(),
             ph.handling[3].bits(),
         ));
-        if below(
-            q.bits(),
-            crate::race::owner::race().course.numbers.zero.bits(),
-        ) {
-            q.set_bits(x87::loaded(
-                crate::race::owner::race().course.numbers.zero.bits(),
-            ));
+        if below(q.bits(), race.course.numbers.zero.bits()) {
+            q.set_bits(x87::loaded(race.course.numbers.zero.bits()));
         }
-        if !below(
-            q.bits(),
-            crate::race::owner::race().course.numbers.one.bits(),
-        ) {
-            q.set_bits(x87::loaded(
-                crate::race::owner::race().course.numbers.one.bits(),
-            ));
+        if !below(q.bits(), race.course.numbers.one.bits()) {
+            q.set_bits(x87::loaded(race.course.numbers.one.bits()));
         }
         force.set_bits(neg_mul2(
             q.bits(),
@@ -83,16 +73,11 @@ pub fn wheel_springs() {
             DRAW.work_dword.get(),
             ph.handling[5].bits(),
         ));
-        if below(
-            damping.bits(),
-            crate::race::owner::race().course.numbers.zero.bits(),
-        ) {
+        if below(damping.bits(), race.course.numbers.zero.bits()) {
             damping.set_bits(x87::mul(damping.bits(), ph.handling[0].bits()));
         }
         let zero_or_none = f32::from_bits(q.bits())
-            .partial_cmp(&f32::from_bits(
-                crate::race::owner::race().course.numbers.zero.bits(),
-            ))
+            .partial_cmp(&f32::from_bits(race.course.numbers.zero.bits()))
             .is_none_or(|o| o == Ordering::Equal);
         if !zero_or_none {
             force.set_bits(x87::add(damping.bits(), force.bits()));
@@ -106,7 +91,7 @@ pub fn wheel_springs() {
             c.wheel_squeeze[k].bits(),
             ph.probe_share.bits(),
             ph.handling[3].bits(),
-            crate::race::owner::race().course.numbers.k65536.bits(),
+            race.course.numbers.k65536.bits(),
         ]);
         c.wheel_spring_force[k].set(v as u32);
     }

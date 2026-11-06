@@ -25,11 +25,12 @@ use crate::physics::car_store::CAR;
 use crate::math::next_random::next_random;
 use crate::physics::flow::{c0, p};
 use crate::physics::place_sound_object::place_sound_object;
+use crate::race::owner::race;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
 fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
-    let angle = crate::race::owner::race().physics.contact.face_angle.get() as u8;
+    let angle = race().physics.contact.face_angle.get() as u8;
     crate::race::course_places::update_face_number(face, "a touched face", |f| {
         f.touch(mark as u8, angle, clear_9);
     })
@@ -38,16 +39,13 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 /// The Rust version.
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
 pub fn touch_face() -> Result<(), Refused> {
-    let number = crate::race::owner::race().physics.contact.face_number.get();
+    let race_owner = race();
+    let number = race_owner.physics.contact.face_number.get();
     let face = number;
     if crate::race::course_places::face_number(face, "a touched face")?.mark() != 0 {
         return Ok(());
     }
-    let count = crate::race::owner::race()
-        .physics
-        .contact
-        .lit_face_count
-        .get();
+    let count = race_owner.physics.contact.lit_face_count.get();
     if count == LIST_ROOM {
         return Ok(());
     }
@@ -56,20 +54,13 @@ pub fn touch_face() -> Result<(), Refused> {
     }
     (|| -> Result<(), crate::errors::Refused> {
         p(
-            &crate::race::owner::race().physics.contact.lit_faces[count as usize],
+            &race_owner.physics.contact.lit_faces[count as usize],
             number,
         );
-        let kind = crate::race::owner::race()
-            .physics
-            .contact
-            .contact_kind
-            .get();
+        let kind = race_owner.physics.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(
-                    CAR.speed.bits(),
-                    crate::race::owner::race().course.numbers.eight.bits(),
-                ) {
+                if c0(CAR.speed.bits(), race_owner.course.numbers.eight.bits()) {
                     return Ok(());
                 }
                 mark(face, 1, true)?;
@@ -77,7 +68,7 @@ pub fn touch_face() -> Result<(), Refused> {
             Touch::Mark => mark(face, 1, true)?,
             Touch::Fall => mark(
                 face,
-                fall_mark(crate::race::owner::race().physics.contact.face_speed.get()),
+                fall_mark(race_owner.physics.contact.face_speed.get()),
                 false,
             )?,
             Touch::Chance => {
@@ -86,22 +77,14 @@ pub fn touch_face() -> Result<(), Refused> {
                     crate::race::course_places::update_face_number(face, "a touched face", |f| {
                         f.set_mark(0xF);
                     })?;
-                    crate::race::owner::race()
-                        .physics
-                        .contact
-                        .lit_face_count
-                        .set(count + 1);
+                    race_owner.physics.contact.lit_face_count.set(count + 1);
                 }
                 return Ok(());
             }
             Touch::Sound => {}
         }
         { place_sound_object() }?;
-        crate::race::owner::race()
-            .physics
-            .contact
-            .lit_face_count
-            .set(count + 1);
+        race_owner.physics.contact.lit_face_count.set(count + 1);
         Ok(())
     })()
 }

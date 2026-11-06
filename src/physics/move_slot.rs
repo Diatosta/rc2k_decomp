@@ -32,6 +32,7 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::work_store::{RACE_WORK, RaceSlot};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
@@ -49,8 +50,9 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 /// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
 pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
+    let race = race();
     let dt = PHYSICS.step_time.bits();
-    let k65536 = crate::race::owner::race().course.numbers.k65536.bits();
+    let k65536 = race.course.numbers.k65536.bits();
     copy(&s.place, &RACE_WORK.slot_place);
     s.spin_length
         .set_bits(rounded(crate::physics::vector_length::vector_length(
@@ -60,23 +62,19 @@ pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
         // From the spin's length on: two dwords past the slot, as the original has it (the
         // next slot's first, or what follows the table), so by address.
         let past = crate::pointers::GamePtr::to(&s.spin_length).unbounded();
-        unit_vector(&past, &crate::race::owner::race().course.lists.spin_axis);
-        crate::race::owner::race()
-            .course
+        unit_vector(&past, &race.course.lists.spin_axis);
+        race.course
             .lists
             .spin_angle
             .set_bits(x87::mul(s.spin_length.bits(), dt));
-        axis_turn_matrix(&crate::race::owner::race().course.lists.turn_matrix);
-        square_matrix(&crate::race::owner::race().course.lists.turn_matrix);
+        axis_turn_matrix(&race.course.lists.turn_matrix);
+        square_matrix(&race.course.lists.turn_matrix);
         multiply_matrices(
             &s.matrix,
-            &crate::race::owner::race().course.lists.turn_matrix,
-            &crate::race::owner::race().frame.matrices.turned_matrix,
+            &race.course.lists.turn_matrix,
+            &race.frame.matrices.turned_matrix,
         );
-        copy(
-            &crate::race::owner::race().frame.matrices.turned_matrix,
-            &s.matrix,
-        );
+        copy(&race.frame.matrices.turned_matrix, &s.matrix);
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
@@ -88,28 +86,12 @@ pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
         dt,
         s.motion[1].bits(),
     ));
-    crate::race::owner::race()
-        .physics
-        .ground
-        .ground_x
-        .set(s.place[0].get());
-    crate::race::owner::race()
-        .physics
-        .ground
-        .ground_z
-        .set(s.place[2].get());
-    crate::race::owner::race()
-        .course
-        .course
-        .ground_face_last
-        .set(s.car_word.get());
-    crate::race::owner::race()
-        .physics
-        .ground_probe
-        .settle_mark
-        .set(0x80);
+    race.physics.ground.ground_x.set(s.place[0].get());
+    race.physics.ground.ground_z.set(s.place[2].get());
+    race.course.course.ground_face_last.set(s.car_word.get());
+    race.physics.ground_probe.settle_mark.set(0x80);
     crate::physics::find_ground::find_ground()?;
-    let face: u32 = crate::race::owner::race().course.course.ground_slot.get();
+    let face: u32 = race.course.course.ground_slot.get();
     if face == u32::MAX {
         copy(&RACE_WORK.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
@@ -118,28 +100,19 @@ pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
         return Ok(());
     }
     s.car_word.set(face);
-    let height: u32 = crate::race::owner::race()
-        .physics
-        .ground
-        .ground_height
-        .get();
+    let height: u32 = race.physics.ground.ground_height.get();
     if (s.place[1].get().wrapping_sub(height) as i32) >= 0 {
         return Ok(());
     }
     s.place[1].set(height);
-    let half = crate::race::owner::race().course.numbers.half.bits();
+    let half = race.course.numbers.half.bits();
     s.motion[0].set_bits(x87::mul(s.motion[0].bits(), half));
     s.motion[1].set_bits(neg_mul(s.motion[1].bits(), half));
     s.motion[2].set_bits(x87::mul(s.motion[2].bits(), half));
     for cell in &s.spin {
         cell.set_bits(neg_mul(cell.bits(), half));
     }
-    if abs_compare(
-        s.motion[1].bits(),
-        crate::race::owner::race().course.numbers.one.bits(),
-    ) & 0x100
-        != 0
-    {
+    if abs_compare(s.motion[1].bits(), race.course.numbers.one.bits()) & 0x100 != 0 {
         copy(&RACE_WORK.part_matrix_flat[..12], &s.matrix);
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {

@@ -12,6 +12,7 @@
 //! that still took one for an address is ended by `pointers::host` with the number named.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
@@ -297,18 +298,14 @@ fn whole_at<T: Whole>(table: &'static Table, at: usize) -> Result<T, BadInput> {
 /// Byte `offset` of face `n` in the faces' table.
 #[inline]
 fn face_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = crate::race::owner::race().course.course.course_faces.get();
+    let base = race().course.course.course_faces.get();
     index(faces_base(), base, FACE, n, offset)
 }
 
 /// Byte `offset` of record `n` in the records' table.
 #[inline]
 fn record_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = crate::race::owner::race()
-        .course
-        .course
-        .course_records
-        .get();
+    let base = race().course.course.course_records.get();
     index(records_base(), base, RECORD, n, offset)
 }
 

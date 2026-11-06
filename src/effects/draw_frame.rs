@@ -21,6 +21,7 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Float, read_bits};
@@ -39,12 +40,13 @@ fn rdtsc() -> u32 {
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
 pub fn draw_frame(effects: &Effects) -> Result<(), Refused> {
+    let race = race();
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
-    let info: u32 = crate::race::owner::race().course.lists.course_info.bits();
+    let info: u32 = race.course.lists.course_info.bits();
     if info == 0 {
         return Err(BadInput("no course info (g_courseInfo 0)").into());
     }
-    let m = &crate::race::owner::race().frame.matrices.view_place;
+    let m = &race.frame.matrices.view_place;
     for n in 0..3 {
         let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);

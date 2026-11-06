@@ -21,6 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::car_store::CAR;
 use crate::physics::queue_notice::queue_notice;
+use crate::race::owner::race;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
@@ -72,11 +73,7 @@ fn steps() -> Result<(), Refused> {
         &mut levels,
         |k| f32::from_bits(gauge(k)),
         |t| {
-            crate::race::owner::race()
-                .physics
-                .damage
-                .scratch
-                .set_bits(from_int(t));
+            race().physics.damage.scratch.set_bits(from_int(t));
         },
         |q| queue_notice(q.notice, q.rank, gauge(q.gauge)),
     );

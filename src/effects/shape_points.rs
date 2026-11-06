@@ -10,6 +10,7 @@ use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
 
@@ -341,7 +342,7 @@ pub fn make_shape_set(drops: &WindscreenDrops, object: u32) -> Result<(), Refuse
     }
     let lists = [PointList::a(drops), PointList::b(drops)];
     let counts = [listed(lists[0].count)?, listed(lists[1].count)?];
-    let points: u32 = crate::race::owner::race().course.lists.object_points.bits();
+    let points: u32 = race().course.lists.object_points.bits();
     for (list, n) in lists.into_iter().zip(counts) {
         for id in list.ids[..n as usize].iter().rev() {
             id.set(id.get().wrapping_mul(12).wrapping_add(points));

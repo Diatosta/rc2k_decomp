@@ -6,6 +6,7 @@
 //! panel and the kind tables (`VIEWER_AND_KINDS`); typed here as one
 //! (2026-11-02) after the stores had split it in three. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
@@ -213,10 +214,7 @@ pub struct InGroup;
 impl core::ops::Deref for InGroup {
     type Target = MarksSettings;
     fn deref(&self) -> &MarksSettings {
-        &crate::race::owner::race()
-            .replay
-            .viewer_and_kinds
-            .marks_settings
+        &race().replay.viewer_and_kinds.marks_settings
     }
 }
 

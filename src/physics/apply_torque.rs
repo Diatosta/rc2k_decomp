@@ -17,15 +17,13 @@ use crate::math::x87_run::neg_product2_plus;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_cells;
+use crate::race::owner::race;
 use crate::scene::view_matrix::cross_product;
 
 /// The Rust version (the exact one, for `physics::apply_torques`): the force record at
 /// `rec` (a record of the wheels' or the contacts' table) on the car block `car`.
 pub fn apply_torque(rec: &ForceRecord, car: &Car) {
-    let work = &crate::race::owner::race()
-        .physics
-        .contact
-        .contact_turn_speed;
+    let work = &race().physics.contact.contact_turn_speed;
     let cross = &PHYSICS.torque_cross;
     for (w, s) in work.iter().zip(&car.spin) {
         w.set_bits(s.bits());

@@ -17,12 +17,13 @@ use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths() -> [crate::pointers::GamePtr; 2] {
-    let p = &crate::race::owner::race().course.level_paths;
+    let p = &race().course.level_paths;
     [
         crate::pointers::GamePtr::to(&p.cdat_src),
         crate::pointers::GamePtr::to(&p.cdat_files),

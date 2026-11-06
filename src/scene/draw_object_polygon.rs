@@ -19,6 +19,7 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -38,7 +39,7 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
         return Ok(false);
     }
     let edges = Edges {
-        least: crate::race::owner::race().course.numbers.zero.get(),
+        least: race().course.numbers.zero.get(),
         right: DRAW.clip_screen[3].get(),
         bottom: DRAW.clip_screen[1].get(),
     };
@@ -60,6 +61,7 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
 pub fn draw_object_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let physics = &race().physics;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if !fits(count) {
@@ -73,32 +75,16 @@ pub fn draw_object_polygon(
     DRAW.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(count)?) {
-        crate::race::owner::race()
-            .physics
+        physics
             .ground
             .whole_polygon_count
-            .set_bits(
-                crate::race::owner::race()
-                    .physics
-                    .ground
-                    .whole_polygon_count
-                    .bits()
-                    .wrapping_add(1),
-            );
+            .set_bits(physics.ground.whole_polygon_count.bits().wrapping_add(1));
         return step(Step::Draw);
     }
-    crate::race::owner::race()
-        .physics
+    physics
         .ground
         .split_polygon_count
-        .set_bits(
-            crate::race::owner::race()
-                .physics
-                .ground
-                .split_polygon_count
-                .bits()
-                .wrapping_add(1),
-        );
+        .set_bits(physics.ground.split_polygon_count.bits().wrapping_add(1));
     // the first `count` entries kept from entry 64 (`fits`: at most 64)
     let (entries, kept) = crate::scene::polygon_store::POLYGON_WORK
         .entries

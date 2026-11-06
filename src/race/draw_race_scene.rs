@@ -33,6 +33,7 @@
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -73,15 +74,7 @@ fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
     }
     crate::race::draw_view_overlays::draw_view_overlays()?;
     race_sound_tick()?; // 0xF
-    if crate::race::owner::race()
-        .frame
-        .panel_and_overlay
-        .panel
-        .hud_flags[flags]
-        .get()
-        & 8
-        != 0
-    {
+    if race().frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(car)?;
         crate::race::draw_mirror_view::draw_mirror_view()?;
     }
@@ -90,10 +83,11 @@ fn draw_view(car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 pub fn draw_race_scene() -> Result<(), Refused> {
+    let race = race();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks()?;
-    for (k, extra) in crate::race::owner::race()
+    for (k, extra) in race
         .frame
         .panel_and_overlay
         .panel
@@ -108,7 +102,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     }
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
-    for (flags, block) in crate::race::owner::race()
+    for (flags, block) in race
         .frame
         .panel_and_overlay
         .panel
@@ -118,7 +112,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     {
         flags.set(crate::race::trap::car_at(block)?.option_bits.get());
     }
-    for (flags, on) in crate::race::owner::race()
+    for (flags, on) in race
         .frame
         .panel_and_overlay
         .panel
@@ -130,107 +124,55 @@ pub fn draw_race_scene() -> Result<(), Refused> {
             flags.set(0);
         }
     }
-    crate::race::owner::race()
-        .physics
-        .ground
-        .split_polygon_count
-        .set(0);
-    crate::race::owner::race()
-        .physics
-        .ground
-        .whole_polygon_count
-        .set(0);
+    race.physics.ground.split_polygon_count.set(0);
+    race.physics.ground.whole_polygon_count.set(0);
     for cell in [
-        &crate::race::owner::race().frame.draw_batches.plain_word,
-        &crate::race::owner::race().frame.draw_batches.plain_count,
-        &crate::race::owner::race().frame.draw_batches.textured_word,
-        &crate::race::owner::race().frame.draw_batches.textured_count,
+        &race.frame.draw_batches.plain_word,
+        &race.frame.draw_batches.plain_count,
+        &race.frame.draw_batches.textured_word,
+        &race.frame.draw_batches.textured_count,
     ] {
         cell.set(0);
     }
-    crate::race::owner::race()
-        .frame
-        .frame_work
-        .cars_drawn
-        .set(0); // g_carsDrawn
-    crate::race::owner::race()
-        .frame
-        .frame_work
-        .cars_culled
-        .set(0); // g_carsCulled
-    LIGHT_WORK.marks_mask.set(
-        (crate::race::owner::race()
-            .course
-            .stage_prefs
-            .refresh_flags_a
-            .get()
-            & 2)
-            >> 1,
-    );
-    LIGHT_WORK.lamps_mask.set(
-        crate::race::owner::race()
-            .course
-            .stage_prefs
-            .refresh_flags_b
-            .get()
-            & 1,
-    );
-    crate::race::owner::race()
-        .frame
+    race.frame.frame_work.cars_drawn.set(0); // g_carsDrawn
+    race.frame.frame_work.cars_culled.set(0); // g_carsCulled
+    LIGHT_WORK
+        .marks_mask
+        .set((race.course.stage_prefs.refresh_flags_a.get() & 2) >> 1);
+    LIGHT_WORK
+        .lamps_mask
+        .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
+    race.frame
         .panel_and_overlay
         .panel
         .flat
-        .set(
-            crate::race::owner::race()
-                .frame
-                .panel_and_overlay
-                .panel
-                .hud_flags[0]
-                .get()
-                & 0x40,
-        );
-    crate::race::owner::race()
-        .frame
-        .frame_work
-        .mirror_wanted
-        .set(0); // dword_6415E0
-    if crate::race::owner::race().course.stage_prefs.blit_cleared[0].get()
-        | crate::race::owner::race().course.stage_prefs.blit_cleared[1].get()
+        .set(race.frame.panel_and_overlay.panel.hud_flags[0].get() & 0x40);
+    race.frame.frame_work.mirror_wanted.set(0); // dword_6415E0
+    if race.course.stage_prefs.blit_cleared[0].get() | race.course.stage_prefs.blit_cleared[1].get()
         != 0
     {
-        crate::race::owner::race()
-            .frame
-            .frame_work
-            .mirror_wanted
-            .set(
-                crate::race::trap::car_at(blocks[0])?
-                    .camera_mode_is_2_or_3
-                    .get(),
-            );
+        race.frame.frame_work.mirror_wanted.set(
+            crate::race::trap::car_at(blocks[0])?
+                .camera_mode_is_2_or_3
+                .get(),
+        );
     }
     OBJECT_TABLES.has_3d.set(1);
     race_sound_tick()?; // 0xA
-    crate::race::owner::race().course.course.shine.set(
-        crate::race::owner::race()
-            .course
-            .stage_prefs
-            .shine_from
-            .get(),
-    );
+    race.course
+        .course
+        .shine
+        .set(race.course.stage_prefs.shine_from.get());
     // pusha; pushf .. popf; popa
     crate::scene::set_filters::set_filters();
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(value, state);
     }
     race_sound_tick()?; // 0xB
-    crate::race::owner::race().physics.ground.frames_drawn.set(
-        crate::race::owner::race()
-            .physics
-            .ground
-            .frames_drawn
-            .get()
-            .wrapping_add(1),
-    );
+    race.physics
+        .ground
+        .frames_drawn
+        .set(race.physics.ground.frames_drawn.get().wrapping_add(1));
     RACE_VIEW
         .clock_base
         .set(crate::scene::restart_clock::restart_clock(
@@ -239,21 +181,12 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     crate::race::frame_views::full_view_window(true);
     crate::race::car_parts::ready_car_parts()?;
     crate::race::map_scroll::scroll_maps()?;
-    crate::race::owner::race()
-        .frame
-        .panel_and_overlay
-        .panel
-        .texture_changes
-        .set(0);
+    race.frame.panel_and_overlay.panel.texture_changes.set(0);
     crate::race::frame_views::forget_view_textures()?;
     crate::race::mud_frame::mud_frame()?;
-    crate::race::owner::race()
-        .frame
-        .frame_work
-        .kind_textures_done
-        .set(0);
+    race.frame.frame_work.kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures()?;
-    for (k, extra) in crate::race::owner::race()
+    for (k, extra) in race
         .frame
         .panel_and_overlay
         .panel
@@ -272,7 +205,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     crate::scene::map_texture_places::map_texture_places();
     crate::scene::load_slot_textures::load_slot_textures_in_game()?;
     race_sound_tick()?; // 0xC
-    if crate::race::owner::race().replay.finish.no_place.get() == 0 {
+    if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel()?;
     }
     if RACE_VIEW.views.get() == 1 {
@@ -311,15 +244,13 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    if RACE_WORK.in_credits.bits() == 0
-        && crate::race::owner::race().replay.finish.no_place.get() == 0
-    {
+    if RACE_WORK.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud())?;
     }
     race_sound_tick()?; // 0x11
     crate::race::skid_laying::lay_skidmarks_if_on()?;
     crate::race::name_plates::update_name_plates()?;
-    if crate::race::owner::race().course.numbers.replay_mode.bits() != 2 {
+    if race.course.numbers.replay_mode.bits() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen()?;
     }
     Ok(())

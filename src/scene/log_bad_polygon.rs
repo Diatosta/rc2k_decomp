@@ -17,6 +17,7 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -49,11 +50,7 @@ const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
     (c"points", INT, || DRAW.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, || {
-    crate::race::owner::race()
-        .course
-        .course
-        .current_course_face
-        .bits()
+    race().course.course.current_course_face.bits()
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
     (c"objdraw", INT, || FRAME_SWITCHES.object_number.bits()), // "objdraw" g_objectNumber

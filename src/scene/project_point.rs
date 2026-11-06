@@ -30,6 +30,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -159,11 +160,7 @@ pub fn record_offset(point: u32) -> Result<u32, FatalError> {
     rc2k_core::scene::projection::record_offset(
         point,
         OBJECT_TABLES.point_count.get(),
-        crate::race::owner::race()
-            .course
-            .course
-            .scene_point_count
-            .bits(),
+        race().course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -181,7 +178,8 @@ pub struct Projected {
 /// A scene point's record made anew (`sub_44CF4E`, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput> {
-    let points: u32 = crate::race::owner::race().course.course.scene_points.bits();
+    let race = race();
+    let points: u32 = race.course.course.scene_points.bits();
     if points == 0 {
         return Err(BadInput("no points"));
     }
@@ -191,7 +189,7 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput>
     let place = crate::race::scene_points::point_number(point)?;
     rotate(
         &place,
-        &crate::race::owner::race()
+        &race
             .frame
             .matrices
             .view_matrix
@@ -206,14 +204,9 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput>
             DRAW.view_scale.bits(),
             DRAW.view_centre[0].bits(),
             DRAW.view_centre[1].bits(),
-            crate::race::owner::race().course.course.flat_depth.bits(),
+            race.course.course.flat_depth.bits(),
         ];
-        let flat = crate::race::owner::race()
-            .course
-            .stage_prefs
-            .flat_depth
-            .bits()
-            != 0;
+        let flat = race.course.stage_prefs.flat_depth.bits() != 0;
         to_screen(&mut r, &v, flat, &DRAW.scratch);
     }
     if LIGHT_STATE.draw_mode.bits() == 1 {

@@ -20,6 +20,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
@@ -31,62 +32,35 @@ fn load_frame() {
     // blocks' tail and the replay's tape).
     copy_cells(
         (&VIEWER_BUFFERS.block, 0),
-        (
-            &crate::race::owner::race().replay.cars_and_replay,
-            REPLAY_STATE_OFFSET,
-        ),
+        (&race().replay.cars_and_replay, REPLAY_STATE_OFFSET),
         4 * 0xA04,
     );
 }
 
 /// The Rust version (the original leaves registers nothing reads).
 pub fn show_replay_still() -> Result<(), Refused> {
+    let race = race();
     use crate::drive::*;
     if !(1..=8).contains(&RACE_VIEW.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
-    crate::race::owner::race().physics.split_tables.still.set(1);
-    crate::race::owner::race().frame.frame_work.still_2.set(1);
+    race.physics.split_tables.still.set(1);
+    race.frame.frame_work.still_2.set(1);
     load_frame();
     load_replay_cars::load_replay_cars();
     replay_cameras::replay_cameras()?;
-    for step in 0..g(&crate::race::owner::race().replay.replay_view.replay_frame) {
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .step_frame
-            .set(step);
-        crate::race::owner::race()
-            .replay
+    for step in 0..g(&race.replay.replay_view.replay_frame) {
+        race.replay.replay_frames.step_frame.set(step);
+        race.replay
             .replay_frames
             .step_block
-            .set(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
-            );
+            .set(race.replay.replay_view.replay_block.get());
         crate::race::step_replay_cars::step_replay_cars()?;
     }
-    if crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_frame
-        .get()
-        == 0
-    {
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .step_first
-            .set(1);
+    if race.replay.replay_view.replay_frame.get() == 0 {
+        race.replay.replay_frames.step_first.set(1);
         crate::race::step_replay_cars::step_replay_cars()?;
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .step_first
-            .set(0);
+        race.replay.replay_frames.step_first.set(0);
         load_frame();
         load_replay_cars::load_replay_cars();
     }
@@ -94,17 +68,9 @@ pub fn show_replay_still() -> Result<(), Refused> {
     loop {
         load_car::load_car()?;
         if !matches!(CAR.driver_kind.get(), 0 | 2) {
-            crate::race::owner::race()
-                .replay
-                .replay_frames
-                .step_first
-                .set(1);
+            race.replay.replay_frames.step_first.set(1);
             crate::physics::camera_frame::camera_frame()?;
-            crate::race::owner::race()
-                .replay
-                .replay_frames
-                .step_first
-                .set(0);
+            race.replay.replay_frames.step_first.set(0);
         }
         store_car::store_car()?;
         RACE_WORK
@@ -116,14 +82,14 @@ pub fn show_replay_still() -> Result<(), Refused> {
     }
     RACE_VIEW.view_on[0].set(0);
     RACE_VIEW.view_on[1].set(0);
-    crate::race::owner::race().frame.frame_work.drawing.set(1);
+    race.frame.frame_work.drawing.set(1);
     let kept = RACE_VARS.scene_switch.get();
     RACE_VARS.scene_switch.set(1);
     // The scene (it reads no register).
     crate::race::draw_race_scene::draw_race_scene()?;
     RACE_VARS.scene_switch.set(kept);
-    crate::race::owner::race().frame.frame_work.drawing.set(0);
-    crate::race::owner::race().frame.frame_work.still_2.set(0);
-    crate::race::owner::race().physics.split_tables.still.set(0);
+    race.frame.frame_work.drawing.set(0);
+    race.frame.frame_work.still_2.set(0);
+    race.physics.split_tables.still.set(0);
     Ok(())
 }

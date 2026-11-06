@@ -24,6 +24,7 @@ use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -55,6 +56,7 @@ const _: () =
 
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state() -> Result<(), Refused> {
+    let race = race();
     let Some(l) = listener() else {
         return Err(BadInput("a null view block").into());
     };
@@ -79,13 +81,9 @@ pub fn car_sound_state() -> Result<(), Refused> {
         d(&CAR.position[1], &l.camera_position[1]),
         d(&CAR.position[2], &l.camera_position[2]),
     ];
-    let m = &crate::race::owner::race().frame.matrices.view_turn_matrix;
+    let m = &race.frame.matrices.view_turn_matrix;
     let out = rotate_point(m, place);
-    let k = crate::race::owner::race()
-        .course
-        .numbers
-        .one_over_65536
-        .bits();
+    let k = race.course.numbers.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {
         so.place[i].set_bits(rounded(ext_times(*e, k)));
     }
@@ -139,7 +137,7 @@ fn x87_2(o: &crate::sound::store::SoundObject) {
     o.voices[2].share_b.set_bits(st(t0));
     o.voices[3].share_b.set_bits(st(t0));
     let t1 = ld(CAR.sound_slip_share.bits());
-    let t2 = ld(crate::race::owner::race().course.numbers.k256.bits());
+    let t2 = ld(race().course.numbers.k256.bits());
     let t3 = t1 * t2;
     o.voices[0].share_c.set_bits(st(t3));
     o.voices[1].share_c.set_bits(st(t3));

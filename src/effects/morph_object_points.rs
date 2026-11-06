@@ -20,6 +20,7 @@ use crate::effects::lines::measure_lines;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::MarkCar;
+use crate::race::owner::race;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
@@ -52,7 +53,7 @@ fn changed(b: &MarkCar) -> Result<bool, BadInput> {
 /// A block's objects' first points (in `g_objectPoints`) and their count.
 fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
     Ok({
-        let base: u32 = crate::race::owner::race().course.lists.object_points.bits();
+        let base: u32 = race().course.lists.object_points.bits();
         let first = |id: u32| {
             base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
         };
@@ -67,17 +68,14 @@ fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
 fn refusal(paths: &Paths) -> Result<Option<&'static str>, Refused> {
+    let course = &race().course;
     let marks = crate::effects::setup::marks()?;
     Ok({
         if marks.cars_copy.get() as i32 > MOST_CARS {
             return Ok(Some("more than 8 cars"));
         }
-        let base: u32 = crate::race::owner::race().course.lists.object_points.bits();
-        let room: u32 = crate::race::owner::race()
-            .course
-            .lists
-            .object_points_room
-            .bits();
+        let base: u32 = course.lists.object_points.bits();
+        let room: u32 = course.lists.object_points_room.bits();
         for b in blocks()? {
             if !changed(b)? {
                 continue;

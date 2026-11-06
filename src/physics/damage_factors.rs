@@ -18,201 +18,122 @@ use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 /// The damage model's figures for this step.
 pub fn steps() {
-    scale_car_figures(&crate::race::owner::race().physics.damage);
+    let physics = &race().physics;
+    scale_car_figures(&physics.damage);
     // Per wheel: the stiffness and ride height follow the suspension damage; at the top
     // of the gauge the wheel is worn out.
     for wheel in 0..4 {
         let damage = &CAR.suspension_damage[wheel];
         let stiffness = &CAR.wheel_stiffness[wheel];
         let ride_height = &CAR.wheel_ride_height[wheel];
-        let lerp = &crate::race::owner::race()
-            .physics
-            .damage
-            .wheel_stiffness_lerp[wheel];
+        let lerp = &physics.damage.wheel_stiffness_lerp[wheel];
         table_lerp(
             damage,
-            &crate::race::owner::race().physics.damage.lerp_tables[2],
-            &crate::race::owner::race().physics.damage.gauge_low,
+            &physics.damage.lerp_tables[2],
+            &physics.damage.gauge_low,
             lerp,
         );
-        wheel_stiffness_from_share(&crate::race::owner::race().physics.damage, lerp, stiffness);
-        hold_low(
-            stiffness,
-            &crate::race::owner::race().physics.damage.gauge_low,
-        );
-        hold_high(
-            stiffness,
-            &crate::race::owner::race().physics.damage.gauge_top,
-        );
-        wheel_ride_height_from_share(&crate::race::owner::race().physics.damage, ride_height);
-        if equal_or_unordered(
-            damage.bits(),
-            crate::race::owner::race().physics.damage.gauge_top.bits(),
-        ) {
-            fail_wheel(
-                &crate::race::owner::race().physics.damage,
-                stiffness,
-                ride_height,
-            );
+        wheel_stiffness_from_share(&physics.damage, lerp, stiffness);
+        hold_low(stiffness, &physics.damage.gauge_low);
+        hold_high(stiffness, &physics.damage.gauge_top);
+        wheel_ride_height_from_share(&physics.damage, ride_height);
+        if equal_or_unordered(damage.bits(), physics.damage.gauge_top.bits()) {
+            fail_wheel(&physics.damage, stiffness, ride_height);
         }
     }
-    means_and_engine_speed(&crate::race::owner::race().physics.damage);
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        &CAR.engine_speed_limit,
-    );
-    engine_speed_share_step(&crate::race::owner::race().physics.damage);
+    means_and_engine_speed(&physics.damage);
+    hold_high(&physics.damage.scratch, &CAR.engine_speed_limit);
+    engine_speed_share_step(&physics.damage);
     // The speed gaps are each held to `flt_75b378` before their share is taken.
-    let speed_range = &crate::race::owner::race().physics.damage.flt_75b378;
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        speed_range,
-    );
-    speed_share_step(&crate::race::owner::race().physics.damage);
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        speed_range,
-    );
-    drive_a_slip_step(&crate::race::owner::race().physics.damage);
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        speed_range,
-    );
+    let speed_range = &physics.damage.flt_75b378;
+    hold_high(&physics.damage.scratch, speed_range);
+    speed_share_step(&physics.damage);
+    hold_high(&physics.damage.scratch, speed_range);
+    drive_a_slip_step(&physics.damage);
+    hold_high(&physics.damage.scratch, speed_range);
     drive_extrapolation_step(
-        &crate::race::owner::race().physics.damage,
-        &crate::race::owner::race().physics.damage.drive_b_slip_share,
+        &physics.damage,
+        &physics.damage.drive_b_slip_share,
         &CAR.drive_speed_a,
         &CAR.drive_speed_a,
     );
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        speed_range,
-    );
+    hold_high(&physics.damage.scratch, speed_range);
     drive_extrapolation_step(
-        &crate::race::owner::race().physics.damage,
-        &crate::race::owner::race()
-            .physics
-            .damage
-            .drive_a_extrapolated_share,
+        &physics.damage,
+        &physics.damage.drive_a_extrapolated_share,
         &CAR.drive_speed_b,
         &CAR.drive_speed_b,
     );
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        speed_range,
-    );
-    finish_shares(&crate::race::owner::race().physics.damage);
+    hold_high(&physics.damage.scratch, speed_range);
+    finish_shares(&physics.damage);
     if CAR.all_wheels_off.get() == 0 {
-        mark_wheels_down(&crate::race::owner::race().physics.damage);
+        mark_wheels_down(&physics.damage);
     }
-    clear_cell(&crate::race::owner::race().physics.damage.brake_share);
+    clear_cell(&physics.damage.brake_share);
     if !abs_below_or_unordered(
         CAR.local_velocity[2].bits(),
-        crate::race::owner::race().physics.damage.grade_high.bits(),
+        physics.damage.grade_high.bits(),
     ) && (CAR.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
-        brake_share_step(&crate::race::owner::race().physics.damage);
+        brake_share_step(&physics.damage);
     }
     // 1 when the engine's speed is above the limit times `flt_75B37C`.
-    let engine_over_limit =
-        engine_over_limit_status(&crate::race::owner::race().physics.damage) & 0x100 != 0;
-    crate::race::owner::race()
-        .physics
+    let engine_over_limit = engine_over_limit_status(&physics.damage) & 0x100 != 0;
+    physics
         .damage
         .flt_75b3c0
         .set_bits(if engine_over_limit { ONE } else { 0 });
-    crate::race::owner::race()
-        .physics
-        .damage
-        .dword_75b3b8
-        .set_bits(CAR.gear_changed.get());
-    crate::race::owner::race()
-        .physics
-        .damage
-        .dword_75b3bc
-        .set_bits(CAR.gear.get());
-    crate::race::owner::race()
-        .physics
-        .damage
-        .dword_75b3e8
-        .set_bits(CAR.tyre_kind.get());
+    physics.damage.dword_75b3b8.set_bits(CAR.gear_changed.get());
+    physics.damage.dword_75b3bc.set_bits(CAR.gear.get());
+    physics.damage.dword_75b3e8.set_bits(CAR.tyre_kind.get());
     let surface = CAR.wheel_surface_a[4].get();
-    crate::race::owner::race()
-        .physics
-        .damage
-        .dword_75b3ec
-        .set_bits(surface);
-    clear_cell(&crate::race::owner::race().physics.damage.flt_75b3b4);
+    physics.damage.dword_75b3ec.set_bits(surface);
+    clear_cell(&physics.damage.flt_75b3b4);
     if surface == 5 {
-        crate::race::owner::race()
-            .physics
-            .damage
-            .flt_75b3b4
-            .set_bits(ONE);
+        physics.damage.flt_75b3b4.set_bits(ONE);
     }
-    crate::race::owner::race()
-        .physics
+    physics
         .damage
         .dword_75b3f0
         .set_bits(CAR.surface_blend.bits());
-    crate::race::owner::race()
-        .physics
-        .damage
-        .dword_75b3c4
-        .set_bits(side_hit());
-    hit_size_and_dive(&crate::race::owner::race().physics.damage);
-    hold_low(
-        &crate::race::owner::race().physics.damage.scratch,
-        &crate::race::owner::race().physics.damage.gauge_low,
-    );
-    hold_high(
-        &crate::race::owner::race().physics.damage.scratch,
-        &crate::race::owner::race().physics.damage.flt_75b354,
-    );
-    square_dive(&crate::race::owner::race().physics.damage);
+    physics.damage.dword_75b3c4.set_bits(side_hit());
+    hit_size_and_dive(&physics.damage);
+    hold_low(&physics.damage.scratch, &physics.damage.gauge_low);
+    hold_high(&physics.damage.scratch, &physics.damage.flt_75b354);
+    square_dive(&physics.damage);
     // A wheel that has just touched down carries the dive's load.
     for wheel in 0..4 {
-        crate::race::owner::race().physics.damage.wheel_loads[wheel].set_bits(0);
+        physics.damage.wheel_loads[wheel].set_bits(0);
         if CAR.wheel_squeeze_last[wheel].bits() == 0 && CAR.wheel_squeeze[wheel].bits() != 0 {
-            crate::race::owner::race().physics.damage.wheel_loads[wheel].set_bits(mul(
+            physics.damage.wheel_loads[wheel].set_bits(mul(
                 CAR.wheel_squeeze[wheel].bits(),
-                crate::race::owner::race().physics.damage.scratch.bits(),
+                physics.damage.scratch.bits(),
             ));
         }
     }
-    blend_wheel_loads(&crate::race::owner::race().physics.damage);
-    if crate::race::owner::race().physics.damage.flt_75b3c8.bits() != 0
-        && CAR.hit_cooldown.get() != 0
-    {
-        crate::race::owner::race()
-            .physics
-            .damage
-            .flt_75b3c8
-            .set_bits(0);
+    blend_wheel_loads(&physics.damage);
+    if physics.damage.flt_75b3c8.bits() != 0 && CAR.hit_cooldown.get() != 0 {
+        physics.damage.flt_75b3c8.set_bits(0);
         CAR.hit_cooldown.set(0x64);
     }
 }
 
 /// Where the car was hit: 0 for no contact, else 1 .. 4 by the side of the contact point.
 fn side_hit() -> u32 {
+    let physics = &race().physics;
     if CAR.contact_depth.bits() == 0 {
         return 0;
     }
     let mut hit = 1;
-    if !below_or_unordered(
-        CAR.contact_point[0].bits(),
-        crate::race::owner::race().physics.damage.gauge_low.bits(),
-    ) {
+    if !below_or_unordered(CAR.contact_point[0].bits(), physics.damage.gauge_low.bits()) {
         hit += 1;
     }
-    if below_or_unordered(
-        CAR.contact_point[2].bits(),
-        crate::race::owner::race().physics.damage.gauge_low.bits(),
-    ) {
+    if below_or_unordered(CAR.contact_point[2].bits(), physics.damage.gauge_low.bits()) {
         hit += 2;
     }
     hit

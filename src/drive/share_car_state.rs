@@ -39,6 +39,7 @@ use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 /// A field of a car block, picked out of the block.
@@ -153,7 +154,7 @@ pub fn share_car_state_at(
     o.put(0x2C, p.gear_notice.get())?;
     p.gear_notice.set(0);
     let from = RACE_VIEW.level_from.bits();
-    let step = crate::race::owner::race().course.numbers.four.bits();
+    let step = race().course.numbers.four.bits();
     for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
         o.put(out, 0)?;
         if compare_full(at(car, field)?, from) & 0x100 == 0 {

@@ -18,6 +18,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
+use crate::race::owner::race;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 /// The four tests' timers.
@@ -30,19 +31,18 @@ pub fn hit_tests(
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let course = &race().course;
     let word = CAR.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
         word,
         |k| timers[k].get(),
-        || f32::from_bits(crate::race::owner::race().course.numbers.hundred.bits()),
+        || f32::from_bits(course.numbers.hundred.bits()),
         || CAR.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
-        timers[k].set_bits(x87::loaded(
-            crate::race::owner::race().course.numbers.k256.bits(),
-        ));
+        timers[k].set_bits(x87::loaded(course.numbers.k256.bits()));
     }
     Ok(())
 }

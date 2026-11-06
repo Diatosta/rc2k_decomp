@@ -17,6 +17,7 @@
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::race::state_store::RACE_STATE;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
@@ -24,25 +25,24 @@ use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times() -> Result<(), Refused> {
+    let course = &race().course;
     if CAR.splits_recorded.get() > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
     let time = CAR.stage_time.get();
-    crate::race::owner::race().course.league.car_time.set(time);
+    course.league.car_time.set(time);
     // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
     let first = CAR.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {
         *part = crate::session::read_on_in(
-            &crate::race::owner::race().course.league,
-            &crate::race::owner::race().course.league.rows,
+            &course.league,
+            &course.league.rows,
             first + k,
             "a kept split time",
         )?;
     }
-    let c = compare_split(time, &kept, |c| {
-        crate::race::owner::race().course.league.names[c].get()
-    });
+    let c = compare_split(time, &kept, |c| course.league.names[c].get());
     let f = c.figures;
     for (k, v) in [
         f.place,

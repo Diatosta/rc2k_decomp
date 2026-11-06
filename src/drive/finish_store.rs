@@ -3,6 +3,8 @@
 //! clock at the finish's start, the time, the eased time and the share. `#[repr(C)]` with the
 //! image's layout, over the race block's bytes (`FINISH`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -63,9 +65,7 @@ const _: () = assert!(END - START == core::mem::size_of::<Finish>());
 /// Where IDA 0x64BB18 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().replay.finish,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().replay.finish))
 }
 
 #[cfg(test)]
@@ -75,11 +75,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().replay.finish,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().replay.finish, START, END);
     }
 
     #[test]

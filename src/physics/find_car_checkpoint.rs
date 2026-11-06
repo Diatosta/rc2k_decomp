@@ -15,6 +15,7 @@ use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
@@ -25,12 +26,13 @@ use rc2k_core::physics::progress;
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub fn find_car_checkpoint() -> Result<u32, Refused> {
-    crate::race::owner::race()
+    let race_owner = race();
+    race_owner
         .physics
         .ground
         .ground_x
         .set(CAR.position[0].get());
-    crate::race::owner::race()
+    race_owner
         .physics
         .ground
         .ground_z
@@ -44,7 +46,7 @@ pub fn find_car_checkpoint() -> Result<u32, Refused> {
     // g_nearestCheckpointDistance
     PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
         int_80(near.distance as i32, false),
-        crate::race::owner::race().course.numbers.k65536.bits(),
+        race_owner.course.numbers.k65536.bits(),
         0x3F80_0000,
     ));
     if progress::search_all(near.distance) {

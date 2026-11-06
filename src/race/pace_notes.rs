@@ -26,6 +26,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
@@ -74,11 +75,7 @@ impl Stage for GameStage {
         PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
-        crate::race::owner::race()
-            .physics
-            .pace
-            .distance_words
-            .get(tens as usize)
+        race().physics.pace.distance_words.get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
@@ -122,7 +119,7 @@ fn tables() -> GamePtr {
     use crate::physics::pace_store::{END, START};
     const _: () = assert!(IMAGE_START as usize >= START && IMAGE_START as usize + IMAGE_LEN == END);
     // The tables are the image's bytes, read by the notes' own offsets.
-    GamePtr::to(&crate::race::owner::race().physics.pace).offset(IMAGE_START - START as u32)
+    GamePtr::to(&race().physics.pace).offset(IMAGE_START - START as u32)
 }
 
 impl Machine {

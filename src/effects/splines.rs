@@ -9,6 +9,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float, read_bits};
 
 pub const SPLINE_LEN: u32 = 0xE90;
@@ -291,7 +292,7 @@ pub fn gather_spline_points(
             }
         }
         let n = s.get(paths, COUNT)?;
-        let points: u32 = crate::race::owner::race().course.lists.object_points.bits();
+        let points: u32 = race().course.lists.object_points.bits();
         for k in (0..n).rev() {
             let id = s.get(paths, IDS + 4 * k)?;
             s.put(paths, IDS + 4 * k, id.wrapping_mul(12).wrapping_add(points))?;

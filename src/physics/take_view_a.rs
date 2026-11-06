@@ -17,58 +17,44 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::light_store::LIGHT_STATE;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
 pub fn take_view_a(s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
+    let physics = &race().physics;
     x87_1(s.offset_bits());
     for (put, v) in copies().iter().zip(s.taken()) {
         put(v);
     }
-    crate::race::owner::race()
-        .physics
-        .camera
-        .view_a_heading
-        .set(CAR.car_heading.get());
+    physics.camera.view_a_heading.set(CAR.car_heading.get());
     let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
     if record()?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    crate::race::owner::race()
-        .physics
-        .camera
-        .view_a_pitch
-        .set(eax);
-    crate::race::owner::race()
-        .physics
-        .camera
-        .view_a_roll
-        .set(ebx);
+    physics.camera.view_a_pitch.set(eax);
+    physics.camera.view_a_roll.set(ebx);
     Ok(())
 }
 
 /// Where the record's +0x10 .. +0x38 go (the statics deref at run time, so a function).
 fn copies() -> [fn(u32); 11] {
     [
-        |v| crate::race::owner::race().physics.camera.view_a_turn[0].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_turn[1].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_turn[2].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_point[0].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_point[1].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_point[2].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_shares[0].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_shares[1].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_shares[2].set_bits(v),
-        |v| crate::race::owner::race().physics.camera.view_a_aux.set(v),
+        |v| race().physics.camera.view_a_turn[0].set_bits(v),
+        |v| race().physics.camera.view_a_turn[1].set_bits(v),
+        |v| race().physics.camera.view_a_turn[2].set_bits(v),
+        |v| race().physics.camera.view_a_point[0].set_bits(v),
+        |v| race().physics.camera.view_a_point[1].set_bits(v),
+        |v| race().physics.camera.view_a_point[2].set_bits(v),
+        |v| race().physics.camera.view_a_shares[0].set_bits(v),
+        |v| race().physics.camera.view_a_shares[1].set_bits(v),
+        |v| race().physics.camera.view_a_shares[2].set_bits(v),
+        |v| race().physics.camera.view_a_aux.set(v),
         |v| {
-            crate::race::owner::race()
-                .physics
-                .camera
-                .view_a_aux_2
-                .set(v);
+            race().physics.camera.view_a_aux_2.set(v);
         },
     ]
 }
@@ -82,18 +68,19 @@ fn copies() -> [fn(u32); 11] {
 /// `[rc + 0x208B9C] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BA0] = [s + 0xC] + [rc + 0x237640]`
 fn x87_1(offset: [u32; 3]) {
+    let physics = &race().physics;
     let t0 = ld(offset[0]);
     let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;
-    crate::race::owner::race().physics.camera.view_a_offset[0].set_bits(st(t2));
+    physics.camera.view_a_offset[0].set_bits(st(t2));
     let t3 = ld(offset[1]);
     let t4 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t5 = t3 + t4;
-    crate::race::owner::race().physics.camera.view_a_offset[1].set_bits(st(t5));
+    physics.camera.view_a_offset[1].set_bits(st(t5));
     let t6 = ld(offset[2]);
     let t7 = ld(LIGHT_STATE.camera_frame_c.bits());
     let t8 = t6 + t7;
-    crate::race::owner::race().physics.camera.view_a_offset[2].set_bits(st(t8));
+    physics.camera.view_a_offset[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

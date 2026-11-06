@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
@@ -44,22 +45,15 @@ fn after() -> Result<(), Refused> {
 /// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
 pub fn steps() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     let walked = walls::walk(CAR.probe_count.get(), |k| {
         let k = k as usize;
         let now = CAR.probe_point_face[k].get();
-        crate::race::owner::race()
-            .physics
-            .contact
-            .wall_face_now
-            .set(now);
+        physics_store.contact.wall_face_now.set(now);
         let now_word = word(now)?;
-        let before = crate::race::owner::race().physics.contact.probe_saved_faces[k].get();
+        let before = physics_store.contact.probe_saved_faces[k].get();
         let before_word = if now != before {
-            crate::race::owner::race()
-                .physics
-                .contact
-                .wall_face_before
-                .set(before);
+            physics_store.contact.wall_face_before.set(before);
             Some(word(before)?)
         } else {
             None
@@ -73,23 +67,13 @@ pub fn steps() -> Result<(), Refused> {
         walls::Walk::Met { probe, .. } => {
             // 0x45D83E: a wall met.
             let k = probe as usize;
-            crate::race::owner::race()
-                .physics
-                .contact
-                .probe_index
-                .set(probe);
+            physics_store.contact.probe_index.set(probe);
             CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
             CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
             CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
             crate::physics::wall_edge_contact::steps()?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-                f32::from_bits(
-                    crate::race::owner::race()
-                        .physics
-                        .contact
-                        .contact_speed_length
-                        .bits(),
-                ),
+                f32::from_bits(physics_store.contact.contact_speed_length.bits()),
                 f32::from_bits(CAR.contact_depth.bits()),
             ) {
                 CAR.contact_depth.set_bits(hit.to_bits());
@@ -97,22 +81,11 @@ pub fn steps() -> Result<(), Refused> {
             after()
         }
         walls::Walk::Clear { bits } => {
-            crate::race::owner::race()
-                .physics
+            physics_store
                 .contact
                 .wall_face_now
-                .set(
-                    crate::race::owner::race()
-                        .physics
-                        .contact
-                        .wall_face_before
-                        .get(),
-                );
-            crate::race::owner::race()
-                .physics
-                .contact
-                .wall_bits
-                .set(bits);
+                .set(physics_store.contact.wall_face_before.get());
+            physics_store.contact.wall_bits.set(bits);
             if bits != walls::WALL_BITS {
                 return Ok(());
             }

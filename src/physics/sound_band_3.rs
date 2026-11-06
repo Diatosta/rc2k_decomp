@@ -10,10 +10,11 @@
 //! above are the original's, for reference.
 
 use crate::physics::sound_bands::Twin;
+use crate::race::owner::race;
 
 pub const TWIN: Twin = (
     0x45D0F1,
-    || &crate::race::owner::race().physics.contact.bump_speed_length,
-    || &crate::race::owner::race().frame.sound_spots.band_scale_3,
+    || &race().physics.contact.bump_speed_length,
+    || &race().frame.sound_spots.band_scale_3,
     10,
 );

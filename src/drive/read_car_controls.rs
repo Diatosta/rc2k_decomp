@@ -26,6 +26,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -48,6 +49,7 @@ fn computer() -> bool {
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
 pub fn read_car_controls() -> Result<(), Refused> {
+    let course = &race().course;
     if computer() && RACE_VARS.checkpoint_count.get() == 0 && CAR.run_ticks.get() >= 0x320 {
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87_run::compare_full(
@@ -59,11 +61,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
             return Err(BadInput("no checkpoints for the computer's driving").into());
         }
     }
-    crate::race::owner::race()
-        .course
-        .lists
-        .input_keys_mask
-        .set(CAR.input_keys.get());
+    course.lists.input_keys_mask.set(CAR.input_keys.get());
     CAR.input_keys.set(0);
     CAR.keys_pressed.set(0);
     // The four input words (recorded or replayed) into the car's inputs.
@@ -76,14 +74,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
     for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
         to.set(from.get());
     }
-    let keys = read_keys(
-        crate::race::owner::race()
-            .course
-            .lists
-            .input_keys_mask
-            .get(),
-        CAR.input_keys.get(),
-    );
+    let keys = read_keys(course.lists.input_keys_mask.get(), CAR.input_keys.get());
     let pressed = keys.pressed;
     CAR.keys_pressed.set(pressed);
     PHYSICS.input_throttle.set(CAR.input_throttle.get());

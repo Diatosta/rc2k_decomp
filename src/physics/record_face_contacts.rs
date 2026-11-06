@@ -15,6 +15,7 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
+use crate::race::owner::race;
 use rc2k_core::physics::ground_search;
 
 /// The record's (first, last) faces.
@@ -33,11 +34,7 @@ pub fn steps(record: u32) -> Result<(), Refused> {
     ground_search::each_face(
         first,
         last,
-        crate::race::owner::race()
-            .course
-            .course
-            .course_face_count
-            .get(),
+        race().course.course.course_face_count.get(),
         face_contact::steps,
     )?;
     Ok(())

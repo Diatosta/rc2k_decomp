@@ -12,6 +12,7 @@ use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -37,7 +38,7 @@ pub type CapPlaces = [&'static dyn Cell32; 4];
 
 /// The core.
 pub fn cap_drive_speed_at(v: CapPlaces) {
-    let zero = crate::race::owner::race().course.numbers.zero.bits();
+    let zero = race().course.numbers.zero.bits();
     put(
         v[0],
         over_abs_plus_minus(

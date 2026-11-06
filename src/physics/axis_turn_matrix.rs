@@ -13,83 +13,37 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
+use crate::race::owner::race;
 
 /// The Rust version: the matrix into `out` (16 cells).
 pub fn axis_turn_matrix(out: &(impl Cells + ?Sized)) {
+    let course = &race().course;
     {
-        let (s, c) = sine_cosine_of(crate::race::owner::race().course.lists.spin_angle.bits());
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_cosine
-            .set_bits(c);
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_sine
-            .set_bits(s);
-        let t = one_less(crate::race::owner::race().course.lists.turn_cosine.bits());
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_one_less_cosine
-            .set_bits(t);
+        let (s, c) = sine_cosine_of(course.lists.spin_angle.bits());
+        course.lists.turn_cosine.set_bits(c);
+        course.lists.turn_sine.set_bits(s);
+        let t = one_less(course.lists.turn_cosine.bits());
+        course.lists.turn_one_less_cosine.set_bits(t);
         let (x, y, z) = (
-            crate::race::owner::race().course.lists.spin_axis[0].bits(),
-            crate::race::owner::race().course.lists.spin_axis[1].bits(),
-            crate::race::owner::race().course.lists.spin_axis[2].bits(),
+            course.lists.spin_axis[0].bits(),
+            course.lists.spin_axis[1].bits(),
+            course.lists.spin_axis[2].bits(),
         );
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_product_xz
-            .set_bits(x87::mul2(t, x, z));
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_product_xy
-            .set_bits(x87::mul2(t, x, y));
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_product_yz
-            .set_bits(x87::mul2(t, y, z));
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_sine_x
-            .set_bits(x87::mul(x, s));
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_sine_y
-            .set_bits(x87::mul(y, s));
-        crate::race::owner::race()
-            .course
-            .lists
-            .turn_sine_z
-            .set_bits(x87::mul(z, s));
+        course.lists.turn_product_xz.set_bits(x87::mul2(t, x, z));
+        course.lists.turn_product_xy.set_bits(x87::mul2(t, x, y));
+        course.lists.turn_product_yz.set_bits(x87::mul2(t, y, z));
+        course.lists.turn_sine_x.set_bits(x87::mul(x, s));
+        course.lists.turn_sine_y.set_bits(x87::mul(y, s));
+        course.lists.turn_sine_z.set_bits(x87::mul(z, s));
         let (p1, p2, p3) = (
-            crate::race::owner::race()
-                .course
-                .lists
-                .turn_product_xz
-                .bits(),
-            crate::race::owner::race()
-                .course
-                .lists
-                .turn_product_xy
-                .bits(),
-            crate::race::owner::race()
-                .course
-                .lists
-                .turn_product_yz
-                .bits(),
+            course.lists.turn_product_xz.bits(),
+            course.lists.turn_product_xy.bits(),
+            course.lists.turn_product_yz.bits(),
         );
         let (q1, q2, q3) = (
-            crate::race::owner::race().course.lists.turn_sine_x.bits(),
-            crate::race::owner::race().course.lists.turn_sine_y.bits(),
-            crate::race::owner::race().course.lists.turn_sine_z.bits(),
+            course.lists.turn_sine_x.bits(),
+            course.lists.turn_sine_y.bits(),
+            course.lists.turn_sine_z.bits(),
         );
         let put = |o: usize, v: u32| out.set_bits(o / 4, v);
         put(0x00, abs_sqrt_times_plus(x, t, c));

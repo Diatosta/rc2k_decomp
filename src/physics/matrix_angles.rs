@@ -13,6 +13,7 @@
 use crate::math::cells::Cells;
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -28,8 +29,9 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&Float; 3], unit: [u32; 3]) {
 
 /// The Rust version on the matrix `m`; the angles in `COURSE_LISTS`.
 pub fn matrix_angles(m: &(impl Cells + ?Sized)) {
+    let course = &race().course;
     const ONE: u32 = 0x3F80_0000;
-    let l = &crate::race::owner::race().course.lists;
+    let l = &course.lists;
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];
     turn_unit(m, &turned, [0, 0, ONE]);
     l.car_heading
@@ -38,15 +40,11 @@ pub fn matrix_angles(m: &(impl Cells + ?Sized)) {
     let pitch = clamped_asin_at(
         extended(l.turned_y.bits()),
         &DRAW.scratch,
-        &crate::race::owner::race().course.numbers.one,
+        &course.numbers.one,
     );
     l.car_pitch.set_bits(neg_rounded(pitch));
     turn_unit(m, &turned, [ONE, 0, 0]);
     let sine = over_cos_80(l.turned_y.bits(), l.car_pitch.bits());
-    let roll = clamped_asin_at(
-        sine,
-        &DRAW.scratch,
-        &crate::race::owner::race().course.numbers.one,
-    );
+    let roll = clamped_asin_at(sine, &DRAW.scratch, &course.numbers.one);
     l.car_roll.set_bits(rounded(roll));
 }

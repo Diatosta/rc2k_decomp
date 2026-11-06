@@ -12,16 +12,18 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`.
 pub fn drag_at(v: &[&dyn Cell32]) {
+    let course = &race().course;
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let (k, d, zero) = (
         PHYSICS.air_drag.bits(),
-        crate::race::owner::race().course.numbers.k10000.bits(),
-        crate::race::owner::race().course.numbers.zero.bits(),
+        course.numbers.k10000.bits(),
+        course.numbers.zero.bits(),
     );
     for i in 0..3 {
         put(3 + i, square_times_over(get(i), k, d));

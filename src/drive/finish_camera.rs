@@ -9,6 +9,7 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::race::owner::race;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// View record 6, the finish camera's (`dword_606728` ..).
@@ -19,35 +20,25 @@ fn record() -> &'static ViewRecord {
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
 fn lines() {
-    record().angles[1].set_bits(st(ld(crate::race::owner::race()
-        .replay
-        .finish
-        .eased
-        .bits())
-        * ld(crate::race::owner::race().replay.finish.unknown_2c[0].bits())));
-    let a = ld(crate::race::owner::race().replay.finish.eased.bits())
-        * ld(crate::race::owner::race().replay.finish.unknown_2c[4].bits())
-        + ld(crate::race::owner::race().replay.finish.unknown_2c[2].bits());
-    let b = ld(crate::race::owner::race().replay.finish.share.bits())
-        * ld(crate::race::owner::race().replay.finish.unknown_64.bits());
+    let replay = &race().replay;
+    record().angles[1].set_bits(st(
+        ld(replay.finish.eased.bits()) * ld(replay.finish.unknown_2c[0].bits())
+    ));
+    let a = ld(replay.finish.eased.bits()) * ld(replay.finish.unknown_2c[4].bits())
+        + ld(replay.finish.unknown_2c[2].bits());
+    let b = ld(replay.finish.share.bits()) * ld(replay.finish.unknown_64.bits());
     record().offset[1].set_bits(st(a + b));
-    record().offset[2].set_bits(st(ld(crate::race::owner::race()
-        .replay
-        .finish
-        .eased
-        .bits())
-        * ld(crate::race::owner::race().replay.finish.unknown_2c[3].bits())
-        + ld(crate::race::owner::race().replay.finish.unknown_2c[1].bits())));
+    record().offset[2].set_bits(st(ld(replay.finish.eased.bits())
+        * ld(replay.finish.unknown_2c[3].bits())
+        + ld(replay.finish.unknown_2c[1].bits())));
 }
 
 /// `dword_606744` from the share and its constant.
 fn last_line() {
-    record().angles[0].set_bits(st(ld(crate::race::owner::race()
-        .replay
-        .finish
-        .share
-        .bits())
-        * ld(crate::race::owner::race().replay.finish.unknown_60.bits())));
+    let replay = &race().replay;
+    record().angles[0].set_bits(st(
+        ld(replay.finish.share.bits()) * ld(replay.finish.unknown_60.bits())
+    ));
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).

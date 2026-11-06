@@ -20,6 +20,7 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
@@ -55,7 +56,7 @@ pub fn lever_push() {
     ] {
         let v = mul2_to_int(
             from.get(),
-            crate::race::owner::race().course.numbers.k65536.bits(),
+            race().course.numbers.k65536.bits(),
             PHYSICS.step_time.bits(),
         ) as u32;
         int.set(v);

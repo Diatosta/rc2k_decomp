@@ -38,7 +38,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// names up to the end of `files\s\extr\txxxxx.pcx`.
 /// The six folders' names and second names, and where the number is in the name.
 fn folders() -> [(Place, Place, u32); 6] {
-    let p = &crate::race::owner::race().course.level_paths;
+    let p = &race().course.level_paths;
     [
         ((&p.picture_a).into(), (&p.second_a).into(), 0x0A), // files\a
         ((&p.picture_m).into(), (&p.second_m).into(), 0x0A), // files\m
@@ -48,6 +48,7 @@ fn folders() -> [(Place, Place, u32); 6] {
         ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
     ]
 }
+use crate::race::owner::race;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 // gfx::load_picture_to_texture
 

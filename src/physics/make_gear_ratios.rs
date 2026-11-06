@@ -20,6 +20,7 @@ use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Cell32;
@@ -28,6 +29,7 @@ const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
 /// The Rust core on the variables' cells `v`: the gear count.
 pub fn ratios_at(v: &[&dyn Cell32]) -> Result<u32, Refused> {
+    let course = &race().course;
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let n = get(0);
@@ -35,14 +37,10 @@ pub fn ratios_at(v: &[&dyn Cell32]) -> Result<u32, Refused> {
         return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
     let (k, d) = (
-        crate::race::owner::race().course.numbers.quarter.bits(),
-        crate::race::owner::race()
-            .course
-            .numbers
-            .two_and_a_quarter
-            .bits(),
+        course.numbers.quarter.bits(),
+        course.numbers.two_and_a_quarter.bits(),
     );
-    let one: u32 = crate::race::owner::race().course.numbers.one.bits();
+    let one: u32 = course.numbers.one.bits();
     let i = get(5) as i32;
     put(
         RATIO + n as usize,

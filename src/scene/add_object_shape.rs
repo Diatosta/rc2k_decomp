@@ -39,6 +39,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
@@ -199,11 +200,12 @@ struct Room {
 }
 
 fn room(shape: &Shape) -> Result<Room, BadInput> {
+    let course = &race().course;
     let room = Room {
         slot: OBJECT_WORK.loading_slot.bits(),
-        points: crate::race::owner::race().course.lists.object_points.bits(),
+        points: course.lists.object_points.bits(),
         point_count: OBJECT_TABLES.point_count.get(),
-        face_memory: crate::race::owner::race().course.lists.face_memory.bits(),
+        face_memory: course.lists.face_memory.bits(),
         face_cursor: OBJECT_WORK.face_cursor.bits(),
         face_count: OBJECT_TABLES.face_count.get(),
     };
@@ -214,17 +216,8 @@ fn room(shape: &Shape) -> Result<Room, BadInput> {
     }
     let [points, normals, faces, face_bytes] = shape.added;
     let fits = (room.point_count as usize + points + normals) * 12
-        <= crate::race::owner::race()
-            .course
-            .lists
-            .object_points_room
-            .bits() as usize
-        && room.face_cursor as usize + face_bytes
-            <= crate::race::owner::race()
-                .course
-                .lists
-                .face_memory_room
-                .bits() as usize
+        <= course.lists.object_points_room.bits() as usize
+        && room.face_cursor as usize + face_bytes <= course.lists.face_memory_room.bits() as usize
         && room.face_count as usize + faces <= FACES as usize;
     if !fits {
         return Err(BadInput("a shape that does not fit the objects' memory"));
@@ -298,11 +291,7 @@ pub fn add_object_shape() -> Result<(), BadInput> {
         count += 1;
         to = to.wrapping_add(12);
     }
-    crate::race::owner::race()
-        .course
-        .course
-        .shape_radius
-        .set_bits(radius);
+    race().course.course.shape_radius.set_bits(radius);
     OBJECT_SLOTS.radii[slot].set(radius);
     OBJECT_SLOTS.point_counts[slot].set(count - first_point);
     let first_normal = count;

@@ -14,6 +14,7 @@
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_ticks;
 
@@ -23,6 +24,7 @@ use rc2k_core::drive::race_ticks;
 /// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
 /// (liveness: `race_loop` reads eax only).
 pub fn quit_question() -> Result<u32, Refused> {
+    let replay = &race().replay;
     stop_race_sounds()?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
@@ -30,19 +32,8 @@ pub fn quit_question() -> Result<u32, Refused> {
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
-    if race_ticks::keeps_frame(
-        eax,
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .last_kept
-            .get(),
-    ) {
-        crate::race::owner::race()
-            .replay
-            .replay_frames
-            .last_kept
-            .set(eax);
+    if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {
+        replay.replay_frames.last_kept.set(eax);
     }
     let kind = race_ticks::quit_notice(RACE_VARS.no_replay.get() != 0);
     for c in 0..8 {

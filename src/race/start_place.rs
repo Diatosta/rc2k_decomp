@@ -9,6 +9,7 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -42,6 +43,7 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
 pub fn place_car_on_line() -> Result<(), Refused> {
+    let course = &race().course;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
@@ -49,11 +51,7 @@ pub fn place_car_on_line() -> Result<(), Refused> {
         let (c, n) = line_neighbours(LIGHT_STATE.line_place.bits(), count)?;
         let t: u32 = LIGHT_STATE.line_fraction.bits();
         let (face, a) = check_point(c)?;
-        crate::race::owner::race()
-            .course
-            .course
-            .place_face
-            .set_bits(face);
+        course.course.place_face.set_bits(face);
         let (_, b) = check_point(n)?;
         let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
         let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
@@ -62,14 +60,10 @@ pub fn place_car_on_line() -> Result<(), Refused> {
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
-        crate::race::owner::race().course.course.place_x.set_bits(x);
-        crate::race::owner::race().course.course.place_y.set_bits(y);
-        crate::race::owner::race().course.course.place_z.set_bits(z);
-        crate::race::owner::race()
-            .course
-            .course
-            .place_heading
-            .set_bits(heading);
+        course.course.place_x.set_bits(x);
+        course.course.place_y.set_bits(y);
+        course.course.place_z.set_bits(z);
+        course.course.place_heading.set_bits(heading);
         CAR.position[0].set_bits(x);
         CAR.position[2].set(z);
         CAR.car_heading.set_bits(heading);
@@ -83,6 +77,7 @@ pub fn place_car_on_line() -> Result<(), Refused> {
 /// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
 /// checkpoint past the list.
 pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
+    let physics = &race().physics;
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let count: u32 = RACE_VARS.checkpoint_count.bits();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
@@ -94,12 +89,8 @@ pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     }
     {
         let (_, point) = check_point(c)?;
-        let dx = get(point, 0)?
-            .wrapping_sub(crate::race::owner::race().physics.ground.ground_x.bits())
-            as i32;
-        let dz = get(point, 2)?
-            .wrapping_sub(crate::race::owner::race().physics.ground.ground_z.bits())
-            as i32;
+        let dx = get(point, 0)?.wrapping_sub(physics.ground.ground_x.bits()) as i32;
+        let dz = get(point, 2)?.wrapping_sub(physics.ground.ground_z.bits()) as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
@@ -166,16 +157,17 @@ fn measure_held(
     to: u32,
     nearest: &mut rc2k_core::race::checkpoints::Nearest,
 ) -> Result<(), BadInput> {
+    let race = race();
     use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
-    if crate::race::owner::race().course.course.course_faces.bits() != faces_base()
-        || crate::race::owner::race().course.course.scene_points.bits() != points_base()
+    if race.course.course.course_faces.bits() != faces_base()
+        || race.course.course.scene_points.bits() != points_base()
     {
         return Ok(());
     }
     let count: u32 = RACE_VARS.checkpoint_count.bits();
     let (x, z) = (
-        crate::race::owner::race().physics.ground.ground_x.bits(),
-        crate::race::owner::race().physics.ground.ground_z.bits(),
+        race.physics.ground.ground_x.bits(),
+        race.physics.ground.ground_z.bits(),
     );
     let dword =
         |bytes: &[u8], at: usize| Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?));
@@ -184,11 +176,7 @@ fn measure_held(
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;
-    let point_count = crate::race::owner::race()
-        .course
-        .course
-        .scene_point_count
-        .get();
+    let point_count = race.course.course.scene_point_count.get();
     let changes = crate::race::course_places::first_points_changes();
     let measured = PLACES.with_borrow_mut(|kept| {
         if kept.changes != changes || kept.point_count != point_count {
@@ -251,18 +239,14 @@ fn measure_held(
 /// registers it leaves are read by none of its callers. Refuses more checkpoints than the
 /// lists, before anything.
 pub fn nearest_checkpoint() -> Result<u32, Refused> {
+    let race = race();
     let count = count()?;
     {
-        crate::race::owner::race()
-            .physics
+        race.physics
             .ground
             .ground_x
             .set_bits(CAR.position[0].bits());
-        crate::race::owner::race()
-            .physics
-            .ground
-            .ground_z
-            .set_bits(CAR.position[2].get());
+        race.physics.ground.ground_z.set_bits(CAR.position[2].get());
         if count == 0 {
             return Ok(0);
         }
@@ -271,7 +255,7 @@ pub fn nearest_checkpoint() -> Result<u32, Refused> {
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
-            f32::from_bits(crate::race::owner::race().course.numbers.k65536.bits()),
+            f32::from_bits(race.course.numbers.k65536.bits()),
         );
         PHYSICS
             .nearest_checkpoint_distance

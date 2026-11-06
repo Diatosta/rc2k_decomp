@@ -10,25 +10,19 @@
 //! `read_replay_frame_0` refuses (what it wrote put back).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version.
 pub fn reset_marks() -> Result<(), Refused> {
+    let replay = &race().replay;
     {
         // Converted: `rc2k_core::race::viewer::reset_marks`.
         let (block, mark_in, mark_out) = rc2k_core::race::viewer::reset_marks(
-            crate::race::owner::race()
-                .replay
-                .replay_view
-                .replay_block
-                .get(),
+            replay.replay_view.replay_block.get(),
             REPLAY_FILE.index_block_count.get(),
         );
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .set(block);
+        replay.replay_view.replay_block.set(block);
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .mark_in
             .set(mark_in);
@@ -37,11 +31,7 @@ pub fn reset_marks() -> Result<(), Refused> {
             .set(mark_out);
         {
             crate::drive::read_replay_frame_0::read_replay_frame_0(
-                crate::race::owner::race()
-                    .replay
-                    .replay_view
-                    .replay_block
-                    .get(),
+                replay.replay_view.replay_block.get(),
             )
         }?;
         Ok(())

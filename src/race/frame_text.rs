@@ -15,12 +15,13 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
 /// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
 pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let frame = &race().frame;
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    race().frame.text_state.text_mode.set(2);
+    frame.text_state.text_mode.set(2);
     let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
     DRAW.scratch.set(rate as u32);
-    if rate == 0 || race().frame.counter.show.get() == 0 {
+    if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
     }
     let t = crate::strings::text_from_ids::text_at();
@@ -156,16 +157,17 @@ pub fn roll_credits(
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
 ) -> Result<(), Refused> {
+    let frame = &race().frame;
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
     let width = SCREEN.width.get() as i32;
     let height: u32 = SCREEN.height.get();
     if eax == 0 {
-        race().frame.credits.clock.set(tick_count());
+        frame.credits.clock.set(tick_count());
         let top = start_top(height);
-        race().frame.credits.top.set(top);
-        race().frame.credits.done.set(0);
+        frame.credits.top.set(top);
+        frame.credits.done.set(0);
         sound();
         return Ok(());
     }
@@ -181,7 +183,7 @@ pub fn roll_credits(
         }
     };
     // Unbounded: the script is read on to its end mark, as the original.
-    let mut at = crate::pointers::GamePtr::to(&race().frame.credits.script).unbounded();
+    let mut at = crate::pointers::GamePtr::to(&frame.credits.script).unbounded();
     let trap = Trap::new();
     let (lines, below) = lay_out(
         || {
@@ -190,7 +192,7 @@ pub fn roll_credits(
             v
         },
         width,
-        race().frame.credits.top.get() as i32,
+        frame.credits.top.get() as i32,
         |f| font_of(f).object().line_height.get() as i32,
     );
     trap.finish()?;
@@ -198,16 +200,16 @@ pub fn roll_credits(
         credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
     }
     let (top, clock, _) = catch_up(
-        race().frame.credits.top.get(),
-        race().frame.credits.clock.get(),
+        frame.credits.top.get(),
+        frame.credits.clock.get(),
         tick_count,
     );
-    race().frame.credits.top.set(top);
-    race().frame.credits.clock.set(clock);
+    frame.credits.top.set(top);
+    frame.credits.clock.set(clock);
     if !rolled_off(below, AUDIO.music_stream.get().playing) {
         return Ok(());
     }
-    race().frame.credits.done.set(1);
+    frame.credits.done.set(1);
     Ok(())
 }
 
@@ -232,14 +234,15 @@ mod block_tests {
 
     #[test]
     fn moved_knows_the_block() {
+        let frame = &race().frame;
         assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
         assert_eq!(
             crate::moved::place(CREDITS_START),
-            race().frame.credits.top.addr() as usize
+            frame.credits.top.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x529858),
-            (crate::pointers::game_address(race().frame.credits.script.as_ptr())) as usize
+            (crate::pointers::game_address(frame.credits.script.as_ptr())) as usize
         );
     }
 }

@@ -9,6 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::physics::car_store::CAR;
 use crate::race::checkpoints_store::CHECKPOINTS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -40,9 +41,9 @@ pub fn map_tiles() -> Result<(), Refused> {
 
 /// What `scroll_map` reads through the course: refused before anything.
 fn scroll_refuses() -> Result<(), Refused> {
+    let course = &race().course;
     if RACE_VARS.checkpoint_count.get() >= 2
-        && (crate::race::owner::race().course.course.course_faces.get() == 0
-            || crate::race::owner::race().course.course.scene_points.get() == 0)
+        && (course.course.course_faces.get() == 0 || course.course.scene_points.get() == 0)
     {
         return Err(BadInput("no course faces or points").into());
     }

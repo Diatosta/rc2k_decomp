@@ -16,6 +16,7 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"dpg replay",
@@ -35,20 +36,15 @@ fn log_number(n: u32) {
 /// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
 pub fn play_movie_loop() -> Result<(), Refused> {
+    let race = race();
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks()?;
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
-    log_number(
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
-    );
+    log_number(race.replay.replay_view.replay_block.get());
     log_text(TEXTS[2], false);
-    log_number(crate::race::owner::race().replay.replay_view.play_end.get());
-    crate::race::owner::race().course.numbers.replay_mode.set(2); // dword_5C5CE0
+    log_number(race.replay.replay_view.play_end.get());
+    race.course.numbers.replay_mode.set(2); // dword_5C5CE0
     race_parts::restart_clock();
     PHYSICS.race_clock_base.set(PHYSICS.scene_clock.get());
     loop {
@@ -58,13 +54,7 @@ pub fn play_movie_loop() -> Result<(), Refused> {
         }
         { crate::drive::race_step::race_step() }?;
         race_parts::race_frame()?;
-        if crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get()
-            == crate::race::owner::race().replay.replay_view.play_end.get()
-        {
+        if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;
         }
     }

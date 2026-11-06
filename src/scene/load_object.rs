@@ -150,12 +150,13 @@ fn find_object_kind(kind: u32) -> u32 {
 }
 
 fn mask(at: usize) -> u32 {
-    crate::race::owner::race().course.course.group_masks[at / 4].get()
+    race().course.course.group_masks[at / 4].get()
 }
 
 /// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
 /// by no caller (liveness; its one caller is `load_front_end_objects`).
 pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let course = &race().course;
     let kind: u32 = OBJECT_WORK.loading_kind.bits();
     if kind == 0 {
         return Ok(());
@@ -212,12 +213,12 @@ pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
                 };
             }
         }
-        crate::race::owner::race().course.course.group_masks[part.mask / 4].set_bits(bits);
+        course.course.group_masks[part.mask / 4].set_bits(bits);
     }
     let rest = FIRST_FIVE[1..]
         .iter()
         .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(at)));
-    crate::race::owner::race().course.course.group_masks[REST / 4].set_bits(rest);
+    course.course.group_masks[REST / 4].set_bits(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
     crate::session::write_all(&OBJECT_WORK.loading_car, [car, part, first]);
@@ -254,22 +255,11 @@ fn shape(scene: &crate::scene::owner::Scene, mask: u32) -> Result<(), Refused> {
 
 /// The three fatal errors at the end, in the original's order.
 fn check() -> Result<(), Refused> {
-    if OBJECT_WORK.face_cursor.bits()
-        > crate::race::owner::race()
-            .course
-            .lists
-            .face_memory_room
-            .bits()
-    {
+    let course = &race().course;
+    if OBJECT_WORK.face_cursor.bits() > course.lists.face_memory_room.bits() {
         return Err(NO_FACE_MEMORY.into());
     }
-    if OBJECT_TABLES.point_count.get().wrapping_mul(12)
-        > crate::race::owner::race()
-            .course
-            .lists
-            .object_points_room
-            .bits()
-    {
+    if OBJECT_TABLES.point_count.get().wrapping_mul(12) > course.lists.object_points_room.bits() {
         return Err(NO_POINT_MEMORY.into());
     }
     if OBJECT_TABLES.face_count.get() >= FACES {

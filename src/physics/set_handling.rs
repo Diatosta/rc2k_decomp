@@ -19,6 +19,7 @@ use crate::math::x87_run::int_lerp;
 use crate::physics::car_store::CAR;
 use crate::physics::grade_or_reset::grade_or_reset;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
@@ -97,7 +98,7 @@ pub fn set_handling() -> Result<(), Refused> {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
     grade_or_reset();
-    let k256: u32 = crate::race::owner::race().course.numbers.k256.bits();
+    let k256: u32 = race().course.numbers.k256.bits();
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
         out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
     };

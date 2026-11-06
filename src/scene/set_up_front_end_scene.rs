@@ -34,6 +34,7 @@
 //! of its parts comes with the work half done.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::allocate_point_records::allocate_point_records_in_game;
@@ -85,15 +86,10 @@ fn picture_places() -> impl Iterator<Item = u32> {
 // ---- Rust version ----
 
 fn colours(dark_third: u32) {
+    let course = &race().course;
     {
-        crate::session::write_bits(
-            &crate::race::owner::race().course.stage_prefs.lit_colour,
-            [0xFFu32; 3],
-        );
-        crate::session::write_bits(
-            &crate::race::owner::race().course.stage_prefs.dark_colour,
-            [0u32, 0, dark_third],
-        );
+        crate::session::write_bits(&course.stage_prefs.lit_colour, [0xFFu32; 3]);
+        crate::session::write_bits(&course.stage_prefs.dark_colour, [0u32, 0, dark_third]);
     }
 }
 
@@ -102,6 +98,7 @@ fn colours(dark_third: u32) {
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
+    let course = &race().course;
     let scene = crate::scene::owner::scene();
     crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture()?;
@@ -117,44 +114,16 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     clear_slot_kinds();
     colours(0);
     // The scene's settings stored before the fog is cleared, after the two colours.
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .scene_size_a
-        .set_bits(0x100u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .scene_size_b
-        .set_bits(0x100u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .fog_low
-        .set_bits(0u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .fog_high
-        .set_bits(0u32);
-    crate::race::owner::race().course.stage_prefs.fog_colour[0].set_bits(0u32);
-    crate::race::owner::race().course.stage_prefs.fog_colour[1].set_bits(0u32);
-    crate::race::owner::race().course.stage_prefs.fog_colour[2].set_bits(0u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .fog_near
-        .set_bits(0u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .fog_start
-        .set_bits(0u32);
-    crate::race::owner::race()
-        .course
-        .stage_prefs
-        .fog_end
-        .set_bits(0u32);
+    course.stage_prefs.scene_size_a.set_bits(0x100u32);
+    course.stage_prefs.scene_size_b.set_bits(0x100u32);
+    course.stage_prefs.fog_low.set_bits(0u32);
+    course.stage_prefs.fog_high.set_bits(0u32);
+    course.stage_prefs.fog_colour[0].set_bits(0u32);
+    course.stage_prefs.fog_colour[1].set_bits(0u32);
+    course.stage_prefs.fog_colour[2].set_bits(0u32);
+    course.stage_prefs.fog_near.set_bits(0u32);
+    course.stage_prefs.fog_start.set_bits(0u32);
+    course.stage_prefs.fog_end.set_bits(0u32);
     clear_fog();
     FRAME_SWITCHES.other_way.set_bits(1u32);
     fill_light_tables(scene)?;

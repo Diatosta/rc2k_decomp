@@ -1,5 +1,7 @@
 //! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept, the step's block and frame, the eight kept frames of the car blocks (`unk_6EF7E8`, 0x3F80 bytes each) and the last frame `quit_question` keeps (`dword_70F3E8`, just before `g_carBlockStore`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -46,9 +48,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 /// Where IDA 0x6EF7CC is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().replay.replay_frames,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().replay.replay_frames))
 }
 
 #[cfg(test)]
@@ -58,11 +58,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().replay.replay_frames,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().replay.replay_frames, START, END);
     }
 
     #[test]

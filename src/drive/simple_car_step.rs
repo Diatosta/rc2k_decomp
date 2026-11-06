@@ -16,12 +16,14 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub fn simple_car_step() -> Result<(), Refused> {
+    let race = race();
     crate::drive::car_input_words::car_input_words()?;
     crate::drive::read_car_controls::read_car_controls()?;
     crate::drive::steer_inputs::steer_inputs();
@@ -52,25 +54,23 @@ pub fn simple_car_step() -> Result<(), Refused> {
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
     { crate::physics::wheel_surfaces::wheel_surfaces() }?;
-    crate::race::owner::race()
-        .physics
+    race.physics
         .ground
         .ground_x
-        .set(crate::race::owner::race().course.course.place_x.get());
-    crate::race::owner::race()
-        .physics
+        .set(race.course.course.place_x.get());
+    race.physics
         .ground
         .ground_z
-        .set(crate::race::owner::race().course.course.place_z.get());
+        .set(race.course.course.place_z.get());
     { crate::physics::find_ground::find_ground() }?;
-    if crate::race::owner::race().course.course.ground_slot.get() != u32::MAX {
-        let y = crate::race::owner::race()
+    if race.course.course.ground_slot.get() != u32::MAX {
+        let y = race
             .physics
             .ground
             .ground_height
             .get()
             .wrapping_add(PHYSICS.ground_drop.get());
-        crate::race::owner::race().course.course.place_y.set(y);
+        race.course.course.place_y.set(y);
         CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }
     CAR_BLOCKS.cars[0].car_pitch.set_bits(0);

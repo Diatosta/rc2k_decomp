@@ -10,6 +10,7 @@
 //! the cursor) is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 
 /// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
@@ -21,11 +22,7 @@ crate::memory::owned::thread_owned!(
 /// `bytes` of faces, zeroed, counted on `list`.
 pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     FACES.take(list, bytes, vec![0; bytes as usize])?;
-    crate::race::owner::race()
-        .course
-        .lists
-        .face_memory
-        .set(BASE);
+    race().course.lists.face_memory.set(BASE);
     Ok(())
 }
 
@@ -92,9 +89,10 @@ mod tests {
 
     #[test]
     fn faces_are_read_by_place() {
+        let course = &race().course;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = crate::race::owner::race().course.lists.face_memory.get();
+        let kept = course.lists.face_memory.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
         take(
@@ -102,16 +100,12 @@ mod tests {
             0x40,
         )
         .unwrap();
-        let face = crate::race::owner::race().course.lists.face_memory.get() + 0x10;
+        let face = course.lists.face_memory.get() + 0x10;
         write(face, &[3, 0, 0, 0, 9, 9, 0x1C, 5]).unwrap();
         assert_eq!((word(face).unwrap(), byte(face + 6).unwrap()), (3, 0x1C));
         assert!(bytes(BASE + 0x3E, 4).is_err() && bytes(0, 1).is_err());
         give_back();
-        crate::race::owner::race()
-            .course
-            .lists
-            .face_memory
-            .set(kept);
+        course.lists.face_memory.set(kept);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

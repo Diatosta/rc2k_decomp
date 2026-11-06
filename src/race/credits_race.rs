@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::tables_store::RACE_TABLES;
@@ -28,15 +29,12 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT 
 /// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race() -> Result<(), Refused> {
+    let race = race();
     crate::framework::log("race::credits_race: the demonstration starts");
-    crate::race::owner::race().course.numbers.replay_mode.set(0);
+    race.course.numbers.replay_mode.set(0);
     REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
     RACE_TABLES.noise_seed.set(0x1234_5678);
-    crate::race::owner::race()
-        .physics
-        .split_tables
-        .arcade_kind
-        .set(2);
+    race.physics.split_tables.arcade_kind.set(2);
     FRAME_SWITCHES.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race()?;
     crate::race::race_cars::set_up_arcade_cars()?;

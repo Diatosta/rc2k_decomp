@@ -36,6 +36,7 @@ use crate::math::x87_run::{
 };
 use crate::physics::car_store::CAR;
 use crate::race::norms::normalise_work_vector;
+use crate::race::owner::race;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -72,7 +73,7 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
 /// long into `to`.
 fn normalised(from: &[Float], to: &[Float]) {
-    let w = &crate::race::owner::race().frame.scratch.work_vector;
+    let w = &race().frame.scratch.work_vector;
     for k in 0..3 {
         w[k].set(from[k].bits());
     }
@@ -94,6 +95,7 @@ fn slot_point(points: &[Dword; 40], slot: u32) -> Result<&[Dword], BadInput> {
 /// The Rust version.
 // Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
 pub fn drive_computer_car() -> Result<(), Refused> {
+    let course = &race().course;
     let reaches = CAR.run_ticks.get() >= driver::FIRST_STEP
         && compare_full(
             CAR.crash_matrix[5].bits(),
@@ -239,7 +241,7 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     normalised(&RACE_WORK.driver_ahead, &RACE_WORK.driver_ahead);
     let (k1, k2) = (
         RACE_WORK.driver_speed_scale.bits(),
-        crate::race::owner::race().course.numbers.k65536.bits(),
+        course.numbers.k65536.bits(),
     );
     RACE_WORK
         .driver_step_x
@@ -273,8 +275,8 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     );
     let (i, status) = times_fist_compare(
         RACE_WORK.driver_work[1].get(),
-        crate::race::owner::race().course.numbers.k256.bits(),
-        crate::race::owner::race().course.numbers.zero.bits(),
+        course.numbers.k256.bits(),
+        course.numbers.zero.bits(),
     );
     RACE_WORK.driver_bend_index.set(i as u32);
     let steer = driver::steering(i as u32, status & 0x100 != 0, CAR.gear.get() == u32::MAX);

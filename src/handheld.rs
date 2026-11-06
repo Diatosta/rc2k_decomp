@@ -252,7 +252,7 @@ static SMALL: Mutex<SmallBuffers> = Mutex::new(SmallBuffers {
 pub fn draws_small() -> bool {
     static FULL: OnceLock<bool> = OnceLock::new();
     !*FULL.get_or_init(|| std::env::var_os("RC2K_FULL_RESOLUTION").is_some())
-        && crate::race::owner::race().course.numbers.in_race.bits() != 0
+        && race().course.numbers.in_race.bits() != 0
 }
 
 /// A small frame while it is drawn: its buffers held until it is enlarged.
@@ -305,6 +305,7 @@ impl Small {
 
 // ---- a sampling profiler, while the handheld's speed is being worked out (the OS has no perf) ----
 
+use crate::race::owner::race;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::Relaxed};
 
 const SAMPLES: usize = 1 << 17;

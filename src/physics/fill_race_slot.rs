@@ -21,6 +21,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::rotate_point::rotate_point;
@@ -70,7 +71,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
         OBJECT_WORK.object_position[1].get() as i32,
         k,
         CAR.velocity[1].bits(),
-        Some(crate::race::owner::race().course.numbers.two.bits()),
+        Some(race().course.numbers.two.bits()),
     ));
     slot.motion[2].set_bits(int_mul_add(
         OBJECT_WORK.object_position[2].get() as i32,

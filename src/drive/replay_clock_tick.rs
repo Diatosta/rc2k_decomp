@@ -6,35 +6,21 @@
 //!
 //! Caller: `drive::replay_step`.
 
+use crate::race::owner::race;
 use rc2k_core::drive::clocks::ReplayClock;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
 pub fn replay_clock_tick() {
+    let replay = &race().replay;
     let was = ReplayClock {
-        frame: crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .get(),
-        hundredths: crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_frame
-            .get(),
+        frame: replay.replay_view.replay_block.get(),
+        hundredths: replay.replay_view.replay_frame.get(),
     };
     let mut c = was;
     c.tick();
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .replay_frame
-        .set(c.hundredths);
+    replay.replay_view.replay_frame.set(c.hundredths);
     if c.frame != was.frame {
-        crate::race::owner::race()
-            .replay
-            .replay_view
-            .replay_block
-            .set(c.frame);
+        replay.replay_view.replay_block.set(c.frame);
     }
 }

@@ -16,6 +16,7 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -41,6 +42,7 @@ fn listed_dword(n: usize) -> Result<u32, BadInput> {
 pub fn draw_object_faces(
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let race = race();
     let listed: u32 = LIGHT_WORK.listed_face_count.bits();
     if listed == 0 {
         return Ok(());
@@ -57,8 +59,7 @@ pub fn draw_object_faces(
         if face == 0 {
             return Err(BadInput("a face that is not there").into());
         }
-        crate::race::owner::race()
-            .physics
+        race.physics
             .ground
             .object_see_through
             .set_bits(listed_dword(entry + 3)?);
@@ -66,24 +67,10 @@ pub fn draw_object_faces(
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         DRAW.polygon_textures[0].set_bits(
-            texture.wrapping_add(
-                crate::race::owner::race()
-                    .physics
-                    .ground
-                    .object_texture_set
-                    .bits(),
-            ) | 0x8000_0000,
+            texture.wrapping_add(race.physics.ground.object_texture_set.bits()) | 0x8000_0000,
         );
-        crate::race::owner::race()
-            .frame
-            .sound_spots
-            .face_kind
-            .set_bits(head[6] as u32);
-        crate::race::owner::race()
-            .frame
-            .sound_spots
-            .face_unlit
-            .set_bits(head[0xB] as u32);
+        race.frame.sound_spots.face_kind.set_bits(head[6] as u32);
+        race.frame.sound_spots.face_unlit.set_bits(head[0xB] as u32);
         let shade = head[0xA] as u32;
         DRAW.polygon_colour.set_bits(if shade == 0 {
             0x00FF_FFFF

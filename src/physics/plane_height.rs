@@ -10,9 +10,11 @@
 //! Callers (2): `sub_442006` (the face under a point, the ground's search) and
 //! `sub_457B86`.
 
+use crate::race::owner::race;
+
 /// The Rust version.
 pub fn plane_height() {
-    let w = &crate::race::owner::race().physics.ground;
+    let w = &race().physics.ground;
     let h = crate::math::x87_run::plane_height(
         w.face_corners[4].get() as i32,
         w.face_corners[7].get() as i32,

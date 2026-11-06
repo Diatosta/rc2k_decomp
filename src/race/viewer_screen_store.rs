@@ -1,5 +1,6 @@
 //! The replay viewer's screen (IDA 0x5C291C .. 0x5C2FE4; phase 7, typed): the cameras' text ids, the bar, buttons, marks and place rectangles (scratch ones written each frame), the quad scale floats, the picture switches, the replay patch switches kept, the frame-picture recording state (three dwords at odd addresses), the NET and display text strings between 0x5C2CF7 and 0x5C2F81 (left as unknown bytes), the view marks' state and the listener place and turn. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -84,10 +85,7 @@ pub struct InGroup;
 impl core::ops::Deref for InGroup {
     type Target = ViewerPanelBlock;
     fn deref(&self) -> &ViewerPanelBlock {
-        &crate::race::owner::race()
-            .replay
-            .viewer_and_kinds
-            .viewer_panel
+        &race().replay.viewer_and_kinds.viewer_panel
     }
 }
 
@@ -268,10 +266,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race()
-            .replay
-            .viewer_and_kinds
-            .viewer_panel,
+        &race().replay.viewer_and_kinds.viewer_panel,
     ))
 }
 

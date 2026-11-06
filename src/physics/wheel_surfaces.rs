@@ -40,6 +40,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::{PHYSICS, PhysicsTables, Surface};
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -61,7 +62,7 @@ fn share_bit(v: &[Dword; 64], c: u32) -> u32 {
 
 /// Everything the function reads that the checks need, refused as said.
 fn check() -> Result<(), Refused> {
-    let faces = crate::race::owner::race().course.course.course_faces.get();
+    let faces = race().course.course.course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
@@ -74,6 +75,7 @@ fn check() -> Result<(), Refused> {
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
 fn steps() -> Result<(), Refused> {
+    let physics = &race().physics;
     check()?;
     for c in 0..5u32 {
         let cc = c as usize;
@@ -86,11 +88,11 @@ fn steps() -> Result<(), Refused> {
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(&crate::race::owner::race().physics.contact.probe_share_v, c);
-        let mut ebx = share_bit(&crate::race::owner::race().physics.contact.probe_share_u, c);
+        let mut edx = share_bit(&physics.contact.probe_share_v, c);
+        let mut ebx = share_bit(&physics.contact.probe_share_u, c);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
-        if crate::race::owner::race().physics.contact.probe_face_flip[cc].get() == 1 {
+        if physics.contact.probe_face_flip[cc].get() == 1 {
             edx ^= 1;
             ebx ^= 1;
         }
@@ -119,12 +121,11 @@ fn steps() -> Result<(), Refused> {
             )?;
             if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && face_byte(0x21)? != 0
             {
-                let (x, y, z) =
-                    if crate::race::owner::race().physics.contact.probe_face_flip[cc].get() == 1 {
-                        (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
-                    } else {
-                        (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
-                    };
+                let (x, y, z) = if physics.contact.probe_face_flip[cc].get() == 1 {
+                    (face_byte(0x25)?, face_byte(0x24)?, face_byte(0x23)?)
+                } else {
+                    (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
+                };
                 DRAW.surface_point[0].set(x);
                 DRAW.surface_point[1].set(y.wrapping_sub(x));
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
@@ -212,7 +213,7 @@ pub fn wheel_surfaces() -> Result<(), Refused> {
 /// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
 fn x87_1(t: &[Dword; 64], c: usize) {
     let t0 = ld(t[c].bits());
-    let t1 = ld(crate::race::owner::race().course.numbers.k65536.bits());
+    let t1 = ld(race().course.numbers.k65536.bits());
     let t2 = t0 * t1;
     DRAW.scratch.set_bits(to_int(t2) as u32);
 }
@@ -221,16 +222,17 @@ fn x87_1(t: &[Dword; 64], c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_2(c: usize) {
+    let race = race();
     let t0 = int(DRAW.surface_point[1].bits() as i32);
-    let t1 = ld(crate::race::owner::race().physics.contact.probe_share_u[c].bits());
+    let t1 = ld(race.physics.contact.probe_share_u[c].bits());
     let t2 = t0 * t1;
     let t3 = int(DRAW.surface_point[2].bits() as i32);
-    let t4 = ld(crate::race::owner::race().physics.contact.probe_share_v[c].bits());
+    let t4 = ld(race.physics.contact.probe_share_v[c].bits());
     let t5 = t3 * t4;
     let t6 = int(DRAW.surface_point[0].bits() as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
-    let t9 = ld(crate::race::owner::race().course.numbers.k256.bits());
+    let t9 = ld(race.course.numbers.k256.bits());
     let t10 = t8 / t9;
     CAR.wheel_surface_blend[c].set_bits(st(t10));
 }
@@ -261,13 +263,14 @@ fn x87_3(s: &Surface, d: &Surface, c: usize) {
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 fn x87_4(s: &[Dword], d: &[Dword], k: usize) {
+    let course = &race().course;
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
     let t9 = ld(CAR.surface_blend.bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    let t12 = ld(crate::race::owner::race().course.numbers.hundredth_a.bits());
+    let t12 = ld(course.numbers.hundredth_a.bits());
     let t13 = t11 * t12;
     PHYSICS.surface_scales[0].set_bits(st(t13));
     let t14 = int(d[k + 1].get() as i32);
@@ -276,7 +279,7 @@ fn x87_4(s: &[Dword], d: &[Dword], k: usize) {
     let t17 = ld(CAR.surface_blend.bits());
     let t18 = t16 * t17;
     let t19 = t14 + t18;
-    let t20 = ld(crate::race::owner::race().course.numbers.hundredth_a.bits());
+    let t20 = ld(course.numbers.hundredth_a.bits());
     let t21 = t19 * t20;
     PHYSICS.surface_scales[1].set_bits(st(t21));
 }
@@ -411,7 +414,7 @@ fn x87_7() {
     let t18 = ld(DRAW.surface_point[0].bits());
     let t19 = t17 - t18;
     let t20 = int(CAR.suspension_stiffness.bits() as i32);
-    let t21 = ld(crate::race::owner::race().course.numbers.k256.bits());
+    let t21 = ld(race().course.numbers.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
     let t24 = ld(DRAW.surface_point[0].bits());

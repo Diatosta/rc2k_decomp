@@ -4,50 +4,35 @@ use super::*;
 use crate::audio::store::ENVIRONMENT;
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
-/// times 1/65536 (`crate::race::owner::race().course.numbers.one_over_65536`), as stored.
+/// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
 pub(super) fn table_root(v: u32) -> u32 {
+    let course = &race().course;
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
-    let root =
-        crate::race::owner::race().course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
-    let scale = crate::race::owner::race().course.lists.exponent_root_table
-        [((v & 0x7F80_0000) >> 23) as usize]
-        .bits();
-    crate::math::x87_load::product3(
-        root,
-        scale,
-        crate::race::owner::race()
-            .course
-            .numbers
-            .one_over_65536
-            .bits(),
-    )
+    let root = course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
+    let scale = course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize].bits();
+    crate::math::x87_load::product3(root, scale, course.numbers.one_over_65536.bits())
 }
 
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y.
 pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
+    let physics = &race().physics;
     let [px, py, pz] = crate::race::scene_points::point_number(point)?;
     let x = px.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
     let z = pz.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
-    crate::race::owner::race()
-        .physics
-        .contact
-        .eax_point_x
-        .set(x);
-    crate::race::owner::race()
-        .physics
-        .contact
-        .eax_point_z
-        .set(z);
+    physics.contact.eax_point_x.set(x);
+    physics.contact.eax_point_z.set(z);
     Ok((x, py, z))
 }
 
-/// The weight's end: `DRAW.scratch` = `v`, held to 16.0 (`crate::race::owner::race().course.numbers.sixteen`; kept when below or
-/// not a number), added to `g_eaxEnvironment`; `crate::race::owner::race().frame.sound_spots.eax_face_count` + 1.
+/// The weight's end: `DRAW.scratch` = `v`, held to 16.0 (`race().course.numbers.sixteen`; kept when below or
+/// not a number), added to `g_eaxEnvironment`; `race().frame.sound_spots.eax_face_count` + 1.
 pub(super) fn add_eax_weight(v: u32) {
-    let sixteen: u32 = crate::race::owner::race().course.numbers.sixteen.bits();
+    let race = race();
+    let sixteen: u32 = race.course.numbers.sixteen.bits();
     let w = if crate::math::x87_load::below_or_unordered(v, sixteen) {
         v
     } else {
@@ -55,18 +40,10 @@ pub(super) fn add_eax_weight(v: u32) {
     };
     DRAW.scratch.set_bits(w);
     ENVIRONMENT.set(crate::math::x87::add(w, ENVIRONMENT.get()));
-    crate::race::owner::race()
-        .frame
+    race.frame
         .sound_spots
         .eax_face_count
-        .set_bits(
-            crate::race::owner::race()
-                .frame
-                .sound_spots
-                .eax_face_count
-                .bits()
-                .wrapping_add(1),
-        );
+        .set_bits(race.frame.sound_spots.eax_face_count.bits().wrapping_add(1));
 }
 
 /// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
@@ -76,6 +53,7 @@ pub(super) fn add_eax_weight(v: u32) {
 /// points (`CONTACT_WORK.eax_mid_x`, `CONTACT_WORK.eax_mid_z`); each held to 16 (see `add_eax_weight`). Distances
 /// by the game's root tables into `CONTACT_WORK.eax_distance`.
 pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
+    let race = race();
     use crate::math::x87::{div, from_int};
     use crate::math::x87_load::{
         abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
@@ -90,11 +68,7 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
             }
             let (x, _, z) = point_from_car(face_field(face, 4)?)?;
             let distance = table_root(int_square_sum(x as i32, z as i32));
-            crate::race::owner::race()
-                .physics
-                .contact
-                .eax_distance
-                .set_bits(distance);
+            race.physics.contact.eax_distance.set_bits(distance);
             let strength = face_field::<u8>(face, 0x18)? as u32;
             DRAW.scratch.set_bits(strength);
             add_eax_weight(int_over_float(strength as i32, distance));
@@ -103,75 +77,39 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
         if kind >= 0x10 {
             return Ok(());
         }
-        if !abs_below_or_unordered(
-            face_field(face, 0x30)?,
-            crate::race::owner::race().course.numbers.quarter.bits(),
-        ) {
+        if !abs_below_or_unordered(face_field(face, 0x30)?, race.course.numbers.quarter.bits()) {
             return Ok(());
         }
         let (x1, _, z1) = point_from_car(face_field(face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
-        crate::race::owner::race()
-            .physics
-            .contact
-            .eax_mid_x
-            .set_bits(mx);
-        crate::race::owner::race()
-            .physics
-            .contact
-            .eax_mid_z
-            .set_bits(mz);
+        race.physics.contact.eax_mid_x.set_bits(mx);
+        race.physics.contact.eax_mid_z.set_bits(mz);
         let (x2, _, z2) = point_from_car(face_field(face, 0xC)?)?;
-        let half: u32 = crate::race::owner::race().course.numbers.half.bits();
+        let half: u32 = race.course.numbers.half.bits();
         let mx = int_plus_times(x2 as i32, mx, half);
-        crate::race::owner::race()
-            .physics
-            .contact
-            .eax_mid_x
-            .set_bits(mx);
+        race.physics.contact.eax_mid_x.set_bits(mx);
         let mz = int_plus_times(z2 as i32, mz, half);
-        crate::race::owner::race()
-            .physics
-            .contact
-            .eax_mid_z
-            .set_bits(mz);
+        race.physics.contact.eax_mid_z.set_bits(mz);
         let distance = table_root(float_square_sum(mx, mz));
-        crate::race::owner::race()
-            .physics
-            .contact
-            .eax_distance
-            .set_bits(distance);
-        add_eax_weight(div(
-            crate::race::owner::race().course.numbers.three.bits(),
-            distance,
-        ));
+        race.physics.contact.eax_distance.set_bits(distance);
+        add_eax_weight(div(race.course.numbers.three.bits(), distance));
     }
     Ok(())
 }
 
 /// `race::eax_environment` (0x45C7EE): `g_eaxEnvironment` 0.0 and
-/// `crate::race::owner::race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
-/// `hold_to_limit(crate::race::owner::race().course.stage_prefs.grid_reach)` - 1 on each axis; `sub_45C84C` each): every face of
+/// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
+/// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; `sub_45C84C` each): every face of
 /// each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
 pub fn eax_environment() -> Result<(), BadInput> {
+    let race = race();
     {
         ENVIRONMENT.set(0);
-        crate::race::owner::race()
-            .frame
-            .sound_spots
-            .eax_face_count
-            .set_bits(0u32);
+        race.frame.sound_spots.eax_face_count.set_bits(0u32);
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
-            hold_to_limit(
-                crate::race::owner::race()
-                    .course
-                    .stage_prefs
-                    .grid_reach
-                    .bits(),
-            )
-            .wrapping_sub(1),
+            hold_to_limit(race.course.stage_prefs.grid_reach.bits()).wrapping_sub(1),
             3,
         ) {
             // `sub_45C84C`.

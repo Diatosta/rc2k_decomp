@@ -18,17 +18,19 @@ use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
+use crate::race::owner::race;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// The Rust version.
 pub fn spin_matrix() {
+    let race = race();
     CAR.spin_length.set_bits(rounded(vector_length(&CAR.spin)));
     if CAR.spin_length.bits() != 0 {
-        let lists = &crate::race::owner::race().course.lists;
+        let lists = &race.course.lists;
         let turn = &lists.turn_matrix;
-        let turned = &crate::race::owner::race().frame.matrices.turned_matrix;
+        let turned = &race.frame.matrices.turned_matrix;
         unit_vector(&CAR.spin, &lists.spin_axis);
         lists
             .spin_angle
@@ -37,8 +39,7 @@ pub fn spin_matrix() {
         square_matrix(turn);
         multiply_matrices(&CAR.crash_matrix, turn, turned);
         for k in 0..16 {
-            CAR.crash_matrix[k]
-                .set_bits(crate::race::owner::race().frame.matrices.turned_matrix[k].bits());
+            CAR.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
     }
     square_matrix(&CAR.crash_matrix);

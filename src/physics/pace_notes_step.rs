@@ -23,6 +23,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -53,7 +54,7 @@ pub fn pace_notes_step() -> Result<(), Refused> {
     let ahead = crate::math::x87::mul_div_div_to_int(
         CAR.local_velocity[2].bits(),
         PHYSICS.pace_scale.bits(),
-        crate::race::owner::race().course.numbers.eight.bits(),
+        race().course.numbers.eight.bits(),
         ONE_F32,
     );
     DRAW.scratch.set(ahead as u32);

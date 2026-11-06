@@ -85,11 +85,7 @@ pub fn race_loop() -> Result<(), Refused> {
     for mark in &race().frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
-    crate::race::owner::race()
-        .replay
-        .replay_view
-        .play_end
-        .set(u32::MAX);
+    race().replay.replay_view.play_end.set(u32::MAX);
     loop {
         restart_clock();
         PHYSICS

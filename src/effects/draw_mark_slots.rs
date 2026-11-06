@@ -30,6 +30,7 @@ use crate::effects::paths::Paths;
 use crate::effects::setup::CLOCK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
@@ -56,6 +57,7 @@ fn refusal() -> Option<&'static str> {
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
 pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
+    let race = race();
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
@@ -95,7 +97,7 @@ pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
             slot_matrix(s.matrix.get())?,
             [extended(z), extended(y), extended(x)],
         );
-        let twice = rotate_point(&crate::race::owner::race().frame.matrices.view_matrix, once);
+        let twice = rotate_point(&race.frame.matrices.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
             SLOTS.work[n].set(v);
@@ -117,7 +119,7 @@ pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
         }
-        if (x as i32) <= (crate::race::owner::race().course.numbers.k4096_a.bits() as i32) {
+        if (x as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
             continue;
         }
         let [px, py, half] = x87::slot_project(

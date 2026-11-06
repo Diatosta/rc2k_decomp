@@ -87,6 +87,7 @@ pub fn seed_car_randoms() -> Result<(), BadInput> {
 /// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 ..
 /// spaces, the four at 0x6D1850 .. -1.
 pub fn reset_car_race_state() -> Result<(), BadInput> {
+    let frame = &race().frame;
     // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};
     for n in 0..BLOCKS {
@@ -97,19 +98,19 @@ pub fn reset_car_race_state() -> Result<(), BadInput> {
     }
     // dword_6D1838, a64, dword_6D1844, a32: four dwords of spaces.
     for cell in [
-        &race().frame.panel_and_overlay.overlay.label_behind[0],
-        &race().frame.panel_and_overlay.overlay.label_behind[1],
-        &race().frame.panel_and_overlay.overlay.label_ahead[0],
-        &race().frame.panel_and_overlay.overlay.label_ahead[1],
+        &frame.panel_and_overlay.overlay.label_behind[0],
+        &frame.panel_and_overlay.overlay.label_behind[1],
+        &frame.panel_and_overlay.overlay.label_ahead[0],
+        &frame.panel_and_overlay.overlay.label_ahead[1],
     ] {
         cell.set(BLANK_TEXT);
     }
     // dword_6D1850, a64_0, dword_6D185C, a32_0: four dwords of -1.
     for cell in [
-        &race().frame.panel_and_overlay.overlay.kept_behind[0],
-        &race().frame.panel_and_overlay.overlay.kept_behind[1],
-        &race().frame.panel_and_overlay.overlay.kept_ahead[0],
-        &race().frame.panel_and_overlay.overlay.kept_ahead[1],
+        &frame.panel_and_overlay.overlay.kept_behind[0],
+        &frame.panel_and_overlay.overlay.kept_behind[1],
+        &frame.panel_and_overlay.overlay.kept_ahead[0],
+        &frame.panel_and_overlay.overlay.kept_ahead[1],
     ] {
         cell.set(UNSET_TEXT);
     }

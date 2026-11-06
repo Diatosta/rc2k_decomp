@@ -24,6 +24,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
@@ -45,19 +46,16 @@ fn try_place() -> Result<(), Refused> {
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
 pub fn steps() -> Result<(), Refused> {
+    let physics_store = &race().physics;
     PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(PHYSICS.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&CAR.velocity, factor);
     DRAW.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car() }?;
     { crate::physics::lowest_body_point::lowest_body_point() }?;
-    PHYSICS.clear_place_face.set(
-        crate::race::owner::race()
-            .physics
-            .contact
-            .lowest_depth
-            .get(),
-    );
+    PHYSICS
+        .clear_place_face
+        .set(physics_store.contact.lowest_depth.get());
     let found = clear_place::tries(clear_place::first_try(CAR.step_clock.get()), |n| {
         PHYSICS.clear_place_count.set(0);
         let m = clear_place::try_move(n);
@@ -75,26 +73,14 @@ pub fn steps() -> Result<(), Refused> {
         return crate::physics::reset_car::reset_car();
     };
     { crate::physics::lowest_body_point::lowest_body_point() }?;
-    let depth = crate::race::owner::race()
-        .physics
-        .contact
-        .lowest_depth
-        .get();
+    let depth = physics_store.contact.lowest_depth.get();
     if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
         CAR.position[1].set(height);
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);
     crate::logfile::log_hex8::log_hex8(PHYSICS.clear_place_face.get(), false, 1);
-    crate::logfile::log_hex8::log_hex8(
-        crate::race::owner::race()
-            .physics
-            .contact
-            .lowest_depth
-            .get(),
-        true,
-        1,
-    );
+    crate::logfile::log_hex8::log_hex8(physics_store.contact.lowest_depth.get(), true, 1);
     PHYSICS.clear_place_tries.set(
         crate::physics::tables_store::PHYSICS
             .clear_place_tries

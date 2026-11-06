@@ -4,6 +4,8 @@
 //! start values). `g_lightRecords` follows.
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// One car kind's figures (IDA struct `CarSpec`).
@@ -83,9 +85,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
 /// Where IDA 0x5C790C is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().physics.car_specs,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.car_specs))
 }
 
 #[cfg(test)]
@@ -95,15 +95,12 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().physics.car_specs,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().physics.car_specs, START, END);
     }
 
     #[test]
     fn piece_has_its_home() {
+        let physics = &race().physics;
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),
@@ -117,20 +114,11 @@ mod tests {
         assert_eq!(offset_of!(CarSpec, shift_points), 0xA4);
         let title = |k: usize| {
             (0..9)
-                .map(|i| {
-                    crate::race::owner::race().physics.car_specs.cars[k]
-                        .name
-                        .get(i)
-                })
+                .map(|i| physics.car_specs.cars[k].name.get(i))
                 .collect::<Vec<u8>>()
         };
         assert_eq!(title(0), b"00 renaul");
         assert_eq!(title(33), b"33 Renaul");
-        assert_eq!(
-            crate::race::owner::race().physics.car_specs.cars[0]
-                .engine_top
-                .get(),
-            8500
-        );
+        assert_eq!(physics.car_specs.cars[0].engine_top.get(), 8500);
     }
 }

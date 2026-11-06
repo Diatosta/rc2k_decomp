@@ -17,6 +17,7 @@ use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::car_store::CAR;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use std::cmp::Ordering;
 
@@ -30,6 +31,7 @@ fn below(share: u32, limit: u32) -> bool {
 
 /// The Rust version.
 pub fn lever_pushes() {
+    let course = &race().course;
     PHYSICS.lever_pushes[0].set(0);
     PHYSICS.lever_pushes[1].set(0);
     if FRAME_SWITCHES.levers_on.get() != 1 || CAR.all_wheels_off.get() != 0 {
@@ -43,27 +45,21 @@ pub fn lever_pushes() {
         CAR.grip_forces[3].bits(),
         CAR.grip_forces[1].bits(),
         CAR.grip_forces[2].bits(),
-        crate::race::owner::race().course.numbers.zero.bits(),
+        course.numbers.zero.bits(),
     );
     PHYSICS.lever_share_start.set_bits(share);
     if zero {
         return;
     }
-    if below(
-        PHYSICS.lever_share_start.bits(),
-        crate::race::owner::race().course.numbers.zero.bits(),
-    ) {
-        PHYSICS.lever_share_start.set_bits(x87::loaded(
-            crate::race::owner::race().course.numbers.zero.bits(),
-        ));
+    if below(PHYSICS.lever_share_start.bits(), course.numbers.zero.bits()) {
+        PHYSICS
+            .lever_share_start
+            .set_bits(x87::loaded(course.numbers.zero.bits()));
     }
-    if !below(
-        PHYSICS.lever_share_start.bits(),
-        crate::race::owner::race().course.numbers.one.bits(),
-    ) {
-        PHYSICS.lever_share_start.set_bits(x87::loaded(
-            crate::race::owner::race().course.numbers.one.bits(),
-        ));
+    if !below(PHYSICS.lever_share_start.bits(), course.numbers.one.bits()) {
+        PHYSICS
+            .lever_share_start
+            .set_bits(x87::loaded(course.numbers.one.bits()));
     }
     PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[3].bits()));
     PHYSICS

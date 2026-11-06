@@ -31,6 +31,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
@@ -105,6 +106,7 @@ fn clear_car(car: u32) -> Result<(), Refused> {
 /// callers' after-sets are kept or dead).
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 pub fn start_cars_behind() -> Result<(), Refused> {
+    let course = &race().course;
     if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
@@ -163,7 +165,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
                     RACE_TABLES.pace_back_gap.get().wrapping_neg(),
-                    crate::race::owner::race().course.numbers.twenty.bits(),
+                    course.numbers.twenty.bits(),
                 )?;
                 lead.mode2_behind
                     .set(lead.mode2_behind.get().wrapping_sub(1));
@@ -206,7 +208,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
             &lead.pace_cars[0],
             &lead.pace_starts[0],
             RACE_TABLES.pace_back_gap.get(),
-            crate::race::owner::race().course.numbers.twenty.bits(),
+            course.numbers.twenty.bits(),
         )?;
         lead.mode2_behind
             .set(lead.mode2_behind.get().wrapping_add(1));

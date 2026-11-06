@@ -11,6 +11,7 @@
 //! memory.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -18,14 +19,11 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 // ---- Rust version ----
 
 pub fn reset_objects() -> Result<(), BadInput> {
+    let course = &race().course;
     {
         let (memory, room): (u32, u32) = (
-            crate::race::owner::race().course.lists.object_points.bits(),
-            crate::race::owner::race()
-                .course
-                .lists
-                .object_points_room
-                .bits(),
+            course.lists.object_points.bits(),
+            course.lists.object_points_room.bits(),
         );
         if memory == 0 && room >= 4 {
             return Err(BadInput("room for the objects' points without memory"));

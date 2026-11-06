@@ -17,9 +17,11 @@ use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
 pub fn drive_force() -> Result<(), Refused> {
+    let course = &race().course;
     let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
@@ -29,13 +31,13 @@ pub fn drive_force() -> Result<(), Refused> {
         PHYSICS.engine_force.bits(),
         PHYSICS.engine_torque.bits(),
         CAR.throttle.get() as i32,
-        crate::race::owner::race().course.numbers.k256.bits(),
+        course.numbers.k256.bits(),
     ));
     PHYSICS.drive_torque.set_bits(mul_div2(
         PHYSICS.drive_ratio.bits(),
         GEAR.drive_torque_figure.bits(),
         PHYSICS.gear_ratios[(gear as i32 + 1) as usize].bits(),
-        crate::race::owner::race().course.numbers.k10000.bits(),
+        course.numbers.k10000.bits(),
     ));
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);

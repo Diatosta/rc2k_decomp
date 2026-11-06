@@ -46,6 +46,7 @@ use crate::physics as ph;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 
@@ -61,6 +62,7 @@ fn motion() {
 /// The steps. What the callees leave in the registers is read by none of them (each reads
 /// what it needs from memory), nor by the callers.
 pub fn steps() -> Result<(), Refused> {
+    let race_owner = race();
     ph::stir_car_word::stir_car_word();
     ph::load_car_specs::load_car_specs()?;
     ph::make_gear_ratios::make_gear_ratios()?;
@@ -68,21 +70,17 @@ pub fn steps() -> Result<(), Refused> {
     ph::set_handling::set_handling()?;
     ph::race_timers::race_timers()?;
     for cell in [
-        &crate::race::owner::race().frame.sound_spots.sound_scratch_a,
-        &crate::race::owner::race().frame.sound_spots.sound_scratch_b,
-        &crate::race::owner::race().frame.sound_spots.sound_scratch_c,
+        &race_owner.frame.sound_spots.sound_scratch_a,
+        &race_owner.frame.sound_spots.sound_scratch_b,
+        &race_owner.frame.sound_spots.sound_scratch_c,
     ] {
         cell.set(0);
     }
-    crate::race::owner::race()
-        .physics
-        .contact
-        .contact_normal_speed[0]
-        .set_bits(0);
+    race_owner.physics.contact.contact_normal_speed[0].set_bits(0);
     for cell in [
-        &crate::race::owner::race().physics.camera.ground_probes,
-        &crate::race::owner::race().physics.camera.ground_found,
-        &crate::race::owner::race().physics.camera.ground_same,
+        &race_owner.physics.camera.ground_probes,
+        &race_owner.physics.camera.ground_found,
+        &race_owner.physics.camera.ground_same,
     ] {
         cell.set(0);
     }
@@ -200,11 +198,8 @@ pub fn steps() -> Result<(), Refused> {
     // A car number past 7 (refused further down) reads past the field.
     let car = RACE_WORK.current_car.get() as usize;
     let listed = crate::session::read_on_in(
-        &crate::race::owner::race().frame.frame_work,
-        &crate::race::owner::race()
-            .frame
-            .frame_work
-            .listed_car_sounds,
+        &race_owner.frame.frame_work,
+        &race_owner.frame.frame_work.listed_car_sounds,
         car,
         "a listed car sound",
     )?;
@@ -241,7 +236,7 @@ fn x87_1() {
     let t0 = ld(CAR.drive_speed_a.bits());
     let t1 = ld(CAR.drive_speed_b.bits());
     let t2 = t0 + t1;
-    let t3 = ld(crate::race::owner::race().course.numbers.half.bits());
+    let t3 = ld(race().course.numbers.half.bits());
     let t4 = t2 * t3;
     CAR.mean_drive_speed.set_bits(st(t4));
     let t5 = ld(CAR.velocity[1].bits());

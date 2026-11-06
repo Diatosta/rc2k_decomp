@@ -30,6 +30,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_dot::light_dot;
@@ -118,17 +119,12 @@ fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
 
 /// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
 fn blend() {
+    let course = &race().course;
     let amount = held(light(), -255, 255);
     let (amount, towards) = if amount < 0 {
-        (
-            amount.wrapping_neg(),
-            &crate::race::owner::race().course.stage_prefs.dark_colour,
-        )
+        (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
     } else {
-        (
-            amount,
-            &crate::race::owner::race().course.stage_prefs.lit_colour,
-        )
+        (amount, &course.stage_prefs.lit_colour)
     };
     let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
     let mut colour: u32 = LIGHT_WORK.light_colour.bits();
@@ -149,8 +145,8 @@ pub fn vertex_light(number: u32) -> Result<u32, BadInput> {
         // 0 plus the lit colour.
         return Ok(plus(0, lit(number, mmx)?, mmx));
     }
-    let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0
-        || crate::race::owner::race().course.stage_prefs.lit_b.bits() != 0;
+    let lit_at_all =
+        FRAME_SWITCHES.other_way.bits() != 0 || race().course.stage_prefs.lit_b.bits() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

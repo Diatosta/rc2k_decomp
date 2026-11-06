@@ -32,6 +32,7 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
+use crate::race::owner::race;
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
@@ -56,7 +57,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         FRAME_SWITCHES.other_way.bits()
     }
     fn shown(&self) -> u32 {
-        crate::race::owner::race().course.stage_prefs.shown.bits()
+        race().course.stage_prefs.shown.bits()
     }
     fn which(&self) -> u32 {
         RACE_WORK.stage_direction.bits()
@@ -73,7 +74,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
 /// the tests leave in the registers `draw_object` does not read.
 // Converted: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<bool, Refused> {
-    let race = crate::race::owner::race().course.numbers.in_race.bits() != 0;
+    let race = race().course.numbers.in_race.bits() != 0;
     if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }

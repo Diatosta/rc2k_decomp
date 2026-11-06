@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -29,7 +30,7 @@ fn zero(cells: &[&Dword]) {
 }
 
 fn wheels() -> [u32; 4] {
-    crate::session::read_first(&crate::race::owner::race().physics.contact.probe_height)
+    crate::session::read_first(&race().physics.contact.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
@@ -59,16 +60,13 @@ fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
 /// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
 /// leaves are read by no caller (conversion phase 3, 2026-10-24).
 pub fn settle_car() -> Result<(), Refused> {
+    let physics = &race().physics;
     crate::physics::set_handling::set_handling()?;
     CAR.car_pitch.set(0);
     CAR.car_roll.set(0);
     PHYSICS.settle_steps[0].set(0x2000_0000u32);
     PHYSICS.settle_steps[1].set(0x2000_0000u32);
-    crate::race::owner::race()
-        .physics
-        .ground_probe
-        .settle_mark
-        .set(0x80);
+    physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
         let w = matrix_and_wheels()?;
         settle_step(
@@ -94,10 +92,10 @@ pub fn settle_car() -> Result<(), Refused> {
     CAR.position[1].set(CAR.position[1].get().wrapping_sub(lowest));
     // dword_6D2514 .. 20: the four wheels' heights (made by `sub_45D305`).
     for (k, h) in w.iter().enumerate() {
-        crate::race::owner::race().physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
+        physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
     }
     // dword_6D1F14 .. 20: four more lowered with them.
-    for cell in &crate::race::owner::race().physics.contact.probe_y[..4] {
+    for cell in &physics.contact.probe_y[..4] {
         cell.set(cell.get().wrapping_sub(lowest));
     }
     Ok(())
@@ -109,6 +107,7 @@ pub fn settle_car() -> Result<(), Refused> {
 /// +0x6B4; +0x1E8, `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204,
 /// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
 pub fn reset_car_motion() -> Result<(), Refused> {
+    let physics = &race().physics;
     settle_car()?;
     crate::race::start_place::invert_car_matrix();
     for v in &CAR.velocity {
@@ -121,25 +120,13 @@ pub fn reset_car_motion() -> Result<(), Refused> {
         v.set_bits(0);
     }
     let heading = CAR.car_heading.get();
-    crate::race::owner::race()
-        .physics
-        .camera
-        .start_heading
-        .set_bits(heading);
+    physics.camera.start_heading.set_bits(heading);
     CAR.camera_heading.set(heading);
     let pitch = CAR.car_pitch.get();
-    crate::race::owner::race()
-        .physics
-        .camera
-        .start_pitch
-        .set_bits(pitch);
+    physics.camera.start_pitch.set_bits(pitch);
     CAR.camera_pitch.set(pitch);
     let roll = CAR.car_roll.get();
-    crate::race::owner::race()
-        .physics
-        .camera
-        .start_roll
-        .set_bits(roll);
+    physics.camera.start_roll.set_bits(roll);
     CAR.camera_roll_turn.set(roll);
     CAR.stuck_count.set(0);
     CAR.drive_speed_a.set_bits(0);
@@ -166,11 +153,7 @@ fn move_turned(x: u32, z: u32) {
         x as i32,
         0,
         z as i32,
-        crate::race::owner::race()
-            .course
-            .course
-            .place_heading
-            .bits(),
+        race().course.course.place_heading.bits(),
     );
     add(&CAR.position[0], x);
     add(&CAR.position[2], z);
@@ -187,6 +170,7 @@ fn move_turned(x: u32, z: u32) {
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub fn start_car() -> Result<(), Refused> {
+    let replay = &race().replay;
     CAR.notice_count.set(0);
     CAR.camera_switch_active.set(0);
     CAR.map_corner[0].set(0x8000_0000);
@@ -214,12 +198,12 @@ pub fn start_car() -> Result<(), Refused> {
         );
         LIGHT_STATE.line_place.set(place);
         LIGHT_STATE.line_fraction.set(0);
-        if crate::race::owner::race().replay.finish.no_place.get() != 0 {
+        if replay.finish.no_place.get() != 0 {
             LIGHT_STATE.line_place.set(0);
             LIGHT_STATE.line_fraction.set(0);
         }
         crate::race::start_place::place_car_on_line()?;
-        if crate::race::owner::race().replay.finish.no_place.get() == 0 {
+        if replay.finish.no_place.get() == 0 {
             move_turned(0, 0xFFFE_0000);
             let side = starts_aside(
                 crate::net::store::NET.session.get(),

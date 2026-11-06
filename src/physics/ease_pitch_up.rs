@@ -8,14 +8,16 @@
 //! Caller: `sub_43907F` (0x4392CD).
 
 use crate::physics::car_store::CAR;
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let physics = &race().physics;
     vec![
-        &crate::race::owner::race().physics.camera.pitch_ceiling as &dyn Cell32,
+        &physics.camera.pitch_ceiling as &dyn Cell32,
         &CAR.camera_pitch,
-        &crate::race::owner::race().physics.camera.pitch_step,
+        &physics.camera.pitch_step,
     ]
 }
 
