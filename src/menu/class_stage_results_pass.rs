@@ -1,6 +1,6 @@
 //! `menu::class_stage_results_pass` (0x4A1EE6): standings table A sorted by stage time (`menu::sort_standings_by_time`), then for each class from 1 (with `dword_75AB40` 2) or 0 up to `dword_7558F8`:
 //! when a player (1 .. 3: the original does not look for player 4, section 16) is in the
-//! class's entries of standings table A, the class numbered (`menu::number_standings_a`, its
+//! class's entries of standings table A, the class numbered (`number_standings`, its
 //! count into `dword_75597C`) and its page shown (`menu::show_class_stage_results`), stopping when the
 //! leaving is answered yes (`g_yesNoAnswer` 1). `dword_755565` the class's flag.
 //!
@@ -16,6 +16,7 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
+use crate::menu::standings_steps::number_standings;
 use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::class_pages;
 
@@ -43,7 +44,7 @@ pub fn class_stage_results_pass() -> Result<(), Refused> {
             continue;
         }
         LOOP_FLAGS.ended_b.set(1u32);
-        let numbered = crate::menu::number_standings_a::number_standings_a(class)?;
+        let numbered = number_standings(Which::A, class)?;
         EVENT_STATE.count_a.set(numbered.last_number);
         crate::menu::show_class_stage_results::show_class_stage_results(class)?;
         if MENU_PAGES.yes_no_answer.get() == 1 {

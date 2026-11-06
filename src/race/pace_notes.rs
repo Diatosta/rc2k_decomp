@@ -19,8 +19,8 @@
 //!   `dword_9ED808` change over the note's length times 60), + 8 for a note of 0x780000 or
 //!   longer, + 0x10 turning one way.
 //!
-//! The functions run on `rc2k_core::race::pace_notes::Notes` (the registers and an image of
-//! the tables, written back only when the function is done, so a refusal writes nothing);
+//! The tables are made by `rc2k_core::race::pace_notes::Notes` (on an image of the tables,
+//! written back only when it is done, so a refusal writes nothing);
 //! here the game's stage it asks and the image's load and store.
 
 use crate::errors::{BadInput, Refused};
@@ -28,7 +28,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
-use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Registers, Stage};
+use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
 
 /// Where the course is (`rc2k_core::race::pace_notes::Course`).
 pub type Course = rc2k_core::race::pace_notes::Course;
@@ -129,7 +129,6 @@ impl Machine {
             *held = None;
         }
         Ok(Self(Notes::new(
-            Registers::default(),
             PHYSICS.pace_slot.bits(),
             tables().read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,

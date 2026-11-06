@@ -85,49 +85,36 @@ pub trait Surfaces {
     fn pixel(&mut self, components: u32) -> u32;
 }
 
-/// The places after the copy: (eax, esi, edi) as the original leaves them.
-pub type CopyEnd = (u32, u32, u32);
-
 /// `copy_mirror_picture`'s copy: each pixel taken apart, made opaque and put together in
-/// the destination's format. eax carries from pixel to pixel as the original's: a 16-bit
-/// pixel replaces only its low half, the high half left from the last conversion.
-pub fn copy_picture(
-    c: &PictureCopy,
-    from: u32,
-    to: u32,
-    eax: u32,
-    s: &mut impl Surfaces,
-) -> CopyEnd {
-    let (mut esi, mut edi, mut eax) = (from, to, eax);
+/// the destination's format. The slip kept: the last pixel's bits go on from pixel to pixel
+/// (`carried` first), and a 16-bit source pixel replaces only their low half, so the
+/// components are taken of the pixel under the last conversion's high half.
+pub fn copy_picture(c: &PictureCopy, from: u32, to: u32, carried: u32, s: &mut impl Surfaces) {
+    let (mut read_at, mut write_at) = (from, to);
+    let mut pixel = carried;
     for _ in 0..c.height {
-        let (row_from, row_to) = (esi, edi);
+        let (row_from, row_to) = (read_at, write_at);
         for _ in 0..c.width {
             if c.from_16 {
-                eax = (eax & 0xFFFF_0000) | s.read16(esi) as u32;
-                esi = esi.wrapping_add(2);
+                pixel = (pixel & 0xFFFF_0000) | s.read16(read_at) as u32;
+                read_at = read_at.wrapping_add(2);
             } else {
-                eax = s.read32(esi);
-                esi = esi.wrapping_add(4);
+                pixel = s.read32(read_at);
+                read_at = read_at.wrapping_add(4);
             }
-            eax = s.components(eax);
-            eax = s.pixel(eax | 0xFF00_0000);
+            let components = s.components(pixel);
+            pixel = s.pixel(components | 0xFF00_0000);
             if c.to_16 {
-                s.write16(edi, eax as u16);
-                edi = edi.wrapping_add(2);
+                s.write16(write_at, pixel as u16);
+                write_at = write_at.wrapping_add(2);
             } else {
-                s.write32(edi, eax);
-                edi = edi.wrapping_add(4);
+                s.write32(write_at, pixel);
+                write_at = write_at.wrapping_add(4);
             }
         }
-        esi = row_from.wrapping_add(c.from_pitch);
-        edi = row_to.wrapping_add(c.to_pitch);
+        read_at = row_from.wrapping_add(c.from_pitch);
+        write_at = row_to.wrapping_add(c.to_pitch);
     }
-    (eax, esi, edi)
-}
-
-/// Whether the copy's loops ran (ebx, ecx and edx then as they leave them).
-pub fn copied_any(c: &PictureCopy) -> bool {
-    c.height != 0 && c.width != 0
 }
 
 // ---- the screen's tint ----
@@ -288,8 +275,7 @@ mod tests {
             from_16: true,
             to_16: false,
         };
-        let (eax, esi, edi) = copy_picture(&c, 0, 32, 0xABCD_0000, &mut t);
-        assert_eq!((esi, edi), (16, 48));
+        copy_picture(&c, 0, 32, 0xABCD_0000, &mut t);
         // The first pixel: 0x0100 under 0xABCD's high half.
         let first = (0xABCD_0100u32.rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
         assert_eq!(t.read32(32), first);
@@ -299,9 +285,8 @@ mod tests {
         // The next row from its pitch: the source's 8th byte on.
         let third = (((second & 0xFFFF_0000) | 0x0908).rotate_left(8) | 0xFF00_0000) ^ 0x0F0F;
         assert_eq!(t.read32(40), third);
-        assert_eq!(eax, t.read32(44));
-        assert!(copied_any(&c) && !copied_any(&PictureCopy { width: 0, ..c }));
-        let (_, esi, edi) = copy_picture(&PictureCopy { height: 0, ..c }, 4, 8, 0, &mut t);
-        assert_eq!((esi, edi), (4, 8));
+        let untouched = t.mem.clone();
+        copy_picture(&PictureCopy { height: 0, ..c }, 4, 8, 0, &mut t);
+        assert_eq!(t.mem, untouched);
     }
 }

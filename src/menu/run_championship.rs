@@ -37,15 +37,13 @@
 //!   Type";
 //! - the end: unless the section was given, `championship_finish`, `clear_score_marks`,
 //!   `best_class_scores`, `best_overall_scores`; `review_options_481429_loop`;
-//! - a yes to leaving on most screens ends it at once; at the very end, with the
-//!   registers of the entry, `menu::show_in_game_options`.
+//! - a yes to leaving on most screens ends it at once; at the very end,
+//!   `menu::show_in_game_options`.
 //!
-//! In:  nothing
-//! Out: every register as `menu::show_in_game_options` leaves the entry's (all kept)
-//!
-//! `run_event` is shared with `menu::run_a8_championship` (`a8`: its differences). Callers:
-//! `saves::load_savegame` and the five starters (`menu::start_championship_*`). The calls through
-//! `event_flow::Call`. Refuses what its callees refuse, when they are reached.
+//! `run_event` is shared with `menu::run_a8_championship` (`a8`: its differences). The
+//! `saves::load_savegame` and the five starters (`menu::start_championship_*`) run it. The
+//! calls go through `event_flow::Call`. Refuses what its callees refuse, when they are
+//! reached.
 
 use crate::errors::Refused;
 use crate::menu::event_store::EVENT_STATE;

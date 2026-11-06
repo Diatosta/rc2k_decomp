@@ -81,7 +81,7 @@ pub fn draw_shown_object(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Resul
     }
     LIGHT_WORK.drawing_object.set_bits(1u32);
     let show = if race {
-        rc2k_core::scene::shown::race_shown(&Game).drawn
+        rc2k_core::scene::shown::race_shown(&Game)
     } else {
         for (cell, byte) in OBJECT_TABLES
             .car_mark_textures

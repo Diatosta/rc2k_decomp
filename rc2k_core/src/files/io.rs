@@ -321,58 +321,66 @@ fn buffered(n: u32) -> Result<usize, Invalid> {
     Ok(n as usize)
 }
 
-/// What reading a byte leaves: eax, and the carry flag.
+/// What reading a byte from a stream gives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ByteRead {
-    pub eax: u32,
-    pub carry: bool,
+pub enum ByteRead {
+    Byte(u8),
+    /// The end of the file.
+    End,
+    /// A read failed. `count_low` is the low byte of the count that read reported: the
+    /// original leaves it where the byte would be, and the picture readers take it as one.
+    Failed {
+        count_low: u8,
+    },
 }
 
 impl ByteRead {
     /// The byte, if there was one.
-    pub fn byte(&self) -> Option<u8> {
-        (!self.carry).then_some(self.eax as u8)
+    pub fn byte(self) -> Option<u8> {
+        match self {
+            Self::Byte(byte) => Some(byte),
+            Self::End | Self::Failed { .. } => None,
+        }
     }
-    /// With the carry set: whether it was a read error and not the end of the file.
-    pub fn failed(&self) -> bool {
-        self.carry && self.eax & 0xFF00 != 0
+    /// Whether it was a read error and not the end of the file.
+    pub fn failed(self) -> bool {
+        matches!(self, Self::Failed { .. })
+    }
+    /// The byte as the picture readers take it, whatever happened: 0 at the end of the file,
+    /// `count_low` after a failed read.
+    pub fn value(self) -> u8 {
+        match self {
+            Self::Byte(byte) => byte,
+            Self::End => 0,
+            Self::Failed { count_low } => count_low,
+        }
     }
 }
 
-/// The stream's next byte, the buffer filled again when it is used up; `eax` that register
-/// at entry. Refused: a position past the buffer (the original reads past it).
+/// The stream's next byte, the buffer filled again when it is used up. Refused: a position
+/// past the buffer (the original reads past it).
 pub fn read_stream_byte<F: Files>(
     f: &mut F,
     s: &mut Stream<F::Handle>,
-    eax: u32,
 ) -> Result<ByteRead, Invalid> {
-    let mut eax = eax;
     if s.position >= s.filled {
         let (count, ok) = f.read(s.file, &mut s.buffer);
         if !ok {
-            return Ok(ByteRead {
-                eax: count & 0xFFFF_00FF | 0x100,
-                carry: true,
+            return Ok(ByteRead::Failed {
+                count_low: count as u8,
             });
         }
         s.filled = count;
         s.position = 0;
         if count == 0 {
-            return Ok(ByteRead {
-                eax: 0,
-                carry: true,
-            });
+            return Ok(ByteRead::End);
         }
-        eax = count;
     }
     let Some(&byte) = s.buffer.get(s.position as usize) else {
         return Err(Invalid("a stream's place past its buffer"));
     };
     s.position = s.position.wrapping_add(1);
-    Ok(ByteRead {
-        eax: eax & !0xFF | byte as u32,
-        carry: false,
-    })
+    Ok(ByteRead::Byte(byte))
 }
 
 /// Bytes read into `into`: how many, and whether a read failed.
@@ -381,14 +389,11 @@ pub fn read_stream_block<F: Files>(
     s: &mut Stream<F::Handle>,
     into: &mut [u8],
 ) -> Result<(u32, bool), Invalid> {
-    let mut eax = 0u32;
     for (n, b) in into.iter_mut().enumerate() {
-        let r = read_stream_byte(f, s, eax)?;
-        if r.carry {
-            return Ok((n as u32, r.failed()));
+        match read_stream_byte(f, s)? {
+            ByteRead::Byte(byte) => *b = byte,
+            end => return Ok((n as u32, end.failed())),
         }
-        eax = r.eax;
-        *b = eax as u8;
     }
     Ok((into.len() as u32, false))
 }
@@ -557,7 +562,7 @@ mod tests {
         );
         let mut rest = Vec::new();
         loop {
-            let r = read_stream_byte(&mut f2, &mut s, 0).unwrap();
+            let r = read_stream_byte(&mut f2, &mut s).unwrap();
             match r.byte() {
                 Some(b) => rest.push(b),
                 None => break assert!(!r.failed()),

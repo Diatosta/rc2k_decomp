@@ -26,29 +26,15 @@ pub trait RaceObject {
     fn faces(&self, object: u32) -> u32;
 }
 
-/// What the race's tests decide, and the registers they leave (ebx the object once the
-/// kind test is passed; eax the only object less 1 on the other way).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Shown {
-    pub drawn: bool,
-    pub ebx: Option<u32>,
-    pub eax: Option<u32>,
-}
-
-/// The race's two tests: hidden by kind (0x30, 0x4E with either switch); objects 0x38 and
-/// 0x3A .. 0x3F hidden on the other way, when the special objects are not shown, 0x3E
-/// unless `which` is 0 and 0x3D unless it is 1; on the other way every object but the only
-/// one; and an object without faces.
-pub fn race_shown(o: &impl RaceObject) -> Shown {
-    let mut s = Shown::default();
+/// The race's two tests, whether the object is drawn: hidden by kind (0x30, 0x4E with
+/// either switch); objects 0x38 and 0x3A .. 0x3F hidden on the other way, when the special
+/// objects are not shown, 0x3E unless `which` is 0 and 0x3D unless it is 1; on the other way
+/// every object but the only one; and an object without faces.
+pub fn race_shown(o: &impl RaceObject) -> bool {
     let object = o.object();
-    if o.kind_switch() != 0 || o.kind_mode() == 2 {
-        let kind = o.kind(object);
-        if kind == 0x30 || kind == 0x4E {
-            return s;
-        }
+    if (o.kind_switch() != 0 || o.kind_mode() == 2) && matches!(o.kind(object), 0x30 | 0x4E) {
+        return false;
     }
-    s.ebx = Some(object);
     let other_way = o.other_way() != 0;
     let which = o.which();
     let special = object == 0x38 || (0x3A..0x40).contains(&object);
@@ -58,20 +44,16 @@ pub fn race_shown(o: &impl RaceObject) -> Shown {
             || (object == 0x3E && which != 0)
             || (object == 0x3D && which != 1))
     {
-        return s;
+        return false;
     }
     if other_way {
+        // The only object is numbered from 1; 0 means all.
         let only = o.only();
-        s.eax = Some(only);
-        if only != 0 {
-            s.eax = Some(only - 1);
-            if only - 1 != which {
-                return s;
-            }
+        if only != 0 && only - 1 != which {
+            return false;
         }
     }
-    s.drawn = o.faces(object) != 0;
-    s
+    o.faces(object) != 0
 }
 
 /// `scene::clear_kind_bytes` (0x46219C): the menus' 0x100 kind dwords (`dword_5CD688`), 0
@@ -90,50 +72,26 @@ pub enum SetError {
     NoBlock,
 }
 
-/// The texture set chosen and the registers the choosing leaves (eax what was last looked
-/// at, edx the car's remainder when a car was looked at).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TextureSet {
-    pub set: u32,
-    pub eax: u32,
-    pub edx: Option<u32>,
-}
-
 /// `draw_scene_object`'s texture set: outside a race the other set for an object of kind
 /// 0x23A (`kind(object)`); in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each)
 /// whose car's block has 0x21 at +0x24 (`car_word(car)`, `None` for a car without its
-/// block). `eax` is what eax holds coming in.
+/// block).
 pub fn texture_set(
     object: u32,
     in_race: bool,
-    eax: u32,
     kind: impl FnOnce(u32) -> u32,
     car_word: impl FnOnce(u32) -> Option<u32>,
-) -> Result<TextureSet, SetError> {
+) -> Result<u32, SetError> {
     if object >= OBJECTS {
         return Err(SetError::TooHigh);
     }
-    let mut t = TextureSet {
-        set: 0,
-        eax,
-        edx: None,
-    };
-    if !in_race {
-        t.eax = kind(object);
-        if t.eax == 0x23A {
-            t.set = OTHER_SET;
-        }
+    let other = if !in_race {
+        kind(object) == 0x23A
     } else {
-        t.eax = object.wrapping_sub(0x50);
-        if t.eax < 0xA0 {
-            t.edx = Some(t.eax % 0x14);
-            t.eax = car_word(t.eax / 0x14).ok_or(SetError::NoBlock)?;
-            if t.eax == 0x21 {
-                t.set = OTHER_SET;
-            }
-        }
-    }
-    Ok(t)
+        let car_object = object.wrapping_sub(0x50);
+        car_object < 0xA0 && car_word(car_object / 0x14).ok_or(SetError::NoBlock)? == 0x21
+    };
+    Ok(if other { OTHER_SET } else { 0 })
 }
 
 /// The two ways on from `draw_scene_object`.
@@ -213,27 +171,17 @@ mod tests {
             faces: 5,
             ..Vars::default()
         };
-        assert_eq!(
-            race_shown(&o),
-            Shown {
-                drawn: true,
-                ebx: Some(0x10),
-                eax: None
-            }
-        );
+        assert!(race_shown(&o));
         let kind = Vars {
             kind_mode: 2,
             kind: 0x4E,
             ..o
         };
-        assert_eq!(race_shown(&kind), Shown::default());
-        assert!(
-            race_shown(&Vars {
-                kind_mode: 1,
-                ..kind
-            })
-            .drawn
-        );
+        assert!(!race_shown(&kind));
+        assert!(race_shown(&Vars {
+            kind_mode: 1,
+            ..kind
+        }));
         for (object, which, drawn) in [
             (0x3E, 0, true),
             (0x3E, 1, false),
@@ -241,56 +189,37 @@ mod tests {
             (0x3D, 0, false),
             (0x39, 5, true),
         ] {
-            assert_eq!(race_shown(&Vars { object, which, ..o }).drawn, drawn);
+            assert_eq!(race_shown(&Vars { object, which, ..o }), drawn);
         }
-        assert!(
-            !race_shown(&Vars {
-                object: 0x38,
-                shown: 0,
-                ..o
-            })
-            .drawn
-        );
+        assert!(!race_shown(&Vars {
+            object: 0x38,
+            shown: 0,
+            ..o
+        }));
         let other = Vars {
             other_way: 1,
             only: 3,
             which: 2,
             ..o
         };
-        assert_eq!(race_shown(&other).eax, Some(2));
-        assert!(race_shown(&other).drawn);
-        assert!(!race_shown(&Vars { which: 1, ..other }).drawn);
-        assert_eq!(race_shown(&Vars { only: 0, ..other }).eax, Some(0));
-        assert!(!race_shown(&Vars { faces: 0, ..o }).drawn);
+        assert!(race_shown(&other));
+        assert!(!race_shown(&Vars { which: 1, ..other }));
+        assert!(race_shown(&Vars { only: 0, ..other }));
+        assert!(!race_shown(&Vars { faces: 0, ..o }));
         let b = kind_bytes();
         assert_eq!((b[5], b[6], b[7], b[8], b[9]), (0, 999, 999, 0, 999));
     }
 
     #[test]
     fn sets_and_ways() {
-        let set = |object, in_race, word: Option<u32>| {
-            texture_set(object, in_race, 7, |_| 0x23A, |_| word)
-        };
+        let set =
+            |object, in_race, word: Option<u32>| texture_set(object, in_race, |_| 0x23A, |_| word);
         assert_eq!(set(0x100, false, None), Err(SetError::TooHigh));
-        assert_eq!(set(3, false, None).map(|t| t.set), Ok(OTHER_SET));
-        assert_eq!(
-            set(0x4F, true, None),
-            Ok(TextureSet {
-                set: 0,
-                eax: 0xFFFF_FFFF,
-                edx: None
-            })
-        );
-        assert_eq!(
-            set(0x65, true, Some(0x21)),
-            Ok(TextureSet {
-                set: OTHER_SET,
-                eax: 0x21,
-                edx: Some(1)
-            })
-        );
+        assert_eq!(set(3, false, None), Ok(OTHER_SET));
+        assert_eq!(set(0x4F, true, None), Ok(0));
+        assert_eq!(set(0x65, true, Some(0x21)), Ok(OTHER_SET));
         assert_eq!(set(0x65, true, None), Err(SetError::NoBlock));
-        assert_eq!(set(0xF0, true, None).map(|t| (t.set, t.eax)), Ok((0, 0xA0)));
+        assert_eq!(set(0xF0, true, None), Ok(0));
         assert_eq!(way(0, 0), None);
         assert_eq!(way(1, 0), Some(Way::Shown));
         assert_eq!(way(1, 2), Some(Way::Described));

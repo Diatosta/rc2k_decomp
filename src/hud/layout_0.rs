@@ -1,19 +1,14 @@
 //! `hud::layout_0` (0x4B1D8C): the HUD of layout 0 (the record's +0xF4 neither 1 nor 2),
-//! by the record's flags (+0xF8): 0x10 the dial (`hud::disc_0`) and a sprite; 0x40 the
+//! by the record's flags (+0xF8): 0x10 the dial (`dials::DISC_0`) and a sprite; 0x40 the
 //! stage bar (`hud::draw_stage_bar`), the marker (`hud::draw_marker`) and the two time
 //! panels (sprite 0x29 + the record's +0x28 / +0x30 held to 0 .. 0x16, the times
 //! `dword_75C074` / `dword_75C078` as digits); 8 the cut call (`sub_4B6A6D`: ecx 0 and an
 //! empty function); always the icons (`hud::icons_0`); 0x20 two sprites (the second by the
 //! record's +0x18) and the time +0x14 with its leading digits left out while they are 0;
-//! 1 the sign by +0xCC (also into `dword_75BFAC`) and the needle (`hud::needle_0`); 0x80
-//! the signs (`hud::draw_signs`); 2 the time +0x1C's last two digits, two sprites and the
+//! 1 the sign by +0xCC (also into `dword_75BFAC`) and the needle (`dials::NEEDLE_0`); 0x80
+//! the signs (`draw_signs::LAYOUT_0`); 2 the time +0x1C's last two digits, two sprites and the
 //! time `dword_75C07C`. Textures (`dword_75C034`), the quad record's alpha and colour set
 //! between, as the original.
-//!
-//! In:  ebp the HUD's record
-//! Out: as the path leaves them (edx the last time's last digit, ebx 10 after a time)
-//!
-//! Caller: `sub_4B1CD0`.
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
@@ -113,16 +108,16 @@ pub fn layout_0(record: GamePtr) -> Result<(), Refused> {
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if flags & 0x10 != 0 {
-        { dials::disc(record, &disc_0::SETUP) }?;
+        dials::disc(record, &dials::DISC_0)?;
     }
     HUD.texture.set(0xC0);
     if flags & 0x40 != 0 {
-        { draw_stage_bar::draw_stage_bar() }?;
+        draw_stage_bar::draw_stage_bar()?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xDC);
-    { icons_0::icons_0(record) }?;
+    icons_0::icons_0(record)?;
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xC1);
@@ -139,15 +134,15 @@ pub fn layout_0(record: GamePtr) -> Result<(), Refused> {
         sprite(0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
-        { draw_marker::draw_marker() }?;
+        draw_marker::draw_marker()?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     if flags & 0x80 != 0 {
-        { draw_signs::draw_signs(record) }?;
+        draw_signs::draw_signs(record, &draw_signs::LAYOUT_0)?;
     }
     HUD.texture.set(0xC1);
     if flags & 1 != 0 {
-        { dials::needle(record, &needle_0::SETUP) }?;
+        dials::needle(record, &dials::NEEDLE_0)?;
     }
     if flags & 0x40 != 0 {
         let panels = [
@@ -170,7 +165,7 @@ pub fn layout_0(record: GamePtr) -> Result<(), Refused> {
             };
             sprite(rect, x, 1)?;
             let t = time.get();
-            { clock_panel(t, xs, 0x13, &mut sprite) }?;
+            clock_panel(t, xs, 0x13, &mut sprite)?;
         }
     }
     if flags & 2 != 0 {
@@ -185,11 +180,11 @@ pub fn layout_0(record: GamePtr) -> Result<(), Refused> {
         sprite(0x4A, 0xF, row(0x58))?;
         let t = HUD.times[2].get();
         let xs = [0x2E, 0x42, 0x56, 0x5E, 0x72, 0x86, 0x8E, 0xA2];
-        { lap_panel(t, xs, row(0x63), &mut sprite) }?;
+        lap_panel(t, xs, row(0x63), &mut sprite)?;
     }
     if flags & 0x20 != 0 {
         let v = PANEL.view_a.speed.get();
-        { leading_time(v, [0x43, 0x57, 0x6B], 0x23F, &mut sprite) }?;
+        leading_time(v, [0x43, 0x57, 0x6B], 0x23F, &mut sprite)?;
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
-//! The review menus' two replay items (`menu::replay_item_a`, `menu::replay_item_b`; what
-//! each starts is a reading: the viewer's modes 1 and 3). Both do nothing while
-//! `dword_75ACDC` is 1 (a reading: the replay not to be had); see `race/replay_mode.rs`.
+//! The review menus' three replay items (what each starts is a reading of the viewer's
+//! modes 1, 2 and 3). A and B do nothing while `dword_75ACDC` is 1 (a reading: the replay
+//! not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
 use crate::race::replay_viewer::Mode;
@@ -29,4 +29,9 @@ pub fn replay_item_b() -> Result<(), Refused> {
         crate::race::replay_mode::replay_mode(Mode::SaveLast)?;
     }
     Ok(())
+}
+
+/// `menu::replay_item_c` (0x470529): the viewer's mode 2 (a 6-byte stub in the original).
+pub fn replay_item_c() -> Result<(), Refused> {
+    crate::race::replay_mode_2::replay_mode_2()
 }

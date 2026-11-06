@@ -111,14 +111,13 @@ pub fn lay_out(header: &[u8; HEADER_LEN], target: &Target) -> Layout {
 }
 
 /// The rows of a one-plane picture through `palette` (`read_pcx_8bit`). `next` reads the
-/// file's next byte as the game's stream does: given what eax held, the eax it leaves (at
-/// the end of the file, what it was given). `put` takes a pixel at a byte offset from the
-/// first row's start (wrapping). A run goes on across the end of a row; a count of 0 is a
+/// file's next byte as the game's stream does (`ByteRead::value`: 0 at the end of the
+/// file). `put` takes a pixel at a byte offset from the first row's start (wrapping). A run goes on across the end of a row; a count of 0 is a
 /// run of 2^32. `None` for a picture without rows (the original counts round).
 pub fn decode_8bit<E>(
     layout: &Layout,
     palette: &[u32; 256],
-    mut next: impl FnMut(u32) -> Result<u32, E>,
+    mut next: impl FnMut() -> Result<u8, E>,
     mut put: impl FnMut(u32, u32),
 ) -> Result<Option<()>, E> {
     if layout.height == 0 {
@@ -131,11 +130,11 @@ pub fn decode_8bit<E>(
         let mut column = 0u32;
         loop {
             if run == 0 {
-                let mut byte = next(pixel)? as u8;
+                let mut byte = next()?;
                 run = 1;
                 if byte >= 0xC0 {
                     run = byte as u32 - 0xC0;
-                    byte = next(byte as u32)? as u8;
+                    byte = next()?;
                 }
                 pixel = palette[byte as usize];
             }
@@ -161,16 +160,16 @@ pub fn decode_8bit<E>(
 /// picture without rows or columns (the original counts round).
 pub fn decode_planes<E>(
     layout: &Layout,
-    mut next: impl FnMut(u32) -> Result<u32, E>,
+    mut next: impl FnMut() -> Result<u8, E>,
     mut put: impl FnMut(u32, u8),
 ) -> Result<Option<()>, E> {
     if layout.width == 0 || layout.height == 0 {
         return Ok(None);
     }
     let mut to = 0u32;
-    // eax as the original keeps it (al the byte a run repeats), and what is left of the
-    // run, counted down before it is looked at, as a signed number.
-    let (mut eax, mut run) = (0u32, 0i32);
+    // The byte a run repeats, and what is left of the run, counted down before it is looked
+    // at, as a signed number.
+    let (mut byte, mut run) = (0u8, 0i32);
     for _ in 0..layout.height {
         to = to.wrapping_add(layout.planes);
         let mut plane = 0u32;
@@ -180,15 +179,15 @@ pub fn decode_planes<E>(
             loop {
                 run = run.wrapping_sub(1);
                 if run <= 0 {
-                    eax = next(eax)?;
+                    byte = next()?;
                     run = 1;
-                    if eax as u8 >= 0xC0 {
-                        run = (eax as u8 - 0xC0) as i32;
-                        eax = next(eax)?;
+                    if byte >= 0xC0 {
+                        run = (byte - 0xC0) as i32;
+                        byte = next()?;
                     }
                 }
                 if column < layout.width {
-                    put(to.wrapping_add(column.wrapping_mul(4)), eax as u8);
+                    put(to.wrapping_add(column.wrapping_mul(4)), byte);
                 }
                 column = column.wrapping_add(1);
                 if column >= layout.line_bytes {
@@ -200,7 +199,8 @@ pub fn decode_planes<E>(
                 break;
             }
         }
-        eax = 0;
+        // The slip: a run going on into the next row repeats 0.
+        byte = 0;
         for pixel in (1..=layout.width).rev() {
             put(to.wrapping_add(pixel.wrapping_mul(4)).wrapping_sub(1), 0);
         }
@@ -353,13 +353,13 @@ mod tests {
         decode_8bit(
             &l,
             &palette,
-            |eax| {
+            || {
                 Ok::<_, ()>(match file.get(at) {
                     Some(&b) => {
                         at += 1;
-                        b as u32
+                        b
                     }
-                    None => eax,
+                    None => 0,
                 })
             },
             |to, p| out[to as usize / 4] = p,
@@ -378,13 +378,13 @@ mod tests {
         let mut out = vec![0xAAu8; 8];
         decode_planes(
             &l,
-            |eax| {
+            || {
                 Ok::<_, ()>(match file.get(at) {
                     Some(&b) => {
                         at += 1;
-                        b as u32
+                        b
                     }
-                    None => eax,
+                    None => 0,
                 })
             },
             |to, b| out[to as usize] = b,
@@ -393,11 +393,11 @@ mod tests {
         .unwrap();
         assert_eq!(out, [5, 3, 1, 0, 6, 4, 2, 0]);
         assert_eq!(
-            decode_planes(&Layout::default(), Ok::<_, ()>, |_, _| ()),
+            decode_planes(&Layout::default(), || Ok::<_, ()>(0), |_, _| ()),
             Ok(None)
         );
         // A reader's error ends the decoding.
-        assert_eq!(decode_planes(&l, |_| Err(7), |_, _| ()), Err(7));
+        assert_eq!(decode_planes(&l, || Err(7), |_, _| ()), Err(7));
     }
 
     #[test]
@@ -419,13 +419,13 @@ mod tests {
         let file = encode_line(&planes, &mut eax);
         decode_planes(
             &layout,
-            |e| {
+            || {
                 Ok::<_, ()>(match file.get(at) {
                     Some(&b) => {
                         at += 1;
-                        b as u32
+                        b
                     }
-                    None => e,
+                    None => 0,
                 })
             },
             |to, b| out[to as usize] = b,

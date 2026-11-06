@@ -49,7 +49,6 @@ fn texture_set() -> Result<(u32, u32), Refused> {
         let t = rc2k_core::scene::shown::texture_set(
             object,
             NUMBERS.in_race.bits() != 0,
-            0,
             |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
@@ -62,8 +61,7 @@ fn texture_set() -> Result<(u32, u32), Refused> {
                 SetError::NoBlock => BadInput("a car without its block").into(),
             }
         });
-        let t = t?;
-        Ok((t.set, object))
+        Ok((t?, object))
     }
 }
 

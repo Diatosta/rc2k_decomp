@@ -1,7 +1,7 @@
 //! `menu::championship_standings` (0x4A9583): the championship's standings pages,
 //! `dword_75AB34` 1 while they show. Standings table B from all
 //! (`menu::standings_b_from_all`); outside event mode 0x13: sorted by figure and by score
-//! (`menu::sort_standings_b_by_figure`, `_by_score`), numbered (`menu::number_all_b`), the
+//! (`menu::sort_standings_b_by_figure`, `_by_score`), numbered (`number_all`), the
 //! overall page (`menu::show_championship_standings`); in it: sorted by figure twice and
 //! by points (`_by_points`), the class pages (`menu::class_championship_pass`).
 //!
@@ -14,6 +14,8 @@
 
 use crate::errors::Refused;
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::standings::Which;
+use crate::menu::standings_steps::number_all;
 use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header).
@@ -31,7 +33,7 @@ pub fn championship_standings() -> Result<(), Refused> {
         }
     }
     if !a8 {
-        crate::menu::number_all_b::number_all_b()?;
+        number_all(Which::B)?;
     }
     MENU_STATE.menus.standings_shown.set(1u32);
     if a8 {

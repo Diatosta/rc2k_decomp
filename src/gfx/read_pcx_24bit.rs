@@ -16,7 +16,7 @@
 //! original counts through all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::files::read_stream_byte::read_stream_byte;
+use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
@@ -37,7 +37,7 @@ fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
     with_buffer(DECODER.pixels.get(), |pixels| {
         rc2k_core::gfx::pcx::decode_planes(
             &layout,
-            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
+            || read_stream_byte(stream).map(ByteRead::value),
             |to, byte| put_or_end(pixels, to as usize, &[byte]),
         )
     })??

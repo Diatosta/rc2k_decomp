@@ -1,25 +1,10 @@
 //! `menu::select_car_loop` (0x47AC0C): the car selection screen, which the starters of
-//! every kind of event call.
+//! every kind of event run (the owner called it the car select menu, 2026-10-12; it was
+//! `car_specs_47ac0c_loop` until then).
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; it
-//! has steps of its own first on leaving; the steps that are more than a call or a store are
-//! the functions below, generated from the listing.
-//! Screen: the car selection when an event is started (the owner called it the car select
-//! menu, 2026-10-12; it ran in the Rust version under each of the five start screens that
-//! day). Named `car_specs_47ac0c_loop` until then.
-//! Callers: `sub_4182FA`, `sub_482382`, `sub_4824C1`, `sub_4824C1`, `sub_4826A2`, `sub_4826A2`,
-//! `sub_4828B0`, `sub_4828B0`, `sub_4828B0`, `sub_482B7A`, `sub_482B7A`, `sub_482B7A`,
-//! `sub_482B7A`, `sub_487E2C`, `sub_48AE39`, `sub_48AFD0`, `sub_48AFD0`, `sub_48B23D`,
-//! `sub_48B23D`, `sub_48B54B`, `sub_48B54B`, `sub_48B54B`, `sub_48B90F`, `sub_48B90F`,
-//! `sub_48B90F`, `sub_48B90F`, `sub_4A25F4`, `sub_4A26B6`, `sub_4A26B6`, `sub_4A27B5`,
-//! `sub_4A27B5`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A29F4`, `sub_4A29F4`,
-//! `sub_4A29F4`, `sub_4A29F4`, `sub_4A9C9B`, `sub_4A9D5C`, `sub_4A9D5C`, `sub_4A9E3D`,
-//! `sub_4A9E3D`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4AA040`, `sub_4AA040`,
-//! `sub_4AA040`, `sub_4AA040`. Rust callers run its `entry` (`routes.rs`); the registers above are
-//! the original's, for reference.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
+//! (`SCREEN`): background `cspecs.png`; leaving is not asked about; it has steps of its own
+//! first on leaving.
 
 use crate::errors::Refused;
 use crate::menu::captions_store::CAPTIONS;

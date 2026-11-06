@@ -18,7 +18,7 @@
 
 use crate::errors::BadInput;
 use crate::files::handle::{read_into, seek};
-use crate::files::read_stream_byte::read_stream_byte;
+use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
@@ -50,7 +50,7 @@ fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
-            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
+            || read_stream_byte(stream).map(ByteRead::value),
             |to, pixel| put_or_end(pixels, to as usize, &pixel.to_le_bytes()),
         )
     })??

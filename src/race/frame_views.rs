@@ -174,7 +174,7 @@ pub fn load_first_car() -> Result<(), Refused> {
 /// The registers it leaves are read by no caller. Refuses (before the copy) a null
 /// destination format.
 pub fn copy_mirror_picture() -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::view_steps::{copy_picture, copied_any}` (eax carried
+    // Converted: `rc2k_core::race::view_steps::copy_picture` (the last pixel's bits carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
@@ -212,7 +212,8 @@ pub fn copy_mirror_picture() -> Result<(), Refused> {
             reads: crate::pointers::Window::new(),
             writes: crate::pointers::Window::new(),
         };
-        // eax at the copy: the destination's slot, as the lock was given it.
+        // What the first pixel's high half is under: the destination's slot, as the lock was
+        // given it.
         copy_picture(&copy, esi, edi, to, &mut surfaces);
         unlock_texture(to)?;
     }

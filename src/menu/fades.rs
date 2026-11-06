@@ -55,11 +55,7 @@ pub fn fade(out: bool) -> Result<(), Refused> {
                 Ok(None)
             };
             match made {
-                Ok(Some(s)) => {
-                    if let Some(see) = s.see {
-                        MENU_STATE.menus.fade_see.set(see);
-                    }
-                }
+                Ok(Some(see)) => MENU_STATE.menus.fade_see.set(see),
                 Ok(None) => {}
                 Err(Stop::DivideByZero) => return Err(DIVIDE_BY_ZERO.into()),
                 Err(Stop::ShortStep) => {

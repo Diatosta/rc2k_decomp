@@ -9,6 +9,7 @@ use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
+use crate::menu::standings::Which;
 use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::RecordRef;
@@ -207,10 +208,10 @@ impl flow::Game for Game {
             C::AwardOverallPoints => {
                 m::award_overall_points::award_overall_points()?;
             }
-            C::ClearStandingsB => m::clear_standings_b::clear_standings_b()?,
+            C::ClearStandingsB => m::standings_steps::clear_standings(Which::B)?,
             C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
             C::NumberAllB => {
-                m::number_all_b::number_all_b()?;
+                m::standings_steps::number_all(Which::B)?;
             }
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings()?;
@@ -222,9 +223,9 @@ impl flow::Game for Game {
             C::ClassRallyResultsPass => {
                 m::class_rally_results_pass::class_rally_results_pass()?;
             }
-            C::ClearStandingsA => m::clear_standings_a::clear_standings_a()?,
+            C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
             C::NumberAllA => {
-                m::number_all_a::number_all_a()?;
+                m::standings_steps::number_all(Which::A)?;
             }
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results()?;

@@ -155,7 +155,7 @@ pub fn player(n: u32) -> Result<Record, BadInput> {
 }
 
 /// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
-/// mode, dead zones, strength, and the 0x2C bytes of `controls_50` as eleven words (the last
+/// mode, dead zones, strength, and the 0x2C bytes of `bindings` as eleven words (the last
 /// two are `controls_74` and `controls_78`).
 fn take_controls(p: &Player, car: &RaceCar) {
     car.controller.set(p.controller);
@@ -170,7 +170,7 @@ fn take_controls(p: &Player, car: &RaceCar) {
         .controls_50
         .iter()
         .chain([&car.controls_74, &car.controls_78]);
-    let (words, _) = p.controls_50.as_chunks::<4>();
+    let (words, _) = p.bindings.as_chunks::<4>();
     for (cell, &word) in cells.zip(words) {
         cell.set(u32::from_le_bytes(word));
     }

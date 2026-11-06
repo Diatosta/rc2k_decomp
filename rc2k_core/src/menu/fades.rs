@@ -26,26 +26,15 @@ pub enum Stop {
     ShortStep,
 }
 
-/// A step: the see-through written (none on the way in while a hundredth is 0), and what
-/// the division leaves for the frame the original hands it to (eax, ebx, edx, ebp
-/// there).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Step {
-    pub see: Option<u32>,
-    pub eax: u32,
-    pub ebx: u32,
-    pub edx: u32,
-    pub ebp: u32,
-}
-
-/// The step at `gone` ms: none on the way in with no time gone (`full` asked only past
-/// the checks).
+/// The step at `gone` ms: the see-through to write, or none (on the way in with no time
+/// gone, or while a hundredth of the full one is still 0). `full` is asked only past the
+/// checks.
 pub fn step(
     gone: u32,
     length: u32,
     full: impl FnOnce() -> u32,
     out: bool,
-) -> Result<Option<Step>, Stop> {
+) -> Result<Option<u32>, Stop> {
     if gone == 0 && !out {
         return Ok(None);
     }
@@ -56,38 +45,20 @@ pub fn step(
     if per_step == 0 {
         return Err(Stop::ShortStep);
     }
+    // How many hundredths of the length have gone.
     let share = gone / per_step;
     let full = full();
-    let mut s = Step {
-        see: None,
-        eax: share,
-        ebx: per_step,
-        edx: gone % per_step,
-        ebp: per_step,
-    };
+    let scaled = share.wrapping_mul(full);
     if out {
-        s.eax = share.wrapping_mul(full);
-        s.ebx = full;
-        if s.eax == 0 {
-            s.ebx = 1;
+        // The full one less the share of it; a share of 0 makes it 1.
+        Ok(Some(if scaled == 0 {
+            1
         } else {
-            s.edx = s.eax % STEPS;
-            s.ebp = STEPS;
-            s.eax /= STEPS;
-            s.ebx = full.wrapping_sub(s.eax);
-        }
-        s.see = Some(s.ebx);
+            full.wrapping_sub(scaled / STEPS)
+        }))
     } else {
-        s.ebx = full.wrapping_mul(share);
-        if s.ebx != 0 {
-            s.eax = s.ebx;
-            s.edx = s.eax % STEPS;
-            s.ebp = STEPS;
-            s.eax /= STEPS;
-            s.see = Some(s.eax);
-        }
+        Ok((scaled != 0).then_some(scaled / STEPS))
     }
-    Ok(Some(s))
 }
 
 /// The fade is over once the time gone reaches the length (signed).
@@ -109,16 +80,15 @@ mod tests {
         assert_eq!(step(5, 0, || 0xFF, false), Err(Stop::DivideByZero));
         assert_eq!(step(5, 50, || 0xFF, false), Err(Stop::ShortStep));
         // in: 370 ms of 1000: 37 hundredths of 0xFF.
-        let s = step(370, 1000, || 0xFF, false).unwrap().unwrap();
-        assert_eq!(s.see, Some(37 * 0xFF / 100));
+        assert_eq!(step(370, 1000, || 0xFF, false), Ok(Some(37 * 0xFF / 100)));
         // in, under a step: nothing written.
-        assert_eq!(step(5, 1000, || 0xFF, false).unwrap().unwrap().see, None);
+        assert_eq!(step(5, 1000, || 0xFF, false), Ok(None));
         // out: the full one less the share; a share of 0 makes it 1.
         assert_eq!(
-            step(370, 1000, || 0xFF, true).unwrap().unwrap().see,
-            Some(0xFF - 37 * 0xFF / 100)
+            step(370, 1000, || 0xFF, true),
+            Ok(Some(0xFF - 37 * 0xFF / 100))
         );
-        assert_eq!(step(5, 1000, || 0xFF, true).unwrap().unwrap().see, Some(1));
+        assert_eq!(step(5, 1000, || 0xFF, true), Ok(Some(1)));
         assert!(over(1000, 1000) && !over(999, 1000) && !over(0x8000_0000, 1000));
     }
 }

@@ -1,0 +1,41 @@
+//! The left / right items of the menus' pages: each steps one setting a direction
+//! (`forward` is the right arrow). In the original each direction was a function of its
+//! own (`next_view` 0x467B45, `previous_view` 0x467B69, `next_car` 0x469AFD, ..).
+
+use crate::errors::Refused;
+use crate::menu::car_buttons::{Which, call_in_game, press};
+use crate::menu::option_steps::{Colour, step_colour};
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::player_settings::current;
+use rc2k_core::menu::player::{Setting, stepped};
+
+/// The current player's `setting` (nationality, view, second view, race number) one step on
+/// or back (see `rc2k_core::menu::player::stepped`).
+pub fn player_setting(setting: Setting, forward: bool) -> Result<(), Refused> {
+    current()?.update(|player| {
+        let value = player.setting(setting);
+        *value = stepped(setting, *value, forward);
+    });
+    Ok(())
+}
+
+/// An options page's colour pick one step on or back.
+pub fn colour(colour: Colour, forward: bool) -> Result<(), Refused> {
+    step_colour(colour, forward);
+    Ok(())
+}
+
+/// A button of the car specification (the car, its page, the slideshow's car or picture).
+pub fn car_button(button: Which) -> Result<(), Refused> {
+    press(button, &mut |call| call_in_game(call))
+}
+
+/// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to
+/// `dword_75523C`, and above 9 goes back to 0.
+pub fn next_savegame_page() {
+    // Converted: `rc2k_core::menu::steps::savegame_page`.
+    let page = MENU_PAGES.save_page.get();
+    MENU_PAGES
+        .save_page
+        .set(rc2k_core::menu::steps::savegame_page(page, true));
+}

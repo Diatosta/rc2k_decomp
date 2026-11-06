@@ -1,6 +1,6 @@
-//! The loop every menu screen runs, from entering the screen to leaving it. The game has 83
-//! copies of it, one per screen, that differ in what `Screen` describes; each is hooked from
-//! a file of its own that holds its `Screen`, and this is what they share.
+//! The loop every menu screen runs, from entering the screen to leaving it. The 83 screens
+//! differ only in what their `Screen` describes; each has a file of its own that holds it,
+//! and this is what they share.
 //!
 //! Once, on entry: the screen's `before` steps.
 //!
@@ -41,17 +41,10 @@
 //! Wherever the highlight is saved or taken back, `dword_755A3C` and `dword_755561` are
 //! cleared if `dword_7558D8` and `dword_755A3C` are both 1.
 //!
-//! The original's registers: most of what it holds in them is scratch, but some callees
-//! read what an earlier step left, and the loop keeps those values in `Carried` (named for
-//! what reads them; see its fields), exactly as the original's registers would hold them at
-//! each call (2026-10-24: the register set the loop used to thread went). The screens' own
-//! steps (`Step::Do`) work on it the same way.
-//!
 //! What the loop calls is called directly: its own functions (`Callee` below, what the
-//! steps name), the frame callbacks, `handle_keys`, the item's
-//! action (`menu::run_item_action`, with the carried values in the registers the action
-//! gets, as the original hands them). A refusal goes back to the loop's caller; a set
-//! carry after a `Step::CallOrFatal` is the fatal error, raised by the caller too.
+//! steps name), the frame callbacks, `handle_keys` and the item's action
+//! (`menu::run_item_action`). A refusal goes back to the loop's caller; a set carry after a
+//! `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
 use crate::errors::{FatalError, Refused};
 use crate::framework::log;
@@ -217,7 +210,7 @@ pub struct Screen {
     /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
     /// nor `dword_755561` after the lists: the main menu.
     pub late_highlight: bool,
-    /// Steps before the first frame after set-up, with the clock in `Carried::arg`.
+    /// Steps before the first frame after set-up.
     pub before_first_frame: &'static [Step],
     /// Steps before every other frame.
     pub before_frame: &'static [Step],
@@ -233,9 +226,7 @@ pub struct Screen {
 }
 
 /// What a screen is entered with that its steps read: the list of cars its carousel shows
-/// (the original's esi; `scene::set_up_carousel` reads it for menus 0xD and 0xE). The
-/// original's other registers at entry are scratch to the loop: it sets each before
-/// anything reads it.
+/// (`scene::set_up_carousel` reads it for menus 0xD and 0xE).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
     pub cars: Option<CarList>,
@@ -515,212 +506,292 @@ fn run_frame(callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
 /// Returns why the screen was left, for the log.
 pub fn screen_loop(screen: &Screen, entry: &Entry) -> Result<String, Refused> {
     let menu = (screen.menu)();
-    let callback = screen.frame_callback;
-    let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
     let keys_menu = screen.keys_menu.map_or(menu, |other| other());
-    let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
-    // The highlight as set-up took it back (the original's ebx at an action) and the clock
-    // `handle_keys` left (edx): what an item's action is handed.
     run(screen.before, entry)?;
-
-    let action_menu = screen.action_menu.map_or(menu, |other| other());
-    let next_frame = if screen.next_frame_repeats_first {
-        Next::FrameTop
-    } else {
-        Next::Frame
+    let mut state = Loop {
+        screen,
+        entry,
+        menu,
+        callback: screen.frame_callback,
+        later_callback: screen.later_frame_callback.unwrap_or(screen.frame_callback),
+        keys_menu,
+        action_menu: screen.action_menu.map_or(menu, |other| other()),
+        next_frame: if screen.next_frame_repeats_first {
+            Next::FrameTop
+        } else {
+            Next::Frame
+        },
+        frames: 0,
+        actions: 0,
+        why: String::new(),
     };
     let mut next = Next::SetUp;
     loop {
         next = match next {
-            Next::SetUp => {
-                run(screen.set_up_first, entry)?;
-                if !screen.late_highlight {
-                    CAPTIONS.screen_left.set(0);
-                    LOOP_FLAGS.item.set((screen.saved_item)().get());
-                    clear_escape();
-                }
-                run(screen.prepare, entry)?;
+            Next::SetUp => state.set_up()?,
+            Next::FrameTop => state.after_first_frame()?,
+            Next::Frame => state.frame()?,
+            Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => state.keys()?,
+            Next::ActionCheck => state.action()?,
+            Next::Leave => match state.leave()? {
+                Left::Done(why) => return Ok(why),
+                Left::SetUp => Next::SetUp,
+            },
+        };
+    }
+}
 
-                LOOP_FLAGS.menu.set(menu);
-                for list in screen.lists {
-                    let table = (list.table)();
-                    if list.run {
-                        run_list(table)?;
-                    }
-                    (list.pointer)().set(table);
-                }
-                run(screen.after_lists, entry)?;
-                if !screen.late_highlight {
-                    OPTION_WORK.menu_sound.set(NO_SOUND);
-                    LOOP_FLAGS.back.set(0u32);
-                }
-                run(screen.background, entry)?;
-                crate::menu::draw_frame::draw_frame(menu)?;
-                update_blink();
-                CLOCKS.setup_time.set(CLOCKS.frame.get());
-                PHYSICS.scene_clock.set(0u32);
-                run(screen.before_first_frame, entry)?;
-                set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
-                run_frame(callback, menu)?;
-                if screen.late_highlight {
-                    CAPTIONS.screen_left.set(0);
-                    LOOP_FLAGS.item.set((screen.saved_item)().get());
-                    clear_escape();
-                }
-                Next::FrameTop
+/// What the loop of one screen carries from step to step.
+struct Loop<'a> {
+    screen: &'a Screen,
+    entry: &'a Entry,
+    menu: MenuId,
+    callback: FrameRoutine,
+    later_callback: FrameRoutine,
+    keys_menu: MenuId,
+    action_menu: MenuId,
+    /// Where the loop goes after a frame without a key: the top (`next_frame_repeats_first`)
+    /// or the next frame.
+    next_frame: Next,
+    frames: u32,
+    actions: u32,
+    /// Why the screen is being left, for the log.
+    why: String,
+}
+
+/// How leaving ended.
+enum Left {
+    /// The screen is left, for the reason given.
+    Done(String),
+    /// The question was answered "no": the screen is set up again.
+    SetUp,
+}
+
+impl Loop<'_> {
+    /// Set-up, again after every action that does not leave the screen: the lists put in place
+    /// and the first frame drawn.
+    fn set_up(&mut self) -> Result<Next, Refused> {
+        let screen = self.screen;
+        let entry = self.entry;
+        let menu = self.menu;
+        run(screen.set_up_first, entry)?;
+        if !screen.late_highlight {
+            CAPTIONS.screen_left.set(0);
+            LOOP_FLAGS.item.set((screen.saved_item)().get());
+            clear_escape();
+        }
+        run(screen.prepare, entry)?;
+
+        LOOP_FLAGS.menu.set(menu);
+        for list in screen.lists {
+            let table = (list.table)();
+            if list.run {
+                run_list(table)?;
             }
-            Next::FrameTop => match run(screen.after_first_frame, entry)? {
+            (list.pointer)().set(table);
+        }
+        run(screen.after_lists, entry)?;
+        if !screen.late_highlight {
+            OPTION_WORK.menu_sound.set(NO_SOUND);
+            LOOP_FLAGS.back.set(0u32);
+        }
+        run(screen.background, entry)?;
+        crate::menu::draw_frame::draw_frame(menu)?;
+        update_blink();
+        CLOCKS.setup_time.set(CLOCKS.frame.get());
+        PHYSICS.scene_clock.set(0u32);
+        run(screen.before_first_frame, entry)?;
+        set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
+        run_frame(self.callback, menu)?;
+        if screen.late_highlight {
+            CAPTIONS.screen_left.set(0);
+            LOOP_FLAGS.item.set((screen.saved_item)().get());
+            clear_escape();
+        }
+        Ok(Next::FrameTop)
+    }
+
+    /// The `after_first_frame` steps, once the first frame is drawn.
+    fn after_first_frame(&mut self) -> Result<Next, Refused> {
+        let screen = self.screen;
+        let entry = self.entry;
+        Ok({
+            match run(screen.after_first_frame, entry)? {
                 Flow::On | Flow::NextFrame => Next::Frame,
                 Flow::SetUp => Next::SetUp,
                 Flow::Leave => {
-                    why = "a step of the screen's own".into();
+                    self.why = "a step of the screen's own".into();
                     Next::Leave
-                }
-            },
-            Next::Frame => {
-                update_blink();
-                frames += 1;
-                let flow = run(screen.after_blink, entry)?;
-                if flow == Flow::SetUp {
-                    Next::SetUp
-                } else if flow == Flow::Leave {
-                    why = "a step of the screen's own".into();
-                    Next::Leave
-                } else if screen.escape_leaves && DRAW_WORK.escaped.get() == 1 {
-                    why = "the Escape flag was set".into();
-                    Next::Leave
-                } else if !screen.no_quit_check && quitting() {
-                    // At once: a screen left as if chosen lets the flow behind it go on with
-                    // what the screen never set (a championship's next stage: a fatal error).
-                    crate::standalone::leave_on_close();
-                } else if crate::debug::screens::serve()? {
-                    Next::SetUp
-                } else {
-                    if screen.no_quit_check {
-                        OPTION_WORK.menu_sound.set(NO_SOUND);
-                    }
-                    run(screen.before_frame, entry)?;
-                    set_lists(screen, screen.lists);
-                    run_frame(later_callback, menu)?;
-                    PHYSICS
-                        .scene_clock
-                        .set(CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get()));
-                    match run(screen.each_frame, entry)? {
-                        Flow::On => Next::ActionCheck,
-                        Flow::NextFrame => Next::Frame,
-                        Flow::SetUp => Next::SetUp,
-                        Flow::Leave => {
-                            why = "a step of the screen's own".into();
-                            Next::Leave
-                        }
-                    }
                 }
             }
-            Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => {
-                crate::menu::texts_store::MENU_TEXTS
-                    .keys_menu
-                    .set(keys_menu.code());
-                // The original hands it the time since set-up in eax (the frame's last
-                // write there that a screen's steps do not change before it reads it).
-                match handle_keys(PHYSICS.scene_clock.get())? {
-                    Pressed::Nothing => next_frame,
-                    Pressed::Enter => Next::ActionCheck,
-                    Pressed::Escape => {
-                        why = "Escape".to_string();
+        })
+    }
+
+    /// One frame: blink, quit and Escape checks, the frame self.callback and the per-frame steps.
+    fn frame(&mut self) -> Result<Next, Refused> {
+        let screen = self.screen;
+        let entry = self.entry;
+        let menu = self.menu;
+        Ok({
+            update_blink();
+            self.frames += 1;
+            let flow = run(screen.after_blink, entry)?;
+            if flow == Flow::SetUp {
+                Next::SetUp
+            } else if flow == Flow::Leave {
+                self.why = "a step of the screen's own".into();
+                Next::Leave
+            } else if screen.escape_leaves && DRAW_WORK.escaped.get() == 1 {
+                self.why = "the Escape flag was set".into();
+                Next::Leave
+            } else if !screen.no_quit_check && quitting() {
+                // At once: a screen left as if chosen lets the flow behind it go on with
+                // what the screen never set (a championship's next stage: a fatal error).
+                crate::standalone::leave_on_close();
+            } else if crate::debug::screens::serve()? {
+                Next::SetUp
+            } else {
+                if screen.no_quit_check {
+                    OPTION_WORK.menu_sound.set(NO_SOUND);
+                }
+                run(screen.before_frame, entry)?;
+                set_lists(screen, screen.lists);
+                run_frame(self.later_callback, menu)?;
+                PHYSICS
+                    .scene_clock
+                    .set(CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get()));
+                match run(screen.each_frame, entry)? {
+                    Flow::On => Next::ActionCheck,
+                    Flow::NextFrame => Next::Frame,
+                    Flow::SetUp => Next::SetUp,
+                    Flow::Leave => {
+                        self.why = "a step of the screen's own".into();
                         Next::Leave
                     }
                 }
             }
-            Next::ActionCheck => {
-                actions += 1;
-                let item = LOOP_FLAGS.item.get();
-                let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-                kept().set(item);
-                clear_escape();
-                run_item_action(action_menu)?;
-                CAPTIONS.screen_left.set(0);
-                LOOP_FLAGS.item.set(kept().get());
-                clear_escape();
-                if screen.restart_action_check {
-                    if LOOP_FLAGS.ended_a.get() == 1 {
-                        why = format!("after the action of item {item}: dword_755569 was 1");
-                        Next::Leave
-                    } else if EVENT_STATE.event_done.get() == 1 {
-                        MENU_PAGES.yes_no_answer.set(0u32);
-                        Callee::TakeKey.run()?;
-                        Next::SetUp
-                    } else if LOOP_FLAGS.back.get() == 1 {
-                        why = format!("after the action of item {item}: dword_755561 is 1");
-                        Next::Leave
-                    } else {
-                        OPTION_WORK.menu_sound.set(NO_SOUND);
-                        Next::SetUp
-                    }
-                } else if LOOP_FLAGS.ended_a.get() == 1
-                    || (!screen.short_action_check && EVENT_STATE.event_done.get() == 1)
-                {
-                    why = format!(
-                        "after the action of item {item}: dword_755569={} dword_755980={}",
-                        LOOP_FLAGS.ended_a.get(),
-                        EVENT_STATE.event_done.get()
-                    );
+        })
+    }
+
+    /// The keys of a frame (`menu::handle_keys`) and where they lead.
+    fn keys(&mut self) -> Result<Next, Refused> {
+        Ok({
+            crate::menu::texts_store::MENU_TEXTS
+                .keys_menu
+                .set(self.keys_menu.code());
+            // The original hands it the time since set-up in eax (the frame's last
+            // write there that a screen's steps do not change before it reads it).
+            match handle_keys(PHYSICS.scene_clock.get())? {
+                Pressed::Nothing => self.next_frame,
+                Pressed::Enter => Next::ActionCheck,
+                Pressed::Escape => {
+                    self.why = "Escape".to_string();
                     Next::Leave
+                }
+            }
+        })
+    }
+
+    /// The highlighted item's action, and what it leaves: leave, next frame or set up again.
+    fn action(&mut self) -> Result<Next, Refused> {
+        let screen = self.screen;
+        Ok({
+            self.actions += 1;
+            let item = LOOP_FLAGS.item.get();
+            let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
+            kept().set(item);
+            clear_escape();
+            run_item_action(self.action_menu)?;
+            CAPTIONS.screen_left.set(0);
+            LOOP_FLAGS.item.set(kept().get());
+            clear_escape();
+            if screen.restart_action_check {
+                if LOOP_FLAGS.ended_a.get() == 1 {
+                    self.why = format!("after the action of item {item}: dword_755569 was 1");
+                    Next::Leave
+                } else if EVENT_STATE.event_done.get() == 1 {
+                    MENU_PAGES.yes_no_answer.set(0u32);
+                    Callee::TakeKey.run()?;
+                    Next::SetUp
                 } else if LOOP_FLAGS.back.get() == 1 {
-                    LOOP_FLAGS.back.set(0u32);
-                    why = format!("after the action of item {item}: dword_755561 was 1");
+                    self.why = format!("after the action of item {item}: dword_755561 is 1");
                     Next::Leave
-                } else if screen.short_action_check {
-                    Next::SetUp
                 } else {
                     OPTION_WORK.menu_sound.set(NO_SOUND);
-                    if DRAW_WORK.action_value.get() == 2 {
-                        next_frame
-                    } else if LOOP_FLAGS.went_back.get() == 1 {
-                        LOOP_FLAGS.back.set(0u32);
-                        why = format!("after the action of item {item}: dword_75555D is 1");
-                        Next::Leave
-                    } else {
-                        Next::SetUp
-                    }
+                    Next::SetUp
+                }
+            } else if LOOP_FLAGS.ended_a.get() == 1
+                || (!screen.short_action_check && EVENT_STATE.event_done.get() == 1)
+            {
+                self.why = format!(
+                    "after the action of item {item}: dword_755569={} dword_755980={}",
+                    LOOP_FLAGS.ended_a.get(),
+                    EVENT_STATE.event_done.get()
+                );
+                Next::Leave
+            } else if LOOP_FLAGS.back.get() == 1 {
+                LOOP_FLAGS.back.set(0u32);
+                self.why = format!("after the action of item {item}: dword_755561 was 1");
+                Next::Leave
+            } else if screen.short_action_check {
+                Next::SetUp
+            } else {
+                OPTION_WORK.menu_sound.set(NO_SOUND);
+                if DRAW_WORK.action_value.get() == 2 {
+                    self.next_frame
+                } else if LOOP_FLAGS.went_back.get() == 1 {
+                    LOOP_FLAGS.back.set(0u32);
+                    self.why = format!("after the action of item {item}: dword_75555D is 1");
+                    Next::Leave
+                } else {
+                    Next::SetUp
                 }
             }
-            Next::Leave => {
-                let done = || format!("{why}; {frames} frames, {actions} actions");
-                if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
-                    return Ok(done());
+        })
+    }
+
+    /// Leaving: the question when the screen asks, then the `after` steps.
+    fn leave(&mut self) -> Result<Left, Refused> {
+        let screen = self.screen;
+        let entry = self.entry;
+        let done = || {
+            format!(
+                "{}; {} frames, {} actions",
+                self.why, self.frames, self.actions
+            )
+        };
+        if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
+            return Ok(Left::Done(done()));
+        }
+        if let Some(on_refusal) = screen.confirm {
+            let asked = screen.always_asks
+                || (CAPTIONS.screen_left.get() == 1
+                    && !screen.ask_unless.is_some_and(|flag| flag() == 1))
+                || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
+            if asked {
+                run(screen.before_asking, entry)?;
+                confirm_leaving()?;
+                if MENU_PAGES.yes_no_answer.get() != 1 {
+                    run(on_refusal, entry)?;
+                    return Ok(Left::SetUp);
                 }
-                if let Some(on_refusal) = screen.confirm {
-                    let asked = screen.always_asks
-                        || (CAPTIONS.screen_left.get() == 1
-                            && !screen.ask_unless.is_some_and(|flag| flag() == 1))
-                        || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
-                    if asked {
-                        run(screen.before_asking, entry)?;
-                        confirm_leaving()?;
-                        if MENU_PAGES.yes_no_answer.get() != 1 {
-                            run(on_refusal, entry)?;
-                            next = Next::SetUp;
-                            continue;
-                        }
-                        run(screen.confirmed, entry)?;
-                        if screen.always_asks {
-                            return Ok(done());
-                        }
-                    } else if screen.unasked_skips_save {
-                        run(screen.after, entry)?;
-                        run(screen.after_restored, entry)?;
-                        return Ok(done());
-                    }
-                } else {
-                    run(screen.leaving, entry)?;
+                run(screen.confirmed, entry)?;
+                if screen.always_asks {
+                    return Ok(Left::Done(done()));
                 }
-                screen.leave_saved_item.unwrap_or(screen.saved_item)().set(LOOP_FLAGS.item.get());
-                clear_escape();
+            } else if screen.unasked_skips_save {
                 run(screen.after, entry)?;
                 run(screen.after_restored, entry)?;
-                return Ok(done());
+                return Ok(Left::Done(done()));
             }
-        };
+        } else {
+            run(screen.leaving, entry)?;
+        }
+        screen.leave_saved_item.unwrap_or(screen.saved_item)().set(LOOP_FLAGS.item.get());
+        clear_escape();
+        run(screen.after, entry)?;
+        run(screen.after_restored, entry)?;
+        Ok(Left::Done(done()))
     }
 }
 
@@ -746,11 +817,7 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
 
 // ---- entries ----
 
-/// Runs a screen from the menus' tables. The loop starts from nothing carried: its body
-/// never reads the registers it was entered with (only `pusha`'d for the `popa` at the
-/// end), and what it passes down unchanged reaches only plain Rust versions (2026-10-23,
-/// `attrib.py` over the 88 item routes; their esi is the outer loop's list table, never a
-/// list of cars). Its result (eax) is unused by the tables' callers. Rust callers use
+/// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     log(&format!("{name}: the Rust version runs"));

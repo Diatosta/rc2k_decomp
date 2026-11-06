@@ -61,35 +61,33 @@ fn record_field(record: u32, offset: u32) -> Result<u32, BadInput> {
     crate::race::course_places::record_field(record, offset, "a course record")
 }
 
-/// `race::car_label` (0x45B1B7): at edi seven bytes, " CAR nn" with nn eax's two digits
-/// (eax / 10 and eax % 10, each + '0' as a byte), or seven spaces when ecx is -1. Every
-/// register kept.
-pub fn car_label(label_at: &[Dword; 2], eax: u32, ecx: u32) {
-    // Converted: `rc2k_core::race::start::car_label`. Seven bytes: the eighth is kept.
-    let label = rc2k_core::race::start::car_label(eax, ecx == u32::MAX);
+/// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring
+/// car, `car_number`'s two digits (tens and units, each + '0' as a byte), or seven spaces
+/// when `neighbour` is -1 (no car there). The label's eighth byte is kept.
+pub fn car_label(label_at: &[Dword; 2], car_number: u32, neighbour: u32) {
+    // Converted: `rc2k_core::race::start::car_label`.
+    let label = rc2k_core::race::start::car_label(car_number, neighbour == u32::MAX);
     let kept = label_at[1].get().to_le_bytes()[3];
     label_at[0].set(u32::from_le_bytes([label[0], label[1], label[2], label[3]]));
     label_at[1].set(u32::from_le_bytes([label[4], label[5], label[6], kept]));
 }
 
-/// `race::split_colours` (0x45B16A): `dword_601830` dwords at edi set to 0xC; then for each
-/// of the block esi's +0x90 values at +0x140 (none when +0x90 is 0 or negative), edi's
-/// dword 8 when it is not above the one before (0x63 before the first; the sign of the
-/// difference, as `cmp`/`jns`), else 4. (The registers it leaves, ecx the count, eax the
-/// last colour, edx the last value, are read by no caller.) Refuses (before anything) a
-/// count past the buffers' 0x40 dwords.
-/// Refuses also more splits than the block's 16 times (the original reads on into the
-/// block's next fields).
-pub fn split_colours(esi: u32, edi: &[Dword; 64], fill: u32) -> Result<(), Refused> {
+/// `race::split_colours` (0x45B16A): the first `count` of the car's `colours` set to 0xC
+/// (not reached); then for each of the car block's split times passed (none when the number
+/// passed is 0 or negative) the colour 8 when the time is not above the one before (0x63
+/// before the first; the sign of the difference), else 4. Refuses (before anything) a count
+/// past the buffer's 0x40 dwords, and more splits passed than the block's 16 times (the
+/// original reads on into the block's next fields).
+pub fn split_colours(car: u32, colours: &[Dword; 64], count: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{check_split_colours, split_colours}`.
     use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
-    let block = car_at(esi)?;
+    let block = car_at(car)?;
     let n = block.splits_passed.get();
-    check_split_colours(fill, n)?;
+    check_split_colours(count, n)?;
     if n as i32 > 0 && n as usize > block.split_times.len() {
         return Err(BadInput("more splits than a block's times").into());
     }
-    for cell in &edi[..fill as usize] {
+    for cell in &colours[..count as usize] {
         cell.set(SPLIT_UNREACHED);
     }
     if n as i32 <= 0 {
@@ -99,8 +97,8 @@ pub fn split_colours(esi: u32, edi: &[Dword; 64], fill: u32) -> Result<(), Refus
         .iter()
         .map(super::super::session::Dword::get)
         .collect();
-    let colours = split_colours(&splits);
-    for (cell, &c) in edi.iter().zip(colours.iter()) {
+    let wanted = split_colours(&splits);
+    for (cell, &c) in colours.iter().zip(wanted.iter()) {
         cell.set(c);
     }
     Ok(())
@@ -139,9 +137,8 @@ pub fn panel_players() -> Result<(), BadInput> {
 }
 
 /// `race::lamps_wanted` (0x4536D7): `dword_63DB58` = `g_lampCount`, with bit 0 set when a
-/// race car has +0x25C and +0x84 both set. (The registers it leaves, eax that, ecx the
-/// cars, esi the last block, are read by no caller: `race::draw_view_scene`'s next
-/// steps read none.) Refuses (before anything) more than eight cars (past `g_carBlocks`).
+/// race car has +0x25C and +0x84 both set. Refuses (before anything) more than eight cars
+/// (past `g_carBlocks`).
 pub fn lamps_wanted() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
     use rc2k_core::race::frame::{car_lit, lamps_wanted};
@@ -173,8 +170,6 @@ fn drawn_view() -> Result<u32, Refused> {
 }
 
 /// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `dword_6415C4`.
-/// (It leaves eax that and esi the block; its one caller, `race::draw_view_scene`, reads
-/// neither.)
 pub fn store_view_value() -> Result<(), Refused> {
     {
         let b = drawn_view()?;
@@ -197,9 +192,7 @@ pub fn fetch_view_value() -> Result<(), Refused> {
 
 /// `race::share_sound_spots` (0x45C7B9): `dword_5165EC` = `dword_6D1DC4`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
-/// `sub_40E642`). (It leaves ecx 0, esi and edi past the spots: its one caller,
-/// `race::draw_race_scene`, reads none.) Refuses (before anything) more than 36 (past both
-/// tables).
+/// `sub_40E642`). Refuses (before anything) more than 36 (past both tables).
 pub fn share_sound_spots() -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::view::shared_spot_bytes`.
@@ -225,8 +218,7 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 
 /// `race::clear_point_records` (0x4500FF), on its variables: `dword_5C6FC4` 0, then the
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with
-/// `g_useSse` set each first 16 bytes `xmmword_62DAE0` (`movntps`). (It leaves ecx 0 and
-/// edi past the records: its one caller, `race::draw_view_scene`, reads neither.)
+/// `g_useSse` set each first 16 bytes `xmmword_62DAE0` (`movntps`).
 pub fn clear_point_records() -> Result<(), BadInput> {
     COURSE_LISTS.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
@@ -285,54 +277,55 @@ pub fn object_bytes() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// One view's half of `race::panel_values`: block `b`'s values into the panel fields
-/// (+0x718 rounded, +0xAB0, +0x1D4, the distance, +0x88 x 10, +0xA0C, -(+0xA10),
-/// +0xA14, and for the first view also +0xA18, +0xA1C, +0xA20, +0xA24).
-fn panel_half(b: u32, first: bool) -> Result<(), BadInput> {
+/// One view's half of `race::panel_values`: the car block at `car`'s values into the panel
+/// fields (the rounded engine speed, the engine sound speed, the gear, the distance, the
+/// stage time x 10, the split gaps, and for the first view also its front and back gaps and
+/// the two last ones).
+fn panel_half(car: u32, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
-    {
-        let panel = &*PANEL;
-        let (cells, distance) = if first {
-            let v = &panel.view_a;
-            (
-                [
-                    &v.whole, &v.speed, &v.gear, &v.place, &v.time, &v.split2, &v.negated,
-                ],
-                &panel.distance[0],
-            )
-        } else {
-            let v = &panel.view_b;
-            (
-                [
-                    &v.whole, &v.speed, &v.gear, &v.place, &v.time, &v.split2, &v.negated,
-                ],
-                &panel.distance[1],
-            )
+    let panel = &*PANEL;
+    // The two views' records have the same fields in two types.
+    macro_rules! shown_cells {
+        ($v:expr) => {
+            [
+                &$v.whole,
+                &$v.speed,
+                &$v.gear,
+                &$v.place,
+                &$v.time,
+                &$v.split2,
+                &$v.negated,
+            ]
         };
-        let whole = shown_whole(f32::from_bits(car_at(b)?.shown_engine_speed.bits()));
-        cells[0].set(whole as u32);
-        cells[1].set(car_at(b)?.engine_sound_speed_int.bits());
-        cells[2].set(car_at(b)?.gear.bits());
-        let at = |n: u32| {
-            crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get()
-        };
-        let from: u32 = SPLIT_TABLES.checkpoints[0].get();
-        let d = travelled(at(car_at(b)?.checkpoint.bits()), at(from));
-        DRAW.scratch.set_bits(d);
-        let (unit, miles): (u32, u32) = (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
-        let shown = distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits();
-        distance.set(shown);
-        cells[4].set(car_at(b)?.stage_time.bits().wrapping_mul(10));
-        cells[3].set(car_at(b)?.split_gaps[0].bits());
-        // -(+0xA10): `dword_6D142A` for the first view, `dword_6D1456` for the second.
-        cells[6].set(car_at(b)?.split_gaps[1].bits().wrapping_neg());
-        cells[5].set(car_at(b)?.split_gaps[2].bits());
-        if first {
-            panel.view_a.front.set(car_at(b)?.split_gaps[3].bits());
-            panel.view_a.back.set(car_at(b)?.split_gaps[4].bits());
-            panel.split_5.set(car_at(b)?.split_gaps[5].bits());
-            panel.split_6.set(car_at(b)?.split_gaps[6].bits());
-        }
+    }
+    let (cells, distance) = if first {
+        (shown_cells!(panel.view_a), &panel.distance[0])
+    } else {
+        (shown_cells!(panel.view_b), &panel.distance[1])
+    };
+    let car = car_at(car)?;
+    let whole = shown_whole(f32::from_bits(car.shown_engine_speed.bits()));
+    cells[0].set(whole as u32);
+    cells[1].set(car.engine_sound_speed_int.bits());
+    cells[2].set(car.gear.bits());
+    let at =
+        |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
+    let from: u32 = SPLIT_TABLES.checkpoints[0].get();
+    let d = travelled(at(car.checkpoint.bits()), at(from));
+    DRAW.scratch.set_bits(d);
+    let (unit, miles): (u32, u32) = (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
+    let shown = distance_shown(d as i32, f32::from_bits(unit), f32::from_bits(miles)).to_bits();
+    distance.set(shown);
+    cells[4].set(car.stage_time.bits().wrapping_mul(10));
+    cells[3].set(car.split_gaps[0].bits());
+    // The negated gap: `-(split_gaps[1])`.
+    cells[6].set(car.split_gaps[1].bits().wrapping_neg());
+    cells[5].set(car.split_gaps[2].bits());
+    if first {
+        panel.view_a.front.set(car.split_gaps[3].bits());
+        panel.view_a.back.set(car.split_gaps[4].bits());
+        panel.split_5.set(car.split_gaps[5].bits());
+        panel.split_6.set(car.split_gaps[6].bits());
     }
     Ok(())
 }
@@ -544,10 +537,9 @@ pub fn panel_marks() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::countdown_lights` (0x45B008): one view's start lights: `fields` 0 or 0x10 (edi:
-/// the view's fields at 0x6D1482 + it), `block` (esi) the view's block, `flag` (ebp) where
-/// a "step" flag goes. See the header for the steps. (The registers its divisions leave
-/// are read by no caller.)
+/// `race::countdown_lights` (0x45B008): one view's start lights: `view` the view's light
+/// fields, `block` the view's car block, `flag` where a "step" flag goes. See the header
+/// for the steps.
 pub fn countdown_lights(
     view: &crate::race::panel_store::Lights,
     block: u32,
@@ -685,30 +677,30 @@ pub fn reset_lamps() -> Result<(), BadInput> {
     }
 }
 
-/// `race::hold_to_limit` (0x4650A9): eax held to `dword_71C6D4` (unsigned).
-pub fn hold_to_limit(eax: u32) -> u32 {
+/// `race::hold_to_limit` (0x4650A9): `value` held to `dword_71C6D4` (unsigned).
+pub fn hold_to_limit(value: u32) -> u32 {
     // Converted: `rc2k_core::race::frame::hold_to_limit`.
-    rc2k_core::race::frame::hold_to_limit(eax, RACE_WORK.patch_settings[0].bits())
+    rc2k_core::race::frame::hold_to_limit(value, RACE_WORK.patch_settings[0].bits())
 }
 
 // dword_9DB730: 0x1000 of 8 bytes
 pub const SORT_MAX: u32 = 0x1000;
 
-/// `race::add_sort_entry` (0x454D57): entry `dword_63DC50` of `dword_9DB730`: +4 ebx, +0
-/// 0, or with (ebx & 0x7FFFFFFF) below 0x1000000 (eax << 16) | bx; the count + 1. (The
-/// registers and carry it leaves are read by no caller.) Refuses (before anything) an
-/// entry past the 0x1000.
-pub fn add_sort_entry(eax: u32, ebx: u32) -> Result<(), Refused> {
+/// `race::add_sort_entry` (0x454D57): entry `dword_63DC50` of `dword_9DB730` for `face`:
+/// +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
+/// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything)
+/// an entry past the 0x1000.
+pub fn add_sort_entry(kind: u32, face: u32) -> Result<(), Refused> {
     {
         let n: u32 = RACE_VIEW.sort_entry_count.bits();
         if n >= SORT_MAX {
             return Err(BadInput("a sort entry past the 0x1000").into());
         }
         // Converted: `rc2k_core::race::frame::sort_entry`.
-        let entry = rc2k_core::race::frame::sort_entry(eax, ebx);
+        let entry = rc2k_core::race::frame::sort_entry(kind, face);
         let at = &FACES.sort_entries[2 * n as usize..2 * n as usize + 2];
         at[0].set(entry.first.unwrap_or(0));
-        at[1].set(ebx);
+        at[1].set(face);
         RACE_VIEW.sort_entry_count.set_bits(n.wrapping_add(1));
         Ok(())
     }
@@ -760,17 +752,15 @@ pub fn points_there() -> Result<(), Refused> {
     }
 }
 
-/// `race::face_hidden` (0x454D92), face record `esi` (read): carry (hidden) when the shown
-/// view's `dword_606478` entry is 0, `dword_621480` is set and the face's +2 word has a
-/// bit of `dword_64167C` (eax left that); else, inside `pusha`, its first point's record
-/// (+4): `dword_635004` = |x| and `dword_635010` = depth + `flt_63F188` as whole numbers,
-/// carry when the depth is below |x| (the sign of the difference). Gives eax and the carry.
-/// Refuses (before anything) no point records or points.
-pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32, bool), Refused> {
+/// `race::face_hidden` (0x454D92): whether the face record is hidden from the shown view:
+/// when the view's `dword_606478` entry is 0, `dword_621480` is set and the face's +2 word
+/// has a bit of `dword_64167C`; else by its first point's record (+4): `dword_635004` = |x|
+/// and `dword_635010` = depth + `flt_63F188` as whole numbers, hidden when the depth is below
+/// |x| (the sign of the difference). Refuses (before anything) no point records or points.
+pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
-    let mut eax = eax;
     let view: u32 = CAR.camera_view.bits();
     // dword_606478[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
     // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
@@ -786,14 +776,11 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32
     } else {
         0
     };
-    let (bits, hidden) = hidden_by_switches(shows, hiding, || {
+    let (_, hidden) = hidden_by_switches(shows, hiding, || {
         face.switches() as u32 & FRAME_WORK.face_hide_mask.bits()
     });
-    if let Some(bits) = bits {
-        eax = bits;
-    }
     if hidden {
-        return Ok((eax, true));
+        return Ok(true);
     }
     points_there()?;
     let record = point_record(face.point(0))?;
@@ -804,20 +791,18 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face, eax: u32) -> Result<(u32
         LEVEL_GRID.depth_shift.bits(),
     );
     OBJECT_WORK.face_depth.set_bits(depth as u32);
-    Ok((eax, hidden_by_depth(depth as u32, x as u32)))
+    Ok(hidden_by_depth(depth as u32, x as u32))
 }
 
-/// `race::face_depth` (0x4552D8): the depth key of face `ebx` (records of 0x40 at
+/// `race::face_depth` (0x4552D8): the depth key of `face` (records of 0x40 at
 /// `g_courseFaces`) into `dword_63DC40`: for a kind (+0) of 0x10 or more, its first point's
 /// depth (`fistp`; and `dword_63DC44` its x); else, with its object's (+1) record +0xE bit
 /// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`, through
 /// `dword_62400C`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
-/// shifted right 10 (logical). Every register kept. Refuses (before anything) no point
-/// records or points.
-pub fn face_depth(ebx: u32) -> Result<(), Refused> {
+/// shifted right 10 (logical). Refuses (before anything) no point records or points.
+pub fn face_depth(face: u32) -> Result<(), Refused> {
     use crate::math::x87::{add, to_int};
     points_there()?;
-    let face = ebx;
     let depth = |k: u32| -> Result<u32, Refused> {
         let record = point_record(face_field(face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
@@ -870,19 +855,18 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
 
 // dword_9D3730: 0x1000 of 8 bytes
 
-/// `race::add_depth_entry` (0x454D2A): `face_depth` of face ebx, then entry
-/// `dword_63DC4C` of `dword_9D3730`: +0 the key, +4 ebx; the count + 1. (The registers and
-/// carry it leaves are read by no caller.) Refuses (before anything) an entry past the
-/// 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(ebx: u32) -> Result<(), Refused> {
+/// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `dword_63DC4C` of
+/// `dword_9D3730`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
+/// entry past the 0x1000, or what `face_depth` refuses.
+pub fn add_depth_entry(face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = RACE_VIEW.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
-    face_depth(ebx)?;
+    face_depth(face)?;
     let key: u32 = RACE_VIEW.face_depth_key.bits();
     let at = depth_entry(n)?;
     at[0].set(key);
-    at[1].set(ebx);
+    at[1].set(face);
     RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
     Ok(())
 }
@@ -984,23 +968,18 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
         let how = gathered(kind);
-        if how != Gathered::No {
-            // The kind in eax's low byte (`mov al, [esi]`): only the eax `face_hidden`
-            // gives back keeps the rest, and nothing reads that.
-            let (_, hidden) = face_hidden(&read, kind as u32)?;
-            if !hidden {
-                let object = face_object(how, read.object(), || read.second_object());
-                let tables = face_tables();
-                let (depth_table, kind_table) = if how == Gathered::Lit {
-                    (tables[1], tables[3])
-                } else {
-                    (tables[0], tables[2])
-                };
-                if byte_at(depth_table, object)? != 0 {
-                    add_depth_entry(face)?;
-                } else {
-                    add_sort_entry(byte_at(kind_table, object)?, face)?;
-                }
+        if how != Gathered::No && !face_hidden(&read)? {
+            let object = face_object(how, read.object(), || read.second_object());
+            let tables = face_tables();
+            let (depth_table, kind_table) = if how == Gathered::Lit {
+                (tables[1], tables[3])
+            } else {
+                (tables[0], tables[2])
+            };
+            if byte_at(depth_table, object)? != 0 {
+                add_depth_entry(face)?;
+            } else {
+                add_sort_entry(byte_at(kind_table, object)?, face)?;
             }
         }
         face = face.wrapping_add(1);
@@ -1214,7 +1193,7 @@ fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
         .get(2 * n..2 * n + 2)
         .ok_or(BadInput("a depth entry past the table"))
 }
-/// `race::add_lamp_entry` (0x4573FA): lamp ebx's point (`g_lamps` +0) through
+/// `race::add_lamp_entry` (0x4573FA): the lamp's point (`g_lamps` +0) through
 /// `g_viewMatrix` (the point into `dword_63501C` .. `dword_635024`, then x and y turned
 /// there, z rounded into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth
 /// entry of that key with `g_lampCount` + 0x3000000; `dword_641590` + 1. The caller checks
@@ -1332,7 +1311,7 @@ fn add_eax_weight(v: u32) {
     }
 }
 
-/// `race::eax_face_weight` (0x45C881): face ebx's weight in the EAX sound environment
+/// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
 /// (`g_eaxEnvironment`), by its distance from car 0 (x and z): kind 0xFF with an object
 /// (+1) below 0x38: its +0x18 byte over the distance to its first point; kinds below 0x10
 /// with |+0x30| below 0.25: 3.0 over the distance to the middle of its second and third
@@ -1620,12 +1599,11 @@ pub fn draw_distance_settings() {
 }
 
 /// `race::sample_noise` (0x44FD38): the 64 x 64 byte map `map` bytes into `g_noiseBytes`
-/// (the original's esi, its address) sampled at the work car's
+/// sampled at the work car's
 /// place (`g_car` +0x6A4 and +0x6AC: the top byte the cell, the next two the fraction):
 /// the four corners into `dword_637620` .. `dword_63762C`, blended along x into
 /// `dword_637630` / `dword_637634` and then along z, each step `imul` and `shrd` by 16;
-/// the result shifted left 8, given (the original's eax; what it leaves in ebx, ecx and edx,
-/// the fractions and the last product's high half, its callers do not read).
+/// the result shifted left 8 is returned.
 pub fn sample_noise(map: usize) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     {
@@ -2276,18 +2254,18 @@ pub fn draw_view_tint() -> Result<(), Refused> {
     draw_screen_quad()
 }
 
-/// `race::add_car_depth_entry` (0x4574A0): car block esi's place (+0x134 .., into
-/// `dword_63501C` ..) through `g_viewMatrix` (rounded into `dword_63502C` ..; x and y back
-/// as floats, z the key: plus 0x2000000, shifted right 10), a depth entry of the key with
-/// ebx plus 0x2000000. (The registers it leaves are read by no caller.) Refuses (before
-/// anything) a depth entry past the 0x1000.
-pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
+/// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `dword_63501C` ..) of
+/// the block of car `car` (its address) through `g_viewMatrix` (rounded into `dword_63502C`
+/// ..; x and y back as floats, z the key: plus 0x2000000, shifted right 10), a depth entry
+/// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
+/// entry past the 0x1000.
+pub fn add_car_depth_entry(car: u32, number: u32) -> Result<(), Refused> {
     use crate::math::x87::from_int;
     let n: u32 = RACE_VIEW.depth_entry_count.bits();
     if n >= SORT_MAX {
         return Err(BadInput("a depth entry past the 0x1000").into());
     }
-    let place = crate::session::read_bits(&car_at(esi)?.position);
+    let place = crate::session::read_bits(&car_at(car)?.position);
     for (k, &p) in place.iter().enumerate() {
         OBJECT_WORK.place[k].set_bits(p);
     }
@@ -2300,7 +2278,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     OBJECT_WORK.place[1].set(from_int(t[1] as i32));
     let key = t[2].wrapping_add(0x200_0000) >> 10;
     RACE_VIEW.face_depth_key.set_bits(key);
-    let second = ebx.wrapping_add(0x200_0000);
+    let second = number.wrapping_add(0x200_0000);
     let at = depth_entry(n)?;
     at[0].set(key);
     at[1].set(second);
@@ -2356,16 +2334,16 @@ fn add_flare() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `sub_4572B0`: a flare at `point` (eax, ebx, ecx) in car block `b`'s (esi) frame (its matrix +0xB4,
+/// `sub_4572B0`: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
-fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
+fn place_flare(car: u32, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87_load::rotate_rounding(
         point.map(|v| v as i32),
-        &crate::session::read_bits(&car_at(b)?.crash_matrix),
+        &crate::session::read_bits(&car_at(car)?.crash_matrix),
     );
     DRAW.scratch.set_bits(t[2]);
     for (k, v) in t.iter().enumerate() {
-        OBJECT_WORK.place[k].set_bits(v.wrapping_add(car_at(b)?.position[k].bits()));
+        OBJECT_WORK.place[k].set_bits(v.wrapping_add(car_at(car)?.position[k].bits()));
     }
     FRAME_SWITCHES.object_number.set(0x39u32);
     add_flare()?;
@@ -2377,12 +2355,12 @@ fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
 const PART_SWITCHES: u32 = 0xAC0;
 
 /// `sub_457241`: a pair of lights at the light record's (edi) +`at` (ecx; three dwords:
-/// none when all are 0) for block `b` (esi): the right one (x as it is) when the block's
+/// none when all are 0) for the car block at `car`: the right one (x as it is) when the block's
 /// byte +`right` (edx) is set, the left (x negated) when +`left` (ebx) is (-1: no byte), each by `place_flare` inside `pusha`;
 /// `dword_641758` / `dword_64175C` the two bytes.
-fn light_pair(b: u32, record: GamePtr, at: u32, left: u32, right: u32) -> Result<(), BadInput> {
+fn light_pair(car: u32, record: GamePtr, at: u32, left: u32, right: u32) -> Result<(), BadInput> {
     // The bytes are the block's part switches (+0xAC0 ..).
-    let switches = &car_at(b)?.part_switches;
+    let switches = &car_at(car)?.part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
         let n = o.wrapping_sub(PART_SWITCHES) as usize;
         if n >= switches.atomics().len() {
@@ -2404,17 +2382,18 @@ fn light_pair(b: u32, record: GamePtr, at: u32, left: u32, right: u32) -> Result
     }
     let y = y.wrapping_sub(PHYSICS.ground_drop.bits());
     if FRAME_WORK.light_right.get() != 0 {
-        place_flare(b, [x, y, z])?;
+        place_flare(car, [x, y, z])?;
     }
     if FRAME_WORK.light_left.get() != 0 {
-        place_flare(b, [x.wrapping_neg(), y, z])?;
+        place_flare(car, [x.wrapping_neg(), y, z])?;
     }
     Ok(())
 }
 
-/// `race::car_light_flares` (0x457036): car block `b`'s (esi) lights as flares. Refuses (before anything) a flare list or depth
-/// list without room for the 24 flares a car can give.
-pub fn car_light_flares(b: u32) -> Result<(), Refused> {
+/// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares.
+/// Refuses (before anything) a flare list or depth list without room for the 24 flares a car
+/// can give.
+pub fn car_light_flares(car: u32) -> Result<(), Refused> {
     if RACE_VIEW.depth_entry_count.bits() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
@@ -2428,29 +2407,29 @@ pub fn car_light_flares(b: u32) -> Result<(), Refused> {
             FRAME_WORK.part_place[2].bits(),
         ];
         OBJECT_WORK.other_light.set(0x00F0_F0F0u32);
-        place_flare(b, point)?;
+        place_flare(car, point)?;
         // Not the original's: the pair's other light, as `light_pair` (the debug UI).
         if point[0] != 0 {
-            place_flare(b, [point[0].wrapping_neg(), point[1], point[2]])?;
+            place_flare(car, [point[0].wrapping_neg(), point[1], point[2]])?;
         }
         return Ok(());
     }
     if FRAME_SWITCHES.other_way.bits() == 0 {
         return Ok(());
     }
-    let kind = car_at(b)?.car_kind.bits();
+    let kind = car_at(car)?.car_kind.bits();
     FRAME_WORK.part_kind.set(kind);
     let valid = kind < 0x22 && KIND_TABLES.kind_shows_parts[kind as usize].bits() != 0;
     if valid {
         if !crate::math::x87_load::below_or_unordered(
-            car_at(b)?.electrics_damage.bits(),
+            car_at(car)?.electrics_damage.bits(),
             NUMBERS.hundred.bits(),
         ) {
             return Ok(());
         }
         FRAME_WORK
             .parts_present
-            .set(car_at(b)?.parts_present.bits());
+            .set(car_at(car)?.parts_present.bits());
         // A second test of the same kind follows; its error branch (a log line) is
         // never reached.
     }
@@ -2461,7 +2440,7 @@ pub fn car_light_flares(b: u32) -> Result<(), Refused> {
     LIGHT_WORK.light_kind.set(3u32);
     OBJECT_WORK.size.set(2u32);
     OBJECT_WORK.other_light.set(0x0060_6060u32);
-    let pair = |at: u32, left: u32, right: u32| light_pair(b, record, at, left, right);
+    let pair = |at: u32, left: u32, right: u32| light_pair(car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
     if LIGHT_WORK.marks_mask.get() != 0 && FRAME_WORK.parts_present.get() >> 9 & 1 != 0 {
         pair(0xB0, 0xACA, 0xACB)?;
@@ -2642,11 +2621,11 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::draw_flare` (0x455189): flare `flare` (ebx) of the six flare tables back into
+/// `race::draw_flare` (0x455189): flare `flare` of the six flare tables back into
 /// `dword_63501C` .., `dword_635038`, `dword_635054`, `g_objectNumber`; `dword_6365C8` 2,
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
-/// `esi` the esi at entry: the list entry). Every register kept.
-pub fn draw_flare(flare: u32, esi: GamePtr) -> Result<(), Refused> {
+/// described by `entry`, the draw list entry the flare came from).
+pub fn draw_flare(flare: u32, entry: GamePtr) -> Result<(), Refused> {
     for (table, to) in [
         (&LEVEL_GRID.flare_place_x, &OBJECT_WORK.place[0]),
         (&FLARE_TABLES.place_y, &OBJECT_WORK.place[1]),
@@ -2665,11 +2644,10 @@ pub fn draw_flare(flare: u32, esi: GamePtr) -> Result<(), Refused> {
     LIGHT_STATE.view_kind.set(2u32);
     place_object_matrix()?;
     LIGHT_WORK.light_kind.set(0u32);
-    // The `popa` and `pusha` between: the drawing gets the esi it had at entry.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(esi))
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(entry))
 }
 
-/// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (ebx; `g_lamps`): its point (`g_scenePoints`)
+/// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (`g_lamps`): its point (`g_scenePoints`)
 /// into `dword_63501C` .., its +4 x 8 the size, +8 the colour, object `dword_621508`;
 /// `dword_6365C8` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing. Every
 /// register kept.
@@ -2694,22 +2672,18 @@ pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
     )))
 }
 
-/// `race::draw_list_entry` (0x454FF0): the entry at `at` (esi; its number in ecx is read by
-/// no drawing), its second word
-/// `ebx` (into `dword_5CCCD4`;
-/// the top bit dropped): below 0x1000000 a course face (`g_currentCourseFace`): kind 0xFF
-/// part 1, below 0x10 part 2, each with `dword_63E164` .. `dword_63E16C` 1 around it;
-/// 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a lamp, each by its low 24 bits; then `dword_6365C8` 0. Every register kept. Refuses (before
-/// anything) a word of 0x4000000 or more (the original would take it for a face far past
-/// the table).
-pub fn draw_list_entry(at: GamePtr, ebx: u32) -> Result<(), Refused> {
-    let word = ebx & 0x7FFF_FFFF;
+/// `race::draw_list_entry` (0x454FF0): the entry at `at`, whose second word is `flags_word`
+/// (into `dword_5CCCD4`; the top bit dropped for the kind): below 0x1000000 a course face
+/// (`g_currentCourseFace`): kind 0xFF part 1, below 0x10 part 2, each with `dword_63E164` ..
+/// `dword_63E16C` 1 around it; 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a
+/// lamp, each by its low 24 bits; then `dword_6365C8` 0. Refuses (before anything) a word
+/// of 0x4000000 or more (the original would take it for a face far past the table).
+pub fn draw_list_entry(at: GamePtr, flags_word: u32) -> Result<(), Refused> {
+    let word = flags_word & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
-    COURSE.polygon_flags.set(ebx);
-    // What the drawings read of the registers the original gives them: the face
-    // drawing esi (the face), the car drawing ebx (the word's low 24 bits).
+    COURSE.polygon_flags.set(flags_word);
     let low = word & 0xFF_FFFF;
     match word >> 24 {
         0 => {

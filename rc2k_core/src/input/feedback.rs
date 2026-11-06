@@ -53,12 +53,13 @@ pub struct Constants {
     pub kinds: [u32; 16],
 }
 
-/// A request to set effect `effect` with two numbers (ecx, edx).
+/// A request to set effect `effect` with the two numbers `a` and `b` (the parameters of
+/// `input::set_effect`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Request {
     pub effect: u32,
-    pub ecx: u32,
-    pub edx: u32,
+    pub a: u32,
+    pub b: u32,
 }
 
 /// The requests in order, and the knock's angle (the bits `g_soundScratch` gets) if one
@@ -103,27 +104,30 @@ pub fn update_car_effects(feel: &mut Feel, view: &View, k: &Constants) -> Result
     }
     feel.hit = [0; 4];
 
-    let mut ecx = k.kinds[feel.surface as usize];
-    let mut edx = feel.speed;
-    if (edx as i32) < 0 {
-        edx = edx.wrapping_neg();
+    // The surface's effect kind and the rumble's strength (the speed, or at a crawl the
+    // low-speed rumble).
+    let mut kind = k.kinds[feel.surface as usize];
+    let mut rumble = feel.speed;
+    if (rumble as i32) < 0 {
+        rumble = rumble.wrapping_neg();
     }
-    if edx <= 5 {
-        ecx = 0;
-        edx = feel.speed_14.wrapping_mul(feel.speed_14) >> 19;
+    if rumble <= 5 {
+        kind = 0;
+        rumble = feel.speed_14.wrapping_mul(feel.speed_14) >> 19;
     }
-    edx = edx.min(0x100);
+    rumble = rumble.min(0x100);
 
     let mut requests = Vec::new();
-    let mut set = |effect: u32, ecx: u32, edx: u32| {
-        requests.push(Request { effect, ecx, edx });
-        edx
+    // Each request gives back its `b`, which the next may take on.
+    let mut set = |effect: u32, a: u32, b: u32| {
+        requests.push(Request { effect, a, b });
+        b
     };
     let d8 = feel.strength;
-    set(1, ecx, edx);
+    set(1, kind, rumble);
     let mut landed_now = false;
-    // Each way's requests; the last one's edx goes on to the next.
-    let mut last = match ecx {
+    // Each way's requests; the last one's `b` goes on to the next.
+    let mut last = match kind {
         5 | 9 | 0 => {
             set(4, 0x100, d8);
             set(0, 0, d8)
@@ -227,16 +231,16 @@ mod tests {
             plan.requests[0],
             Request {
                 effect: 1,
-                ecx: 7,
-                edx: 50
+                a: 7,
+                b: 50
             }
         );
         assert_eq!(
             plan.requests[3],
             Request {
                 effect: 5,
-                ecx: 10,
-                edx: 0x80
+                a: 10,
+                b: 0x80
             }
         );
         // A knock: straight ahead, full strength 0.1 of 256 * d.
@@ -245,11 +249,7 @@ mod tests {
         assert_eq!(plan.angle, Some(0));
         assert_eq!(feel.knock, 256);
         assert_eq!(feel.hit, [0; 4]);
-        assert!(
-            plan.requests
-                .iter()
-                .any(|r| r.effect == 3 && r.ecx == 0x100)
-        );
+        assert!(plan.requests.iter().any(|r| r.effect == 3 && r.a == 0x100));
         feel.surface = 16;
         assert!(update_car_effects(&mut feel, &view, &K).is_err());
     }

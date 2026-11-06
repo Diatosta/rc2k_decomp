@@ -51,7 +51,7 @@ fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), Refused> {
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys() -> Result<(), Refused> {
     let controls = KEY_TABLES.controls.read();
-    with_player(|p| p.controls_50 = controls)
+    with_player(|p| p.bindings = controls)
 }
 
 /// `menu::lower_player_40`.

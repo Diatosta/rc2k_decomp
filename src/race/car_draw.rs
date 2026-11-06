@@ -179,6 +179,63 @@ fn with_bit(value: u32, bit: u32) -> u32 {
     value | 1u32 << (bit & 31)
 }
 
+/// A mask slot of `COURSE.group_masks` and the index into the model's `groups` whose bit it
+/// takes, in the order they are set.
+const BODY_GROUPS: [(usize, usize); 5] = [(0, 0), (1, 1), (2, 2), (3, 3), (6, 5)];
+
+/// The mask slot of the lamps and the model's group they come from.
+const LAMPS: (usize, usize) = (9, 0xD);
+
+/// Models whose lamp mask gets extra bits, and the bits.
+const EXTRA_LAMP_BITS: [(&[u32], u32); 2] = [(&[4, 7], 0x600_0000), (&[0xD], 0x300_0000)];
+
+/// The mask slots set after the lamps, as `BODY_GROUPS`.
+const OTHER_GROUPS: [(usize, usize); 5] = [(10, 0xE), (7, 0xB), (8, 0xC), (11, 0xA), (12, 0xF)];
+
+/// A part's switch bit (`parts_present`): when it is clear the part's group, in this mask
+/// slot, is not shown.
+const PART_SWITCHES: [(u32, usize); 7] = [
+    (9, 6),
+    (12, 11),
+    (13, 9),
+    (14, 10),
+    (15, 12),
+    (16, 7),
+    (17, 8),
+];
+
+/// The course's group masks from the model's part groups (an unknown model is refused).
+fn set_group_masks(model: u32) -> Result<(), BadInput> {
+    for (to, group) in BODY_GROUPS {
+        COURSE.group_masks[to].set(model_bit(model, group as u32 * 4)?);
+    }
+    let (slot, group) = LAMPS;
+    let mut lamps = model_bit(model, group as u32 * 4)?;
+    if lamps != 0 {
+        for (models, bits) in EXTRA_LAMP_BITS {
+            if models.contains(&model) {
+                lamps |= bits;
+            }
+        }
+    }
+    COURSE.group_masks[slot].set(lamps);
+    for (to, group) in OTHER_GROUPS {
+        COURSE.group_masks[to].set(model_bit(model, group as u32 * 4)?);
+    }
+    Ok(())
+}
+
+/// The groups of the parts still on the car: all but those of the parts whose switch is off.
+fn shown_groups(switches: u32) -> u32 {
+    let mut shown = u32::MAX;
+    for (bit, slot) in PART_SWITCHES {
+        if switches & (1 << bit) == 0 {
+            shown &= !COURSE.group_masks[slot].bits();
+        }
+    }
+    shown
+}
+
 /// `race::draw_car` (0x4616AA): car `car` (esi, its block) drawn: its marks' textures
 /// (`race::car_number_textures`); its six matrices (+0x740 ..) to `flt_6417E0` .. /
 /// `flt_5EA08C` / `flt_641760`; its model's parts' bits (`dword_5CCE1C` ..; the shown mask
@@ -220,43 +277,9 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         .set(car_at(car)?.mode_on.bits());
     let model = car_at(car)?.car_kind.bits();
     MATRICES.known_object.set(model);
-    for (to, offset) in [(0usize, 0u32), (1, 4), (2, 8), (3, 0xC), (6, 0x14)] {
-        COURSE.group_masks[to].set(model_bit(model, offset)?);
-    }
-    let mut lamps = model_bit(model, 0x34)?;
-    if lamps != 0 {
-        if model == 4 || model == 7 {
-            lamps |= 0x600_0000;
-        }
-        if model == 0xD {
-            lamps |= 0x300_0000;
-        }
-    }
-    COURSE.group_masks[9].set(lamps);
-    for (to, offset) in [
-        (10usize, 0x38u32),
-        (7, 0x2C),
-        (8, 0x30),
-        (11, 0x28),
-        (12, 0x3C),
-    ] {
-        COURSE.group_masks[to].set(model_bit(model, offset)?);
-    }
+    set_group_masks(model)?;
     let switches = car_at(car)?.parts_present.bits();
-    let mut shown = u32::MAX;
-    for (bit, var) in [
-        (9u32, 6usize),
-        (12, 11),
-        (13, 9),
-        (14, 10),
-        (15, 12),
-        (16, 7),
-        (17, 8),
-    ] {
-        if switches & (1 << bit) == 0 {
-            shown &= !COURSE.group_masks[var].bits();
-        }
-    }
+    let shown = shown_groups(switches);
     FRAME_SWITCHES.group_mask.set(shown);
     let field = |offset: u32| model_field(model, offset);
     CAMERA_WORK.faded_bits.set(field(0x10)?);

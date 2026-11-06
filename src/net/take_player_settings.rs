@@ -76,10 +76,10 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     car.dead_zone_2.set(p.dead_zone_2);
     car.strength.set(p.strength);
     for (n, cell) in car.controls_50.iter().enumerate() {
-        cell.set(controls_word(&p.controls_50, 4 * n));
+        cell.set(controls_word(&p.bindings, 4 * n));
     }
-    car.controls_74.set(controls_word(&p.controls_50, 0x24));
-    car.controls_78.set(controls_word(&p.controls_50, 0x28));
+    car.controls_74.set(controls_word(&p.bindings, 0x24));
+    car.controls_78.set(controls_word(&p.bindings, 0x28));
     for (n, b) in p.keys.iter().enumerate() {
         car.keys.set(n, *b);
     }

@@ -1,18 +1,13 @@
 //! `hud::layout_2` (0x4B3B64): the HUD of layout 2, two players one above the other (the
-//! record's +0xF8 flags the upper's, +0xFC the lower's): the dials (`hud::disc_2a` /
-//! `_2b`), a black divider at 0x12B, the stage bars (`hud::draw_stage_bars_2`), the cut
+//! record's +0xF8 flags the upper's, +0xFC the lower's): the dials (`dials::DISC_2A` /
+//! `_2B`), a black divider at 0x12B, the stage bars (`hud::draw_stage_bars_2`), the cut
 //! calls (`sub_4B6A8E` / `sub_4B6A99`: ecx 2 / 5), the icons (`hud::icons_2`), the scaled
-//! sprites, the markers (`hud::draw_markers_2`), signs (`hud::draw_signs_2a` / `_2b`),
-//! needles (`hud::needle_2a` / `_2b`), the lap panels (+0x1C / +0x4C, `dword_75C07C` /
+//! sprites, the markers (`hud::draw_markers_2`), signs (`draw_signs::LAYOUT_2A` / `_2B`),
+//! needles (`dials::NEEDLE_2A` / `_2B`), the lap panels (+0x1C / +0x4C, `dword_75C07C` /
 //! `dword_75C088`), the times with their leading digits left out (+0x14 / +0x44) and the
 //! four clocks (by the upper's flag 0x40 alone). The upper's rows move 0x10 down and the
 //! lower's 0x10 up with `dword_6D1502` 0. Both needles' signs read the record's +0xD0
 //! (layout 1 reads +0xCC for the first: section 16).
-//!
-//! In:  ebp the HUD's record
-//! Out: as the path leaves them
-//!
-//! Caller: `sub_4B1CD0`.
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row_by;
@@ -44,11 +39,11 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if f1 & 0x10 != 0 {
-        { dials::disc(record, &disc_2a::SETUP) }?;
+        dials::disc(record, &dials::DISC_2A)?;
     }
     HUD.texture.set(0xC7);
     if f2 & 0x10 != 0 {
-        { dials::disc(record, &disc_2b::SETUP) }?;
+        dials::disc(record, &dials::DISC_2B)?;
     }
     HUD.texture.set(0xC0);
     HUD.quad[0].set(0xFF);
@@ -56,14 +51,14 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
     for (n, v) in [0, 0x12B, 0x320, 0x12D].into_iter().enumerate() {
         HUD.quad[1 + n].set(v);
     }
-    { add_solid_quad::add_solid_quad() }?;
+    add_solid_quad::add_solid_quad()?;
     if f1 & 0x40 != 0 {
-        { draw_stage_bars_2::draw_stage_bars_2() }?;
+        draw_stage_bars_2::draw_stage_bars_2()?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xDC);
-    { icons_2::icons_2(record) }?;
+    icons_2::icons_2(record)?;
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xC1);
@@ -92,21 +87,21 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
         scaled(0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        { draw_markers_2::draw_markers_2(record) }?;
+        draw_markers_2::draw_markers_2(record)?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
-        { draw_signs_2a::draw_signs_2a(record) }?;
+        draw_signs::draw_signs(record, &draw_signs::LAYOUT_2A)?;
     }
     if f2 & 0x80 != 0 {
-        { draw_signs_2b::draw_signs_2b(record) }?;
+        draw_signs::draw_signs(record, &draw_signs::LAYOUT_2B)?;
     }
     HUD.texture.set(0xC1);
     if f1 & 1 != 0 {
-        { dials::needle(record, &needle_2a::SETUP) }?;
+        dials::needle(record, &dials::NEEDLE_2A)?;
     }
     if f2 & 1 != 0 {
-        { dials::needle(record, &needle_2b::SETUP) }?;
+        dials::needle(record, &dials::NEEDLE_2B)?;
     }
     let xs = [0x23, 0x37, 0x4B, 0x53, 0x67, 0x7B, 0x83, 0x97];
     let laps = [
@@ -135,11 +130,11 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
         plain(mark, sprites[0], sprites[1])?;
         plain(0x4A, sprites[2], sprites[3])?;
         let t = time.get();
-        { lap_panel(t, xs, y, &mut plain) }?;
+        lap_panel(t, xs, y, &mut plain)?;
     }
     for (flags, field, y) in [(f1, 0x14, upper(0x107)), (f2, 0x44, 0x245)] {
         if flags & 0x20 != 0 {
-            { leading_time(get(field)?, [0x43, 0x57, 0x6B], y, &mut plain) }?;
+            leading_time(get(field)?, [0x43, 0x57, 0x6B], y, &mut plain)?;
         }
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
@@ -151,7 +146,7 @@ pub fn layout_2(record: GamePtr) -> Result<(), Refused> {
         if f1 & 0x40 != 0 {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
-                { clock_panel(t, xs, y, &mut plain) }?;
+                clock_panel(t, xs, y, &mut plain)?;
             }
         }
     }

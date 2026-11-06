@@ -72,11 +72,11 @@ impl Carousel {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ServiceUi {
-    /// `dword_75AA90`: the colour of the boxes' frames (`screens::draw_service_boxes`).
+    /// `dword_75AA90`: the boxes' see-through value (`screens::draw_service_boxes`).
     pub box_colour_a: Dword,
     /// `dword_75AA94`: the fade's full see-through (`menu::fades`).
     pub fade_full: Dword,
-    /// `dword_75AA98`: the boxes' colour as the box being drawn sets it.
+    /// `dword_75AA98`: the colour of the item's boxes, set from its inspection flags as each item is drawn.
     pub box_colour_b: Dword,
     /// `dword_75AA9C`: 1 when a service box is turned over.
     pub box_shown: Dword,

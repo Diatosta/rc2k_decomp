@@ -56,9 +56,9 @@ pub struct Player {
     /// `lower_player_48`; shown for a device that has it).
     pub strength: u32,
     pub gap_4c: u32,
-    /// The 0x2C bytes the controller pages copy out (`screens::pick_player_n`) and back
-    /// (`menu::keep_player_keys`).
-    pub controls_50: [u8; 0x2C],
+    /// The controller's bindings, 0x2C bytes (11 dwords; `binding`), which the controller
+    /// pages copy out (`screens::pick_player_n`) and back (`menu::keep_player_keys`).
+    pub bindings: [u8; 0x2C],
     pub gap_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event`.
     pub field_84: u32,
@@ -179,86 +179,6 @@ impl Player {
         Self::from_le_bytes(b)
     }
 
-    /// The record as its 0x28c bytes in memory's layout (+0x18 the name number).
-    pub fn to_le_bytes(&self) -> [u8; 0x28c] {
-        let mut b = [0; 0x28c];
-        let mut word = |at: usize, v: u32| b[at..at + 4].copy_from_slice(&v.to_le_bytes());
-        word(0x0, self.gap_0);
-        word(0x4, self.nationality);
-        word(0x8, self.car_number);
-        word(0xc, self.view);
-        word(0x10, self.second_view);
-        word(0x14, self.saved_start_section);
-        word(0x18, self.name_number);
-        word(0x28, self.race_number);
-        word(0x2c, self.controller);
-        word(0x30, self.gearing);
-        word(0x34, self.sensitivity_level);
-        word(0x3c, self.controller_mode);
-        word(0x40, self.dead_zone_1);
-        word(0x44, self.dead_zone_2);
-        word(0x48, self.strength);
-        word(0x4c, self.gap_4c);
-        word(0x84, self.field_84);
-        word(0x88, self.time);
-        word(0x8c, self.total);
-        word(0x90, self.class);
-        word(0x94, self.figure);
-        for (k, &v) in self.stage_points.iter().enumerate() {
-            word(0x98 + 4 * k, v);
-        }
-        for (k, &v) in self.overall_points.iter().enumerate() {
-            word(0xb4 + 4 * k, v);
-        }
-        word(0xd0, self.entry);
-        for (k, &v) in self.damage.iter().enumerate() {
-            word(0xd4 + 4 * k, v);
-        }
-        word(0x10c, self.tyre);
-        word(0x110, self.brake_balance);
-        word(0x114, self.ride_height);
-        word(0x118, self.suspension_stiffness);
-        word(0x11c, self.steering_sensitivity);
-        word(0x120, self.gear_ratio);
-        word(0x144, self.number_standings_b);
-        word(0x148, self.number_all_b);
-        word(0x14c, self.number_standings_a);
-        word(0x150, self.number_all_a);
-        word(0x154, self.codriver_sex);
-        word(0x158, self.map_area);
-        word(0x15c, self.rear_mirror);
-        word(0x160, self.rev_counter);
-        word(0x164, self.car_info);
-        word(0x168, self.message_display);
-        word(0x16c, self.progress_bar);
-        word(0x170, self.driver_info);
-        word(0x174, self.pace_notes);
-        word(0x178, self.metric_units);
-        for (k, &v) in self.parts_wear.iter().enumerate() {
-            word(0x17c + 4 * k, v);
-        }
-        for (k, &v) in self.tyre_wear.iter().enumerate() {
-            word(0x1f8 + 4 * k, v);
-        }
-        for (k, &v) in self.field_24c.iter().enumerate() {
-            word(0x24c + 4 * k, v);
-        }
-        word(0x274, self.saved_start_section_a8);
-        word(0x278, self.state_flags);
-        word(0x27c, self.result_word);
-        word(0x280, self.controller_sensitivity);
-        word(0x284, self.hud_bits as u32);
-        word(0x288, self.service_spent);
-        b[0x1c..0x1c + self.keys.len()].copy_from_slice(&self.keys);
-        b[0x38..0x3c].copy_from_slice(&self.axis_codes);
-        b[0x50..0x50 + self.controls_50.len()].copy_from_slice(&self.controls_50);
-        b[0x7c..0x7c + self.gap_7c.len()].copy_from_slice(&self.gap_7c);
-        b[0x124..0x124 + self.name_copy.len()].copy_from_slice(&self.name_copy);
-        b[0x20c..0x20c + self.best_line.len()].copy_from_slice(&self.best_line);
-        b[0x26c..0x26c + self.gap_26c.len()].copy_from_slice(&self.gap_26c);
-        b
-    }
-
     /// The dword at byte `at`.
     pub fn word(&self, at: usize) -> u32 {
         let b = self.to_le_bytes();
@@ -292,97 +212,135 @@ impl Player {
         }
         *self = Self::from_le_bytes(b);
     }
+}
 
-    /// The record from its 0x28c bytes in the game's layout (little-endian dwords).
-    pub const fn from_le_bytes(b: [u8; 0x28c]) -> Self {
-        const fn word(b: &[u8; 0x28c], at: usize) -> u32 {
-            u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
-        }
-        const fn bytes<const N: usize>(b: &[u8; 0x28c], at: usize) -> [u8; N] {
-            let mut out = [0; N];
-            let mut n = 0;
-            while n < N {
-                out[n] = b[at + n];
-                n += 1;
-            }
-            out
-        }
-        const fn words<const N: usize>(b: &[u8; 0x28c], at: usize) -> [u32; N] {
-            let mut out = [0; N];
-            let mut n = 0;
-            while n < N {
-                out[n] = word(b, at + 4 * n);
-                n += 1;
-            }
-            out
-        }
-        Self {
-            gap_0: word(&b, 0x0),
-            nationality: word(&b, 0x4),
-            car_number: word(&b, 0x8),
-            view: word(&b, 0xc),
-            second_view: word(&b, 0x10),
-            saved_start_section: word(&b, 0x14),
-            name_number: word(&b, 0x18),
-            keys: bytes::<0xc>(&b, 0x1c),
-            race_number: word(&b, 0x28),
-            controller: word(&b, 0x2c),
-            gearing: word(&b, 0x30),
-            sensitivity_level: word(&b, 0x34),
-            axis_codes: bytes::<4>(&b, 0x38),
-            controller_mode: word(&b, 0x3c),
-            dead_zone_1: word(&b, 0x40),
-            dead_zone_2: word(&b, 0x44),
-            strength: word(&b, 0x48),
-            gap_4c: word(&b, 0x4c),
-            controls_50: bytes::<0x2c>(&b, 0x50),
-            gap_7c: bytes::<0x8>(&b, 0x7c),
-            field_84: word(&b, 0x84),
-            time: word(&b, 0x88),
-            total: word(&b, 0x8c),
-            class: word(&b, 0x90),
-            figure: word(&b, 0x94),
-            stage_points: words::<7>(&b, 0x98),
-            overall_points: words::<7>(&b, 0xb4),
-            entry: word(&b, 0xd0),
-            damage: words::<14>(&b, 0xd4),
-            tyre: word(&b, 0x10c),
-            brake_balance: word(&b, 0x110),
-            ride_height: word(&b, 0x114),
-            suspension_stiffness: word(&b, 0x118),
-            steering_sensitivity: word(&b, 0x11c),
-            gear_ratio: word(&b, 0x120),
-            name_copy: bytes::<0x20>(&b, 0x124),
-            number_standings_b: word(&b, 0x144),
-            number_all_b: word(&b, 0x148),
-            number_standings_a: word(&b, 0x14c),
-            number_all_a: word(&b, 0x150),
-            codriver_sex: word(&b, 0x154),
-            map_area: word(&b, 0x158),
-            rear_mirror: word(&b, 0x15c),
-            rev_counter: word(&b, 0x160),
-            car_info: word(&b, 0x164),
-            message_display: word(&b, 0x168),
-            progress_bar: word(&b, 0x16c),
-            driver_info: word(&b, 0x170),
-            pace_notes: word(&b, 0x174),
-            metric_units: word(&b, 0x178),
-            parts_wear: words::<31>(&b, 0x17c),
-            tyre_wear: words::<5>(&b, 0x1f8),
-            best_line: bytes::<0x40>(&b, 0x20c),
-            field_24c: words::<8>(&b, 0x24c),
-            gap_26c: bytes::<0x8>(&b, 0x26c),
-            saved_start_section_a8: word(&b, 0x274),
-            state_flags: word(&b, 0x278),
-            result_word: word(&b, 0x27c),
-            controller_sensitivity: word(&b, 0x280),
-            hud_bits: word(&b, 0x284) as i32,
-            service_spent: word(&b, 0x288),
-        }
+const _: () = assert!(std::mem::size_of::<Player>() == RECORD_LEN);
+
+/// The record's length.
+const RECORD_LEN: usize = 0x28C;
+
+const fn word(b: &[u8; RECORD_LEN], at: usize) -> u32 {
+    u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
+}
+
+const fn bytes<const N: usize>(b: &[u8; RECORD_LEN], at: usize) -> [u8; N] {
+    let mut out = [0; N];
+    let mut n = 0;
+    while n < N {
+        out[n] = b[at + n];
+        n += 1;
+    }
+    out
+}
+
+const fn words<const N: usize>(b: &[u8; RECORD_LEN], at: usize) -> [u32; N] {
+    let mut out = [0; N];
+    let mut n = 0;
+    while n < N {
+        out[n] = word(b, at + 4 * n);
+        n += 1;
+    }
+    out
+}
+
+fn put_words(b: &mut [u8; RECORD_LEN], at: usize, values: &[u32]) {
+    for (n, v) in values.iter().enumerate() {
+        b[at + 4 * n..at + 4 * n + 4].copy_from_slice(&v.to_le_bytes());
     }
 }
 
-const _: () = assert!(std::mem::size_of::<Player>() == 0x28C);
+/// Where each field lies in the record's bytes: one table, read both ways by `to_le_bytes`
+/// and `from_le_bytes`. A `word` is a dword, a `signed` word a dword kept as `i32`, `bytes`
+/// and `words` arrays of bytes and of dwords. Bytes in no row are 0 when written.
+macro_rules! layout {
+    ($($at:literal $kind:ident $field:ident,)*) => {
+        impl Player {
+            /// The record as its 0x28c bytes in memory's layout (+0x18 the name number).
+            pub fn to_le_bytes(&self) -> [u8; RECORD_LEN] {
+                let mut b = [0; RECORD_LEN];
+                $( layout!(@put $kind b, $at, self.$field); )*
+                b
+            }
+
+            /// The record from its 0x28c bytes in the game's layout (little-endian dwords).
+            pub const fn from_le_bytes(b: [u8; RECORD_LEN]) -> Self {
+                Self { $( $field: layout!(@get $kind b, $at), )* }
+            }
+        }
+    };
+    (@put word $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &[$v]) };
+    (@put signed $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &[$v as u32]) };
+    (@put words $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &$v) };
+    (@put bytes $b:ident, $at:literal, $v:expr) => { $b[$at..$at + $v.len()].copy_from_slice(&$v) };
+    (@get word $b:ident, $at:literal) => { word(&$b, $at) };
+    (@get signed $b:ident, $at:literal) => { word(&$b, $at) as i32 };
+    (@get words $b:ident, $at:literal) => { words(&$b, $at) };
+    (@get bytes $b:ident, $at:literal) => { bytes(&$b, $at) };
+}
+
+layout! {
+    0x000 word gap_0,
+    0x004 word nationality,
+    0x008 word car_number,
+    0x00C word view,
+    0x010 word second_view,
+    0x014 word saved_start_section,
+    0x018 word name_number,
+    0x01C bytes keys,
+    0x028 word race_number,
+    0x02C word controller,
+    0x030 word gearing,
+    0x034 word sensitivity_level,
+    0x038 bytes axis_codes,
+    0x03C word controller_mode,
+    0x040 word dead_zone_1,
+    0x044 word dead_zone_2,
+    0x048 word strength,
+    0x04C word gap_4c,
+    0x050 bytes bindings,
+    0x07C bytes gap_7c,
+    0x084 word field_84,
+    0x088 word time,
+    0x08C word total,
+    0x090 word class,
+    0x094 word figure,
+    0x098 words stage_points,
+    0x0B4 words overall_points,
+    0x0D0 word entry,
+    0x0D4 words damage,
+    0x10C word tyre,
+    0x110 word brake_balance,
+    0x114 word ride_height,
+    0x118 word suspension_stiffness,
+    0x11C word steering_sensitivity,
+    0x120 word gear_ratio,
+    0x124 bytes name_copy,
+    0x144 word number_standings_b,
+    0x148 word number_all_b,
+    0x14C word number_standings_a,
+    0x150 word number_all_a,
+    0x154 word codriver_sex,
+    0x158 word map_area,
+    0x15C word rear_mirror,
+    0x160 word rev_counter,
+    0x164 word car_info,
+    0x168 word message_display,
+    0x16C word progress_bar,
+    0x170 word driver_info,
+    0x174 word pace_notes,
+    0x178 word metric_units,
+    0x17C words parts_wear,
+    0x1F8 words tyre_wear,
+    0x20C bytes best_line,
+    0x24C words field_24c,
+    0x26C bytes gap_26c,
+    0x274 word saved_start_section_a8,
+    0x278 word state_flags,
+    0x27C word result_word,
+    0x280 word controller_sensitivity,
+    0x284 signed hud_bits,
+    0x288 word service_spent,
+}
 
 /// A setting the players' pages change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -444,12 +402,12 @@ impl Player {
 
     /// Binding `k` (0 .. 10; +0x50 + 4 k).
     pub fn binding(&self, k: usize) -> u32 {
-        let b = &self.controls_50[4 * k..4 * k + 4];
+        let b = &self.bindings[4 * k..4 * k + 4];
         u32::from_le_bytes([b[0], b[1], b[2], b[3]])
     }
 
     pub fn set_binding(&mut self, k: usize, v: u32) {
-        self.controls_50[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+        self.bindings[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
     }
 
     /// `menu::toggle_player_3c`: the controller mode's bit 0 turned over.

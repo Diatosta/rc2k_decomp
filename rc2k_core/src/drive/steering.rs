@@ -47,10 +47,6 @@ pub struct Steered {
     pub trimmed: [u32; 2],
     /// `dword_62400C` as left (the last whole number put through it).
     pub scratch: u32,
-    /// The original's eax, and ebx / edx where it sets them.
-    pub eax: u32,
-    pub ebx: Option<u32>,
-    pub edx: Option<u32>,
 }
 
 /// One steering value moved by the key step toward the word's side (held at the ends),
@@ -86,10 +82,8 @@ fn by_keys(v: u32, word: u32, step: u32) -> u32 {
 /// `drive::steer_inputs` on the two steering values (`unk_71A61C`, `unk_71A620`).
 pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
     let [mut first, mut second] = values;
-    let (mut ebx, mut edx) = (None, None);
     let mut keys = s.word == 0;
     if !keys && s.mode != 2 {
-        ebx = Some(s.keys);
         keys = s.keys & 0x1000 != 0;
     }
     if keys {
@@ -98,8 +92,6 @@ pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
         first = by_keys(first, s.word, step);
     } else {
         let product = i64::from(s.word as i32) * i64::from(RIGHT as i32);
-        ebx = Some(RIGHT);
-        edx = Some((product >> 32) as u32);
         let mut v = fistp64((product >> 8) as u32 as i32 as f64 * s.device_factor as f64) as u32;
         if sign(v.wrapping_sub(LEFT)) {
             v = LEFT;
@@ -114,9 +106,11 @@ pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
     if s.flags & 0x10 != 0 {
         trim = trim.wrapping_neg();
     }
-    let eax = second.wrapping_add(trim.wrapping_mul(4));
     let trimmed = if below(s.figure as f64, s.limit as f64) {
-        [first.wrapping_add(trim), eax]
+        [
+            first.wrapping_add(trim),
+            second.wrapping_add(trim.wrapping_mul(4)),
+        ]
     } else {
         [0, 0]
     };
@@ -125,9 +119,6 @@ pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
         trim,
         trimmed,
         scratch: RIGHT,
-        eax,
-        ebx,
-        edx,
     }
 }
 
@@ -154,8 +145,8 @@ mod tests {
         // Back toward 0 at twice the step, stopping there.
         let s = steer(&inputs(), [0x150_0000, 0xFFF0_0000]);
         assert_eq!(s.values, [0x10_0000, 0]);
-        assert_eq!((s.ebx, s.edx, s.scratch), (None, None, RIGHT));
-        // Right, held at the end; ebx the keys.
+        assert_eq!(s.scratch, RIGHT);
+        // Right, held at the end.
         let right = SteerInputs {
             word: 0x80,
             keys: 0x1000,
@@ -163,7 +154,6 @@ mod tests {
         };
         let s = steer(&right, [0x1FF0_0000, 0]);
         assert_eq!(s.values, [RIGHT, 0xA0_0000]);
-        assert_eq!(s.ebx, Some(0x1000));
     }
 
     #[test]
@@ -177,7 +167,6 @@ mod tests {
         let s = steer(&d, [5, 6]);
         // 0x100 x 0x20000000 >> 8 = 0x20000000, x 0.5.
         assert_eq!(s.values, [0x1000_0000, 0x1000_0000]);
-        assert_eq!((s.ebx, s.edx), (Some(RIGHT), Some(0x20)));
         assert_eq!(s.trim, 0x0800_0000);
         assert_eq!(s.trimmed, [0x1800_0000, 0x3000_0000]);
         let off = SteerInputs {
