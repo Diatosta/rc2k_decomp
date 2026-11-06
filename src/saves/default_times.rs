@@ -129,11 +129,11 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
                     Ok::<_, BadInput>(())
                 })??,
                 Target::Rally(table) => {
-                    let at = crate::pointers::GamePtr::to(table);
-                    let mut bytes =
-                        at.read_bytes(core::mem::size_of_val(table), "a table of times")?;
+                    use crate::pointers::Store;
+                    let mut bytes = vec![0; table.size()];
+                    table.load(0, &mut bytes)?;
                     block.write(&mut bytes);
-                    at.write_bytes(&bytes, "a table of times")?;
+                    table.store(0, &bytes)?;
                 }
             }
         }

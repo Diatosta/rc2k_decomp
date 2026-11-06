@@ -10,24 +10,22 @@
 //! Caller: `saves::load_savegame` (when `dword_755144` is 0). Refuses (before anything) a missing
 //! player or esi 0.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::menu::player::PLAYERS;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 
-const CAR_LEN: u32 = rc2k_core::saves::cars::SAVED_CAR_LEN as u32;
+const CAR_LEN: usize = rc2k_core::saves::cars::SAVED_CAR_LEN;
 
-pub fn keep_player_settings(cars: GamePtr) -> Result<(), Refused> {
-    if cars.is_null() {
-        return Err(BadInput("no saved cars").into());
-    }
+/// `file` is the savegame file; the saved cars start at byte `cars`.
+pub fn keep_player_settings(file: &dyn Store, cars: usize) -> Result<(), Refused> {
     for n in 0..PLAYERS {
         // The saved cars lie in the savegame file's buffer (`saves::load_savegame`'s cursor).
-        let to = cars.offset(n * CAR_LEN);
+        let to = cars + n as usize * CAR_LEN;
         let player = crate::menu::standings::player(n).get().to_le_bytes();
         let mut kept = Vec::new();
         rc2k_core::saves::cars::keep_settings(&player, &mut |at, b| kept.push((at, b)))?;
         for (at, b) in kept {
-            to.offset(at as u32).write(b, "a saved car's settings")?;
+            file.store(to + at, &[b])?;
         }
     }
     Ok(())

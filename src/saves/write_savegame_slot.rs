@@ -12,7 +12,6 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
 use crate::menu::name_lists::NAME_LEN;
-use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::gather_savegame;
 use crate::saves::owner::saves;
 use crate::session::{Bytes, Dword};
@@ -75,7 +74,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
     {
         let file = &saves.save_games.file;
         // First, because it is what can be refused: nothing else is written before it.
-        gather_savegame(crate::menu::owner::menus(), GamePtr::to(file).offset(0x30))?;
+        gather_savegame(crate::menu::owner::menus(), file, 0x30)?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
         use rc2k_core::saves::kept;
         let head = kept::slot_head(

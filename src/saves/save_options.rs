@@ -28,11 +28,33 @@ pub fn file_len() -> usize {
 pub fn save_options(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
     let file = &system().work.files.buffer;
     let mut owned = Vec::new();
-    for (place, len) in pieces() {
-        owned.push(place.read_bytes(len, "a saved option")?);
+    for piece in pieces() {
+        owned.push(piece.read()?);
     }
     let pieces: Vec<&[u8]> = owned.iter().map(std::vec::Vec::as_slice).collect();
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
     Ok(write_file(path, crate::pointers::GamePtr::to(file), file_len() as u32)?.ok)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The options file's bytes (time 0) from the stores' first values: a checksum fixed
+    /// before the pieces became typed fields.
+    #[test]
+    fn options_file_bytes_are_unchanged() {
+        let _lock = crate::store::test_lock();
+        let mut owned = Vec::new();
+        for piece in pieces() {
+            owned.push(piece.read().unwrap());
+        }
+        let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
+        let bytes = rc2k_core::saves::kept::options_file(0, &refs);
+        let sum = bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &b| {
+            (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)
+        });
+        assert_eq!((bytes.len(), sum), (file_len(), 2_461_667_189_847_992_428));
+    }
 }

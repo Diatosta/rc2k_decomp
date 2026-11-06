@@ -28,7 +28,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
 use crate::menu::owner::{Menus, menus};
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
@@ -73,19 +73,24 @@ pub fn load_savegame() -> Result<(), Refused> {
         return Ok(());
     }
 
-    let mut cursor = GamePtr::to(&saves.save_games.file).offset(PAYLOAD_OFFSET as u32);
+    let file = &saves.save_games.file;
+    let mut cursor = PAYLOAD_OFFSET;
     for at in head(menus) {
-        at.set(cursor.read::<u32>("the savegame's head")?);
-        cursor = cursor.offset(4);
+        let word = file.read_at(cursor, 4, "the savegame's head")?;
+        at.set(u32::from_le_bytes([word[0], word[1], word[2], word[3]]));
+        cursor += 4;
     }
     if saves.savegame_preview.use_savegame_keys.get() == 0 {
-        crate::saves::keep_player_settings::keep_player_settings(cursor)?;
+        crate::saves::keep_player_settings::keep_player_settings(file, cursor)?;
     }
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;
 
     for car in cars {
         let name = car.get().name_number;
-        let saved: [u8; CAR_LEN] = cursor.read("a saved car")?;
+        let saved: [u8; CAR_LEN] = file
+            .read_at(cursor, CAR_LEN, "a saved car")?
+            .try_into()
+            .map_err(|_| BadInput("a saved car of another length"))?;
         car.set(rc2k_core::menu::player::Player::from_file_bytes(saved));
         // The file's own pointer is not to be trusted: the game's stays (a save's holds the
         // same place, unless the file was damaged).
@@ -94,13 +99,10 @@ pub fn load_savegame() -> Result<(), Refused> {
             crate::menu::player_names::name_of(&car.get())?,
             &car.get().name_copy,
         );
-        cursor = cursor.offset(CAR_LEN as u32);
+        cursor += CAR_LEN;
     }
-    cursor.copy_to(
-        GamePtr::to(&menus.cars.drivers),
-        RECORDS_LEN,
-        "the saved drivers",
-    )?;
+    let records = file.read_at(cursor, RECORDS_LEN, "the saved drivers")?;
+    menus.cars.drivers.store(0, &records)?;
     menus
         .screens
         .flow

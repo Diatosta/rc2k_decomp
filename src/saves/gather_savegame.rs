@@ -16,7 +16,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::{Menus, Play};
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::session::Dword;
 
 // ---- game data ----
@@ -54,14 +54,13 @@ pub fn cars(
 
 // ---- Rust version ----
 
-pub fn gather_savegame(menus: &Menus, buffer: GamePtr) -> Result<(), BadInput> {
+/// The saved game's bytes put into `file` from byte `base` on.
+pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
     let cars = cars(&menus.play)?;
     for (n, at) in head(menus).into_iter().enumerate() {
         // The savegame is a file's bytes.
-        buffer
-            .offset(4 * n as u32)
-            .write(at.get(), "the savegame's head")?;
+        file.store(base + 4 * n, &at.get().to_le_bytes())?;
     }
     cars[0].update(|p| {
         p.saved_start_section = menus.screens.flow.start_section.get();
@@ -71,17 +70,15 @@ pub fn gather_savegame(menus: &Menus, buffer: GamePtr) -> Result<(), BadInput> {
         let name =
             crate::menu::player_names::name_bytes(crate::menu::player_names::name_of(&car.get())?);
         car.update(|p| p.name_copy = name);
-        buffer.offset(car_at(n) as u32).write_bytes(
+        file.store(
+            base + car_at(n),
             &car.get()
                 .to_file_bytes(crate::menu::player_names::name_address),
-            "a player's record",
         )?;
     }
-    GamePtr::to(&menus.cars.drivers).copy_to(
-        buffer.offset(RECORDS_AT as u32),
-        RECORDS_LEN,
-        "the drivers' records",
-    )?;
+    let mut records = vec![0; RECORDS_LEN];
+    menus.cars.drivers.load(0, &mut records)?;
+    file.store(base + RECORDS_AT, &records)?;
     Ok(())
 }
 
@@ -99,8 +96,8 @@ mod tests {
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &menus().play;
         let _guard = crate::store::test_lock();
-        let buffer = GamePtr::to(&saves().save_games.file);
-        let file_before = buffer.read_bytes(LEN, "the file").unwrap();
+        let buffer = &saves().save_games.file;
+        let file_before = buffer.read_at(0, LEN, "the file").unwrap();
         let players_before = play
             .players
             .players
@@ -119,8 +116,8 @@ mod tests {
             crate::menu::player_names::set_name_bytes(n, &[b'a' + n as u8; 0x20]);
         }
         let names_before = std::array::from_fn::<_, 4, _>(crate::menu::player_names::name_bytes);
-        gather_savegame(menus(), buffer).unwrap();
-        let file = buffer.read_bytes(LEN, "the file").unwrap();
+        gather_savegame(menus(), buffer, 0).unwrap();
+        let file = buffer.read_at(0, LEN, "the file").unwrap();
         for (n, car) in play.players.players.iter().enumerate() {
             // What the original wrote: the record, its name address in place of the number.
             let mut expected = car.get();
@@ -135,7 +132,7 @@ mod tests {
             assert_eq!(address, crate::menu::player_names::name_address(n));
             assert_eq!(&file[at + 0x124..at + 0x144], &names_before[n][..]);
         }
-        buffer.write_bytes(&file_before, "the file").unwrap();
+        buffer.write_at(0, &file_before, "the file").unwrap();
         for (car, before) in play.players.players.iter().zip(players_before) {
             car.set(before);
         }
