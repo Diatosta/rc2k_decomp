@@ -15,6 +15,7 @@
 
 use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -22,35 +23,34 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
-fn rate() {
-    rate_x87(&KEPT, &WINDSCREEN_FLAKE_TIMING, &WINDSCREEN_FLAKE_STATE);
+fn rate(fl: &WindscreenFlakes) {
+    rate_x87(&KEPT, &fl.timing, &fl.state);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_spawn() -> Result<(), Refused> {
+pub fn windscreen_flakes_spawn(fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
-        WINDSCREEN_FLAKE_TIMING
-            .frames
-            .set(WINDSCREEN_FLAKE_TIMING.frames.get().wrapping_add(1));
+        fl.timing.frames.set(fl.timing.frames.get().wrapping_add(1));
         let old = x87::set_chop();
-        rate();
+        rate(fl);
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
-            let v: u32 = WINDSCREEN_FLAKE_TIMING.spawn_rate.bits();
+            let v: u32 = fl.timing.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_windscreen_flake()?;
+                pick_windscreen_flake(fl)?;
             }
-            let share = x87::fraction_times_to_int(v, WINDSCREEN_FLAKE_STATE.share_k.bits());
-            let s = WINDSCREEN_FLAKE_STATE
+            let share = x87::fraction_times_to_int(v, fl.state.share_k.bits());
+            let s = fl
+                .state
                 .spawn_random
                 .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
-            WINDSCREEN_FLAKE_STATE.spawn_random.set(s);
+            fl.state.spawn_random.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_windscreen_flake()?;
+                pick_windscreen_flake(fl)?;
             }
         }
         x87::set_control(old);
@@ -59,9 +59,7 @@ pub fn windscreen_flakes_spawn() -> Result<(), Refused> {
 }
 
 use crate::effects::view_vectors::{KEPT, KeptView};
-use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TIMING, WindscreenFlakeState, WindscreenFlakeTiming,
-};
+use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.

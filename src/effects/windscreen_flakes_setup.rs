@@ -11,7 +11,8 @@
 //! Caller: `sub_4BFFEC` (0x4C000F).
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES};
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -27,12 +28,12 @@ const STATES: [(u32, u32); 7] = [
 ];
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_setup() {
-    setup_with(read_bits(&WINDSCREEN_FLAKE_STATE.setup_places));
+pub fn windscreen_flakes_setup(fl: &WindscreenFlakes) {
+    setup_with(fl, read_bits(&fl.state.setup_places));
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(places: [u32; 4]) {
+pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -54,7 +55,7 @@ pub fn setup_with(places: [u32; 4]) {
             VERTICES.vertices[n].v.set_bits(v);
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
-        WINDSCREEN_FLAKE_TABLES
+        fl.tables
             .inverse
             .set_bits(x87::reciprocal(DRAW.farthest.bits()));
     }

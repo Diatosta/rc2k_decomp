@@ -1836,22 +1836,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::LEN,
-        home: Home::Store(&crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_TIMING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.timing),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeTables::LEN,
-        home: Home::Store(&crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_TABLES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.tables),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeItems::LEN,
-        home: Home::Store(&crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_ITEMS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.items),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeState::START,
         len: crate::effects::windscreen_flakes_store::WindscreenFlakeState::LEN,
-        home: Home::Store(&crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_flakes.state),
     },
     Moved {
         ida: crate::effects::edges::EdgeSettings::START,

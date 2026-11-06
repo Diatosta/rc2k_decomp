@@ -11,18 +11,18 @@
 
 use crate::effects::mask_vars::MASKS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
-use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_ITEMS;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 pub const ITEMS: u32 = 0x800;
 pub const ITEM_LEN: u32 = 0x3C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, square_ends}`
-pub fn expire_windscreen_flakes() {
+pub fn expire_windscreen_flakes(fl: &WindscreenFlakes) {
     use rc2k_core::effects::expiry;
 
     let al = MASKS.shapes[0].step.get() as u8;
-    for item in &WINDSCREEN_FLAKE_ITEMS.items {
+    for item in &fl.items.items {
         if item.live.get() != 1 {
             continue;
         }

@@ -9,12 +9,12 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::edges::EDGE_SETTINGS;
-use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
 /// The Rust version (see the header).
-pub fn scale_setting() -> Result<(), Refused> {
+pub fn scale_setting(fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
         if settings == 0 {
@@ -22,7 +22,7 @@ pub fn scale_setting() -> Result<(), Refused> {
         }
         let marks = crate::effects::setup::marks()?;
         let n = marks.unknown_b0.get() as i32;
-        WINDSCREEN_FLAKE_STATE
+        fl.state
             .scaled_setting
             .set_bits(x87::int_times(n, EDGE_SETTINGS.factor.bits()));
     }

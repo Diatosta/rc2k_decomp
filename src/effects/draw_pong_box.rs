@@ -14,29 +14,30 @@
 
 use crate::effects::pong::{PONG, PONG_RULES, PongState};
 use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::math::x87;
 
 use crate::d3d::vertices_store::VERTICES;
 
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
-fn sides(v: &[[u8; 10]; 4]) {
-    sides_x87(v, &PONG, &MARKS_FLOATS, &WINDSCREEN_FLAKE_TABLES);
+fn sides(fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
+    sides_x87(v, &PONG, &MARKS_FLOATS, &fl.tables);
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
-fn corners(v: &[[u8; 10]; 4]) {
-    corners_x87(v, &PONG, &WINDSCREEN_FLAKE_TABLES);
+fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
+    corners_x87(v, &PONG, &fl.tables);
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
-fn projected() {
-    projected_x87(&WINDSCREEN_FLAKE_TABLES);
+fn projected(fl: &WindscreenFlakes) {
+    projected_x87(&fl.tables);
 }
 
 /// The Rust version (see the header).
-pub fn draw_pong_box(v: [[u8; 10]; 4]) {
-    sides(&v);
+pub fn draw_pong_box(fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
+    sides(fl, &v);
     let [pa, pb, pc, pd] = PONG_RULES
         .box_places
         .each_ref()
@@ -48,15 +49,11 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(w);
     }
-    corners(&v);
-    if x87::compare_status(
-        WINDSCREEN_FLAKE_TABLES.corners[0][2].bits(),
-        PONG_RULES.near.bits(),
-    ) == 0x100
-    {
+    corners(fl, &v);
+    if x87::compare_status(fl.tables.corners[0][2].bits(), PONG_RULES.near.bits()) == 0x100 {
         return;
     }
-    projected();
+    projected(fl);
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
     }
@@ -64,7 +61,7 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
 }
 
 use crate::effects::plain::st_cell;
-use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_TABLES, WindscreenFlakeTables};
+use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 

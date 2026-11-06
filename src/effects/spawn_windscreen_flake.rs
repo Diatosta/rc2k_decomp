@@ -14,9 +14,8 @@
 //! unconverted code).
 
 use crate::effects::expire_windscreen_flakes::{ITEM_LEN, ITEMS};
-use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_ITEMS, WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES,
-};
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -24,10 +23,15 @@ use crate::physics::tables_store::PHYSICS;
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header): ecx as it leaves it.
-pub fn spawn_windscreen_flake(x: u32, z: u32, kind: u32) -> Result<u32, Refused> {
+pub fn spawn_windscreen_flake(
+    fl: &WindscreenFlakes,
+    x: u32,
+    z: u32,
+    kind: u32,
+) -> Result<u32, Refused> {
     Ok({
         let end = ITEMS * ITEM_LEN;
-        let mut at = WINDSCREEN_FLAKE_TABLES.cursor.get();
+        let mut at = fl.tables.cursor.get();
         let step = |at: &mut u32| {
             *at += ITEM_LEN;
             if *at == end {
@@ -40,7 +44,7 @@ pub fn spawn_windscreen_flake(x: u32, z: u32, kind: u32) -> Result<u32, Refused>
             if !at.is_multiple_of(ITEM_LEN) || at >= end {
                 return Err(BadInput("a windscreen flake cursor off the items").into());
             }
-            let e = &WINDSCREEN_FLAKE_ITEMS.items[(at / ITEM_LEN) as usize];
+            let e = &fl.items.items[(at / ITEM_LEN) as usize];
             if e.live.get() == 0 {
                 e.live.set(1);
                 e.place[0].set_bits(x87::int_to_float(x as i32));
@@ -48,23 +52,22 @@ pub fn spawn_windscreen_flake(x: u32, z: u32, kind: u32) -> Result<u32, Refused>
                 let k = kind & 7;
                 e.size.set_bits(x87::int_times_plus(
                     k as i32,
-                    WINDSCREEN_FLAKE_STATE.size_k[0].bits(),
-                    WINDSCREEN_FLAKE_STATE.size_k[1].bits(),
+                    fl.state.size_k[0].bits(),
+                    fl.state.size_k[1].bits(),
                 ));
-                e.size_2
-                    .set_bits(x87::loaded(WINDSCREEN_FLAKE_STATE.size_k[2].bits()));
+                e.size_2.set_bits(x87::loaded(fl.state.size_k[2].bits()));
                 for d in e.spare_28.iter().chain(&e.spare_14) {
                     d.set(0);
                 }
                 e.born.set(PHYSICS.scene_clock.bits());
                 e.age.set(0);
                 step(&mut at);
-                WINDSCREEN_FLAKE_TABLES.cursor.set(at);
+                fl.tables.cursor.set(at);
                 return Ok(k);
             }
             step(&mut at);
         }
-        WINDSCREEN_FLAKE_TABLES.cursor.set(at);
+        fl.tables.cursor.set(at);
         kind
     })
 }

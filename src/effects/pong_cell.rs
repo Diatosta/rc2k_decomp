@@ -13,6 +13,7 @@
 
 use crate::effects::pong;
 use crate::effects::pong::PONG_RULES;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::scene::matrix3::extended;
 use rc2k_core::math::extended::from_f64;
@@ -20,7 +21,7 @@ use rc2k_core::math::extended::from_f64;
 /// The Rust version (see the header): `pattern` the pattern byte (eax),
 /// `column` (ebx), `row` (ecx).
 // Converted: `rc2k_core::effects::pong::cell_place`
-pub fn pong_cell(pattern: u8, column: u32, row: u32) -> Result<(), Refused> {
+pub fn pong_cell(fl: &WindscreenFlakes, pattern: u8, column: u32, row: u32) -> Result<(), Refused> {
     {
         if pattern != 0 {
             let step = PONG_RULES
@@ -35,7 +36,7 @@ pub fn pong_cell(pattern: u8, column: u32, row: u32) -> Result<(), Refused> {
                 from_f64(y),
                 from_f64(x),
             ];
-            crate::effects::draw_pong_box::draw_pong_box(values);
+            crate::effects::draw_pong_box::draw_pong_box(fl, values);
         }
     }
     Ok(())

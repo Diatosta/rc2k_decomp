@@ -18,7 +18,7 @@ pub fn shapes_frame() -> Result<(), Refused> {
     {
         copy_first_point::copy_first_point();
         tilt_shape::tilt_shape();
-        scale_setting::scale_setting()?;
+        scale_setting::scale_setting(&crate::effects::owner::effects().windscreen_flakes)?;
         run_shapes::run_shapes()
     }
 }

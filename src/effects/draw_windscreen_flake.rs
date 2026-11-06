@@ -16,7 +16,7 @@
 //! game's variables.
 
 use crate::effects::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
-use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::session::read_bits;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -28,28 +28,33 @@ fn shifted_places(item: &WindscreenFlakeItem) {
 }
 
 /// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
-fn corners(v: &[[u8; 10]; 2]) {
-    corners_x87(v, &WINDSCREEN_FLAKE_TABLES);
+fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
+    corners_x87(v, &fl.tables);
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
-fn projected() {
-    projected_x87(&MARKS_KIND_FLOATS, &WINDSCREEN_FLAKE_TABLES);
+fn projected(fl: &WindscreenFlakes) {
+    projected_x87(&MARKS_KIND_FLOATS, &fl.tables);
 }
 
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
-pub fn draw_windscreen_flake(item: &WindscreenFlakeItem, colour: u32, shares: [[u8; 10]; 2]) {
-    let [a, pb, c, d]: [u32; 4] = read_bits(&WINDSCREEN_FLAKE_STATE.places);
+pub fn draw_windscreen_flake(
+    fl: &WindscreenFlakes,
+    item: &WindscreenFlakeItem,
+    colour: u32,
+    shares: [[u8; 10]; 2],
+) {
+    let [a, pb, c, d]: [u32; 4] = read_bits(&fl.state.places);
     for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(v);
     }
     shifted_places(item);
-    corners(&shares);
-    if WINDSCREEN_FLAKE_TABLES.corners[0][2].bits() as i32 <= FAR_ENOUGH {
+    corners(fl, &shares);
+    if fl.tables.corners[0][2].bits() as i32 <= FAR_ENOUGH {
         return;
     }
-    projected();
+    projected(fl);
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(colour);
     }
@@ -57,9 +62,7 @@ pub fn draw_windscreen_flake(item: &WindscreenFlakeItem, colour: u32, shares: [[
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
-use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_TABLES, WindscreenFlakeItem, WindscreenFlakeTables,
-};
+use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 

@@ -16,20 +16,24 @@ pub struct WindscreenFlakeTiming {
     pub spawn_rate: Float,
 }
 
-pub static WINDSCREEN_FLAKE_TIMING: WindscreenFlakeTiming = WindscreenFlakeTiming {
-    frames: Dword::new(0x0),
-    rate: Float::from_bits(0x41200000),
-    spawn_rate: Float::from_bits(0x0),
-};
-
 impl WindscreenFlakeTiming {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WindscreenFlakeTiming {
+            frames: Dword::new(0x0),
+            rate: Float::from_bits(0x41200000),
+            spawn_rate: Float::from_bits(0x0),
+        }
+    }
     pub const START: usize = 0x89CA30;
     pub const LEN: usize = 0xC;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TIMING) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.windscreen_flakes.timing,
+        ) as usize
     }
 }
 
@@ -69,111 +73,115 @@ pub struct WindscreenFlakeTables {
     pub cursor: Dword,
 }
 
-pub static WINDSCREEN_FLAKE_TABLES: WindscreenFlakeTables = WindscreenFlakeTables {
-    curve: [const { Float::from_bits(0x0) }; 256],
-    radii: [
-        Float::from_bits(0x449E0000),
-        Float::from_bits(0x458EA000),
-        Float::from_bits(0x458B8000),
-        Float::from_bits(0x45886000),
-        Float::from_bits(0x45854000),
-        Float::from_bits(0x45822000),
-        Float::from_bits(0x45898000),
-        Float::from_bits(0x45802000),
-    ],
-    inverse: Float::from_bits(0x0),
-    lengths: [Float::from_bits(0x42166666), Float::from_bits(0x42166666)],
-    place: [
-        Float::from_bits(0xC7666666),
-        Float::from_bits(0xC6E66666),
-        Float::from_bits(0x480E2000),
-    ],
-    _gap_89cf02: Bytes::new([
-        0x66, 0x66, 0x66, 0xC7, 0x66, 0x66, 0xE6, 0xC6, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00, 0x80,
-        0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-    axes: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x3F800000),
-        ],
-    ],
-    scaled_by_radius: [
-        [
-            Float::from_bits(0x44D00000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xC4948000),
-            Float::from_bits(0x44948000),
-        ],
-    ],
-    half_axes: [
-        [
-            Float::from_bits(0x44D00000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xC4948000),
-            Float::from_bits(0x44948000),
-        ],
-    ],
-    scaled_axes: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF3504E6),
-            Float::from_bits(0x3F3504E6),
-        ],
-    ],
-    _gap_89cf86: Bytes::new([0; 12]),
-    corners: [const {
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ]
-    }; 4],
-    _gap_89cfc2: Bytes::new([0; 36]),
-    points: [const {
-        [const {
-            [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-            ]
-        }; 4]
-    }; 8],
-    cursor: Dword::new(0x0),
-};
-
 impl WindscreenFlakeTables {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WindscreenFlakeTables {
+            curve: [const { Float::from_bits(0x0) }; 256],
+            radii: [
+                Float::from_bits(0x449E0000),
+                Float::from_bits(0x458EA000),
+                Float::from_bits(0x458B8000),
+                Float::from_bits(0x45886000),
+                Float::from_bits(0x45854000),
+                Float::from_bits(0x45822000),
+                Float::from_bits(0x45898000),
+                Float::from_bits(0x45802000),
+            ],
+            inverse: Float::from_bits(0x0),
+            lengths: [Float::from_bits(0x42166666), Float::from_bits(0x42166666)],
+            place: [
+                Float::from_bits(0xC7666666),
+                Float::from_bits(0xC6E66666),
+                Float::from_bits(0x480E2000),
+            ],
+            _gap_89cf02: Bytes::new([
+                0x66, 0x66, 0x66, 0xC7, 0x66, 0x66, 0xE6, 0xC6, 0x00, 0x00, 0x80, 0x47, 0x00, 0x00,
+                0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+            axes: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x3F800000),
+                ],
+            ],
+            scaled_by_radius: [
+                [
+                    Float::from_bits(0x44D00000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xC4948000),
+                    Float::from_bits(0x44948000),
+                ],
+            ],
+            half_axes: [
+                [
+                    Float::from_bits(0x44D00000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xC4948000),
+                    Float::from_bits(0x44948000),
+                ],
+            ],
+            scaled_axes: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF3504E6),
+                    Float::from_bits(0x3F3504E6),
+                ],
+            ],
+            _gap_89cf86: Bytes::new([0; 12]),
+            corners: [const {
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ]
+            }; 4],
+            _gap_89cfc2: Bytes::new([0; 36]),
+            points: [const {
+                [const {
+                    [
+                        Float::from_bits(0x0),
+                        Float::from_bits(0x0),
+                        Float::from_bits(0x0),
+                    ]
+                }; 4]
+            }; 8],
+            cursor: Dword::new(0x0),
+        }
+    }
     pub const START: usize = 0x89CACA;
     pub const LEN: usize = 0x6A0;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_TABLES) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.windscreen_flakes.tables,
+        ) as usize
     }
 }
 
@@ -224,17 +232,21 @@ pub struct WindscreenFlakeItems {
     pub items: [WindscreenFlakeItem; 0x800],
 }
 
-pub static WINDSCREEN_FLAKE_ITEMS: WindscreenFlakeItems = WindscreenFlakeItems {
-    items: [const { WindscreenFlakeItem::new() }; 0x800],
-};
-
 impl WindscreenFlakeItems {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WindscreenFlakeItems {
+            items: [const { WindscreenFlakeItem::new() }; 0x800],
+        }
+    }
     pub const START: usize = 0x89E18A;
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_ITEMS) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.windscreen_flakes.items,
+        ) as usize
     }
 }
 
@@ -294,78 +306,102 @@ pub struct WindscreenFlakeState {
     pub unread_limit: Float,
 }
 
-pub static WINDSCREEN_FLAKE_STATE: WindscreenFlakeState = WindscreenFlakeState {
-    done: Dword::new(0x0),
-    curve_ends: [Float::from_bits(0x44800000), Float::from_bits(0x3A0EA4A9)],
-    steps: Dword::new(0x4),
-    step_angle: Float::from_bits(0x40000000),
-    rate_share: Float::from_bits(0x3F800000),
-    length_divisors: [Float::from_bits(0x45000000), Float::from_bits(0x44800000)],
-    share: Float::from_bits(0x47800000),
-    places: [
-        Dword::new(0x3B000000),
-        Dword::new(0x3B000000),
-        Dword::new(0x3D840000),
-        Dword::new(0x3D840000),
-    ],
-    unread_floats: [
-        Float::from_bits(0x46800000),
-        Float::from_bits(0x46800000),
-        Float::from_bits(0x46800000),
-        Float::from_bits(0x46800000),
-    ],
-    unread_dwords: [
-        Dword::new(0x0),
-        Dword::new(0x3F000000),
-        Dword::new(0x3F7FFFFE),
-        Dword::new(0x3F7FFFFE),
-    ],
-    axis_factors: [
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x44800000),
-        Float::from_bits(0x44800000),
-        Float::from_bits(0x44800000),
-    ],
-    halves: [const { Float::from_bits(0x3F000000) }; 6],
-    unread_rhw: Dword::new(0x43800000),
-    setup_places: [
-        Dword::new(0x3DE80000),
-        Dword::new(0x3D000000),
-        Dword::new(0x3E7C0000),
-        Dword::new(0x3E280000),
-    ],
-    run_places: [
-        Dword::new(0x3B000000),
-        Dword::new(0x3B000000),
-        Dword::new(0x3D840000),
-        Dword::new(0x3D840000),
-    ],
-    fade: Dword::new(0x10),
-    far: Float::from_bits(0x44800000),
-    size_k: [
-        Float::from_bits(0x3D800000),
-        Float::from_bits(0x3B000000),
-        Float::from_bits(0x0),
-    ],
-    rate_constants: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
-    share_k: Float::from_bits(0x47800000),
-    spawn_random: Dword::new(0x0),
-    pick_random: Dword::new(0x0),
-    _gap_8bc25a: Bytes::new([0; 4]),
-    scaled_setting: Float::from_bits(0x41200000),
-    unread_limit: Float::from_bits(0x4248001A),
-};
-
 impl WindscreenFlakeState {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WindscreenFlakeState {
+            done: Dword::new(0x0),
+            curve_ends: [Float::from_bits(0x44800000), Float::from_bits(0x3A0EA4A9)],
+            steps: Dword::new(0x4),
+            step_angle: Float::from_bits(0x40000000),
+            rate_share: Float::from_bits(0x3F800000),
+            length_divisors: [Float::from_bits(0x45000000), Float::from_bits(0x44800000)],
+            share: Float::from_bits(0x47800000),
+            places: [
+                Dword::new(0x3B000000),
+                Dword::new(0x3B000000),
+                Dword::new(0x3D840000),
+                Dword::new(0x3D840000),
+            ],
+            unread_floats: [
+                Float::from_bits(0x46800000),
+                Float::from_bits(0x46800000),
+                Float::from_bits(0x46800000),
+                Float::from_bits(0x46800000),
+            ],
+            unread_dwords: [
+                Dword::new(0x0),
+                Dword::new(0x3F000000),
+                Dword::new(0x3F7FFFFE),
+                Dword::new(0x3F7FFFFE),
+            ],
+            axis_factors: [
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x44800000),
+                Float::from_bits(0x44800000),
+                Float::from_bits(0x44800000),
+            ],
+            halves: [const { Float::from_bits(0x3F000000) }; 6],
+            unread_rhw: Dword::new(0x43800000),
+            setup_places: [
+                Dword::new(0x3DE80000),
+                Dword::new(0x3D000000),
+                Dword::new(0x3E7C0000),
+                Dword::new(0x3E280000),
+            ],
+            run_places: [
+                Dword::new(0x3B000000),
+                Dword::new(0x3B000000),
+                Dword::new(0x3D840000),
+                Dword::new(0x3D840000),
+            ],
+            fade: Dword::new(0x10),
+            far: Float::from_bits(0x44800000),
+            size_k: [
+                Float::from_bits(0x3D800000),
+                Float::from_bits(0x3B000000),
+                Float::from_bits(0x0),
+            ],
+            rate_constants: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
+            share_k: Float::from_bits(0x47800000),
+            spawn_random: Dword::new(0x0),
+            pick_random: Dword::new(0x0),
+            _gap_8bc25a: Bytes::new([0; 4]),
+            scaled_setting: Float::from_bits(0x41200000),
+            unread_limit: Float::from_bits(0x4248001A),
+        }
+    }
     pub const START: usize = 0x8BC18A;
     pub const LEN: usize = 0xDC;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const WINDSCREEN_FLAKE_STATE) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.windscreen_flakes.state,
+        ) as usize
+    }
+}
+
+/// The windscreen flakes' state, one part of the effects' owner (`effects::owner::Effects`).
+/// The pong box and the plane draw with its frame and corners too.
+pub struct WindscreenFlakes {
+    pub timing: WindscreenFlakeTiming,
+    pub tables: WindscreenFlakeTables,
+    pub items: WindscreenFlakeItems,
+    pub state: WindscreenFlakeState,
+}
+
+impl WindscreenFlakes {
+    pub const fn new() -> Self {
+        WindscreenFlakes {
+            timing: WindscreenFlakeTiming::new(),
+            tables: WindscreenFlakeTables::new(),
+            items: WindscreenFlakeItems::new(),
+            state: WindscreenFlakeState::new(),
+        }
     }
 }
 

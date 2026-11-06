@@ -9,23 +9,24 @@
 //! Caller: `effects::run_pong`.
 
 use crate::effects::pong::PONG;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::session::Dword;
 
 /// A number of the score as three digits.
-fn number(at: &Dword) -> Result<(), Refused> {
+fn number(fl: &WindscreenFlakes, at: &Dword) -> Result<(), Refused> {
     use crate::effects::pong_digit::pong_digit;
     let (n, [hundreds, tens, ones]) = rc2k_core::effects::pong::score_digits(at.get());
     at.set(n);
-    pong_digit(hundreds)?;
-    pong_digit(tens)?;
-    pong_digit(ones)?;
+    pong_digit(fl, hundreds)?;
+    pong_digit(fl, tens)?;
+    pong_digit(fl, ones)?;
     Ok(())
 }
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::pong::{best, score_digits}`
-pub fn pong_score() -> Result<(), Refused> {
+pub fn pong_score(fl: &WindscreenFlakes) -> Result<(), Refused> {
     use rc2k_core::effects::pong::{SCORE_AT, SCORE_GAP, best};
     let p = &PONG;
     let hits = p.hits.get();
@@ -35,8 +36,8 @@ pub fn pong_score() -> Result<(), Refused> {
     }
     p.digit_at[0].set(SCORE_AT[0]);
     p.digit_at[1].set(SCORE_AT[1]);
-    number(&p.hits)?;
+    number(fl, &p.hits)?;
     p.digit_at[0].set(p.digit_at[0].get().wrapping_add(SCORE_GAP));
-    number(&p.best)?;
+    number(fl, &p.best)?;
     Ok(())
 }

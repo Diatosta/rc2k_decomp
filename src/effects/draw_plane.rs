@@ -25,7 +25,7 @@ use crate::effects::plain::ldi_cell;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
 use crate::effects::windscreen_drop_vars::HEX;
-use crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_TABLES;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
@@ -74,18 +74,13 @@ impl PlaneTuning {
 }
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.
-fn plane_axes(m: &MarksSettings) {
-    plane_axes_x87(
-        m,
-        &WINDSCREEN_FLAKE_TIMING,
-        &WINDSCREEN_FLAKE_TABLES,
-        &PLANE_TUNING,
-    );
+fn plane_axes(fl: &WindscreenFlakes, m: &MarksSettings) {
+    plane_axes_x87(m, &fl.timing, &fl.tables, &PLANE_TUNING);
 }
 
 /// The original's 0x4C900D .. 0x4C906D: the second axis (`flt_89CF26` ..), its length over `flt_934F38` into `flt_89CEF2`.
-fn plane_up(m: &MarksSettings) {
-    plane_up_x87(m, &WINDSCREEN_FLAKE_TABLES, &PLANE_TUNING);
+fn plane_up(fl: &WindscreenFlakes, m: &MarksSettings) {
+    plane_up_x87(m, &fl.tables, &PLANE_TUNING);
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
@@ -94,13 +89,13 @@ fn plane_place(m: &MarksSettings) {
 }
 
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
-fn plane_facing() {
-    plane_facing_x87(&WINDSCREEN_FLAKE_TABLES);
+fn plane_facing(fl: &WindscreenFlakes) {
+    plane_facing_x87(&fl.tables);
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
-fn plane_corners() {
-    plane_corners_x87(&WINDSCREEN_FLAKE_TABLES, &QUAD_3);
+fn plane_corners(fl: &WindscreenFlakes) {
+    plane_corners_x87(&fl.tables, &QUAD_3);
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
@@ -109,22 +104,22 @@ fn plane_projected() {
 }
 
 /// The Rust version (see the header).
-pub fn draw_plane() -> Result<(), Refused> {
+pub fn draw_plane(fl: &WindscreenFlakes) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
     let corner: u32 = QUAD_3.corner.get();
-    plane_axes(m);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| &WINDSCREEN_FLAKE_TABLES.axes[n]);
+    plane_axes(fl, m);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
-    plane_up(m);
+    plane_up(fl, m);
     normalise(a1);
     cross(a1, a0, a2);
     normalise(a2);
     cross(a0, a2, a1);
-    crate::effects::scale_axes::scale_axes();
+    crate::effects::scale_axes::scale_axes(fl);
     plane_place(m);
     normalise(&HEX.place);
-    plane_facing();
+    plane_facing(fl);
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
@@ -139,7 +134,7 @@ pub fn draw_plane() -> Result<(), Refused> {
         set_render_state(2, state);
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-    plane_corners();
+    plane_corners(fl);
     let entry = &MARK_CORNERS.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
     let uv_k: u32 = DRAW_WORK.uv_k.bits();
@@ -194,9 +189,7 @@ pub fn draw_plane() -> Result<(), Refused> {
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
-use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_TIMING, WindscreenFlakeTables, WindscreenFlakeTiming,
-};
+use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 

@@ -7,13 +7,12 @@
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
 /// The Rust version (see the header).
-pub fn scale_axes() {
-    scale_axes_x87(&WINDSCREEN_FLAKE_TABLES, &WINDSCREEN_FLAKE_STATE);
+pub fn scale_axes(fl: &WindscreenFlakes) {
+    scale_axes_x87(&fl.tables, &fl.state);
 }
 
-use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES, WindscreenFlakeState, WindscreenFlakeTables,
-};
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
 use crate::math::x87_float as bh;
 
 /// `scale_axes`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.

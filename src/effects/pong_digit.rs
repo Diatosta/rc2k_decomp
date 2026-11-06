@@ -9,15 +9,16 @@
 //! before anything.
 
 use crate::effects::pong::PONG;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 
 /// The Rust version (see the header): `digit` (eax).
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
-pub fn pong_digit(digit: u32) -> Result<(), Refused> {
+pub fn pong_digit(fl: &WindscreenFlakes, digit: u32) -> Result<(), Refused> {
     use rc2k_core::effects::pong as core;
     let first = core::pattern(digit)? as usize;
     for (n, (col, row)) in core::cells().enumerate() {
-        crate::effects::pong_cell::pong_cell(PONG.digit_patterns.get(first + n), col, row)?;
+        crate::effects::pong_cell::pong_cell(fl, PONG.digit_patterns.get(first + n), col, row)?;
     }
     PONG.digit_at[0].set(PONG.digit_at[0].get().wrapping_add(core::DIGIT_STEP));
     Ok(())

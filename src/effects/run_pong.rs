@@ -12,6 +12,7 @@
 use crate::effects::move_pong_ball::move_pong_ball;
 use crate::effects::move_pong_bat::move_pong_bat;
 use crate::effects::pong;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::scene::matrix3::extended;
@@ -24,7 +25,7 @@ fn box_values(place: &[Float; 2], size: &[Float; 2]) -> [[u8; 10]; 4] {
 }
 
 /// The Rust version (see the header).
-pub fn run_pong() -> Result<(), Refused> {
+pub fn run_pong(fl: &WindscreenFlakes) -> Result<(), Refused> {
     use crate::effects::draw_pong_box::draw_pong_box;
     let p = &pong::PONG;
     {
@@ -34,15 +35,15 @@ pub fn run_pong() -> Result<(), Refused> {
         {
             return Ok(());
         }
-        crate::effects::pong_setup::pong_setup();
+        crate::effects::pong_setup::pong_setup(fl);
         move_pong_bat();
         let steps = p.steps.get() as i32;
         for _ in 0..steps.max(0) {
             move_pong_ball();
         }
-        draw_pong_box(box_values(&p.ball, &p.ball_size));
-        draw_pong_box(box_values(&p.bat, &p.bat_size));
-        crate::effects::pong_score::pong_score()?;
+        draw_pong_box(fl, box_values(&p.ball, &p.ball_size));
+        draw_pong_box(fl, box_values(&p.bat, &p.bat_size));
+        crate::effects::pong_score::pong_score(fl)?;
     }
     Ok(())
 }

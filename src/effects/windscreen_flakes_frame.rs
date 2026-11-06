@@ -20,6 +20,7 @@ use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
 use crate::effects::windscreen_drop_vars::HEX;
 use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -28,18 +29,13 @@ use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
-fn frame_axes(m: &MarksSettings) {
-    frame_axes_x87(
-        m,
-        &WINDSCREEN_FLAKE_TIMING,
-        &WINDSCREEN_FLAKE_TABLES,
-        &WINDSCREEN_FLAKE_STATE,
-    );
+fn frame_axes(fl: &WindscreenFlakes, m: &MarksSettings) {
+    frame_axes_x87(m, &fl.timing, &fl.tables, &fl.state);
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
-fn frame_up(m: &MarksSettings) {
-    frame_up_x87(m, &WINDSCREEN_FLAKE_TABLES, &WINDSCREEN_FLAKE_STATE);
+fn frame_up(fl: &WindscreenFlakes, m: &MarksSettings) {
+    frame_up_x87(m, &fl.tables, &fl.state);
 }
 
 /// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
@@ -48,37 +44,33 @@ fn frame_place(m: &MarksSettings) {
 }
 
 /// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
-fn frame_facing() {
-    frame_facing_x87(&WINDSCREEN_FLAKE_TABLES);
+fn frame_facing(fl: &WindscreenFlakes) {
+    frame_facing_x87(&fl.tables);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_frame() -> Result<(), Refused> {
+pub fn windscreen_flakes_frame(fl: &WindscreenFlakes) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
-    frame_axes(m);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| &WINDSCREEN_FLAKE_TABLES.axes[n]);
+    frame_axes(fl, m);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
-    frame_up(m);
+    frame_up(fl, m);
     normalise(a1);
     cross(a1, a0, a2);
     normalise(a2);
     cross(a0, a2, a1);
-    crate::effects::scale_axes::scale_axes();
+    crate::effects::scale_axes::scale_axes(fl);
     frame_place(m);
     normalise(&HEX.place);
-    frame_facing();
+    frame_facing(fl);
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    crate::effects::run_pong::run_pong()?;
-    if x87::mul_to_int(
-        WINDSCREEN_FLAKE_TIMING.rate.bits(),
-        WINDSCREEN_FLAKE_STATE.share.bits(),
-    ) == 0
-    {
+    crate::effects::run_pong::run_pong(fl)?;
+    if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }
-    crate::effects::run_windscreen_flakes::run_windscreen_flakes()?;
+    crate::effects::run_windscreen_flakes::run_windscreen_flakes(fl)?;
     let marks = crate::effects::setup::marks()?;
     if marks.listener_switch_6.get() == 0 {
         return Ok(());
@@ -86,14 +78,13 @@ pub fn windscreen_flakes_frame() -> Result<(), Refused> {
     if MARKS_KIND_FLOATS.running.bits() == 0 {
         return Ok(());
     }
-    windscreen_flakes_step()?;
+    windscreen_flakes_step(fl)?;
     Ok(())
 }
 
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{
-    WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES, WINDSCREEN_FLAKE_TIMING, WindscreenFlakeState,
-    WindscreenFlakeTables, WindscreenFlakeTiming,
+    WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.

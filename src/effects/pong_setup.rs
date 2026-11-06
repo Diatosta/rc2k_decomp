@@ -9,10 +9,12 @@
 
 use crate::effects::pong::PONG_RULES;
 use crate::effects::windscreen_flakes_setup::setup_with;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 /// The Rust version (see the header).
-pub fn pong_setup() {
+pub fn pong_setup(fl: &WindscreenFlakes) {
     setup_with(
+        fl,
         PONG_RULES
             .setup_places
             .each_ref()

@@ -16,7 +16,8 @@ use crate::effects::edges::EDGE_MASK;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
-use crate::effects::windscreen_flakes_store::{WINDSCREEN_FLAKE_ITEMS, WINDSCREEN_FLAKE_STATE};
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
@@ -32,25 +33,25 @@ fn less(k: u32, z: u32) -> [u8; 10] {
 }
 
 /// The Rust version (see the header).
-pub fn run_windscreen_flakes() -> Result<(), Refused> {
+pub fn run_windscreen_flakes(fl: &WindscreenFlakes) -> Result<(), Refused> {
     let old = x87::set_chop();
-    run()?;
+    run(fl)?;
     x87::set_control(old);
     Ok(())
 }
 
-fn run() -> Result<(), Refused> {
+fn run(fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
-        crate::effects::windscreen_flakes_setup::windscreen_flakes_setup();
-        let [a, b, c, d]: [u32; 4] = read_bits(&WINDSCREEN_FLAKE_STATE.run_places);
+        crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
+        let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            windscreen_flakes_spawn()?;
+            windscreen_flakes_spawn(fl)?;
         }
-        for item in &WINDSCREEN_FLAKE_ITEMS.items {
+        for item in &fl.items.items {
             if item.live.get() != 1 {
                 continue;
             }
@@ -70,16 +71,14 @@ fn run() -> Result<(), Refused> {
                 item.live.set(0);
                 continue;
             }
-            let alpha = x87::int_over_int_to_int(
-                item.age.get() as i32,
-                WINDSCREEN_FLAKE_STATE.fade.get() as i32,
-            ) as u32;
+            let alpha =
+                x87::int_over_int_to_int(item.age.get() as i32, fl.state.fade.get() as i32) as u32;
             let colour = ((!alpha) << 24) | (FRAME_WORK.view_light.bits() & 0xFF_FFFF);
             let values = [
-                less(WINDSCREEN_FLAKE_STATE.far.bits(), item.place[1].bits()),
+                less(fl.state.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),
             ];
-            crate::effects::draw_windscreen_flake::draw_windscreen_flake(item, colour, values);
+            crate::effects::draw_windscreen_flake::draw_windscreen_flake(fl, item, colour, values);
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

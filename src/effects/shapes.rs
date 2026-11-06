@@ -6,6 +6,7 @@
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK;
 use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
@@ -78,9 +79,8 @@ pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.
 mod squares {
     use super::{CURVE, RADII};
-    use crate::effects::windscreen_flakes_store::{
-        WINDSCREEN_FLAKE_ITEMS, WINDSCREEN_FLAKE_STATE, WINDSCREEN_FLAKE_TABLES,
-    };
+    use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+
     use crate::errors::{BadInput, Refused};
     use crate::math::x87;
     use crate::session::write_bits;
@@ -88,9 +88,9 @@ mod squares {
     pub const SIDES: usize = 4;
 
     /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
-    pub fn first(resume: u32) -> Result<bool, Refused> {
+    pub fn first(fl: &WindscreenFlakes, resume: u32) -> Result<bool, Refused> {
         use rc2k_core::effects::waves::{Mark, mark};
-        match mark(WINDSCREEN_FLAKE_STATE.done.get(), resume) {
+        match mark(fl.state.done.get(), resume) {
             Mark::Elsewhere => {
                 Err(BadInput("a shapes' mark neither 0 nor where it goes on").into())
             }
@@ -99,53 +99,47 @@ mod squares {
     }
 
     /// The items cleared.
-    fn clear_items() {
-        for item in &WINDSCREEN_FLAKE_ITEMS.items {
+    fn clear_items(fl: &WindscreenFlakes) {
+        for item in &fl.items.items {
             item.live.set(0);
         }
     }
 
     /// The items cleared, the curve, the circles (plain floats: `rc2k_core::effects::shapes`).
-    pub fn make_plain() {
+    pub fn make_plain(fl: &WindscreenFlakes) {
         use rc2k_core::effects::shapes as core;
-        clear_items();
+        clear_items(fl);
         let f = |bits: u32| f32::from_bits(bits);
         let curve = core::curve(
-            f(WINDSCREEN_FLAKE_STATE.curve_ends[0].bits()),
-            f(WINDSCREEN_FLAKE_STATE.curve_ends[1].bits()),
+            f(fl.state.curve_ends[0].bits()),
+            f(fl.state.curve_ends[1].bits()),
         );
-        write_bits(&WINDSCREEN_FLAKE_TABLES.curve, curve.map(f32::to_bits));
-        let (c, d): (i32, f32) = (
-            WINDSCREEN_FLAKE_STATE.steps.get() as i32,
-            f(WINDSCREEN_FLAKE_STATE.step_angle.bits()),
-        );
+        write_bits(&fl.tables.curve, curve.map(f32::to_bits));
+        let (c, d): (i32, f32) = (fl.state.steps.get() as i32, f(fl.state.step_angle.bits()));
         for n in 0..RADII as usize {
-            let r = f(WINDSCREEN_FLAKE_TABLES.radii[n].bits());
+            let r = f(fl.tables.radii[n].bits());
             for (k, [x, y]) in core::circle(r, SIDES as u32, c, d).into_iter().enumerate() {
-                WINDSCREEN_FLAKE_TABLES.points[n][k][0].set_bits(x.to_bits());
-                WINDSCREEN_FLAKE_TABLES.points[n][k][1].set_bits(y.to_bits());
+                fl.tables.points[n][k][0].set_bits(x.to_bits());
+                fl.tables.points[n][k][1].set_bits(y.to_bits());
             }
         }
     }
 
     /// The items cleared, the curve, the circles.
-    pub fn make() {
-        clear_items();
-        let (a, b) = (
-            WINDSCREEN_FLAKE_STATE.curve_ends[0].bits(),
-            WINDSCREEN_FLAKE_STATE.curve_ends[1].bits(),
-        );
+    pub fn make(fl: &WindscreenFlakes) {
+        clear_items(fl);
+        let (a, b) = (fl.state.curve_ends[0].bits(), fl.state.curve_ends[1].bits());
         for n in 0..CURVE as usize {
             let i = 8 * n as i32;
-            WINDSCREEN_FLAKE_TABLES.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
+            fl.tables.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             super::circle_cells(
-                WINDSCREEN_FLAKE_TABLES.radii[n].bits(),
-                WINDSCREEN_FLAKE_TABLES.points[n].as_flattened(),
+                fl.tables.radii[n].bits(),
+                fl.tables.points[n].as_flattened(),
                 SIDES as u32,
-                WINDSCREEN_FLAKE_STATE.steps.get(),
-                WINDSCREEN_FLAKE_STATE.step_angle.bits(),
+                fl.state.steps.get(),
+                fl.state.step_angle.bits(),
             );
         }
     }
@@ -313,17 +307,15 @@ pub fn set_up_windscreen_drops(resume: u32) -> Result<(), Refused> {
 /// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then
 /// `resume`; nothing else is done once); the square items cleared, their curve and circles
 /// (4 points); then `effects::reset_pong`. Refuses a mark neither 0 nor `resume`.
-fn windscreen_flakes_with(resume: u32, plain: bool) -> Result<(), Refused> {
+fn windscreen_flakes_with(fl: &WindscreenFlakes, resume: u32, plain: bool) -> Result<(), Refused> {
     {
-        if squares::first(resume)? {
-            crate::effects::windscreen_flakes_store::WINDSCREEN_FLAKE_STATE
-                .done
-                .set(resume);
+        if squares::first(fl, resume)? {
+            fl.state.done.set(resume);
         }
         if plain {
-            squares::make_plain();
+            squares::make_plain(fl);
         } else {
-            squares::make();
+            squares::make(fl);
         }
         crate::effects::splines::reset_pong();
     }
@@ -331,6 +323,6 @@ fn windscreen_flakes_with(resume: u32, plain: bool) -> Result<(), Refused> {
 }
 
 /// `effects::set_up_windscreen_flakes`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_flakes(resume: u32) -> Result<(), Refused> {
-    windscreen_flakes_with(resume, false)
+pub fn set_up_windscreen_flakes(fl: &WindscreenFlakes, resume: u32) -> Result<(), Refused> {
+    windscreen_flakes_with(fl, resume, false)
 }

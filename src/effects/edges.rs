@@ -89,6 +89,7 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         crate::effects::shapes::WINDSCREEN_DROPS.resume,
     )?;
     crate::effects::shapes::set_up_windscreen_flakes(
+        &crate::effects::owner::effects().windscreen_flakes,
         crate::effects::shapes::WINDSCREEN_FLAKES_RESUME,
     )?;
     Ok(())

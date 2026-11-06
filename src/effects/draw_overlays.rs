@@ -43,8 +43,9 @@ pub fn draw_overlays() -> Result<(), Refused> {
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        crate::effects::draw_plane::draw_plane()?;
-        crate::effects::windscreen_flakes_frame::windscreen_flakes_frame()?;
+        let fl = &crate::effects::owner::effects().windscreen_flakes;
+        crate::effects::draw_plane::draw_plane(fl)?;
+        crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(fl)?;
         crate::effects::windscreen_drops_top::windscreen_drops_top()?;
         draw_shadow_with(&SECOND, false)
     }

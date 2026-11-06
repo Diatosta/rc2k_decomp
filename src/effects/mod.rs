@@ -82,6 +82,7 @@ pub mod masks;
 pub mod morph_object_points;
 pub mod move_pong_ball;
 pub mod move_pong_bat;
+pub mod owner;
 pub mod pick_shapes;
 pub mod pick_windscreen_drop;
 pub mod pick_windscreen_flake;
