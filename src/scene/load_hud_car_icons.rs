@@ -25,7 +25,7 @@ use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
+use crate::scene::file_numbers_store::texts;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
@@ -46,7 +46,7 @@ const NAMES: [usize; 4] = [
 /// kind 0xC1 has no texture) are read by no caller (taint at its one site, in
 /// `reload_system_textures`: 0 read points).
 // Converted: `rc2k_core::scene::car_icons`
-pub fn load_hud_car_icons() -> Result<(), Refused> {
+pub fn load_hud_car_icons(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use rc2k_core::scene::car_icons;
     let texture: u32 = KIND_TEXTURES.kind_first_textures[193].bits();
     if texture == u32::MAX {
@@ -68,15 +68,18 @@ pub fn load_hud_car_icons() -> Result<(), Refused> {
     car_icons::check_numbers(numbers)?;
     for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
         let names = car_icons::pictures(number);
-        upload_car_icon(&CarIcon {
-            sheet: FILE_NUMBERS.text_ptr(NAMES[names]),
-            alpha_sheet: FILE_NUMBERS.text_ptr(NAMES[names + 1]),
-            texture,
-            sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
-            sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),
-            target_x: car_icons::COLUMN,
-            target_y,
-        })?;
+        upload_car_icon(
+            &scene.icon_upload,
+            &CarIcon {
+                sheet: scene.file_numbers.text_ptr(NAMES[names]),
+                alpha_sheet: scene.file_numbers.text_ptr(NAMES[names + 1]),
+                texture,
+                sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
+                sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),
+                target_x: car_icons::COLUMN,
+                target_y,
+            },
+        )?;
     }
     Ok(())
 }

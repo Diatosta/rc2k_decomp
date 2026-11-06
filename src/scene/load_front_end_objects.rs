@@ -24,7 +24,7 @@ use crate::scene::reset_objects::reset_objects;
 /// The Rust version. The registers the original leaves (eax the faces' memory used, ecx
 /// 0x100, edi, ebx) are read by no caller (taint at its sites: `race::set_object_kinds`' and
 /// `load_front_end_objects_logged`'s).
-pub fn load_front_end_objects() -> Result<(), Refused> {
+pub fn load_front_end_objects(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     reset_objects()?;
     crate::scene::object_slots_store::OBJECT_SLOTS
         .texture_count
@@ -36,7 +36,7 @@ pub fn load_front_end_objects() -> Result<(), Refused> {
         let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
         OBJECT_WORK.loading_kind.set_bits(kind);
         OBJECT_WORK.loading_slot.set_bits(slot);
-        load_object()?;
+        load_object(scene)?;
     }
     let cursor: u32 = OBJECT_WORK.face_cursor.bits();
     OBJECT_WORK

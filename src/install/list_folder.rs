@@ -13,18 +13,18 @@
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};
 use crate::install::name_tables::{FOLDERS, text_at};
-use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// The folder `path` (eax) added to the folders' table.
-pub fn list_folder(path: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn list_folder(
+    g: &'static crate::install::owner::Install,
+    path: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     let path = text_at(resolve_path(path)?)?;
     let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;
-    INSTALLER_RUN.dir_cursor.set(used);
-    INSTALLER_RUN.dir_scan.set(scan);
-    INSTALLER_RUN
-        .dir_count
-        .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
+    g.run.dir_cursor.set(used);
+    g.run.dir_scan.set(scan);
+    g.run.dir_count.set(g.run.dir_count.get().wrapping_add(1));
     // Converted: `rc2k_core::install::script::room_left`.
     script::room_left(used, script::FOLDERS_ROOM, script::FOLDERS_FULL).map_err(fatal)?;
     Ok(())

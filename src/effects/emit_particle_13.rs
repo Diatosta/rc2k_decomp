@@ -20,10 +20,10 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::paths::Paths;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::effects::setup::CLOCK;
-use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -51,6 +51,7 @@ fn refusal(ring: &Ring, object: &'static MarkCar) -> Result<Option<&'static str>
 
 /// The Rust version (see the header).
 pub fn emit_particle_13(
+    paths: &Paths,
     particles: &Particles,
     ring: &Ring,
     object: &'static MarkCar,
@@ -66,7 +67,7 @@ pub fn emit_particle_13(
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car()?;
     let cells = car.whole()?;
-    let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
+    let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,
         MARKS_FLOATS.plus_65_536.bits(),

@@ -34,7 +34,7 @@ fn globals() -> Result<Globals, BadInput> {
             "the base directory",
         )?, // g_baseDirectory
         b: text_at(
-            GamePtr::to(&crate::install::installer::INSTALL_TEXTS.base_b),
+            GamePtr::to(&crate::install::owner::install().texts.base_b),
             "the second base directory",
         )?,
         pct: text_at(

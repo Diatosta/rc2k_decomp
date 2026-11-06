@@ -15,7 +15,6 @@
 
 use crate::install::installer::{rb, rd, refuse, rl, rw, wb, wd, ww};
 use crate::install::page_links::PageLink;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::Place;
 use crate::pointers::GamePtr;
@@ -59,11 +58,14 @@ impl PageEntry {
 
 /// The pieces' number (the layout's first dword).
 pub fn piece_count() -> u32 {
-    INSTALLER_PAGES.layout.get_u32(0)
+    crate::install::owner::install().pages.layout.get_u32(0)
 }
 
 pub fn set_piece_count(count: u32) {
-    wd(Place::from(&INSTALLER_PAGES.layout), count);
+    wd(
+        Place::from(&crate::install::owner::install().pages.layout),
+        count,
+    );
 }
 
 /// A piece of the layout.
@@ -77,7 +79,10 @@ impl Piece {
     /// Piece `n` (wrapping as the original's sum); a piece outside the layout is refused
     /// when it is read or written.
     pub fn nth(n: u32) -> Self {
-        Self(Place::from(&INSTALLER_PAGES.layout).add(4 + PIECE.wrapping_mul(n)))
+        Self(
+            Place::from(&crate::install::owner::install().pages.layout)
+                .add(4 + PIECE.wrapping_mul(n)),
+        )
     }
 
     /// +0: the item's kind and marks.
@@ -161,7 +166,9 @@ impl BoxRecord {
     /// The box a link names; none is the title's box.
     pub fn linked(link: PageLink) -> Self {
         if link.is_none() {
-            return Self(Place::from(&INSTALLER_PAGES.title_box));
+            return Self(Place::from(
+                &crate::install::owner::install().pages.title_box,
+            ));
         }
         Self(Place::from(link.in_pages().unwrap_or_else(|e| refuse(e))))
     }
@@ -192,8 +199,8 @@ mod tests {
     fn every_page_resolves_its_links() {
         let mut seen = 0;
         for first in [
-            PageEntry::of(&INSTALLER_PAGES.normal_pages),
-            PageEntry::of(&INSTALLER_PAGES.update_pages),
+            PageEntry::of(&crate::install::owner::install().pages.normal_pages),
+            PageEntry::of(&crate::install::owner::install().pages.update_pages),
         ] {
             let mut entries = vec![first];
             while let Some(entry) = entries.pop() {

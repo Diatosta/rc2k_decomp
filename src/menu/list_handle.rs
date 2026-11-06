@@ -127,27 +127,29 @@ impl ListItem {
     /// InstallerPages`), where every list of the installer lives: what a piece keeps of its
     /// item. An offset with no item's room before the pages' end is refused.
     pub fn in_pages(offset: u32) -> Result<Self, crate::errors::BadInput> {
-        use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
+        use crate::install::vars::InstallerPages;
         if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
             return Err(crate::errors::BadInput(
                 "an item outside the installer's pages",
             ));
         }
         Ok(Self(
-            GamePtr::to(&INSTALLER_PAGES).offset(offset).limited(ITEM),
+            GamePtr::to(&crate::install::owner::install().pages)
+                .offset(offset)
+                .limited(ITEM),
         ))
     }
 
     /// The title's item (the pages' `title` record).
     pub fn of_title() -> Self {
-        Self(GamePtr::to(&crate::install::vars::INSTALLER_PAGES.title).limited(ITEM))
+        Self(GamePtr::to(&crate::install::owner::install().pages.title).limited(ITEM))
     }
 
     /// Where this item is in the installer's pages (see `in_pages`); an item outside them is
     /// refused.
     pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
-        use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
-        let start = GamePtr::to(&INSTALLER_PAGES).addr();
+        use crate::install::vars::InstallerPages;
+        let start = GamePtr::to(&crate::install::owner::install().pages).addr();
         let offset = self.0.addr().wrapping_sub(start);
         if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
             return Err(crate::errors::BadInput(

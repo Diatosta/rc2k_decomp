@@ -16,7 +16,7 @@ use crate::errors::{BadInput, Refused};
 mod unix;
 /// Whether an edit field's text is the folder typed on the page.
 pub fn is_folder_field(text: crate::place::Place) -> bool {
-    text.game_ptr() == crate::pointers::GamePtr::to(&crate::install::vars::INSTALLER_PATHS.typed)
+    text.game_ptr() == crate::pointers::GamePtr::to(&crate::install::owner::install().paths.typed)
 }
 
 /// An edit field's most bytes: the folder field's by the system's rules, any other's its

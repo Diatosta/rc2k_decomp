@@ -11,8 +11,6 @@
 //! Caller: `net::settings_loop`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
 use crate::net::lobby::movsb;
 use crate::net::store::NET;
 use rc2k_core::net::chat;
@@ -25,16 +23,20 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match INSTALLER_PAGES.choice.get() {
+    match crate::install::owner::install().pages.choice.get() {
         chat::NAME => {
             if NET.machine_name.get(0) == 0 {
-                movsb(&NET.machine_name, &INSTALLER_PATHS.script_path, 0x40)?;
+                movsb(
+                    &NET.machine_name,
+                    &crate::install::owner::install().paths.script_path,
+                    0x40,
+                )?;
             }
         }
         chat::MOST_PLAYERS => {
             let number = {
                 crate::settings::parse_number::parse_number(crate::pointers::GamePtr::to(
-                    &INSTALLER_PATHS.path_a,
+                    &crate::install::owner::install().paths.path_a,
                 ))
             };
             NET.most_players.set(chat::most_players(

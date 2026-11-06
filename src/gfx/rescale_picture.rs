@@ -65,32 +65,36 @@ pub struct Rescaler {
     pub components: Bytes<4>,
 }
 
-/// The rescaler's variables; the first values are the image's.
-pub static RESCALE: Rescaler = Rescaler {
-    copy_memory: crate::memory::ListCells::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-    _gap_10: [const { Dword::new(0) }; 12],
-    step_x: Dword::new(0),
-    step_x_fraction: Dword::new(0),
-    step_y: Dword::new(0),
-    step_y_fraction: Dword::new(0),
-    weight_x: Dword::new(0),
-    weight_y: Dword::new(0),
-    columns_left: Dword::new(0),
-    rows_left: Dword::new(0),
-    components: Bytes::new([0; 4]),
-};
+impl Rescaler {
+    /// The rescaler's variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Rescaler {
+            copy_memory: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+            _gap_10: [const { Dword::new(0) }; 12],
+            step_x: Dword::new(0),
+            step_x_fraction: Dword::new(0),
+            step_y: Dword::new(0),
+            step_y_fraction: Dword::new(0),
+            weight_x: Dword::new(0),
+            weight_y: Dword::new(0),
+            columns_left: Dword::new(0),
+            rows_left: Dword::new(0),
+            components: Bytes::new([0; 4]),
+        }
+    }
+}
 
 // ---- Rust version ----
 
 // Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
 
-pub fn rescale_picture() -> Result<(), Refused> {
+pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
     let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
     let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
     let from = DECODER.pixels.get();
@@ -105,7 +109,7 @@ pub fn rescale_picture() -> Result<(), Refused> {
     // The copy is Rust's memory (phase 12), counted on the list as the game's block
     // was; its rows are read in it, not through the row table (which the original
     // fills with the copy's rows and nothing reads before it is filled again).
-    let list = crate::pointers::GamePtr::to(&RESCALE.copy_memory);
+    let list = crate::pointers::GamePtr::to(&rescaler.copy_memory);
     let row_bytes = from_width.wrapping_mul(4);
     let mut copy = crate::memory::owned::counted(list, from_width.wrapping_mul(from_height) << 2)?;
     let gap: u32 = DECODER.row_gap.get();
@@ -146,14 +150,14 @@ pub fn rescale_picture() -> Result<(), Refused> {
         )
         .expect("the sizes were checked")
     })?;
-    RESCALE.step_x.set(work.step_x);
-    RESCALE.step_x_fraction.set(work.step_x_fraction);
-    RESCALE.step_y.set(work.step_y);
-    RESCALE.step_y_fraction.set(work.step_y_fraction);
-    RESCALE.weight_x.set(work.weight_x);
-    RESCALE.weight_y.set(work.weight_y);
-    RESCALE.columns_left.set(0);
-    RESCALE.rows_left.set(0);
+    rescaler.step_x.set(work.step_x);
+    rescaler.step_x_fraction.set(work.step_x_fraction);
+    rescaler.step_y.set(work.step_y);
+    rescaler.step_y_fraction.set(work.step_y_fraction);
+    rescaler.weight_x.set(work.weight_x);
+    rescaler.weight_y.set(work.weight_y);
+    rescaler.columns_left.set(0);
+    rescaler.rows_left.set(0);
     free_list(list)?;
     Ok(())
 }
@@ -165,7 +169,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&RESCALE, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.rescale, START, START + LEN);
     }
 
     #[test]
@@ -175,11 +179,11 @@ mod tests {
         assert_eq!(offset_of!(Rescaler, components), 0x4F50BC - START);
         assert_eq!(
             crate::moved::place(START),
-            RESCALE.copy_memory.addr() as usize
+            crate::gfx::owner::GFX.rescale.copy_memory.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F50BC),
-            RESCALE.components.addr() as usize
+            crate::gfx::owner::GFX.rescale.components.addr() as usize
         );
     }
 }

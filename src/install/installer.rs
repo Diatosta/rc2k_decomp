@@ -46,14 +46,18 @@ pub struct InstallTexts {
 }
 
 /// The installer's texts; the first values are the image's.
-pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
-    base_b: crate::session::Bytes::new(*b"\0"),
-    other_dir: crate::session::Bytes::new(*b"\\\0"),
-    dot: crate::session::Bytes::new(*b".\0"),
-    dotdot: crate::session::Bytes::new(*b"..\0"),
-    star: crate::session::Bytes::new(*b"*.*\0"),
-    record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
-};
+impl InstallTexts {
+    pub const fn new() -> Self {
+        InstallTexts {
+            base_b: crate::session::Bytes::new(*b"\0"),
+            other_dir: crate::session::Bytes::new(*b"\\\0"),
+            dot: crate::session::Bytes::new(*b".\0"),
+            dotdot: crate::session::Bytes::new(*b"..\0"),
+            star: crate::session::Bytes::new(*b"*.*\0"),
+            record_path: crate::session::Bytes::new(*b"var\\ral.zog\0"),
+        }
+    }
+}
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
 
@@ -421,22 +425,27 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
 /// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
 /// disc's install) and the registration.
-pub fn page_action(place: u32, state: u32, list: ListMenu) -> Result<(), Refused> {
+pub fn page_action(
+    g: &'static crate::install::owner::Install,
+    place: u32,
+    state: u32,
+    list: ListMenu,
+) -> Result<(), Refused> {
     use crate::install as i;
     match place {
-        0x414199 => i::language_page::language_page(state, list)?,
-        0x4141EF => i::mark_main_page::mark_main_page(list),
-        0x41422B => i::mode_page::mode_page(state),
-        0x41425E => i::drive_page::drive_page(state, list),
-        0x4142C7 => i::room_page::room_page(state),
-        0x4142F5 => i::folder_page::folder_page(state, list),
-        0x41432F => i::dxsetup_page::dxsetup_page(state),
-        0x414347 => i::finish_page::finish_page(state),
-        0x4130CD => logged("install", i::install_files::install_files())?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall())?,
-        0x413629 => i::open_installed::open_installed()?,
-        0x413650 => i::ask_registration::ask_registration(),
-        0x41675B => i::install_clio::install_clio()?,
+        0x414199 => i::language_page::language_page(g, state, list)?,
+        0x4141EF => i::mark_main_page::mark_main_page(g, list),
+        0x41422B => i::mode_page::mode_page(g, state),
+        0x41425E => i::drive_page::drive_page(g, state, list),
+        0x4142C7 => i::room_page::room_page(g, state),
+        0x4142F5 => i::folder_page::folder_page(g, state, list),
+        0x41432F => i::dxsetup_page::dxsetup_page(g, state),
+        0x414347 => i::finish_page::finish_page(g, state),
+        0x4130CD => logged("install", i::install_files::install_files(g))?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall(g))?,
+        0x413629 => i::open_installed::open_installed(g)?,
+        0x413650 => i::ask_registration::ask_registration(g),
+        0x41675B => i::install_clio::install_clio(g)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())
@@ -444,19 +453,27 @@ pub fn page_action(place: u32, state: u32, list: ListMenu) -> Result<(), Refused
 
 /// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
-pub fn key_action(place: u32, key: u32, list: ListMenu) -> Result<bool, Refused> {
+pub fn key_action(
+    g: &'static crate::install::owner::Install,
+    place: u32,
+    key: u32,
+    list: ListMenu,
+) -> Result<bool, Refused> {
     match place {
-        0x41534E => Ok(crate::install::folder_key::folder_key(key, list)),
+        0x41534E => Ok(crate::install::folder_key::folder_key(g, key, list)),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),
     }
 }
 
 /// A link's or an action item's action (+8); the original's zero after it. The game's items
 /// hold only the not-enough-room page's "go on anyway".
-pub fn item_action_at(place: u32) -> Result<bool, Refused> {
+pub fn item_action_at(
+    g: &'static crate::install::owner::Install,
+    place: u32,
+) -> Result<bool, Refused> {
     match place {
         0x4142DA => {
-            crate::install::ignore_room::ignore_room();
+            crate::install::ignore_room::ignore_room(g);
             Ok(true)
         }
         _ => Err(BadInput("an item action that is not one of the installer's").into()),
@@ -484,17 +501,17 @@ mod text_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &INSTALL_TEXTS,
+            &crate::install::owner::install().texts,
             TEXTS_START,
             TEXTS_START + TEXTS_LEN,
         );
         assert_eq!(
             crate::moved::place(TEXTS_START),
-            INSTALL_TEXTS.base_b.addr() as usize
+            crate::install::owner::install().texts.base_b.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5295C0),
-            INSTALL_TEXTS.record_path.addr() as usize
+            crate::install::owner::install().texts.record_path.addr() as usize
         );
     }
 }

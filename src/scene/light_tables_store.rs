@@ -1,7 +1,7 @@
 //! The lighting tables (IDA 0x635118 .. 0x636588; phase 7, typed): the colours the lights
 //! pick from (the light table, two lamp tables, the car light table, a third lamp table),
 //! the view window's mode and the words around it. `#[repr(C)]` with the image's layout,
-//! over the race block's bytes (`LIGHT_TABLES`). Names are readings unless IDA's.
+//! over the race block's bytes (`scene::owner::Scene::light_tables`). Names are readings unless IDA's.
 
 use crate::session::{Bytes, Dword, Word};
 
@@ -29,10 +29,12 @@ pub struct LightTables {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static LIGHT_TABLES: LightTables =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl LightTables {
+    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x635118, the first byte of the piece.
 pub const START: usize = 0x635118;
@@ -44,7 +46,9 @@ const _: () = assert!(END - START == core::mem::size_of::<LightTables>());
 /// Where IDA 0x635118 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&LIGHT_TABLES))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::SCENE.light_tables,
+    ))
 }
 
 #[cfg(test)]
@@ -54,7 +58,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&LIGHT_TABLES, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.light_tables,
+            START,
+            END,
+        );
     }
 
     #[test]

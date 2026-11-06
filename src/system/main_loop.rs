@@ -33,7 +33,6 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::install::vars::{INSTALLER_PAGES, INSTALLER_RUN};
 use crate::session::{CLOCKS, FLAGS};
 
 /// `word_51D752` when the installer's script is set up.
@@ -82,21 +81,22 @@ pub fn main_loop() -> Result<(), Refused> {
     // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
     // update's mark).
-    if INSTALLER_PAGES.script_set_up.get() == INSTALLER_MARK
+    if crate::install::owner::install().pages.script_set_up.get() == INSTALLER_MARK
         || crate::install::portable::is_source_folder()
-        || INSTALLER_RUN.updating.get() == 1
+        || crate::install::owner::install().run.updating.get() == 1
     {
-        crate::install::run_installer::run_installer()?;
+        crate::install::run_installer::run_installer(crate::install::owner::install())?;
         return quit_and_leave();
     }
-    if INSTALLER_RUN.installing.get() != 1 {
+    if crate::install::owner::install().run.installing.get() != 1 {
         crate::install::runs_from_source::source_against_directory(
+            crate::install::owner::install(),
             &mut crate::install::outside::Game,
         )?;
     }
-    INSTALLER_RUN.installing.set(0);
-    INSTALLER_RUN.updating.set(0);
-    INSTALLER_RUN.from_command.set(0);
+    crate::install::owner::install().run.installing.set(0);
+    crate::install::owner::install().run.updating.set(0);
+    crate::install::owner::install().run.from_command.set(0);
     crate::sound::stop_cd_audio::stop_cd_audio();
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());

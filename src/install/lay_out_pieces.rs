@@ -20,7 +20,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
 use crate::install::page_records::{Piece, set_piece_count};
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
@@ -49,7 +48,10 @@ impl ListSource for GameList {
         self.0.item(k).choices().word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
-        INSTALLER_PAGES.kind_fonts.get(4 + 8 * font as usize)
+        crate::install::owner::install()
+            .pages
+            .kind_fonts
+            .get(4 + 8 * font as usize)
     }
 }
 

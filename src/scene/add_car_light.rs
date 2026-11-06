@@ -149,7 +149,7 @@ pub fn add_car_light(car: &Car) {
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(car.marks_count.bits()) >> 8;
-    let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
+    let colour: u32 = crate::scene::owner::scene().light_tables.car_light_table
         [held(amount as i32) as usize]
         .get();
     let mmx = MACHINE.has_mmx.get() != 0;

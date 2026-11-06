@@ -27,8 +27,8 @@ const TOTALS: [Total; 4] = [
 ];
 
 /// The Rust version.
-pub fn load_front_end_objects_logged() -> Result<(), Refused> {
-    crate::scene::load_front_end_objects::load_front_end_objects()?;
+pub fn load_front_end_objects_logged(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::scene::load_front_end_objects::load_front_end_objects(scene)?;
     let text = |s: &'static std::ffi::CStr| s;
     crate::logfile::log_write::log_nul(text(RULE), true, 1);
     crate::logfile::log_write::log_nul(text(LOADED), true, 1);

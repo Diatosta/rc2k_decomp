@@ -12,13 +12,15 @@
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
 /// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
 /// on the next list).
-pub fn item_link(item: ListItem) -> Result<bool, Refused> {
+pub fn item_link(
+    g: &'static crate::install::owner::Install,
+    item: ListItem,
+) -> Result<bool, Refused> {
     let action = item.target();
     let mut next = 0;
     // Converted: `rc2k_core::install::items::link`.
@@ -26,10 +28,10 @@ pub fn item_link(item: ListItem) -> Result<bool, Refused> {
         next = item.count();
         next
     }) {
-        LinkWay::Action => item_action_at(action),
+        LinkWay::Action => item_action_at(g, action),
         LinkWay::Leave(next) => {
-            INSTALLER_PAGES.list_answer.set(next);
-            INSTALLER_PAGES.list_leave.set(1);
+            g.pages.list_answer.set(next);
+            g.pages.list_leave.set(1);
             Ok(next == 0)
         }
         LinkWay::Stay => Ok(next == 0),

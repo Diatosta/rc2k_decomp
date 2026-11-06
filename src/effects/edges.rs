@@ -107,7 +107,10 @@ pub fn load_kind_data(drops: &WindscreenDrops) -> Result<(), Refused> {
         let kind = marks.mark_car_file_number.get();
         MARKS_KIND.kind.set_bits(kind);
         load_edges(drops, RESUME)?;
-        crate::effects::splines::load_splines(crate::effects::splines::RESUME)?;
+        crate::effects::splines::load_splines(
+            &crate::effects::owner::effects().paths,
+            crate::effects::splines::RESUME,
+        )?;
     }
     Ok(())
 }

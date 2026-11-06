@@ -30,10 +30,12 @@ pub struct ObjectFileNumbers {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static FILE_NUMBERS: ObjectFileNumbers =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ObjectFileNumbers {
+    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_ptr`).
 pub mod texts {
@@ -84,7 +86,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
 /// Where IDA 0x60AD20 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&FILE_NUMBERS))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::SCENE.file_numbers,
+    ))
 }
 
 #[cfg(test)]
@@ -94,7 +98,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FILE_NUMBERS, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.file_numbers,
+            START,
+            END,
+        );
     }
 
     #[test]

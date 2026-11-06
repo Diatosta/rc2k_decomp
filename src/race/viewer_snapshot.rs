@@ -28,7 +28,10 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(Some(&SNAPSHOT.text()))?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(
+            &crate::gfx::owner::gfx().shots,
+            Some(&SNAPSHOT.text()),
+        )?;
         crate::platform::unlock_surface();
     }
     Ok(())

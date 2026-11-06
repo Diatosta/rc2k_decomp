@@ -34,6 +34,7 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 pub fn init_marks(drops: &WindscreenDrops, ring: &Ring, seed: u32) -> Result<(), Refused> {
     use crate::effects::*;
     let weather = &owner::effects().weather;
+    let paths = &owner::effects().paths;
     {
         // Every read through `g_marksSettings` is a field of the race's record.
         let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
@@ -44,8 +45,8 @@ pub fn init_marks(drops: &WindscreenDrops, ring: &Ring, seed: u32) -> Result<(),
         MARKS_WORK.seed.set(seed);
         CLOCK.started.set(0);
         edges::load_kind_data(drops)?;
-        setup::make_wave_tables()?;
-        profiles::make_profiles(profiles::RESUME)?;
+        setup::make_wave_tables(paths)?;
+        profiles::make_profiles(paths, profiles::RESUME)?;
         setup::seed_noise(weather);
         setup::make_noise_curve(weather)?;
         blocks::allocate_places()?;
@@ -55,7 +56,7 @@ pub fn init_marks(drops: &WindscreenDrops, ring: &Ring, seed: u32) -> Result<(),
         setup::clear_slots();
         set_up_surface::set_up_surface(ring)?;
         blocks::allocate_ring(&crate::effects::owner::effects().particles, ring)?;
-        lines::set_up_blocks()?;
+        lines::set_up_blocks(paths)?;
         marks.unknown_67c[1].set(1);
         for r in &CLOCK.settings_copies {
             r.set(1);

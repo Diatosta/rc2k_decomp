@@ -17,7 +17,7 @@ pub trait Outside {
     fn log(&mut self, text: &[u8]);
     /// `install::read_registry`.
     fn read_registry(&mut self) {
-        crate::install::read_registry::read_registry_here();
+        crate::install::read_registry::read_registry_here(crate::install::owner::install());
     }
     // The same for the game and for a test:
     /// `install::normalise_path`: the path as written (with its NUL), None when not taken.
@@ -55,7 +55,7 @@ impl Outside for Game {
 
     fn read_record(&mut self) -> Result<(), BadInput> {
         read_record(crate::pointers::GamePtr::to(
-            &crate::install::installer::INSTALL_TEXTS.record_path,
+            &crate::install::owner::install().texts.record_path,
         ))
     }
 

@@ -27,8 +27,6 @@
 use crate::audio::store::AUDIO;
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::BadInput;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::system::start_texts::START_TEXTS;
@@ -85,8 +83,11 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
     let sw = rc2k_core::system::command_line::read(line)?;
     COMMAND_LINE.program_len.set(sw.program.1 as u32);
     for (on, cell) in [
-        (sw.u, &INSTALLER_RUN.updating),
-        (sw.installing, &INSTALLER_RUN.installing),
+        (sw.u, &crate::install::owner::install().run.updating),
+        (
+            sw.installing,
+            &crate::install::owner::install().run.installing,
+        ),
         (sw.no_audio, &AUDIO.no_audio),
     ] {
         if on {
@@ -94,19 +95,28 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
         }
     }
     for i in &sw.install {
-        INSTALLER_RUN.from_command.set(1u32);
-        INSTALLER_RUN.ignore_room.set(1u32);
-        for (place, (start, len)) in [&INSTALLER_PATHS.game_dir, &INSTALLER_PATHS.installed]
-            .into_iter()
-            .zip(i.words)
+        crate::install::owner::install().run.from_command.set(1u32);
+        crate::install::owner::install().run.ignore_room.set(1u32);
+        for (place, (start, len)) in [
+            &crate::install::owner::install().paths.game_dir,
+            &crate::install::owner::install().paths.installed,
+        ]
+        .into_iter()
+        .zip(i.words)
         {
             let word = line
                 .get(start..start + len)
                 .ok_or(BadInput("a word past the command line"))?;
             place.write_at(0, word, "an installer path")?;
         }
-        INSTALLER_RUN.given_mode.set(i.digits[0]);
-        INSTALLER_RUN.given_language.set(i.digits[1]);
+        crate::install::owner::install()
+            .run
+            .given_mode
+            .set(i.digits[0]);
+        crate::install::owner::install()
+            .run
+            .given_language
+            .set(i.digits[1]);
     }
     if sw.ignore_secondary {
         CARDS_3D.ignore_secondary.set(1u32);

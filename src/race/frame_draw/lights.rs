@@ -19,7 +19,6 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::faces_store::FACES;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_tables_store::LIGHT_TABLES;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::session::Dword;
@@ -212,7 +211,7 @@ pub(super) fn car_light_on_point(car: &crate::physics::car_store::Car) -> Result
     let s2 = int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
     DRAW.scratch.set_bits(s2);
     let index = headlight_index(s1, t[1], car.marks_count.bits());
-    let colour = LIGHT_TABLES.car_light_table[index as usize].get();
+    let colour = crate::scene::owner::scene().light_tables.car_light_table[index as usize].get();
     LIGHT_WORK
         .light_colour
         .set_bits(add_colours(colour, LIGHT_WORK.light_colour.bits()));

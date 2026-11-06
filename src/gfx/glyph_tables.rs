@@ -4,7 +4,7 @@
 //! (0x412528).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
@@ -49,7 +49,7 @@ pub static TABLES: GlyphTables = GlyphTables {
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
-pub fn begin_glyph_tables() -> Result<(), Refused> {
+pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
     PICTURE.width.set(800u32);
     PICTURE.height.set(600u32);
     PICTURE.row_bytes.set(0xFFFF_FFFDu32);
@@ -63,19 +63,19 @@ pub fn begin_glyph_tables() -> Result<(), Refused> {
     // reports its own.) Only counted: the work memory holds nothing Rust reads back
     // (`build_glyphs` keeps the sheet's table in its own bytes).
     crate::memory::owned::count_on(crate::pointers::GamePtr::to(&LEXICON.memory), bytes)?;
-    SHEET.table.set(0u32);
-    SHEET.table_size.set(0u32);
+    vars.table.set(0u32);
+    vars.table_size.set(0u32);
     Ok(())
 }
 
 /// A new table starts where the list stands, after the padding that brings the table
 /// before it to whole dwords.
-pub fn begin_glyph_table(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
-    let padding = SHEET.table_size.get().wrapping_neg() & 3;
+pub fn begin_glyph_table(vars: &SheetVars, list: crate::pointers::GamePtr) -> Result<(), BadInput> {
+    let padding = vars.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;
     take_from_list(list, 0)?;
-    SHEET.table.set(crate::gfx::glyph_store::new_table(list)?);
-    SHEET.table_size.set(0u32);
+    vars.table.set(crate::gfx::glyph_store::new_table(list)?);
+    vars.table_size.set(0u32);
     Ok(())
 }
 

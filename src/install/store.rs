@@ -42,7 +42,9 @@ pub struct InstallVars {
     pub _tail: Bytes<1>,
 }
 
-pub static INSTALL: InstallVars = InstallVars {
+impl InstallVars {
+    pub const fn new() -> Self {
+        InstallVars {
     _lead: Byte::new(0),
     _gap_529dad: Bytes::new([0; 3]),
     running_from_cd: Dword::new(0),
@@ -54,7 +56,9 @@ pub static INSTALL: InstallVars = InstallVars {
     clio_car_name: Bytes::new(with_runs::<27>(&[(0, b"renault clio sport V6 (A7)")])),
     credits_b: Bytes::new(with_runs::<837>(&[(0, b"11.2:1\x00solution F tuned V6\x0aRS 24 valves\x00rear wheel\x00\xb7 Renault Sport developed chassis and\x0a  engine rekindles the spirit of the\x0a  legendary mid-engined Renault 5 turbo\x0a\x0a\xb7 mid-engine layout for optimal weight\x0a  distribution and dynamic performance\x0a\x0a\xb7 the 3 litre V6 24V engine delivers\x0a  over 280bhp in race trim\x0a\x0a\xb7 developed for a one-make racing\x0a  series with a limited production\x0a  run of road-going models\x0a\x0a\x00V6 24 soupapes\x0a\x09de\x02v\x02eloppe par sol\x01ution F\x00traction arri\xe8re\x00\xb7 les ch\xe2ssis et moteur d\xe9velopp\xe9s par\x0a  Renault Sport reprennent l'esprit du\x0a  l\xe9gendaire moteur central de la\x0a  Renault 5 turbo\x0a\x0a\xb7 support moteur central pour une\x0a  parfaite r\xe9partition du poids et des\x0a  performances optimales\x0a\x0a\xb7 le moteur 3 litres, V6 24 soupapes\x0a  produit plus de 280 ch. en course\x0a\x0a\xb7 d\xe9velopp\xe9e pour des courses\x0a  exclusives et en serie limit\xe9e")])),
     _tail: Bytes::new([0; 1]),
-};
+        }
+    }
+}
 
 impl InstallVars {
     pub const START: usize = 0x529DAD;
@@ -71,36 +75,40 @@ pub struct DriveRows {
     pub _gap_52a49f: Bytes<17>,
 }
 
-pub static DRIVE_ROWS: DriveRows = DriveRows {
-    drive_rows: Bytes::new(with_runs::<400>(&[
-        (0, b"a:"),
-        (16, b"b:"),
-        (32, b"c:"),
-        (48, b"d:"),
-        (64, b"e:"),
-        (80, b"f:"),
-        (96, b"g:"),
-        (112, b"h:"),
-        (128, b"i:"),
-        (144, b"j:"),
-        (160, b"k:"),
-        (176, b"l:"),
-        (192, b"m:"),
-        (208, b"n:"),
-        (224, b"o:"),
-        (240, b"p:"),
-        (256, b"q:"),
-        (272, b"r:"),
-        (288, b"s:"),
-        (304, b"t:"),
-        (320, b"u:"),
-        (336, b"v:"),
-        (352, b"w:"),
-        (368, b"x:"),
-        (384, b"y:"),
-    ])),
-    _gap_52a49f: Bytes::new(with_runs::<17>(&[(0, b"z:")])),
-};
+impl DriveRows {
+    pub const fn new() -> Self {
+        DriveRows {
+            drive_rows: Bytes::new(with_runs::<400>(&[
+                (0, b"a:"),
+                (16, b"b:"),
+                (32, b"c:"),
+                (48, b"d:"),
+                (64, b"e:"),
+                (80, b"f:"),
+                (96, b"g:"),
+                (112, b"h:"),
+                (128, b"i:"),
+                (144, b"j:"),
+                (160, b"k:"),
+                (176, b"l:"),
+                (192, b"m:"),
+                (208, b"n:"),
+                (224, b"o:"),
+                (240, b"p:"),
+                (256, b"q:"),
+                (272, b"r:"),
+                (288, b"s:"),
+                (304, b"t:"),
+                (320, b"u:"),
+                (336, b"v:"),
+                (352, b"w:"),
+                (368, b"x:"),
+                (384, b"y:"),
+            ])),
+            _gap_52a49f: Bytes::new(with_runs::<17>(&[(0, b"z:")])),
+        }
+    }
+}
 
 impl DriveRows {
     pub const START: usize = 0x52A30F;
@@ -171,7 +179,7 @@ mod tests {
     #[test]
     fn start_as_the_games_image_and_keep_its_layout() {
         check(
-            (&raw const INSTALL).cast::<u8>(),
+            (&raw const crate::install::owner::INSTALL.vars).cast::<u8>(),
             size_of::<InstallVars>(),
             1,
             InstallVars::START,
@@ -210,7 +218,7 @@ mod tests {
             1 + 0x529F1E - InstallVars::START
         );
         check(
-            (&raw const DRIVE_ROWS).cast::<u8>(),
+            (&raw const crate::install::owner::INSTALL.drive_rows).cast::<u8>(),
             size_of::<DriveRows>(),
             0,
             DriveRows::START,

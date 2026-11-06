@@ -14,17 +14,16 @@
 //! (2026-10-23).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::cards::CARDS;
 use crate::gfx::mark_3d_modes::mark_3d_modes;
-use crate::gfx::modes::MODES;
+use crate::gfx::owner::Display;
 
 pub const PRIMARY: u32 = 0x1000;
 
 /// The Rust version (see the header).
-pub fn list_primary_modes() -> Result<(), Refused> {
-    standalone_modes(PRIMARY)?;
-    if CARDS.primary.get() == 1 {
-        mark_3d_modes(PRIMARY)?;
+pub fn list_primary_modes(display: &Display) -> Result<(), Refused> {
+    standalone_modes(display, PRIMARY)?;
+    if display.cards.primary.get() == 1 {
+        mark_3d_modes(display, PRIMARY)?;
     }
     Ok(())
 }
@@ -35,14 +34,14 @@ const TABLE_ROOM: u32 = 0x20;
 /// primary): every screen size the game knows in both pixel kinds (its window takes
 /// any), entered as `gfx::mode_callback` (0x404A56) enters a mode: the card's, the kind's
 /// and the size's bits, once each, while the table has room.
-pub fn standalone_modes(card: u32) -> Result<(), BadInput> {
-    let table = &MODES.table;
+pub fn standalone_modes(display: &Display, card: u32) -> Result<(), BadInput> {
+    let table = &display.modes.table;
     for size in 0..8usize {
-        let size_bit: u32 = MODES.sizes[2 * size].get();
+        let size_bit: u32 = display.modes.sizes[2 * size].get();
         for kind in 0..2usize {
-            let kind_bit: u32 = MODES.pixel_kinds[2 * kind].get();
+            let kind_bit: u32 = display.modes.pixel_kinds[2 * kind].get();
             let mode = card | kind_bit | size_bit;
-            let count: u32 = MODES.count.get();
+            let count: u32 = display.modes.count.get();
             if count > TABLE_ROOM {
                 return Err(BadInput("more screen modes than the table has room for"));
             }
@@ -53,7 +52,7 @@ pub fn standalone_modes(card: u32) -> Result<(), BadInput> {
                 return Ok(());
             }
             table[2 * count as usize].set(mode);
-            MODES.count.set(count + 1);
+            display.modes.count.set(count + 1);
         }
     }
     Ok(())

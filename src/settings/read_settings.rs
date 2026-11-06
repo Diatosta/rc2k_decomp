@@ -238,12 +238,12 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"videomodemain",
         0x4F4944,
-        dword!(crate::gfx::screen_state::SCREEN_MODE.menu_mode),
+        dword!(crate::gfx::owner::gfx().display.mode.menu_mode),
     ),
     (
         b"videomodegame",
         0x4F4948,
-        dword!(crate::gfx::screen_state::SCREEN_MODE.race_mode),
+        dword!(crate::gfx::owner::gfx().display.mode.race_mode),
     ),
     (
         b"v3driverfix",
@@ -253,7 +253,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"nopngdecode",
         0x51B97C,
-        dword!(crate::gfx::read_picture_file::PNG_SETTING),
+        dword!(crate::gfx::owner::GFX.png.setting),
     ),
     (
         b"nojoy",
@@ -304,7 +304,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"screensnapshot",
         0x4F52B4,
-        dword!(crate::gfx::shots::SHOTS.on),
+        dword!(crate::gfx::owner::gfx().shots.on),
     ),
     (
         b"framecounter",

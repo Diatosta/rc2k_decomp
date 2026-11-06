@@ -22,7 +22,6 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::texture_pixels::GRADING;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
@@ -51,7 +50,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 /// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub fn reload_system_textures() -> Result<(), Refused> {
+pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let textures: u32 = TEXTURE_PLACES.totals[3].get();
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
@@ -70,23 +69,25 @@ pub fn reload_system_textures() -> Result<(), Refused> {
         let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
         TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
     }
-    let scene = [
+    let size = [
         STAGE_PREFS.scene_size_a.get(),
         STAGE_PREFS.scene_size_b.get(),
     ];
     for texture in 0..textures {
-        GRADING.reading.set(1u32);
+        crate::gfx::owner::gfx().grading.reading.set(1u32);
         let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
-        let [scale, saturation] = read_size(wanted, scene);
-        GRADING.scale.set(scale);
-        GRADING.saturation.set(saturation);
+        let [scale, saturation] = read_size(wanted, size);
+        let grading = &crate::gfx::owner::gfx().grading;
+        grading.scale.set(scale);
+        grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(texture)?;
         step_loading_bar(texture)?;
     }
-    GRADING.reading.set(0u32);
-    GRADING.scale.set(0x100);
-    GRADING.saturation.set(0x100);
-    load_hud_car_icons()?;
+    let grading = &crate::gfx::owner::gfx().grading;
+    grading.reading.set(0u32);
+    grading.scale.set(0x100);
+    grading.saturation.set(0x100);
+    load_hud_car_icons(scene)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

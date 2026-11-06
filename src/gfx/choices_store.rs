@@ -80,29 +80,33 @@ impl ModeList {
     }
 }
 
-pub static SCREEN_CHOICES: ScreenChoices = ScreenChoices {
-    made: Dword::new(0x0),
-    card: Dword::new(0x0),
-    resolution: Dword::new(0x0),
-    buffering: Dword::new(0x0),
-    mipmapping: Dword::new(0x0),
-    has_primary: Dword::new(0x0),
-    has_secondary: Dword::new(0x0),
-    listed: Dword::new(0x0),
-    mip_limit: Dword::new(0x0),
-    resolutions: Dword::new(0x0),
-    list: ModeList {
-        modes: [const {
-            ScreenMode {
-                width: Dword::new(0),
-                height: Dword::new(0),
-                figure: Dword::new(0),
-                mode: Dword::new(0),
-            }
-        }; 16],
-        spare: Bytes::new([0; 8]),
-    },
-};
+impl ScreenChoices {
+    pub const fn new() -> Self {
+        ScreenChoices {
+            made: Dword::new(0x0),
+            card: Dword::new(0x0),
+            resolution: Dword::new(0x0),
+            buffering: Dword::new(0x0),
+            mipmapping: Dword::new(0x0),
+            has_primary: Dword::new(0x0),
+            has_secondary: Dword::new(0x0),
+            listed: Dword::new(0x0),
+            mip_limit: Dword::new(0x0),
+            resolutions: Dword::new(0x0),
+            list: ModeList {
+                modes: [const {
+                    ScreenMode {
+                        width: Dword::new(0),
+                        height: Dword::new(0),
+                        figure: Dword::new(0),
+                        mode: Dword::new(0),
+                    }
+                }; 16],
+                spare: Bytes::new([0; 8]),
+            },
+        }
+    }
+}
 
 impl ScreenChoices {
     pub const START: usize = 0x4F50C0;
@@ -110,7 +114,7 @@ impl ScreenChoices {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SCREEN_CHOICES) as usize
+        crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.choices) as usize
     }
 }
 

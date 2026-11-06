@@ -30,7 +30,6 @@ use crate::logfile::log_int::log_int;
 use crate::place::Place;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::file_numbers_store::FILE_NUMBERS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 // ---- game data ----
@@ -67,8 +66,14 @@ pub enum Call {
 /// The numbers and the names: everything the function writes.
 fn write_names(number: u32, texture: u32) -> Result<(), BadInput> {
     {
-        FILE_NUMBERS.picture_number.set(number);
-        FILE_NUMBERS.picture_texture.set(texture);
+        crate::scene::owner::scene()
+            .file_numbers
+            .picture_number
+            .set(number);
+        crate::scene::owner::scene()
+            .file_numbers
+            .picture_texture
+            .set(texture);
         for ((name, second_name, at), (first, second)) in folders().into_iter().zip(names(number)) {
             name.add(at).write(&first, "a picture's file number")?;
             if let Some(second) = second {

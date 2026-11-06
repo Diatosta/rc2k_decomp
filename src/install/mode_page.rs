@@ -10,19 +10,17 @@
 //! are the original's.
 
 use crate::install::installer::{media_mode, set_media_mode};
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_RUN;
 
 /// `state` the list action's (ebx).
-pub fn mode_page(state: u32) {
+pub fn mode_page(g: &'static crate::install::owner::Install, state: u32) {
     if state == 0 {
         // Converted: `rc2k_core::install::pages::mode_highlight`.
-        INSTALLER_PAGES
+        g.pages
             .choice
             .set(rc2k_core::install::pages::mode_highlight(media_mode()));
-        INSTALLER_RUN.path_problem.set(0);
+        g.run.path_problem.set(0);
     }
     if (state as i32) < 0 {
-        set_media_mode(INSTALLER_PAGES.list_answer.get() as u32);
+        set_media_mode(g.pages.list_answer.get() as u32);
     }
 }

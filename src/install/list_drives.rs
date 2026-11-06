@@ -19,14 +19,13 @@
 
 use crate::install::installer::{wb, wd};
 use crate::install::page_links::PageLink;
-use crate::install::vars::INSTALLER_RUN;
-use crate::install::vars::{INSTALLER_PAGES, InstallerPages};
+use crate::install::vars::InstallerPages;
 use core::mem::offset_of;
 use rc2k_core::install::drives::{self, DriveMenu};
 
-pub fn list_drives() {
-    let drives = crate::place::Place::from(crate::pointers::GamePtr::to(&INSTALLER_RUN.drives));
-    let mut letter = INSTALLER_RUN.first_drive.get();
+pub fn list_drives(g: &'static crate::install::owner::Install) {
+    let drives = crate::place::Place::from(crate::pointers::GamePtr::to(&g.run.drives));
+    let mut letter = g.run.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
@@ -43,17 +42,15 @@ pub fn list_drives() {
             break;
         }
     }
-    INSTALLER_RUN.drive_count.set(0);
-    let mut ebx = crate::place::Place::from(&crate::install::store::DRIVE_ROWS.drive_rows);
+    g.run.drive_count.set(0);
+    let mut ebx = crate::place::Place::from(&g.drive_rows.drive_rows);
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives.add(8 * (letter - b'a') as u32);
         if g_at(slot) == 0 {
             continue;
         }
-        INSTALLER_RUN
-            .drive_count
-            .set(INSTALLER_RUN.drive_count.get() + 1);
+        g.run.drive_count.set(g.run.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
         let free = drives::free(g_at(slot.add(4)));
@@ -70,23 +67,23 @@ pub fn list_drives() {
         }
         ebx = row.add(0x10);
     }
-    let count = INSTALLER_RUN.drive_count.get();
+    let count = g.run.drive_count.get();
     let (menu, name) = match drives::menu(count) {
         DriveMenu::Eight => (
-            crate::place::Place::from(&INSTALLER_PAGES.menu_8),
+            crate::place::Place::from(&g.pages.menu_8),
             offset_of!(InstallerPages, menu_8),
         ),
         DriveMenu::Sixteen => (
-            crate::place::Place::from(&INSTALLER_PAGES.menu_16),
+            crate::place::Place::from(&g.pages.menu_16),
             offset_of!(InstallerPages, menu_16),
         ),
         DriveMenu::More => (
-            crate::place::Place::from(&INSTALLER_PAGES.menu_more),
+            crate::place::Place::from(&g.pages.menu_more),
             offset_of!(InstallerPages, menu_more),
         ),
     };
     // A link to the menu (`page_links::PageLink`).
-    INSTALLER_PAGES
+    g.pages
         .chosen_menu
         .set_u32(0, PageLink::in_pages_at(name).raw());
     crate::menu::list_handle::ListMenu::of(menu).set_count(drives::items(count));

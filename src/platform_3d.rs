@@ -34,7 +34,6 @@
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};
-use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::TextureFormat;
@@ -95,7 +94,10 @@ pub fn describe_texture_formats(bits: u32) {
         (32, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
     ];
     for (cell, (format_bits, masks)) in TEXTURE_TABLES.descriptions.iter().zip(formats) {
-        let (layout, number) = crate::gfx::describe_format::describe_masks(masks);
+        let (layout, number) = crate::gfx::describe_format::describe_masks(
+            &crate::gfx::owner::gfx().pixel.formats,
+            masks,
+        );
         cell.set(crate::gfx::texture_upload::TextureFormat {
             found: 1,
             bytes_per_pixel: format_bits / 8,
@@ -719,10 +721,10 @@ pub fn allocate_textures_now(
     mips: u32,
 ) -> Result<(u32, u32), FatalError> {
     flush();
-    let reports: u32 = REPORTS.on.get();
-    REPORTS.on.set(0);
+    let reports: u32 = crate::gfx::owner::gfx().reports.on.get();
+    crate::gfx::owner::gfx().reports.on.set(0);
     let done = allocate_textures(video, system, sizes, kind, mips);
-    REPORTS.on.set(reports);
+    crate::gfx::owner::gfx().reports.on.set(reports);
     done?;
     Ok((
         TEXTURE_TABLES.first_video.get(),

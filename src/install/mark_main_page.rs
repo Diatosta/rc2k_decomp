@@ -11,18 +11,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_RUN;
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-pub fn mark_main_page(list: ListMenu) {
+pub fn mark_main_page(g: &'static crate::install::owner::Install, list: ListMenu) {
     let title = list.item(1).text_id();
     // Converted: `rc2k_core::install::pages::main_page_marks`.
     let marks = pages::main_page_marks(
-        INSTALLER_RUN.same_version.get() == 1,
-        INSTALLER_NAMES.status.get() != 0,
-        INSTALLER_RUN.offer_registration.get() == 1,
+        g.run.same_version.get() == 1,
+        g.names.status.get() != 0,
+        g.run.offer_registration.get() == 1,
         title,
     );
     for (offset, or, and) in marks {

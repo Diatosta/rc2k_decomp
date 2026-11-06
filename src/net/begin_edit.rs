@@ -7,7 +7,6 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::install::vars::INSTALLER_PATHS;
 use crate::net::lobby::movsb;
 use crate::net::store::NET;
 
@@ -29,7 +28,7 @@ impl EditedText {
         match self {
             EditedText::MachineName => GamePtr::to(&NET.machine_name),
             EditedText::HostAddress => GamePtr::to(&NET.host_address),
-            EditedText::MostPlayers => GamePtr::to(&INSTALLER_PATHS.path_a),
+            EditedText::MostPlayers => GamePtr::to(&crate::install::owner::install().paths.path_a),
             EditedText::ChatInput => GamePtr::to(&NET.chat_input),
         }
     }
@@ -57,5 +56,9 @@ pub fn begin_edit(
     NET.edit_text.set(text as u32);
     NET.edit_width.set(width);
     NET.edit_font.set(font);
-    movsb(&INSTALLER_PATHS.script_path, text.place(), 0x40)
+    movsb(
+        &crate::install::owner::install().paths.script_path,
+        text.place(),
+        0x40,
+    )
 }

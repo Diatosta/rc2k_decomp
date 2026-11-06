@@ -8,16 +8,11 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PAGES;
-
 /// `state` the list action's (ebx).
-pub fn finish_page(state: u32) {
+pub fn finish_page(g: &'static crate::install::owner::Install, state: u32) {
     // Converted: `rc2k_core::install::pages::shows_readme`.
-    if (state as i32) < 0
-        && rc2k_core::install::pages::shows_readme(INSTALLER_PAGES.list_answer.get())
-    {
-        INSTALLER_NAMES.script_mark.set(5);
-        INSTALLER_PAGES.list_answer.set(1);
+    if (state as i32) < 0 && rc2k_core::install::pages::shows_readme(g.pages.list_answer.get()) {
+        g.names.script_mark.set(5);
+        g.pages.list_answer.set(1);
     }
 }

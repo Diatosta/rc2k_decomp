@@ -5,6 +5,7 @@
 
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::{DRAW_FRAME, DRAW_WORK};
+use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
@@ -17,14 +18,14 @@ pub const CORNERS_LEN: usize = 0x8000;
 
 /// A table the image holds by IDA's address (the pointer lists at 0x9152F6): the table in
 /// `PROFILE_TABLES` it names. Stops the program for an address that is not a table's start.
-fn ida_table(ida: u32) -> &'static ProfileTable {
+fn ida_table(paths: &Paths, ida: u32) -> &ProfileTable {
     let (start, len) = (ProfileTables::START, ProfileTables::LEN);
     assert!(
         (start..start + len).contains(&(ida as usize))
             && (ida as usize - start).is_multiple_of(0x800),
         "a pointer of the marks' data names {ida:#x}, outside the profile tables"
     );
-    &PROFILE_TABLES.tables[(ida as usize - start) / 0x800]
+    &paths.profile_tables.tables[(ida as usize - start) / 0x800]
 }
 
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
@@ -45,10 +46,10 @@ fn differences(table: &ProfileTable) {
 }
 
 /// The once-only tables.
-fn make_tables() -> Result<(), Refused> {
+fn make_tables(paths: &Paths) -> Result<(), Refused> {
     {
         for k in 0..3 {
-            let t = ida_table(PROFILE_LISTS.ramps[k].get());
+            let t = ida_table(paths, paths.profile_lists.ramps[k].get());
             let step = x87::int_less_int_over(
                 t[1].get() as i32,
                 t[0].get() as i32,
@@ -65,7 +66,7 @@ fn make_tables() -> Result<(), Refused> {
             differences(t);
         }
         for k in 0..8 {
-            let t = ida_table(PROFILE_LISTS.sines[k].get());
+            let t = ida_table(paths, paths.profile_lists.sines[k].get());
             let p: [u32; 4] = std::array::from_fn(|i| x87::loaded(t[i].get()));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v);
@@ -79,7 +80,7 @@ fn make_tables() -> Result<(), Refused> {
             differences(t);
         }
         for k in 0..2 {
-            let t = ida_table(PROFILE_LISTS.curves[k].get());
+            let t = ida_table(paths, paths.profile_lists.curves[k].get());
             let mut x = x87::loaded(t[0].get());
             work(7, x);
             let step = x87::sub_div(t[1].get(), t[0].get(), DRAW_FRAME.profile_steps[1].bits());
@@ -105,19 +106,19 @@ fn make_tables() -> Result<(), Refused> {
 /// then 0x8000 bytes of corners from `g_courseInfo` + 0x1C2000 (twice, as the original),
 /// `allocate_links` and `reset_settings_blocks`. Refuses a mark that is neither 0 nor
 /// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
-pub fn make_profiles(resume: u32) -> Result<(), Refused> {
+pub fn make_profiles(paths: &Paths, resume: u32) -> Result<(), Refused> {
     {
         let done: u32 = DRAW_FRAME.profiles_done.get();
         if done != 0 && done != resume {
             return Err(BadInput("the profiles' mark is neither 0 nor loc_4C3EA6").into());
         }
-        PROFILE_RINGS.zero.set(0);
+        paths.profile_rings.zero.set(0);
         for n in 0..0x100u32 {
-            PROFILE_RINGS.before[n as usize].set(n.wrapping_sub(1) & 0xFF);
-            PROFILE_RINGS.after[n as usize].set((n + 1) & 0xFF);
+            paths.profile_rings.before[n as usize].set(n.wrapping_sub(1) & 0xFF);
+            paths.profile_rings.after[n as usize].set((n + 1) & 0xFF);
         }
         if done == 0 {
-            make_tables()?;
+            make_tables(paths)?;
             DRAW_FRAME.profiles_done.set(resume);
         }
         if COURSE_LISTS.course_info.bits() == 0 {
@@ -147,20 +148,23 @@ pub struct ProfileRings {
     pub zero: Dword,
 }
 
-pub static PROFILE_RINGS: ProfileRings = ProfileRings {
-    before: [const { Dword::new(0x0) }; 256],
-    after: [const { Dword::new(0x0) }; 256],
-    zero: Dword::new(0x0),
-};
-
 impl ProfileRings {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        ProfileRings {
+            before: [const { Dword::new(0x0) }; 256],
+            after: [const { Dword::new(0x0) }; 256],
+            zero: Dword::new(0x0),
+        }
+    }
     pub const START: usize = 0x8DD061;
     pub const LEN: usize = 0x804;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PROFILE_RINGS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.profile_rings)
+            as usize
     }
 }
 
@@ -176,33 +180,36 @@ pub struct ProfileLists {
     pub curves: [Dword; 2],
 }
 
-pub static PROFILE_LISTS: ProfileLists = ProfileLists {
-    ramps: [
-        Dword::new(0x8E506D),
-        Dword::new(0x8E686D),
-        Dword::new(0x8E706D),
-    ],
-    sines: [
-        Dword::new(0x8E786D),
-        Dword::new(0x8E806D),
-        Dword::new(0x8E886D),
-        Dword::new(0x8E906D),
-        Dword::new(0x8E986D),
-        Dword::new(0x8EA06D),
-        Dword::new(0x8EA86D),
-        Dword::new(0x8EB06D),
-    ],
-    curves: [Dword::new(0x8E586D), Dword::new(0x8E606D)],
-};
-
 impl ProfileLists {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        ProfileLists {
+            ramps: [
+                Dword::new(0x8E506D),
+                Dword::new(0x8E686D),
+                Dword::new(0x8E706D),
+            ],
+            sines: [
+                Dword::new(0x8E786D),
+                Dword::new(0x8E806D),
+                Dword::new(0x8E886D),
+                Dword::new(0x8E906D),
+                Dword::new(0x8E986D),
+                Dword::new(0x8EA06D),
+                Dword::new(0x8EA86D),
+                Dword::new(0x8EB06D),
+            ],
+            curves: [Dword::new(0x8E586D), Dword::new(0x8E606D)],
+        }
+    }
     pub const START: usize = 0x9152F6;
     pub const LEN: usize = 0x34;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PROFILE_LISTS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.profile_lists)
+            as usize
     }
 }
 
@@ -229,32 +236,36 @@ pub struct ProfileTables {
     pub tables: [ProfileTable; 13],
 }
 
-pub static PROFILE_TABLES: ProfileTables = ProfileTables {
-    tables: [
-        table(&[]),
-        table(&[(0, 0xC0000000), (2, 0x469C4000), (3, 0x48435000)]),
-        table(&[(1, 0x3F000000), (2, 0xC87DE800)]),
-        table(&[(0, 0xFF)]),
-        table(&[(0, 0x7F)]),
-        table(&[(2, 0x466A6000), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x48212200), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x4851F600), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x48816500), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x4899CF00), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x48B23900), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x48CAA300), (3, 0x3BC90FDB)]),
-        table(&[(2, 0x48E30D00), (3, 0x3BC90FDB)]),
-    ],
-};
-
 impl ProfileTables {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        ProfileTables {
+            tables: [
+                table(&[]),
+                table(&[(0, 0xC0000000), (2, 0x469C4000), (3, 0x48435000)]),
+                table(&[(1, 0x3F000000), (2, 0xC87DE800)]),
+                table(&[(0, 0xFF)]),
+                table(&[(0, 0x7F)]),
+                table(&[(2, 0x466A6000), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x48212200), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x4851F600), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x48816500), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x4899CF00), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x48B23900), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x48CAA300), (3, 0x3BC90FDB)]),
+                table(&[(2, 0x48E30D00), (3, 0x3BC90FDB)]),
+            ],
+        }
+    }
     pub const START: usize = 0x8E506D;
     pub const LEN: usize = 0x6800;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PROFILE_TABLES) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.paths.profile_tables,
+        ) as usize
     }
 }
 

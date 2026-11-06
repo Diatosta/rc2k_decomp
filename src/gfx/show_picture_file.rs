@@ -26,7 +26,6 @@ use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use crate::session::Dword;
 use crate::session::SCREEN;
@@ -59,7 +58,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
     };
     let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
     crate::gfx::picture::set_size(sizes::screen(width, height));
-    let pages = sizes::pages(SCREEN_MODE.mode_flags.get());
+    let pages = sizes::pages(crate::gfx::owner::gfx().display.mode.mode_flags.get());
     if !read {
         crate::gfx::clear_picture::clear_picture()?;
     } else {
@@ -83,6 +82,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
                     return Ok(());
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
+                    &crate::gfx::owner::gfx().rescale,
                     crate::pointers::GamePtr::to(&crate::gfx::screen_state::DRAW_SURFACE.x)
                         .limited(0x30),
                 )?;

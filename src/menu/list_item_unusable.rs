@@ -7,11 +7,13 @@
 //!
 //! Callers: `race::replay_viewer` (three), `sub_4144CF` (three), reading carry.
 
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::ListMenu;
 
 /// The Rust version: carry.
 pub fn list_item_unusable(list: ListMenu) -> bool {
     // Converted: `rc2k_core::menu::list_menu::unusable`.
-    rc2k_core::menu::list_menu::unusable(list.item(INSTALLER_PAGES.choice.get()).first())
+    rc2k_core::menu::list_menu::unusable(
+        list.item(crate::install::owner::install().pages.choice.get())
+            .first(),
+    )
 }

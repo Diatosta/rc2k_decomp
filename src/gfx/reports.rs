@@ -19,7 +19,11 @@ pub struct Reports {
 }
 
 /// The switch; the first value is the image's.
-pub static REPORTS: Reports = Reports { on: Dword::new(1) };
+impl Reports {
+    pub const fn new() -> Self {
+        Reports { on: Dword::new(1) }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -27,11 +31,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPORTS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.reports, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), REPORTS.on.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.reports.on.addr() as usize
+        );
     }
 }

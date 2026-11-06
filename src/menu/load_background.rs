@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::screen_state::SCREEN_MODE;
 
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
@@ -34,7 +33,9 @@ pub fn load_background(
     // Whether the file was read is not looked at.
     load_picture(path)?;
     convert_picture_now()?;
-    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    PICTURE
+        .flags
+        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
     { canvas.blit_glyph(BlitCall::sprite(FRAME_SPRITE, 0, 0)) }?;
     Ok(())

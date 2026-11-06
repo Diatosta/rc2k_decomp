@@ -25,23 +25,27 @@ pub struct Converters {
     pub table: [Dword; 7],
 }
 
-/// The masks and the table; the first values are the image's.
-pub static CONVERTERS: Converters = Converters {
-    masks: crate::gfx::dwords([
-        0xffff0000, 0xffff0000, 0x00ff00ff, 0x00ff00ff, 0xf800f800, 0xf800f800, 0x07e007e0,
-        0x07e007e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00, 0x7c007c00,
-        0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00,
-        0x7c007c00, 0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x80008000, 0x80008000,
-        0x00ff00ff, 0x00ff00ff, 0x0f000f00, 0x0f000f00, 0x00f000f0, 0x00f000f0, 0x000f000f,
-        0x000f000f, 0xf000f000, 0xf000f000,
-    ]),
-    table: [const { Dword::new(0) }; 7],
-};
+impl Converters {
+    /// The masks and the table; the first values are the image's.
+    pub const fn new() -> Self {
+        Converters {
+            masks: crate::gfx::dwords([
+                0xffff0000, 0xffff0000, 0x00ff00ff, 0x00ff00ff, 0xf800f800, 0xf800f800, 0x07e007e0,
+                0x07e007e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00, 0x7c007c00,
+                0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00,
+                0x7c007c00, 0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x80008000, 0x80008000,
+                0x00ff00ff, 0x00ff00ff, 0x0f000f00, 0x0f000f00, 0x00f000f0, 0x00f000f0, 0x000f000f,
+                0x000f000f, 0xf000f000, 0xf000f000,
+            ]),
+            table: [const { Dword::new(0) }; 7],
+        }
+    }
+}
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F51F0).
 #[cfg(test)]
 pub fn home() -> usize {
-    crate::pointers::game_address(&raw const CONVERTERS) as usize
+    crate::pointers::game_address(&raw const crate::gfx::owner::GFX.pixel.converters) as usize
 }
 
 impl Converters {
@@ -58,7 +62,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&CONVERTERS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.pixel.converters,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -67,8 +75,11 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x4F5288),
-            CONVERTERS.table[0].addr() as usize
+            crate::gfx::owner::GFX.pixel.converters.table[0].addr() as usize
         );
-        assert_eq!(CONVERTERS.mask(1), 0x00ff_00ff_00ff_00ff);
+        assert_eq!(
+            crate::gfx::owner::GFX.pixel.converters.mask(1),
+            0x00ff_00ff_00ff_00ff
+        );
     }
 }

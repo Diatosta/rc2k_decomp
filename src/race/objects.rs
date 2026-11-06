@@ -206,7 +206,7 @@ pub fn set_object_kinds() -> Result<(), Refused> {
         }
         slots += CAR_SLOT_STEP;
     }
-    crate::scene::load_front_end_objects::load_front_end_objects()?;
+    crate::scene::load_front_end_objects::load_front_end_objects(crate::scene::owner::scene())?;
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
         let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);

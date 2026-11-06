@@ -11,15 +11,10 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 
-pub fn open_installed() -> Result<(), Refused> {
-    if normalise(&INSTALLER_NAMES.source, &INSTALLER_PATHS.installed)?
-        && set_cd(&INSTALLER_PATHS.installed)
-    {
-        INSTALLER_RUN.installing.set(1);
+pub fn open_installed(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    if normalise(&g.names.source, &g.paths.installed)? && set_cd(&g.paths.installed) {
+        g.run.installing.set(1);
     }
     Ok(())
 }

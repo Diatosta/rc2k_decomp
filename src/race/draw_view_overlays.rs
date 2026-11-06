@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 
 /// The Rust version (see the header).
 pub fn draw_view_overlays() -> Result<(), Refused> {
@@ -30,10 +29,16 @@ pub fn draw_view_overlays() -> Result<(), Refused> {
     draw_flat_triangle();
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
-    let kept: u32 = DRAW_SWITCHES.far_on.bits();
-    DRAW_SWITCHES.far_on.set_bits(0u32);
+    let kept: u32 = crate::scene::owner::scene().draw_switches.far_on.bits();
+    crate::scene::owner::scene()
+        .draw_switches
+        .far_on
+        .set_bits(0u32);
     let drawn = draw_own_car();
-    DRAW_SWITCHES.far_on.set_bits(kept);
+    crate::scene::owner::scene()
+        .draw_switches
+        .far_on
+        .set_bits(kept);
     drawn?;
     draw_screen_tint()?;
     crate::race::flush_draw_batch::flush_draw_batch()?;

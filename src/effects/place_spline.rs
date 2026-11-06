@@ -13,11 +13,9 @@
 //! Caller: `sub_4B978A`. Refuses null settings, a spline number of 8 or more (before
 //! anything), and its steps' refusals (all it may write is put back first).
 
+use crate::effects::paths::Paths;
 use crate::effects::place_graded_points::place_graded_points;
-use crate::effects::splines::{
-    SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_LEN, SPLINE_WORK, Spline,
-    place_shape_points as place_shape,
-};
+use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -37,7 +35,7 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub fn place_spline(n: u32) -> Result<(), Refused> {
+pub fn place_spline(paths: &Paths, n: u32) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -47,32 +45,33 @@ pub fn place_spline(n: u32) -> Result<(), Refused> {
         return Err(BadInput("a spline number of 8 or more").into());
     }
     {
-        let k = SPLINE_CONSTANTS
+        let k = paths
+            .spline_constants
             .place_k
             .each_ref()
             .map(super::super::session::Float::bits);
-        SPLINE_WORK.offset.set(n * SPLINE_LEN);
+        paths.spline_work.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(marks.listener_scale.bits(), k[0], k[1]);
         for r in [a, b, c] {
-            r.put(0x24, abc)?;
+            r.put(paths, 0x24, abc)?;
         }
-        d.put(0x24, dsize)?;
+        d.put(paths, 0x24, dsize)?;
         for r in [a, d] {
-            place_shape(r)?;
+            place_shape(paths, r)?;
         }
-        let status = x87::compare_status(b.get(0x24)?, k[2]);
+        let status = x87::compare_status(b.get(paths, 0x24)?, k[2]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
-        b.put(0x2C, x87::mul(b.get(0x24)?, f))?;
-        SPLINE_HEAD.switch.set(0);
-        place_graded_points(b)?;
-        let status = x87::compare_status(c.get(0x24)?, k[5]);
+        b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f))?;
+        paths.spline_head.switch.set(0);
+        place_graded_points(paths, b)?;
+        let status = x87::compare_status(c.get(paths, 0x24)?, k[5]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
-        c.put(0x2C, x87::mul(c.get(0x24)?, f))?;
-        SPLINE_HEAD.switch.set(1);
-        place_graded_points(c)?;
+        c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f))?;
+        paths.spline_head.switch.set(1);
+        place_graded_points(paths, c)?;
     }
     Ok(())
 }

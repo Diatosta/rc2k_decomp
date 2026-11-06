@@ -20,7 +20,6 @@
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, Regs, log};
 use crate::install::outside::Game as Outside;
-use crate::install::vars::INSTALLER_NAMES;
 use crate::session::MACHINE;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -467,27 +466,35 @@ fn start() {
         refused("system::read_command_line", why.into(), &r);
     }
     rust("install::check_clio_disc");
-    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(&mut Outside) {
+    if let Err(e) = crate::install::check_clio_disc::check_clio_disc(
+        crate::install::owner::install(),
+        &mut Outside,
+    ) {
         refused("install::check_clio_disc", e, &r);
     }
     rust("install::check_at_start");
     let no_audio = &crate::audio::store::AUDIO.no_audio;
-    if let Err(e) = crate::install::check_at_start::check_at_start(&mut Outside, no_audio) {
+    if let Err(e) = crate::install::check_at_start::check_at_start(
+        crate::install::owner::install(),
+        &mut Outside,
+        no_audio,
+    ) {
         refused("install::check_at_start", e, &r);
     }
     rust("system::check_developer_machine");
     crate::system::check_developer_machine::check_developer_machine();
     rust("install::read_languages");
-    if let Err(e) = crate::install::read_languages::read_languages(crate::pointers::GamePtr::to(
-        &INSTALLER_NAMES.lang_cfg,
-    ))
+    if let Err(e) = crate::install::read_languages::read_languages(
+        crate::install::owner::install(),
+        crate::pointers::GamePtr::to(&crate::install::owner::install().names.lang_cfg),
+    )
     .map_err(Refused::from)
     {
         refused("install::read_languages", e, &r);
     }
     rust("install::read_record");
     if let Err(e) = crate::install::read_record::read_record(crate::pointers::GamePtr::to(
-        &crate::install::installer::INSTALL_TEXTS.record_path,
+        &crate::install::owner::install().texts.record_path,
     ))
     .map_err(Refused::from)
     {
@@ -510,13 +517,17 @@ fn start() {
     // `system::open_window` (0x4103DE) and `gfx::probe_exclusive_mode` (0x404981):
     // SDL's (`SDL_DOES`).
     rust("gfx::find_3d_cards");
-    crate::gfx::find_3d_cards::find_3d_cards();
+    crate::gfx::find_3d_cards::find_3d_cards(&crate::gfx::owner::gfx().display);
     rust("gfx::list_primary_modes");
-    if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes() {
+    if let Err(e) =
+        crate::gfx::list_primary_modes::list_primary_modes(&crate::gfx::owner::gfx().display)
+    {
         refused("gfx::list_primary_modes", e, &r);
     }
     rust("gfx::list_secondary_modes");
-    if let Err(e) = crate::gfx::list_secondary_modes::list_secondary_modes() {
+    if let Err(e) =
+        crate::gfx::list_secondary_modes::list_secondary_modes(&crate::gfx::owner::gfx().display)
+    {
         refused("gfx::list_secondary_modes", e, &r);
     }
     rust("net::set_up");
@@ -542,13 +553,15 @@ fn start() {
         refused("gfx::allocate_picture_buffer", e, &r);
     }
     rust("gfx::set_component_format");
-    if let Err(e) = crate::gfx::set_component_format::set_component_format() {
+    if let Err(e) = crate::gfx::set_component_format::set_component_format(
+        &crate::gfx::owner::gfx().pixel.formats,
+    ) {
         refused("gfx::set_component_format", e, &r);
     }
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table();
     rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters();
+    crate::gfx::install_converters::install_converters(&crate::gfx::owner::gfx().pixel.converters);
     // `sound::open_cd_audio` (0x40F9DE): cut out of this build (`pusha; jmp` to its
     // end), so not called.
     // What the window's procedure and the key thread tell the main loop (the films
@@ -582,7 +595,8 @@ fn start() {
     rust("system::set_priority_class");
     crate::system::set_priority_class::set_priority_class(0x20);
     rust("install::run_after_exit");
-    if let Err(e) = crate::install::run_after_exit::run_after_exit() {
+    if let Err(e) = crate::install::run_after_exit::run_after_exit(crate::install::owner::install())
+    {
         refused("install::run_after_exit", e, &r);
     }
     rust("system::restore_error_mode");

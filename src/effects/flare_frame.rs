@@ -7,12 +7,13 @@
 //!
 //! Caller: `effects::run_frame` (0x4D1645). Refuses null settings, before anything.
 
+use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_test_off`, and
 /// with the settings' +0x2754 `draw_lens_flare`.
-pub fn flare_frame() -> Result<(), Refused> {
+pub fn flare_frame(paths: &Paths) -> Result<(), Refused> {
     {
         if crate::effects::setup::SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
@@ -21,7 +22,7 @@ pub fn flare_frame() -> Result<(), Refused> {
         crate::scene::depth_test_off::depth_test_off();
         let marks = crate::effects::setup::marks()?;
         if marks.listener_figures[0].get() != 0 {
-            crate::effects::draw_lens_flare::draw_lens_flare()?;
+            crate::effects::draw_lens_flare::draw_lens_flare(paths)?;
         }
     }
     Ok(())

@@ -30,7 +30,7 @@
 //! 2^32).
 
 use crate::errors::BadInput;
-use crate::gfx::converters::CONVERTERS as MASK_TABLE;
+use crate::gfx::converters::Converters;
 
 /// A converter: the format it makes and where its constants are (the number of the first
 /// of its five masks in `gfx::converters`).
@@ -44,20 +44,25 @@ pub struct Converter {
     pub three_dnow: bool,
 }
 
-fn constant(n: usize) -> u64 {
-    MASK_TABLE.mask(n)
+fn constant(table: &Converters, n: usize) -> u64 {
+    table.mask(n)
 }
 
 /// The converter's five masks.
-fn masks(c: &Converter) -> [u64; 5] {
-    std::array::from_fn(|n| constant(c.constants + n))
+fn masks(table: &Converters, c: &Converter) -> [u64; 5] {
+    std::array::from_fn(|n| constant(table, c.constants + n))
 }
 
 /// The Rust version, in place on the picture's bytes: its one caller, `gfx::convert_picture`,
 /// gives esi = edi = the buffer, one row (edx 1) of `pixels` pixels (ecx), ebp 0, and reads
 /// nothing it leaves in the registers. Each step's 16 bytes are read before its 8 are
 /// written, behind them.
-pub fn convert_in_place(bytes: &mut [u8], pixels: u32, c: Converter) -> Result<(), BadInput> {
+pub fn convert_in_place(
+    table: &Converters,
+    bytes: &mut [u8],
+    pixels: u32,
+    c: Converter,
+) -> Result<(), BadInput> {
     let steps = (pixels >> 2) as usize;
     if steps == 0 {
         return Err(BadInput(
@@ -69,7 +74,7 @@ pub fn convert_in_place(bytes: &mut [u8], pixels: u32, c: Converter) -> Result<(
     }
     // Converted: `rc2k_core::gfx::converters` (`step`).
     use rc2k_core::gfx::converters::step;
-    let k = masks(&c);
+    let k = masks(table, &c);
     let quad =
         |b: &[u8], at: usize| u64::from_le_bytes(b[at..at + 8].try_into().expect("eight bytes"));
     for n in 0..steps {

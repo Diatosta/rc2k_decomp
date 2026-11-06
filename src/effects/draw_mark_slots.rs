@@ -26,8 +26,8 @@ use crate::d3d::vertices_store::VERTICES;
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::mark_slots::{SLOTS, TUNING, slot_matrix};
+use crate::effects::paths::Paths;
 use crate::effects::setup::CLOCK;
-use crate::effects::splines::SPLINE_HEAD;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
@@ -57,7 +57,7 @@ fn refusal() -> Option<&'static str> {
 
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
-pub fn draw_mark_slots() -> Result<(), Refused> {
+pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
@@ -77,7 +77,14 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
         s.life
             .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
         let p = s.point.get() as usize * 3;
-        let at = |n: usize| read_on_in(&SPLINE_HEAD, &SPLINE_HEAD.points, p + n, "a spline point");
+        let at = |n: usize| {
+            read_on_in(
+                &paths.spline_head,
+                &paths.spline_head.points,
+                p + n,
+                "a spline point",
+            )
+        };
         let [a, b, c] = [at(0)? ^ 0x8000_0000, at(1)?, at(2)?];
         let k4 = TUNING
             .place_k

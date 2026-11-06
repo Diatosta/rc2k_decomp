@@ -12,7 +12,7 @@ use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
+use crate::scene::file_numbers_store::texts;
 
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
@@ -27,9 +27,18 @@ pub fn number_places() -> [crate::place::Place; 9] {
         Place::from(&p.cdat_src_2).add(0xD),
         Place::from(&p.localdat_src).add(0xD),
         Place::from(&p.localdat_files).add(0x12),
-        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_A).into(),
-        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_B).into(),
-        FILE_NUMBERS.text_ptr(texts::NUMBER_PLACE_C).into(),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::NUMBER_PLACE_A)
+            .into(),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::NUMBER_PLACE_B)
+            .into(),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::NUMBER_PLACE_C)
+            .into(),
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -125,10 +134,24 @@ pub fn load_texture_info() -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = crate::race::course_places::read_file_into_info;
-    read(FILE_NUMBERS.text_ptr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
-    read(FILE_NUMBERS.text_ptr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
     read(
-        FILE_NUMBERS.text_ptr(texts::TEXTURE_INFO_B),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::TEXTURE_INFO_A),
+        0,
+        0x1F_4000,
+    )?;
+    read(
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::MARK_INFO),
+        0x1C_2000,
+        0x8000,
+    )?;
+    read(
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::TEXTURE_INFO_B),
         0x1F_4000,
         0x1F_4000,
     )?;
@@ -152,7 +175,9 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list() -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        FILE_NUMBERS.text_ptr(texts::ERROR_LIST_PATH),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::ERROR_LIST_PATH),
         &crate::race::error_list_store::ERROR_LIST.list,
     )?;
     Ok(())

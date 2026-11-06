@@ -23,17 +23,21 @@ pub struct PngFile {
     pub memory: crate::memory::ListCells,
 }
 
-/// The file; the first values are the image's.
-pub static PNG_FILE: PngFile = PngFile {
-    file: Dword::new(0),
-    length: Dword::new(0),
-    memory: crate::memory::ListCells::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-};
+impl PngFile {
+    /// The file; the first values are the image's.
+    pub const fn new() -> Self {
+        PngFile {
+            file: Dword::new(0),
+            length: Dword::new(0),
+            memory: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -41,15 +45,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&PNG_FILE, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.png.file,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), PNG_FILE.file.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.png.file.file.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x5BEC38),
-            PNG_FILE.memory.addr() as usize
+            crate::gfx::owner::GFX.png.file.memory.addr() as usize
         );
     }
 }

@@ -41,7 +41,7 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
         return Ok(false);
     }
     if sizes::rescaled(DECODER.width.get(), screen_width) {
-        rescale_picture()?;
+        rescale_picture(&crate::gfx::owner::gfx().rescale)?;
     }
     Ok(true)
 }

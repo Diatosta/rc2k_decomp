@@ -506,16 +506,15 @@ pub fn run_view_marks() -> Result<(), Refused> {
         FRAME_WORK.view_scale_y[n].bits(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-    let done = crate::effects::frame_marks::frame_marks(
-        &crate::effects::owner::effects().windscreen_drops,
-    )
-    .and_then(|_| {
-        if FRAME_WORK.drawing.get() == 0 {
-            crate::effects::run_frame::run_frame()
-        } else {
-            Ok(())
-        }
-    });
+    let effects = crate::effects::owner::effects();
+    let done = crate::effects::frame_marks::frame_marks(&effects.paths, &effects.windscreen_drops)
+        .and_then(|_| {
+            if FRAME_WORK.drawing.get() == 0 {
+                crate::effects::run_frame::run_frame()
+            } else {
+                Ok(())
+            }
+        });
     DRAW.view_centre[1].set_bits(centre.1);
     DRAW.view_centre[0].set_bits(centre.0);
     done

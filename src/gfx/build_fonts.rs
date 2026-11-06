@@ -21,7 +21,7 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fonts_store::FONTS as MENU_FONTS;
@@ -219,7 +219,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-fn tables(palettes: &Dword) -> Result<(), Refused> {
+fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
     let list = crate::pointers::GamePtr::to(&TABLES.memory);
     let bytes = TABLES
         .units
@@ -228,12 +228,12 @@ fn tables(palettes: &Dword) -> Result<(), Refused> {
         .wrapping_mul(SCREEN.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables()?;
+    begin_glyph_tables(vars)?;
     DECODER.builder_flags.set(RUN_LENGTHS);
     palettes.set(palette_place(list)?);
-    begin_glyph_table(list)?;
-    build_glyphs(&crate::gfx::texts::PAL_00, list)?;
-    MENU_FONTS.font27_glyphs.set(SHEET.table.get());
+    begin_glyph_table(vars, list)?;
+    build_glyphs(vars, &crate::gfx::texts::PAL_00, list)?;
+    MENU_FONTS.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get())?;
     GamePtr::to(&DECODER.palette).copy_to(
         GamePtr::to(&MENU_FONTS.palette_sheet),
@@ -241,9 +241,9 @@ fn tables(palettes: &Dword) -> Result<(), Refused> {
         "the fonts' palette sheet",
     )?;
     for (sheet, kept) in font_sheets() {
-        begin_glyph_table(list)?;
-        build_glyphs(sheet, list)?;
-        kept.set(SHEET.table.get());
+        begin_glyph_table(vars, list)?;
+        build_glyphs(vars, sheet, list)?;
+        kept.set(vars.table.get());
     }
     end_glyph_tables()?;
     Ok(())
@@ -271,7 +271,7 @@ pub fn build_fonts() -> Result<(), Refused> {
         }
         .into());
     }
-    tables(&MENU_FONTS.palettes)?;
+    tables(&crate::gfx::owner::gfx().sheet, &MENU_FONTS.palettes)?;
     for (font, field, variable, plus) in HUNG {
         let object = &FONTS.objects[font];
         let value = hung_value(variable, plus);

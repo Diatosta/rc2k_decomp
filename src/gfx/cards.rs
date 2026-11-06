@@ -18,11 +18,15 @@ pub struct Cards {
     pub secondary: Dword,
 }
 
-/// The switches; the first values are the image's.
-pub static CARDS: Cards = Cards {
-    primary: Dword::new(0),
-    secondary: Dword::new(0),
-};
+impl Cards {
+    /// The switches; the first values are the image's.
+    pub const fn new() -> Self {
+        Cards {
+            primary: Dword::new(0),
+            secondary: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -30,15 +34,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&CARDS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.display.cards,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), CARDS.primary.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.display.cards.primary.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(START + 4),
-            CARDS.secondary.addr() as usize
+            crate::gfx::owner::GFX.display.cards.secondary.addr() as usize
         );
     }
 }

@@ -15,7 +15,10 @@ use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken (the original's zero).
-pub fn key_down(item: ListItem) -> Result<bool, Refused> {
+pub fn key_down(
+    g: &'static crate::install::owner::Install,
+    item: ListItem,
+) -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
-    item_key(item, ItemKey::Down, 0)
+    item_key(g, item, ItemKey::Down, 0)
 }

@@ -43,13 +43,17 @@ pub struct Grading {
     pub grades: Bytes<0x100>,
 }
 
-/// The grading variables; the first values are the image's.
-pub static GRADING: Grading = Grading {
-    reading: Dword::new(1),
-    scale: Dword::new(0x100),
-    saturation: Dword::new(0x100),
-    grades: Bytes::new([0; 0x100]),
-};
+impl Grading {
+    /// The grading variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Grading {
+            reading: Dword::new(1),
+            scale: Dword::new(0x100),
+            saturation: Dword::new(0x100),
+            grades: Bytes::new([0; 0x100]),
+        }
+    }
+}
 
 /// The second picture's place, in bytes from the first's start.
 pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
@@ -125,15 +129,18 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&GRADING, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.grading, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), GRADING.reading.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.grading.reading.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F4A30),
-            GRADING.grades.addr() as usize
+            crate::gfx::owner::GFX.grading.grades.addr() as usize
         );
     }
 }

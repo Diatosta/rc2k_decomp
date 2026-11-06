@@ -108,6 +108,7 @@ pub mod object_slots_store;
 pub mod object_store;
 pub mod object_tables_store;
 pub mod objects;
+pub mod owner;
 pub mod place_object_points;
 pub mod point_records;
 pub mod polygon;

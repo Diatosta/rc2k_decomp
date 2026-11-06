@@ -15,7 +15,6 @@
 //! `net::lobby_button`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::lobby::PALETTE;
 use crate::net::store::NET;
 use rc2k_core::net::screens::{self, ButtonFont};
@@ -34,13 +33,13 @@ pub fn item_font(
     // Converted: `rc2k_core::net::screens::{item_lit, blink_lit}`.
     let blink = || {
         screens::blink_lit(
-            INSTALLER_PAGES.frame_clock.get(),
-            INSTALLER_PAGES.move_clock.get(),
+            crate::install::owner::install().pages.frame_clock.get(),
+            crate::install::owner::install().pages.move_clock.get(),
         )
     };
     if screens::item_lit(
         item,
-        INSTALLER_PAGES.choice.get(),
+        crate::install::owner::install().pages.choice.get(),
         || NET.edited.get(),
         blink,
     ) {
@@ -97,12 +96,12 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
     )?;
     let lit = screens::item_lit(
         item,
-        INSTALLER_PAGES.choice.get(),
+        crate::install::owner::install().pages.choice.get(),
         || NET.edited.get(),
         || {
             screens::blink_lit(
-                INSTALLER_PAGES.frame_clock.get(),
-                INSTALLER_PAGES.move_clock.get(),
+                crate::install::owner::install().pages.frame_clock.get(),
+                crate::install::owner::install().pages.move_clock.get(),
             )
         },
     );

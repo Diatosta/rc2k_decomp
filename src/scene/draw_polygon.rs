@@ -49,7 +49,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::polygon_store::PolygonEntry;
@@ -261,7 +260,7 @@ fn place(entries: &[Listed], mirrored: bool) {
         DRAW.view_offset_float[1].bits(),
     );
     let depth_factor: u32 = DRAW.one_over_farthest.bits();
-    let sse = DRAW_SWITCHES.use_sse.bits() != 0;
+    let sse = crate::scene::owner::scene().draw_switches.use_sse.bits() != 0;
     let mirror_at: u32 = DRAW.view_centre[0].bits();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
@@ -439,7 +438,13 @@ pub fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
 
     // The mode, with its fallbacks.
     let mut mode: u32 = RACE_VIEW.polygon_mode.bits();
-    if mode == 3 && DRAW_SWITCHES.clears_switch.bits() != 0 {
+    if mode == 3
+        && crate::scene::owner::scene()
+            .draw_switches
+            .clears_switch
+            .bits()
+            != 0
+    {
         clear_a_switch(&entries)?;
     }
     if matches!(mode, 3..=5) {

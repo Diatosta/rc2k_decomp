@@ -16,7 +16,7 @@
 //! 0x51E364 get with the same table.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
@@ -74,7 +74,7 @@ fn fatal(code: u32) -> Refused {
 /// `pixels_b` is where the place of the second palette's pixels is read from when they
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
-pub fn build_game_fonts(pixels_b: &crate::session::Dword) -> Result<(), Refused> {
+pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> Result<(), Refused> {
     let list = crate::pointers::GamePtr::to(&GAME_FONTS.memory);
     let bytes = GAME_FONTS
         .units
@@ -83,7 +83,7 @@ pub fn build_game_fonts(pixels_b: &crate::session::Dword) -> Result<(), Refused>
         .wrapping_mul(SCREEN.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables()?;
+    begin_glyph_tables(vars)?;
     DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
     // The textures' 8888 kind's description (`kinds[3]`): its pixel layout (8 bytes in).
     DECODER
@@ -93,11 +93,11 @@ pub fn build_game_fonts(pixels_b: &crate::session::Dword) -> Result<(), Refused>
     FONTS.game_fonts[0].update(|f| f.palette = palette_a);
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
     FONTS.game_fonts[3].update(|f| f.palette = palette_b);
-    begin_glyph_table(list)?;
-    build_glyphs(&crate::gfx::texts::FNT22, list)?;
-    let table = SHEET.table.get();
+    begin_glyph_table(vars, list)?;
+    build_glyphs(vars, &crate::gfx::texts::FNT22, list)?;
+    let table = vars.table.get();
     FONTS.game_fonts[0].update(|f| f.glyph_table = table);
-    if SHEET.table_size.get() == 0 {
+    if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
     alpha_palette();
@@ -144,7 +144,10 @@ pub fn build_game_fonts(pixels_b: &crate::session::Dword) -> Result<(), Refused>
 
 /// With the third font's palette's place, as the stage's loading calls it.
 pub fn build_game_fonts_in_game() -> Result<(), Refused> {
-    build_game_fonts(&FONTS.game_fonts[3].palette)
+    build_game_fonts(
+        &crate::gfx::owner::gfx().sheet,
+        &FONTS.game_fonts[3].palette,
+    )
 }
 
 #[cfg(test)]

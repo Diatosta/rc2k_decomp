@@ -35,7 +35,6 @@
 #![allow(unsafe_code)]
 
 use crate::framework::log;
-use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use std::ffi::{CStr, c_char, c_void};
 
@@ -720,8 +719,8 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
 pub fn play_film(path: crate::pointers::GamePtr) -> bool {
-    let reports: u32 = REPORTS.on.get();
-    REPORTS.on.set(0);
+    let reports: u32 = crate::gfx::owner::gfx().reports.on.get();
+    crate::gfx::owner::gfx().reports.on.set(0);
     // A key pending before the film is dropped (`input::take_key`).
     crate::input::take_key::take_key();
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
@@ -756,7 +755,7 @@ pub fn play_film(path: crate::pointers::GamePtr) -> bool {
             }
         }
     }
-    REPORTS.on.set(reports);
+    crate::gfx::owner::gfx().reports.on.set(reports);
     ended
 }
 

@@ -15,7 +15,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::{REPLAY_VIEW, ReplayViewBlock, ViewerPicture};
 use crate::session::Dword;
@@ -51,7 +50,7 @@ pub fn draw_viewer_item(item: &[Dword; 4], index: u32) -> Result<(), Refused> {
     VIEWER_PANEL.item_place[3].set(place[3]);
     let colour = item_colour(
         byte(0),
-        index == INSTALLER_PAGES.choice.get(),
+        index == crate::install::owner::install().pages.choice.get(),
         || {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .camera_edit
@@ -59,10 +58,11 @@ pub fn draw_viewer_item(item: &[Dword; 4], index: u32) -> Result<(), Refused> {
                 != 0
         },
         || {
-            INSTALLER_PAGES
+            crate::install::owner::install()
+                .pages
                 .frame_clock
                 .get()
-                .wrapping_sub(INSTALLER_PAGES.move_clock.get())
+                .wrapping_sub(crate::install::owner::install().pages.move_clock.get())
         },
     );
     crate::drive::tyre_quad::tyre_quad(uv, &VIEWER_PANEL.item_place, colour)

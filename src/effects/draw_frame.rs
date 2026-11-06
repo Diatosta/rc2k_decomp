@@ -16,6 +16,7 @@
 
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::{DRAW_FRAME, VIEW_VARS};
+use crate::effects::paths::Paths;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FRAME;
@@ -25,7 +26,6 @@ use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Float, read_bits};
@@ -43,7 +43,7 @@ fn rdtsc() -> u32 {
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
-pub fn draw_frame(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
+pub fn draw_frame(paths: &Paths, particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
     let info: u32 = COURSE_LISTS.course_info.bits();
     if info == 0 {
@@ -60,7 +60,10 @@ pub fn draw_frame(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     let what = "a stage record's corners";
     let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
     GamePtr::to(&MARK_CORNERS.corners).write_bytes(&corners, what)?;
-    let source: u32 = DRAW_SWITCHES.marks_source.bits();
+    let source: u32 = crate::scene::owner::scene()
+        .draw_switches
+        .marks_source
+        .bits();
     if source != DRAW_FRAME.last_source.get() {
         VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
     }
@@ -68,7 +71,7 @@ pub fn draw_frame(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     MARKS_WORK.sound_source.set(source);
     MARKS_WORK.sound_zero.set(0);
     VIEW_VARS.cleared.set(0);
-    cars_particles::cars_particles(particles, ring)?;
+    cars_particles::cars_particles(paths, particles, ring)?;
     view_heading::view_heading();
     view_motion::view_motion()?;
     let start = rdtsc();

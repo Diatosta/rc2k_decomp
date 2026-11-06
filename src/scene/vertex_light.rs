@@ -109,7 +109,7 @@ fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     let place = set_normal(number).and_then(|()| table_place());
     let place = place?;
     let colour = plus(
-        crate::scene::light_tables_store::LIGHT_TABLES.light_table[place].get(),
+        crate::scene::owner::scene().light_tables.light_table[place].get(),
         LIGHT_WORK.light_colour.bits(),
         mmx,
     );
@@ -157,7 +157,7 @@ pub fn vertex_light(number: u32) -> Result<u32, BadInput> {
                 return Err(BadInput("a place outside the light table"));
             }
             Ok(plus(
-                crate::scene::light_tables_store::LIGHT_TABLES.light_table[level as usize].get(),
+                crate::scene::owner::scene().light_tables.light_table[level as usize].get(),
                 added,
                 mmx,
             ))

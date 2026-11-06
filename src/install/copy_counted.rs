@@ -10,19 +10,19 @@
 
 use crate::errors::Refused;
 use crate::install::installer::copy_file;
-use crate::install::vars::INSTALLER_RUN;
 
 /// `from` (esi) copied to `to` (edi); whether it was all done (the original leaves
 /// `copy_file`'s carry through its `pusha` / `popa`: the game's files' copies and the
 /// Clio's stop on it). Until 2026-10-23 the port dropped it, so a failed copy went unseen.
 pub fn copy_counted(
+    g: &'static crate::install::owner::Install,
     from: impl Into<crate::place::Place>,
     to: impl Into<crate::place::Place>,
 ) -> Result<bool, Refused> {
     let from: u32 = from.into().game();
     let to: u32 = to.into().game();
-    INSTALLER_RUN
+    g.run
         .files_copied
-        .set(INSTALLER_RUN.files_copied.get().wrapping_add(1));
+        .set(g.run.files_copied.get().wrapping_add(1));
     copy_file(from, to)
 }

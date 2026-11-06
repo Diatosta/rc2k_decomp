@@ -57,8 +57,6 @@ pub const PIECES_LEN: usize = 0xB656;
 #[rustfmt::skip]
 pub fn pieces() -> [(GamePtr, usize); 69] {
     use crate::audio::store::AUDIO;
-    use crate::gfx::choices_store::SCREEN_CHOICES;
-    use crate::gfx::screen_state::SCREEN_MODE;
     use crate::menu::arcade_store::ARCADE_GAME;
     use crate::menu::flow_store::SCREEN_FLOW;
     use crate::menu::names_store::NAME_BUFFERS;
@@ -75,9 +73,9 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
     let names = |n: u32| GamePtr::to(&NAME_BUFFERS.player_names).offset(0x20 * n).limited(0x20);
     [
         (GamePtr::to(&RUN_COUNT.runs), 0x4),                            // how many times the game was run
-        (GamePtr::to(&SCREEN_MODE.menu_mode), 0x4),                     // the menus' screen mode
-        (GamePtr::to(&SCREEN_MODE.race_mode), 0x4),                     // the race's screen mode
-        (GamePtr::to(&SCREEN_CHOICES.mipmapping), 0x4),                 // mipmapping, off or on
+        (GamePtr::to(&crate::gfx::owner::gfx().display.mode.menu_mode), 0x4),                     // the menus' screen mode
+        (GamePtr::to(&crate::gfx::owner::gfx().display.mode.race_mode), 0x4),                     // the race's screen mode
+        (GamePtr::to(&crate::gfx::owner::gfx().display.choices.mipmapping), 0x4),                 // mipmapping, off or on
         (GamePtr::to(&AUDIO.menu_sound_mode), 0x4),                     // the menus' sound mode
         (GamePtr::to(&AUDIO.race_sound_mode), 0x4),                     // the race's sound mode
         (GamePtr::to(&AUDIO.master_volume), 0x4),                       // the master volume

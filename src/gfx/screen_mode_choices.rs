@@ -3,7 +3,7 @@
 //! secondary), the resolution (a place in the list), the buffering (0 double, 1 triple),
 //! mipmapping, the two cards present, the list made, the mipmapping's limit, the list's
 //! length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
-//! the mode). The card is the mode's bit `MODES.kind_bits` (0x1000: the secondary).
+//! the mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
 //!
 //! - Made and eax not 0: the mode chosen (0x300000 with `dword_4F4E30[+4]`, the list's
 //!   mode at +8 and `dword_4F4E38[+0xC]`) tried (`gfx::try_screen_mode`); if it works and
@@ -32,16 +32,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
-use crate::gfx::cards::CARDS;
-use crate::gfx::modes::{MODES, Modes};
+use crate::gfx::modes::Modes;
+use crate::gfx::owner::Display;
 use crate::pointers::GamePtr;
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use rc2k_core::gfx::mode_choices as mc;
 
 // ---- game data (IDA addresses) ----
-
-use crate::gfx::choices_store::SCREEN_CHOICES as CHOICES;
-use crate::gfx::screen_state::SCREEN_MODE;
 
 /// `system::find_entry` as the original uses it (the mode tables are walked as bytes, a
 /// run-on past their last entry as the original): the entry whose first dword is `key`, or
@@ -60,8 +57,11 @@ fn read(at: GamePtr) -> Result<u32, BadInput> {
 }
 
 /// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
-fn list_mode(place: u32) -> Result<u32, BadInput> {
-    CHOICES.list.dword(place, 3, "a screen mode table's dword")
+fn list_mode(display: &Display, place: u32) -> Result<u32, BadInput> {
+    display
+        .choices
+        .list
+        .dword(place, 3, "a screen mode table's dword")
 }
 
 fn read_word(at: GamePtr) -> Result<u32, BadInput> {
@@ -70,13 +70,13 @@ fn read_word(at: GamePtr) -> Result<u32, BadInput> {
 
 /// The modes the list would hold (the mode table's of the pixel kind's bits), or None
 /// when the original stops (the kind's choice past 1, no mode of the kind).
-fn modes_of(kind: u32) -> Option<Vec<GamePtr>> {
+fn modes_of(display: &Display, kind: u32) -> Option<Vec<GamePtr>> {
     if kind > 1 {
         return None;
     }
-    let bits = MODES.kind_bits[kind as usize].get();
+    let bits = display.modes.kind_bits[kind as usize].get();
     let (mut found, mut at, mut left) =
-        find_entry_with_bits(bits, Modes::mode_table_ptr(), MODES.count.get());
+        find_entry_with_bits(bits, Modes::mode_table_ptr(), display.modes.count.get());
     if !found {
         return None;
     }
@@ -95,7 +95,7 @@ fn modes_of(kind: u32) -> Option<Vec<GamePtr>> {
 
 /// The Rust version: with `try_choice` (eax not 0) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
-pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
+pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags, Refused> {
     // Converted: `rc2k_core::gfx::mode_choices`.
     let failed = || {
         Ok(Flags {
@@ -103,15 +103,22 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
             zero: false,
         })
     };
-    let made = CHOICES.made.get() == 1;
+    let made = display.choices.made.get() == 1;
     // The way taken and what decides it, before anything is written.
     let kind = if made {
-        CHOICES.card.get()
+        display.choices.card.get()
     } else {
-        mc::kind_of_race(SCREEN_MODE.race_mode.get(), MODES.kind_bits[0].get())
+        mc::kind_of_race(
+            display.mode.race_mode.get(),
+            display.modes.kind_bits[0].get(),
+        )
     };
     let rebuilding = !made || !try_choice;
-    let modes = if rebuilding { modes_of(kind) } else { None };
+    let modes = if rebuilding {
+        modes_of(display, kind)
+    } else {
+        None
+    };
     if let Some(modes) = &modes
         && modes.len() as u32 > mc::ROOM
     {
@@ -119,29 +126,32 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
     }
     if made {
         // ebp: the list's mode at the place chosen (read before eax is looked at).
-        if CHOICES.resolution.get() >= mc::PLACE_LIMIT {
+        if display.choices.resolution.get() >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
-        let current = list_mode(CHOICES.resolution.get())?;
+        let current = list_mode(display, display.choices.resolution.get())?;
         if try_choice {
             // The choice tried.
-            let (third, place) = (CHOICES.buffering.get(), CHOICES.resolution.get());
-            if !mc::can_try(kind, place, CHOICES.resolutions.get(), third) {
+            let (third, place) = (
+                display.choices.buffering.get(),
+                display.choices.resolution.get(),
+            );
+            if !mc::can_try(kind, place, display.choices.resolutions.get(), third) {
                 return failed();
             }
             let mode = mc::tried_mode(
-                MODES.kind_bits[kind as usize].get(),
-                list_mode(place)?,
-                MODES.third_bits[third as usize].get(),
+                display.modes.kind_bits[kind as usize].get(),
+                list_mode(display, place)?,
+                display.modes.third_bits[third as usize].get(),
             );
-            let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;
+            let tried = crate::gfx::try_screen_mode::try_screen_mode(display, mode)?;
             let worked = !tried.carry
                 && mc::kept(
-                    CHOICES.mipmapping.get(),
+                    display.choices.mipmapping.get(),
                     crate::d3d::cards_store::CARDS_3D.mips.get(),
                 );
             if worked {
-                crate::gfx::keep_race_screen_mode::keep_race_screen_mode(mode)?;
+                crate::gfx::keep_race_screen_mode::keep_race_screen_mode(display, mode)?;
             }
             crate::platform::set_menu_mode_now();
             if !worked {
@@ -153,18 +163,21 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
                 zero: mode == 0,
             });
         }
-        return rebuild(current, modes);
+        return rebuild(display, current, modes);
     }
-    CHOICES.card.set(kind);
-    CHOICES.has_primary.set(CARDS.primary.get());
-    CHOICES.has_secondary.set(CARDS.secondary.get());
-    rebuild(SCREEN_MODE.race_mode.get(), modes)
+    display.choices.card.set(kind);
+    display.choices.has_primary.set(display.cards.primary.get());
+    display
+        .choices
+        .has_secondary
+        .set(display.cards.secondary.get());
+    rebuild(display, display.mode.race_mode.get(), modes)
 }
 
 /// The list made again (`loc_40468A` on), `current` the mode kept in ebp.
-fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> {
-    CHOICES.listed.set(0);
-    CHOICES.resolutions.set(0);
+fn rebuild(display: &Display, current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> {
+    display.choices.listed.set(0);
+    display.choices.resolutions.set(0);
     let Some(modes) = modes else {
         return Ok(Flags {
             carry: true,
@@ -185,20 +198,27 @@ fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> 
             mode,
         };
         // `n` is below the list's 16: the room was checked before anything was written.
-        let slot = &CHOICES.list.modes[n];
+        let slot = &display.choices.list.modes[n];
         slot.width.set(l.width);
         slot.height.set(l.height);
         slot.figure.set(l.figure);
         slot.mode.set(l.mode);
-        CHOICES.resolutions.set(CHOICES.resolutions.get() + 1);
+        display
+            .choices
+            .resolutions
+            .set(display.choices.resolutions.get() + 1);
         listed.push(l.mode);
     }
-    CHOICES
+    display
+        .choices
         .mip_limit
         .set(crate::d3d::cards_store::CARDS_3D.mips.get());
-    CHOICES.listed.set(1);
-    CHOICES.resolution.set(mc::in_use_place(&listed, current));
-    let race = SCREEN_MODE.race_mode.get();
+    display.choices.listed.set(1);
+    display
+        .choices
+        .resolution
+        .set(mc::in_use_place(&listed, current));
+    let race = display.mode.race_mode.get();
     let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
         entry_or_past(mc::third_key(race), Modes::kinds_ptr(), 3)
@@ -212,11 +232,14 @@ fn rebuild(current: u32, modes: Option<Vec<GamePtr>>) -> Result<Flags, Refused> 
     if let Some(e) = failed.take() {
         return Err(e.into());
     }
-    CHOICES.resolution.set(place);
-    CHOICES.buffering.set(third);
-    let figure = mc::figure(CHOICES.mipmapping.get(), CHOICES.mip_limit.get());
-    CHOICES.mipmapping.set(figure);
-    CHOICES.made.set(1);
+    display.choices.resolution.set(place);
+    display.choices.buffering.set(third);
+    let figure = mc::figure(
+        display.choices.mipmapping.get(),
+        display.choices.mip_limit.get(),
+    );
+    display.choices.mipmapping.set(figure);
+    display.choices.made.set(1);
     Ok(Flags {
         carry: false,
         zero: figure == 0,

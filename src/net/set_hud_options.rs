@@ -59,7 +59,7 @@ pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
         .set(RACE_STATE.settings.cars[0].view.get());
     RACE_VARS
         .mip_setting
-        .set(crate::gfx::choices_store::SCREEN_CHOICES.mipmapping.get());
+        .set(crate::gfx::owner::gfx().display.choices.mipmapping.get());
     for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
         to.set(from.get());
     }

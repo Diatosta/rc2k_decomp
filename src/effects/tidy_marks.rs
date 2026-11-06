@@ -18,7 +18,7 @@
 
 use crate::effects::blocks::{MARK_LINKS, PLACES_BLOCK};
 use crate::effects::mask_store::MASK_BLOCKS;
-use crate::effects::morph_object_points::MORPH_WORK;
+use crate::effects::paths::Paths;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::memory::free_list::free_list;
@@ -56,7 +56,7 @@ fn all_lists(ring: &Ring) -> Result<Vec<GamePtr>, BadInput> {
 }
 
 /// The Rust version (see the header).
-pub fn tidy_marks(ring: &Ring) -> Result<(), Refused> {
+pub fn tidy_marks(paths: &Paths, ring: &Ring) -> Result<(), Refused> {
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     if !(0..=MOST_CARS).contains(&count) {
@@ -72,10 +72,10 @@ pub fn tidy_marks(ring: &Ring) -> Result<(), Refused> {
     for n in 0..count as u32 {
         let car = &marks.cars[n as usize];
         free_list(car.at(CAR_PART + 0x4C))?;
-        if let Some(points) = crate::effects::lines::BLOCK_POINTS.get(n as usize) {
+        if let Some(points) = paths.block_points.get(n as usize) {
             points.give_back();
         }
-        car.put(CAR_PART + 0x8C, MORPH_WORK.taken.get())?;
+        car.put(CAR_PART + 0x8C, paths.morph_work.taken.get())?;
     }
     for list in lists(ring) {
         free_list(list)?;

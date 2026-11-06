@@ -16,7 +16,6 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::strips::STRIPS;
 use crate::race::panel_store::PANEL;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
@@ -37,14 +36,14 @@ fn quad_input(o: usize) -> &'static crate::session::Dword {
 fn sizes(v: [u32; 4]) {
     let (sizes, _) = strips::sizes(v, SCREEN.width.get(), SCREEN.height.get());
     for (n, x) in sizes.into_iter().enumerate() {
-        STRIPS.sizes[n].set(x);
+        crate::gfx::owner::gfx().strips.sizes[n].set(x);
     }
 }
 
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
-    let sizes: [u32; 4] = std::array::from_fn(|n| STRIPS.sizes[n].get());
+    let sizes: [u32; 4] = std::array::from_fn(|n| crate::gfx::owner::gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         quad_input(o).set_bits(v);
     }
@@ -70,7 +69,7 @@ pub fn overlay_tail() -> Result<(), Refused> {
     }
     for (v, rows) in strips::TAIL {
         sizes(v);
-        let get = |n: usize| STRIPS.sizes[n].get();
+        let get = |n: usize| crate::gfx::owner::gfx().strips.sizes[n].get();
         quad(get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
@@ -84,10 +83,10 @@ pub fn draw_view_strip(view: u32) -> Result<(), Refused> {
     }
     {
         let top = strips::top_entry(view, PANEL.flat.get());
-        let top: u32 = STRIPS.tops[top as usize].get();
-        let left: u32 = STRIPS.lefts[view as usize].get();
+        let top: u32 = crate::gfx::owner::gfx().strips.tops[top as usize].get();
+        let left: u32 = crate::gfx::owner::gfx().strips.lefts[view as usize].get();
         sizes([top, strips::HEIGHT, left, strips::WIDTH]);
-        let get = |n: usize| STRIPS.sizes[n].get();
+        let get = |n: usize| crate::gfx::owner::gfx().strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
             quad(left, width, rows, None)?;

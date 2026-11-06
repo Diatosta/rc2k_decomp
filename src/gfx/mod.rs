@@ -42,6 +42,7 @@ pub mod load_picture_to_texture;
 pub mod load_picture_with_overlay;
 pub mod mark_3d_modes;
 pub mod mmx_converters;
+pub mod owner;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;

@@ -33,17 +33,21 @@ pub struct ScreenMode {
     pub _tail: Bytes<4>,
 }
 
-pub static SCREEN_MODE: ScreenMode = ScreenMode {
-    _lead: Bytes::new([0; 12]),
-    depth_bits: Dword::new(0x0),
-    depth_extra: Dword::new(0x0),
-    mode_flags: Dword::new(0x0),
-    mode_set: Dword::new(0x0),
-    _gap_4f493c: Bytes::new([0; 8]),
-    menu_mode: Dword::new(0x0),
-    race_mode: Dword::new(0x0),
-    _tail: Bytes::new([0; 4]),
-};
+impl ScreenMode {
+    pub const fn new() -> Self {
+        ScreenMode {
+            _lead: Bytes::new([0; 12]),
+            depth_bits: Dword::new(0x0),
+            depth_extra: Dword::new(0x0),
+            mode_flags: Dword::new(0x0),
+            mode_set: Dword::new(0x0),
+            _gap_4f493c: Bytes::new([0; 8]),
+            menu_mode: Dword::new(0x0),
+            race_mode: Dword::new(0x0),
+            _tail: Bytes::new([0; 4]),
+        }
+    }
+}
 
 impl ScreenMode {
     pub const START: usize = 0x4F492C;
@@ -51,7 +55,8 @@ impl ScreenMode {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const SCREEN_MODE) + 12) as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::GFX.display.mode) + 12)
+            as usize
     }
 }
 

@@ -89,20 +89,24 @@ pub struct SheetVars {
     pub alpha_loaded: Dword,
 }
 
-/// The sheet builder's variables; the first values are the image's (all zero).
-pub static SHEET: SheetVars = SheetVars {
-    sheet_table: Dword::new(0),
-    sheet_table_size: Dword::new(0),
-    table_list: Dword::new(0),
-    table: Dword::new(0),
-    table_size: Dword::new(0),
-    _gap_14: Dword::new(0),
-    glyph_count: Dword::new(0),
-    glyph_bytes: Dword::new(0),
-    _gap_20: [const { Dword::new(0) }; 5],
-    pixel_size: Dword::new(0),
-    alpha_loaded: Dword::new(0),
-};
+impl SheetVars {
+    /// The sheet builder's variables; the first values are the image's (all zero).
+    pub const fn new() -> Self {
+        SheetVars {
+            sheet_table: Dword::new(0),
+            sheet_table_size: Dword::new(0),
+            table_list: Dword::new(0),
+            table: Dword::new(0),
+            table_size: Dword::new(0),
+            _gap_14: Dword::new(0),
+            glyph_count: Dword::new(0),
+            glyph_bytes: Dword::new(0),
+            _gap_20: [const { Dword::new(0) }; 5],
+            pixel_size: Dword::new(0),
+            alpha_loaded: Dword::new(0),
+        }
+    }
+}
 
 const RECORD_HEAD: u32 = 0x1C;
 /// Half the picture buffer: where a sheet lies, and what an alpha sheet is kept behind.
@@ -188,9 +192,9 @@ fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 
 /// `sub_412C92` on the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
-fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
+fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refused> {
     let size = more.len() as u32;
-    let (table, held): (u32, u32) = (SHEET.table.get(), SHEET.table_size.get());
+    let (table, held): (u32, u32) = (vars.table.get(), vars.table_size.get());
     if level() as i32 >= 3 {
         text(b"Appending:\0", false);
         log_hex8(table, false, 1);
@@ -208,7 +212,7 @@ fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
     let mut joined = glyph_store::read_bytes(table, 0, held as usize, "the glyph table")?;
     append(&mut joined, more)?;
     glyph_store::write_bytes(table, 0, &joined, "the glyph table")?;
-    SHEET.table_size.set(joined.len() as u32);
+    vars.table_size.set(joined.len() as u32);
     Ok(())
 }
 
@@ -216,8 +220,8 @@ fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
 /// picture buffer's second half as the alpha of the one after it. The number moves on
 /// either way.
 /// The path's text, up to its NUL.
-fn read_alpha_sheet(template: &[u8]) -> Result<(), Refused> {
-    SHEET.alpha_loaded.set(0u32);
+fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
+    vars.alpha_loaded.set(0u32);
     let flags: u32 = DECODER.builder_flags.get();
     if flags & ONE_FILE != 0 {
         return Err(fatal(0x80E4_F411, ""));
@@ -232,7 +236,7 @@ fn read_alpha_sheet(template: &[u8]) -> Result<(), Refused> {
             ));
         }
         let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
-        SHEET.pixel_size.set(1u32);
+        vars.pixel_size.set(1u32);
         DECODER.builder_flags.set(flags);
         fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
         let mut convert = |components: u32| components;
@@ -260,7 +264,7 @@ fn read_alpha_sheet(template: &[u8]) -> Result<(), Refused> {
             let path = numbered_path_bytes(template, number)?;
             log_sheet(&path, false, backdrop, transparent);
         }
-        SHEET.alpha_loaded.set(1u32);
+        vars.alpha_loaded.set(1u32);
         let half = 4 * HALF_PICTURE_DWORDS;
         with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
             .ok_or(BadInput("a picture buffer shorter than two halves"))?;
@@ -270,7 +274,11 @@ fn read_alpha_sheet(template: &[u8]) -> Result<(), Refused> {
 }
 
 /// `template`: the sheets' path (its NUL, if any, ends it).
-pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(), Refused> {
+pub fn build_glyphs(
+    vars: &SheetVars,
+    template: &[u8],
+    list: crate::pointers::GamePtr,
+) -> Result<(), Refused> {
     let template = &template[..template
         .iter()
         .position(|&b| b == 0)
@@ -279,7 +287,7 @@ pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(
     DECODER.number.set(0u32);
     loop {
         if DECODER.builder_flags.get() & WITH_ALPHA != 0 {
-            read_alpha_sheet(template)?;
+            read_alpha_sheet(vars, template)?;
         }
         let mut flags: u32 = DECODER.builder_flags.get();
         let path = if flags & ONE_FILE != 0 {
@@ -309,7 +317,7 @@ pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(
             format = Some(layout);
         }
         DECODER.builder_flags.set(flags);
-        SHEET.pixel_size.set(pixel_size);
+        vars.pixel_size.set(pixel_size);
         fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
 
         let mut convert = |components: u32| match &format {
@@ -320,7 +328,7 @@ pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(
         if width == 0 {
             return Err(BadInput("a sheet without columns").into());
         }
-        let soften = flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1;
+        let soften = flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() != 1;
         // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
         let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
             backdrop_of(&Sheet {
@@ -347,7 +355,7 @@ pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(
             };
             log_sheet(&path, true, backdrop, transparent);
         }
-        if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
+        if flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() == 1 {
             // `sub_4124E9`: the kept sheet's low four bits become the top four here.
             if flags & DIRECT_COLOUR != 0 {
                 return Err(fatal(
@@ -397,23 +405,23 @@ pub fn build_glyphs(template: &[u8], list: crate::pointers::GamePtr) -> Result<(
                 log_glyph(glyph, number as u32 + 1, flags, pixel_size);
             }
         }
-        SHEET.glyph_count.set(glyphs.len() as u32);
-        SHEET.glyph_bytes.set(bytes);
+        vars.glyph_count.set(glyphs.len() as u32);
+        vars.glyph_bytes.set(bytes);
 
         let table = table_of(&glyphs);
         let size = table.len() as u32;
         let Some(place) = take_from_list(work, size)? else {
             return Err(fatal(0x80E4_8011, ""));
         };
-        SHEET.sheet_table_size.set(size);
+        vars.sheet_table_size.set(size);
         // The sheet's table is counted off the work memory where the original put it
         // (`place` is that list's cursor, logged as the original logs its address), and
         // appended from Rust's bytes (`gfx::glyph_store`).
-        SHEET.sheet_table.set(place);
+        vars.sheet_table.set(place);
         if take_from_list(list, size)?.is_none() {
             return Err(fatal(0x80E4_8012, ""));
         }
-        append_to_table(place, &table)?;
+        append_to_table(vars, place, &table)?;
 
         if flags & ONE_FILE != 0 {
             return Ok(());
@@ -429,7 +437,7 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SHEET, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.sheet, START, START + LEN);
     }
 
     #[test]
@@ -439,11 +447,11 @@ mod block_tests {
         assert_eq!(offset_of!(SheetVars, pixel_size), 0x5195CC - START);
         assert_eq!(
             crate::moved::place(START),
-            SHEET.sheet_table.addr() as usize
+            crate::gfx::owner::GFX.sheet.sheet_table.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5195D0),
-            SHEET.alpha_loaded.addr() as usize
+            crate::gfx::owner::GFX.sheet.alpha_loaded.addr() as usize
         );
     }
 }

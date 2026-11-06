@@ -27,9 +27,11 @@ fn prefs_dwords<const N: usize>(offset: usize) -> [u32; N] {
     std::array::from_fn(|k| d[offset / 4 + k].get())
 }
 
-pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
+pub fn fill_light_tables(
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     use crate::race::prefs_store::StagePrefs;
-    use crate::scene::light_tables_store::LIGHT_TABLES as T;
+    let t = &scene.light_tables;
     use core::mem::offset_of;
     let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
         STAGE_PREFS.lit_b.bits()
@@ -41,13 +43,13 @@ pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
     } else {
         prefs_dwords(offset_of!(StagePrefs, dark_colour))
     };
-    fill_light_ramp(ramp, &T.light_table);
+    fill_light_ramp(ramp, &t.light_table);
     // The four lamp tables and, the other way, their colours.
     let lamps = [
-        (&T.lamp_table_a, offset_of!(StagePrefs, lamp_table_a)),
-        (&T.lamp_table_b, offset_of!(StagePrefs, lamp_table_b)),
-        (&T.car_light_table, offset_of!(StagePrefs, car_light_table)),
-        (&T.lamp_table_c, offset_of!(StagePrefs, lamp_table_c)),
+        (&t.lamp_table_a, offset_of!(StagePrefs, lamp_table_a)),
+        (&t.lamp_table_b, offset_of!(StagePrefs, lamp_table_b)),
+        (&t.car_light_table, offset_of!(StagePrefs, car_light_table)),
+        (&t.lamp_table_c, offset_of!(StagePrefs, lamp_table_c)),
     ];
     for (table, colour) in lamps {
         let colour = if plain {

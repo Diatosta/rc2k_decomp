@@ -4,7 +4,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
@@ -65,7 +64,9 @@ pub fn draw_stage_map() -> Result<(), Refused> {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
-    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    PICTURE
+        .flags
+        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
     blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, None)?;
     Ok(())

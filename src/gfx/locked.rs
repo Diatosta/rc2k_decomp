@@ -16,10 +16,14 @@ pub struct Locked {
     pub surface: Dword,
 }
 
-/// The switch; the first value is the image's.
-pub static LOCKED: Locked = Locked {
-    surface: Dword::new(0),
-};
+impl Locked {
+    /// The switch; the first value is the image's.
+    pub const fn new() -> Self {
+        Locked {
+            surface: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -27,11 +31,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&LOCKED, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&crate::gfx::owner::GFX.locked, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), LOCKED.surface.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.locked.surface.addr() as usize
+        );
     }
 }

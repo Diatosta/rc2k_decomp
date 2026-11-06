@@ -13,13 +13,14 @@
 //! Refuses a count of 0 (the original goes through all 32 bits) and null pointers.
 
 use crate::errors::BadInput;
-use crate::gfx::formats::FORMATS;
+use crate::gfx::formats::Formats;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
 pub fn blend_palette(
+    formats: &Formats,
     first: u32,
     second: u32,
     out: GamePtr,
@@ -52,7 +53,7 @@ pub fn blend_palette(
             towards_second,
         );
         if let Some(scratch) = scratch {
-            FORMATS.scratch.write(&scratch);
+            formats.scratch.write(&scratch);
         }
         entry.write(pixel, "a palette")?;
     }

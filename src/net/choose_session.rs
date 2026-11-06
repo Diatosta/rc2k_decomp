@@ -14,7 +14,6 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::choose_connection::list_move;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::store::NET;
@@ -29,7 +28,9 @@ use rc2k_core::net::screens::{self, ListKey};
 fn refresh() -> Result<bool, Refused> {
     let listed = NET.sessions.get();
     if listed != 0 {
-        let instance = with_session(INSTALLER_PAGES.choice.get(), |s| s.instance)?;
+        let instance = with_session(crate::install::owner::install().pages.choice.get(), |s| {
+            s.instance
+        })?;
         NET.joined.write_at(0, &instance, "the joined session")?;
     }
     let posting = NET.posting.get();
@@ -51,8 +52,8 @@ fn refresh() -> Result<bool, Refused> {
                 top = if screens::keeps_top(NET.sessions.get()) {
                     screens::moved_top(
                         n,
-                        INSTALLER_PAGES.choice_before.get(),
-                        INSTALLER_PAGES.choice.get(),
+                        crate::install::owner::install().pages.choice_before.get(),
+                        crate::install::owner::install().pages.choice.get(),
                     )
                 } else {
                     0
@@ -65,18 +66,21 @@ fn refresh() -> Result<bool, Refused> {
             }
         }
     }
-    INSTALLER_PAGES.choice.set(choice);
-    INSTALLER_PAGES.choice_before.set(top);
+    crate::install::owner::install().pages.choice.set(choice);
+    crate::install::owner::install()
+        .pages
+        .choice_before
+        .set(top);
     Ok(true)
 }
 
 /// The Rust version.
 pub fn choose_session() -> Result<u32, Refused> {
     let now = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(now);
-    INSTALLER_PAGES.key_clock.set(now);
-    INSTALLER_PAGES.choice.set(0);
-    INSTALLER_PAGES.choice_before.set(0);
+    crate::install::owner::install().pages.move_clock.set(now);
+    crate::install::owner::install().pages.key_clock.set(now);
+    crate::install::owner::install().pages.choice.set(0);
+    crate::install::owner::install().pages.choice_before.set(0);
     NET.clock_a.set(crate::system::tick_count::tick_count());
     loop {
         run_frame(crate::net::sessions_frame::sessions_frame)?;
@@ -84,19 +88,26 @@ pub fn choose_session() -> Result<u32, Refused> {
         if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
             NET.clock_a.set(tick);
             if !refresh()? {
-                INSTALLER_PAGES.choice.set(0xFFFF_FFFE);
-                return Ok(INSTALLER_PAGES.choice.get());
+                crate::install::owner::install()
+                    .pages
+                    .choice
+                    .set(0xFFFF_FFFE);
+                return Ok(crate::install::owner::install().pages.choice.get());
             }
         }
-        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        crate::install::owner::install()
+            .pages
+            .frame_clock
+            .set(CLOCKS.key_ticks.get());
         let key = list_key()?;
         let any = NET.sessions.get() != 0;
         if any && list_move(key, NET.sessions.get()) {
-            INSTALLER_PAGES
+            crate::install::owner::install()
+                .pages
                 .move_clock
-                .set(INSTALLER_PAGES.frame_clock.get());
+                .set(crate::install::owner::install().pages.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(INSTALLER_PAGES.choice.get());
+            return Ok(crate::install::owner::install().pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -106,6 +117,6 @@ pub fn choose_session() -> Result<u32, Refused> {
             break;
         }
     }
-    INSTALLER_PAGES.choice.set(u32::MAX);
-    Ok(INSTALLER_PAGES.choice.get())
+    crate::install::owner::install().pages.choice.set(u32::MAX);
+    Ok(crate::install::owner::install().pages.choice.get())
 }

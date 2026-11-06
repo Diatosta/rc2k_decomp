@@ -16,6 +16,7 @@
 //! bits), and no surface, format, piece or picture.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::formats::Formats;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 // ---- Rust version ----
@@ -63,7 +64,7 @@ fn something(p: &Piece, to: &Target) -> bool {
     width != 0 && height != 0
 }
 
-pub fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
+pub fn blit_components(formats: &Formats, p: &Piece, to: &Target) -> Result<(), Refused> {
     if !something(p, to) {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
@@ -88,7 +89,7 @@ pub fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
             "a surface's row",
         )?;
         if let Some(scratch) = scratch {
-            crate::gfx::formats::FORMATS.scratch.write(&scratch);
+            formats.scratch.write(&scratch);
         }
         source = source.wrapping_add(p.row_bytes as usize);
     }

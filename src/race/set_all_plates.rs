@@ -54,7 +54,7 @@ pub fn set_all_plates() -> Result<(), Refused> {
             at = at.offset(4);
         }
     }
-    crate::scene::reload_system_textures::reload_system_textures()?;
+    crate::scene::reload_system_textures::reload_system_textures(crate::scene::owner::scene())?;
     crate::scene::reload_slot_textures::reload_slot_textures()?;
     Ok(())
 }

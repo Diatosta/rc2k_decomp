@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::describe_format::describe_format;
-use crate::gfx::formats::FORMATS;
+use crate::gfx::formats::Formats;
 
 // ---- game data ----
 
@@ -17,11 +17,11 @@ const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
 
 // ---- Rust version ----
 
-pub fn set_component_format() -> Result<(), Refused> {
-    let format = &FORMATS.component_format;
+pub fn set_component_format(formats: &Formats) -> Result<(), Refused> {
+    let format = &formats.component_format;
     for (n, mask) in MASKS.into_iter().enumerate() {
         format[1 + n].set(mask);
     }
-    describe_format(format);
+    describe_format(formats, format);
     Ok(())
 }

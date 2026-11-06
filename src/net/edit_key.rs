@@ -14,7 +14,6 @@
 //! Callers: `net::setting_key`, `net::chat_key`.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::vars::INSTALLER_PATHS;
 use crate::net::lobby::movsb;
 use crate::net::store::NET;
 use crate::pointers::GamePtr;
@@ -35,7 +34,11 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
         let words = text.bytes("an edited text")?;
         match EditKey::of(key) {
             EditKey::Escape => {
-                movsb(text, &INSTALLER_PATHS.script_path, editing::TEXT_LEN as u32)?;
+                movsb(
+                    text,
+                    &crate::install::owner::install().paths.script_path,
+                    editing::TEXT_LEN as u32,
+                )?;
                 NET.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => NET.edited.set(editing::NOT_EDITING),

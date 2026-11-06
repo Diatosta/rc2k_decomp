@@ -13,13 +13,12 @@
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;
-use crate::install::vars::INSTALLER_PATHS;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 /// The record written; whether the write worked (the original leaves `write_file`'s carry
 /// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
 /// dropped it, and the install was judged by the change of folder before it.
-pub fn write_record() -> Result<bool, Refused> {
+pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let start = crate::place::Place::from(&TEXT_BUFFER.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
@@ -28,14 +27,14 @@ pub fn write_record() -> Result<bool, Refused> {
         .then(|| crate::files::cstring(locale_at, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::place::Place::from(&INSTALLER_PATHS.game_dir).text("the game's folder")?,
+        &crate::place::Place::from(&g.paths.game_dir).text("the game's folder")?,
         locale.as_deref(),
         media_mode(),
     );
     start.write(&text, "the install record's text")?;
     // files::write_file
     let written = crate::files::write_file::write_file(
-        crate::pointers::GamePtr::to(&crate::install::installer::INSTALL_TEXTS.record_path),
+        crate::pointers::GamePtr::to(&g.texts.record_path),
         start.game_ptr(),
         text.len() as u32,
     )?;

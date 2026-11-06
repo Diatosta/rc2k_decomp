@@ -14,7 +14,7 @@ use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
+use crate::scene::file_numbers_store::texts;
 use crate::scene::light_work_store::LIGHT_WORK;
 const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
@@ -147,7 +147,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.indent(-3);
     s.step(
         &mut || {
-            crate::scene::set_up_object_memory::set_up_object_memory()?;
+            crate::scene::set_up_object_memory::set_up_object_memory(crate::scene::owner::scene())?;
             Ok(())
         },
         None,
@@ -208,8 +208,12 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     crate::race::game_map::load_game_map(
-        FILE_NUMBERS.text_ptr(texts::MAP_PATH),
-        FILE_NUMBERS.text_ptr(texts::MAP_KEY),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::MAP_PATH),
+        crate::scene::owner::scene()
+            .file_numbers
+            .text_ptr(texts::MAP_KEY),
     )?;
     s.progress(0x5A)?;
     s.indent(-3);
@@ -258,7 +262,9 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     )?;
     s.step(
         &mut || {
-            crate::scene::fill_scene_light_tables::fill_scene_light_tables()?;
+            crate::scene::fill_scene_light_tables::fill_scene_light_tables(
+                crate::scene::owner::scene(),
+            )?;
             Ok(())
         },
         Some(0x62),

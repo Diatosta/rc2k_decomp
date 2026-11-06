@@ -5,7 +5,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_texture_picture::read_texture_picture;
-use crate::gfx::texture_pixels::GRADING;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
@@ -430,14 +429,14 @@ pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> R
             key_texture_colours(pixels, count, key)?;
         }
         let (reading, scale, saturation) = (
-            GRADING.reading.get(),
-            GRADING.scale.get(),
-            GRADING.saturation.get(),
+            crate::gfx::owner::gfx().grading.reading.get(),
+            crate::gfx::owner::gfx().grading.scale.get(),
+            crate::gfx::owner::gfx().grading.saturation.get(),
         );
         if grading(reading, scale, saturation) {
             let mut table = [0u8; 0x100];
             grade_texture(pixels, count, key, scale, saturation, &mut table)?;
-            GRADING.grades.write(&table);
+            crate::gfx::owner::gfx().grading.grades.write(&table);
         }
     }
     Ok(())

@@ -20,18 +20,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
-use crate::install::vars::INSTALLER_PATHS;
 use crate::place::Place;
 use rc2k_core::install::script::{self, Op};
 
 /// The script at `script` (ebx) run.
-pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn run_script(
+    g: &'static crate::install::owner::Install,
+    script: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     use crate::install as i;
     // Bounded by the script's allocation, not by the field it starts in: the uninstall
     // script runs on from `INSTALLER_NAMES.script` through `script_mark` into the fields
     // after it, as the original reads it.
     let mut cursor = Place::from(script.into().game_ptr().unbounded());
-    let mut end = Place::from(&INSTALLER_PATHS.script_path);
+    let mut end = Place::from(&g.paths.script_path);
     wb(end, 0);
     let mut stack: Vec<Place> = Vec::new();
     let media = media_mode() as u8;
@@ -48,7 +50,7 @@ pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused>
             Op::Folder => {
                 stack.push(end);
                 (cursor, end) = i::script_name::script_name(cursor, end)?;
-                i::list_folder::list_folder(&INSTALLER_PATHS.script_path)?;
+                i::list_folder::list_folder(g, &g.paths.script_path)?;
                 wb(end, b'\\');
                 wb(end.add(1), 0);
                 end = end.add(1);
@@ -67,13 +69,11 @@ pub fn run_script(script: impl Into<crate::place::Place>) -> Result<(), Refused>
                 stack.push(end);
                 (cursor, _) = i::script_name::script_name(cursor, end)?;
                 if op == 3 {
-                    i::list_files::list_files(&INSTALLER_PATHS.script_path)?;
+                    i::list_files::list_files(g, &g.paths.script_path)?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(&INSTALLER_PATHS.script_path)?;
+                    i::list_folder_tree::list_folder_tree(&g.paths.script_path)?;
                 }
-                end = stack
-                    .pop()
-                    .unwrap_or(Place::from(&INSTALLER_PATHS.script_path)); // pushed just above
+                end = stack.pop().unwrap_or(Place::from(&g.paths.script_path)); // pushed just above
                 wb(end, 0);
             }
             Op::Media => {

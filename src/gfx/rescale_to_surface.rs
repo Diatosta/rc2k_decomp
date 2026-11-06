@@ -20,7 +20,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::rescale_picture::RESCALE;
+use crate::gfx::rescale_picture::Rescaler;
 
 // ---- game data ----
 
@@ -35,7 +35,10 @@ const ROW_GAP: usize = 0x2C;
 // ---- Rust version ----
 
 /// `surface` is where the twelve dwords of a surface's description are.
-pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refused> {
+pub fn rescale_to_surface(
+    rescaler: &Rescaler,
+    surface: crate::pointers::GamePtr,
+) -> Result<(), Refused> {
     use crate::pointers::write_or_end;
     let field = |offset: usize| {
         surface
@@ -78,9 +81,9 @@ pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refus
             },
             &mut |parts| {
                 for (part, &byte) in parts.iter().enumerate() {
-                    RESCALE.components.set(part, byte);
+                    rescaler.components.set(part, byte);
                 }
-                let pixel = components_to_pixel(&format, RESCALE.components.get_u32(0));
+                let pixel = components_to_pixel(&format, rescaler.components.get_u32(0));
                 if words {
                     write_or_end(out, pixel as u16, "the surface");
                     out = out.wrapping_add(2);
@@ -97,13 +100,13 @@ pub fn rescale_to_surface(surface: crate::pointers::GamePtr) -> Result<(), Refus
         )
         .expect("the sizes were checked")
     })?;
-    RESCALE.step_x.set(work.step_x);
-    RESCALE.step_x_fraction.set(work.step_x_fraction);
-    RESCALE.step_y.set(work.step_y);
-    RESCALE.step_y_fraction.set(work.step_y_fraction);
-    RESCALE.weight_x.set(work.weight_x);
-    RESCALE.weight_y.set(work.weight_y);
-    RESCALE.columns_left.set(0);
-    RESCALE.rows_left.set(0);
+    rescaler.step_x.set(work.step_x);
+    rescaler.step_x_fraction.set(work.step_x_fraction);
+    rescaler.step_y.set(work.step_y);
+    rescaler.step_y_fraction.set(work.step_y_fraction);
+    rescaler.weight_x.set(work.weight_x);
+    rescaler.weight_y.set(work.weight_y);
+    rescaler.columns_left.set(0);
+    rescaler.rows_left.set(0);
     Ok(())
 }

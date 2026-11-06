@@ -21,9 +21,9 @@ use crate::errors::Refused;
 use crate::gfx::decode_png::decode_png;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_png::lay_out_png;
+use crate::gfx::owner::Png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
 
@@ -49,16 +49,16 @@ fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
 }
 
 /// The part with the file's memory held: whether it worked.
-fn read_held(path: &[u8], size: u32) -> Result<bool, Refused> {
+fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
     // The file's memory Rust's (phase 12), counted on the list as the game's block was.
     let mut file =
-        crate::memory::owned::counted(crate::pointers::GamePtr::to(&PNG_FILE.memory), size)?;
+        crate::memory::owned::counted(crate::pointers::GamePtr::to(&png.file.memory), size)?;
     let file = &mut file[..size as usize];
     let read = crate::files::read_file::read_file_into(path, file, 0)?;
     if !read.ok || read.bytes_read != Some(size) {
         return Ok(false);
     }
-    decode_png(file, PICTURE.buffer.get(), crate::gfx::png::info_ptr())?;
+    decode_png(png, file, PICTURE.buffer.get(), crate::gfx::png::info_ptr())?;
     PICTURE.flags.set(0x802u32);
     lay_out_png()?;
     PICTURE.width.set(DECODER.width.get());
@@ -74,10 +74,10 @@ fn read_held(path: &[u8], size: u32) -> Result<bool, Refused> {
 }
 
 /// Returns whether the picture was read.
-pub fn read_png(path: &[u8]) -> Result<bool, Refused> {
+pub fn read_png(png: &Png, path: &[u8]) -> Result<bool, Refused> {
     let free = || {
         // Refused only with the game's own heap, which `allocate` refuses first.
-        let _ = free_list(crate::pointers::GamePtr::to(&PNG_FILE.memory));
+        let _ = free_list(crate::pointers::GamePtr::to(&png.file.memory));
     };
     // The original gives the list back on every way out, also with nothing on it.
     let taken = head_is_taken(path).inspect_err(|_| free())?;
@@ -90,8 +90,8 @@ pub fn read_png(path: &[u8]) -> Result<bool, Refused> {
         free();
         return Ok(false);
     }
-    PNG_FILE.length.set(size);
-    let worked = read_held(path, size);
+    png.file.length.set(size);
+    let worked = read_held(png, path, size);
     free();
     worked
 }

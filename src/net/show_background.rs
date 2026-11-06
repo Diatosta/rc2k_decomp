@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::net::lobby::{copy_picture, draw_string};
 use crate::net::store::NET;
 
@@ -23,7 +22,9 @@ pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 pub fn show_background() -> Result<(), Refused> {
     crate::gfx::load_picture::load_picture(&crate::gfx::texts::CHATZONE)?;
     crate::gfx::convert_picture::convert_picture_now()?;
-    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    PICTURE
+        .flags
+        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
     let title = if NET.session.get() == 1 {
         0x15A

@@ -27,15 +27,19 @@ pub struct PngHeader {
     pub colour_type: Dword,
 }
 
-/// The header; the first values are the image's.
-pub static HEADER: PngHeader = PngHeader {
-    width: Dword::new(0),
-    height: Dword::new(0),
-    _gap_8: Bytes::new([0; 2]),
-    compression: Byte::new(0),
-    _gap_b: Bytes::new([0; 5]),
-    colour_type: Dword::new(0),
-};
+impl PngHeader {
+    /// The header; the first values are the image's.
+    pub const fn new() -> Self {
+        PngHeader {
+            width: Dword::new(0),
+            height: Dword::new(0),
+            _gap_8: Bytes::new([0; 2]),
+            compression: Byte::new(0),
+            _gap_b: Bytes::new([0; 5]),
+            colour_type: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -44,17 +48,24 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&HEADER, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::GFX.png.header,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(PngHeader, compression), 0xA8C19A - START);
         assert_eq!(offset_of!(PngHeader, colour_type), 0xA8C1A0 - START);
-        assert_eq!(crate::moved::place(START), HEADER.width.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::GFX.png.header.width.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0xA8C1A0),
-            HEADER.colour_type.addr() as usize
+            crate::gfx::owner::GFX.png.header.colour_type.addr() as usize
         );
     }
 }

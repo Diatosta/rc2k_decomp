@@ -29,9 +29,7 @@
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::SURFACES;
-use crate::gfx::locked::LOCKED;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::gfx::set_clip::set_clip;
 use crate::session::FLAGS;
 use crate::session::SCREEN as GAME_SCREEN;
@@ -79,11 +77,11 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
         // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
         // mode table lists it: the window takes any listed mode, and every listed mode
         // passes the 3D check (`gfx::mark_3d_modes`).
-        use crate::gfx::modes::MODES;
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
+        let display = &crate::gfx::owner::gfx().display;
         let (table, count) = (
             crate::gfx::modes::Modes::mode_table_ptr(),
-            MODES.count.get(),
+            display.modes.count.get(),
         );
         let works = |mode: u32| {
             let entries = crate::system::find_entry::entries(table, count);
@@ -92,13 +90,13 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
         let listed = |bits: u32| {
             crate::system::find_entry_with_bits::find_entry_with_bits(bits, table, count).0
         };
-        let (menu, race) = (SCREEN_MODE.menu_mode.get(), SCREEN_MODE.race_mode.get());
+        let (menu, race) = (display.mode.menu_mode.get(), display.mode.race_mode.get());
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         let race = crate::handheld::race_mode(race);
         match choose(menu, race, works, listed) {
             Some((menu, race)) => {
-                SCREEN_MODE.race_mode.set(race);
-                SCREEN_MODE.menu_mode.set(menu);
+                display.mode.race_mode.set(race);
+                display.mode.menu_mode.set(menu);
                 log(&format!(
                     "platform: screen modes {menu:#x} for the menus, {race:#x} for a race"
                 ));
@@ -114,7 +112,10 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
     // whatever eax holds).
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(false);
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(
+        &crate::gfx::owner::gfx().display,
+        false,
+    );
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"
@@ -137,7 +138,7 @@ fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<
 }
 
 fn set_screen_mode(mode: u32) -> Result<(), String> {
-    SCREEN_MODE.mode_flags.set(mode);
+    crate::gfx::owner::gfx().display.mode.mode_flags.set(mode);
     let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
         .ok_or("a screen size that is not known")?;
     let (width, height) = (size & 0xFFFF, size >> 16);
@@ -171,7 +172,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         format[1 + n].set(mask);
     }
     format[4].set(0);
-    describe_format(format);
+    describe_format(&crate::gfx::owner::gfx().pixel.formats, format);
     // The screen's own texture description (`TEXTURE_TABLES.descriptions[4]`).
     crate::gfx::texture_upload::TEXTURE_TABLES.descriptions[4].update(|d| {
         d.found = 1;
@@ -287,7 +288,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         bits,
         pixels,
     });
-    SCREEN_MODE.mode_set.set(mode);
+    crate::gfx::owner::gfx().display.mode.mode_set.set(mode);
     crate::platform_3d::describe_texture_formats(bits);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
@@ -313,7 +314,7 @@ pub fn set_mode_now(mode: u32) -> bool {
 pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    let mode = SCREEN_MODE.menu_mode.get();
+    let mode = crate::gfx::owner::gfx().display.mode.menu_mode.get();
     let done = set_screen_mode(mode);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
@@ -330,7 +331,7 @@ pub fn lock_surface() -> u32 {
     crate::platform_3d::flush();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !quitting() && have {
-        LOCKED.surface.set(1);
+        crate::gfx::owner::gfx().locked.surface.set(1);
         // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
         let s = &DRAW_SURFACE;
         let (row_bytes, pitch): (u32, u32) = (
@@ -350,15 +351,15 @@ pub fn lock_surface() -> u32 {
         s.row_gap.set(pitch.wrapping_sub(row_bytes));
         set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     }
-    LOCKED.surface.get()
+    crate::gfx::owner::gfx().locked.surface.get()
 }
 
 /// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
 /// it (1: it was).
 pub fn unlock_surface() -> u32 {
-    let locked: u32 = LOCKED.surface.get();
+    let locked: u32 = crate::gfx::owner::gfx().locked.surface.get();
     if locked == 1 {
-        LOCKED.surface.set(0);
+        crate::gfx::owner::gfx().locked.surface.set(0);
     }
     locked
 }

@@ -17,9 +17,6 @@
 use crate::errors::Refused;
 use crate::files::scratch::SCRATCH;
 use crate::install::installer::set_cd;
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 use crate::system::start_texts::START_TEXTS;
 use rc2k_core::install::version::{self, Scan};
 
@@ -27,23 +24,23 @@ const READ_TARGET: usize = 0x100; // into the scratch
 const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
 
-pub fn check_installed_version() -> Result<(), Refused> {
-    INSTALLER_RUN.same_version.set(0);
-    if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
+pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    g.run.same_version.set(0);
+    if g.names.status.get() != 1 || g.names.source.get(0) == 0 {
         return Ok(());
     }
     // normalise the source into byte_95E7F8, cd there
-    let normalised = crate::install::normalise_path::normalised_bytes(
-        &INSTALLER_NAMES.source.text(),
-        &mut || crate::install::normalise_path::current_directory(),
-    )?;
+    let normalised =
+        crate::install::normalise_path::normalised_bytes(&g.names.source.text(), &mut || {
+            crate::install::normalise_path::current_directory()
+        })?;
     let Some(installed) = normalised else {
         return Ok(());
     };
-    INSTALLER_PATHS
+    g.paths
         .installed
         .write_at(0, &installed, "the installed folder")?;
-    if !set_cd(&INSTALLER_PATHS.installed) {
+    if !set_cd(&g.paths.installed) {
         return Ok(());
     }
     SCRATCH
@@ -72,13 +69,13 @@ pub fn check_installed_version() -> Result<(), Refused> {
             let copyright = START_TEXTS.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
-                    INSTALLER_RUN.same_version.set(1);
+                    g.run.same_version.set(1);
                 }
                 break;
             }
         }
         crate::files::handle::close(file);
     }
-    set_cd(&INSTALLER_PATHS.game_dir);
+    set_cd(&g.paths.game_dir);
     Ok(())
 }

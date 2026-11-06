@@ -30,10 +30,12 @@ pub struct DrawSwitches {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static DRAW_SWITCHES: DrawSwitches =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl DrawSwitches {
+    /// The piece with the image's first values (the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x621900, the first byte of the piece.
 pub const START: usize = 0x621900;
@@ -45,7 +47,9 @@ const _: () = assert!(END - START == core::mem::size_of::<DrawSwitches>());
 /// Where IDA 0x621900 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&DRAW_SWITCHES))
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::scene::owner::SCENE.draw_switches,
+    ))
 }
 
 #[cfg(test)]
@@ -55,7 +59,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&DRAW_SWITCHES, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.draw_switches,
+            START,
+            END,
+        );
     }
 
     #[test]

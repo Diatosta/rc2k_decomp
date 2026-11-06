@@ -18,7 +18,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::faces_store::FACES;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
@@ -181,7 +180,7 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 pub fn clear_point_records() -> Result<(), BadInput> {
     COURSE_LISTS.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
-    let sse = DRAW_SWITCHES.use_sse.get() != 0;
+    let sse = crate::scene::owner::scene().draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records(0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {

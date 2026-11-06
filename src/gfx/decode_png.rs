@@ -27,8 +27,8 @@
 //! inflate cleanly; a picture too big for the picture buffer. The name is a reading.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::Png;
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::gfx::png_header::HEADER;
 use crate::pointers::GamePtr;
 
 // ---- game data ----
@@ -39,7 +39,7 @@ use crate::pointers::GamePtr;
 
 /// Returns what the original returns in eax. `pixels` names a picture buffer
 /// (`gfx::picture`, 0 none).
-pub fn decode_png(file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, BadInput> {
+pub fn decode_png(png: &Png, file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
     if pixels == 0 || info_at.is_null() {
         return Ok(1);
@@ -53,9 +53,9 @@ pub fn decode_png(file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, Bad
     };
     // Without a header in the file the variables keep what the last file left in them.
     let header = found.header.unwrap_or_else(|| png::Header {
-        width: HEADER.width.get(),
-        height: HEADER.height.get(),
-        colour_type: HEADER.colour_type.get(),
+        width: png.header.width.get(),
+        height: png.header.height.get(),
+        colour_type: png.header.colour_type.get(),
         compression: 0,
     });
     let pixel_bytes = png::PIXEL_BYTES[header.colour_type as usize & 7];
@@ -64,10 +64,10 @@ pub fn decode_png(file: &[u8], pixels: u32, info_at: GamePtr) -> Result<u32, Bad
         None => 0,
     };
     if let Some(h) = found.header {
-        HEADER.width.set(h.width);
-        HEADER.height.set(h.height);
-        HEADER.compression.set(h.compression);
-        HEADER.colour_type.set(h.colour_type);
+        png.header.width.set(h.width);
+        png.header.height.set(h.height);
+        png.header.compression.set(h.compression);
+        png.header.colour_type.set(h.colour_type);
     }
     if let Some((start, length)) = found.data {
         let (row_bytes, step) = png::row_layout(&header);

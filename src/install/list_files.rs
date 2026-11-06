@@ -17,7 +17,6 @@ use crate::install::installer::{
     append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
 use crate::install::name_tables::{FILES, made_name};
-use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::search`).
@@ -26,7 +25,10 @@ fn find_name() -> crate::pointers::GamePtr {
 }
 
 /// The files of `pattern` (eax) added to the files' table.
-pub fn list_files(pattern: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn list_files(
+    g: &'static crate::install::owner::Install,
+    pattern: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
     if find_first(pattern) {
         loop {
@@ -36,10 +38,8 @@ pub fn list_files(pattern: impl Into<crate::place::Place>) -> Result<(), Refused
                 Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
             })?;
             let used = FILES.with(|t| t.push(name))?;
-            INSTALLER_RUN.file_cursor.set(used);
-            INSTALLER_RUN
-                .file_count
-                .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
+            g.run.file_cursor.set(used);
+            g.run.file_count.set(g.run.file_count.get().wrapping_add(1));
             // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
             script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
             if !find_next() {

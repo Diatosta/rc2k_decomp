@@ -2,6 +2,7 @@
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
+use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
@@ -101,9 +102,8 @@ pub fn seed_noise(weather: &Weather) {
 /// 0, step, 2 step .. (`math::x87::sine_table`); then `g_marksWaveDone` = `nullsub_23`.
 /// Done before: nothing. Refuses a mark that is neither 0 nor `nullsub_23` (the original
 /// jumps to it).
-pub fn make_wave_tables() -> Result<(), Refused> {
-    use crate::effects::waves::{SINES as SINE_TABLE, WAVE, WAVE_LEVELS as LEVELS};
-    let done = WAVE.done.get();
+pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
+    let done = paths.wave.done.get();
     let target = WAVE_DONE_TARGET;
     if done == target {
         return Ok(());
@@ -111,16 +111,22 @@ pub fn make_wave_tables() -> Result<(), Refused> {
     if done != 0 {
         return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
     }
-    let (scale, less) = (WAVE.scale.bits(), WAVE.less.bits());
-    for level in LEVELS.levels.iter().take(WAVE_LEVELS as usize).rev() {
+    let (scale, less) = (paths.wave.scale.bits(), paths.wave.less.bits());
+    for level in paths
+        .wave_levels
+        .levels
+        .iter()
+        .take(WAVE_LEVELS as usize)
+        .rev()
+    {
         level.set(x87::int_div_less(level.get() as i32, scale, less));
     }
     let mut sines = vec![0u32; SINES as usize];
-    x87::sine_table(WAVE.sine_step.bits(), &mut sines);
-    for (cell, &v) in SINE_TABLE.table.iter().zip(&sines) {
+    x87::sine_table(paths.wave.sine_step.bits(), &mut sines);
+    for (cell, &v) in paths.sines.table.iter().zip(&sines) {
         cell.set_bits(v);
     }
-    WAVE.done.set(target);
+    paths.wave.done.set(target);
     Ok(())
 }
 

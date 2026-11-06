@@ -38,8 +38,6 @@ use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::add_object_shape::add_object_shape;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
-use crate::scene::file_numbers_store::FILE_NUMBERS;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
@@ -159,7 +157,7 @@ fn mask(at: usize) -> u32 {
 
 /// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
 /// by no caller (liveness; its one caller is `load_front_end_objects`).
-pub fn load_object() -> Result<(), Refused> {
+pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let kind: u32 = OBJECT_WORK.loading_kind.bits();
     if kind == 0 {
         return Ok(());
@@ -169,31 +167,35 @@ pub fn load_object() -> Result<(), Refused> {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
     OBJECT_TABLES.object_kinds[slot as usize].set(kind);
-    set_object_file_names(kind)?;
-    let name = FILE_NUMBERS.object_ro3_number.bits();
+    set_object_file_names(scene, kind)?;
+    let name = scene.file_numbers.object_ro3_number.bits();
     // The file read is the `.ro3` one, whatever the name's last character was.
-    FILE_NUMBERS
+    scene
+        .file_numbers
         .text_ptr(name as usize + 7)
         .write(b'3', "an object's file name")?;
     BYTES_READ.set(0);
     read_whole_file_bytes(
-        FILE_NUMBERS.text_ptr(FILE_NUMBERS.object_ro3_path.bits() as usize),
+        scene
+            .file_numbers
+            .text_ptr(scene.file_numbers.object_ro3_path.bits() as usize),
         crate::scene::objects::file(),
     )?;
     if BYTES_READ.get() == 0 {
         return Ok(());
     }
-    FILE_NUMBERS
+    scene
+        .file_numbers
         .text_ptr(name as usize + 7)
         .write(b'3', "an object's file name")?;
     if slot <= 0x40 {
         list_object_textures()?;
     }
     if slot < 0x50 {
-        shape(u32::MAX)?;
+        shape(scene, u32::MAX)?;
         return check();
     }
-    DRAW_SWITCHES.loading_group_mask.set_bits(u32::MAX);
+    scene.draw_switches.loading_group_mask.set_bits(u32::MAX);
     let known = find_object_kind(kind);
     MATRICES.known_object.set_bits(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
@@ -225,13 +227,13 @@ pub fn load_object() -> Result<(), Refused> {
         0 => {
             for (n, &at) in FIRST_FIVE.iter().enumerate() {
                 OBJECT_WORK.loading_slot.set_bits(first + n as u32);
-                shape(mask(at))?;
+                shape(scene, mask(at))?;
             }
             OBJECT_WORK.loading_slot.set_bits(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
                 OBJECT_WORK.loading_slot.set_bits(slot);
-                shape(mask(at))?;
+                shape(scene, mask(at))?;
                 measure_object()?;
                 let measures: [u32; 6] = crate::session::read_first(&OBJECT_SLOTS.measures);
                 for (table, &measure) in measures.iter().enumerate() {
@@ -239,16 +241,16 @@ pub fn load_object() -> Result<(), Refused> {
                 }
             }
         }
-        0xA => shape(rest)?,
-        0xB => shape(u32::MAX)?,
+        0xA => shape(scene, rest)?,
+        0xB => shape(scene, u32::MAX)?,
         _ => {}
     }
     check()
 }
 
 /// One `scene::add_object_shape` with a mask.
-fn shape(mask: u32) -> Result<(), Refused> {
-    DRAW_SWITCHES.loading_group_mask.set_bits(mask);
+fn shape(scene: &crate::scene::owner::Scene, mask: u32) -> Result<(), Refused> {
+    scene.draw_switches.loading_group_mask.set_bits(mask);
     Ok({ add_object_shape() }?)
 }
 

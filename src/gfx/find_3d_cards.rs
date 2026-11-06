@@ -14,17 +14,17 @@
 //! calls it directly (2026-10-23).
 
 use crate::d3d::cards_store::CARDS_3D;
-use crate::gfx::cards::CARDS;
+use crate::gfx::owner::Display;
 use crate::logfile::log_write::log_newline_l1;
 
 /// The Rust version (see the header).
-pub fn find_3d_cards() {
-    CARDS.primary.set(0);
-    CARDS.secondary.set(0);
+pub fn find_3d_cards(display: &Display) {
+    display.cards.primary.set(0);
+    display.cards.secondary.set(0);
     if CARDS_3D.no_search.get() == 0 {
         crate::logfile::log_write::log_nul(&crate::gfx::texts::FINDING_3D, true, 1);
         if CARDS_3D.not_primary.get() == 0 {
-            CARDS.primary.set(1);
+            display.cards.primary.set(1);
         }
     }
     log_newline_l1();

@@ -29,7 +29,6 @@ use crate::install::installer::{
     copy_picture, key_action, list_clear_marks, list_item_unusable, list_step, list_take_key, lock,
     page_action, run_frame, show, unlock,
 };
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::ListMenu;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
@@ -40,19 +39,22 @@ const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen")
 fn tell(list: ListMenu, state: u32) -> Result<(), Refused> {
     let action = list.action();
     if action != 0 {
-        page_action(action, state, list)?;
+        page_action(crate::install::owner::install(), action, state, list)?;
     }
     Ok(())
 }
 
 /// The page of `list` run until it is left; its answer.
-pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
+pub fn run_page(
+    g: &'static crate::install::owner::Install,
+    list: ListMenu,
+) -> Result<u32, Refused> {
     use crate::install as i;
-    INSTALLER_PAGES.list_answer.set(1);
-    INSTALLER_PAGES.list_leave.set(0);
-    INSTALLER_PAGES.move_clock.set(CLOCKS.key_ticks.get());
-    INSTALLER_PAGES.key_clock.set(CLOCKS.key_ticks.get());
-    INSTALLER_PAGES.choice.set(list.highlight());
+    g.pages.list_answer.set(1);
+    g.pages.list_leave.set(0);
+    g.pages.move_clock.set(CLOCKS.key_ticks.get());
+    g.pages.key_clock.set(CLOCKS.key_ticks.get());
+    g.pages.choice.set(list.highlight());
     let count = list.count() as u32;
     let round = 2 * count as usize + 2;
     if count != 0 {
@@ -63,18 +65,16 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
         if list.flags() & 0xC0 != 0 {
             break 'page;
         }
-        i::mark_page::mark_page(list);
+        i::mark_page::mark_page(g, list);
         let mut steps = 0;
         while list_item_unusable(list) {
             steps += 1;
             if steps > round {
                 return Err(NO_CHOICE.into());
             }
-            INSTALLER_PAGES
-                .choice
-                .set(INSTALLER_PAGES.choice.get().wrapping_add(1));
-            if count == INSTALLER_PAGES.choice.get() {
-                INSTALLER_PAGES.choice.set(0);
+            g.pages.choice.set(g.pages.choice.get().wrapping_add(1));
+            if count == g.pages.choice.get() {
+                g.pages.choice.set(0);
             }
         }
         i::show_backdrop::show_backdrop()?;
@@ -89,10 +89,8 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
                 unlock();
                 show();
             }
-            INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
-            INSTALLER_PAGES
-                .choice_before
-                .set(INSTALLER_PAGES.choice.get());
+            g.pages.frame_clock.set(CLOCKS.key_ticks.get());
+            g.pages.choice_before.set(g.pages.choice.get());
             // eax: the key, as the callees leave it (`install::edit_key` changes it)
             let mut key = list_take_key()? as u32;
             if FLAGS.quitting.get() == 1 {
@@ -101,30 +99,27 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
             if key as u8 != 0 && key & 0x80 == 0 {
                 let mut again = 0;
                 loop {
-                    let item = list.item(INSTALLER_PAGES.choice.get());
-                    let (left, mut took) = i::page_key::page_key(key, item, list)?;
+                    let item = list.item(g.pages.choice.get());
+                    let (left, mut took) = i::page_key::page_key(g, key, item, list)?;
                     key = left;
                     if !took {
                         let keys = list.key_action();
                         if keys != 0 {
-                            took = key_action(keys, key, list)?;
+                            took = key_action(g, keys, key, list)?;
                         }
                     }
                     let moved = took || list_step(key, list.neighbours(), list)?;
                     if moved {
-                        INSTALLER_PAGES
-                            .move_clock
-                            .set(INSTALLER_PAGES.frame_clock.get());
+                        g.pages.move_clock.set(g.pages.frame_clock.get());
                     }
                     list_clear_marks(list);
                     tell(list, 1)?;
-                    i::mark_page::mark_page(list);
+                    i::mark_page::mark_page(g, list);
                     if !list_item_unusable(list) {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && INSTALLER_PAGES.choice.get() != INSTALLER_PAGES.choice_before.get()
-                    {
+                    if arrow && g.pages.choice.get() != g.pages.choice_before.get() {
                         again += 1;
                         if again > round {
                             return Err(NO_CHOICE.into());
@@ -135,16 +130,16 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
                     loop {
                         let k = key as u8;
                         if k == 0x66 || k == 0x68 {
-                            let c = INSTALLER_PAGES.choice.get().wrapping_sub(1);
-                            INSTALLER_PAGES.choice.set(c);
+                            let c = g.pages.choice.get().wrapping_sub(1);
+                            g.pages.choice.set(c);
                             if (c as i32) < 0 {
-                                INSTALLER_PAGES.choice.set(count.wrapping_sub(1));
+                                g.pages.choice.set(count.wrapping_sub(1));
                             }
                         } else {
-                            let c = INSTALLER_PAGES.choice.get().wrapping_add(1);
-                            INSTALLER_PAGES.choice.set(c);
+                            let c = g.pages.choice.get().wrapping_add(1);
+                            g.pages.choice.set(c);
                             if count == c {
-                                INSTALLER_PAGES.choice.set(0);
+                                g.pages.choice.set(0);
                             }
                         }
                         if !list_item_unusable(list) {
@@ -160,19 +155,18 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
             } else {
                 list_clear_marks(list);
                 tell(list, 1)?;
-                i::mark_page::mark_page(list);
+                i::mark_page::mark_page(g, list);
                 if list_item_unusable(list) {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && INSTALLER_PAGES.choice.get() != INSTALLER_PAGES.choice_before.get()
-                    {
+                    if arrow && g.pages.choice.get() != g.pages.choice_before.get() {
                         return Err(BadInput("an arrow that is no key").into());
                     }
                     let mut steps = 0;
                     loop {
-                        let c = INSTALLER_PAGES.choice.get().wrapping_add(1);
-                        INSTALLER_PAGES.choice.set(c);
+                        let c = g.pages.choice.get().wrapping_add(1);
+                        g.pages.choice.set(c);
                         if count == c {
-                            INSTALLER_PAGES.choice.set(0);
+                            g.pages.choice.set(0);
                         }
                         if !list_item_unusable(list) {
                             break;
@@ -184,7 +178,7 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
                     }
                 }
             }
-            if INSTALLER_PAGES.list_leave.get() == 1 {
+            if g.pages.list_leave.get() == 1 {
                 break;
             }
         }
@@ -194,6 +188,6 @@ pub fn run_page(list: ListMenu) -> Result<u32, Refused> {
     if count != 0 {
         list_clear_marks(list);
     }
-    list.set_highlight(INSTALLER_PAGES.choice.get());
-    Ok(INSTALLER_PAGES.list_answer.get() as u32)
+    list.set_highlight(g.pages.choice.get());
+    Ok(g.pages.list_answer.get() as u32)
 }

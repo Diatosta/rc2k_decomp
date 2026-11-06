@@ -18,7 +18,6 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
-use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::InstallerPages;
 use crate::menu::list_handle::{EditField, ListItem};
 use crate::place::Place;
@@ -63,7 +62,11 @@ pub struct EditOutcome {
 }
 
 /// `key`: the key and its bits (see above).
-pub fn edit_key(key: u32, item: ListItem) -> Result<EditOutcome, Refused> {
+pub fn edit_key(
+    g: &'static crate::install::owner::Install,
+    key: u32,
+    item: ListItem,
+) -> Result<EditOutcome, Refused> {
     let text = item.text();
     let record = item.edit_field();
     let most = crate::install::folders::field_most(text, record.most()) as u32;
@@ -87,7 +90,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<EditOutcome, Refused> {
         match EditKey::of(key as u8) {
             EditKey::Escape => {
                 record.set_flags(record.flags() & !EDITING);
-                let backup = &INSTALLER_PATHS.script_path;
+                let backup = &g.paths.script_path;
                 for n in 0..most + 2 {
                     wb(text.add(n), rb(Place::from(backup).add(n)));
                 }

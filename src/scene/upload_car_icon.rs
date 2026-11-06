@@ -53,6 +53,7 @@ pub struct IconUpload {
 
 const _: () = assert!(STORED_LEN == 0x1C);
 
+/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
 /// The record as bytes (it lies at an address that is no multiple of 4): `get` and `set` turn
 /// them to and from an `IconUpload`.
 #[repr(transparent)]
@@ -96,14 +97,16 @@ impl IconUploadCell {
     }
 }
 
-/// `stru_5BE8F1` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
-pub static ICON_UPLOAD: IconUploadCell =
-    IconUploadCell(crate::session::Bytes::new([0; STORED_LEN]));
+impl IconUploadCell {
+    pub const fn new() -> Self {
+        IconUploadCell(crate::session::Bytes::new([0; STORED_LEN]))
+    }
+}
 
 /// The piece's place: what `blit_components` gets in ebx, bounded to the piece's four dwords
 /// (the longest read is its 16 bytes).
-fn piece_place() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&ICON_UPLOAD)
+fn piece_place(upload: &IconUploadCell) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(upload)
         .offset(std::mem::offset_of!(IconUpload, piece) as u32)
         .limited(std::mem::size_of::<[u32; 4]>() as u32)
 }
@@ -124,10 +127,10 @@ pub struct CarIcon {
 // ---- Rust version ----
 
 /// The Rust version. The original keeps every register (`pusha` .. `popa`).
-pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
+pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Refused> {
     let texture = icon.texture;
     let record = Record::of(texture)?;
-    ICON_UPLOAD.set(IconUpload {
+    upload.set(IconUpload {
         texture,
         target_x: icon.target_x,
         target_y: icon.target_y,
@@ -152,23 +155,27 @@ pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
         return Err(BadInput("a picture that halves to nothing").into());
     }
     let (_, height) = halve_texture(pixels, width, height, across)?;
-    let mut stored: IconUpload = ICON_UPLOAD.get();
+    let mut stored: IconUpload = upload.get();
     let shift = across & 31;
     stored.target_x >>= shift;
     stored.target_y >>= shift;
     stored.piece = stored.piece.map(|value| value >> shift);
-    ICON_UPLOAD.set(stored);
+    upload.set(stored);
     // The texture locked (making it the surface): if it locked, the icon's piece
     // blitted and the texture unlocked.
     if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
         let piece = Piece {
-            rectangle: piece_place(),
+            rectangle: piece_place(upload),
             x: stored.target_x,
             y: stored.target_y,
             pixels,
             row_bytes: height.wrapping_mul(4),
         };
-        let blitted = blit_components(&piece, &game_target()?);
+        let blitted = blit_components(
+            &crate::gfx::owner::gfx().pixel.formats,
+            &piece,
+            &game_target()?,
+        );
         crate::d3d::unlock_texture::unlock_texture(texture)?;
         blitted?;
     }
@@ -181,13 +188,28 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&ICON_UPLOAD, START, START + STORED_LEN);
-        assert_eq!(crate::moved::place(START), ICON_UPLOAD.addr() as usize);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::SCENE.icon_upload,
+            START,
+            START + STORED_LEN,
+        );
+        assert_eq!(
+            crate::moved::place(START),
+            crate::scene::owner::SCENE.icon_upload.addr() as usize
+        );
     }
 
     #[test]
     fn the_piece_place_holds_its_four_dwords_and_no_more() {
-        assert!(piece_place().read::<[u32; 4]>("t").is_ok());
-        assert!(piece_place().read::<[u32; 5]>("t").is_err());
+        assert!(
+            piece_place(&crate::scene::owner::SCENE.icon_upload)
+                .read::<[u32; 4]>("t")
+                .is_ok()
+        );
+        assert!(
+            piece_place(&crate::scene::owner::SCENE.icon_upload)
+                .read::<[u32; 5]>("t")
+                .is_err()
+        );
     }
 }

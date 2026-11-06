@@ -1,7 +1,5 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
-
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
@@ -59,7 +57,7 @@ pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
 /// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
 /// by nobody).
 pub fn set_race_screen_mode() {
-    crate::platform::set_mode_now(SCREEN_MODE.race_mode.get());
+    crate::platform::set_mode_now(crate::gfx::owner::gfx().display.mode.race_mode.get());
 }
 
 // ---- batch 12 ----

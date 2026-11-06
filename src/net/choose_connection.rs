@@ -12,7 +12,6 @@
 //! Callers: `net::settings_link`, `net::start_link`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::store::NET;
 use crate::session::CLOCKS;
@@ -25,38 +24,45 @@ pub fn list_move(key: u8, count: u32) -> bool {
     // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
     let (choice, top) = match ListKey::of(key) {
         ListKey::Up => screens::up(
-            INSTALLER_PAGES.choice.get(),
-            INSTALLER_PAGES.choice_before.get(),
+            crate::install::owner::install().pages.choice.get(),
+            crate::install::owner::install().pages.choice_before.get(),
         ),
         ListKey::Down => screens::down(
-            INSTALLER_PAGES.choice.get(),
-            INSTALLER_PAGES.choice_before.get(),
+            crate::install::owner::install().pages.choice.get(),
+            crate::install::owner::install().pages.choice_before.get(),
             count,
         ),
         _ => return false,
     };
-    INSTALLER_PAGES.choice.set(choice);
-    INSTALLER_PAGES.choice_before.set(top);
+    crate::install::owner::install().pages.choice.set(choice);
+    crate::install::owner::install()
+        .pages
+        .choice_before
+        .set(top);
     true
 }
 
 /// The Rust version.
 pub fn choose_connection() -> Result<u32, Refused> {
     let now = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(now);
-    INSTALLER_PAGES.key_clock.set(now);
-    INSTALLER_PAGES.choice_before.set(0);
-    INSTALLER_PAGES.choice.set(0);
+    crate::install::owner::install().pages.move_clock.set(now);
+    crate::install::owner::install().pages.key_clock.set(now);
+    crate::install::owner::install().pages.choice_before.set(0);
+    crate::install::owner::install().pages.choice.set(0);
     loop {
         run_frame(crate::net::connections_frame::connections_frame)?;
-        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        crate::install::owner::install()
+            .pages
+            .frame_clock
+            .set(CLOCKS.key_ticks.get());
         let key = list_key()?;
         if list_move(key, NET.connections.get()) {
-            INSTALLER_PAGES
+            crate::install::owner::install()
+                .pages
                 .move_clock
-                .set(INSTALLER_PAGES.frame_clock.get());
+                .set(crate::install::owner::install().pages.frame_clock.get());
         } else if ListKey::of(key) == ListKey::Enter {
-            return Ok(INSTALLER_PAGES.choice.get());
+            return Ok(crate::install::owner::install().pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -66,6 +72,6 @@ pub fn choose_connection() -> Result<u32, Refused> {
             break;
         }
     }
-    INSTALLER_PAGES.choice.set(u32::MAX);
-    Ok(INSTALLER_PAGES.choice.get())
+    crate::install::owner::install().pages.choice.set(u32::MAX);
+    Ok(crate::install::owner::install().pages.choice.get())
 }

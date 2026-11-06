@@ -14,25 +14,28 @@
 
 use crate::errors::Refused;
 
-use crate::gfx::locked::LOCKED;
-use crate::gfx::shots::{SHOTS, on};
+use crate::gfx::locked::Locked;
+use crate::gfx::shots::{Shots, on};
 
 /// The parts: the game's memory, the platform's lock and unlock, the writer.
-struct Shot;
+struct Shot<'a> {
+    shots: &'a Shots,
+    locked: &'a Locked,
+}
 
-impl rc2k_core::gfx::screenshot::Shooting for Shot {
+impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
     type Error = Refused;
     fn screenshots_on(&mut self) -> u32 {
         on()
     }
     fn surface_locked(&mut self) -> u32 {
-        LOCKED.surface.get()
+        self.locked.surface.get()
     }
     fn locked_here(&mut self) -> u32 {
-        SHOTS.locked_here.get()
+        self.shots.locked_here.get()
     }
     fn set_locked_here(&mut self, value: u32) {
-        SHOTS.locked_here.set(value);
+        self.shots.locked_here.set(value);
     }
     fn lock(&mut self) -> Result<bool, Refused> {
         // `cmp g_surfaceLocked, 1`'s carry: not locked.
@@ -42,7 +45,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot {
         if let Some(screen) = crate::platform_3d::screen() {
             crate::render::bring_back(&screen);
         }
-        crate::gfx::write_screen_pcx::write_screen_pcx(None)?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(self.shots, None)?;
         Ok(())
     }
     fn unlock(&mut self) -> Result<(), Refused> {
@@ -53,6 +56,10 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot {
 
 /// The Rust version (see the header).
 pub fn take_screenshot() -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.
-    rc2k_core::gfx::screenshot::take_screenshot(&mut Shot)
+    rc2k_core::gfx::screenshot::take_screenshot(&mut Shot {
+        shots: &gfx.shots,
+        locked: &gfx.locked,
+    })
 }

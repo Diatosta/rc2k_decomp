@@ -12,7 +12,6 @@
 //! Called by `screens::run_frame` for `net::choose_connection`.
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
 use crate::net::store::NET;
@@ -36,14 +35,17 @@ pub fn list_frame(
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(row, INSTALLER_PAGES.choice_before.get(), count.get())
-        else {
+        let Some(item) = screens::listed(
+            row,
+            crate::install::owner::install().pages.choice_before.get(),
+            count.get(),
+        ) else {
             continue;
         };
-        let font = if item == INSTALLER_PAGES.choice.get()
+        let font = if item == crate::install::owner::install().pages.choice.get()
             && screens::blink_lit(
-                INSTALLER_PAGES.frame_clock.get(),
-                INSTALLER_PAGES.move_clock.get(),
+                crate::install::owner::install().pages.frame_clock.get(),
+                crate::install::owner::install().pages.move_clock.get(),
             ) {
             LIT
         } else {

@@ -9,10 +9,9 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::INSTALLER_PATHS;
 use crate::menu::list_handle::ListItem;
 
-pub fn start_edit(item: ListItem) {
+pub fn start_edit(g: &'static crate::install::owner::Install, item: ListItem) {
     let record = item.edit_field();
     let text = item.text();
     let most = crate::install::folders::field_most(text, record.most());
@@ -25,7 +24,7 @@ pub fn start_edit(item: ListItem) {
     at.write_bytes(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
     record.set_flags(flags);
-    crate::place::Place::from(&INSTALLER_PATHS.script_path)
+    crate::place::Place::from(&g.paths.script_path)
         .write(&words, "the edit's backup")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
 }

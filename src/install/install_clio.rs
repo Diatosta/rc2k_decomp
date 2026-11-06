@@ -19,8 +19,6 @@ use crate::install::installer::{
     append_byte, copy_picture, draw_string, lock, normalise, set_cd, show, sleep, str_append,
     take_key, unlock,
 };
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
@@ -46,55 +44,65 @@ enum Stop {
 
 fn work() -> Result<Stop, Refused> {
     use crate::install as i;
-    if !normalise(&INSTALLER_PATHS.path_a, &INSTALLER_PATHS.game_dir)?
-        || !normalise(&INSTALLER_PATHS.path_b, &INSTALLER_PATHS.installed)?
-        || !set_cd(&INSTALLER_PATHS.game_dir)
+    if !normalise(
+        &crate::install::owner::install().paths.path_a,
+        &crate::install::owner::install().paths.game_dir,
+    )? || !normalise(
+        &crate::install::owner::install().paths.path_b,
+        &crate::install::owner::install().paths.installed,
+    )? || !set_cd(&crate::install::owner::install().paths.game_dir)
     {
         return Ok(Stop::Straight);
     }
-    i::run_script::run_script(&crate::install::store::INSTALL.clio_script)?;
-    if INSTALLER_RUN.dir_count.get() != 0 {
+    i::run_script::run_script(
+        crate::install::owner::install(),
+        &crate::install::owner::install().vars.clio_script,
+    )?;
+    if crate::install::owner::install().run.dir_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                &INSTALLER_PATHS.installed,
-                &INSTALLER_PATHS.path_b,
+                &crate::install::owner::install().paths.installed,
+                &crate::install::owner::install().paths.path_b,
                 &crate::install::name_tables::FOLDERS,
                 n,
             )?;
-            if !i::make_folders::make_folders(&INSTALLER_PATHS.path_b)? {
+            if !i::make_folders::make_folders(&crate::install::owner::install().paths.path_b)? {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == INSTALLER_RUN.dir_count.get() {
+            if n == crate::install::owner::install().run.dir_count.get() {
                 break;
             }
         }
-        set_cd(&INSTALLER_PATHS.game_dir);
+        set_cd(&crate::install::owner::install().paths.game_dir);
     }
-    if INSTALLER_RUN.file_count.get() != 0 {
+    if crate::install::owner::install().run.file_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                &INSTALLER_PATHS.game_dir,
-                &INSTALLER_PATHS.path_a,
+                &crate::install::owner::install().paths.game_dir,
+                &crate::install::owner::install().paths.path_a,
                 &crate::install::name_tables::FILES,
                 n,
             )?;
             append_both(
-                &INSTALLER_PATHS.installed,
-                &INSTALLER_PATHS.path_b,
+                &crate::install::owner::install().paths.installed,
+                &crate::install::owner::install().paths.path_b,
                 &crate::install::name_tables::FILES,
                 n,
             )?;
             // 0x416886: a failed copy stops the install as Escape does.
-            if !i::copy_counted::copy_counted(&INSTALLER_PATHS.path_a, &INSTALLER_PATHS.path_b)?
-                || take_key() == 1
+            if !i::copy_counted::copy_counted(
+                crate::install::owner::install(),
+                &crate::install::owner::install().paths.path_a,
+                &crate::install::owner::install().paths.path_b,
+            )? || take_key() == 1
             {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == INSTALLER_RUN.file_count.get() {
+            if n == crate::install::owner::install().run.file_count.get() {
                 break;
             }
         }
@@ -102,7 +110,7 @@ fn work() -> Result<Stop, Refused> {
     Ok(Stop::SetBack)
 }
 
-pub fn install_clio() -> Result<(), Refused> {
+pub fn install_clio(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
         draw_string(0xBE, FONT_BE.game_ptr(), 0x1A9, 0x113)?;
@@ -111,11 +119,11 @@ pub fn install_clio() -> Result<(), Refused> {
         sleep(1000);
     }
     if let Stop::SetBack = work()? {
-        set_cd(&INSTALLER_PATHS.installed);
+        set_cd(&g.paths.installed);
     }
-    INSTALLER_RUN.installing.set(0);
-    INSTALLER_RUN.updating.set(0);
-    INSTALLER_RUN.from_command.set(0);
+    g.run.installing.set(0);
+    g.run.updating.set(0);
+    g.run.from_command.set(0);
     sleep(1000);
     Ok(())
 }

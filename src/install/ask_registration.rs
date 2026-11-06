@@ -8,8 +8,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::INSTALLER_RUN;
-
-pub fn ask_registration() {
-    INSTALLER_RUN.run_registration.set(1);
+pub fn ask_registration(g: &'static crate::install::owner::Install) {
+    g.run.run_registration.set(1);
 }

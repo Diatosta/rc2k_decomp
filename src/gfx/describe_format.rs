@@ -14,7 +14,7 @@
 //! Three callers: `gfx::set_component_format`, the screen mode's set-up at 0x404EF2 and
 //! the textures' at 0x41A1E7.
 
-use crate::gfx::formats::FORMATS;
+use crate::gfx::formats::Formats;
 
 // ---- game data ----
 
@@ -26,19 +26,19 @@ pub use rc2k_core::gfx::pixels::describe;
 
 /// The layout and number of a format of `masks` (blue, green, red, alpha), with the game's
 /// table.
-pub fn describe_masks(masks: [u32; 4]) -> (u32, u32) {
+pub fn describe_masks(formats: &Formats, masks: [u32; 4]) -> (u32, u32) {
     let numbers: [(u32, u32); NUMBERS] = std::array::from_fn(|n| {
         (
-            FORMATS.numbers[n].number.get(),
-            FORMATS.numbers[n].layout.get(),
+            formats.numbers[n].number.get(),
+            formats.numbers[n].layout.get(),
         )
     });
     describe(masks, &numbers)
 }
 
 /// On a format record (+0 layout, +4 four masks, +0x14 number).
-pub fn describe_format(format: &[crate::session::Dword; 6]) {
-    let (layout, number) = describe_masks(std::array::from_fn(|n| format[1 + n].get()));
+pub fn describe_format(formats: &Formats, format: &[crate::session::Dword; 6]) {
+    let (layout, number) = describe_masks(formats, std::array::from_fn(|n| format[1 + n].get()));
     format[0].set(layout);
     format[5].set(number);
 }

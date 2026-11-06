@@ -11,8 +11,6 @@
 //! Callers: `race::replay_viewer`, `sub_4144CF`, `sub_4168CF`, `sub_4174C5`, `sub_417726`,
 //! `sub_417A0D`.
 
-use crate::install::vars::INSTALLER_PAGES;
-
 /// The Rust version (see the header): the key, 0 for none.
 pub fn list_take_key() -> u8 {
     let key = crate::input::take_key::take_key();
@@ -20,23 +18,24 @@ pub fn list_take_key() -> u8 {
         crate::system::sleep::sleep(1);
     } else {
         // Converted: `rc2k_core::menu::list_menu::repeats`.
-        let repeated = key == INSTALLER_PAGES.last_key.get();
+        let repeated = key == crate::install::owner::install().pages.last_key.get();
         let (mut frame, mut moved) = (0, 0);
         if repeated {
             (frame, moved) = (
-                INSTALLER_PAGES.frame_clock.get(),
-                INSTALLER_PAGES.move_clock.get(),
+                crate::install::owner::install().pages.frame_clock.get(),
+                crate::install::owner::install().pages.move_clock.get(),
             );
         }
-        INSTALLER_PAGES
+        crate::install::owner::install()
+            .pages
             .repeats
             .set(rc2k_core::menu::list_menu::repeats(
-                INSTALLER_PAGES.repeats.get(),
+                crate::install::owner::install().pages.repeats.get(),
                 repeated,
                 frame,
                 moved,
             ));
-        INSTALLER_PAGES.last_key.set(key);
+        crate::install::owner::install().pages.last_key.set(key);
     }
     key
 }

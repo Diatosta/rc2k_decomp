@@ -29,7 +29,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::reports::REPORTS;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use crate::gfx::upload::UPLOAD;
@@ -69,7 +68,7 @@ impl Surfaces for GameSurfaces {
 }
 
 fn direct_draw_failed(code: u32) -> Refused {
-    if REPORTS.on.get() == 1 {
+    if crate::gfx::owner::gfx().reports.on.get() == 1 {
         fatal(code)
     } else {
         BadInput("DirectDraw failed and the original's stack goes astray").into()

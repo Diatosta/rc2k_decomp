@@ -12,11 +12,13 @@ pub struct MarksSines {
     pub table: [Float; 320],
 }
 
-pub static SINES: MarksSines = MarksSines {
-    table: [const { Float::from_bits(0x0) }; 320],
-};
-
 impl MarksSines {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        MarksSines {
+            table: [const { Float::from_bits(0x0) }; 320],
+        }
+    }
     pub const START: usize = 0x92001E;
     pub const LEN: usize = 0x500;
 }
@@ -29,29 +31,31 @@ pub struct WaveLevels {
     pub levels: [Dword; 17],
 }
 
-pub static WAVE_LEVELS: WaveLevels = WaveLevels {
-    levels: [
-        Dword::new(0x0),
-        Dword::new(0x9),
-        Dword::new(0x2B),
-        Dword::new(0x62),
-        Dword::new(0xB4),
-        Dword::new(0xBF),
-        Dword::new(0xC6),
-        Dword::new(0xE7),
-        Dword::new(0x109),
-        Dword::new(0x139),
-        Dword::new(0x151),
-        Dword::new(0x15C),
-        Dword::new(0x15E),
-        Dword::new(0x17A),
-        Dword::new(0x181),
-        Dword::new(0x1B2),
-        Dword::new(0x200),
-    ],
-};
-
 impl WaveLevels {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WaveLevels {
+            levels: [
+                Dword::new(0x0),
+                Dword::new(0x9),
+                Dword::new(0x2B),
+                Dword::new(0x62),
+                Dword::new(0xB4),
+                Dword::new(0xBF),
+                Dword::new(0xC6),
+                Dword::new(0xE7),
+                Dword::new(0x109),
+                Dword::new(0x139),
+                Dword::new(0x151),
+                Dword::new(0x15C),
+                Dword::new(0x15E),
+                Dword::new(0x17A),
+                Dword::new(0x181),
+                Dword::new(0x1B2),
+                Dword::new(0x200),
+            ],
+        }
+    }
     pub const START: usize = 0x9205F6;
     pub const LEN: usize = 0x44;
 }
@@ -70,14 +74,16 @@ pub struct WaveState {
     pub sine_step: Float,
 }
 
-pub static WAVE: WaveState = WaveState {
-    done: Dword::new(0x0),
-    scale: Float::from_bits(0x43800000),
-    less: Float::from_bits(0x3F800000),
-    sine_step: Float::from_bits(0x3CC90FDB),
-};
-
 impl WaveState {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        WaveState {
+            done: Dword::new(0x0),
+            scale: Float::from_bits(0x43800000),
+            less: Float::from_bits(0x3F800000),
+            sine_step: Float::from_bits(0x3CC90FDB),
+        }
+    }
     pub const START: usize = 0x9206C2;
     pub const LEN: usize = 0x10;
 }
@@ -100,15 +106,18 @@ mod tests {
         assert_eq!(size_of::<WaveState>(), WaveState::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&SINES) == image(MarksSines::START, MarksSines::LEN),
+            bytes(&crate::effects::owner::EFFECTS.paths.sines)
+                == image(MarksSines::START, MarksSines::LEN),
             "SINES starts differently from the image"
         );
         assert!(
-            bytes(&WAVE_LEVELS) == image(WaveLevels::START, WaveLevels::LEN),
+            bytes(&crate::effects::owner::EFFECTS.paths.wave_levels)
+                == image(WaveLevels::START, WaveLevels::LEN),
             "WAVE_LEVELS starts differently from the image"
         );
         assert!(
-            bytes(&WAVE) == image(WaveState::START, WaveState::LEN),
+            bytes(&crate::effects::owner::EFFECTS.paths.wave)
+                == image(WaveState::START, WaveState::LEN),
             "WAVE starts differently from the image"
         );
     }

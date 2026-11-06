@@ -19,7 +19,6 @@ use crate::install::installer::{
     append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
 use crate::install::name_tables::{FILES, FOLDERS, made_name, text_at};
-use crate::install::vars::INSTALLER_RUN;
 
 /// FindFileData.cFileName (the search record: `files::search`).
 fn find_name() -> crate::pointers::GamePtr {
@@ -52,11 +51,15 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
     let mut folder = text_at(folder)?;
     if !folder.is_empty() {
         let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
-        INSTALLER_RUN.dir_cursor.set(used);
-        INSTALLER_RUN.dir_scan.set(scan);
-        INSTALLER_RUN
-            .dir_count
-            .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
+        crate::install::owner::install().run.dir_cursor.set(used);
+        crate::install::owner::install().run.dir_scan.set(scan);
+        crate::install::owner::install().run.dir_count.set(
+            crate::install::owner::install()
+                .run
+                .dir_count
+                .get()
+                .wrapping_add(1),
+        );
     }
     loop {
         // list the folder
@@ -70,26 +73,26 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
             cursor = append_byte(cursor, b'\\');
         }
         append_byte(
-            str_append(&crate::install::installer::INSTALL_TEXTS.star, cursor),
+            str_append(&crate::install::owner::install().texts.star, cursor),
             0,
         );
         if find_first(base) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
-                    let real =
-                        !same_name(&crate::install::installer::INSTALL_TEXTS.dot, find_name())
-                            && !same_name(
-                                &crate::install::installer::INSTALL_TEXTS.dotdot,
-                                find_name(),
-                            );
+                    let real = !same_name(&crate::install::owner::install().texts.dot, find_name())
+                        && !same_name(&crate::install::owner::install().texts.dotdot, find_name());
                     if real {
                         let name = found_path(base)?;
                         let used = FOLDERS.with(|t| t.push(name))?;
-                        INSTALLER_RUN.dir_cursor.set(used);
-                        INSTALLER_RUN
-                            .dir_count
-                            .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
+                        crate::install::owner::install().run.dir_cursor.set(used);
+                        crate::install::owner::install().run.dir_count.set(
+                            crate::install::owner::install()
+                                .run
+                                .dir_count
+                                .get()
+                                .wrapping_add(1),
+                        );
                         // `sub ebx, g_dirNames`
                         if used >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
@@ -98,10 +101,14 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
                 } else {
                     let name = found_path(base)?;
                     let used = FILES.with(|t| t.push(name))?;
-                    INSTALLER_RUN.file_cursor.set(used);
-                    INSTALLER_RUN
-                        .file_count
-                        .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
+                    crate::install::owner::install().run.file_cursor.set(used);
+                    crate::install::owner::install().run.file_count.set(
+                        crate::install::owner::install()
+                            .run
+                            .file_count
+                            .get()
+                            .wrapping_add(1),
+                    );
                     // `sub ebx, g_fileNames`
                     if used >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
@@ -114,7 +121,7 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
         }
         close_search();
         // the next folder from the scan (its number in the folders' table)
-        let scan = INSTALLER_RUN.dir_scan.get();
+        let scan = crate::install::owner::install().run.dir_scan.get();
         let Some(next) = FOLDERS.with(|t| t.names.get(scan as usize).cloned())? else {
             break;
         };
@@ -122,7 +129,10 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
             break;
         }
         folder = next;
-        INSTALLER_RUN.dir_scan.set(scan.wrapping_add(1));
+        crate::install::owner::install()
+            .run
+            .dir_scan
+            .set(scan.wrapping_add(1));
     }
     Ok(())
 }
@@ -142,7 +152,6 @@ pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Re
 #[cfg(test)]
 mod tests {
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    use crate::install::vars::INSTALLER_RUN;
     use crate::memory::MemoryList;
 
     #[test]
@@ -150,11 +159,11 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept: Vec<u32> = [
-            &INSTALLER_RUN.dir_count,
-            &INSTALLER_RUN.file_count,
-            &INSTALLER_RUN.dir_scan,
-            &INSTALLER_RUN.dir_cursor,
-            &INSTALLER_RUN.file_cursor,
+            &crate::install::owner::install().run.dir_count,
+            &crate::install::owner::install().run.file_count,
+            &crate::install::owner::install().run.dir_scan,
+            &crate::install::owner::install().run.dir_cursor,
+            &crate::install::owner::install().run.file_cursor,
         ]
         .iter()
         .map(|d| d.get())
@@ -173,11 +182,11 @@ mod tests {
         FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
         FILES.take(list, 0x40100, NameTable::default()).unwrap();
         for d in [
-            &INSTALLER_RUN.dir_count,
-            &INSTALLER_RUN.file_count,
-            &INSTALLER_RUN.dir_scan,
-            &INSTALLER_RUN.dir_cursor,
-            &INSTALLER_RUN.file_cursor,
+            &crate::install::owner::install().run.dir_count,
+            &crate::install::owner::install().run.file_count,
+            &crate::install::owner::install().run.dir_scan,
+            &crate::install::owner::install().run.dir_cursor,
+            &crate::install::owner::install().run.file_cursor,
         ] {
             d.set(0);
         }
@@ -205,19 +214,22 @@ mod tests {
         assert_eq!(files, want);
         let bytes = |names: &[Vec<u8>]| names.iter().map(|n| n.len() as u32 + 1).sum::<u32>();
         assert_eq!((folder_bytes, file_bytes), (bytes(&folders), bytes(&files)));
-        assert_eq!(INSTALLER_RUN.dir_count.get(), 3);
-        assert_eq!(INSTALLER_RUN.file_count.get(), 3);
-        assert_eq!(INSTALLER_RUN.dir_cursor.get(), folder_bytes);
+        assert_eq!(crate::install::owner::install().run.dir_count.get(), 3);
+        assert_eq!(crate::install::owner::install().run.file_count.get(), 3);
+        assert_eq!(
+            crate::install::owner::install().run.dir_cursor.get(),
+            folder_bytes
+        );
         FOLDERS.give_back();
         FILES.give_back();
         drop(list_region);
         crate::memory::with_figures(|f| *f = figures);
         for (d, v) in [
-            &INSTALLER_RUN.dir_count,
-            &INSTALLER_RUN.file_count,
-            &INSTALLER_RUN.dir_scan,
-            &INSTALLER_RUN.dir_cursor,
-            &INSTALLER_RUN.file_cursor,
+            &crate::install::owner::install().run.dir_count,
+            &crate::install::owner::install().run.file_count,
+            &crate::install::owner::install().run.dir_scan,
+            &crate::install::owner::install().run.dir_cursor,
+            &crate::install::owner::install().run.file_cursor,
         ]
         .iter()
         .zip(kept)

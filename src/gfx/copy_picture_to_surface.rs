@@ -18,7 +18,6 @@
 //! `routes.rs`.
 
 use crate::errors::BadInput;
-use crate::gfx::locked::LOCKED;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::screen_state::DRAW_SURFACE;
 
@@ -47,7 +46,7 @@ pub struct GameSurface;
 
 impl PictureSurface for GameSurface {
     fn locked(&self) -> bool {
-        LOCKED.surface.get() != 0
+        crate::gfx::owner::gfx().locked.surface.get() != 0
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.

@@ -24,8 +24,8 @@
 
 use crate::effects::emit_car_particles::emit_car_particles;
 use crate::effects::emitters::*;
+use crate::effects::paths::Paths;
 use crate::effects::run_particles::Particles;
-use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::errors::{BadInput, Refused};
@@ -81,7 +81,7 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn cars_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
+pub fn cars_particles(paths: &Paths, particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
@@ -159,14 +159,14 @@ pub fn cars_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused>
         ];
         write_bits(&EMITTER.side_a, a);
         let model = car.word(4)?;
-        EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
-        EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
+        EMITTER.looks[0].set(paths.spline_head.look(2 * model as usize));
+        EMITTER.looks[1].set(paths.spline_head.look(2 * model as usize + 2));
         if car.word(0x30)? != 0 {
             car.put(0x30, car.word(0x30)?.wrapping_sub(1))?;
         } else {
-            emit_car_particles(particles, ring, car)?;
+            emit_car_particles(paths, particles, ring, car)?;
         }
-        emit_particle_13::emit_particle_13(particles, ring, car)?;
+        emit_particle_13::emit_particle_13(paths, particles, ring, car)?;
         emit_particle_19::emit_particle_19(particles, ring, car)?;
         emit_particle_22::emit_particle_22(particles, ring, car)?;
     }

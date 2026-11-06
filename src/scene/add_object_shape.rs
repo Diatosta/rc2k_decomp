@@ -42,7 +42,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -118,7 +117,10 @@ fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
     if points > MARKS || face_count > MARKS || normals > MARKS {
         return Err(BadInput("more points, faces or normals than can be marked"));
     }
-    let mask: u32 = DRAW_SWITCHES.loading_group_mask.bits();
+    let mask: u32 = crate::scene::owner::scene()
+        .draw_switches
+        .loading_group_mask
+        .bits();
     let slot: u32 = OBJECT_WORK.loading_slot.bits();
     let mut point_marks = vec![0u32; MARKS];
     let mut normal_marks = vec![0u32; MARKS];

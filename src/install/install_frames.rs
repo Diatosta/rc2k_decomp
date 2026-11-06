@@ -28,25 +28,24 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit::BLIT;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_RUN;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
 /// The bar's width, or the refusal of a count the original's `div` faults on.
 fn bar_width() -> Result<u32, Refused> {
-    let to_copy = INSTALLER_RUN.files_to_copy.get();
+    let to_copy = crate::install::owner::install().run.files_to_copy.get();
     if to_copy == 0 {
         return Err(BadInput("no files to copy: the original divides by 0").into());
     }
-    let width = INSTALLER_RUN.files_copied.get() as u64 * 0x190 / to_copy as u64;
+    let width =
+        crate::install::owner::install().run.files_copied.get() as u64 * 0x190 / to_copy as u64;
     u32::try_from(width)
         .map_err(|_| BadInput("a bar width past 32 bits: the original's div faults").into())
 }
 
 /// `install::progress_frame`'s Rust version: its carry (the last lock's or show's).
-pub fn progress_frame() -> Result<bool, Refused> {
+pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let width = bar_width()?;
     let mut carry = false;
     for _ in 0..2 {
@@ -56,21 +55,21 @@ pub fn progress_frame() -> Result<bool, Refused> {
         }
         // gfx::fill_rect: colour 0
         crate::gfx::rect::fill_rect(
-            crate::gfx::rect::rect_in(&INSTALLER_PAGES.bar),
+            crate::gfx::rect::rect_in(&g.pages.bar),
             0,
             crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(
                 &crate::text::blend_font::BLENDED_PALETTE,
             )),
         )?;
-        let x = INSTALLER_PAGES.bar.get_u32(0);
+        let x = g.pages.bar.get_u32(0);
         let kept_clip: u32 = BLIT.clip.right.get();
         BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
             2,
-            &INSTALLER_PAGES.bar_glyphs_list,
+            &g.pages.bar_glyphs_list,
             0,
             0,
-            INSTALLER_RUN.bar_glyphs.get(),
+            g.run.bar_glyphs.get(),
         )?;
         BLIT.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
@@ -80,7 +79,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
             FONT,
             &TEXT_BUFFER.text,
             x.wrapping_add(0xC8),
-            INSTALLER_PAGES.bar.get_u32(4).wrapping_add(2),
+            g.pages.bar.get_u32(4).wrapping_add(2),
         )?;
         unlock();
         carry = !show();
@@ -89,7 +88,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
 }
 
 /// `install::copying_frame`'s Rust version: its carry (the last lock's or show's).
-pub fn copying_frame() -> Result<bool, Refused> {
+pub fn copying_frame(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let mut carry = false;
     for _ in 0..2 {
         if !lock() {
@@ -97,10 +96,10 @@ pub fn copying_frame() -> Result<bool, Refused> {
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(2, &INSTALLER_PAGES.texts, 0, 0)?;
+        crate::install::draw_string_list::draw_string_list(2, &g.pages.texts, 0, 0)?;
         // gfx::frame_rect: colour 0x2A
         crate::gfx::rect::frame_rect(
-            crate::gfx::rect::rect_in(&INSTALLER_PAGES.frame),
+            crate::gfx::rect::rect_in(&g.pages.frame),
             0,
             0,
             0x2A,

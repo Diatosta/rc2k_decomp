@@ -16,7 +16,12 @@ use rc2k_core::install::items::{Helper, ItemKey};
 /// A key on `item`: the helper the key has for the item's kind, `number` for the number
 /// keys' helpers; the original's zero after it (the helpers' set, else that of the last
 /// compare of the kind).
-pub fn item_key(item: ListItem, key: ItemKey, number: u32) -> Result<bool, Refused> {
+pub fn item_key(
+    g: &'static crate::install::owner::Install,
+    item: ListItem,
+    key: ItemKey,
+    number: u32,
+) -> Result<bool, Refused> {
     let kind = item.first() & key.kind_mask();
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
     use crate::install as i;
@@ -24,8 +29,8 @@ pub fn item_key(item: ListItem, key: ItemKey, number: u32) -> Result<bool, Refus
         Some(Helper::ChoiceBack) => i::choice_back::choice_back(item)?,
         Some(Helper::ChoiceOn) => i::choice_on::choice_on(item)?,
         Some(Helper::ChoiceByNumber) => i::choice_by_number::choice_by_number(item, number),
-        Some(Helper::ValueDown) => i::value_down::value_down(item),
-        Some(Helper::ValueUp) => i::value_up::value_up(item),
+        Some(Helper::ValueDown) => i::value_down::value_down(g, item),
+        Some(Helper::ValueUp) => i::value_up::value_up(g, item),
         Some(Helper::ValueByNumber) => i::value_by_number::value_by_number(item, number)?,
         None => return Ok(kind == key.last_compared()),
     }
@@ -33,6 +38,6 @@ pub fn item_key(item: ListItem, key: ItemKey, number: u32) -> Result<bool, Refus
 }
 
 /// Whether the key was taken (the original's zero).
-pub fn key_up(item: ListItem) -> Result<bool, Refused> {
-    item_key(item, ItemKey::Up, 0)
+pub fn key_up(g: &'static crate::install::owner::Install, item: ListItem) -> Result<bool, Refused> {
+    item_key(g, item, ItemKey::Up, 0)
 }

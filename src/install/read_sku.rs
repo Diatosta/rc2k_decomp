@@ -18,7 +18,10 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_sku(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
+pub fn read_sku(
+    g: &'static crate::install::owner::Install,
+    path: crate::pointers::GamePtr,
+) -> Result<(), BadInput> {
     let Some((text, _)) = read_text(path)? else {
         return Ok(());
     };
@@ -27,17 +30,17 @@ pub fn read_sku(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
         return Ok(());
     };
     if sku.oem {
-        SKU.oem.set(1u32);
+        g.sku.oem.set(1u32);
     }
     if sku.dvd {
-        SKU.dvd.set(1u32);
+        g.sku.dvd.set(1u32);
     }
-    SKU.number.set(sku.number);
+    g.sku.number.set(sku.number);
     if let Some(second) = sku.second {
-        SKU.second.set(second);
+        g.sku.second.set(second);
     }
     if let Some(third) = sku.third {
-        SKU.third.set(third);
+        g.sku.third.set(third);
     }
     Ok(())
 }
@@ -62,15 +65,19 @@ pub struct Sku {
     pub _gap_519112: Bytes<6>,
 }
 
-pub static SKU: Sku = Sku {
-    number: Dword::new(0xffffffff),
-    oem: Dword::new(0x0),
-    dvd: Dword::new(0x0),
-    third: Byte::new(0x0),
-    second: Byte::new(0x0),
-    path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
-    _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
-};
+impl Sku {
+    pub const fn new() -> Self {
+        Sku {
+            number: Dword::new(0xffffffff),
+            oem: Dword::new(0x0),
+            dvd: Dword::new(0x0),
+            third: Byte::new(0x0),
+            second: Byte::new(0x0),
+            path: Bytes::new(with_runs::<16>(&[(0, b"files\\d\\gfx\\sku")])),
+            _gap_519112: Bytes::new(with_runs::<6>(&[(0, b"sku")])),
+        }
+    }
+}
 
 impl Sku {
     pub const START: usize = 0x5190F4;
@@ -78,7 +85,7 @@ impl Sku {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SKU) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.sku) as usize
     }
 }
 

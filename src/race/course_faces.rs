@@ -19,7 +19,6 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_tables_store::LIGHT_TABLES;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::byte_of;
@@ -773,13 +772,15 @@ pub fn face_colours(face: &Face) -> Result<(), Refused> {
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
     let lit = face.switches() & EXTRA_LIGHTS != 0;
     for k in 0..4 {
-        let c = LIGHT_TABLES.light_table[face.corner_light(k) as usize].get();
+        let c = crate::scene::owner::scene().light_tables.light_table
+            [face.corner_light(k) as usize]
+            .get();
         RACE_VIEW.corner_colours[k].set(c);
         if lit {
             let extra = || {
                 let (a, b) = face.lamps(k);
-                let a = LIGHT_TABLES.lamp_table_a[a as usize].get();
-                let b = LIGHT_TABLES.lamp_table_b[b as usize].get();
+                let a = crate::scene::owner::scene().light_tables.lamp_table_a[a as usize].get();
+                let b = crate::scene::owner::scene().light_tables.lamp_table_b[b as usize].get();
                 (a, b)
             };
             let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
@@ -834,8 +835,10 @@ pub fn draw_back_face(face: &Face) -> Result<(), Refused> {
     }
     turn_over()?;
     for k in 0..4 {
-        RACE_VIEW.corner_colours[k]
-            .set(LIGHT_TABLES.light_table[face.back_light(k) as usize].get());
+        RACE_VIEW.corner_colours[k].set(
+            crate::scene::owner::scene().light_tables.light_table[face.back_light(k) as usize]
+                .get(),
+        );
     }
     for k in 0..4 {
         RACE_VIEW.corner_alphas[k].set(face.back_fog(k) as u32);

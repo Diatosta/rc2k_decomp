@@ -7,7 +7,6 @@
 //!      `pusha`
 //! Caller: `net::lobby_loop`.
 
-use crate::install::vars::INSTALLER_PAGES;
 use crate::net::store::NET;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
@@ -18,7 +17,7 @@ const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::C
 pub fn begin_chat() -> Result<(), crate::errors::Refused> {
     NET.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
-        INSTALLER_PAGES.choice.get(),
+        crate::install::owner::install().pages.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,
         CHAT_FONT,

@@ -12,9 +12,9 @@
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first).
 
+use crate::effects::paths::Paths;
 use crate::effects::place_spline::place_spline;
 use crate::effects::setup::CLOCK;
-use crate::effects::splines::{SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_WORK};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -22,10 +22,10 @@ use crate::math::x87;
 const MOST_SPLINES: i32 = 8;
 
 /// The made counter's step (see the header).
-fn step_made(half: u32) -> Result<(), Refused> {
+fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
     let marks = crate::effects::setup::marks()?;
     {
-        let mut m = SPLINE_HEAD.made.get() as i32;
+        let mut m = paths.spline_head.made.get() as i32;
         let h = half as i32;
         if marks.listener_flag.get() != 0 {
             marks.listener_gear_changed.set(0);
@@ -59,40 +59,41 @@ fn step_made(half: u32) -> Result<(), Refused> {
                 }
             }
         }
-        SPLINE_HEAD.made.set(m as u32);
+        paths.spline_head.made.set(m as u32);
     }
     Ok(())
 }
 
 /// The Rust version (see the header).
-pub fn run_splines() -> Result<(), Refused> {
+pub fn run_splines(paths: &Paths) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let places = SPLINE_WORK.place.get() as i32;
+    let places = paths.spline_work.place.get() as i32;
     if places > MOST_SPLINES {
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(CLOCK.frame_ticks.get() >> 1)?;
+        step_made(paths, CLOCK.frame_ticks.get() >> 1)?;
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
-        let k = SPLINE_CONSTANTS
+        let k = paths
+            .spline_constants
             .wave_k
             .each_ref()
             .map(super::super::session::Float::bits);
         let (angle, wave) = x87::angle_and_wave(
-            SPLINE_HEAD.angle.bits(),
+            paths.spline_head.angle.bits(),
             (s & 0xFF).wrapping_sub(0x80) as i32,
             k[0],
             k[1],
             k[2],
         );
-        SPLINE_HEAD.angle.set_bits(angle);
-        SPLINE_HEAD.wave.set_bits(wave);
+        paths.spline_head.angle.set_bits(angle);
+        paths.spline_head.wave.set_bits(wave);
         for n in (0..places.max(0) as u32).rev() {
-            place_spline(n)?;
+            place_spline(paths, n)?;
         }
     }
     Ok(())

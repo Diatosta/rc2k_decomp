@@ -13,8 +13,8 @@ use crate::scene::read_kind_records::read_kind_records;
 // ---- Rust version ----
 
 /// The objects' memory allocated, then the kinds' records read.
-pub fn set_up_object_memory() -> Result<(), Refused> {
+pub fn set_up_object_memory(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     allocate_object_memory_in_game()?;
-    read_kind_records()?;
+    read_kind_records(scene)?;
     Ok(())
 }

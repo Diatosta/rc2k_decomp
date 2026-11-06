@@ -29,7 +29,6 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::install::read_sku::SKU;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::name_lists::NAME_LEN;
 use crate::menu::names_store::NAME_BUFFERS;
@@ -221,7 +220,10 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings()?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(crate::pointers::GamePtr::to(&SKU.path))?;
+            crate::install::read_sku::read_sku(
+                crate::install::owner::install(),
+                crate::pointers::GamePtr::to(&crate::install::owner::install().sku.path),
+            )?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
             crate::settings::read_driver_names::path(),

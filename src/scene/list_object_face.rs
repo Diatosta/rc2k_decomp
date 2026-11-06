@@ -46,7 +46,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -103,8 +102,8 @@ impl FaceWorld for GameFace {
     fn group_table(&self, group: u32) -> u32 {
         // The table is typed by its first dword only.
         self.0.keep(crate::session::read_on_in(
-            &DRAW_SWITCHES,
-            std::slice::from_ref(&DRAW_SWITCHES.group_table),
+            &crate::scene::owner::scene().draw_switches,
+            std::slice::from_ref(&crate::scene::owner::scene().draw_switches.group_table),
             group as usize,
             "the groups' table",
         ))

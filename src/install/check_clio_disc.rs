@@ -20,10 +20,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::check_at_start::set_script_entry;
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::runs_from_source;
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
-use crate::install::vars::INSTALLER_RUN;
 
 const CAR_NAME_LEN: usize = 0x1B;
 
@@ -33,36 +29,39 @@ const CLIO_STEP: u32 = 0x41675B; // sub_41675B
 
 // ---- Rust version ----
 
-pub fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
-    let install = &crate::install::store::INSTALL;
+pub fn check_clio_disc(
+    g: &'static crate::install::owner::Install,
+    outside: &mut dyn Outside,
+) -> Result<(), Refused> {
+    let install = &g.vars;
     if !outside.file_exists(&install.clio_file.text())? {
         return Ok(());
     }
     install.has_clio.set(1);
-    if INSTALLER_RUN.installing.get() == 1
-        || outside.file_exists(&crate::install::installer::INSTALL_TEXTS.record_path.text())?
-        || runs_from_source(outside)?
-        || INSTALLER_NAMES.status.get() != 1
-        || INSTALLER_NAMES.source.get(0) == 0
-        || outside.file_exists(&INSTALLER_NAMES.installer_data.text())?
+    if g.run.installing.get() == 1
+        || outside.file_exists(&g.texts.record_path.text())?
+        || runs_from_source(g, outside)?
+        || g.names.status.get() != 1
+        || g.names.source.get(0) == 0
+        || outside.file_exists(&g.names.installer_data.text())?
     {
         return Ok(());
     }
     // `base_b` (`unk_5295B4`) is an empty text whose size is not known (section 13: the
     // installer writes it elsewhere): read as a text at its place.
     let base_b = crate::files::cstring(
-        crate::pointers::GamePtr::to(&crate::install::installer::INSTALL_TEXTS.base_b),
+        crate::pointers::GamePtr::to(&g.texts.base_b),
         "the installer's base",
     )?;
     let Some(a) = outside.normalise_path(&base_b)? else {
         return Ok(());
     };
-    INSTALLER_PATHS.path_a.write_at(0, &a, "a path")?;
-    outside.set_directory(&INSTALLER_NAMES.source.text());
+    g.paths.path_a.write_at(0, &a, "a path")?;
+    outside.set_directory(&g.names.source.text());
     let Some(b) = outside.normalise_path(&base_b)? else {
         return Ok(());
     };
-    INSTALLER_PATHS.path_b.write_at(0, &b, "a path")?;
+    g.paths.path_b.write_at(0, &b, "a path")?;
     outside.read_record()?;
     if crate::files::state::MEDIA_MODE.get() < 2 {
         outside.log(b"CLIO: Requires normal or full installation");
@@ -80,11 +79,11 @@ pub fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     else {
         return Err(BadInput("the Clio's name has no ( any more").into());
     };
-    set_script_entry(0x1038);
+    set_script_entry(g, 0x1038);
     name[..end].make_ascii_uppercase();
     name[end] = b'\n';
     name[end + 1] = 0;
     install.clio_car_name.write(&name);
-    INSTALLER_PAGES.step.set_u32(0, CLIO_STEP);
+    g.pages.step.set_u32(0, CLIO_STEP);
     Ok(())
 }

@@ -17,6 +17,7 @@
 
 use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
+use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::marks_settings_store::MarkCar;
@@ -66,7 +67,7 @@ fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-fn refusal() -> Result<Option<&'static str>, Refused> {
+fn refusal(paths: &Paths) -> Result<Option<&'static str>, Refused> {
     let marks = crate::effects::setup::marks()?;
     Ok({
         if marks.cars_copy.get() as i32 > MOST_CARS {
@@ -89,7 +90,8 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                 return Ok(Some("a negative point count: the loop runs on"));
             }
             if n > 0
-                && crate::effects::lines::block_point(b.word(BLOCK + 0x8C)?, n as u32 - 1).is_err()
+                && crate::effects::lines::block_point(paths, b.word(BLOCK + 0x8C)?, n as u32 - 1)
+                    .is_err()
             {
                 return Ok(Some("a base point list shorter than the object's points"));
             }
@@ -105,8 +107,8 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn morph_object_points() -> Result<(), Refused> {
-    if let Some(why) = refusal()? {
+pub fn morph_object_points(paths: &Paths) -> Result<(), Refused> {
+    if let Some(why) = refusal(paths)? {
         return Err(BadInput(why).into());
     }
     {
@@ -121,13 +123,13 @@ pub fn morph_object_points() -> Result<(), Refused> {
             for k in 0..8 {
                 let v = b.word(BLOCK + 0x90 + 4 * k)?;
                 b.put(BLOCK + 0xB0 + 4 * k, v)?;
-                MORPH_WORK.kept[k as usize].set(v);
+                paths.morph_work.kept[k as usize].set(v);
             }
             let (a, c, n) = points(b)?;
             let points = b.word(BLOCK + 0x8C)?;
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
-                let base = crate::effects::lines::block_point(points, k)?;
+                let base = crate::effects::lines::block_point(paths, points, k)?;
                 if crate::effects::try_any(0..3, |i| {
                     Ok(base[i as usize] != crate::scene::object_points::word(from + 4 * i)?)
                 })? {
@@ -135,7 +137,7 @@ pub fn morph_object_points() -> Result<(), Refused> {
                 }
             }
         }
-        measure_lines()?;
+        measure_lines(paths)?;
     }
     Ok(())
 }
@@ -152,23 +154,24 @@ pub struct MorphWork {
     pub kept: [Dword; 8],
 }
 
-/// MorphWork's first values.
-pub static MORPH_WORK: MorphWork = MorphWork {
-    taken: Dword::new(0x0),
-    _gap_93c6d0: Bytes::new([0; 4]),
-    kept: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-};
-
 impl MorphWork {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        MorphWork {
+            taken: Dword::new(0x0),
+            _gap_93c6d0: Bytes::new([0; 4]),
+            kept: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+        }
+    }
     pub const START: usize = 0x93C6CC;
     pub const LEN: usize = 0x28;
 }
@@ -189,7 +192,8 @@ mod morph_work_tests {
     fn morph_work_starts_as_the_games() {
         assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
         assert!(
-            bytes(&MORPH_WORK) == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
+            bytes(&crate::effects::owner::EFFECTS.paths.morph_work)
+                == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
             "MORPH_WORK starts differently from the image"
         );
         assert_eq!(offset_of!(MorphWork, taken), 0x93C6CC - MorphWork::START);

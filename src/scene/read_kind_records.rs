@@ -13,7 +13,7 @@
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file;
 use crate::pointers::GamePtr;
-use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
+use crate::scene::file_numbers_store::texts;
 use crate::scene::set_object_material::MATERIAL_LEN;
 
 // ---- game data ----
@@ -58,10 +58,10 @@ fn records(file: &KindFile) -> (GamePtr, usize) {
 
 // ---- Rust version ----
 
-pub fn read_kind_records() -> Result<(), Refused> {
+pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        read_whole_file(FILE_NUMBERS.text_ptr(file.path), to, room as u32)?;
+        read_whole_file(scene.file_numbers.text_ptr(file.path), to, room as u32)?;
     }
     Ok(())
 }

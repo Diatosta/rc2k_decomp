@@ -10,11 +10,7 @@ use crate::scene::choose_view_window::choose_view_window;
 
 /// `choose_view_window` with the mode 2, the mode back to 0 after.
 pub fn full_view_window() {
-    crate::scene::light_tables_store::LIGHT_TABLES
-        .view_mode
-        .set(2);
+    crate::scene::owner::scene().light_tables.view_mode.set(2);
     choose_view_window();
-    crate::scene::light_tables_store::LIGHT_TABLES
-        .view_mode
-        .set(0);
+    crate::scene::owner::scene().light_tables.view_mode.set(0);
 }

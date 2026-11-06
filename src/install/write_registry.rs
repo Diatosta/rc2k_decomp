@@ -17,17 +17,19 @@
 use crate::errors::Refused;
 use crate::install::installer::fatal;
 use crate::install::read_registry::Registry;
-use crate::install::vars::{INSTALLER_NAMES, INSTALLER_RUN};
 
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
-pub fn write_registry(registry: &mut dyn Registry) -> Result<(), Refused> {
-    let names = &INSTALLER_NAMES;
+pub fn write_registry(
+    g: &'static crate::install::owner::Install,
+    registry: &mut dyn Registry,
+) -> Result<(), Refused> {
+    let names = &g.names;
     let Ok(key) = registry.create(&names.key_name.text()) else {
         return Err(fatal(0x8010_8420));
     };
-    INSTALLER_RUN.reg_key.set(key);
+    g.run.reg_key.set(key);
     if registry.set_value(
         key,
         &names.status_name.text(),

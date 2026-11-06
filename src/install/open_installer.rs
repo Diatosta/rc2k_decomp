@@ -16,11 +16,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::picture_store::PICTURE;
-use crate::gfx::screen_state::SCREEN_MODE;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
-use crate::install::vars::INSTALLER_NAMES;
-use crate::install::vars::INSTALLER_PALETTE;
-use crate::install::vars::INSTALLER_RUN;
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
@@ -47,36 +43,36 @@ fn read<const N: usize>(
     Ok(())
 }
 
-pub fn open_installer() -> Result<(), Refused> {
+pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    let list = crate::pointers::GamePtr::to(&INSTALLER_RUN.buffers);
+    let list = crate::pointers::GamePtr::to(&g.run.buffers);
     FOLDERS.take(list, 0x10100, NameTable::default())?;
-    INSTALLER_RUN.dir_scan.set(0);
-    INSTALLER_RUN.dir_cursor.set(0);
+    g.run.dir_scan.set(0);
+    g.run.dir_cursor.set(0);
     FILES.take(list, 0x40100, NameTable::default())?;
-    INSTALLER_RUN.file_cursor.set(0);
-    INSTALLER_RUN.dir_count.set(0);
-    INSTALLER_RUN.file_count.set(0);
+    g.run.file_cursor.set(0);
+    g.run.dir_count.set(0);
+    g.run.file_count.set(0);
     // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
     // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(list)?;
-    INSTALLER_RUN.bar_glyphs.set(glyphs);
-    let path = INSTALLER_NAMES.installer_data.text();
+    g.run.bar_glyphs.set(glyphs);
+    let path = g.names.installer_data.text();
     if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
         return Err(fatal(0x80AF_7444));
     }
     crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
     read(
-        &INSTALLER_NAMES.install_pal.text(),
-        &INSTALLER_PALETTE.palette,
+        &g.names.install_pal.text(),
+        &g.palette.palette,
         0x300,
         0x80AF_7445,
     )?;
     crate::gfx::palette_to_dwords::palette_to_dwords(
-        crate::pointers::GamePtr::to(&INSTALLER_PALETTE.palette),
+        crate::pointers::GamePtr::to(&g.palette.palette),
         crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE),
     )?;
     components_to_pixels(
@@ -84,9 +80,11 @@ pub fn open_installer() -> Result<(), Refused> {
         &crate::text::blend_font::BLENDED_PALETTE,
     );
     // gfx::load_picture: its carry is not read.
-    crate::gfx::load_picture::load_picture(&INSTALLER_NAMES.backdrop)?;
+    crate::gfx::load_picture::load_picture(&g.names.backdrop)?;
     crate::gfx::convert_picture::convert_picture_now()?;
-    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    PICTURE
+        .flags
+        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
     draw_string(0x94, FONT_94.game_ptr(), 0x316, 0x2F)?;
     draw_string(0x1000, FONT_1000.game_ptr(), 0x320, 0x24B)?;

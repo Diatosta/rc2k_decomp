@@ -10,17 +10,16 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::INSTALLER_RUN;
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
-pub fn folder_page(state: u32, list: ListMenu) {
+pub fn folder_page(g: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     if state == 0 {
-        crate::install::next_edit::next_edit(0, list);
+        crate::install::next_edit::next_edit(g, 0, list);
     }
     if (state as i32) < 0 {
-        INSTALLER_RUN.path_problem.set(0);
+        g.run.path_problem.set(0);
     }
     // Converted: `rc2k_core::install::pages::hidden_notices`.
     let hide = |offsets: [u32; 2]| {
@@ -29,10 +28,10 @@ pub fn folder_page(state: u32, list: ListMenu) {
             item.set_first(item.first() | pages::HIDDEN);
         }
     };
-    if pages::hidden_notices(INSTALLER_RUN.path_problem.get()).0 {
+    if pages::hidden_notices(g.run.path_problem.get()).0 {
         hide([0x38, 0x48]);
     }
-    if pages::hidden_notices(INSTALLER_RUN.path_problem.get()).1 {
+    if pages::hidden_notices(g.run.path_problem.get()).1 {
         hide([0x58, 0x68]);
     }
 }

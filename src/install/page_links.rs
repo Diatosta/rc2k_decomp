@@ -16,7 +16,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::{self, FontId};
-use crate::install::vars::{INSTALLER_PAGES, INSTALLER_PATHS, InstallerPages, InstallerPaths};
+use crate::install::vars::{InstallerPages, InstallerPaths};
 use crate::pointers::GamePtr;
 
 const KIND_SHIFT: u32 = 24;
@@ -95,7 +95,7 @@ impl PageLink {
                 "a page link that is no place in the installer's pages",
             ));
         }
-        Ok(GamePtr::to(&INSTALLER_PAGES).offset(self.number()))
+        Ok(GamePtr::to(&crate::install::owner::install().pages).offset(self.number()))
     }
 
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
@@ -103,7 +103,9 @@ impl PageLink {
     pub fn place(self) -> Result<GamePtr, BadInput> {
         if self.kind() == TYPED_PATH && self.number() < 0x100 {
             let typed = core::mem::offset_of!(InstallerPaths, typed) as u32;
-            return Ok(GamePtr::to(&INSTALLER_PATHS).offset(typed + self.number()));
+            return Ok(
+                GamePtr::to(&crate::install::owner::install().paths).offset(typed + self.number())
+            );
         }
         self.in_pages()
     }
@@ -146,7 +148,9 @@ mod tests {
         let typed = PageLink::of_ida(TYPED_TEXT_IDA).place().unwrap();
         assert_eq!(
             typed.addr(),
-            GamePtr::to(&INSTALLER_PATHS.typed).addr().wrapping_add(2)
+            GamePtr::to(&crate::install::owner::install().paths.typed)
+                .addr()
+                .wrapping_add(2)
         );
     }
 

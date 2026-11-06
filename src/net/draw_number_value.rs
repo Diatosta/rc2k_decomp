@@ -8,7 +8,6 @@
 //! Caller: `net::settings_frame` (the most players).
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PATHS;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::Cursor;
 use crate::net::store::NET;
@@ -21,7 +20,7 @@ pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused>
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
     let shown = screens::number_value(item == NET.edited.get(), number);
     let text = if shown == Number::Typed {
-        crate::place::Place::from(&INSTALLER_PATHS.path_a)
+        crate::place::Place::from(&crate::install::owner::install().paths.path_a)
     } else {
         let mut cursor = Cursor::text();
         if shown == Number::Nothing {

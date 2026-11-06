@@ -17,7 +17,10 @@ use crate::session::FLAGS;
 use rc2k_core::install::pages;
 
 /// The pages from the entry `first` on.
-pub fn run_pages(first: PageEntry) -> Result<(), Refused> {
+pub fn run_pages(
+    g: &'static crate::install::owner::Install,
+    first: PageEntry,
+) -> Result<(), Refused> {
     let mut entry = first;
     // The entry before, and the passed-over pages' ways (`pass_over`).
     let (mut prev, mut passed) = (None, Vec::new());
@@ -27,7 +30,7 @@ pub fn run_pages(first: PageEntry) -> Result<(), Refused> {
             (prev, entry) = (Some(entry), next);
             continue;
         }
-        let answer = crate::install::run_page::run_page(list)?;
+        let answer = crate::install::run_page::run_page(g, list)?;
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
             list.set_highlight(0);

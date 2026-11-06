@@ -8,8 +8,6 @@
 //!      for other items ebx = `dword_52ABD0`; no `pusha`
 //! Caller: `net::settings_loop`.
 
-use crate::install::vars::INSTALLER_PAGES;
-use crate::install::vars::INSTALLER_PATHS;
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::{Cursor, PALETTE};
 use crate::net::store::NET;
@@ -19,12 +17,14 @@ use rc2k_core::net::editing::{self, Setting};
 /// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
 pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    let item = INSTALLER_PAGES.choice.get();
+    let item = crate::install::owner::install().pages.choice.get();
     let text = match Setting::of(item) {
         Setting::Name => EditedText::MachineName,
         Setting::HostAddress => EditedText::HostAddress,
         Setting::MostPlayers => {
-            let mut cursor = Cursor(crate::place::Place::from(&INSTALLER_PATHS.path_a));
+            let mut cursor = Cursor(crate::place::Place::from(
+                &crate::install::owner::install().paths.path_a,
+            ));
             cursor.bytes(&crate::strings::format_u32::format_u32(
                 NET.most_players.get(),
                 0,

@@ -223,7 +223,7 @@ mod tests {
     fn read_png_file(file: &[u8]) -> Vec<u8> {
         let name = format!("target/rc2k_png_test_{}.png", std::process::id());
         std::fs::write(&name, file).unwrap();
-        let read = crate::gfx::read_png::read_png(name.as_bytes());
+        let read = crate::gfx::read_png::read_png(&crate::gfx::owner::gfx().png, name.as_bytes());
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
         read_bytes(PICTURE.buffer.get(), 0, 6 * 4).unwrap()

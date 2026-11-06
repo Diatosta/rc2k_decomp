@@ -28,7 +28,6 @@ use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 
 // ---- game data ----
 
@@ -65,7 +64,7 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 
 /// Returns what the function leaves in eax, if it changes it.
 pub fn normalise_vector() -> Result<Option<u32>, BadInput> {
-    normalise(DRAW_SWITCHES.use_sse.bits() != 0)
+    normalise(crate::scene::owner::scene().draw_switches.use_sse.bits() != 0)
 }
 
 /// The original's SSE path: each component times the approximate reciprocal root of the

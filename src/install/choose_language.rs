@@ -14,7 +14,6 @@
 //! are the original's.
 
 use crate::errors::BadInput;
-use crate::install::vars::INSTALLER_NAMES;
 use crate::place::Place;
 use rc2k_core::install::config;
 
@@ -25,14 +24,16 @@ pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 
 // ---- Rust version ----
 
-pub fn choose_language(number: u32) -> Result<(), BadInput> {
+pub fn choose_language(
+    g: &'static crate::install::owner::Install,
+    number: u32,
+) -> Result<(), BadInput> {
     {
         // Converted: `rc2k_core::install::config` (`language_slot`, `language_directory`).
-        let Some(slot) = config::language_slot(number, INSTALLER_NAMES.language_count.get())?
-        else {
+        let Some(slot) = config::language_slot(number, g.names.language_count.get())? else {
             return Ok(());
         };
-        let slot = Place::from(&INSTALLER_NAMES.languages)
+        let slot = Place::from(&g.names.languages)
             .add((slot * LANGUAGE_SLOT) as u32)
             .read(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;

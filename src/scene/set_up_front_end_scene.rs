@@ -97,6 +97,7 @@ fn colours(dark_third: u32) {
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture()?;
     reset_texture_tables();
@@ -107,7 +108,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
         }
     }
     crate::scene::set_up_textures::set_up_textures()?;
-    set_up_object_memory()?;
+    set_up_object_memory(scene)?;
     clear_slot_kinds();
     colours(0);
     // The scene's settings stored before the fog is cleared, after the two colours.
@@ -123,7 +124,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     STAGE_PREFS.fog_end.set_bits(0u32);
     clear_fog();
     FRAME_SWITCHES.other_way.set_bits(1u32);
-    fill_light_tables()?;
+    fill_light_tables(scene)?;
 
     OBJECT_TABLES.slot_kinds[0].set(1);
     for slot in 1..0x29 {
@@ -135,7 +136,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     for place in 0..0x22usize {
         OBJECT_TABLES.slot_kinds[0x2D + place].set(known_kind(place as u32));
     }
-    crate::scene::load_front_end_objects_logged::load_front_end_objects_logged()?;
+    crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(scene)?;
     reset_texture_places();
 
     TEXTURE_PLACES.kind_pictures[0x87].set(0x82A);
@@ -150,15 +151,15 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
         }
     }
     RACE_VARS.bar_function.set_bits(SHOW_BAR);
-    crate::scene::reload_system_textures::reload_system_textures()?;
+    crate::scene::reload_system_textures::reload_system_textures(scene)?;
     allocate_point_records_in_game()?;
     colours(0);
-    fill_scene_light_tables()?;
+    fill_scene_light_tables(scene)?;
     set_view_matrices();
     reload_slot_textures()?;
     colours(0x7F);
     FRAME_SWITCHES.other_way.set_bits(1u32);
-    fill_light_tables()?;
+    fill_light_tables(scene)?;
     RACE_VARS.settings_words[1].set_bits(1u32);
     Ok(())
 }

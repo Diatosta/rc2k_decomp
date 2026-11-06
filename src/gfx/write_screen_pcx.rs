@@ -28,34 +28,34 @@ use crate::files::write_stream_block::write_stream_all;
 use crate::files::write_stream_byte::write_stream_byte;
 use crate::gfx::pcx::PCX;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::gfx::shots::SHOTS;
+use crate::gfx::shots::Shots;
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
 /// `rc2k_core::gfx::pcx::screen_header`).
 pub use rc2k_core::gfx::pcx::screen_header as header;
 
 /// The screenshot name's three digits one more (999 goes round to 000).
-fn next_shot_name() {
+fn next_shot_name(shots: &Shots) {
     for n in (0..3).rev() {
-        let d = SHOTS.name.get(n).wrapping_add(1);
+        let d = shots.name.get(n).wrapping_add(1);
         if d <= b'9' {
-            SHOTS.name.set(n, d);
+            shots.name.set(n, d);
             break;
         }
-        SHOTS.name.set(n, b'0');
+        shots.name.set(n, b'0');
     }
 }
 
 /// The Rust version: whether it worked (carry clear). `name` the file's path (without its
 /// NUL), or None for the next numbered screenshot.
-pub fn write_screen_pcx(name: Option<&[u8]>) -> Result<bool, Refused> {
+pub fn write_screen_pcx(shots: &Shots, name: Option<&[u8]>) -> Result<bool, Refused> {
     let header_bytes = header(DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
     PCX.header.write(&header_bytes);
     let path = match name {
         Some(name) => name.to_vec(),
         None => {
-            next_shot_name();
-            SHOTS.name.text()
+            next_shot_name(shots);
+            shots.name.text()
         }
     };
     with_stream(|stream| {

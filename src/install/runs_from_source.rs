@@ -10,7 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::install::outside::Outside;
-use crate::install::vars::INSTALLER_NAMES;
 use std::cmp::Ordering;
 
 /// The path buffer the checks build in (`files::numbered_path`'s, 0x100 bytes).
@@ -47,9 +46,12 @@ pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
 
 /// The registry's source (`byte_51BB8D`) against the current directory (written into the
 /// path buffer, as the original): None when there is no installed source or no directory.
-pub fn source_against_directory(outside: &mut dyn Outside) -> Result<Option<Ordering>, BadInput> {
+pub fn source_against_directory(
+    g: &'static crate::install::owner::Install,
+    outside: &mut dyn Outside,
+) -> Result<Option<Ordering>, BadInput> {
     outside.read_registry();
-    if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
+    if g.names.status.get() != 1 || g.names.source.get(0) == 0 {
         return Ok(None);
     }
     let Some(directory) = outside.current_directory()? else {
@@ -57,11 +59,14 @@ pub fn source_against_directory(outside: &mut dyn Outside) -> Result<Option<Orde
     };
     scratch_put(0, &directory)?;
     Ok(Some(crate::strings::same_text::compare_bytes(
-        &INSTALLER_NAMES.source.text(),
+        &g.names.source.text(),
         &directory,
     )))
 }
 
-pub fn runs_from_source(outside: &mut dyn Outside) -> Result<bool, BadInput> {
-    Ok(source_against_directory(outside)? == Some(Ordering::Equal))
+pub fn runs_from_source(
+    g: &'static crate::install::owner::Install,
+    outside: &mut dyn Outside,
+) -> Result<bool, BadInput> {
+    Ok(source_against_directory(g, outside)? == Some(Ordering::Equal))
 }

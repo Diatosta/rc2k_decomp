@@ -87,41 +87,45 @@ pub struct InstallerRun {
     pub reg_key: Dword,
 }
 
-pub static INSTALLER_RUN: InstallerRun = InstallerRun {
-    _lead: Bytes::new([0; 8]),
-    same_version: Dword::new(0x0),
-    updating: Dword::new(0x0),
-    from_command: Dword::new(0x0),
-    add_items: Dword::new(0x0),
-    remove_items: Dword::new(0x0),
-    run_dxsetup: Dword::new(0x0),
-    installing: Dword::new(0x0),
-    offer_registration: Dword::new(0x0),
-    run_registration: Dword::new(0x0),
-    ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
-    path_problem: Dword::new(0x0),
-    ignore_room: Dword::new(0x0),
-    given_mode: Dword::new(0x2),
-    given_language: Dword::new(0x0),
-    drives: [const { Dword::new(0x0) }; 52],
-    drive_count: Dword::new(0x0),
-    first_drive: Dword::new(0x63),
-    files_copied: Dword::new(0x0),
-    files_to_copy: Dword::new(0x0),
-    copy_spare: Dword::new(0x0),
-    _gap_51baf4: Bytes::new([0; 4]),
-    room_needed: Dword::new(0x0),
-    buffers: Bytes::new([0; 64]),
-    bar_glyphs: Dword::new(0x0),
-    dirs: Dword::new(0x0),
-    files: Dword::new(0x0),
-    dir_count: Dword::new(0x0),
-    file_count: Dword::new(0x0),
-    dir_scan: Dword::new(0x0),
-    dir_cursor: Dword::new(0x0),
-    file_cursor: Dword::new(0x0),
-    reg_key: Dword::new(0x0),
-};
+impl InstallerRun {
+    pub const fn new() -> Self {
+        InstallerRun {
+            _lead: Bytes::new([0; 8]),
+            same_version: Dword::new(0x0),
+            updating: Dword::new(0x0),
+            from_command: Dword::new(0x0),
+            add_items: Dword::new(0x0),
+            remove_items: Dword::new(0x0),
+            run_dxsetup: Dword::new(0x0),
+            installing: Dword::new(0x0),
+            offer_registration: Dword::new(0x0),
+            run_registration: Dword::new(0x0),
+            ereg: Bytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
+            path_problem: Dword::new(0x0),
+            ignore_room: Dword::new(0x0),
+            given_mode: Dword::new(0x2),
+            given_language: Dword::new(0x0),
+            drives: [const { Dword::new(0x0) }; 52],
+            drive_count: Dword::new(0x0),
+            first_drive: Dword::new(0x63),
+            files_copied: Dword::new(0x0),
+            files_to_copy: Dword::new(0x0),
+            copy_spare: Dword::new(0x0),
+            _gap_51baf4: Bytes::new([0; 4]),
+            room_needed: Dword::new(0x0),
+            buffers: Bytes::new([0; 64]),
+            bar_glyphs: Dword::new(0x0),
+            dirs: Dword::new(0x0),
+            files: Dword::new(0x0),
+            dir_count: Dword::new(0x0),
+            file_count: Dword::new(0x0),
+            dir_scan: Dword::new(0x0),
+            dir_cursor: Dword::new(0x0),
+            file_cursor: Dword::new(0x0),
+            reg_key: Dword::new(0x0),
+        }
+    }
+}
 
 impl InstallerRun {
     pub const START: usize = 0x51B9C8;
@@ -129,7 +133,7 @@ impl InstallerRun {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INSTALLER_RUN) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.run) + 8) as usize
     }
 }
 
@@ -195,7 +199,9 @@ pub struct InstallerNames {
     pub _tail: Bytes<9>,
 }
 
-pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
+impl InstallerNames {
+    pub const fn new() -> Self {
+        InstallerNames {
     key_name: Bytes::new(with_runs::<30>(&[(0, b"SOFTWARE\\Magnetic Fields\\RC99")])),
     status_name: Bytes::new(with_runs::<7>(&[(0, b"status")])),
     source_name: Bytes::new(with_runs::<7>(&[(0, b"source")])),
@@ -224,7 +230,9 @@ pub static INSTALLER_NAMES: InstallerNames = InstallerNames {
     _gap_51c378: Bytes::new(with_runs::<127>(&[(0, b"lang1\x00\xee\xbeQ\x00\x7f\x00\x00\x00lang2\x00n\xbfQ\x00\x7f\x00\x00\x00lang3\x00\xee\xbfQ\x00\x7f\x00\x00\x00lang4\x00n\xc0Q\x00\x7f\x00\x00\x00lang5\x00\xee\xc0Q\x00\x7f\x00\x00\x00lang6\x00n\xc1Q\x00\x7f\x00\x00\x00lang7\x00\xee\xc1Q\x00\x7f\x00\x00\x00lang8\x00n\xc2Q\x00\x7f\x00\x00\x00lang9\x00\xee\xc2Q\x00\x7f")])),
     room_by_mode: Bytes::new(with_runs::<16>(&[(5, b"("), (10, b"\x05\x00\x00(\n")])),
     _tail: Bytes::new([0; 9]),
-};
+        }
+    }
+}
 
 impl InstallerNames {
     pub const START: usize = 0x51BB60;
@@ -232,7 +240,7 @@ impl InstallerNames {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const INSTALLER_NAMES) as usize
+        crate::pointers::game_address(&raw const crate::install::owner::INSTALL.names) as usize
     }
 }
 
@@ -364,7 +372,9 @@ const fn linked<const N: usize>(start: u32, mut bytes: [u8; N]) -> [u8; N] {
     bytes
 }
 
-pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
+impl InstallerPages {
+    pub const fn new() -> Self {
+        InstallerPages {
     _lead: Bytes::new([0; 7]),
     layout: Bytes::new([0; 4096]),
     choice: Loose::new(0x0),
@@ -415,7 +425,9 @@ pub static INSTALLER_PAGES: InstallerPages = InstallerPages {
     _gap_51dda8: Bytes::new(with_runs::<112>(&[(0, b"}\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00E\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\r\x02\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xe1\x00\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x00\xa9\x01\x00\x00\x96\x00\x00\x00\xc8\x00\x00\x00\x90\x01\x00\x002\x00\x00\x00\xc8\x00\x00\x00\xee\x02\x00\x00\x1e\x00\x00\x002\x00\x00\x00\xef\x01\x00\x00\xee\x02\x00\x00\x1e")])),
     bad_folder_chars: Bytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
     _tail: Bytes::new([0; 4]),
-};
+        }
+    }
+}
 
 impl InstallerPages {
     /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
@@ -426,14 +438,18 @@ impl InstallerPages {
                 "a font kind past the installer's table",
             ));
         }
-        INSTALLER_PAGES.kind_fonts.get(index as usize)
+        crate::install::owner::install()
+            .pages
+            .kind_fonts
+            .get(index as usize)
     }
 
     /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
     /// as names, `moved::point_into_homes` passes them over). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
     pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-        let cell = INSTALLER_PAGES
+        let cell = crate::install::owner::install()
+            .pages
             .fonts
             .get(index as usize)
             .ok_or(crate::errors::BadInput("a page font past the table"))?;
@@ -450,7 +466,8 @@ impl InstallerPages {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INSTALLER_PAGES) + 7) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.pages) + 7)
+            as usize
     }
 }
 
@@ -476,16 +493,20 @@ pub struct InstallerPaths {
     pub _tail: Bytes<8>,
 }
 
-pub static INSTALLER_PATHS: InstallerPaths = InstallerPaths {
-    _lead: Bytes::new([0; 8]),
-    game_dir: Bytes::new([0; 256]),
-    installed: Bytes::new([0; 256]),
-    path_a: Bytes::new([0; 256]),
-    path_b: Bytes::new([0; 256]),
-    script_path: Bytes::new([0; 256]),
-    typed: Bytes::new([0; 256]),
-    _tail: Bytes::new([0; 8]),
-};
+impl InstallerPaths {
+    pub const fn new() -> Self {
+        InstallerPaths {
+            _lead: Bytes::new([0; 8]),
+            game_dir: Bytes::new([0; 256]),
+            installed: Bytes::new([0; 256]),
+            path_a: Bytes::new([0; 256]),
+            path_b: Bytes::new([0; 256]),
+            script_path: Bytes::new([0; 256]),
+            typed: Bytes::new([0; 256]),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl InstallerPaths {
     pub const START: usize = 0x95E6F8;
@@ -493,7 +514,8 @@ impl InstallerPaths {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INSTALLER_PATHS) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.paths) + 8)
+            as usize
     }
 }
 
@@ -509,11 +531,15 @@ pub struct InstallerPalette {
     pub _tail: Bytes<12>,
 }
 
-pub static INSTALLER_PALETTE: InstallerPalette = InstallerPalette {
-    _lead: Bytes::new([0; 4]),
-    palette: Bytes::new([0; 768]),
-    _tail: Bytes::new([0; 12]),
-};
+impl InstallerPalette {
+    pub const fn new() -> Self {
+        InstallerPalette {
+            _lead: Bytes::new([0; 4]),
+            palette: Bytes::new([0; 768]),
+            _tail: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl InstallerPalette {
     pub const START: usize = 0x4F3874;
@@ -521,7 +547,8 @@ impl InstallerPalette {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INSTALLER_PALETTE) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::install::owner::INSTALL.palette) + 4)
+            as usize
     }
 }
 
@@ -565,7 +592,7 @@ mod tests {
             let image = crate::moved::image_bytes(p as usize, 4);
             let ida = u32::from_le_bytes(image.try_into().unwrap());
             let link = PageLink::from_raw(
-                crate::pointers::GamePtr::to(&INSTALLER_PAGES)
+                crate::pointers::GamePtr::to(&crate::install::owner::install().pages)
                     .offset(off + 7)
                     .read::<u32>("a page link")
                     .unwrap(),

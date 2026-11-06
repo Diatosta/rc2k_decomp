@@ -18,7 +18,6 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
-use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::list_object_face::list_object_face;
 use crate::scene::list_object_faces::list_object_faces;
 use crate::scene::place_object_points::place_object_points;
@@ -63,10 +62,10 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (`sub_45BF89`) is not ported:
 /// a refusal ends the program.
 fn place_object_points_any() -> Result<(), Refused> {
-    if DRAW_SWITCHES.use_3dnow.bits() != 0 {
+    if crate::scene::owner::scene().draw_switches.use_3dnow.bits() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
-    if DRAW_SWITCHES.use_sse.bits() != 0 {
+    if crate::scene::owner::scene().draw_switches.use_sse.bits() != 0 {
         return crate::scene::place_object_points::place_object_points_sse();
     }
     place_object_points()?;

@@ -12,23 +12,25 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::paths::Paths;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Dword;
 
 /// The Rust version (see the header): the three out and eax.
-pub fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
+pub fn spread_point(paths: &Paths, inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let [spread, b, c, d] = inputs.map(rounded);
 
-    let first = SPREAD_RANDOM
+    let first = paths
+        .spread_random
         .random
         .get()
         .wrapping_mul(0x9D)
         .wrapping_add(0x47);
     let second = first.rotate_right(12);
     let third = second.rotate_right(12);
-    SPREAD_RANDOM.random.set(third);
+    paths.spread_random.random.set(third);
     let k = MARKS_FLOATS.spread_scale.get_u32(0) as u64
         | (MARKS_FLOATS.spread_scale.get_u32(4) as u64) << 32;
     let d = x87::grown(third as i32, k, d, spread);
@@ -45,18 +47,21 @@ pub struct SpreadRandom {
     pub random: Dword,
 }
 
-pub static SPREAD_RANDOM: SpreadRandom = SpreadRandom {
-    random: Dword::new(0x0),
-};
-
 impl SpreadRandom {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        SpreadRandom {
+            random: Dword::new(0x0),
+        }
+    }
     pub const START: usize = 0x923004;
     pub const LEN: usize = 0x4;
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SPREAD_RANDOM) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::EFFECTS.paths.spread_random)
+            as usize
     }
 }
 

@@ -12,8 +12,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::install::vars::{INSTALLER_NAMES, INSTALLER_RUN};
-
 // ---- game data ----
 
 const SOURCE_ROOM: u32 = 0xFF;
@@ -52,22 +50,22 @@ pub trait Registry {
 /// writes them.
 fn take(q: &Query, put: impl FnOnce(&[u8])) {
     if let Some(kind) = q.kind {
-        INSTALLER_NAMES.reg_type.set(kind);
+        crate::install::owner::install().names.reg_type.set(kind);
     }
     if let Some(size) = q.size {
-        INSTALLER_NAMES.source_size.set(size);
+        crate::install::owner::install().names.source_size.set(size);
     }
     if let Some(bytes) = &q.data {
         put(bytes);
     }
 }
 
-pub fn read_registry(registry: &mut dyn Registry) {
-    let Ok(key) = registry.open(&INSTALLER_NAMES.key_name.text()) else {
+pub fn read_registry(g: &'static crate::install::owner::Install, registry: &mut dyn Registry) {
+    let Ok(key) = registry.open(&g.names.key_name.text()) else {
         return;
     };
-    INSTALLER_RUN.reg_key.set(key);
-    let names = &INSTALLER_NAMES;
+    g.run.reg_key.set(key);
+    let names = &g.names;
     'values: {
         names.source_size.set(1);
         let q = registry.query(key, &names.status_name.text(), 1);
@@ -100,6 +98,6 @@ pub fn read_registry(registry: &mut dyn Registry) {
 }
 
 /// The registry, or in the standalone the portable record (`install::portable`).
-pub fn read_registry_here() {
-    read_registry(&mut crate::install::portable::Portable);
+pub fn read_registry_here(g: &'static crate::install::owner::Install) {
+    read_registry(g, &mut crate::install::portable::Portable);
 }

@@ -16,6 +16,7 @@
 
 use crate::effects::draw_flare_part::draw_flare_part;
 use crate::effects::frame_state::{DRAW_FRAME, FLARE_PARTS, FLARE_SCALES};
+use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
@@ -23,7 +24,7 @@ use crate::scene::draw_store::DRAW;
 const PARTS: u32 = 0x11;
 
 /// The Rust version (see the header).
-pub fn draw_lens_flare() -> Result<(), Refused> {
+pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -53,7 +54,7 @@ pub fn draw_lens_flare() -> Result<(), Refused> {
     let alpha = (product as u32) >> 8;
     let size_k: u32 = FLARE_SCALES.size_k.bits();
     for k in (0..PARTS as usize).rev() {
-        let level: u32 = crate::effects::waves::WAVE_LEVELS.levels[k].get();
+        let level: u32 = paths.wave_levels.levels[k].get();
         let y = x87::times_plus_80(dy, level, cy, false);
         let x = x87::times_plus_80(dx, level, cx, true);
         draw_flare_part(

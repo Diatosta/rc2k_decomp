@@ -57,7 +57,7 @@ pub fn set_up_front_end() -> Result<(), Refused> {
         default_checkpoint_times, default_class_times, default_stage_times,
         default_stage_times_alt,
     };
-    if crate::install::store::INSTALL.has_clio.get() == 1 {
+    if crate::install::owner::install().vars.has_clio.get() == 1 {
         crate::menu::add_clio_car::add_clio_car()?;
     }
     crate::menu::link_player_names::link_player_names()?;

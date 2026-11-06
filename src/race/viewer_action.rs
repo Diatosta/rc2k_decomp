@@ -34,7 +34,6 @@
 //! the original moves memory by a negative count).
 
 use crate::errors::Refused;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -278,7 +277,7 @@ fn another_replay() -> Result<(), Refused> {
             if REPLAY_FILE.replay_open.get() == 1 {
                 return crate::race::viewer_load_stage::viewer_load_stage();
             }
-            INSTALLER_PAGES.list_leave.set(1);
+            crate::install::owner::install().pages.list_leave.set(1);
             return Ok(());
         }
         REPLAY_FILE.viewer_slot.set(slot);

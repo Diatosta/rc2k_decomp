@@ -30,7 +30,7 @@
 //! general, race music, race effects, menu effects).
 
 use crate::errors::Refused;
-use crate::gfx::choices_store::SCREEN_CHOICES;
+use crate::gfx::owner::GFX;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::option_work_store::OPTION_WORK;
@@ -123,7 +123,10 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
             set(v, steps::flip(get(v) as u32) as i32);
             set(other, steps::flip(get(other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices(false)?;
+            crate::gfx::screen_mode_choices::screen_mode_choices(
+                &crate::gfx::owner::gfx().display,
+                false,
+            )?;
         }
         Kind::SwitchAudio => {
             set(v, steps::flip(get(v) as u32) as i32);
@@ -382,7 +385,7 @@ switch!(
     0x14,
     var!(OPTION_WORK.switch_0),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.mipmapping),
+        other: var!(GFX.display.choices.mipmapping),
         flip: true
     }
 );
@@ -393,7 +396,7 @@ switch!(
     0x14,
     var!(OPTION_WORK.switch_1),
     Kind::SwitchCopy {
-        other: var!(SCREEN_CHOICES.buffering),
+        other: var!(GFX.display.choices.buffering),
         flip: true
     }
 );
@@ -401,9 +404,9 @@ option_item!(
     previous_screen_mode,
     "menu::previous_screen_mode",
     Item {
-        var: var!(SCREEN_CHOICES.resolution),
+        var: var!(GFX.display.choices.resolution),
         kind: Kind::PreviousMode {
-            other: var!(SCREEN_CHOICES.resolutions)
+            other: var!(GFX.display.choices.resolutions)
         },
     }
 );
@@ -414,7 +417,7 @@ switch!(
     0x1E,
     var!(OPTION_WORK.modes_switch),
     Kind::SwitchModes {
-        other: var!(SCREEN_CHOICES.card)
+        other: var!(GFX.display.choices.card)
     }
 );
 switch!(

@@ -11,7 +11,6 @@
 //!
 //! Callers: `race::replay_viewer` (two), `sub_4144CF` (one), reading ZF.
 
-use crate::install::vars::INSTALLER_PAGES;
 use crate::pointers::GamePtr;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
@@ -28,7 +27,7 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let ecx = INSTALLER_PAGES.choice.get();
+    let ecx = crate::install::owner::install().pages.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
@@ -44,6 +43,9 @@ pub fn list_step(
     let Step::Moved(cl) = stepped else {
         return Ok(false);
     };
-    INSTALLER_PAGES.choice.set(with_cl(cl));
+    crate::install::owner::install()
+        .pages
+        .choice
+        .set(with_cl(cl));
     Ok(true)
 }

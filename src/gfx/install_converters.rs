@@ -13,7 +13,7 @@
 //! original's, for reference.
 
 use crate::gfx::components_to_4444_rows::COMPONENTS_TO_4444_ROWS;
-use crate::gfx::converters::CONVERTERS;
+use crate::gfx::converters::Converters;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::session::MACHINE;
 
@@ -41,9 +41,9 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
     })
 }
 
-pub fn install_converters() {
+pub fn install_converters(converters_store: &Converters) {
     let table = converters(MACHINE.has_mmx.get(), MACHINE.has_3dnow.get());
-    for (cell, entry) in CONVERTERS.table.iter().zip(table) {
+    for (cell, entry) in converters_store.table.iter().zip(table) {
         cell.set(entry);
     }
 }

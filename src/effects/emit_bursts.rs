@@ -21,6 +21,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::paths::Paths;
 use crate::effects::ring_store::Ring;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
@@ -142,15 +143,17 @@ pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str
 
 /// The Rust version (see the header).
 pub fn emit_bursts(
+    paths: &Paths,
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
-    emit_bursts_with(ring, &FIRST, wheel, object)
+    emit_bursts_with(paths, ring, &FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_bursts_with(
+    paths: &Paths,
     ring: &Ring,
     set: &BurstSet,
     wheel: &MarkRecord,
@@ -195,12 +198,15 @@ pub fn emit_bursts_with(
                 let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
                 let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
                 let d = read_bits(&ring.work.direction);
-                let (out, _) = crate::effects::spread_point::spread_point([
-                    extended(MARKS_FLOATS.half.bits()),
-                    extended(d[2]),
-                    extended(d[1]),
-                    extended(d[0]),
-                ]);
+                let (out, _) = crate::effects::spread_point::spread_point(
+                    paths,
+                    [
+                        extended(MARKS_FLOATS.half.bits()),
+                        extended(d[2]),
+                        extended(d[1]),
+                        extended(d[0]),
+                    ],
+                );
                 put(0x34, rounded(out[0]))?;
                 put(0x30, rounded(out[1]))?;
                 put(0x2C, rounded(out[2]))?;

@@ -36,7 +36,6 @@
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::list_handle::ListMenu;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
@@ -145,19 +144,19 @@ fn view(mode: Mode) -> Result<(), Refused> {
     viewer_load_stage::viewer_load_stage()?;
     let list = ListMenu::of(crate::pointers::GamePtr::to(&REPLAY_VIEW.viewer_list));
     REPLAY_FILE.viewer_sound.set(0);
-    INSTALLER_PAGES.list_answer.set(1);
-    INSTALLER_PAGES.list_leave.set(0);
+    crate::install::owner::install().pages.list_answer.set(1);
+    crate::install::owner::install().pages.list_leave.set(0);
     let now = CLOCKS.key_ticks.get();
-    INSTALLER_PAGES.move_clock.set(now);
-    INSTALLER_PAGES.key_clock.set(now);
-    INSTALLER_PAGES.choice.set(6);
+    crate::install::owner::install().pages.move_clock.set(now);
+    crate::install::owner::install().pages.key_clock.set(now);
+    crate::install::owner::install().pages.choice.set(6);
     // The pending key dropped.
     crate::input::take_key::take_key();
     mark_viewer_items::mark_viewer_items(list)?;
     // A test run's picture check: the item chosen (play) at once, as Return would.
     #[cfg(feature = "remote")]
     if crate::remote::shots_on() {
-        let chosen = list.item(INSTALLER_PAGES.choice.get());
+        let chosen = list.item(crate::install::owner::install().pages.choice.get());
         action_next(u32::from(chosen.viewer_action()))?;
     }
     loop {
@@ -165,10 +164,14 @@ fn view(mode: Mode) -> Result<(), Refused> {
         if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
             lost?;
         }
-        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
-        INSTALLER_PAGES
+        crate::install::owner::install()
+            .pages
+            .frame_clock
+            .set(CLOCKS.key_ticks.get());
+        crate::install::owner::install()
+            .pages
             .choice_before
-            .set(INSTALLER_PAGES.choice.get());
+            .set(crate::install::owner::install().pages.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key();
         if FLAGS.quitting.get() == 1 {
             return Ok(());
@@ -215,7 +218,7 @@ fn view(mode: Mode) -> Result<(), Refused> {
         let sound = REPLAY_FILE.viewer_sound.get();
         REPLAY_FILE.viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
-        if INSTALLER_PAGES.list_leave.get() == 1 {
+        if crate::install::owner::install().pages.list_leave.get() == 1 {
             return Ok(());
         }
     }
@@ -252,7 +255,7 @@ fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        let chosen = list.item(INSTALLER_PAGES.choice.get());
+        let chosen = list.item(crate::install::owner::install().pages.choice.get());
         if let Next::Mark = action_next(u32::from(chosen.viewer_action()))? {
             return Ok(Next::Mark);
         }
@@ -304,23 +307,25 @@ fn mark(list: ListMenu, key: u8) -> Result<(), Refused> {
                 }
             }
             // Else back where it was.
-            INSTALLER_PAGES
+            crate::install::owner::install()
+                .pages
                 .choice
-                .set(INSTALLER_PAGES.choice_before.get());
+                .set(crate::install::owner::install().pages.choice_before.get());
             if !list_item_unusable(list) {
                 return Ok(());
             }
         }
         // Else item 6, or 0x13 when item 6 is marked.
-        INSTALLER_PAGES.choice.set(6);
+        crate::install::owner::install().pages.choice.set(6);
         if list.item(6).first() & 0xC0 != 0 {
-            INSTALLER_PAGES.choice.set(0x13);
+            crate::install::owner::install().pages.choice.set(0x13);
         }
     }
     if (key as i8) > 0 {
-        INSTALLER_PAGES
+        crate::install::owner::install()
+            .pages
             .move_clock
-            .set(INSTALLER_PAGES.frame_clock.get());
+            .set(crate::install::owner::install().pages.frame_clock.get());
     }
     Ok(())
 }

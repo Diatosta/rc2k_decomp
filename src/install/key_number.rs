@@ -16,8 +16,12 @@ use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// `key` the number key (eax); whether it was taken (the original's zero).
-pub fn key_number(key: u32, item: ListItem) -> Result<bool, Refused> {
+pub fn key_number(
+    g: &'static crate::install::owner::Install,
+    key: u32,
+    item: ListItem,
+) -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::items` (`number_of_key`, `ItemKey::helper`).
     let number = rc2k_core::install::items::number_of_key(key as u8);
-    item_key(item, ItemKey::Number, number)
+    item_key(g, item, ItemKey::Number, number)
 }

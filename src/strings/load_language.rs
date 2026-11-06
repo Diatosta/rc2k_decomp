@@ -41,7 +41,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::gfx::glyph_tables::TABLES;
 use crate::input::layouts::layouts;
-use crate::install::vars::INSTALLER_RUN;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
@@ -184,7 +183,10 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
     if MACHINE.keyboard_type.get() == 2 {
         layouts().use_nec();
-        INSTALLER_RUN.first_drive.set(0x61u32);
+        crate::install::owner::install()
+            .run
+            .first_drive
+            .set(0x61u32);
     }
 
     // `sub_403495`
@@ -201,7 +203,10 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     correct_lexicon()?;
 
-    INSTALLER_RUN.offer_registration.set(0u32);
+    crate::install::owner::install()
+        .run
+        .offer_registration
+        .set(0u32);
     // The standalone offers no registration (owner, 2026-10-19).
     Ok(())
 }

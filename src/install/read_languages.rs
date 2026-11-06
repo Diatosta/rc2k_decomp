@@ -15,7 +15,6 @@
 
 use crate::errors::BadInput;
 use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
-use crate::install::vars::INSTALLER_NAMES;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
@@ -24,7 +23,10 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_languages(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
+pub fn read_languages(
+    g: &'static crate::install::owner::Install,
+    path: crate::pointers::GamePtr,
+) -> Result<(), BadInput> {
     {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
@@ -32,7 +34,7 @@ pub fn read_languages(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
         let found = config::find_languages(&text.bytes("the languages' text")?, &case_table())?;
-        let all = crate::pointers::GamePtr::to(&INSTALLER_NAMES.languages);
+        let all = crate::pointers::GamePtr::to(&g.names.languages);
         let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;
@@ -41,7 +43,7 @@ pub fn read_languages(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
         }
         all.write_bytes(&slots, "the languages' slots")?;
         let kept = config::keep_languages(&mut slots);
-        INSTALLER_NAMES.language_count.set(kept);
-        choose_language(1)
+        g.names.language_count.set(kept);
+        choose_language(g, 1)
     }
 }

@@ -10,17 +10,17 @@
 //! it directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::gfx::cards::CARDS;
 use crate::gfx::list_primary_modes::standalone_modes;
 use crate::gfx::mark_3d_modes::mark_3d_modes;
+use crate::gfx::owner::Display;
 
 pub const SECONDARY: u32 = 0x2000;
 
 /// The Rust version (see the header).
-pub fn list_secondary_modes() -> Result<(), Refused> {
-    if CARDS.secondary.get() == 1 {
-        standalone_modes(SECONDARY)?;
-        mark_3d_modes(SECONDARY)?;
+pub fn list_secondary_modes(display: &Display) -> Result<(), Refused> {
+    if display.cards.secondary.get() == 1 {
+        standalone_modes(display, SECONDARY)?;
+        mark_3d_modes(display, SECONDARY)?;
     }
     Ok(())
 }
