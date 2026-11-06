@@ -13,6 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
+use crate::race::owner::race;
 
 // ---- game data ----
 
@@ -20,28 +21,22 @@ const HEAD_LEN: usize = 0x430;
 const SLOTS: u32 = 100;
 
 fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(
-        &crate::race::owner::race().shared.replays.names,
-        slot as usize * NAME_LEN,
-    )
+    crate::place::Place::In(&race().shared.replays.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
 pub fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
+    let race = race();
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    let template = crate::race::owner::race().shared.replay_templates.saved;
+    let template = race.shared.replay_templates.saved;
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-    let mut bytes = crate::race::owner::race().shared.replays.header.read();
+    let mut bytes = race.shared.replays.header.read();
     let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;
-    crate::race::owner::race()
-        .shared
-        .replays
-        .header
-        .write(&bytes);
+    race.shared.replays.header.write(&bytes);
     // Converted: `rc2k_core::saves::kept::slot_name`.
     use rc2k_core::saves::kept;
     let block = &bytes[..0x30];

@@ -72,26 +72,19 @@ pub fn draw_shown_car(
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let shared = &race().shared;
     let drawing = &scene().drawing;
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
-    let clock: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .bits();
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
     drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
     drawing.object_work.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .object_number
-        .set_bits(object);
+    shared.switches.object_number.set_bits(object);
     draw()
 }
 

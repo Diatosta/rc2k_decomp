@@ -10,12 +10,13 @@
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;
 use crate::physics::tables_store::ForceRecord;
+use crate::race::owner::race;
 
 /// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
 /// work car.
 pub fn apply_forces(records: &[ForceRecord]) -> Result<(), Refused> {
     for rec in records {
-        apply_force(rec, &crate::race::owner::race().shared.car);
+        apply_force(rec, &race().shared.car);
     }
     Ok(())
 }

@@ -26,6 +26,7 @@
 
 #![allow(unsafe_code)]
 
+use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -665,12 +666,7 @@ fn mixed_frames(frames: usize) -> Vec<i16> {
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
     // neither, so it goes quiet and comes back with the focus).
-    let focused = crate::system::owner::system()
-        .session
-        .flags
-        .window_focused
-        .get()
-        == 1;
+    let focused = system().session.flags.window_focused.get() == 1;
     let mut unheard = Vec::new();
     with(|s| {
         let master = s

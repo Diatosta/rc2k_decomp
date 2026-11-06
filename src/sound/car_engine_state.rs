@@ -20,8 +20,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
+use crate::race::owner::race;
 use crate::sound::sets_store::KindRecord;
 use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
+use crate::system::owner::system;
 use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
@@ -144,11 +146,7 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     let clock = crate::sound::owner::sound().race.clock.last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .hold_car_revs
-            .get()
+        race().shared.replay_file.hold_car_revs.get()
     })
     .map_err(BadInput::from)?;
     readings(&mut object, clock, change);
@@ -199,17 +197,10 @@ fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
 /// (the factors as the game's float constants). The original worked in the machine's
 /// scratch dword and left 0.75 there.
 fn gear_pitch(so: &SoundObject, low: u32) {
-    crate::system::owner::system()
-        .session
-        .machine
-        .scratch
-        .set(low);
+    let system = system();
+    system.session.machine.scratch.set(low);
     let bits = gear_pitch_bits(low);
-    crate::system::owner::system()
-        .session
-        .machine
-        .scratch
-        .set(GEAR_PITCH_BASE);
+    system.session.machine.scratch.set(GEAR_PITCH_BASE);
     so.gear_pitch.set_bits(bits);
 }
 

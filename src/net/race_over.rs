@@ -8,26 +8,24 @@
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 use crate::net::store::PlayerRecord;
 
 /// The Rust version.
 pub fn race_over(time: u32) -> Result<(), Refused> {
-    crate::net::owner::net().vars.all_raced.set(0);
-    crate::net::owner::net().vars.race_over.set(0);
-    crate::net::owner::net().vars.own.race_time.set(time);
-    crate::net::owner::net().vars.own.total.set(
-        crate::net::owner::net()
-            .vars
-            .own
-            .total
-            .get()
-            .wrapping_add(time),
-    );
+    let net = net();
+    net.vars.all_raced.set(0);
+    net.vars.race_over.set(0);
+    net.vars.own.race_time.set(time);
+    net.vars
+        .own
+        .total
+        .set(net.vars.own.total.get().wrapping_add(time));
     // Converted: `rc2k_core::net::players::raced`.
-    crate::net::owner::net().vars.own.head.set(
+    net.vars.own.head.set(
         PlayerRecord::STATE,
-        rc2k_core::net::players::raced(crate::net::owner::net().vars.own.state()),
+        rc2k_core::net::players::raced(net.vars.own.state()),
     );
-    crate::net::owner::net().vars.after_race.set(1);
+    net.vars.after_race.set(1);
     crate::net::list_players::list_players_regs()
 }

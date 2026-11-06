@@ -28,27 +28,20 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
         .physics
         .ground
         .ground_x
-        .set(crate::race::owner::race().shared.car.position[0].get());
+        .set(race.shared.car.position[0].get());
     race_owner
         .physics
         .ground
         .ground_z
-        .set(crate::race::owner::race().shared.car.position[2].get());
-    if crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .get()
-        == 0
-    {
+        .set(race.shared.car.position[2].get());
+    if race.shared.vars.checkpoint_count.get() == 0 {
         return Ok(0);
     }
-    let (from, to) = progress::near_window(crate::race::owner::race().shared.car.checkpoint.get());
+    let (from, to) = progress::near_window(race.shared.car.checkpoint.get());
     let near = crate::race::start_place::nearest_checkpoint_in(race, from, to)?;
     scene().drawing.scene.scratch.set(near.distance);
     // g_nearestCheckpointDistance
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .nearest_checkpoint_distance
         .set_bits(ext_div2(

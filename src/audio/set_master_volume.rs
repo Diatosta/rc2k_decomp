@@ -8,13 +8,15 @@
 //! held to 0x40 (unsigned). Callers: `sub_40A54B` (the mode's set-up) and
 //! `audio::volume_command`.
 
+use crate::audio::owner::audio;
+
 // ---- Rust version ----
 
 pub fn set_master_volume_in_game(volume: u32) {
     if crate::audio::buffer_settings::a3d() {
         return;
     }
-    let buffer = crate::audio::owner::audio().state.primary_buffer.get();
+    let buffer = audio().state.primary_buffer.get();
     if buffer == 0 {
         return;
     }

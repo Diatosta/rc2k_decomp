@@ -15,12 +15,14 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
+use crate::input::owner::input;
 use crate::input::types::InputDevice;
 use crate::session::Dword;
 
 /// A tick of the devices (see the header).
 pub fn input_tick() -> Result<(), Refused> {
-    let command = crate::input::owner::input()
+    let input = input();
+    let command = input
         .devices
         .input_command
         .atomic()
@@ -33,12 +35,7 @@ pub fn input_tick() -> Result<(), Refused> {
         crate::input::read_device::read_device(record)?;
         crate::input::device_effects::device_effects(record)?;
     }
-    if crate::input::owner::input()
-        .devices
-        .two_devices_one_player
-        .get()
-        != 0
-    {
+    if input.devices.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
         let read = |record: &InputDevice| -> [u32; 4] {

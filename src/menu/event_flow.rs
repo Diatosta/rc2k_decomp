@@ -8,6 +8,7 @@ use crate::errors::BadInput;
 use crate::menu::owner::menus;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
+use crate::system::owner::system;
 
 /// A game variable.
 pub fn get(v: &Dword) -> u32 {
@@ -123,7 +124,7 @@ pub fn stage_record() -> Result<RecordRef, BadInput> {
     if kind >= KINDS {
         return Err(BadInput("a stage kind past off_735512's four"));
     }
-    let stages = crate::system::owner::system()
+    let stages = system()
         .records
         .stage_tables
         .group_event_table(kind, get(STAGE_SUB))?;

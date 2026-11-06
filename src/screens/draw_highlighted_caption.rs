@@ -19,6 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
+use crate::system::owner::system;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -53,7 +54,7 @@ pub fn draw_highlighted_caption(
     crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
         .write_bytes(&caption, "the caption")?;
     // Converted: `rc2k_core::screens::highlighted_caption`.
-    let since_key = crate::system::owner::system()
+    let since_key = system()
         .session
         .clocks
         .frame

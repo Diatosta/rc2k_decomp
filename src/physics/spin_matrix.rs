@@ -23,44 +23,25 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// The Rust version.
 pub fn spin_matrix(race: &Race) {
-    crate::race::owner::race()
-        .shared
+    race.shared
         .car
         .spin_length
-        .set_bits(rounded(vector_length(
-            &crate::race::owner::race().shared.car.spin,
-        )));
-    if crate::race::owner::race().shared.car.spin_length.bits() != 0 {
+        .set_bits(rounded(vector_length(&race.shared.car.spin)));
+    if race.shared.car.spin_length.bits() != 0 {
         let lists = &race.course.lists;
         let turn = &lists.turn_matrix;
         let turned = &race.frame.matrices.turned_matrix;
-        unit_vector(
-            &race.course,
-            &crate::race::owner::race().shared.car.spin,
-            &lists.spin_axis,
-        );
+        unit_vector(&race.course, &race.shared.car.spin, &lists.spin_axis);
         lists.spin_angle.set_bits(x87::mul(
-            crate::race::owner::race().shared.car.spin_length.bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .step_time
-                .bits(),
+            race.shared.car.spin_length.bits(),
+            race.shared.physics_tables.step_time.bits(),
         ));
         axis_turn_matrix(&race.course, turn);
         square_matrix(&race.course, turn);
-        multiply_matrices(
-            &crate::race::owner::race().shared.car.crash_matrix,
-            turn,
-            turned,
-        );
+        multiply_matrices(&race.shared.car.crash_matrix, turn, turned);
         for k in 0..16 {
-            crate::race::owner::race().shared.car.crash_matrix[k]
-                .set_bits(race.frame.matrices.turned_matrix[k].bits());
+            race.shared.car.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
     }
-    square_matrix(
-        &race.course,
-        &crate::race::owner::race().shared.car.crash_matrix,
-    );
+    square_matrix(&race.course, &race.shared.car.crash_matrix);
 }

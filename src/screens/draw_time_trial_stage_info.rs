@@ -19,6 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
+use crate::race::owner::race;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::stage_panel::{
     TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
@@ -53,12 +54,7 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
         TITLE_X,
         GROUP_TITLE_Y,
     )?;
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .direction
-        .set(sel.group);
+    race().shared.state.settings.direction.set(sel.group);
     label(
         canvas,
         sel.table.title()?,

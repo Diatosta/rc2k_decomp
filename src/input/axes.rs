@@ -5,6 +5,7 @@
 //! 0x50 x `unk_4F6EF0`) +0x14 the axes it has.
 
 use crate::errors::BadInput;
+use crate::input::owner::input;
 use crate::input::types::InputDevice;
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
@@ -20,7 +21,7 @@ pub fn device_state(device: &InputDevice) -> [u32; 4] {
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
 pub fn first_device_state() -> Result<[u32; 4], BadInput> {
-    let Some(device) = crate::input::owner::input().devices.device(0) else {
+    let Some(device) = input().devices.device(0) else {
         return Err(BadInput("no first input device record"));
     };
     Ok(device_state(device))
@@ -37,35 +38,25 @@ pub struct Moved {
 /// device's axes (its record's +0x14 bits) moved more than 0x80 from rest: eax its number,
 /// +0x10 when the way was up; carry when none (eax the last difference).
 pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
-    let now: [u32; 6] =
-        std::array::from_fn(|n| crate::input::owner::input().devices.device_state[n].get());
+    let input = input();
+    let now: [u32; 6] = std::array::from_fn(|n| input.devices.device_state[n].get());
     if eax == 0 {
         crate::system::sleep::sleep(250);
-        for (rest, now) in crate::input::owner::input()
-            .keyboard
-            .axes_rest
-            .iter()
-            .zip(now)
-        {
+        for (rest, now) in input.keyboard.axes_rest.iter().zip(now) {
             rest.set(now);
         }
         return Ok(Moved { carry: true, eax });
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
     // The original does not check the number: one past the table's 16 is refused.
-    let axes = crate::input::owner::input()
+    let axes = input
         .devices
         .controllers
-        .get(
-            crate::input::owner::input().devices.records[0]
-                .controller
-                .get() as usize,
-        )
+        .get(input.devices.records[0].controller.get() as usize)
         .ok_or(BadInput("a controller's axes past the table"))?
         .axis_bits
         .get();
-    let rest: [u32; 6] =
-        std::array::from_fn(|n| crate::input::owner::input().keyboard.axes_rest[n].get());
+    let rest: [u32; 6] = std::array::from_fn(|n| input.keyboard.axes_rest[n].get());
     Ok(
         match rc2k_core::input::devices::axis_moved(&now, &rest, axes) {
             Ok(axis) => Moved {

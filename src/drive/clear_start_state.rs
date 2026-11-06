@@ -7,6 +7,7 @@
 //!
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -16,13 +17,14 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared = &race().shared;
     vec![
-        &crate::race::owner::race().shared.car.driver_kind,
-        &crate::race::owner::race().shared.car.checkpoint,
-        &crate::race::owner::race().shared.car.engine_sound_speed_int,
-        &crate::race::owner::race().shared.car.start_share,
-        &crate::race::owner::race().shared.car.start_blend,
-        &crate::race::owner::race().shared.car.unknown_44,
+        &shared.car.driver_kind,
+        &shared.car.checkpoint,
+        &shared.car.engine_sound_speed_int,
+        &shared.car.start_share,
+        &shared.car.start_blend,
+        &shared.car.unknown_44,
     ]
 }
 

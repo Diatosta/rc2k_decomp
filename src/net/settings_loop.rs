@@ -16,33 +16,30 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
+use crate::net::owner::net;
+use crate::system::owner::system;
 
 /// The Rust version.
 pub fn settings_loop() -> Result<(), Refused> {
-    crate::net::owner::net().vars.mode.set(0);
+    let vars = &net().vars;
+    let system = system();
+    vars.mode.set(0);
     crate::net::show_background::show_background()?;
     crate::net::settings_done::settings_done()?;
-    let now = crate::system::owner::system()
-        .session
-        .clocks
-        .key_ticks
-        .get();
+    let now = system.session.clocks.key_ticks.get();
     crate::install::owner::install().pages.move_clock.set(now);
     crate::install::owner::install().pages.key_clock.set(now);
-    crate::net::owner::net().vars.edited.set(u32::MAX);
+    vars.edited.set(u32::MAX);
     crate::install::owner::install().pages.choice.set(0);
     loop {
         run_frame(crate::net::settings_frame::settings_frame)?;
-        crate::install::owner::install().pages.frame_clock.set(
-            crate::system::owner::system()
-                .session
-                .clocks
-                .key_ticks
-                .get(),
-        );
+        crate::install::owner::install()
+            .pages
+            .frame_clock
+            .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
-        if crate::net::owner::net().vars.edited.get() != u32::MAX {
+        if vars.edited.get() != u32::MAX {
             crate::net::setting_key::setting_key(key)?;
         } else {
             match key {
@@ -92,7 +89,7 @@ pub fn settings_loop() -> Result<(), Refused> {
                 .move_clock
                 .set(crate::install::owner::install().pages.frame_clock.get());
         }
-        if crate::system::owner::system().session.flags.quitting.get() == 1 {
+        if system.session.flags.quitting.get() == 1 {
             break;
         }
     }

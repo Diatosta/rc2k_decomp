@@ -21,6 +21,7 @@ use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
@@ -66,50 +67,31 @@ pub fn loading_bar_frame() -> Result<(), Refused> {
 }
 
 fn frame(course: &Course) -> Result<(), Refused> {
+    let session = &system().session;
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
-    if crate::race::owner::race().shared.work.in_credits.get() == 0
+    if shared.work.in_credits.get() == 0
         && !STAGE_LOADING.load(std::sync::atomic::Ordering::Relaxed)
     {
         return Ok(());
     }
     scene().lights.state.scene_state.set_bits(FRAME_MARK);
-    if crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if session.flags.quitting.get() == 1 {
         return Ok(());
     }
     let drawn = 'frame: {
-        let active: u32 = crate::system::owner::system()
-            .session
-            .flags
-            .window_active
-            .get();
-        if active == 0
-            || !frame_tried(
-                active,
-                crate::system::owner::system().session.flags.lost.get(),
-            )
-        {
+        let active: u32 = session.flags.window_active.get();
+        if active == 0 || !frame_tried(active, session.flags.lost.get()) {
             break 'frame false;
         }
         // `scene::begin_scene` leaves the carry clear.
         begin_scene::begin_scene();
-        let framed: u32 = crate::race::owner::race()
-            .shared
-            .switches
-            .editor_mode
-            .bits();
-        crate::race::owner::race()
-            .shared
-            .switches
-            .editor_mode
-            .set_bits(0u32);
+        let framed: u32 = shared.switches.editor_mode.bits();
+        shared.switches.editor_mode.set_bits(0u32);
         choose_view_window::choose_view_window();
-        crate::race::owner::race()
-            .shared
-            .switches
-            .editor_mode
-            .set_bits(framed);
+        shared.switches.editor_mode.set_bits(framed);
         crate::race::loading_bar_quad::loading_bar_quad(course)?;
         end_scene::end_scene();
         if lock_frame::lock_frame().0 < 1 {
@@ -118,7 +100,7 @@ fn frame(course: &Course) -> Result<(), Refused> {
         unlock_frame::unlock_frame();
         present_frame::present_frame()
     };
-    if drawn || crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if drawn || session.flags.quitting.get() == 1 {
         return Ok(());
     }
     // The platform's restore, with ebx `dword_518380` (a local scratch: the flags it

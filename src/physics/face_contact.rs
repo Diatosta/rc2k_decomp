@@ -55,6 +55,8 @@ fn touch(race: &Race) -> Result<(), Refused> {
 /// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(number: u32) -> Result<(), Refused> {
+    let shared_store = &crate::race::owner::race().shared;
+
     let scene = scene();
     let race_owner = race();
     race_owner.physics.contact.face_number.set(number);
@@ -100,9 +102,8 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         crate::framework::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
-            crate::race::owner::race().shared.work.current_car.get(),
-            crate::race::owner::race()
-                .shared
+            shared_store.work.current_car.get(),
+            shared_store
                 .car
                 .position
                 .iter()
@@ -119,7 +120,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         .set(crate::scene::polygon::material_byte(kind, 0x1C)?.into());
     if contacts::object_tried(
         face_byte(0x25)?,
-        crate::race::owner::race().shared.work.stage_direction.get(),
+        shared_store.work.stage_direction.get(),
         object,
     )
     .is_err()
@@ -139,10 +140,10 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         }
         let dx = crate::race::scene_points::point_word(point, 0)?
             .wrapping_add(face_dword(0x30)?)
-            .wrapping_sub(crate::race::owner::race().shared.car.position[0].get());
+            .wrapping_sub(shared_store.car.position[0].get());
         let dz = crate::race::scene_points::point_word(point, 2)?
             .wrapping_add(face_dword(0x38)?)
-            .wrapping_sub(crate::race::owner::race().shared.car.position[2].get());
+            .wrapping_sub(shared_store.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         scene.drawing.scene.scratch.set(distance);
         let (reach, _) = contacts::reach(
@@ -180,7 +181,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     // 0x45E62A: pushed back against the motion, level.
     copy_cells(
         &race_owner.frame.scratch.work_vector,
-        &crate::race::owner::race().shared.car.velocity,
+        &shared_store.car.velocity,
     );
     negate(&race_owner.frame.scratch.work_vector[0]);
     negate(&race_owner.frame.scratch.work_vector[1]);
@@ -201,11 +202,11 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     );
     copy_cells(
         &race_owner.physics.contact.contact_car_speed,
-        &crate::race::owner::race().shared.car.velocity,
+        &shared_store.car.velocity,
     );
     copy_cells(
         &race_owner.physics.contact.contact_turn_speed,
-        &crate::race::owner::race().shared.car.spin,
+        &shared_store.car.spin,
     );
     copy_cells(
         &race_owner.physics.contact.contact_point,
@@ -213,10 +214,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     );
     race_owner.physics.contact.contact_point[1].set_bits(0);
     race_owner.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(
-        race_owner,
-        &crate::race::owner::race().shared.physics_tables.contacts[0],
-    );
+    contact_force(race_owner, &shared_store.physics_tables.contacts[0]);
     Ok(())
 }
 
@@ -243,11 +241,11 @@ fn x87_1(race: &Race) {
 /// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
 fn x87_2(race: &Race) {
-    let t0 = ld(crate::race::owner::race().shared.car.velocity[0].bits());
+    let t0 = ld(race.shared.car.velocity[0].bits());
     let t1 = t0 * t0;
-    let t2 = ld(crate::race::owner::race().shared.car.velocity[2].bits());
+    let t2 = ld(race.shared.car.velocity[2].bits());
     let t3 = t2 * t2;
-    let t4 = ld(crate::race::owner::race().shared.car.velocity[1].bits());
+    let t4 = ld(race.shared.car.velocity[1].bits());
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;

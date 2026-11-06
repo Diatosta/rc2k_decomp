@@ -15,6 +15,8 @@ use crate::errors::Refused;
 use crate::menu::owner::Play;
 use crate::menu::player::Player;
 use crate::net::lobby::copy_printable;
+use crate::net::owner::net;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::record;
 
@@ -102,50 +104,36 @@ const MORE: [(&Dword, &Dword); 5] = [
 
 /// The Rust version.
 pub fn fill_own_player(play: &Play, name: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    copy_printable(name, &crate::net::owner::net().vars.player_name, 0x1F)?;
+    let net = net();
+    let race = race();
+    copy_printable(name, &net.vars.player_name, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
     let player = play.players.players[0].get();
     let own = record::own_record(
         player.car_number as u8,
         player.gearing as u8,
         player.nationality as u8,
-        crate::race::owner::race().shared.state.settings.stage.get() as u8,
-        crate::race::owner::race()
-            .shared
-            .state
-            .settings
-            .direction
-            .get() as u8,
+        race.shared.state.settings.stage.get() as u8,
+        race.shared.state.settings.direction.get() as u8,
         player.race_number as u8,
     );
     for (n, b) in own.into_iter().enumerate() {
-        crate::net::owner::net().vars.own.head.set(n, b);
+        net.vars.own.head.set(n, b);
     }
-    crate::net::owner::net()
-        .vars
+    net.vars
         .own
         .head
         .set(record::RANDOM, { crate::math::next_random::next_random() }
             as u8);
-    crate::net::owner::net().vars.own.race_time.set(0);
-    crate::net::owner::net().vars.own.total.set(0);
+    net.vars.own.race_time.set(0);
+    net.vars.own.total.set(0);
     for (to, from) in SETTINGS {
         to.set(from(&player));
     }
-    crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .hud_bits_current
-        .set(u32::MAX);
+    race.shared.state.results.hud_bits_current.set(u32::MAX);
     for (to, from) in MORE {
         to.set(from.get());
     }
-    crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .finished
-        .set(0);
+    race.shared.state.results.finished.set(0);
     Ok(())
 }

@@ -17,73 +17,64 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::add_address_element::{self as elements, add_address_element};
 use crate::net::lobby::log;
+use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::address::{self, Provider};
 
 /// The Rust version (see the header).
 pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
+    let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_DPCA), true, 2);
-    if crate::net::owner::net().vars.lobby.get() == 0 {
+    if vars.lobby.get() == 0 {
         return Ok(false);
     }
     let guid = crate::net::tables::with_connection(connection_number, |c| c.provider)?;
     elements::clear();
-    crate::net::owner::net().vars.address.set(0);
-    crate::net::owner::net().vars.address_size.set(0);
-    crate::net::owner::net().vars.posting.set(0);
+    vars.address.set(0);
+    vars.address_size.set(0);
+    vars.posting.set(0);
     let provider = address::provider(|which| -> Result<bool, Refused> {
         let known = if which == Provider::Ipx {
-            &crate::net::owner::net().vars.sp_ipx
+            &vars.sp_ipx
         } else {
-            &crate::net::owner::net().vars.sp_tcpip
+            &vars.sp_tcpip
         };
         Ok(known.read() == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(
-            &crate::net::owner::net().vars.aid_service_provider,
-            &crate::net::owner::net().vars.sp_ipx.read(),
-        ),
+        Provider::Ipx => add_address_element(&vars.aid_service_provider, &vars.sp_ipx.read()),
         Provider::TcpIp => {
-            add_address_element(
-                &crate::net::owner::net().vars.aid_service_provider,
-                &crate::net::owner::net().vars.sp_tcpip.read(),
-            );
-            let host = crate::net::owner::net().vars.host_address.read();
+            add_address_element(&vars.aid_service_provider, &vars.sp_tcpip.read());
+            let host = vars.host_address.read();
             let length = host
                 .iter()
                 .position(|&c| c == 0)
                 .ok_or(BadInput("a host address without its end"))? as u32;
             let size = address::host_address_size(length) as usize;
-            add_address_element(&crate::net::owner::net().vars.aid_inet, &host[..size]);
-            if address::has_port(crate::net::owner::net().vars.port.get()) {
-                let port = crate::net::owner::net().vars.port.get().to_le_bytes();
-                add_address_element(
-                    &crate::net::owner::net().vars.aid_inet_port,
-                    &port[..address::PORT_SIZE as usize],
-                );
+            add_address_element(&vars.aid_inet, &host[..size]);
+            if address::has_port(vars.port.get()) {
+                let port = vars.port.get().to_le_bytes();
+                add_address_element(&vars.aid_inet_port, &port[..address::PORT_SIZE as usize]);
             }
         }
         Provider::Other => {
             let data = &guid[..address::PROVIDER_SIZE as usize];
-            add_address_element(&crate::net::owner::net().vars.aid_service_provider, data);
+            add_address_element(&vars.aid_service_provider, data);
         }
     }
     if address::posts(provider) {
-        crate::net::owner::net().vars.posting.set(1);
+        vars.posting.set(1);
     }
     let parts = elements::elements();
-    let (result, size) = crate::net::dp_objects::create_compound_address(
-        &parts,
-        crate::net::owner::net().vars.address_size.get(),
-    );
-    crate::net::owner::net().vars.address_size.set(size);
+    let (result, size) =
+        crate::net::dp_objects::create_compound_address(&parts, vars.address_size.get());
+    vars.address_size.set(size);
     if result != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    crate::net::tables::count(crate::net::owner::net().vars.address_size.get())?;
+    crate::net::tables::count(vars.address_size.get())?;
     let made = crate::net::dp_objects::compound_address(&parts);
-    let fits = made.len() as u32 <= crate::net::owner::net().vars.address_size.get();
+    let fits = made.len() as u32 <= vars.address_size.get();
     crate::net::tables::NET_TABLES.with(|t| t.address = made)?;
     Ok(fits)
 }

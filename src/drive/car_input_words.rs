@@ -12,14 +12,17 @@
 //! (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 use crate::race::owner::race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
 pub fn car_input_words() -> Result<(), Refused> {
+    let vars = &net().vars;
+    let race_owner = race();
     let frame = &race().frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
-    let car = crate::race::owner::race().shared.work.current_car.get();
+    let car = race_owner.shared.work.current_car.get();
     check_car(car)?;
     let device = frame.frame_work.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
@@ -29,25 +32,22 @@ pub fn car_input_words() -> Result<(), Refused> {
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        crate::race::owner::race().shared.physics_tables.input_words[k].set(*v);
+        race_owner.shared.physics_tables.input_words[k].set(*v);
     }
-    if crate::net::owner::net().vars.session.get() != 0 {
+    if vars.session.get() != 0 {
         let block = crate::race::blocks_store::block_at(
-            crate::race::owner::race()
-                .shared
-                .work
-                .car_block(car as usize),
+            race_owner.shared.work.car_block(car as usize),
             "a car's block",
         )?;
         // +0xFD0: the second half of `unknown_fc0`.
         for k in 0..4usize {
             let at = &block.unknown_fc0[4 + k];
-            match replay_words(car, crate::net::owner::net().vars.player.get()) {
+            match replay_words(car, vars.player.get()) {
                 ReplayWords::FromBlock => {
-                    crate::race::owner::race().shared.physics_tables.input_words[k].set(at.get());
+                    race_owner.shared.physics_tables.input_words[k].set(at.get());
                 }
                 ReplayWords::IntoBlock => {
-                    at.set(crate::race::owner::race().shared.physics_tables.input_words[k].get());
+                    at.set(race_owner.shared.physics_tables.input_words[k].get());
                 }
             }
         }

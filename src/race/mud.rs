@@ -8,6 +8,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
@@ -75,23 +76,16 @@ pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
 /// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud.
 pub fn load_mud() -> Result<(), Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         crate::race::blocks_store::own_car().car_kind.get(),
     ));
-    crate::race::owner::race()
-        .shared
-        .vars
-        .mud_path
-        .set(0x11, tens as u8);
-    crate::race::owner::race()
-        .shared
-        .vars
-        .mud_path
-        .set(0x12, units as u8);
+    shared.vars.mud_path.set(0x11, tens as u8);
+    shared.vars.mud_path.set(0x12, units as u8);
     MUD.with(|mud| {
         crate::files::read_whole_file::read_whole_file_into(
-            crate::pointers::GamePtr::to(&crate::race::owner::race().shared.vars.mud_path),
+            crate::pointers::GamePtr::to(&shared.vars.mud_path),
             mud,
         )
     })??;
@@ -101,7 +95,7 @@ pub fn load_mud() -> Result<(), Refused> {
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
 pub fn clear_mud_state() {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
-    let v = &crate::race::owner::race().shared.vars;
+    let v = &race().shared.vars;
     v.mud_frames.set(0);
     v.mud_texture.set(0);
     for k in 0..4 {
@@ -124,7 +118,7 @@ pub fn sample_mud_colours() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
-        crate::race::owner::race().shared.vars.mud_colours[n as usize].set(mud_pixel(x, y)?);
+        race().shared.vars.mud_colours[n as usize].set(mud_pixel(x, y)?);
     }
     crate::d3d::unlock_texture::unlock_texture(textures.kinds.kind_first_textures[193].get())?;
     Ok(())

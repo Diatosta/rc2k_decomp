@@ -24,52 +24,34 @@
 
 use crate::errors::Refused;
 use crate::physics::cells::{set_changed, set_values_changed, values};
+use crate::race::owner::race;
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The work car's notice queue.
 pub fn load() -> NoticeQueue {
+    let shared = &race().shared;
     NoticeQueue {
-        count: crate::race::owner::race().shared.car.notice_count.get(),
-        ids: values(&crate::race::owner::race().shared.car.notice_ids),
-        values: values(&crate::race::owner::race().shared.car.notice_values),
-        levels: values(&crate::race::owner::race().shared.car.notice_ranks),
+        count: shared.car.notice_count.get(),
+        ids: values(&shared.car.notice_ids),
+        values: values(&shared.car.notice_values),
+        levels: values(&shared.car.notice_ranks),
     }
 }
 
 /// What changed from `was` to `now` stored back.
 pub fn store(was: &NoticeQueue, now: &NoticeQueue) {
-    set_values_changed(
-        &crate::race::owner::race().shared.car.notice_ids,
-        &was.ids,
-        &now.ids,
-    );
-    set_values_changed(
-        &crate::race::owner::race().shared.car.notice_values,
-        &was.values,
-        &now.values,
-    );
-    set_values_changed(
-        &crate::race::owner::race().shared.car.notice_ranks,
-        &was.levels,
-        &now.levels,
-    );
-    set_changed(
-        &crate::race::owner::race().shared.car.notice_count,
-        was.count,
-        now.count,
-    );
+    let shared = &race().shared;
+    set_values_changed(&shared.car.notice_ids, &was.ids, &now.ids);
+    set_values_changed(&shared.car.notice_values, &was.values, &now.values);
+    set_values_changed(&shared.car.notice_ranks, &was.levels, &now.levels);
+    set_changed(&shared.car.notice_count, was.count, now.count);
 }
 
 /// The Rust version.
 pub fn queue_notice(notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
     let was = load();
     let mut q = was;
-    q.queue(
-        crate::race::owner::race().shared.car.option_bits.get(),
-        notice,
-        rank,
-        value,
-    )?;
+    q.queue(race().shared.car.option_bits.get(), notice, rank, value)?;
     store(&was, &q);
     Ok(())
 }

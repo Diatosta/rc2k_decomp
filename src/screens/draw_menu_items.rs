@@ -31,6 +31,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -79,7 +80,7 @@ pub fn draw_menu_items(
     let since_key = if menus.screens.option_work.redefining_key.get() == 1 {
         0
     } else {
-        crate::system::owner::system()
+        system()
             .session
             .clocks
             .frame

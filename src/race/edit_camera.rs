@@ -11,6 +11,7 @@
 //!   (`race::spread_camera`, dh the old value).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -21,11 +22,7 @@ pub fn edit_camera(replay: &Replay, camera: u32) {
     crate::race::keep_undo::keep_undo();
     if rc2k_core::race::viewer_flow::edits_camera(
         replay.replay_view.replay_block.get(),
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .index_block_count
-            .get(),
+        race().shared.replay_file.index_block_count.get(),
     ) {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .camera_edit
@@ -41,13 +38,7 @@ fn name_of(camera: u8) -> u16 {
 /// `viewer_action` (which keeps every register), does not read.
 pub fn step_camera(replay: &Replay, step: i8) -> Result<(), Refused> {
     let block = replay.replay_view.replay_block.get();
-    if block
-        == crate::race::owner::race()
-            .shared
-            .replay_file
-            .index_block_count
-            .get()
-    {
+    if block == race().shared.replay_file.index_block_count.get() {
         return Ok(());
     }
     let at = crate::race::viewer::camera_ptr(

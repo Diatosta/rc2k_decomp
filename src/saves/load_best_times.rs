@@ -18,6 +18,7 @@ use crate::files::handle::{close, open_by_mode, read_to};
 use crate::pointers::GamePtr;
 use crate::saves::allocate_best_times::allocate_best_times;
 use crate::saves::owner::saves;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -49,18 +50,16 @@ fn read_or_close(file: u32, to: GamePtr, count: u32) -> Result<bool, BadInput> {
 
 /// `saves::load_best_times` on the game's own file and tables: true if the file was loaded.
 pub fn load_game_best_times() -> Result<bool, Refused> {
+    let system = system();
     let best_times = &saves().best_times;
     allocate_best_times(
         best_times.list(),
-        crate::system::owner::system()
-            .records
-            .stage_tables
-            .championship(), // g_recordTable
+        system.records.stage_tables.championship(), // g_recordTable
     )?;
     let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&crate::system::owner::system().work.files.buffer);
+    let scratch = GamePtr::to(&system.work.files.buffer);
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }

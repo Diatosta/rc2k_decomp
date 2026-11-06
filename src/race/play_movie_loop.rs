@@ -14,6 +14,7 @@
 //! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
+use crate::input::owner::input;
 use crate::race::owner::Race;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
@@ -43,20 +44,13 @@ pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
     log_number(race.replay.replay_view.play_end.get());
     race.course.numbers.replay_mode.set(2); // dword_5C5CE0
     race_parts::restart_clock();
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .race_clock_base
-        .set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .scene_clock
-                .get(),
-        );
+        .set(race.shared.physics_tables.scene_clock.get());
     loop {
         race_parts::input_update();
-        if crate::input::owner::input().devices.keys_pressed.get(1) != 0 {
+        if input().devices.keys_pressed.get(1) != 0 {
             break;
         }
         { crate::drive::race_step::race_step() }?;

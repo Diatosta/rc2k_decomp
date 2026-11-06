@@ -12,6 +12,7 @@
 //! skips their frames (held for the owner: notes/open_items_full.md).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 
 // g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
@@ -21,24 +22,18 @@ use crate::race::owner_frame::Frame;
 /// No caller reads what the original leaves in eax and ebx (every call site's live
 /// registers, 2026-10-23): the Rust version leaves nothing.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
+    let race = race();
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
+        race.shared.physics_tables.scene_clock.get(),
         frame.clock_ticks.sound_tick_last.get(),
     ) {
         return Ok(());
     }
-    frame.clock_ticks.sound_tick_last.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
-    );
+    frame
+        .clock_ticks
+        .sound_tick_last
+        .set(race.shared.physics_tables.scene_clock.get());
     crate::sound::race_turn_if::race_turn_if()?;
     frame
         .clock_ticks

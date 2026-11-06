@@ -14,6 +14,7 @@
 use crate::errors::Refused;
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
+use crate::net::owner::net;
 use rc2k_core::net::screens;
 
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
@@ -69,9 +70,7 @@ pub fn list_frame(
 
 /// The Rust version.
 pub fn connections_frame() -> Result<(), Refused> {
-    list_frame(
-        screens::CONNECTIONS_TITLE,
-        &crate::net::owner::net().vars.connections,
-        |n| crate::net::tables::with_connection(n, |c| c.name),
-    )
+    list_frame(screens::CONNECTIONS_TITLE, &net().vars.connections, |n| {
+        crate::net::tables::with_connection(n, |c| c.name)
+    })
 }

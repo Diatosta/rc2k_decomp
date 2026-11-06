@@ -30,6 +30,7 @@ use crate::gfx::glyph_tables::{
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::pointers::GamePtr;
 use crate::session::Dword;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -228,7 +229,7 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
         .units
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(crate::system::owner::system().session.screen.bytes.get());
+        .wrapping_mul(system().session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;

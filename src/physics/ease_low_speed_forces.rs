@@ -10,6 +10,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_div_add_mul};
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 fn at(a: &dyn Cell32) -> u32 {
@@ -22,12 +23,10 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core: the factor, the speed and the two forces at these places.
 pub fn ease_low_speed_forces_at(factor: &dyn Cell32, speed: &dyn Cell32, forces: [&dyn Cell32; 2]) {
+    let shared_store = &race().shared;
+
     put(factor, 0x3F80_0000);
-    let limit = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .low_speed_limit
-        .bits();
+    let limit = shared_store.physics_tables.low_speed_limit.bits();
     if abs_compare(at(speed), limit) & 0x100 == 0 {
         return;
     }
@@ -36,16 +35,8 @@ pub fn ease_low_speed_forces_at(factor: &dyn Cell32, speed: &dyn Cell32, forces:
         abs_div_add_mul(
             at(speed),
             limit,
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .low_speed_add
-                .bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .low_speed_scale
-                .bits(),
+            shared_store.physics_tables.low_speed_add.bits(),
+            shared_store.physics_tables.low_speed_scale.bits(),
         ),
     );
     for f in forces {
@@ -55,21 +46,14 @@ pub fn ease_low_speed_forces_at(factor: &dyn Cell32, speed: &dyn Cell32, forces:
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub fn ease_low_speed_forces() {
+    let shared_store = &race().shared;
+
     ease_low_speed_forces_at(
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .low_speed_share,
-        &crate::race::owner::race().shared.car.local_velocity[2],
+        &shared_store.physics_tables.low_speed_share,
+        &shared_store.car.local_velocity[2],
         [
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_forces[0],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_forces[1],
+            &shared_store.physics_tables.drive_forces[0],
+            &shared_store.physics_tables.drive_forces[1],
         ],
     );
 }

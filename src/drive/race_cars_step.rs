@@ -17,21 +17,22 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (0x4608CA .., inside `pusha` / `popa`).
 fn car_step() -> Result<(), Refused> {
-    for word in &crate::race::owner::race().shared.physics_tables.input_words {
+    let race = race();
+    for word in &race.shared.physics_tables.input_words {
         word.set(0);
     }
-    let slot = race_steps::block_slot(crate::race::owner::race().shared.work.current_car.get());
-    crate::race::owner::race()
-        .shared
+    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    race.shared
         .work
         .work_block
-        .set(crate::race::owner::race().shared.work.car_block(slot));
+        .set(race.shared.work.car_block(slot));
     crate::drive::load_car::load_car()?;
-    if crate::race::owner::race().shared.car.driver_kind.get() != 0 {
+    if race.shared.car.driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls()?;
         crate::physics::gear_input_rules::gear_input_rules();
         crate::physics::car_physics_step::car_physics_step()?;
@@ -44,12 +45,13 @@ fn car_step() -> Result<(), Refused> {
 /// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
 pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
-    race_steps::check_cars(crate::race::owner::race().shared.view.race_cars.get())?;
+    let shared = &race.shared;
+    race_steps::check_cars(shared.view.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     race_steps::each_car(
-        || crate::race::owner::race().shared.work.current_car.get(),
-        || crate::race::owner::race().shared.view.race_cars.get(),
-        |n| crate::race::owner::race().shared.work.current_car.set(n),
+        || shared.work.current_car.get(),
+        || shared.view.race_cars.get(),
+        |n| shared.work.current_car.set(n),
         car_step,
     )?;
     crate::drive::animate_stage::animate_stage(race)?;

@@ -15,6 +15,7 @@
 use crate::gfx::components_to_4444_rows::COMPONENTS_TO_4444_ROWS;
 use crate::gfx::converters::Converters;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -41,13 +42,10 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
 }
 
 pub fn install_converters(converters_store: &Converters) {
+    let system = system();
     let table = converters(
-        crate::system::owner::system().session.machine.has_mmx.get(),
-        crate::system::owner::system()
-            .session
-            .machine
-            .has_3dnow
-            .get(),
+        system.session.machine.has_mmx.get(),
+        system.session.machine.has_3dnow.get(),
     );
     for (cell, entry) in converters_store.table.iter().zip(table) {
         cell.set(entry);

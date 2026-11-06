@@ -12,6 +12,7 @@
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -37,14 +38,7 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(
-            n as i32,
-            crate::race::owner::race()
-                .shared
-                .tables
-                .start_blend_step
-                .bits(),
-        ),
+        x87::int_times(n as i32, race().shared.tables.start_blend_step.bits()),
     );
     put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
     let (low, high) = (course.numbers.zero.bits(), course.numbers.one.bits());
@@ -58,14 +52,15 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared = &race().shared;
     vec![
-        &crate::race::owner::race().shared.car.checkpoint,
+        &shared.car.checkpoint,
         &CAR_BLOCKS.cars[0].checkpoint,
         &scene().drawing.scene.scratch,
-        &crate::race::owner::race().shared.car.start_blend_share,
-        &crate::race::owner::race().shared.car.start_share,
-        &crate::race::owner::race().shared.car.pace_push,
-        &crate::race::owner::race().shared.car.start_blend,
+        &shared.car.start_blend_share,
+        &shared.car.start_share,
+        &shared.car.pace_push,
+        &shared.car.start_blend,
     ]
 }
 

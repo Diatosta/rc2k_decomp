@@ -7,8 +7,10 @@
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
+use crate::strings::owner::strings;
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
@@ -37,23 +39,16 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
 /// with its NUL) and drawn on slot `slot`'s (eax) plate (`draw_name_plate`). Every register
 /// kept.
 pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
+    let text = &strings().text;
     let mut cursor = 0usize;
     crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
         for (k, &b) in bytes.iter().enumerate() {
-            crate::strings::owner::strings()
-                .text
-                .buffer
-                .text
-                .set(cursor + k, b);
+            text.buffer.text.set(cursor + k, b);
         }
         cursor += bytes.len();
     })?;
-    crate::strings::owner::strings()
-        .text
-        .buffer
-        .text
-        .set(cursor, 0);
-    draw_name_plate(slot, &crate::strings::owner::strings().text.buffer.text)
+    text.buffer.text.set(cursor, 0);
+    draw_name_plate(slot, &text.buffer.text)
 }
 
 /// `race::draw_time_plate` (0x45B70A): slot `slot`'s (eax) surface, locked and unlocked as
@@ -100,11 +95,9 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
+    let shared = &race().shared;
     let textures = &scene().textures;
-    let (Some(a), Some(b)) = (
-        crate::race::owner::race().shared.view.view_car(0),
-        crate::race::owner::race().shared.view.view_car(1),
-    ) else {
+    let (Some(a), Some(b)) = (shared.view.view_car(0), shared.view.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
     // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.

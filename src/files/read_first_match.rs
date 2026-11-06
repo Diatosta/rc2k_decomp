@@ -19,6 +19,7 @@ use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file_into};
 use crate::files::resolve_path::resolve;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -32,6 +33,7 @@ pub fn first_match_read(
     into: &mut [u8],
     offset: u32,
 ) -> Result<Option<ReadResult>, BadInput> {
+    let system = system();
     let resolved = resolve(pattern)?;
     set_last_file_path(Some(&resolved));
     let found = crate::files::search::first(&resolved, SKIPPED_ATTRIBUTES.get());
@@ -39,13 +41,13 @@ pub fn first_match_read(
         // Converted: `rc2k_core::files::io::match_path`.
         let name = crate::files::search::found_name();
         let joined = rc2k_core::files::io::match_path(pattern, &name);
-        crate::system::owner::system().work.files.buffer.write_at(
-            0,
-            &joined,
-            "the scratch buffer",
-        )?;
+        system
+            .work
+            .files
+            .buffer
+            .write_at(0, &joined, "the scratch buffer")?;
         Some(read_file_into(
-            crate::pointers::GamePtr::to(&crate::system::owner::system().work.files.buffer),
+            crate::pointers::GamePtr::to(&system.work.files.buffer),
             into,
             offset,
         ))

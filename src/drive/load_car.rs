@@ -12,10 +12,11 @@
 
 use crate::drive::car::*;
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub fn load_car() -> Result<(), Refused> {
-    copy_car(current_block()?, &crate::race::owner::race().shared.car);
+    copy_car(current_block()?, &race().shared.car);
     Ok(())
 }

@@ -3,6 +3,7 @@
 //! (`audio/com.rs`).
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::owner::audio;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -40,7 +41,7 @@ pub fn play_buffer_in_game(v: &Voice) -> Result<(i32, bool), Refused> {
     let flags = rc2k_core::audio::buffers::play_flags(v);
     let r = crate::platform_sound::play(b, flags);
     if r != 0 && rc2k_core::audio::buffers::lost(r) {
-        crate::audio::owner::audio().state.sound_buffer_lost.set(1);
+        audio().state.sound_buffer_lost.set(1);
     }
     Ok((r, r != 0))
 }
@@ -53,7 +54,7 @@ pub fn stop_buffer(v: &Voice) -> Result<i32, Refused> {
 
 /// The 3D listener's `CommitDeferredSettings` (+0x44).
 pub fn commit_3d() -> Result<i32, Refused> {
-    let object = crate::audio::owner::audio().state.sound_listener.get();
+    let object = audio().state.sound_listener.get();
     if object == 0 {
         return Err(BadInput("no 3D listener").into());
     }

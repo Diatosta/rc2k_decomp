@@ -10,11 +10,13 @@
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use rc2k_core::drive::places;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
 pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
+    let shared = &race().shared;
     // g_carBlockStore: the figures of car block `car`.
     let figure = |car: usize, o: u32| {
         let block = &CAR_BLOCKS.cars[car];
@@ -26,8 +28,8 @@ pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
     };
     // The last argument is only handed back as `last` (ebx), which no caller reads.
     let order = places::two_car_order(
-        crate::race::owner::race().shared.vars.run_kind.get(),
-        crate::race::owner::race().shared.view.players.get(),
+        shared.vars.run_kind.get(),
+        shared.view.players.get(),
         figure,
         0,
     );

@@ -16,18 +16,13 @@ use crate::race::owner::Race;
 /// are both the face): (inside, the point's number).
 pub fn scene_point_hits_car(race: &Race, face: u32) -> Result<(bool, u32), Refused> {
     let number = crate::race::course_places::face_field::<u32>(face, 4, "a scene point record")?;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_point_hits
-        .set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .scene_point_hits
-                .get()
-                .wrapping_add(1),
-        );
+    race.shared.physics_tables.scene_point_hits.set(
+        race.shared
+            .physics_tables
+            .scene_point_hits
+            .get()
+            .wrapping_add(1),
+    );
     fill_cells(&race.physics.contact.object_offset, 0);
     let place = crate::race::scene_points::point_number(number)?;
     Ok(({ point_hits_car(race, place, face) }?, number))

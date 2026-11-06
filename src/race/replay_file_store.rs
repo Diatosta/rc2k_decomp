@@ -4,6 +4,8 @@
 //! ("RCIB", the seal, the block and frame counts, the (offset, size) per block). `#[repr(C)]` with
 //! the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -93,9 +95,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayFileBlock>());
 /// Where IDA 0x5BEC78 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().shared.replay_file,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.replay_file))
 }
 
 #[cfg(test)]
@@ -105,11 +105,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().shared.replay_file,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().shared.replay_file, START, END);
     }
 
     #[test]

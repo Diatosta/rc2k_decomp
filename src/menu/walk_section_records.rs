@@ -17,14 +17,12 @@ use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
+use crate::system::owner::system;
 use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
 fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section: u32 = SECTION_RVA.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
 }

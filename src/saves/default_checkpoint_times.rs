@@ -16,6 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
+use crate::system::owner::system;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
@@ -27,10 +28,7 @@ pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
-        let records_at = crate::system::owner::system()
-            .records
-            .stage_tables
-            .championship();
+        let records_at = system().records.stage_tables.championship();
         let stages = count_stages(records_at)?;
         let count = records(records_at)?;
         let table = &crate::saves::best_times::TIME_TRIAL_TIMES;

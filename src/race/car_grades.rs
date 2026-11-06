@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::session::{Dword, Float};
 
@@ -127,7 +128,7 @@ pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
 /// grade) are read by no caller (race init's one call).
 pub fn grade_all_cars() -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(crate::race::owner::race().shared.work.car_block(n))?;
+        grade_car_values(race().shared.work.car_block(n))?;
     }
     Ok(())
 }

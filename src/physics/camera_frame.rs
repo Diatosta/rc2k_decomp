@@ -32,36 +32,20 @@ fn steps(race: &Race) -> Result<(), Refused> {
     scene.lights.state.camera_frame_b.set(0);
     scene.lights.state.camera_frame_c.set(0);
     if rc2k_core::physics::camera_view::shakes(
-        crate::race::owner::race().shared.car.camera_view.get(),
-        crate::race::owner::race().shared.car.all_wheels_off.get(),
+        race.shared.car.camera_view.get(),
+        race.shared.car.all_wheels_off.get(),
     ) {
         x87_1();
         hold_high(
             &scene.lights.state.camera_frame_b,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .camera_frame_limit,
+            &race.shared.physics_tables.camera_frame_limit,
         );
-        negate(
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .camera_frame_limit,
-        );
+        negate(&race.shared.physics_tables.camera_frame_limit);
         hold_low(
             &scene.lights.state.camera_frame_b,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .camera_frame_limit,
+            &race.shared.physics_tables.camera_frame_limit,
         );
-        negate(
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .camera_frame_limit,
-        );
+        negate(&race.shared.physics_tables.camera_frame_limit);
         scene
             .drawing
             .scene
@@ -89,12 +73,10 @@ pub fn camera_frame() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
 fn x87_1() {
-    let t0 = ld(crate::race::owner::race().shared.car.unknown_90c.bits());
-    let t1 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .camera_frame_scale
-        .bits());
+    let shared_store = &crate::race::owner::race().shared;
+
+    let t0 = ld(shared_store.car.unknown_90c.bits());
+    let t1 = ld(shared_store.physics_tables.camera_frame_scale.bits());
     let t2 = t0 * t1;
     scene().lights.state.camera_frame_b.set_bits(st(t2));
 }

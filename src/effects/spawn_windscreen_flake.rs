@@ -15,6 +15,7 @@
 
 use crate::effects::expire_windscreen_flakes::{ITEM_LEN, ITEMS};
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
+use crate::race::owner::race;
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -58,13 +59,7 @@ pub fn spawn_windscreen_flake(
                 for d in e.spare_28.iter().chain(&e.spare_14) {
                     d.set(0);
                 }
-                e.born.set(
-                    crate::race::owner::race()
-                        .shared
-                        .physics_tables
-                        .scene_clock
-                        .bits(),
-                );
+                e.born.set(race().shared.physics_tables.scene_clock.bits());
                 e.age.set(0);
                 step(&mut at);
                 fl.tables.cursor.set(at);

@@ -12,6 +12,7 @@
 //! outside the tables).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::viewer::move_cells;
 
 /// The Rust version: the count copied (edx), none when the marks are not in order. Of
@@ -39,7 +40,7 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
     move_cells(
         &v.clip_places,
         0,
-        &crate::race::owner::race().shared.replay_file.block_places,
+        &race().shared.replay_file.block_places,
         first,
         dwords,
     )?;

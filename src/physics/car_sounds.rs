@@ -40,8 +40,8 @@ pub fn place(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
     let part = |k: usize| {
-        let car = crate::race::owner::race().shared.car.position[k].get();
-        let listener = crate::race::owner::race().shared.car.camera_position[k].get();
+        let car = race.shared.car.position[k].get();
+        let listener = race.shared.car.camera_position[k].get();
         match offset {
             Some(o) => offset_part(o[k], car, listener),
             None => car_part(car, listener),
@@ -62,8 +62,8 @@ pub fn place(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
 pub fn place_plain(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
     let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
-        whole(&crate::race::owner::race().shared.car.position),
-        whole(&crate::race::owner::race().shared.car.camera_position),
+        whole(&race.shared.car.position),
+        whole(&race.shared.car.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
         &std::array::from_fn(|n| f32::from_bits(race.frame.matrices.view_turn_matrix[n].bits())),
         f32::from_bits(race.course.numbers.one_over_65536.bits()),

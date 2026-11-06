@@ -7,22 +7,20 @@
 //!
 //! Callers: `race::viewer_action` (six places), `race::edit_camera_1`, `edit_camera_2`.
 
+use crate::race::owner::race;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 /// The Rust version.
 pub fn keep_undo() {
+    let shared = &race().shared;
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
-    VIEWER_BUFFERS.undo_blocks.set(
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .index_block_count
-            .get(),
-    );
+    VIEWER_BUFFERS
+        .undo_blocks
+        .set(shared.replay_file.index_block_count.get());
     for (k, (to, from)) in VIEWER_BUFFERS
         .undo_places
         .iter()
-        .zip(&crate::race::owner::race().shared.replay_file.block_places)
+        .zip(&shared.replay_file.block_places)
         .enumerate()
     {
         to.set(from.get());

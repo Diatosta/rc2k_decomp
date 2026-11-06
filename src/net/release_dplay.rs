@@ -8,13 +8,15 @@
 //! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`).
 //! Refuses nothing.
 
+use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn release_dplay() {
-    if crate::net::owner::net().vars.dplay.get() != 0 {
+    let vars = &net().vars;
+    if vars.dplay.get() != 0 {
         crate::logfile::log_write::log_at(VIEWER_PANEL.text_ptr(texts::NET_DESTROY_DPLAY), true, 2);
-        crate::net::dp_objects::release(crate::net::owner::net().vars.dplay.get());
-        crate::net::owner::net().vars.dplay.set(0);
+        crate::net::dp_objects::release(vars.dplay.get());
+        vars.dplay.set(0);
     }
 }

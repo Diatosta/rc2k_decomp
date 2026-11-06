@@ -322,13 +322,13 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
         frame.frame_work.shadow_corners[1].set(fz);
         let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
         copy_on_in(
-            (&crate::race::owner::race().shared.buffers, list),
-            (&crate::race::owner::race().shared.buffers, old),
+            (&race.shared.buffers, list),
+            (&race.shared.buffers, old),
             count as usize,
             "the polygon list",
         )?;
         write_on_in(
-            &crate::race::owner::race().shared.buffers,
+            &race.shared.buffers,
             old,
             count as usize,
             list[0].get(),
@@ -341,7 +341,7 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
             count,
             |k| {
                 read_on_in(
-                    &crate::race::owner::race().shared.buffers,
+                    &race.shared.buffers,
                     old,
                     k as usize,
                     "the old polygon list",
@@ -379,7 +379,7 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
             },
             |e| {
                 if let Err(err) = write_on_in(
-                    &crate::race::owner::race().shared.buffers,
+                    &race.shared.buffers,
                     list,
                     added as usize,
                     e,
@@ -414,8 +414,8 @@ pub fn clip_shadow_to_face(race: &Race) -> Result<(), BadInput> {
         let trap = Trap::new();
         let found = rc2k_core::race::shadow::face_near(
             (
-                crate::race::owner::race().shared.car.position[0].bits(),
-                crate::race::owner::race().shared.car.position[2].bits(),
+                race.shared.car.position[0].bits(),
+                race.shared.car.position[2].bits(),
             ),
             |n| {
                 point_xz(corners[n]).unwrap_or_else(|e| {
@@ -488,13 +488,13 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
     let list = &POLYGON_WORK.list;
     copy_on_in(
         (&race.frame.frame_work, &race.frame.frame_work.shadow_list),
-        (&crate::race::owner::race().shared.buffers, list),
+        (&race.shared.buffers, list),
         count as usize,
         "the shadow list",
     )?;
     drawing.scene.polygon_vertex_count.set_bits(count);
     write_on_in(
-        &crate::race::owner::race().shared.buffers,
+        &race.shared.buffers,
         list,
         count as usize,
         race.frame.frame_work.shadow_list[0].get(),
@@ -525,12 +525,7 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
     for k in 0..n {
         raise_onto_face(
             race,
-            read_on_in(
-                &crate::race::owner::race().shared.buffers,
-                list,
-                k as usize,
-                "the polygon list",
-            )?,
+            read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
         )?;
     }
     crate::scene::project_polygon::project_polygon()?;
@@ -557,11 +552,7 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
     drawing.scene.polygon_textures[1].set(race.frame.frame_work.shadow_texture.get());
     drawing.scene.polygon_sides[0].set(0u32);
     drawing.scene.polygon_sides[1].set(1u32);
-    crate::race::owner::race()
-        .shared
-        .view
-        .polygon_mode
-        .set(5u32);
+    race.shared.view.polygon_mode.set(5u32);
     crate::scene::draw_polygon::draw_polygon_in_game()?;
     drawing.scene.polygon_drawn.set(1u32);
     Ok(())
@@ -626,8 +617,8 @@ pub fn shadow_faces(race: &Race) -> Result<(), Refused> {
         course.course.record_place[1].set(z);
         if cell_near_car(
             (
-                crate::race::owner::race().shared.car.position[0].bits(),
-                crate::race::owner::race().shared.car.position[2].bits(),
+                race.shared.car.position[0].bits(),
+                race.shared.car.position[2].bits(),
             ),
             (x, z),
         ) {
@@ -683,9 +674,9 @@ pub fn shadow_points(race: &Race) -> Result<(), Refused> {
         &race.course.course.ground_face_last,
     ];
     let was: Vec<u32> = inputs.iter().map(|d| d.bits()).collect();
-    inputs[0].set_bits(crate::race::owner::race().shared.car.position[0].bits());
-    inputs[1].set_bits(crate::race::owner::race().shared.car.position[2].bits());
-    inputs[2].set_bits(crate::race::owner::race().shared.car.probe_point_face[4].bits());
+    inputs[0].set_bits(race.shared.car.position[0].bits());
+    inputs[1].set_bits(race.shared.car.position[2].bits());
+    inputs[2].set_bits(race.shared.car.probe_point_face[4].bits());
     if let Err(e) = crate::physics::find_ground::find_ground(race) {
         // Its inputs put back: a refusal has written nothing.
         for (d, &v) in inputs.iter().zip(&was) {
@@ -711,24 +702,17 @@ pub fn shadow_points(race: &Race) -> Result<(), Refused> {
         race.frame.shadow_skids.slant_x.bits(),
         race.frame.shadow_skids.slant_z.bits(),
     );
-    let lift: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .camera_drop
-        .bits();
+    let lift: u32 = race.shared.physics_tables.camera_drop.bits();
     let unit: u32 = race.course.numbers.k65536.bits();
     for k in 0..count {
         let at = point_at(&race.frame, k)?;
         let k = k as usize;
         let p = [
-            to_tbyte(crate::race::owner::race().shared.car.probe_point_x[k].bits()),
-            to_tbyte(crate::race::owner::race().shared.car.probe_point_y[k].bits()),
-            to_tbyte(crate::race::owner::race().shared.car.probe_point_z[k].bits()),
+            to_tbyte(race.shared.car.probe_point_x[k].bits()),
+            to_tbyte(race.shared.car.probe_point_y[k].bits()),
+            to_tbyte(race.shared.car.probe_point_z[k].bits()),
         ];
-        let t = crate::scene::rotate_point::rotate_point(
-            &crate::race::owner::race().shared.car.body_matrix,
-            p,
-        );
+        let t = crate::scene::rotate_point::rotate_point(&race.shared.car.body_matrix, p);
         let [x, y, z] = t.map(tbyte_to_float);
         at.y.set(y);
         let x = lifted(y, lift, sx, x);
@@ -742,14 +726,8 @@ pub fn shadow_points(race: &Race) -> Result<(), Refused> {
             race.frame.shadow_skids.farthest_length.set_bits(length);
             race.frame.shadow_skids.farthest.set(k as u32);
         }
-        at.x.set(
-            (mul_to_int(x, unit) as u32)
-                .wrapping_add(crate::race::owner::race().shared.car.position[0].bits()),
-        );
-        at.z.set(
-            (mul_to_int(z, unit) as u32)
-                .wrapping_add(crate::race::owner::race().shared.car.position[2].bits()),
-        );
+        at.x.set((mul_to_int(x, unit) as u32).wrapping_add(race.shared.car.position[0].bits()));
+        at.z.set((mul_to_int(z, unit) as u32).wrapping_add(race.shared.car.position[2].bits()));
         at.y.set(race.frame.frame_work.shadow_ground.bits());
     }
     Ok(())
@@ -809,8 +787,8 @@ pub fn cast_car_shadows(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
-    let cars: u32 = crate::race::owner::race().shared.view.race_cars.get();
-    let block = |n: u32| crate::race::owner::race().shared.work.car_block(n as usize);
+    let cars: u32 = race.shared.view.race_cars.get();
+    let block = |n: u32| race.shared.work.car_block(n as usize);
     check_shadow_cars(cars, block)?;
     crate::scene::depth_test_off::depth_test_off();
     race.frame.frame_work.shadow_strength.set(SHADOW_STRENGTH);
@@ -823,13 +801,13 @@ pub fn cast_car_shadows(race: &Race) -> Result<(), Refused> {
         ) {
             continue;
         }
-        crate::race::owner::race().shared.work.current_car.set(n);
+        race.shared.work.current_car.set(n);
         crate::drive::load_car::load_car()?;
         race.frame
             .frame_work
             .shadow_point_count
-            .set_bits(crate::race::owner::race().shared.car.probe_count.bits());
-        if first_pass(crate::race::owner::race().shared.vars.settings_words[2].bits()) {
+            .set_bits(race.shared.car.probe_count.bits());
+        if first_pass(race.shared.vars.settings_words[2].bits()) {
             cast_car_shadow(race)?;
         }
         let sun: u32 = race.course.stage_prefs.sun_height.get();

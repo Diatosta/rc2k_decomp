@@ -21,10 +21,7 @@ use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e1_other(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.physics.contact.other_car_number.get())?
-        && !listed(
-            &race.frame,
-            crate::race::owner::race().shared.work.current_car.get(),
-        )?
+        && !listed(&race.frame, race.shared.work.current_car.get())?
     {
         return Ok(());
     }

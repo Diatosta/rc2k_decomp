@@ -12,6 +12,7 @@
 //! number past the table and a face that is not there.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -22,6 +23,7 @@ use crate::scene::owner::scene;
 pub fn list_object_faces(
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let shared = &race().shared;
     let scene = scene();
     {
         let (first, count): (u32, u32) = (
@@ -33,17 +35,9 @@ pub fn list_object_faces(
             crate::scene::objects::face_cell(number as usize).get()
         })?;
         scene.lights.work.listed_face_count.set_bits(0u32);
-        crate::race::owner::race()
-            .shared
-            .vars
-            .face_mark
-            .set_bits(u32::MAX);
+        shared.vars.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
-            crate::race::owner::race()
-                .shared
-                .vars
-                .face_number
-                .set_bits(n as u32);
+            shared.vars.face_number.set_bits(n as u32);
             list(face as usize)?;
         }
         Ok(())

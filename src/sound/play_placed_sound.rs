@@ -21,6 +21,7 @@
 //! Eight callers (the race's sounds).
 //! Refuses, without 3D, a sound past the 0x1CD sample records.
 
+use crate::audio::owner::audio;
 use crate::errors::BadInput;
 use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 use crate::sound::sets_store::SoundRequest;
@@ -73,7 +74,7 @@ pub fn play_placed_sound(request: &SoundRequest, mode: u32) -> Result<(), BadInp
     let (ebx, ecx, edi, ebp);
     if mode & MODE_3D == 0 {
         let number = placed::sample_of(sound)?;
-        let record = &crate::audio::owner::audio().sample_records.records[number as usize];
+        let record = &audio().sample_records.records[number as usize];
         let factor = record.get().min_distance;
         let volume = placed::volume(product3_to_int(
             request.volume.get(),
@@ -112,7 +113,7 @@ pub fn play_placed_sound(request: &SoundRequest, mode: u32) -> Result<(), BadInp
 
 /// In the game.
 pub fn play_placed_sound_in_game(request: &SoundRequest) -> Result<(), BadInput> {
-    play_placed_sound(request, crate::audio::owner::audio().state.sound_mode.get())
+    play_placed_sound(request, audio().state.sound_mode.get())
 }
 
 // ---- the arithmetic that was x87 assembly ----

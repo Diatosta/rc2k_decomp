@@ -33,6 +33,7 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
@@ -69,11 +70,12 @@ impl Game {
 
 /// The variables that are in the physics block.
 fn cell(v: Var) -> &'static Dword {
+    let race = race();
     match v {
-        Var::CheatSwitch => &crate::race::owner::race().shared.state.settings.direction,
-        Var::RaceKept => &crate::race::owner::race().shared.state.settings.kept,
-        Var::Result => &crate::race::owner::race().shared.state.results.results[0].result,
-        Var::Result2 => &crate::race::owner::race().shared.state.results.results[1].result,
+        Var::CheatSwitch => &race.shared.state.settings.direction,
+        Var::RaceKept => &race.shared.state.settings.kept,
+        Var::Result => &race.shared.state.results.results[0].result,
+        Var::Result2 => &race.shared.state.results.results[1].result,
         Var::GoesOn => GOES_ON,
         Var::Cheats => CHEATS,
         Var::Kept => KEPT,
@@ -93,6 +95,7 @@ impl races::EventRaces for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let race = race();
         let menus = menus();
         let screens = &menus.screens;
         self.fault.check()?;
@@ -113,18 +116,12 @@ impl races::EventRaces for Game {
             Step::RaceInfo => {
                 // The summary's variable: 1 while it is there (the race reads it:
                 // `RACE_STATE.settings.rivals`).
-                crate::race::owner::race()
-                    .shared
+                race.shared
                     .state
                     .settings
                     .rivals
                     .set(menus.play.champ_view.summary.get());
-                crate::race::owner::race()
-                    .shared
-                    .state
-                    .settings
-                    .stage
-                    .set(self.pack.stage()?);
+                race.shared.state.settings.stage.set(self.pack.stage()?);
             }
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;

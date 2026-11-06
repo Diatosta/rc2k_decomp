@@ -7,12 +7,10 @@
 //! Callers: `sub_46F7AD` (`jz`), `sub_47F314` (`jnz`); `sound::step_car_stream` has it
 //! inlined.
 
+use crate::audio::owner::audio;
+
 /// The Rust version: (zero, carry) as the original's `cmp` leaves them.
 pub fn stream_playing() -> (bool, bool) {
-    let playing = crate::audio::owner::audio()
-        .state
-        .sound_stream
-        .get()
-        .playing;
+    let playing = audio().state.sound_stream.get().playing;
     (playing == 1, playing < 1)
 }

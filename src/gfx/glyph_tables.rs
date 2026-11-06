@@ -12,6 +12,8 @@ use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
 use crate::session::Dword;
+use crate::strings::owner::strings;
+use crate::system::owner::system;
 
 /// IDA's address of the glyph tables' variables.
 pub const START: usize = 0x51B980;
@@ -51,6 +53,7 @@ impl GlyphTables {
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
 pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
+    let strings = strings();
     let pictures = &gfx().pictures;
     pictures.picture.width.set(800u32);
     pictures.picture.height.set(600u32);
@@ -59,18 +62,18 @@ pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
         .decoder
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
-    let bytes = crate::strings::owner::strings()
+    let bytes = strings
         .lexicon
         .memory
         .kilobytes
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(crate::system::owner::system().session.screen.bytes.get());
+        .wrapping_mul(system().session.screen.bytes.get());
     // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
     // reports its own.) Only counted: the work memory holds nothing Rust reads back
     // (`build_glyphs` keeps the sheet's table in its own bytes).
     crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&crate::strings::owner::strings().lexicon.memory.memory),
+        crate::pointers::GamePtr::to(&strings.lexicon.memory.memory),
         bytes,
     )?;
     vars.table.set(0u32);
@@ -91,7 +94,7 @@ pub fn begin_glyph_table(vars: &SheetVars, list: crate::pointers::GamePtr) -> Re
 
 pub fn end_glyph_tables() -> Result<(), BadInput> {
     free_list(crate::pointers::GamePtr::to(
-        &crate::strings::owner::strings().lexicon.memory.memory,
+        &strings().lexicon.memory.memory,
     ))
 }
 

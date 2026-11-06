@@ -14,6 +14,7 @@
 
 use crate::errors::FatalError;
 use crate::framework::log;
+use crate::system::owner::system;
 use crate::threading::start_slot_thread::start_slot_thread;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -36,11 +37,7 @@ pub fn request_quit_with(
 }
 
 pub fn request_quit() -> Result<(), FatalError> {
-    let requested = crate::system::owner::system()
-        .session
-        .flags
-        .quitting
-        .atomic();
+    let requested = system().session.flags.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
     let result = request_quit_with(requested, &mut start_slot_thread);
     if result.is_err() {
@@ -54,7 +51,7 @@ pub fn request_quit() -> Result<(), FatalError> {
 pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
     // in the log which version ran.
-    let was: u32 = crate::system::owner::system().session.flags.quitting.get();
+    let was: u32 = system().session.flags.quitting.get();
     let result = request_quit();
     log(&format!(
         "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"

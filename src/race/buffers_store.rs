@@ -7,6 +7,8 @@
 
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::race::checkpoints_store::Checkpoints;
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
@@ -76,9 +78,7 @@ impl Buffers {
 /// Where IDA 0x960000 is now (the static).
 #[cfg(test)]
 pub fn home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().shared.buffers,
-    )) as usize
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.buffers)) as usize
 }
 
 #[cfg(test)]

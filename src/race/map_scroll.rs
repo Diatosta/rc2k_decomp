@@ -6,8 +6,10 @@
 //! the picture.
 
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::net;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
@@ -16,9 +18,10 @@ use crate::scene::owner::scene;
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
 /// (`sub_45B68F` -> `race::blit_map_tiles`, ecx / edx the tile, eax the slot).
 pub fn map_tiles(frame: &Frame) -> Result<(), Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
-    let one_view = crate::net::owner::net().vars.session.get() != 0;
+    let one_view = net().vars.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
         scene().textures.kinds.kind_first_textures[198].get(),
@@ -26,25 +29,20 @@ pub fn map_tiles(frame: &Frame) -> Result<(), Refused> {
         if one_view {
             0
         } else {
-            crate::race::owner::race().shared.work.current_car.get()
+            shared.work.current_car.get()
         },
     );
     crate::race::blit_map_tiles::blit_map_tiles(
         frame,
         slot,
-        first_tile(crate::race::owner::race().shared.car.map_corner[0].get()),
-        first_tile(crate::race::owner::race().shared.car.map_corner[1].get()),
+        first_tile(shared.car.map_corner[0].get()),
+        first_tile(shared.car.map_corner[1].get()),
     )
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
 fn scroll_refuses(course: &Course) -> Result<(), Refused> {
-    if crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .get()
-        >= 2
+    if race().shared.vars.checkpoint_count.get() >= 2
         && (course.course.course_faces.get() == 0 || course.course.scene_points.get() == 0)
     {
         return Err(BadInput("no course faces or points").into());
@@ -63,19 +61,13 @@ pub fn scroll_map(race: &Race) -> Result<(), Refused> {
     // picture_place}`.
     use rc2k_core::race::map::{centred_corner, on_map, picture_place, pixel, well_inside};
     scroll_refuses(&race.course)?;
-    crate::race::owner::race().shared.car.map_redrawn.set(0);
-    if crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .get()
-        < 2
-    {
+    race.shared.car.map_redrawn.set(0);
+    if race.shared.vars.checkpoint_count.get() < 2 {
         return Ok(());
     }
-    let [corner_x, corner_y] = &crate::race::owner::race().shared.car.map_corner;
-    let [map_x, map_y] = &crate::race::owner::race().shared.car.map_place;
-    let n = crate::race::owner::race().shared.car.checkpoint.get();
+    let [corner_x, corner_y] = &race.shared.car.map_corner;
+    let [map_x, map_y] = &race.shared.car.map_place;
+    let n = race.shared.car.checkpoint.get();
     map_x.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_x, n as usize).get());
     map_y.set(crate::race::checkpoints_store::cell_in(&CHECKPOINTS.map_y, n as usize).get());
     let face = crate::race::checkpoints_store::face(n as usize).get();
@@ -83,16 +75,11 @@ pub fn scroll_map(race: &Race) -> Result<(), Refused> {
     let px = crate::race::scene_points::point_word(point, 0)?;
     let pz = crate::race::scene_points::point_word(point, 2)?;
     map_x.set(
-        map_x.get().wrapping_add(
-            on_map(
-                crate::race::owner::race().shared.car.position[0]
-                    .get()
-                    .wrapping_sub(px),
-            )
-            .0,
-        ),
+        map_x
+            .get()
+            .wrapping_add(on_map(race.shared.car.position[0].get().wrapping_sub(px)).0),
     );
-    let dz = crate::race::owner::race().shared.car.position[2]
+    let dz = race.shared.car.position[2]
         .get()
         .wrapping_sub(pz)
         .wrapping_neg();
@@ -108,12 +95,10 @@ pub fn scroll_map(race: &Race) -> Result<(), Refused> {
         corner_x.set(centred_corner(x));
         corner_y.set(centred_corner(y));
         map_tiles(&race.frame)?;
-        crate::race::owner::race().shared.car.map_redrawn.set(1);
+        race.shared.car.map_redrawn.set(1);
     }
-    crate::race::owner::race().shared.car.map_picture_place[0]
-        .set(picture_place(corner_x.get(), map_x.get()));
-    crate::race::owner::race().shared.car.map_picture_place[1]
-        .set(picture_place(corner_y.get(), map_y.get()));
+    race.shared.car.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
+    race.shared.car.map_picture_place[1].set(picture_place(corner_y.get(), map_y.get()));
     Ok(())
 }
 
@@ -124,24 +109,19 @@ pub fn scroll_map(race: &Race) -> Result<(), Refused> {
 pub fn scroll_maps(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{load_view_car, store_view_car, view_car};
-    let third_only = crate::net::owner::net().vars.session.get() != 0;
+    let third_only = net().vars.session.get() != 0;
     // The player count is read only without the third view.
     let views = rc2k_core::race::map::scrolled_views(
         third_only,
         if third_only {
             0
         } else {
-            crate::race::owner::race().shared.view.views.get()
+            race.shared.view.views.get()
         },
     );
     for &v in views {
         let car = view_car(v).get() & 7;
-        if crate::race::owner::race()
-            .shared
-            .work
-            .car_block(car as usize)
-            == 0
-        {
+        if race.shared.work.car_block(car as usize) == 0 {
             return Err(BadInput("a view car without its block").into());
         }
     }

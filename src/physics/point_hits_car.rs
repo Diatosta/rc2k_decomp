@@ -36,25 +36,17 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
     let physics_store = &race.physics;
     let rd =
         |offset: u32, what: &str| crate::race::course_places::face_field::<u32>(face, offset, what);
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .point_hits
-        .set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .point_hits
-                .get()
-                .wrapping_add(1),
-        );
+        .set(race.shared.physics_tables.point_hits.get().wrapping_add(1));
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(
             point[k as usize],
             rd(0x30 + 4 * k, "an object's place")?,
             physics_store.contact.object_offset[k as usize].get(),
-            crate::race::owner::race().shared.car.position[k as usize].get(),
+            race.shared.car.position[k as usize].get(),
         );
         physics_store.contact.object_point_offset[k as usize].set(v);
         if k == 1 {
@@ -75,9 +67,9 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
     if !contacts::inside_box(
         x,
         z,
-        crate::race::owner::race().shared.physics_tables.spec_ints[2].get(),
-        crate::race::owner::race().shared.physics_tables.spec_ints[0].get(),
-        crate::race::owner::race().shared.physics_tables.spec_ints[1].get(),
+        race.shared.physics_tables.spec_ints[2].get(),
+        race.shared.physics_tables.spec_ints[0].get(),
+        race.shared.physics_tables.spec_ints[1].get(),
     ) {
         return Ok(false);
     }
@@ -86,25 +78,15 @@ pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, R
         physics_store
             .contact
             .contact_speed_length
-            .set_bits(rounded(vector_length(
-                &crate::race::owner::race().shared.car.velocity,
-            )));
+            .set_bits(rounded(vector_length(&race.shared.car.velocity)));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
             f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-            f32::from_bits(crate::race::owner::race().shared.car.contact_depth.bits()),
+            f32::from_bits(race.shared.car.contact_depth.bits()),
         ) {
-            crate::race::owner::race()
-                .shared
-                .car
-                .contact_depth
-                .set_bits(hit.to_bits());
+            race.shared.car.contact_depth.set_bits(hit.to_bits());
         }
-        crate::race::owner::race().shared.car.contact_flag.set(1);
-        crate::race::owner::race()
-            .shared
-            .car
-            .wall_hit_timer
-            .set(0x32);
+        race.shared.car.contact_flag.set(1);
+        race.shared.car.wall_hit_timer.set(0x32);
     }
     Ok(true)
 }
@@ -157,16 +139,17 @@ fn x87_2(race: &Race) {
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
 fn x87_3(race: &Race) {
+    let shared = &race.shared;
     let t0 = int(race.physics.contact.contact_point[0].bits() as i32);
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 / t1;
-    crate::race::owner::race().shared.car.contact_point[0].set_bits(st(t2));
+    shared.car.contact_point[0].set_bits(st(t2));
     let t3 = X(0.0);
-    crate::race::owner::race().shared.car.contact_point[1].set_bits(st(t3));
+    shared.car.contact_point[1].set_bits(st(t3));
     let t4 = int(race.physics.contact.contact_point[2].bits() as i32);
     let t5 = ld(race.course.numbers.k65536.bits());
     let t6 = t4 / t5;
-    crate::race::owner::race().shared.car.contact_point[2].set_bits(st(t6));
+    shared.car.contact_point[2].set_bits(st(t6));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

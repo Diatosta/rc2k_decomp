@@ -26,6 +26,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::gear_store::GEAR;
 use crate::race::car_specs_store::CarSpec;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
@@ -43,14 +44,14 @@ fn below(a: u32, b: u32) -> bool {
 
 /// The record of the work car's kind (`record_of` holds it to the last).
 fn record(physics: &Physics) -> &CarSpec {
-    &physics.car_specs.cars
-        [record_of(crate::race::owner::race().shared.car.car_kind.get()) as usize]
+    &physics.car_specs.cars[record_of(race().shared.car.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
 /// gear count (held), the words copied.
 fn words(spec: &CarSpec) {
-    for (to, from) in crate::race::owner::race()
+    let race = race();
+    for (to, from) in race
         .shared
         .physics_tables
         .spec_torque
@@ -59,52 +60,28 @@ fn words(spec: &CarSpec) {
     {
         to.set(from.get());
     }
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_a0
-        .set(spec.spec_a0.get());
-    crate::race::owner::race()
-        .shared
+    race.shared.physics_tables.spec_a0.set(spec.spec_a0.get());
+    race.shared
         .physics_tables
         .gear_count
         .set(gear_count(spec.gear_count.get()));
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_20
-        .set(spec.copy_20.get());
+    race.shared.physics_tables.spec_20.set(spec.copy_20.get());
     let places: [(&dyn Cell32, &Dword); 5] = [
         (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_surface[0],
+            &race.shared.physics_tables.spec_surface[0],
             &spec.surface[0],
         ),
         (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_surface[1],
+            &race.shared.physics_tables.spec_surface[1],
             &spec.surface[1],
         ),
+        (&race.shared.physics_tables.grip_scale, &spec.grip_scale),
         (
-            &crate::race::owner::race().shared.physics_tables.grip_scale,
-            &spec.grip_scale,
-        ),
-        (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .side_grip_scale,
+            &race.shared.physics_tables.side_grip_scale,
             &spec.side_grip_scale,
         ),
         (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_surface[2],
+            &race.shared.physics_tables.spec_surface[2],
             &spec.surface[2],
         ),
     ];
@@ -117,22 +94,17 @@ fn words(spec: &CarSpec) {
 /// `physics::test_drive`).
 pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
-    let kind = crate::race::owner::race().shared.car.car_kind.get();
+    let kind = race.shared.car.car_kind.get();
     let spec = record(&race.physics);
     let drive = check_drive(spec.drive_kind.get())?;
-    crate::race::owner::race().shared.car.drive_kind.set(drive);
+    race.shared.car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
     load_figures_and_shift_points(&race.course, spec);
     if below(
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed_limit
-            .bits(),
+        race.shared.car.engine_speed_limit.bits(),
         course.numbers.thousand.bits(),
     ) {
-        crate::race::owner::race()
-            .shared
+        race.shared
             .car
             .engine_speed_limit
             .set_bits(x87::loaded(course.numbers.thousand.bits()));
@@ -149,44 +121,22 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
         // 0x42170D .. 0x421755
         scale_default_ratios(&race.course);
     }
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .spec_grip
-        .set_bits(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_default_ba0
-                .get(),
-        );
-    crate::race::owner::race()
-        .shared
+        .set_bits(race.shared.physics_tables.spec_default_ba0.get());
+    race.shared
         .physics_tables
         .spec_grip_b
-        .set_bits(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_default_ba4
-                .get(),
-        );
-    crate::race::owner::race()
-        .shared
+        .set_bits(race.shared.physics_tables.spec_default_ba4.get());
+    race.shared
         .physics_tables
         .spec_wheel
-        .set_bits(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .spec_default_ba8
-                .get(),
-        );
+        .set_bits(race.shared.physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
     scale_record_grips(spec);
     scene().drawing.scene.scratch.set(spec.scratch_value.get());
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .downforce_spec
         .set(spec.downforce.get());
@@ -212,6 +162,7 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
 fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
+    let race = race();
     let t0 = int(s.figures[0].get() as i32);
     GEAR.figures[0].set_bits(st(t0));
     let t1 = int(s.figures[1].get() as i32);
@@ -221,28 +172,12 @@ fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
     let t3 = int(s.figures[3].get() as i32);
     GEAR.figures[3].set_bits(st(t3));
     let t4 = int(s.engine_top.get() as i32);
-    crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed_limit
-        .set_bits(st(t4));
-    let t5 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_scale_1b8
-        .bits());
-    crate::race::owner::race()
-        .shared
-        .car
-        .spec_scale_copy
-        .set_bits(st(t5));
+    race.shared.car.engine_speed_limit.set_bits(st(t4));
+    let t5 = ld(race.shared.physics_tables.spec_scale_1b8.bits());
+    race.shared.car.spec_scale_copy.set_bits(st(t5));
     let t6 = ld(s.shift_points[0].bits());
     GEAR.shift_up_point.set_bits(st(t6));
-    let t7 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_scale_a4
-        .bits());
+    let t7 = ld(race.shared.physics_tables.spec_scale_a4.bits());
     let t8 = t6 * t7;
     GEAR.shift_ratio_figure.set_bits(st(t8));
     let t9 = ld(s.shift_points[1].bits());
@@ -254,35 +189,15 @@ fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
     let t14 = t12 + t13;
     GEAR.shift_down_clutch_point.set_bits(st(t14));
     let t15 = int(s.over_top.get() as i32);
-    let t16 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .rev_limit_scale
-        .bits());
+    let t16 = ld(race.shared.physics_tables.rev_limit_scale.bits());
     let t17 = t15 * t16;
-    let t18 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed_limit
-        .bits());
+    let t18 = ld(race.shared.car.engine_speed_limit.bits());
     let t19 = t17 / t18;
     GEAR.drive_torque_figure.set_bits(st(t19));
-    let t20 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed_limit
-        .bits());
-    let t21 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .rev_top_scale
-        .bits());
+    let t20 = ld(race.shared.car.engine_speed_limit.bits());
+    let t21 = ld(race.shared.physics_tables.rev_top_scale.bits());
     let t22 = t20 * t21;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .rev_limit
-        .set_bits(st(t22));
+    race.shared.physics_tables.rev_limit.set_bits(st(t22));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -291,24 +206,25 @@ fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 fn scale_record_ratios(course: &Course, s: &CarSpec) {
+    let shared = &race().shared;
     let t0 = int(s.whole_figures[0].get() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.thousand.bits());
     let t4 = t2 / t3;
-    crate::race::owner::race().shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
+    shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(s.whole_figures[1].get() as i32);
     let t6 = ld(course.numbers.k65536.bits());
     let t7 = t5 * t6;
     let t8 = ld(course.numbers.thousand.bits());
     let t9 = t7 / t8;
-    crate::race::owner::race().shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
+    shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(s.whole_figures[2].get() as i32);
     let t11 = ld(course.numbers.k65536.bits());
     let t12 = t10 * t11;
     let t13 = ld(course.numbers.thousand.bits());
     let t14 = t12 / t13;
-    crate::race::owner::race().shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
+    shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -317,36 +233,25 @@ fn scale_record_ratios(course: &Course, s: &CarSpec) {
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 fn scale_default_ratios(course: &Course) {
-    let t0 = int(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_default_bc0[0]
-        .bits() as i32);
+    let race = race();
+    let t0 = int(race.shared.physics_tables.spec_default_bc0[0].bits() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.thousand.bits());
     let t4 = t2 / t3;
-    crate::race::owner::race().shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
-    let t5 = int(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_default_bc0[1]
-        .bits() as i32);
+    race.shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
+    let t5 = int(race.shared.physics_tables.spec_default_bc0[1].bits() as i32);
     let t6 = ld(course.numbers.k65536.bits());
     let t7 = t5 * t6;
     let t8 = ld(course.numbers.thousand.bits());
     let t9 = t7 / t8;
-    crate::race::owner::race().shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
-    let t10 = int(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_default_bc0[2]
-        .bits() as i32);
+    race.shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
+    let t10 = int(race.shared.physics_tables.spec_default_bc0[2].bits() as i32);
     let t11 = ld(course.numbers.k65536.bits());
     let t12 = t10 * t11;
     let t13 = ld(course.numbers.thousand.bits());
     let t14 = t12 / t13;
-    crate::race::owner::race().shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
+    race.shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -354,22 +259,15 @@ fn scale_default_ratios(course: &Course) {
 /// `[rc + 0x214BAC] = [s + 0x38] * [rc + 0x213FC8]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [rc + 0x213FC8]`
 fn scale_record_grips(s: &CarSpec) {
+    let race = race();
     let t0 = ld(s.weights[0].bits());
-    let t1 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .gravity
-        .bits());
+    let t1 = ld(race.shared.physics_tables.gravity.bits());
     let t2 = t0 * t1;
-    crate::race::owner::race().shared.physics_tables.spec_drive[0].set_bits(st(t2));
+    race.shared.physics_tables.spec_drive[0].set_bits(st(t2));
     let t3 = ld(s.weights[1].bits());
-    let t4 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .gravity
-        .bits());
+    let t4 = ld(race.shared.physics_tables.gravity.bits());
     let t5 = t3 * t4;
-    crate::race::owner::race().shared.physics_tables.spec_drive[1].set_bits(st(t5));
+    race.shared.physics_tables.spec_drive[1].set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -379,21 +277,20 @@ fn scale_record_grips(s: &CarSpec) {
 /// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
 /// as the original (`notes/bugs.md`).
 fn set_rev_limits(course: &Course, k: usize) {
+    let race = race();
     let limit = [
-        &crate::race::owner::race().shared.physics_tables.rev_limits[0],
-        &crate::race::owner::race().shared.physics_tables.rev_limits[1],
-        &crate::race::owner::race().shared.physics_tables.camera_drop,
+        &race.shared.physics_tables.rev_limits[0],
+        &race.shared.physics_tables.rev_limits[1],
+        &race.shared.physics_tables.camera_drop,
     ][k];
     let t0 = ld(limit.bits());
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .idle_engine_speed
         .set_bits(st(t0));
     let t1 = ld(course.numbers.hundred.bits());
     let t2 = t0 + t1;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .stall_engine_speed
         .set_bits(st(t2));
@@ -402,6 +299,7 @@ fn set_rev_limits(course: &Course, k: usize) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     /// A record with the bytes `from .. to` of the test buffer at `base` (the rest zero):
@@ -476,10 +374,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
-                    load_figures_and_shift_points(
-                        &crate::race::owner::race().course,
-                        &spec_at(a[0], 0x64, 0xB0),
-                    );
+                    load_figures_and_shift_points(&race().course, &spec_at(a[0], 0x64, 0xB0));
                 },
             },
             Block {
@@ -497,10 +392,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    scale_record_ratios(
-                        &crate::race::owner::race().course,
-                        &spec_at(a[0], 0x40, 0x4C),
-                    );
+                    scale_record_ratios(&race().course, &spec_at(a[0], 0x40, 0x4C));
                 },
             },
             Block {
@@ -517,7 +409,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| scale_default_ratios(&crate::race::owner::race().course),
+                plain: |_| scale_default_ratios(&race().course),
             },
             Block {
                 name: "load_car_specs line 182",
@@ -546,7 +438,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
+                plain: |a| set_rev_limits(&race().course, a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=1",
@@ -559,7 +451,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
+                plain: |a| set_rev_limits(&race().course, a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=2 (camera_drop)",
@@ -572,7 +464,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
+                plain: |a| set_rev_limits(&race().course, a[1]),
             },
         ]
     }

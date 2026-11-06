@@ -9,6 +9,7 @@
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
+use crate::race::owner::race;
 use crate::race::race_end::{header_cell, setting_cell};
 use crate::session::Dword;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
@@ -19,7 +20,7 @@ fn targets(s: Setting) -> Vec<&'static Dword> {
     match s {
         Setting::Kind(n) => vec![
             setting_cell(s),
-            &crate::race::owner::race().shared.vars.race_car_kinds[n as usize],
+            &race().shared.vars.race_car_kinds[n as usize],
         ],
         _ => vec![setting_cell(s)],
     }

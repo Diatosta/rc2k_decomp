@@ -58,7 +58,9 @@ use crate::menu::owner::menus;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
+use crate::system::owner::system;
 use rc2k_core::menu::keys::Pressed;
 
 // ---- game code the loop calls itself ----
@@ -228,7 +230,7 @@ pub struct Entry {
 
 /// Whether the game is quitting (`dword_51837C`).
 pub fn quitting() -> bool {
-    crate::system::owner::system().session.flags.quitting.get() == 1
+    system().session.flags.quitting.get() == 1
 }
 
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
@@ -571,6 +573,7 @@ impl Loop<'_> {
     /// Set-up, again after every action that does not leave the screen: the lists put in place
     /// and the first frame drawn.
     fn set_up(&mut self) -> Result<Next, Refused> {
+        let system = system();
         let menus = menus();
         let screens = &menus.screens;
         let screen = self.screen;
@@ -604,16 +607,12 @@ impl Loop<'_> {
         run(screen.background, entry)?;
         crate::menu::draw_frame::draw_frame(menus, menu)?;
         update_blink(menus);
-        crate::system::owner::system()
+        system
             .session
             .clocks
             .setup_time
-            .set(crate::system::owner::system().session.clocks.frame.get());
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .set(0u32);
+            .set(system.session.clocks.frame.get());
+        race().shared.physics_tables.scene_clock.set(0u32);
         run(screen.before_first_frame, entry)?;
         set_lists(
             screens,
@@ -651,6 +650,7 @@ impl Loop<'_> {
 
     /// One frame: blink, quit and Escape checks, the frame self.callback and the per-frame steps.
     fn frame(&mut self) -> Result<Next, Refused> {
+        let system = system();
         let menus = menus();
         let screens = &menus.screens;
         let screen = self.screen;
@@ -681,24 +681,14 @@ impl Loop<'_> {
                 run(screen.before_frame, entry)?;
                 set_lists(screens, screen, screen.lists);
                 run_frame(menus, self.later_callback, menu)?;
-                crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .scene_clock
-                    .set(
-                        crate::system::owner::system()
-                            .session
-                            .clocks
-                            .frame
-                            .get()
-                            .wrapping_sub(
-                                crate::system::owner::system()
-                                    .session
-                                    .clocks
-                                    .setup_time
-                                    .get(),
-                            ),
-                    );
+                race().shared.physics_tables.scene_clock.set(
+                    system
+                        .session
+                        .clocks
+                        .frame
+                        .get()
+                        .wrapping_sub(system.session.clocks.setup_time.get()),
+                );
                 match run(screen.each_frame, entry)? {
                     Flow::On => Next::ActionCheck,
                     Flow::NextFrame => Next::Frame,
@@ -719,14 +709,7 @@ impl Loop<'_> {
             menus.tables.texts.keys_menu.set(self.keys_menu.code());
             // The original hands it the time since set-up in eax (the frame's last
             // write there that a screen's steps do not change before it reads it).
-            match handle_keys(
-                menus,
-                crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .scene_clock
-                    .get(),
-            )? {
+            match handle_keys(menus, race().shared.physics_tables.scene_clock.get())? {
                 Pressed::Nothing => self.next_frame,
                 Pressed::Enter => Next::ActionCheck,
                 Pressed::Escape => {

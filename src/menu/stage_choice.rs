@@ -7,6 +7,7 @@ use crate::gfx::owner::gfx;
 use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
+use crate::system::owner::system;
 
 pub const GROUP_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // dword_7558C8: 0 or 1
 pub const SUB_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // dword_7558D0: 0 .. 5
@@ -25,6 +26,7 @@ const NO_MAP: FatalError = FatalError {
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
 pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
+    let system = system();
     let gfx = gfx();
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now;
@@ -35,18 +37,12 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         2 => {
             let table: u32 = menus.play.arcade.level.get();
             crate::records::stages_store::row(
-                crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .level_table(table)?,
+                system.records.stage_tables.level_table(table)?,
                 menus.play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
-            crate::system::owner::system()
-                .records
-                .stage_tables
-                .championship(),
+            system.records.stage_tables.championship(),
             menus.screens.event.index.get() as i32,
             menus.screens.event.section.get(),
         )?,

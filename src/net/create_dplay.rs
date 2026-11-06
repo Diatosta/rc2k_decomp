@@ -8,14 +8,12 @@
 //! Caller: `net::find_connections`.
 
 use crate::net::lobby::{co_create, log};
+use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn create_dplay() -> bool {
+    let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_DPLAY), true, 2);
-    co_create(
-        &crate::net::owner::net().vars.clsid_dplay,
-        &crate::net::owner::net().vars.iid_dplay4a,
-        &crate::net::owner::net().vars.dplay,
-    ) == 0
+    co_create(&vars.clsid_dplay, &vars.iid_dplay4a, &vars.dplay) == 0
 }

@@ -27,54 +27,31 @@ fn before() -> [(
     &'static Float,
     &'static Float,
 ); 4] {
+    let race = race();
     [
         (
-            &crate::race::owner::race().shared.physics_tables.handling[8],
-            &crate::race::owner::race().shared.car.steering_sensitivity,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[3],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[2],
+            &race.shared.physics_tables.handling[8],
+            &race.shared.car.steering_sensitivity,
+            &race.shared.physics_tables.handling_ranges_a[3],
+            &race.shared.physics_tables.handling_ranges_a[2],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[7],
-            &crate::race::owner::race().shared.car.steering_sensitivity,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[5],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[4],
+            &race.shared.physics_tables.handling[7],
+            &race.shared.car.steering_sensitivity,
+            &race.shared.physics_tables.handling_ranges_a[5],
+            &race.shared.physics_tables.handling_ranges_a[4],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[1],
-            &crate::race::owner::race().shared.car.brake_balance,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[1],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_a[0],
+            &race.shared.physics_tables.handling[1],
+            &race.shared.car.brake_balance,
+            &race.shared.physics_tables.handling_ranges_a[1],
+            &race.shared.physics_tables.handling_ranges_a[0],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[2],
-            &crate::race::owner::race().shared.car.ride_height,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_b[1],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_b[0],
+            &race.shared.physics_tables.handling[2],
+            &race.shared.car.ride_height,
+            &race.shared.physics_tables.handling_ranges_b[1],
+            &race.shared.physics_tables.handling_ranges_b[0],
         ),
     ]
 }
@@ -84,54 +61,31 @@ fn after() -> [(
     &'static Float,
     &'static Float,
 ); 4] {
+    let race = race();
     [
         (
-            &crate::race::owner::race().shared.physics_tables.handling[0],
-            &crate::race::owner::race().shared.car.suspension_stiffness,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[7],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[6],
+            &race.shared.physics_tables.handling[0],
+            &race.shared.car.suspension_stiffness,
+            &race.shared.physics_tables.handling_ranges_c[7],
+            &race.shared.physics_tables.handling_ranges_c[6],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[3],
-            &crate::race::owner::race().shared.car.suspension_stiffness,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[1],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[0],
+            &race.shared.physics_tables.handling[3],
+            &race.shared.car.suspension_stiffness,
+            &race.shared.physics_tables.handling_ranges_c[1],
+            &race.shared.physics_tables.handling_ranges_c[0],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[5],
-            &crate::race::owner::race().shared.car.suspension_stiffness,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[3],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[2],
+            &race.shared.physics_tables.handling[5],
+            &race.shared.car.suspension_stiffness,
+            &race.shared.physics_tables.handling_ranges_c[3],
+            &race.shared.physics_tables.handling_ranges_c[2],
         ),
         (
-            &crate::race::owner::race().shared.physics_tables.handling[6],
-            &crate::race::owner::race().shared.car.suspension_stiffness,
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[5],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .handling_ranges_c[4],
+            &race.shared.physics_tables.handling[6],
+            &race.shared.car.suspension_stiffness,
+            &race.shared.physics_tables.handling_ranges_c[5],
+            &race.shared.physics_tables.handling_ranges_c[4],
         ),
     ]
 }
@@ -140,7 +94,7 @@ fn after() -> [(
 /// `physics::car_physics_step`).
 pub fn set_handling() -> Result<(), Refused> {
     let race = race();
-    let kind = crate::race::owner::race().shared.car.drive_kind.get() as usize;
+    let kind = race.shared.car.drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
@@ -152,23 +106,16 @@ pub fn set_handling() -> Result<(), Refused> {
     for v in before() {
         lerp(v);
     }
-    let r = &crate::race::owner::race()
-        .shared
-        .physics_tables
-        .handling_ranges_b;
+    let r = &race.shared.physics_tables.handling_ranges_b;
     lerp((
-        &crate::race::owner::race().shared.physics_tables.handling[4],
-        &crate::race::owner::race().shared.car.ride_height,
+        &race.shared.physics_tables.handling[4],
+        &race.shared.car.ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
-    crate::race::owner::race().shared.physics_tables.handling[4].set_bits(x87::mul(
-        crate::race::owner::race().shared.physics_tables.handling[4].bits(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .spec_a0
-            .get(),
+    race.shared.physics_tables.handling[4].set_bits(x87::mul(
+        race.shared.physics_tables.handling[4].bits(),
+        race.shared.physics_tables.spec_a0.get(),
     ));
     for v in after() {
         lerp(v);

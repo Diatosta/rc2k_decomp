@@ -10,6 +10,7 @@
 use crate::pointers::{Cells, GamePtr, copy_cells};
 use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_OFFSET};
 use crate::race::groups_store::CarsAndReplay;
+use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::work_store::RaceWork;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -18,11 +19,13 @@ use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 /// `unk_71BF84` (its 0x400 bytes run on through the computer driver's fields: bounded to
 /// the race work). For the replay check, which reads it dword by dword.
 pub fn piece_place(piece: StartPiece) -> GamePtr {
+    let shared = &race().shared;
     match piece {
         StartPiece::Car(k) => GamePtr::to(&CAR_BLOCKS.cars[k as usize]),
-        StartPiece::RaceSlots => GamePtr::to(&crate::race::owner::race().shared.work.race_slots),
-        StartPiece::Extra => GamePtr::to(&crate::race::owner::race().shared.work)
-            .offset(core::mem::offset_of!(RaceWork, replay_extra) as u32),
+        StartPiece::RaceSlots => GamePtr::to(&shared.work.race_slots),
+        StartPiece::Extra => {
+            GamePtr::to(&shared.work).offset(core::mem::offset_of!(RaceWork, replay_extra) as u32)
+        }
     }
 }
 
@@ -32,24 +35,19 @@ pub fn piece_place(piece: StartPiece) -> GamePtr {
 /// the state (`CARS_AND_REPLAY` from car block 8); `save` copies the piece into the state,
 /// else the state back into the piece.
 pub fn copy_piece(replay: &Replay, piece: StartPiece, offset: usize, n: usize, save: bool) {
+    let shared = &race().shared;
     let state = (&replay.cars_and_replay, REPLAY_STATE_OFFSET + 4 * offset);
     let len = 4 * n;
     match piece {
         StartPiece::Car(k) => copy_between((&CAR_BLOCKS.cars[k as usize], 0), state, len, save),
         StartPiece::RaceSlots => copy_between(
-            (
-                &crate::race::owner::race().shared.work,
-                core::mem::offset_of!(RaceWork, race_slots),
-            ),
+            (&shared.work, core::mem::offset_of!(RaceWork, race_slots)),
             state,
             len,
             save,
         ),
         StartPiece::Extra => copy_between(
-            (
-                &crate::race::owner::race().shared.work,
-                core::mem::offset_of!(RaceWork, replay_extra),
-            ),
+            (&shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
             state,
             len,
             save,

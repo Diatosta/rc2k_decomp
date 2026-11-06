@@ -18,6 +18,7 @@ use crate::math::x87_run::mul2_to_int;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
@@ -25,88 +26,41 @@ use crate::scene::view_matrix::cross_product;
 
 /// The Rust version.
 pub fn lever_push(course: &Course) {
+    let race = race();
     for k in 0..3 {
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_place[k]
-            .set(crate::race::owner::race().shared.car.spin[k].bits());
+        race.shared.physics_tables.lever_push_place[k].set(race.shared.car.spin[k].bits());
     }
-    turn_by_inverse(
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_place,
-    );
+    turn_by_inverse(&race.shared.physics_tables.lever_push_place);
     cross_product(
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_vector,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_place,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_turned,
+        &race.shared.physics_tables.lever_push_vector,
+        &race.shared.physics_tables.lever_push_place,
+        &race.shared.physics_tables.lever_push_turned,
     );
-    turn_by_car_matrix(
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_push_turned,
-    );
+    turn_by_car_matrix(&race.shared.physics_tables.lever_push_turned);
     for factor in [
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .lever_share_left,
-        &crate::race::owner::race().shared.physics_tables.lever_share,
+        &race.shared.physics_tables.lever_share_left,
+        &race.shared.physics_tables.lever_share,
     ] {
         let f = extended(factor.bits());
-        scale_vector(
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .lever_push_turned,
-            f,
-        );
+        scale_vector(&race.shared.physics_tables.lever_push_turned, f);
         scene().drawing.scene.scratch.set(rounded(f));
     }
     for (from, int, place) in [
         (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .lever_push_turned[0],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .lever_pushes[0],
-            &crate::race::owner::race().shared.car.position[0],
+            &race.shared.physics_tables.lever_push_turned[0],
+            &race.shared.physics_tables.lever_pushes[0],
+            &race.shared.car.position[0],
         ),
         (
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .lever_push_turned[2],
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .lever_pushes[1],
-            &crate::race::owner::race().shared.car.position[2],
+            &race.shared.physics_tables.lever_push_turned[2],
+            &race.shared.physics_tables.lever_pushes[1],
+            &race.shared.car.position[2],
         ),
     ] {
         let v = mul2_to_int(
             from.get(),
             course.numbers.k65536.bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .step_time
-                .bits(),
+            race.shared.physics_tables.step_time.bits(),
         ) as u32;
         int.set(v);
         place.set(place.get().wrapping_add(int.get()));

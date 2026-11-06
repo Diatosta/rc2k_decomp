@@ -45,25 +45,25 @@ fn grips(r: &'static Surface) -> [&'static Float; 3] {
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
 fn tens() -> [&'static Float; 2] {
+    let shared_store = &crate::race::owner::race().shared;
+
     [
-        &crate::race::owner::race().shared.physics_tables.surfaces[7].drag,
-        &crate::race::owner::race().shared.physics_tables.surfaces[8].drag,
+        &shared_store.physics_tables.surfaces[7].drag,
+        &shared_store.physics_tables.surfaces[8].drag,
     ]
 }
 
 /// The game's patch state.
 fn load() -> Patches {
-    let w = &crate::race::owner::race().shared.work;
+    let shared_store = &crate::race::owner::race().shared;
+
+    let w = &shared_store.work;
     Patches {
         switch: w.patch_switch.get(),
         settings: std::array::from_fn(|n| w.patch_settings[n].get()),
         factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
         applied: w.patches_applied.get(),
-        gravity: crate::race::owner::race()
-            .shared
-            .physics_tables
-            .gravity
-            .bits(),
+        gravity: shared_store.physics_tables.gravity.bits(),
         records: std::array::from_fn(|r| grips(&records()[r]).map(Float::bits)),
         tens: tens().map(Float::bits),
     }
@@ -72,7 +72,9 @@ fn load() -> Patches {
 /// The places that changed written back (the original writes only these, or the same
 /// value again).
 fn store(before: &Patches, after: &Patches) {
-    let w = &crate::race::owner::race().shared.work;
+    let shared_store = &crate::race::owner::race().shared;
+
+    let w = &shared_store.work;
     if before.applied != after.applied {
         w.patches_applied.set(after.applied);
     }
@@ -87,7 +89,7 @@ fn store(before: &Patches, after: &Patches) {
         }
     };
     put(
-        &crate::race::owner::race().shared.physics_tables.gravity,
+        &shared_store.physics_tables.gravity,
         before.gravity,
         after.gravity,
     );

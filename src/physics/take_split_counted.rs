@@ -28,12 +28,12 @@ use rc2k_core::physics::progress::{
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
-    if crate::race::owner::race().shared.work.current_car.get() != 0 {
+    if race.shared.work.current_car.get() != 0 {
         return Ok(());
     }
     if !split_due(
-        crate::race::owner::race().shared.car.splits_recorded.get(),
-        crate::race::owner::race().shared.car.splits_passed.get(),
+        race.shared.car.splits_recorded.get(),
+        race.shared.car.splits_passed.get(),
     )? {
         return Ok(());
     }
@@ -41,59 +41,36 @@ pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
     { set_flag_51659c(&race.frame) }?;
     split_by_mode(race)?;
     put_split_time(
-        crate::race::owner::race().shared.car.splits_recorded.get() as usize,
-        crate::race::owner::race().shared.car.split_gaps[0].get(),
+        race.shared.car.splits_recorded.get() as usize,
+        race.shared.car.split_gaps[0].get(),
     )?;
-    if crate::race::owner::race().shared.car.splits_passed.get()
-        < physics_store.split_tables.split_colour_count.get()
-    {
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_id
-            .set(SPLIT_NOTICE);
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_time_b
-            .set(0x32);
-        crate::race::owner::race().shared.car.notice_time.set(300);
+    if race.shared.car.splits_passed.get() < physics_store.split_tables.split_colour_count.get() {
+        race.shared.car.notice_id.set(SPLIT_NOTICE);
+        race.shared.car.notice_time_b.set(0x32);
+        race.shared.car.notice_time.set(300);
         let bonus = split_bonus(
             physics_store.split_tables.stage_numbers
-                [1 + crate::race::owner::race().shared.car.splits_recorded.get() as usize]
+                [1 + race.shared.car.splits_recorded.get() as usize]
                 .get(),
         );
-        crate::race::owner::race().shared.car.time_left.set(
-            crate::race::owner::race()
-                .shared
-                .car
-                .time_left
-                .get()
-                .wrapping_add(bonus),
-        );
+        race.shared
+            .car
+            .time_left
+            .set(race.shared.car.time_left.get().wrapping_add(bonus));
     }
-    crate::race::owner::race().shared.car.go_stand_timer.set(0);
-    crate::race::owner::race()
-        .shared
+    race.shared.car.go_stand_timer.set(0);
+    race.shared
         .car
         .splits_recorded
-        .set(crate::race::owner::race().shared.car.splits_passed.get());
+        .set(race.shared.car.splits_passed.get());
     if finished_at(
-        crate::race::owner::race().shared.car.splits_recorded.get(),
+        race.shared.car.splits_recorded.get(),
         physics_store.split_tables.split_colour_count.get(),
     ) {
-        crate::race::owner::race().shared.car.finish_flag.set(1);
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_id
-            .set(FINISH_NOTICE);
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_time
-            .set(u32::MAX);
-        crate::race::owner::race().shared.car.notice_time_b.set(0);
+        race.shared.car.finish_flag.set(1);
+        race.shared.car.notice_id.set(FINISH_NOTICE);
+        race.shared.car.notice_time.set(u32::MAX);
+        race.shared.car.notice_time_b.set(0);
     }
     Ok(())
 }

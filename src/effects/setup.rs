@@ -7,6 +7,7 @@ use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
@@ -150,11 +151,7 @@ pub fn tick_clock() -> Result<(), Refused> {
     let setup = &effects().setup;
     let c = &setup.clock;
     {
-        let clock: u32 = crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .bits();
+        let clock: u32 = race().shared.physics_tables.scene_clock.bits();
         if c.started.get() == 0 {
             c.started.set(1);
             for r in [&c.last, &c.now, &c.before] {

@@ -83,49 +83,33 @@ fn set_up() -> Result<(), BadInput> {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub fn finish_race() -> Result<(), Refused> {
+    let race_owner = race();
     let race = race();
     let replay = &race.replay;
     // The stage index is not checked against the seven (a read past them is the original's).
-    crate::race::owner::race()
+    race_owner
         .shared
         .vars
         .stage_number
         .set(crate::session::read_on_in(
             &replay.finish,
             &replay.finish.finish_stages,
-            crate::race::owner::race()
-                .shared
-                .state
-                .results
-                .stage_index
-                .get() as usize,
+            race_owner.shared.state.results.stage_index.get() as usize,
             "the finish stages",
         )?);
-    crate::race::owner::race().shared.vars.race_car_kinds[0].set(
-        crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .finish_kind
-            .get(),
-    );
+    race_owner.shared.vars.race_car_kinds[0].set(race_owner.shared.state.results.finish_kind.get());
     CAR_BLOCKS.cars[0]
         .car_kind
-        .set_bits(crate::race::owner::race().shared.vars.race_car_kinds[0].get());
-    CAR_BLOCKS.cars[0].start_slot_value.set_bits(
-        crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .finish_player
-            .get(),
-    );
+        .set_bits(race_owner.shared.vars.race_car_kinds[0].get());
+    CAR_BLOCKS.cars[0]
+        .start_slot_value
+        .set_bits(race_owner.shared.state.results.finish_player.get());
     log_line(c"----------------------");
     log_line(c"CALLING FINISH ROUTINE");
     log_text(c"[shauntracknum]");
-    log_number(crate::race::owner::race().shared.vars.stage_number.get());
+    log_number(race_owner.shared.vars.stage_number.get());
     log_text(c"[shauncarnum1]");
-    log_number(crate::race::owner::race().shared.vars.race_car_kinds[0].get());
+    log_number(race_owner.shared.vars.race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
     log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
     set_up()?;

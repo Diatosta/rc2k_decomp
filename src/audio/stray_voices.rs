@@ -7,6 +7,7 @@
 //! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
 //! what it holds, until it is quiet again.
 
+use crate::audio::owner::audio;
 use crate::audio::voices::{VOICES, voice};
 use crate::framework::log;
 use crate::session::Dword;
@@ -33,32 +34,28 @@ fn list(head: &Dword) -> HashSet<u32> {
 
 /// The voices on the playing and stopping lists (the debug UI's, on the audio thread).
 pub fn on_lists() -> (u32, u32) {
+    let state = &audio().state;
     (
-        list(&crate::audio::owner::audio().state.playing_voices).len() as u32,
-        list(&crate::audio::owner::audio().state.stopping_voices).len() as u32,
+        list(&state.playing_voices).len() as u32,
+        list(&state.stopping_voices).len() as u32,
     )
 }
 
 /// Called after each turn's update.
 pub fn check() {
+    let audio = audio();
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    if crate::audio::owner::audio().state.use_a3d.get() == 1
-        || crate::audio::owner::audio().state.sound_mode.get() & 0x1_0000 == 0
-    {
+    if audio.state.use_a3d.get() == 1 || audio.state.sound_mode.get() & 0x1_0000 == 0 {
         return;
     }
     let (playing, stopping) = (
-        list(&crate::audio::owner::audio().state.playing_voices),
-        list(&crate::audio::owner::audio().state.stopping_voices),
+        list(&audio.state.playing_voices),
+        list(&audio.state.stopping_voices),
     );
     let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
-    let count = crate::audio::owner::audio()
-        .state
-        .voice_count
-        .get()
-        .min(VOICES);
+    let count = audio.state.voice_count.get().min(VOICES);
     let mut strays = Vec::new();
     for n in 0..count {
         let at = crate::audio::voices::voice_id(n);

@@ -22,6 +22,7 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
+use crate::system::owner::system;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
 const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
@@ -34,6 +35,7 @@ fn log(text: &std::ffi::CStr) {
 
 /// The thread's work up to its `ExitThread` (see the header).
 pub fn input_thread() -> Result<(), Refused> {
+    let system = system();
     use crate::threading::set_priority::set_priority;
     let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
     'work: {
@@ -64,14 +66,11 @@ pub fn input_thread() -> Result<(), Refused> {
                 }
             }
             loop {
-                crate::system::owner::system().session.clocks.key_ticks.set(
-                    crate::system::owner::system()
-                        .session
-                        .clocks
-                        .key_ticks
-                        .get()
-                        .wrapping_add(1),
-                );
+                system
+                    .session
+                    .clocks
+                    .key_ticks
+                    .set(system.session.clocks.key_ticks.get().wrapping_add(1));
                 gone -= TICK_MS;
                 last = last.wrapping_add(TICK_MS);
                 if gone < TICK_MS {
@@ -80,16 +79,10 @@ pub fn input_thread() -> Result<(), Refused> {
             }
             crate::input::owner::input().devices.last_tick.set(last);
             crate::input::input_tick::input_tick_in_game()?;
-            if crate::system::owner::system()
-                .session
-                .flags
-                .window_focused
-                .get()
-                != 1
-            {
+            if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
-            if crate::system::owner::system().session.flags.quitting.get() == 1 {
+            if system.session.flags.quitting.get() == 1 {
                 break;
             }
         }

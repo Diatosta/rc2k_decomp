@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
+use crate::system::owner::system;
 use rc2k_core::install::version::{self, Scan};
 
 const READ_TARGET: usize = 0x100; // into the scratch
@@ -23,6 +24,7 @@ const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
 
 pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let system = system();
     g.run.same_version.set(0);
     if g.names.status.get() != 1 || g.names.source.get(0) == 0 {
         return Ok(());
@@ -41,7 +43,7 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
     if !set_cd(&g.paths.installed) {
         return Ok(());
     }
-    crate::system::owner::system()
+    system
         .work
         .files
         .buffer
@@ -50,7 +52,7 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
-        let buffer = &crate::system::owner::system().work.files.buffer;
+        let buffer = &system.work.files.buffer;
         loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100 {
@@ -66,7 +68,7 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
             // to its NUL, inside its 91 bytes).
             let scanned =
                 buffer.read_at(0, crate::files::scratch::Scratch::LEN, "the scan buffer")?;
-            let copyright = crate::system::owner::system().start.texts.copyright.read();
+            let copyright = system.start.texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
                     g.run.same_version.set(1);

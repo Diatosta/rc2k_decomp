@@ -35,12 +35,14 @@
 //! is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
 
 use crate::errors::Refused;
+use crate::input::owner::input;
 use crate::menu::list_handle::ListMenu;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::ReplayViewBlock;
+use crate::system::owner::system;
 
 /// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
 pub const KEYS: [(u8, u32); 30] = [
@@ -102,33 +104,19 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay()?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_stopped
-        .set(0);
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .hold_car_revs
-        .set(0);
+    race.shared.replay_file.viewer_stopped.set(0);
+    race.shared.replay_file.hold_car_revs.set(0);
     Ok(())
 }
 
 /// Up to the end.
 fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
+    let devices = &input().devices;
+    let session = &system().session;
     let replay = &race.replay;
     use crate::race::*;
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_mode
-        .set(mode as u32);
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .hold_car_revs
-        .set(1);
+    race.shared.replay_file.viewer_mode.set(mode as u32);
+    race.shared.replay_file.hold_car_revs.set(1);
     replay.replay_view.viewer_only_shown.set(0);
     let slot = match mode {
         Mode::LastRace => LAST_RACE,
@@ -139,26 +127,14 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
                 return Ok(());
             }
             if saving {
-                crate::race::owner::race()
-                    .shared
-                    .replay_file
-                    .viewer_slot
-                    .set(slot);
+                race.shared.replay_file.viewer_slot.set(slot);
                 return save_last_replay::save_last_replay(&race.replay, slot);
             }
             slot
         }
     };
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_slot
-        .set(slot);
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_stopped
-        .set(1);
+    race.shared.replay_file.viewer_slot.set(slot);
+    race.shared.replay_file.viewer_stopped.set(1);
     let failed = open_viewed_replay::open_viewed_replay(&race.replay, slot)?;
     if failed {
         return Ok(());
@@ -175,18 +151,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     let list = ListMenu::of(crate::pointers::GamePtr::to(
         &replay.replay_view.viewer_list,
     ));
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_sound
-        .set(0);
+    race.shared.replay_file.viewer_sound.set(0);
     crate::install::owner::install().pages.list_answer.set(1);
     crate::install::owner::install().pages.list_leave.set(0);
-    let now = crate::system::owner::system()
-        .session
-        .clocks
-        .key_ticks
-        .get();
+    let now = session.clocks.key_ticks.get();
     crate::install::owner::install().pages.move_clock.set(now);
     crate::install::owner::install().pages.key_clock.set(now);
     crate::install::owner::install().pages.choice.set(6);
@@ -204,25 +172,20 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
             lost?;
         }
-        crate::install::owner::install().pages.frame_clock.set(
-            crate::system::owner::system()
-                .session
-                .clocks
-                .key_ticks
-                .get(),
-        );
+        crate::install::owner::install()
+            .pages
+            .frame_clock
+            .set(session.clocks.key_ticks.get());
         crate::install::owner::install()
             .pages
             .choice_before
             .set(crate::install::owner::install().pages.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key();
-        if crate::system::owner::system().session.flags.quitting.get() == 1 {
+        if session.flags.quitting.get() == 1 {
             return Ok(());
         }
         if replay.replay_view.wait_key_release.get() == 1 {
-            if crate::input::owner::input().devices.keys_down.get(1) == 0
-                && crate::input::owner::input().devices.keys_down.get(0x1C) == 0
-            {
+            if devices.keys_down.get(1) == 0 && devices.keys_down.get(0x1C) == 0 {
                 replay.replay_view.wait_key_release.set(0);
             }
             key = 0;
@@ -241,20 +204,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         if key != 0 {
             replay.replay_view.escape_count.set(0);
         }
-        if crate::race::owner::race()
-            .shared
-            .replay_file
-            .viewer_stopped
-            .get()
-            != 1
-        {
+        if race.shared.replay_file.viewer_stopped.get() != 1 {
             let ended = step_viewed_replay::step_viewed_replay(&race.replay)?;
             if ended || key != 0 {
-                crate::race::owner::race()
-                    .shared
-                    .replay_file
-                    .viewer_stopped
-                    .set(1);
+                race.shared.replay_file.viewer_stopped.set(1);
             }
             continue;
         }
@@ -271,16 +224,8 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
             mark(&race.replay, list, key)?;
         }
         // The menu sound asked for (0x41D41C).
-        let sound = crate::race::owner::race()
-            .shared
-            .replay_file
-            .viewer_sound
-            .get();
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .viewer_sound
-            .set(0);
+        let sound = race.shared.replay_file.viewer_sound.get();
+        race.shared.replay_file.viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         if crate::install::owner::install().pages.list_leave.get() == 1 {
             return Ok(());
@@ -337,13 +282,7 @@ fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
     {
         return Ok(Next::Action(action));
     }
-    if crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_editing
-        .get()
-        == 0
-    {
+    if race.shared.replay_file.viewer_editing.get() == 0 {
         return Ok(Next::Sound);
     }
     Ok(KEYS

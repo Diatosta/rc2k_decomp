@@ -42,11 +42,8 @@ pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
         .view_vars
         .camera_height_bias
         .set(eax);
-    crate::race::owner::race().shared.car.camera_position[1].set(
-        crate::race::owner::race().shared.car.camera_position[1]
-            .get()
-            .wrapping_add(eax),
-    );
+    race.shared.car.camera_position[1]
+        .set(race.shared.car.camera_position[1].get().wrapping_add(eax));
     Ok(())
 }
 

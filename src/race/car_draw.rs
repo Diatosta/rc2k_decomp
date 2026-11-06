@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-#[cfg(all(test, target_arch = "x86"))]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
@@ -111,7 +110,7 @@ pub fn car_number_textures(race: &Race, car: u32) -> Result<(), BadInput> {
         scene.objects.tables.car_mark_textures[2].set(side);
         scene.objects.tables.car_mark_textures[3].set(side);
         // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
-        let name = GamePtr::to(&crate::race::owner::race().shared.work.number_texture_names)
+        let name = GamePtr::to(&race.shared.work.number_texture_names)
             .unbounded()
             .offset(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
@@ -127,9 +126,9 @@ pub fn car_number_textures(race: &Race, car: u32) -> Result<(), BadInput> {
         scene.objects.tables.car_mark_textures[6].set(d.tens);
         scene.objects.tables.car_mark_textures[7].set(d.units);
         scene.objects.tables.car_mark_textures[9].set(d.alone);
-        let (tens, _) = stage_plate(crate::race::owner::race().shared.vars.stage_number.bits());
+        let (tens, _) = stage_plate(race.shared.vars.stage_number.bits());
         scene.objects.tables.car_mark_textures[8]
-            .set(crate::race::owner::race().shared.work.number_tens_textures[tens as usize].bits());
+            .set(race.shared.work.number_tens_textures[tens as usize].bits());
         if decals_shown(
             float(&block.electrics_damage),
             f32::from_bits(race.course.numbers.hundred.bits()),
@@ -250,7 +249,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     let n: u32 = race.frame.view_and_records.view_vars.drawn_car.get();
     if race.course.numbers.in_race.bits() != 0
         && n < 8
-        && crate::race::owner::race().shared.work.car_block(n as usize) == 0
+        && race.shared.work.car_block(n as usize) == 0
     {
         return Err(BadInput("the drawn car without its block").into());
     }
@@ -286,11 +285,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     set_group_masks(&race.course, model)?;
     let switches = car_at(car)?.parts_present.bits();
     let shown = shown_groups(&race.course, switches);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .group_mask
-        .set(shown);
+    race.shared.switches.group_mask.set(shown);
     let field = |offset: u32| model_field(model, offset);
     race.physics.camera.faded_bits.set(field(0x10)?);
     race.course.course.group_masks[4].set(
@@ -331,8 +326,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             .group_mask
             .set(with_bit(field(0x44)?, bit));
     }
-    crate::race::owner::race()
-        .shared
+    race.shared
         .work
         .car_nearness
         .set_bits(race.course.numbers.zero.bits());
@@ -373,11 +367,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
         }
     }
     let mut ecx = 0x60u32.wrapping_add(near_size());
-    crate::race::owner::race()
-        .shared
-        .work
-        .car_draw_word
-        .set(ecx);
+    race.shared.work.car_draw_word.set(ecx);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
             and(with_bit(field(0x40)?, bit));
@@ -390,9 +380,9 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
         .set(race.frame.view_and_records.view_vars.group_mask.bits());
     // `view_cars[drawn_view]`: past the two, read on by address as the original does.
     let view_car = crate::session::read_on_in(
-        &crate::race::owner::race().shared.view,
-        &crate::race::owner::race().shared.view.view_cars,
-        crate::race::owner::race().shared.view.drawn_view.bits() as usize,
+        &race.shared.view,
+        &race.shared.view.view_cars,
+        race.shared.view.drawn_view.bits() as usize,
         "the view cars",
     )?;
     if view_car == race.frame.view_and_records.view_vars.drawn_car.bits()
@@ -436,19 +426,15 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     scene.drawing.object_work.other_light.set(0);
     scene.lights.work.light_kind.set(3);
     scene.lights.work.light_kind_extra.set(0);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .object_number
-        .set(
-            race.frame
-                .view_and_records
-                .view_vars
-                .drawn_car
-                .bits()
-                .wrapping_mul(0x14)
-                .wrapping_add(0x50),
-        );
+    race.shared.switches.object_number.set(
+        race.frame
+            .view_and_records
+            .view_vars
+            .drawn_car
+            .bits()
+            .wrapping_mul(0x14)
+            .wrapping_add(0x50),
+    );
     car_body_matrix(&race.frame);
     crate::race::frame_draw::start_kept_reflections(&race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
@@ -459,18 +445,10 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             .into_iter()
             .zip(part_matrices(&race.frame))
         {
-            crate::race::owner::race()
-                .shared
+            race.shared
                 .switches
                 .object_number
-                .set(
-                    crate::race::owner::race()
-                        .shared
-                        .switches
-                        .object_number
-                        .bits()
-                        .wrapping_add(1),
-                );
+                .set(race.shared.switches.object_number.bits().wrapping_add(1));
             if scene.drawing.object_work.car_switches.bits() & bit != 0 {
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(
@@ -496,29 +474,26 @@ fn nearness(race: &Race) {
         drawing.scene.scratch.set(0xA_0000u32);
         let depth = int(race.frame.frame_work.car_depth.get() as i32);
         drawing.scene.scratch.set(0x14_0000u32);
-        crate::race::owner::race()
-            .shared
+        race.shared
             .work
             .car_nearness
             .set_bits(st((depth - int(0xA_0000)) / int(0x14_0000)));
-        let near: u32 = crate::race::owner::race().shared.work.car_nearness.bits();
+        let near: u32 = race.shared.work.car_nearness.bits();
         // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
         if below_or_unordered(near, race.course.numbers.zero.bits()) {
-            crate::race::owner::race()
-                .shared
+            race.shared
                 .work
                 .car_nearness
                 .set_bits(race.course.numbers.zero.bits());
         }
-        let near: u32 = crate::race::owner::race().shared.work.car_nearness.bits();
+        let near: u32 = race.shared.work.car_nearness.bits();
         if !below_or_unordered(near, race.course.numbers.one.bits()) {
-            crate::race::owner::race()
-                .shared
+            race.shared
                 .work
                 .car_nearness
                 .set_bits(race.course.numbers.one.bits());
         }
-        let shine = (ONE - ld(crate::race::owner::race().shared.work.car_nearness.bits()))
+        let shine = (ONE - ld(race.shared.work.car_nearness.bits()))
             * int(race.course.course.shine.get() as i32);
         let whole = to_int(shine);
         race.course.course.shine_whole.set(whole as u32);
@@ -531,8 +506,7 @@ fn nearness(race: &Race) {
 fn near_size() -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
-        let size =
-            to_int(int(0x90) * ld(crate::race::owner::race().shared.work.car_nearness.bits()));
+        let size = to_int(int(0x90) * ld(race().shared.work.car_nearness.bits()));
         scene().drawing.scene.scratch.set(size as u32);
         size as u32
     }
@@ -545,8 +519,7 @@ fn near_size() -> u32 {
 pub fn draw_car_shined(race: &Race, car: u32) -> Result<(), Refused> {
     let course = &race.course;
     let shine: u32 = course.course.shine.get();
-    let mut eax = 0x3_FCE0u32
-        .wrapping_sub(crate::race::owner::race().shared.vars.mud_thrown_counts[0].bits());
+    let mut eax = 0x3_FCE0u32.wrapping_sub(race.shared.vars.mud_thrown_counts[0].bits());
     if (eax as i32) < 0 {
         eax = 0;
     }
@@ -570,7 +543,7 @@ pub fn draw_car_entry(race: &Race, entry: u32) -> Result<(), Refused> {
     use crate::math::x87_load::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     let n = entry & 7;
-    let car: u32 = crate::race::owner::race().shared.work.car_block(n as usize);
+    let car: u32 = race.shared.work.car_block(n as usize);
     if car == 0 {
         return Err(BadInput("a car without its block").into());
     }
@@ -627,6 +600,7 @@ mod asm_reference {
 
     // The original blocks, verbatim (with the clamps between them).
     pub(super) unsafe fn nearness_asm() {
+        let shared = &race().shared;
         let course = &race().course;
         use crate::math::x87_load::below_or_unordered;
         unsafe {
@@ -644,22 +618,17 @@ mod asm_reference {
                 options(nostack),
             );
             drop(old);
-            let near: u32 = crate::race::owner::race().shared.work.car_nearness.bits();
+            let near: u32 = shared.work.car_nearness.bits();
             // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
             if below_or_unordered(near, course.numbers.zero.bits()) {
-                crate::race::owner::race()
-                    .shared
+                shared
                     .work
                     .car_nearness
                     .set_bits(course.numbers.zero.bits());
             }
-            let near: u32 = crate::race::owner::race().shared.work.car_nearness.bits();
+            let near: u32 = shared.work.car_nearness.bits();
             if !below_or_unordered(near, course.numbers.one.bits()) {
-                crate::race::owner::race()
-                    .shared
-                    .work
-                    .car_nearness
-                    .set_bits(course.numbers.one.bits());
+                shared.work.car_nearness.set_bits(course.numbers.one.bits());
             }
             let old = crate::race::store::OldPlaces::lay(&[0x5cce74, 0x5cce78, 0x71ba08]);
             core::arch::asm!(
@@ -714,11 +683,7 @@ mod asm_reference {
             .frame_work
             .car_depth
             .set((r.int() as u32) & 0x3F_FFFF);
-        crate::race::owner::race()
-            .shared
-            .work
-            .car_nearness
-            .set_bits(r.float());
+        race.shared.work.car_nearness.set_bits(r.float());
         race.course.course.shine_whole.set(0xAAAA_AAAAu32);
         race.course.course.shine.set(r.int() as u32);
         race.course

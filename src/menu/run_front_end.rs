@@ -11,6 +11,7 @@
 //! with the work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
 //! original's, for reference.
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::gfx::owner::gfx;
@@ -34,7 +35,7 @@ pub fn run_front_end() -> Result<(), Refused> {
         .screens
         .option_work
         .master_volume_shown
-        .set(crate::audio::owner::audio().state.master_volume.get());
+        .set(audio().state.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;
     crate::gfx::build_fonts::build_fonts()?;
     // The films, with eax 0 (the game's start).

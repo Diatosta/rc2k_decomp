@@ -30,6 +30,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::menu::owner::menus;
 use crate::menu::player::Player;
 use crate::session::Dword;
@@ -102,7 +103,7 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
     };
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
-        controllers: crate::input::owner::input().devices.controller_count.get() != 0,
+        controllers: input().devices.controller_count.get() != 0,
         name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
             &player,
         )?),

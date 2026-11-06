@@ -24,9 +24,12 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
+use crate::audio::owner::audio;
+use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -44,6 +47,7 @@ pub enum Asked {
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave() -> ! {
+    let system = system();
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = GamePtr::to(&crate::fatal::state::CAPTION);
     // byte_4F6702: its `:` (a byte of the caption text)
@@ -54,13 +58,13 @@ pub fn show_version_and_leave() -> ! {
     let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
     // The text from its seventh byte up to its NUL.
     let mut text = c_text(
-        GamePtr::to(&crate::system::owner::system().start.texts.version).offset(6),
+        GamePtr::to(&system.start.texts.version).offset(6),
         "the version",
     );
     text.extend(*b"\t\r\n");
     // The second text is empty: its NUL is its one byte.
     text.extend(c_text(
-        GamePtr::to(&crate::system::owner::system().start.texts.second_text),
+        GamePtr::to(&system.start.texts.second_text),
         "the second text",
     ));
     let mut kept = text.clone();
@@ -78,10 +82,11 @@ pub fn show_version_and_leave() -> ! {
 /// The Rust version on a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
 pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
+    let d3d = d3d();
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    crate::system::owner::system()
+    system()
         .start
         .command_line
         .program_len
@@ -92,7 +97,7 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
             sw.installing,
             &crate::install::owner::install().run.installing,
         ),
-        (sw.no_audio, &crate::audio::owner::audio().state.no_audio),
+        (sw.no_audio, &audio().state.no_audio),
     ] {
         if on {
             cell.set(1u32);
@@ -123,10 +128,10 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
             .set(i.digits[1]);
     }
     if sw.ignore_secondary {
-        crate::d3d::owner::d3d().cards.ignore_secondary.set(1u32);
+        d3d.cards.ignore_secondary.set(1u32);
     }
     if sw.ignore_primary {
-        crate::d3d::owner::d3d().cards.not_primary.set(1u32);
+        d3d.cards.not_primary.set(1u32);
     }
     Ok(if sw.version {
         Asked::Version

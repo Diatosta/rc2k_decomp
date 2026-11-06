@@ -21,6 +21,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Play;
 use crate::menu::owner::menus;
+use crate::race::owner::race;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
 use crate::screens::stage_panel::{
@@ -56,12 +57,7 @@ pub fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .direction
-        .set(sel.group);
+    race().shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
     build_second_heading(sel.record)?;

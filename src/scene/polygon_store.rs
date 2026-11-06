@@ -4,6 +4,7 @@
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Byte, Bytes, Dword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
@@ -171,7 +172,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = PolygonWork;
     fn deref(&self) -> &PolygonWork {
-        &crate::race::owner::race().shared.buffers.polygon
+        &race().shared.buffers.polygon
     }
 }
 

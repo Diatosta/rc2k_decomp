@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
+use crate::system::owner::system;
 
 /// The Rust version (see the header): the kind (eax in the original), also kept in
 /// `dword_7559EC`.
@@ -20,7 +21,7 @@ pub fn next_record_kind() -> Result<u32, Refused> {
     let index: u32 = screens.event.index.get();
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // bounded by the whole store.
-    let table = crate::pointers::GamePtr::to(&crate::system::owner::system().records.stage_tables)
+    let table = crate::pointers::GamePtr::to(&system().records.stage_tables)
         .offset(
             std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
         )

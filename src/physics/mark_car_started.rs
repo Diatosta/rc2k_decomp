@@ -6,13 +6,15 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared = &race().shared;
     vec![
-        &crate::race::owner::race().shared.car.started_stand_timer as &dyn Cell32,
-        &crate::race::owner::race().shared.car.damage_failed,
+        &shared.car.started_stand_timer as &dyn Cell32,
+        &shared.car.damage_failed,
     ]
 }
 

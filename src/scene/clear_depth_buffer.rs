@@ -10,6 +10,7 @@
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -19,14 +20,12 @@ use crate::scene::owner::scene;
 /// is no 3D. What the original leaves (eax 0, ebx the height) its three callers overwrite
 /// before reading (each next calls `scene::assign_kind_textures`, which sets both).
 pub fn clear_depth_buffer() {
+    let session = &system().session;
     let scene = scene();
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }
-    let (width, height): (u32, u32) = (
-        crate::system::owner::system().session.screen.width.get(),
-        crate::system::owner::system().session.screen.height.get(),
-    );
+    let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());
     crate::session::write_bits(
         &scene.drawing.scene.cleared_rectangle,
         [0, 0, width, height],

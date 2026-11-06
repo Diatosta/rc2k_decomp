@@ -21,7 +21,9 @@
 //! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
 //! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
+use crate::system::owner::system;
 
 const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
@@ -29,6 +31,7 @@ const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 /// Runs to the `ExitThread`, which does not come back. Its slot's flag
 /// (`threading::thread_slot::AUDIO`) says it runs.
 pub fn audio_thread() -> Result<(), Refused> {
+    let audio = audio();
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;
@@ -38,7 +41,7 @@ pub fn audio_thread() -> Result<(), Refused> {
         && {
             running.set(1);
             sound_device::log_text(START_TEXT, true);
-            crate::audio::owner::audio().state.no_audio.get() == 0
+            audio.state.no_audio.get() == 0
         }
         && {
             thread_parts::take_sample_buffer()?;
@@ -46,16 +49,13 @@ pub fn audio_thread() -> Result<(), Refused> {
         };
     if started {
         a3d::splash()?;
-        set_mode::set_mode(crate::audio::owner::audio().state.menu_sound_mode.get())?;
+        set_mode::set_mode(audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
-        crate::audio::owner::audio()
-            .state
-            .audio_turn_tick
-            .set(tick_count());
+        audio.state.audio_turn_tick.set(tick_count());
         loop {
-            let last = crate::audio::owner::audio().state.audio_turn_tick.get();
+            let last = audio.state.audio_turn_tick.get();
             let now = tick_count();
-            crate::audio::owner::audio().state.audio_turn_tick.set(now);
+            audio.state.audio_turn_tick.set(now);
             // Converted: `rc2k_core::audio::device::turn_sleep`.
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
             let begun = crate::debug::timing::start();
@@ -69,15 +69,15 @@ pub fn audio_thread() -> Result<(), Refused> {
                 crate::debug::timing::note_voices(stray_voices::on_lists());
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
-            if crate::audio::owner::audio().state.sound_buffer_lost.get() != 0 {
+            if audio.state.sound_buffer_lost.get() != 0 {
                 restore::restore_lost()?;
             }
-            if crate::system::owner::system().session.flags.quitting.get() == 1 {
+            if system().session.flags.quitting.get() == 1 {
                 break;
             }
         }
     }
-    crate::audio::owner::audio().state.no_audio.set(1);
+    audio.state.no_audio.set(1);
     close_all::close_all()?;
     thread_parts::free_sample_buffer()?;
     a3d::splash()?;

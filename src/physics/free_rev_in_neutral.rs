@@ -6,11 +6,12 @@
 //! Caller: `sub_43B635` (0x43B7B2), every physics step.
 
 use crate::physics::free_rev::free_rev;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn free_rev_in_neutral(course: &Course) {
-    if crate::race::owner::race().shared.car.gear.get() != 0 {
+    if race().shared.car.gear.get() != 0 {
         return;
     }
     free_rev(course);

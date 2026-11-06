@@ -20,6 +20,7 @@ use crate::gfx::owner::gfx;
 use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
+use crate::strings::owner::strings;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
 
@@ -34,8 +35,7 @@ pub fn load_picture_with_overlay(
     if !load_picture(path)? {
         return Ok(true);
     }
-    let list =
-        crate::pointers::GamePtr::to(&crate::strings::owner::strings().lexicon.memory.memory);
+    let list = crate::pointers::GamePtr::to(&strings().lexicon.memory.memory);
     // The overlay's buffer is Rust's (phase 12, `gfx::picture`), counted on the list as
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {

@@ -46,7 +46,7 @@ fn key_step() -> u32 {
     drawing.scene.scratch.set(0xA0_0000);
     scale(
         &drawing.scene.scratch,
-        &crate::race::owner::race().shared.physics_tables.handling[8],
+        &race().shared.physics_tables.handling[8],
         &drawing.scene.scratch,
     );
     drawing.scene.scratch.get()
@@ -54,11 +54,7 @@ fn key_step() -> u32 {
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
 fn steer(cell: &Dword, step: u32) {
-    let word = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .input_steer
-        .get();
+    let word = race().shared.physics_tables.input_steer.get();
     let v = cell.get();
     if word != 0 {
         if sign(word) {
@@ -90,36 +86,24 @@ fn steer(cell: &Dword, step: u32) {
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
 pub fn steer_inputs() {
+    let race_owner = race();
     let drawing = &scene().drawing;
     let course = &race().course;
-    let mut keys = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .input_steer
-        .get()
-        == 0;
-    if !keys && crate::race::owner::race().shared.car.driver_kind.get() != 2 {
-        keys = crate::race::owner::race().shared.car.input_keys.get() & 0x1000 != 0;
+    let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
+    if !keys && race_owner.shared.car.driver_kind.get() != 2 {
+        keys = race_owner.shared.car.input_keys.get() & 0x1000 != 0;
     }
     if keys {
-        steer(
-            &crate::race::owner::race().shared.car.steering_raw,
-            key_step(),
-        );
-        steer(&crate::race::owner::race().shared.car.steering, key_step());
+        steer(&race_owner.shared.car.steering_raw, key_step());
+        steer(&race_owner.shared.car.steering, key_step());
     } else {
-        crate::race::owner::race().shared.car.steering.set(0);
-        let product = i64::from(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .input_steer
-                .get() as i32,
-        ) * i64::from(RIGHT as i32);
+        race_owner.shared.car.steering.set(0);
+        let product = i64::from(race_owner.shared.physics_tables.input_steer.get() as i32)
+            * i64::from(RIGHT as i32);
         drawing.scene.scratch.set((product >> 8) as u32);
         scale(
             &drawing.scene.scratch,
-            &crate::race::owner::race().shared.physics_tables.handling[7],
+            &race_owner.shared.physics_tables.handling[7],
             &drawing.scene.scratch,
         );
         if sign(drawing.scene.scratch.get().wrapping_sub(LEFT)) {
@@ -128,12 +112,12 @@ pub fn steer_inputs() {
         if !sign(drawing.scene.scratch.get().wrapping_sub(RIGHT)) {
             drawing.scene.scratch.set(RIGHT);
         }
-        crate::race::owner::race()
+        race_owner
             .shared
             .car
             .steering_raw
             .set(drawing.scene.scratch.get());
-        crate::race::owner::race()
+        race_owner
             .shared
             .car
             .steering
@@ -143,50 +127,36 @@ pub fn steer_inputs() {
     drawing.scene.scratch.set(RIGHT);
     scale(
         &drawing.scene.scratch,
-        &crate::race::owner::race().shared.car.steering_efficiency,
-        &crate::race::owner::race().shared.car.steer_trim,
+        &race_owner.shared.car.steering_efficiency,
+        &race_owner.shared.car.steer_trim,
     );
-    if crate::race::owner::race().shared.car.car_flags.get() & 0x10 != 0 {
-        crate::race::owner::race().shared.car.steer_trim.set(
-            crate::race::owner::race()
-                .shared
-                .car
-                .steer_trim
-                .get()
-                .wrapping_neg(),
-        );
-    }
-    let trim = crate::race::owner::race().shared.car.steer_trim.get();
-    crate::race::owner::race().shared.car.steer_angle.set(
-        crate::race::owner::race()
+    if race_owner.shared.car.car_flags.get() & 0x10 != 0 {
+        race_owner
             .shared
             .car
-            .steering
-            .get()
-            .wrapping_add(trim),
-    );
-    crate::race::owner::race()
+            .steer_trim
+            .set(race_owner.shared.car.steer_trim.get().wrapping_neg());
+    }
+    let trim = race_owner.shared.car.steer_trim.get();
+    race_owner
         .shared
         .car
-        .steer_angle_visual
-        .set(
-            crate::race::owner::race()
-                .shared
-                .car
-                .steering_raw
-                .get()
-                .wrapping_add(trim.wrapping_mul(4)),
-        );
-    if !c0(
-        crate::race::owner::race().shared.car.steering_damage.bits(),
-        course.numbers.hundred.bits(),
-    ) {
-        crate::race::owner::race().shared.car.steer_angle.set(0);
-        crate::race::owner::race()
+        .steer_angle
+        .set(race_owner.shared.car.steering.get().wrapping_add(trim));
+    race_owner.shared.car.steer_angle_visual.set(
+        race_owner
             .shared
             .car
-            .steer_angle_visual
-            .set(0);
+            .steering_raw
+            .get()
+            .wrapping_add(trim.wrapping_mul(4)),
+    );
+    if !c0(
+        race_owner.shared.car.steering_damage.bits(),
+        course.numbers.hundred.bits(),
+    ) {
+        race_owner.shared.car.steer_angle.set(0);
+        race_owner.shared.car.steer_angle_visual.set(0);
     }
 }
 
@@ -223,7 +193,7 @@ mod asm_reference {
                     let drawing = &scene().drawing;
                     scale(
                         &drawing.scene.scratch,
-                        &crate::race::owner::race().shared.physics_tables.handling[8],
+                        &race().shared.physics_tables.handling[8],
                         &drawing.scene.scratch,
                     );
                 },
@@ -240,7 +210,7 @@ mod asm_reference {
                     let drawing = &scene().drawing;
                     scale(
                         &drawing.scene.scratch,
-                        &crate::race::owner::race().shared.physics_tables.handling[7],
+                        &race().shared.physics_tables.handling[7],
                         &drawing.scene.scratch,
                     );
                 },
@@ -257,8 +227,8 @@ mod asm_reference {
                     let drawing = &scene().drawing;
                     scale(
                         &drawing.scene.scratch,
-                        &crate::race::owner::race().shared.car.steering_efficiency,
-                        &crate::race::owner::race().shared.car.steer_trim,
+                        &race().shared.car.steering_efficiency,
+                        &race().shared.car.steer_trim,
                     );
                 },
             },

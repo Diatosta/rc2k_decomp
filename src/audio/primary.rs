@@ -2,6 +2,7 @@
 //! `volume_index`, `set_primary_format`, `open_listener`. Logging and calls go through
 //! `sound_device`'s named calls.
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 
@@ -13,8 +14,7 @@ const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 /// `volume` (signed), or 0x40.
 pub fn volume_index(volume: i32) -> u32 {
     // Converted: `rc2k_core::audio::samples::volume_index`.
-    let table: [i32; 0x40] =
-        std::array::from_fn(|n| crate::audio::owner::audio().state.volume_table[n].get() as i32);
+    let table: [i32; 0x40] = std::array::from_fn(|n| audio().state.volume_table[n].get() as i32);
     rc2k_core::audio::samples::volume_index(volume, &table)
 }
 
@@ -22,7 +22,7 @@ pub fn volume_index(volume: i32) -> u32 {
 /// (+0x38). False for the carry (no primary buffer, or it failed).
 pub fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> {
     {
-        let p = crate::audio::owner::audio().state.primary_buffer.get();
+        let p = audio().state.primary_buffer.get();
         if p == 0 {
             return Ok(false);
         }
@@ -37,32 +37,28 @@ pub fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> {
 /// dword at 0x506B42 is not; else, or failing, logged and `release_sound_listener`. False
 /// for the carry.
 pub fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
+    let audio = audio();
     crate::audio::sound_device::log_text(OPEN_TEXT, true);
     // Converted: `rc2k_core::audio::device::listener_refused`.
-    let code = match rc2k_core::audio::device::listener_refused(has_fpu, || {
-        crate::audio::owner::audio().state.no_listener.get()
-    }) {
-        Some(code) => code,
-        None => {
-            let p = crate::audio::owner::audio().state.primary_buffer.get();
-            match crate::platform_sound::query_interface(
-                p,
-                crate::audio::owner::audio().state.iid_listener.get_u32(0),
-            ) {
-                Ok(listener) => {
-                    crate::audio::owner::audio()
-                        .state
-                        .sound_listener
-                        .set(listener);
-                    return Ok(true);
-                }
-                Err(r) => {
-                    crate::audio::owner::audio().state.sound_listener.set(0);
-                    r as u32
+    let code =
+        match rc2k_core::audio::device::listener_refused(has_fpu, || audio.state.no_listener.get())
+        {
+            Some(code) => code,
+            None => {
+                let p = audio.state.primary_buffer.get();
+                match crate::platform_sound::query_interface(p, audio.state.iid_listener.get_u32(0))
+                {
+                    Ok(listener) => {
+                        audio.state.sound_listener.set(listener);
+                        return Ok(true);
+                    }
+                    Err(r) => {
+                        audio.state.sound_listener.set(0);
+                        r as u32
+                    }
                 }
             }
-        }
-    };
+        };
     crate::audio::sound_device::log_text(FAILED_TEXT, false);
     crate::audio::sound_device::log_hex(code, true);
     crate::audio::sound_device::release_listener();
@@ -77,59 +73,51 @@ pub fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
 /// (`set_master_volume`, place 12, eax); in 3D `open_listener` (place 13), whose failure
 /// takes 3D out of the mode.
 pub fn make_primary() -> Result<bool, Refused> {
+    let audio = audio();
     use crate::audio::make_buffer::BufferDescription;
     if crate::audio::buffer_settings::a3d() {
         return Ok(true);
     }
-    let ds = crate::audio::owner::audio().state.direct_sound.get();
+    let ds = audio.state.direct_sound.get();
     if ds == 0 {
         return Ok(false);
     }
     // Converted: `rc2k_core::audio::device` (`primary_flags`, `master_volume`,
     // `without_3d`).
     use rc2k_core::audio::device::{master_volume, primary_flags, without_3d};
-    crate::audio::owner::audio()
-        .state
-        .buffer_description
-        .set(BufferDescription {
-            size: 0x14,
-            flags: primary_flags(crate::audio::owner::audio().state.sound_mode.get()),
-            ..BufferDescription::default()
-        });
-    let description = crate::audio::owner::audio().state.buffer_description.get();
+    audio.state.buffer_description.set(BufferDescription {
+        size: 0x14,
+        flags: primary_flags(audio.state.sound_mode.get()),
+        ..BufferDescription::default()
+    });
+    let description = audio.state.buffer_description.get();
     // (Its format is 0: the device's own.)
-    crate::audio::owner::audio().state.primary_buffer.set(
-        crate::platform_sound::create_sound_buffer(description.flags, description.bytes, None),
-    );
-    if let Ok(volume) =
-        crate::platform_sound::volume(crate::audio::owner::audio().state.primary_buffer.get())
-    {
-        crate::audio::owner::audio()
-            .state
-            .primary_volume_kept
-            .set(volume as u32);
+    audio
+        .state
+        .primary_buffer
+        .set(crate::platform_sound::create_sound_buffer(
+            description.flags,
+            description.bytes,
+            None,
+        ));
+    if let Ok(volume) = crate::platform_sound::volume(audio.state.primary_buffer.get()) {
+        audio.state.primary_volume_kept.set(volume as u32);
     }
-    crate::audio::sound_device::set_primary_format(
-        crate::audio::owner::audio().state.sound_mode.get(),
-    )?;
-    let (volume, stored) = master_volume(
-        crate::audio::owner::audio().state.master_volume.get(),
-        || volume_index(crate::audio::owner::audio().state.primary_volume_kept.get() as i32),
-    );
+    crate::audio::sound_device::set_primary_format(audio.state.sound_mode.get())?;
+    let (volume, stored) = master_volume(audio.state.master_volume.get(), || {
+        volume_index(audio.state.primary_volume_kept.get() as i32)
+    });
     if stored {
-        crate::audio::owner::audio().state.master_volume.set(volume);
+        audio.state.master_volume.set(volume);
     }
     menus().screens.option_work.master_volume_shown.set(volume);
     crate::audio::set_master_volume::set_master_volume_in_game(volume);
-    if crate::audio::owner::audio().state.sound_mode.get() & MODE_3D != 0
-        && !crate::audio::sound_device::open_listener()?
+    if audio.state.sound_mode.get() & MODE_3D != 0 && !crate::audio::sound_device::open_listener()?
     {
-        crate::audio::owner::audio()
+        audio
             .state
             .sound_mode
-            .set(without_3d(
-                crate::audio::owner::audio().state.sound_mode.get(),
-            ));
+            .set(without_3d(audio.state.sound_mode.get()));
     }
     Ok(true)
 }

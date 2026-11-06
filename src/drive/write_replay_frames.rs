@@ -10,6 +10,7 @@
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::written_view;
@@ -17,27 +18,17 @@ use rc2k_core::drive::replay_frames::written_view;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub fn write_replay_frames(replay: &Replay) -> Result<(), Refused> {
-    if crate::race::owner::race()
-        .shared
-        .replay_file
-        .replay_open
-        .get()
-        != 1
-    {
+    let race = race();
+    if race.shared.replay_file.replay_open.get() != 1 {
         return Ok(());
     }
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .index_frame_count
-        .set(
-            crate::race::owner::race()
-                .shared
-                .replay_file
-                .index_frame_count
-                .get()
-                .wrapping_add(0x64),
-        );
+    race.shared.replay_file.index_frame_count.set(
+        race.shared
+            .replay_file
+            .index_frame_count
+            .get()
+            .wrapping_add(0x64),
+    );
     replay.replay_view.frames_in_block.set(0x64);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);

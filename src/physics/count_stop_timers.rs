@@ -10,6 +10,7 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
@@ -32,12 +33,14 @@ pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared_store = &race().shared;
+
     vec![
-        &crate::race::owner::race().shared.car.started_stand_timer as &dyn Cell32,
-        &crate::race::owner::race().shared.car.go_stand_timer,
-        &crate::race::owner::race().shared.car.finish_flag,
-        &crate::race::owner::race().shared.car.speed,
-        &crate::race::owner::race().shared.car.stop_state,
+        &shared_store.car.started_stand_timer as &dyn Cell32,
+        &shared_store.car.go_stand_timer,
+        &shared_store.car.finish_flag,
+        &shared_store.car.speed,
+        &shared_store.car.stop_state,
     ]
 }
 

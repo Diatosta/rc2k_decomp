@@ -9,6 +9,7 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 
 /// The Rust version; every register kept.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
@@ -17,5 +18,5 @@ pub fn tyre_change_screen() -> Result<(), Refused> {
     {
         return Ok(());
     }
-    crate::drive::tyre_screen::tyre_screen(crate::race::owner::race().shared.vars.split.get(), 0)
+    crate::drive::tyre_screen::tyre_screen(race().shared.vars.split.get(), 0)
 }

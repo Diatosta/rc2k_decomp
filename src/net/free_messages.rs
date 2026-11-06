@@ -9,20 +9,18 @@
 //! `memory::free_list` refuses.
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 
 /// The Rust version.
 pub fn free_messages() -> Result<(), Refused> {
-    {
-        crate::memory::free_list::free_list(crate::pointers::GamePtr::to(
-            &crate::net::owner::net().vars.memory,
-        ))
-    }?;
+    let vars = &net().vars;
+    { crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&vars.memory)) }?;
     crate::net::tables::NET_TABLES.give_back();
     for cell in [
-        &crate::net::owner::net().vars.connections,
-        &crate::net::owner::net().vars.connection_table,
-        &crate::net::owner::net().vars.sessions,
-        &crate::net::owner::net().vars.session_table,
+        &vars.connections,
+        &vars.connection_table,
+        &vars.sessions,
+        &vars.session_table,
     ] {
         cell.set(0);
     }

@@ -12,6 +12,7 @@
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
+use crate::strings::owner::strings;
 use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use rc2k_core::strings::bytes::Bytes;
 
@@ -37,7 +38,7 @@ pub fn rot13_into_text(from: GamePtr) -> Result<GamePtr, BadInput> {
         }
     }
     for (i, &b) in coded.iter().enumerate() {
-        crate::strings::owner::strings().text.buffer.text.set(i, b);
+        strings().text.buffer.text.set(i, b);
     }
     Ok(text_at())
 }

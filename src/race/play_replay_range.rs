@@ -29,26 +29,13 @@ pub fn play_replay_range(race: &Race) -> Result<(), Refused> {
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
     replay.replay_view.key_after_play.set(key);
     replay.replay_view.wait_key_release.set(1);
-    if crate::race::owner::race()
-        .shared
-        .replay_file
-        .index_block_count
-        .get()
-        <= replay.replay_view.replay_block.get()
-    {
-        replay.replay_view.replay_block.set(
-            crate::race::owner::race()
-                .shared
-                .replay_file
-                .index_block_count
-                .get(),
-        );
+    if race.shared.replay_file.index_block_count.get() <= replay.replay_view.replay_block.get() {
+        replay
+            .replay_view
+            .replay_block
+            .set(race.shared.replay_file.index_block_count.get());
         replay.replay_view.replay_frame.set(0);
     }
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_stopped
-        .set(1);
+    race.shared.replay_file.viewer_stopped.set(1);
     Ok(())
 }

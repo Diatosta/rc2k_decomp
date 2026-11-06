@@ -15,6 +15,7 @@
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
+use crate::audio::owner::audio;
 use crate::session::Shared;
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
@@ -38,18 +39,16 @@ fn place_of(id: u32, len: usize, what: &'static str) -> usize {
 
 /// The voice's place in the pool for id `id`.
 fn voice_place(id: u32) -> &'static Shared<Voice> {
-    &crate::audio::owner::audio().state.voices[place_of(
-        id,
-        crate::audio::owner::audio().state.voices.len(),
-        "a voice id past the pool",
-    )]
+    let state = &audio().state;
+    &state.voices[place_of(id, state.voices.len(), "a voice id past the pool")]
 }
 
 /// The mixer channel's place for id `id` (its place in `g_channels` + 1).
 fn channel_place(id: u32) -> &'static Shared<MixerChannel> {
-    &crate::audio::owner::audio().state.channels[place_of(
+    let state = &audio().state;
+    &state.channels[place_of(
         id,
-        crate::audio::owner::audio().state.channels.len(),
+        state.channels.len(),
         "a mixer channel id past the channels",
     )]
 }
@@ -57,11 +56,7 @@ fn channel_place(id: u32) -> &'static Shared<MixerChannel> {
 /// The sample record's place (the original indexes the table unchecked; a number past it ends
 /// the program).
 fn sample_place(number: u32) -> &'static Shared<SampleRecord> {
-    let Some(r) = crate::audio::owner::audio()
-        .sample_records
-        .records
-        .get(number as usize)
-    else {
+    let Some(r) = audio().sample_records.records.get(number as usize) else {
         crate::fatal::raise::end(
             "audio::voices",
             crate::errors::BadInput("a sound number past the sample records"),
@@ -138,28 +133,21 @@ impl rc2k_core::audio::voices::Pool for GamePool {
 
 /// The playing and stopping lists, the channels held and their count, read.
 pub fn lists() -> rc2k_core::audio::voices::Lists {
+    let state = &audio().state;
     rc2k_core::audio::voices::Lists {
-        playing: crate::audio::owner::audio().state.playing_voices.get(),
-        stopping: crate::audio::owner::audio().state.stopping_voices.get(),
-        channels_used: crate::audio::owner::audio().state.channels_used.get(),
-        channel_count: crate::audio::owner::audio().state.channel_count.get(),
+        playing: state.playing_voices.get(),
+        stopping: state.stopping_voices.get(),
+        channels_used: state.channels_used.get(),
+        channel_count: state.channel_count.get(),
     }
 }
 
 /// The lists stored back (the channel count is not written).
 pub fn store_lists(l: &rc2k_core::audio::voices::Lists) {
-    crate::audio::owner::audio()
-        .state
-        .playing_voices
-        .set(l.playing);
-    crate::audio::owner::audio()
-        .state
-        .stopping_voices
-        .set(l.stopping);
-    crate::audio::owner::audio()
-        .state
-        .channels_used
-        .set(l.channels_used);
+    let audio = audio();
+    audio.state.playing_voices.set(l.playing);
+    audio.state.stopping_voices.set(l.stopping);
+    audio.state.channels_used.set(l.channels_used);
 }
 
 #[cfg(test)]

@@ -31,6 +31,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::owner::menus;
+use crate::race::owner::race;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
 use crate::screens::draw_service_time::draw_service_time;
@@ -71,11 +72,7 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 /// that does not fit the text buffer.
 pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus().screens;
-    crate::race::owner::race()
-        .shared
-        .switches
-        .service_cleared
-        .set_bits(0u32);
+    race().shared.switches.service_cleared.set_bits(0u32);
 
     // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
     let fault = crate::menu::event_flow::Fault::default();

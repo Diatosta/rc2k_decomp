@@ -5,6 +5,8 @@
 //! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
 //! (`tests`); `moved::MOVED` points the image's addresses at it (`home`).
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// The tyre change's constants, layouts and work (IDA 0x5BEAC0 .. 0x5BEC30, the image's layout).
@@ -172,8 +174,7 @@ impl TyreChange {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::race::owner::race().shared.tyre_change)
-            as usize
+        crate::pointers::game_address(&raw const race().shared.tyre_change) as usize
     }
 }
 

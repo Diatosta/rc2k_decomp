@@ -52,7 +52,7 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     }
     let zero = race_owner.course.numbers.zero.bits();
     let note = [
-        crate::race::owner::race().shared.work.current_car.get(),
+        race.shared.work.current_car.get(),
         race_owner.physics.contact.other_car_number.get(),
         race_owner.physics.contact.corner_in[0].bits(),
         zero,
@@ -64,10 +64,10 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     for (k, v) in note.iter().enumerate() {
         race_owner.physics.contact.bump_note[k].set(*v);
     }
-    for v in &crate::race::owner::race().shared.physics_tables.contacts[6].force {
+    for v in &race.shared.physics_tables.contacts[6].force {
         v.set_bits(0);
     }
-    crate::race::owner::race().shared.car.contact_flag.set(1);
+    race.shared.car.contact_flag.set(1);
     let other_car = crate::race::trap::car_at(other_car)?;
     other_car.contact_flag.set(1);
     relative_speed(&race.physics, &other_car.velocity);
@@ -89,7 +89,7 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     scene().drawing.scene.scratch.set(rounded(factor));
     add_push(&race.physics, &other.velocity);
     turn_speed(met_car);
-    turn_speed(&crate::race::owner::race().shared.car);
+    turn_speed(&race.shared.car);
     { crate::physics::place_sound_e1_other::place_sound_e1_other(race) }?;
     Ok(())
 }
@@ -121,22 +121,24 @@ fn relative_speed(physics: &Physics, d: &[Float; 3]) {
 /// the two cars' speeds shared out on each axis, with a the work car's speed and b the
 /// other's (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
 fn share_out_speeds(physics: &Physics, s: &[Float; 3]) {
+    let shared_store = &crate::race::owner::race().shared;
+
     for (k, other) in s.iter().enumerate() {
-        let t0 = ld(crate::race::owner::race().shared.car.velocity[k].bits());
+        let t0 = ld(shared_store.car.velocity[k].bits());
         let t1 = ld(physics.contact.bump_share_b.bits());
         let t2 = t0 * t1;
         let t3 = ld(other.bits());
         let t4 = ld(physics.contact.bump_share_a.bits());
         let t5 = t3 * t4;
         let t6 = t2 + t5;
-        let t7 = ld(crate::race::owner::race().shared.car.velocity[k].bits());
+        let t7 = ld(shared_store.car.velocity[k].bits());
         let t8 = ld(physics.contact.bump_share_a.bits());
         let t9 = t7 * t8;
         let t10 = ld(other.bits());
         let t11 = ld(physics.contact.bump_share_b.bits());
         let t12 = t10 * t11;
         let t13 = t9 + t12;
-        crate::race::owner::race().shared.car.velocity[k].set_bits(st(t13));
+        shared_store.car.velocity[k].set_bits(st(t13));
         other.set_bits(st(t6));
     }
 }
@@ -147,7 +149,7 @@ fn share_out_speeds(physics: &Physics, s: &[Float; 3]) {
 /// times the push scale.
 fn push_apart(race: &Race, d: &[Dword; 3]) {
     for (k, other) in d.iter().enumerate() {
-        let t0 = int(crate::race::owner::race().shared.car.position[k].bits() as i32);
+        let t0 = int(race.shared.car.position[k].bits() as i32);
         let t1 = int(other.bits() as i32);
         let t2 = t0 - t1;
         let t3 = ld(race.course.numbers.k65536.bits());
@@ -162,11 +164,13 @@ fn push_apart(race: &Race, d: &[Dword; 3]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
 fn add_push(physics: &Physics, d: &[Float; 3]) {
+    let shared_store = &crate::race::owner::race().shared;
+
     for k in 0..3 {
-        let t0 = ld(crate::race::owner::race().shared.car.velocity[k].bits());
+        let t0 = ld(shared_store.car.velocity[k].bits());
         let t1 = ld(physics.contact.bump_push[k].bits());
         let t2 = t0 + t1;
-        crate::race::owner::race().shared.car.velocity[k].set_bits(st(t2));
+        shared_store.car.velocity[k].set_bits(st(t2));
     }
     for (k, other) in d.iter().enumerate() {
         let t9 = ld(other.bits());

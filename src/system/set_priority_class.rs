@@ -8,18 +8,14 @@
 //! original and the Rust version with the switch 0 and 1, from the class there and to
 //! another, the class after each read back; the class and the switch put back.
 
+use crate::system::owner::system;
+
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn set_priority_class(class: u32) {
-    if crate::system::owner::system()
-        .session
-        .flags
-        .keep_priority
-        .get()
-        == 0
-    {
+    if system().session.flags.keep_priority.get() == 0 {
         crate::os::set_priority_class(class);
     }
 }

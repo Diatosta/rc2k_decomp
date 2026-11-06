@@ -33,6 +33,7 @@ use crate::service::{
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
 use crate::session::Dword;
+use crate::system::owner::system;
 use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
@@ -120,7 +121,7 @@ fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> 
     }
     play.champ_view
         .last_key_time
-        .set(crate::system::owner::system().session.clocks.frame.get());
+        .set(system().session.clocks.frame.get());
     match action {
         PageKey::Down => {
             step(down)?;

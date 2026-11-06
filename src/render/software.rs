@@ -4,6 +4,7 @@
 #![allow(unsafe_code)]
 
 use super::*;
+use crate::system::owner::system;
 use std::sync::Mutex;
 
 /// The rasteriser as a backend.
@@ -32,9 +33,10 @@ pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
 pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
+    let system = system();
     let (width, height) = (
-        crate::system::owner::system().session.screen.width.get() as usize,
-        crate::system::owner::system().session.screen.height.get() as usize,
+        system.session.screen.width.get() as usize,
+        system.session.screen.height.get() as usize,
     );
     let mut depth = DEPTH.lock().unwrap();
     if depth

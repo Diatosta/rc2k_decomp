@@ -19,19 +19,15 @@ const MARK: u32 = 0xFFFF_00FF;
 // ---- Rust version ----
 
 pub fn draw_marked_polygon(draw: &mut dyn FnMut() -> Result<(), BadInput>) -> Result<(), BadInput> {
+    let shared = &race().shared;
     {
         let marked = race().course.course.polygon_flags.bits() & 0x8000_0000 != 0;
-        crate::race::owner::race()
-            .shared
+        shared
             .vars
             .polygon_mark
             .set_bits(if marked { MARK } else { 0 });
         let done = draw();
-        crate::race::owner::race()
-            .shared
-            .vars
-            .polygon_mark
-            .set_bits(0u32);
+        shared.vars.polygon_mark.set_bits(0u32);
         done
     }
 }

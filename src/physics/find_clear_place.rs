@@ -45,67 +45,39 @@ fn try_place(race: &Race) -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::clear_place`.
 pub fn steps(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .clear_place_mark
         .set(clear_place::TRY_MARK);
-    let factor = extended(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .clear_place_share
-            .bits(),
-    );
-    crate::physics::scale_vector::scale_vector(
-        &crate::race::owner::race().shared.car.velocity,
-        factor,
-    );
+    let factor = extended(race.shared.physics_tables.clear_place_share.bits());
+    crate::physics::scale_vector::scale_vector(&race.shared.car.velocity, factor);
     scene().drawing.scene.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .clear_place_face
         .set(physics_store.contact.lowest_depth.get());
     let found = clear_place::tries(
-        clear_place::first_try(crate::race::owner::race().shared.car.step_clock.get()),
+        clear_place::first_try(race.shared.car.step_clock.get()),
         |n| {
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .clear_place_count
-                .set(0);
+            race.shared.physics_tables.clear_place_count.set(0);
             let m = clear_place::try_move(n);
             for (table, place) in [
                 (
-                    &crate::race::owner::race()
-                        .shared
-                        .physics_tables
-                        .clear_place_steps_a,
-                    &crate::race::owner::race().shared.car.position[0],
+                    &race.shared.physics_tables.clear_place_steps_a,
+                    &race.shared.car.position[0],
                 ),
                 (
-                    &crate::race::owner::race()
-                        .shared
-                        .physics_tables
-                        .clear_place_steps_b,
-                    &crate::race::owner::race().shared.car.position[2],
+                    &race.shared.physics_tables.clear_place_steps_b,
+                    &race.shared.car.position[2],
                 ),
             ] {
                 let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
                 place.set(place.get().wrapping_add(part));
             }
             try_place(race)?;
-            Ok::<_, Refused>(
-                crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .clear_place_count
-                    .get()
-                    == 0,
-            )
+            Ok::<_, Refused>(race.shared.physics_tables.clear_place_count.get() == 0)
         },
     )?;
     let Some(n) = found else {
@@ -113,36 +85,20 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     };
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     let depth = physics_store.contact.lowest_depth.get();
-    if let Some(height) = clear_place::lifted(
-        crate::race::owner::race().shared.car.position[1].get(),
-        depth,
-    ) {
-        crate::race::owner::race().shared.car.position[1].set(height);
+    if let Some(height) = clear_place::lifted(race.shared.car.position[1].get(), depth) {
+        race.shared.car.position[1].set(height);
     }
     crate::logfile::log_write::log_nul(&PORKY, false, 1);
     crate::logfile::log_int::log_int(n as i32, false, 1);
-    crate::logfile::log_hex8::log_hex8(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .clear_place_face
-            .get(),
-        false,
-        1,
-    );
+    crate::logfile::log_hex8::log_hex8(race.shared.physics_tables.clear_place_face.get(), false, 1);
     crate::logfile::log_hex8::log_hex8(physics_store.contact.lowest_depth.get(), true, 1);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .clear_place_tries
-        .set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .clear_place_tries
-                .get()
-                .wrapping_add(1),
-        );
+    race.shared.physics_tables.clear_place_tries.set(
+        race.shared
+            .physics_tables
+            .clear_place_tries
+            .get()
+            .wrapping_add(1),
+    );
     crate::physics::limit_motion::limit_motion();
     Ok(())
 }

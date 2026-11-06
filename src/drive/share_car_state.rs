@@ -32,6 +32,7 @@ use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MarkCar;
 use crate::race::mud::car_file_number;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 use crate::sound::store::SoundObject;
@@ -153,7 +154,7 @@ pub fn share_car_state_at(
     }
     o.put(0x2C, p.gear_notice.get())?;
     p.gear_notice.set(0);
-    let from = crate::race::owner::race().shared.view.level_from.bits();
+    let from = race().shared.view.level_from.bits();
     let step = course.numbers.four.bits();
     for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
         o.put(out, 0)?;

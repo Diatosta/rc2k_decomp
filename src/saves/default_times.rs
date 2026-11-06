@@ -15,6 +15,7 @@
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
 use crate::menu::owner::Screens;
+use crate::race::owner::race;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
@@ -66,7 +67,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
-        crate::race::owner::race().shared.work.checkpoint_counts[stage as usize].bits()
+        race().shared.work.checkpoint_counts[stage as usize].bits()
     }
 
     fn log(&mut self, piece: rc2k_core::saves::defaults::Piece) {
@@ -141,13 +142,7 @@ pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<()
             screens.draw_work.work_b0.set(sum);
         }
         if let Some(c) = filled.checkpoints {
-            for (cell, v) in crate::race::owner::race()
-                .shared
-                .work
-                .guessed_checkpoints
-                .iter()
-                .zip(c)
-            {
+            for (cell, v) in race().shared.work.guessed_checkpoints.iter().zip(c) {
                 cell.set(v);
             }
         }

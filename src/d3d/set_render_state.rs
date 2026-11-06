@@ -10,13 +10,15 @@
 //! the standalone program the value is kept and nothing more, until a renderer is
 //! there.
 
+use crate::d3d::owner::d3d;
+
 /// The states the game uses are all below this.
 const STATES: u32 = 0x40;
 
 /// Render state `state` set to `value` (the standalone keeps the value).
 pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
-        let kept = &crate::d3d::owner::d3d().cards.kept_states[state as usize];
+        let kept = &d3d().cards.kept_states[state as usize];
         if kept.get() != value {
             kept.set(value);
             crate::platform_3d::forget_states();

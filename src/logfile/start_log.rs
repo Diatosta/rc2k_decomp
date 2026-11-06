@@ -20,6 +20,7 @@ use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::{LOG_PATH, level};
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -54,6 +55,7 @@ fn text(text: &[u8], newline: bool) {
 /// The Rust version (see the header). Refuses, before doing anything, a start date the
 /// date's text refuses.
 pub fn start_log() -> Result<(), BadInput> {
+    let system = system();
     if level() == 0 {
         return Ok(());
     }
@@ -66,7 +68,7 @@ pub fn start_log() -> Result<(), BadInput> {
     let c_text = |p: crate::pointers::GamePtr| crate::files::cstring(p, "a start-up text");
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
-    let scratch = crate::pointers::GamePtr::to(&crate::system::owner::system().work.numbers);
+    let scratch = crate::pointers::GamePtr::to(&system.work.numbers);
     write_date_text(scratch)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
@@ -76,54 +78,26 @@ pub fn start_log() -> Result<(), BadInput> {
         date: c_text(scratch)?,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
-        cpu_family: crate::system::owner::system()
-            .session
-            .machine
-            .cpu_family
-            .get() as i32,
-        cpu_flags: crate::system::owner::system()
-            .session
-            .machine
-            .cpu_signature
-            .get(),
+        cpu_family: system.session.machine.cpu_family.get() as i32,
+        cpu_flags: system.session.machine.cpu_signature.get(),
         // Twelve characters; the end follows the field.
         cpu_name: c_text(
-            crate::pointers::GamePtr::to(
-                &crate::system::owner::system().session.machine.cpu_vendor,
-            )
-            .unbounded(),
+            crate::pointers::GamePtr::to(&system.session.machine.cpu_vendor).unbounded(),
         )?,
-        clock: crate::system::owner::system().session.machine.cpu_mhz.get() as i32,
-        fpu: crate::system::owner::system().session.machine.has_fpu.get() as i32,
-        mmx: crate::system::owner::system()
-            .session
-            .machine
-            .found_mmx
-            .get() as i32,
-        amd_3d: crate::system::owner::system()
-            .session
-            .machine
-            .found_3dnow
-            .get() as i32,
-        katmai: crate::system::owner::system()
-            .session
-            .machine
-            .found_sse
-            .get() as i32,
-        machine_type: crate::system::owner::system()
-            .session
-            .machine
-            .keyboard_type
-            .get() as i32,
+        clock: system.session.machine.cpu_mhz.get() as i32,
+        fpu: system.session.machine.has_fpu.get() as i32,
+        mmx: system.session.machine.found_mmx.get() as i32,
+        amd_3d: system.session.machine.found_3dnow.get() as i32,
+        katmai: system.session.machine.found_sse.get() as i32,
+        machine_type: system.session.machine.keyboard_type.get() as i32,
         platform: [
-            crate::system::owner::system().session.machine.version[4].get() as i32,
-            crate::system::owner::system().session.machine.version[1].get() as i32,
-            crate::system::owner::system().session.machine.version[2].get() as i32,
-            (crate::system::owner::system().session.machine.version[3].get() & 0xFFFF) as i32,
+            system.session.machine.version[4].get() as i32,
+            system.session.machine.version[1].get() as i32,
+            system.session.machine.version[2].get() as i32,
+            (system.session.machine.version[3].get() & 0xFFFF) as i32,
         ],
         platform_text: c_text(
-            crate::pointers::GamePtr::to(&crate::system::owner::system().session.machine.version)
-                .offset(0x14),
+            crate::pointers::GamePtr::to(&system.session.machine.version).offset(0x14),
         )?,
         memory,
         free_kb: free,

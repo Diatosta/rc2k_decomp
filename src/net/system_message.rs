@@ -14,35 +14,36 @@
 
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
+use crate::net::owner::net;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The Rust version.
 /// The message is in `crate::net::owner::net().vars.receive_data` (`unk_52A968`).
 pub fn system_message() -> Result<(), Refused> {
-    let get = |at: usize| crate::net::owner::net().vars.receive_data.get_u32(at);
+    let vars = &net().vars;
+    let get = |at: usize| vars.receive_data.get_u32(at);
     let kind = get(0);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
     match System::of(kind) {
-        System::Created => crate::net::owner::net().vars.sync_first.set(1),
+        System::Created => vars.sync_first.set(1),
         System::Destroyed => {
-            crate::net::owner::net().vars.sync_first.set(1);
+            vars.sync_first.set(1);
             if get(4) == A_PLAYER {
                 crate::net::dp_objects::delete_player_from_group(
-                    crate::net::owner::net().vars.dplay.get(),
-                    crate::net::owner::net().vars.send_to.get(),
+                    vars.dplay.get(),
+                    vars.send_to.get(),
                     get(8),
                 );
             }
         }
         System::SessionLost => destroy_connection()?,
         System::Host => {
-            crate::net::owner::net().vars.own.head.set(
-                PlayerRecord::STATE,
-                made_host(crate::net::owner::net().vars.own.state()),
-            );
-            crate::net::owner::net().vars.sync_first.set(1);
-            crate::net::owner::net().vars.stage_item.set(1);
+            vars.own
+                .head
+                .set(PlayerRecord::STATE, made_host(vars.own.state()));
+            vars.sync_first.set(1);
+            vars.stage_item.set(1);
         }
         System::Other => {}
     }

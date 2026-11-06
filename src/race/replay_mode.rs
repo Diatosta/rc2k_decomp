@@ -12,13 +12,7 @@ use crate::race::replay_viewer::Mode;
 pub fn replay_mode(mode: Mode) -> Result<(), Refused> {
     let race = race();
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
-    if rc2k_core::race::viewer_flow::views_replay(
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .replay_closed
-            .bits(),
-    ) {
+    if rc2k_core::race::viewer_flow::views_replay(race.shared.replay_file.replay_closed.bits()) {
         crate::race::replay_viewer::replay_viewer(race, mode)?;
     }
     Ok(())

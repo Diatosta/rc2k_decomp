@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
+use crate::system::owner::system;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
@@ -17,7 +18,7 @@ pub fn pack_runs(source: &[u8]) -> Result<(Vec<u8>, u32), BadInput> {
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    crate::system::owner::system()
+    system()
         .work
         .files
         .buffer

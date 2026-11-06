@@ -12,6 +12,8 @@
 //! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
 
+use crate::net::owner::net;
+
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
 const _: () = assert!(ROOM as usize == crate::net::dp_session::MESSAGE_MOST);
@@ -25,19 +27,19 @@ pub struct Received {
 
 /// The Rust version.
 pub fn receive_message() -> Received {
-    crate::net::owner::net().vars.received_size.set(ROOM);
+    let net = net();
+    net.vars.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
-    let r = crate::net::dp_objects::receive(crate::net::owner::net().vars.dplay.get(), &mut data);
+    let r = crate::net::dp_objects::receive(net.vars.dplay.get(), &mut data);
     if let Some((from, to)) = r.from_to {
-        crate::net::owner::net().vars.received_from.set(from);
-        crate::net::owner::net().vars.received_to.set(to);
+        net.vars.received_from.set(from);
+        net.vars.received_to.set(to);
     }
     if let Some(size) = r.size {
-        crate::net::owner::net().vars.received_size.set(size);
+        net.vars.received_size.set(size);
     }
     if r.result == 0 {
-        crate::net::owner::net()
-            .vars
+        net.vars
             .receive_data
             .write_at(
                 0,
@@ -48,10 +50,10 @@ pub fn receive_message() -> Received {
     }
     let result = r.result;
     if result != 0 {
-        crate::net::owner::net().vars.received_size.set(0);
+        net.vars.received_size.set(0);
     }
     Received {
-        from: crate::net::owner::net().vars.received_from.get(),
-        size: crate::net::owner::net().vars.received_size.get(),
+        from: net.vars.received_from.get(),
+        size: net.vars.received_size.get(),
     }
 }

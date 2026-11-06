@@ -61,7 +61,7 @@ pub fn touch_face(race: &Race) -> Result<(), Refused> {
         match touch(kind) {
             Touch::MarkIfFast => {
                 if c0(
-                    crate::race::owner::race().shared.car.speed.bits(),
+                    race.shared.car.speed.bits(),
                     race_owner.course.numbers.eight.bits(),
                 ) {
                     return Ok(());

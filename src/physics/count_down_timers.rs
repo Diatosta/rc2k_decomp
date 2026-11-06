@@ -13,6 +13,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
@@ -55,23 +56,25 @@ pub fn count_at(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared_store = &race().shared;
+
     vec![
-        &crate::race::owner::race().shared.car.light_hold_steps as &dyn Cell32,
-        &crate::race::owner::race().shared.car.value_jump_steps,
-        &crate::race::owner::race().shared.car.run_ticks,
-        &crate::race::owner::race().shared.car.finish_flag,
-        &crate::race::owner::race().shared.car.go_stand_timer,
-        &crate::race::owner::race().shared.car.started_stand_timer,
-        &crate::race::owner::race().shared.vars.run_kind,
-        &crate::race::owner::race().shared.car.parts_present,
-        &crate::race::owner::race().shared.car.gear,
-        &crate::race::owner::race().shared.car.stopped_steps,
-        &crate::race::owner::race().shared.car.tyre_change_state,
-        &crate::race::owner::race().shared.car.wall_hit_timer,
-        &crate::race::owner::race().shared.car.drive_cut_steps,
-        &crate::race::owner::race().shared.car.engine_speed_scaled,
-        &crate::race::owner::race().shared.car.top_speed,
-        &crate::race::owner::race().shared.car.hit_cooldown,
+        &shared_store.car.light_hold_steps as &dyn Cell32,
+        &shared_store.car.value_jump_steps,
+        &shared_store.car.run_ticks,
+        &shared_store.car.finish_flag,
+        &shared_store.car.go_stand_timer,
+        &shared_store.car.started_stand_timer,
+        &shared_store.vars.run_kind,
+        &shared_store.car.parts_present,
+        &shared_store.car.gear,
+        &shared_store.car.stopped_steps,
+        &shared_store.car.tyre_change_state,
+        &shared_store.car.wall_hit_timer,
+        &shared_store.car.drive_cut_steps,
+        &shared_store.car.engine_speed_scaled,
+        &shared_store.car.top_speed,
+        &shared_store.car.hit_cooldown,
     ]
 }
 

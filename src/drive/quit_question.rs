@@ -14,6 +14,7 @@
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use rc2k_core::drive::race_ticks;
 
@@ -23,17 +24,18 @@ use rc2k_core::drive::race_ticks;
 /// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
 /// (liveness: `race_loop` reads eax only).
 pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
+    let shared = &race().shared;
     stop_race_sounds()?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
-    crate::race::owner::race().shared.vars.scene_switch.set(1);
+    shared.vars.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
     if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {
         replay.replay_frames.last_kept.set(eax);
     }
-    let kind = race_ticks::quit_notice(crate::race::owner::race().shared.vars.no_replay.get() != 0);
+    let kind = race_ticks::quit_notice(shared.vars.no_replay.get() != 0);
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(kind);
     }
@@ -52,8 +54,8 @@ pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
         };
         match race_ticks::quit_answer(
             eax,
-            crate::race::owner::race().shared.vars.run_kind.get(),
-            crate::race::owner::race().shared.vars.no_replay.get() != 0,
+            shared.vars.run_kind.get(),
+            shared.vars.no_replay.get() != 0,
         ) {
             Some(answer) => break answer,
             None => eax = crate::drive::race_frame::race_frame(eax)?,
@@ -65,7 +67,7 @@ pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
             cell.set(0);
         }
     }
-    crate::race::owner::race().shared.vars.scene_switch.set(0);
+    shared.vars.scene_switch.set(0);
     wake_car_sounds()?;
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].input_keys.set_bits(0);

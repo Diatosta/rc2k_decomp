@@ -5,6 +5,7 @@
 //! Names are readings unless IDA's.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -50,7 +51,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = ViewerBuffers;
     fn deref(&self) -> &ViewerBuffers {
-        &crate::race::owner::race().shared.buffers.viewer
+        &race().shared.buffers.viewer
     }
 }
 

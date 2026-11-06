@@ -22,6 +22,7 @@
 use crate::errors::BadInput;
 use crate::menu::owner::menus;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
+use crate::race::owner::race;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
@@ -78,12 +79,7 @@ pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
             write_list(SECOND, &second.cars);
         }
         if a.stores {
-            crate::race::owner::race()
-                .shared
-                .state
-                .settings
-                .a8_game
-                .set(1u32);
+            race().shared.state.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
             log(CHEATS[bit].0.to_bytes());

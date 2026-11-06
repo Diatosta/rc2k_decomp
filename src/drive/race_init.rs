@@ -53,18 +53,13 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
 pub fn race_init() -> Result<(), Refused> {
+    let race_owner = race();
     let race = race();
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line()?;
-    if race_steps::no_best_line(
-        crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .get(),
-    ) {
-        if crate::race::owner::race().shared.switches.editor_mode.get() != 0 {
+    if race_steps::no_best_line(race_owner.shared.vars.checkpoint_count.get()) {
+        if race_owner.shared.switches.editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {

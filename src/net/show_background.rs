@@ -14,11 +14,13 @@
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::net::lobby::{copy_picture, draw_string};
+use crate::net::owner::net;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 
 /// The Rust version.
 pub fn show_background() -> Result<(), Refused> {
+    let vars = &net().vars;
     let gfx = gfx();
     crate::gfx::load_picture::load_picture(&crate::gfx::texts::CHATZONE)?;
     crate::gfx::convert_picture::convert_picture_now()?;
@@ -27,10 +29,10 @@ pub fn show_background() -> Result<(), Refused> {
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
-    let title = if crate::net::owner::net().vars.session.get() == 1 {
+    let title = if vars.session.get() == 1 {
         0x15A
     } else {
-        match crate::net::owner::net().vars.mode.get() {
+        match vars.mode.get() {
             0 => 0x162,
             1 => 0x14B,
             _ => 0x14C,

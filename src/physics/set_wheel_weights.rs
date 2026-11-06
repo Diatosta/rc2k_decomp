@@ -37,18 +37,10 @@ pub fn set_wheel_weights(race: &Race) {
         scratch.get(),
         one,
         k,
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .gravity
-            .bits(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .weight
-            .bits(),
+        race.shared.physics_tables.gravity.bits(),
+        race.shared.physics_tables.weight.bits(),
     );
-    let wheels = &crate::race::owner::race().shared.physics_tables.forces[..4];
+    let wheels = &race.shared.physics_tables.forces[..4];
     for w in wheels {
         w.force[1].set_bits(f);
     }

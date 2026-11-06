@@ -4,6 +4,7 @@
 //! places on), the arctangents, the noise bytes, the room the object files are read into
 //! and the shuffled words. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Bytes, Float, Word};
 
 #[repr(C)]
@@ -27,7 +28,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = EngineTables;
     fn deref(&self) -> &EngineTables {
-        &crate::race::owner::race().shared.buffers.engine_tables
+        &race().shared.buffers.engine_tables
     }
 }
 

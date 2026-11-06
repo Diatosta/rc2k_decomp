@@ -21,16 +21,9 @@ use rc2k_core::physics::parts::parts_left;
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::parts_left`.
 pub fn hit_part_checks(race: &Race) -> Result<(), Refused> {
-    let left = parts_left(crate::race::owner::race().shared.car.parts_present.get());
-    crate::race::owner::race().shared.car.parts_state.set(left);
-    if left != 0
-        || crate::race::owner::race()
-            .shared
-            .car
-            .tyre_change_state
-            .get()
-            != 0
-    {
+    let left = parts_left(race.shared.car.parts_present.get());
+    race.shared.car.parts_state.set(left);
+    if left != 0 || race.shared.car.tyre_change_state.get() != 0 {
         return Ok(());
     }
     drop_hit_parts(&race.course)?;

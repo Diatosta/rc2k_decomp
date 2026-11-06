@@ -25,41 +25,24 @@ pub fn test_drive() -> Result<(), Refused> {
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [
-        crate::race::owner::race().shared.car.drive_speed_a.bits(),
-        crate::race::owner::race().shared.car.drive_speed_b.bits(),
-        crate::race::owner::race().shared.car.local_velocity[2].bits(),
-        crate::race::owner::race().shared.car.gear.bits(),
-        crate::race::owner::race().shared.car.engine_speed.bits(),
-        crate::race::owner::race().shared.car.gearbox_kind.bits(),
+        race.shared.car.drive_speed_a.bits(),
+        race.shared.car.drive_speed_b.bits(),
+        race.shared.car.local_velocity[2].bits(),
+        race.shared.car.gear.bits(),
+        race.shared.car.engine_speed.bits(),
+        race.shared.car.gearbox_kind.bits(),
     ];
-    crate::race::owner::race()
-        .shared
+    race.shared
         .car
         .engine_power_factor
         .set_bits(GEAR.test_power_factor.bits());
     test_drive_run::test_drive_run(course)?;
     let [a, b, speed, gear, engine, kind] = kept;
-    crate::race::owner::race()
-        .shared
-        .car
-        .drive_speed_a
-        .set_bits(a);
-    crate::race::owner::race()
-        .shared
-        .car
-        .drive_speed_b
-        .set_bits(b);
-    crate::race::owner::race().shared.car.local_velocity[2].set_bits(speed);
-    crate::race::owner::race().shared.car.gear.set_bits(gear);
-    crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed
-        .set_bits(engine);
-    crate::race::owner::race()
-        .shared
-        .car
-        .gearbox_kind
-        .set_bits(kind);
+    race.shared.car.drive_speed_a.set_bits(a);
+    race.shared.car.drive_speed_b.set_bits(b);
+    race.shared.car.local_velocity[2].set_bits(speed);
+    race.shared.car.gear.set_bits(gear);
+    race.shared.car.engine_speed.set_bits(engine);
+    race.shared.car.gearbox_kind.set_bits(kind);
     Ok(())
 }

@@ -38,18 +38,10 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
     { object_turn_matrix(race) }?;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .object_hits
-        .set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .object_hits
-                .get()
-                .wrapping_add(1),
-        );
+        .set(race.shared.physics_tables.object_hits.get().wrapping_add(1));
     let count = objects.slots.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.

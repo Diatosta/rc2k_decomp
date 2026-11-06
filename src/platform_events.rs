@@ -4,8 +4,10 @@
 #![allow(unsafe_code)]
 
 use crate::framework::log;
+use crate::input::owner::input;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::system::owner::system;
 use sdl3_sys::everything::*;
 
 /// An SDL event the program looks at.
@@ -128,7 +130,7 @@ pub fn hold_quit(on: bool) {
     HOLD_QUIT.store(on, Relaxed);
     if !on && QUIT_ASKED.swap(false, Relaxed) {
         log("platform: the copy has ended: the quit switch is set");
-        crate::system::owner::system().session.flags.quitting.set(1);
+        system().session.flags.quitting.set(1);
         end_if_not_left();
     }
 }
@@ -161,6 +163,8 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump() {
+    let input = input();
+    let system = system();
     let course = &race().course;
     restore_if_asked();
     #[cfg(feature = "remote")]
@@ -173,16 +177,12 @@ pub fn pump() {
             }
             Event::Quit => {
                 log("platform: the window was closed: the quit switch is set");
-                crate::system::owner::system().session.flags.quitting.set(1);
+                system.session.flags.quitting.set(1);
                 end_if_not_left();
             }
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
             // (and does not sleep a second a tick) while it is 1.
-            Event::Focus(focused) => crate::system::owner::system()
-                .session
-                .flags
-                .window_focused
-                .set(focused as u32),
+            Event::Focus(focused) => system.session.flags.window_focused.set(focused as u32),
             Event::Key { scancode, down } => {
                 let key = game_key(scancode);
                 if key == 0 {
@@ -192,13 +192,11 @@ pub fn pump() {
                 // key code (0xFF down, as `sar al, 7` leaves it); a key that goes down, or
                 // repeats, is the pending key, as the key thread makes it.
                 if down {
-                    crate::input::owner::input()
-                        .devices
-                        .set_key_state(key, 0xFF);
+                    input.devices.set_key_state(key, 0xFF);
                     crate::input::take_key::pending_key()
                         .store(key, std::sync::atomic::Ordering::SeqCst);
                 } else {
-                    crate::input::owner::input().devices.set_key_state(key, 0);
+                    input.devices.set_key_state(key, 0);
                 }
             }
             Event::Pad { button, down } => pad_button(course, button, down),
@@ -232,7 +230,7 @@ fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
             GUIDE.store(down, Relaxed);
         } else if button == SDL_GAMEPAD_BUTTON_START && down && GUIDE.load(Relaxed) {
             log("platform: MENU + START: the quit switch is set");
-            crate::system::owner::system().session.flags.quitting.set(1);
+            system().session.flags.quitting.set(1);
             end_if_not_left();
             return;
         }
@@ -279,7 +277,7 @@ fn menu_action(action: crate::input::menu_pad::MenuAction) {
         }
         A::LeaveRace | A::LeaveRaceEnd => {
             let state = if action == A::LeaveRace { 0xFF } else { 0 };
-            crate::input::owner::input()
+            input()
                 .devices
                 .set_key_state(game_key(SDL_SCANCODE_ESCAPE.0), state);
             return;

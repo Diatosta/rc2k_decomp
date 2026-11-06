@@ -24,6 +24,7 @@ use crate::scene::owner::scene;
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
 pub fn take_view_a(physics: &Physics, s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
+    let shared = &race().shared;
     x87_1(physics, s.offset_bits());
     for (put, v) in copies().iter().zip(s.taken()) {
         put(v);
@@ -31,11 +32,8 @@ pub fn take_view_a(physics: &Physics, s: &ViewRecord) -> Result<(), crate::error
     physics
         .camera
         .view_a_heading
-        .set(crate::race::owner::race().shared.car.car_heading.get());
-    let (mut eax, mut ebx) = (
-        crate::race::owner::race().shared.car.car_pitch.get(),
-        crate::race::owner::race().shared.car.car_roll.get(),
-    );
+        .set(shared.car.car_heading.get());
+    let (mut eax, mut ebx) = (shared.car.car_pitch.get(), shared.car.car_roll.get());
     if record()?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
@@ -113,7 +111,7 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    &crate::race::owner::race().physics,
+                    &race().physics,
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
                 );
             },

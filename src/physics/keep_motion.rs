@@ -6,6 +6,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B87E), every physics step.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -15,13 +16,14 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared = &race().shared;
     vec![
-        &crate::race::owner::race().shared.car.local_velocity[0] as &dyn Cell32,
-        &crate::race::owner::race().shared.car.local_velocity[1],
-        &crate::race::owner::race().shared.car.local_velocity[2],
-        &crate::race::owner::race().shared.physics_tables.kept_motion[0],
-        &crate::race::owner::race().shared.physics_tables.kept_motion[1],
-        &crate::race::owner::race().shared.physics_tables.kept_motion[2],
+        &shared.car.local_velocity[0] as &dyn Cell32,
+        &shared.car.local_velocity[1],
+        &shared.car.local_velocity[2],
+        &shared.physics_tables.kept_motion[0],
+        &shared.physics_tables.kept_motion[1],
+        &shared.physics_tables.kept_motion[2],
     ]
 }
 

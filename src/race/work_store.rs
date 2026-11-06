@@ -7,6 +7,8 @@
 //! `crate::race::owner::race().shared.car`) until the code reaching them by RVA is typed.
 
 use crate::errors::BadInput;
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
@@ -303,7 +305,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 /// Where IDA 0x71AFB8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::race().shared.work))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.work))
 }
 
 #[cfg(test)]
@@ -314,23 +316,19 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let at = crate::race::blocks_store::CAR_BLOCKS_IDA - START;
-        crate::gfx::first_values_are_the_games_but(
-            &crate::race::owner::race().shared.work,
-            START,
-            END,
-            |image| {
-                for k in 0..8 {
-                    let o = at + 4 * k;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    image[o..o + 4]
-                        .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
-                }
-            },
-        );
+        crate::gfx::first_values_are_the_games_but(&race().shared.work, START, END, |image| {
+            for k in 0..8 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
     }
 
     #[test]
     fn car_records_resolve_to_what_the_image_named() {
+        let shared = &race().shared;
         let at = 0x71B3D8 - START;
         let image = crate::moved::image_bytes(START, END - START);
         for k in 0..8 {
@@ -338,8 +336,7 @@ mod tests {
             let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert_eq!(
-                crate::race::owner::race()
-                    .shared
+                shared
                     .work
                     .car_record(k)
                     .map(|r| crate::pointers::GamePtr::to(r).addr()),
@@ -348,25 +345,11 @@ mod tests {
                 )))
             );
             assert!(std::ptr::eq(
-                crate::race::owner::race()
-                    .shared
-                    .work
-                    .car_records_resolved()
-                    .unwrap()[k],
-                crate::race::owner::race()
-                    .shared
-                    .work
-                    .car_record(k)
-                    .unwrap()
+                shared.work.car_records_resolved().unwrap()[k],
+                shared.work.car_record(k).unwrap()
             ));
         }
-        assert!(
-            crate::race::owner::race()
-                .shared
-                .work
-                .car_record(8)
-                .is_err()
-        );
+        assert!(shared.work.car_record(8).is_err());
     }
 
     #[test]

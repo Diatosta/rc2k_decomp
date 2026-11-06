@@ -18,6 +18,7 @@
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
 use crate::physics::dot_product::dot_product;
 use crate::physics::vector_length::vector_length;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::rounded;
 use crate::scene::owner::scene;
@@ -25,6 +26,7 @@ use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
 pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
+    let race = race();
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     put(3, rounded(vector_length(&v[0..3])));
@@ -32,28 +34,10 @@ pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
     if compare_full(get(3), zero) & 0x4000 == 0 {
         put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
     }
-    if abs_compare(
-        get(3),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .stall_speed
-            .bits(),
-    ) & 0x100
-        != 0
-    {
+    if abs_compare(get(3), race.shared.physics_tables.stall_speed.bits()) & 0x100 != 0 {
         return;
     }
-    if compare_full(
-        get(7),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .stall_share
-            .bits(),
-    ) & 0x100
-        == 0
-    {
+    if compare_full(get(7), race.shared.physics_tables.stall_share.bits()) & 0x100 == 0 {
         return;
     }
     if get(8) != 0 {
@@ -65,25 +49,20 @@ pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let race = race();
     vec![
-        &crate::race::owner::race().shared.physics_tables.kept_motion[0] as &dyn Cell32,
-        &crate::race::owner::race().shared.physics_tables.kept_motion[1],
-        &crate::race::owner::race().shared.physics_tables.kept_motion[2],
+        &race.shared.physics_tables.kept_motion[0] as &dyn Cell32,
+        &race.shared.physics_tables.kept_motion[1],
+        &race.shared.physics_tables.kept_motion[2],
         &scene().drawing.scene.scratch,
-        &crate::race::owner::race().shared.car.local_velocity[0],
-        &crate::race::owner::race().shared.car.local_velocity[1],
-        &crate::race::owner::race().shared.car.local_velocity[2],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .stall_figure,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .no_auto_neutral,
-        &crate::race::owner::race().shared.car.gear,
-        &crate::race::owner::race().shared.car.drive_speed_a,
-        &crate::race::owner::race().shared.car.drive_speed_b,
+        &race.shared.car.local_velocity[0],
+        &race.shared.car.local_velocity[1],
+        &race.shared.car.local_velocity[2],
+        &race.shared.physics_tables.stall_figure,
+        &race.shared.physics_tables.no_auto_neutral,
+        &race.shared.car.gear,
+        &race.shared.car.drive_speed_a,
+        &race.shared.car.drive_speed_b,
     ]
 }
 

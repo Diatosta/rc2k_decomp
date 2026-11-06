@@ -12,12 +12,14 @@
 //! Refuses A3D (the chunk at 0x40CDE8).
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::owner::audio;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
 /// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
 /// to `g_lockedParts`. True for the carry clear.
 pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
+    let audio = audio();
     use crate::platform_sound as ds;
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
@@ -30,7 +32,7 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
     {
         let failed = |r: i32| {
             if lost_memory(r) {
-                crate::audio::owner::audio().state.sound_buffer_lost.set(1);
+                audio.state.sound_buffer_lost.set(1);
             }
             false
         };
@@ -38,12 +40,7 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
             Ok(parts) => parts,
             Err(r) => return Ok(failed(r)),
         };
-        for (cell, part) in crate::audio::owner::audio()
-            .state
-            .locked_parts
-            .iter()
-            .zip(locked)
-        {
+        for (cell, part) in audio.state.locked_parts.iter().zip(locked) {
             cell.set(part);
         }
         // The copies from the data's start (an id: `audio::sample_data`) into the parts.

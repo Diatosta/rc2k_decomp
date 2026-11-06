@@ -6,11 +6,12 @@
 //!
 //! Caller: `drive::race_frame` (`sub_444D46`, `jb`).
 
+use crate::input::owner::input;
 use rc2k_core::drive::inputs::{KEY_COUNT, keys_or};
 
 /// The Rust version: the bytes' or.
 // Converted: `rc2k_core::drive::inputs::keys_or`.
 pub fn any_key_down() -> u32 {
-    let keys: [u8; KEY_COUNT] = crate::input::owner::input().devices.keys_pressed.read();
+    let keys: [u8; KEY_COUNT] = input().devices.keys_pressed.read();
     keys_or(&keys) as u32
 }

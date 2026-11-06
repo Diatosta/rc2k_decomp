@@ -17,6 +17,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
@@ -68,7 +69,7 @@ pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
                 if sound >= RECORDS {
                     return Err(BadInput("a sound past the sample records").into());
                 }
-                let looping = crate::audio::owner::audio().sample_records.records[sound as usize]
+                let looping = audio().sample_records.records[sound as usize]
                     .get()
                     .voice_kind;
                 request.sound.set(going_on(request.sound.get(), looping));

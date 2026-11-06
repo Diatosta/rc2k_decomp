@@ -14,6 +14,7 @@ use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::png::{PngInfo, info_dword};
+use crate::system::owner::system;
 
 // ---- Rust version ----
 
@@ -44,7 +45,7 @@ pub fn lay_out_png() -> Result<(), BadInput> {
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
-        crate::pointers::GamePtr::to(&crate::system::owner::system().work.files.buffer)
+        crate::pointers::GamePtr::to(&system().work.files.buffer)
             .offset(offset_of!(PngInfo, palette) as u32),
         crate::pointers::GamePtr::to(&pictures.decoder.palette),
     )?;

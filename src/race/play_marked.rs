@@ -26,11 +26,7 @@ use rc2k_core::race::viewer_flow::Play;
 pub fn play_tail(race: &Race, play: Play) -> Result<(), Refused> {
     let replay = &race.replay;
     replay.replay_view.play_end.set(play.end);
-    crate::race::owner::race()
-        .shared
-        .replay_file
-        .viewer_stopped
-        .set(0);
+    race.shared.replay_file.viewer_stopped.set(0);
     { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
     crate::race::play_replay_range::play_replay_range(race)?;
     replay.replay_view.play_from_here.set(0);
@@ -62,11 +58,7 @@ pub fn play_from_here(race: &Race) -> Result<(), Refused> {
         rc2k_core::race::viewer_flow::play_from_here(
             replay.replay_view.replay_block.get(),
             replay.replay_view.replay_frame.get(),
-            crate::race::owner::race()
-                .shared
-                .replay_file
-                .index_block_count
-                .get(),
+            race.shared.replay_file.index_block_count.get(),
         ),
     )
 }

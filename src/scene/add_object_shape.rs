@@ -38,6 +38,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
 use crate::scene::owner::scene;
 
@@ -267,11 +268,7 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
     scene.objects.slots.first_face[slot].set(first_face);
     let kind: u32 = scene.drawing.object_work.loading_kind.bits();
     let turned = (0x190..0x258).contains(&kind);
-    let drop: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .ground_drop
-        .bits();
+    let drop: u32 = race().shared.physics_tables.ground_drop.bits();
     let mut radius = 0u32;
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));

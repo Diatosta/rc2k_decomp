@@ -26,6 +26,7 @@ use crate::physics::car_store::Car;
 use crate::scene::owner::scene;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
+use crate::system::owner::system;
 
 // ---- Rust version ----
 
@@ -150,7 +151,7 @@ pub fn add_car_light(course: &crate::race::owner_course::Course, car: &Car) {
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(car.marks_count.bits()) >> 8;
     let colour: u32 = scene.light_tables.car_light_table[held(amount as i32) as usize].get();
-    let mmx = crate::system::owner::system().session.machine.has_mmx.get() != 0;
+    let mmx = system().session.machine.has_mmx.get() != 0;
     scene
         .lights
         .work

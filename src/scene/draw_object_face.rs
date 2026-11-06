@@ -90,23 +90,13 @@ pub fn draw_object_face(
     let face_shine = words[9] as u32;
     scene.drawing.scene.face_shine.set_bits(face_shine);
     let reflects = shine != 0
-        && crate::race::owner::race().shared.vars.settings_words[1].bits() != 0
+        && race.shared.vars.settings_words[1].bits() != 0
         && view_kind != 4
         && face_shine != 0;
-    crate::race::owner::race()
-        .shared
-        .switches
-        .face_reflects
-        .set_bits(reflects as u32);
+    race.shared.switches.face_reflects.set_bits(reflects as u32);
     scene.drawing.scene.polygon_vertex_count.set_bits(count);
 
-    if crate::race::owner::race().shared.switches.other_way.bits() != 0
-        && crate::race::owner::race()
-            .shared
-            .switches
-            .other_way_kind
-            .bits()
-            == 2
+    if race.shared.switches.other_way.bits() != 0 && race.shared.switches.other_way_kind.bits() == 2
     {
         for (entry, vertex) in vertices {
             entry.point.set(fw(vertex).wrapping_neg());
@@ -121,19 +111,11 @@ pub fn draw_object_face(
             .set_bits(scene.drawing.scene.polygon_textures[0].bits());
         scene.drawing.scene.polygon_sides[0].set_bits(0u32);
         scene.drawing.scene.polygon_sides[1].set_bits(1u32);
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(4u32);
+        race.shared.view.polygon_mode.set_bits(4u32);
         step(Step::DepthTestOff)?;
         step(Step::Draw)?;
         step(Step::DepthTestOn)?;
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(0u32);
+        race.shared.view.polygon_mode.set_bits(0u32);
         return Ok(());
     }
 
@@ -158,11 +140,7 @@ pub fn draw_object_face(
         entry.light.set(light);
     }
     if reflects {
-        crate::race::owner::race()
-            .shared
-            .switches
-            .face_any_shine
-            .set_bits(0u32);
+        race.shared.switches.face_any_shine.set_bits(0u32);
         for (entry, vertex) in vertices {
             race.physics
                 .ground
@@ -180,11 +158,7 @@ pub fn draw_object_face(
             let first_fog = entries[0].fog.get() as u32;
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
             if amount != 0 {
-                crate::race::owner::race()
-                    .shared
-                    .switches
-                    .face_any_shine
-                    .set_bits(1u32);
+                race.shared.switches.face_any_shine.set_bits(1u32);
             }
             entry.amount.set(amount as u8);
         }
@@ -193,27 +167,11 @@ pub fn draw_object_face(
     let faded = race.frame.view_and_records.view_vars.fade_alpha.bits() != 0
         && scene.lights.state.face_bits.bits() == race.physics.camera.faded_bits.bits();
     scene.lights.state.faded.set_bits(faded as u32);
-    if crate::race::owner::race()
-        .shared
-        .switches
-        .face_any_shine
-        .bits()
-        == 0
-    {
-        crate::race::owner::race()
-            .shared
-            .switches
-            .face_reflects
-            .set_bits(0u32);
+    if race.shared.switches.face_any_shine.bits() == 0 {
+        race.shared.switches.face_reflects.set_bits(0u32);
     }
     scene.drawing.scene.polygon_sides[0].set_bits(1u32);
-    scene.drawing.scene.polygon_sides[1].set_bits(
-        crate::race::owner::race()
-            .shared
-            .switches
-            .face_reflects
-            .bits(),
-    );
+    scene.drawing.scene.polygon_sides[1].set_bits(race.shared.switches.face_reflects.bits());
     let see_through: u32 = race.physics.ground.object_see_through.bits();
     if see_through != 0x100 {
         for entry in &entries[..0x10] {
@@ -223,26 +181,14 @@ pub fn draw_object_face(
         }
         scene.drawing.scene.polygon_sides[0].set_bits(0u32);
         scene.drawing.scene.polygon_sides[1].set_bits(1u32);
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(3u32);
+        race.shared.view.polygon_mode.set_bits(3u32);
         scene.drawing.scene.polygon_textures[1]
             .set_bits(scene.drawing.scene.polygon_textures[0].bits());
     } else {
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(4u32);
+        race.shared.view.polygon_mode.set_bits(4u32);
     }
     step(Step::Draw)?;
-    crate::race::owner::race()
-        .shared
-        .view
-        .polygon_mode
-        .set_bits(0u32);
+    race.shared.view.polygon_mode.set_bits(0u32);
     scene.lights.state.faded.set_bits(0u32);
     Ok(())
 }

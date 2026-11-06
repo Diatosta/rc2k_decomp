@@ -9,35 +9,21 @@
 //!
 //! Caller: `drive::race_step` (`sub_4454D2`).
 
+use crate::race::owner::race;
 use rc2k_core::drive::clocks::RaceClock;
 
 /// The Rust version after the clock's reading `now` (already in `g_sceneClock`).
 // Converted: `rc2k_core::drive::clocks::RaceClock::tick`.
 pub fn tick_from(now: u32) {
+    let race = race();
     let mut c = RaceClock {
-        counted: crate::race::owner::race()
-            .shared
-            .physics_tables
-            .race_clock_base
-            .get(),
+        counted: race.shared.physics_tables.race_clock_base.get(),
         ..RaceClock::default()
     };
     c.tick(now);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .race_clock_now
-        .set(c.now);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .race_tenths
-        .set(c.tenths);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .race_clock_base
-        .set(c.counted);
+    race.shared.physics_tables.race_clock_now.set(c.now);
+    race.shared.physics_tables.race_tenths.set(c.tenths);
+    race.shared.physics_tables.race_clock_base.set(c.counted);
 }
 
 /// The Rust version.

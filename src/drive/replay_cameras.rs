@@ -45,6 +45,7 @@ fn wish_of(byte: usize) -> Result<u32, BadInput> {
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps(replay: &Replay) -> Result<(), Refused> {
+    let shared = &race().shared;
     replay
         .replay_frames
         .camera_word_0
@@ -85,16 +86,16 @@ fn steps(replay: &Replay) -> Result<(), Refused> {
     }
     CAR_BLOCKS.cars[0]
         .option_bits
-        .set_bits(crate::race::owner::race().shared.view.player_options[0].get());
+        .set_bits(shared.view.player_options[0].get());
     CAR_BLOCKS.cars[1]
         .option_bits
-        .set_bits(crate::race::owner::race().shared.view.player_options[1].get());
+        .set_bits(shared.view.player_options[1].get());
     // The head's bytes 2 .. 5 into `dword_63DB74`, `63DB78`, `63DB84`, `63DB88`.
     for (k, to) in [
-        &crate::race::owner::race().shared.view.view_on[0],
-        &crate::race::owner::race().shared.view.view_on[1],
-        &crate::race::owner::race().shared.view.after_credits,
-        &crate::race::owner::race().shared.view.view_switch,
+        &shared.view.view_on[0],
+        &shared.view.view_on[1],
+        &shared.view.after_credits,
+        &shared.view.view_switch,
     ]
     .into_iter()
     .enumerate()

@@ -8,6 +8,8 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::Cursor;
+use crate::net::owner::net;
+use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
 
 pub const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
@@ -24,12 +26,12 @@ pub fn chat_input_line(
 }
 
 fn chat_input_line_at(text: crate::place::Place, item: u32, y: u32) -> Result<u32, Refused> {
-    let shown = if item == crate::net::owner::net().vars.edited.get() {
+    let shown = if item == net().vars.edited.get() {
         let mut cursor = Cursor::text();
         cursor.string(text);
         cursor.string_id(4);
         cursor.nul()?;
-        crate::place::Place::from(&crate::strings::owner::strings().text.buffer.text)
+        crate::place::Place::from(&strings().text.buffer.text)
     } else {
         text
     };

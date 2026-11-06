@@ -12,16 +12,20 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
+use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
+use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::scene::owner::scene;
 use crate::session::{Dword, Loose};
 use crate::settings::read_text::read_text;
+use crate::strings::owner::strings;
 use crate::strings::same_text::case_table;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -93,27 +97,27 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"notaskswitch",
         0x518384,
-        dword!(crate::system::owner::system().session.flags.no_task_switch),
+        dword!(system().session.flags.no_task_switch),
     ),
     (
         b"noprichange",
         0x518388,
-        dword!(crate::system::owner::system().session.flags.keep_priority),
+        dword!(system().session.flags.keep_priority),
     ),
     (
         b"ignoremmx",
         0x5183AC,
-        dword!(crate::system::owner::system().session.machine.ignore_mmx),
+        dword!(system().session.machine.ignore_mmx),
     ),
     (
         b"ignorekatmai",
         0x5183B4,
-        dword!(crate::system::owner::system().session.machine.ignore_katmai),
+        dword!(system().session.machine.ignore_katmai),
     ),
     (
         b"ignoreamdk3d",
         0x5183BC,
-        dword!(crate::system::owner::system().session.machine.ignore_3dnow),
+        dword!(system().session.machine.ignore_3dnow),
     ),
     (
         b"altmemenable",
@@ -183,62 +187,34 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"imageheapsize",
         0x519554,
-        dword!(crate::strings::owner::strings().lexicon.memory.kilobytes),
+        dword!(strings().lexicon.memory.kilobytes),
     ),
     (
         b"gamegfxheapsize",
         0x5BE894,
         dword!(gfx().fonts.game_fonts.units),
     ),
-    (
-        b"forcedx5",
-        0x5AB958,
-        dword!(crate::d3d::owner::d3d().cards.force_dx5),
-    ),
-    (
-        b"forceno3dcard",
-        0x5AB94C,
-        dword!(crate::d3d::owner::d3d().cards.no_search),
-    ),
-    (
-        b"ignoreprimary",
-        0x5AB950,
-        dword!(crate::d3d::owner::d3d().cards.not_primary),
-    ),
+    (b"forcedx5", 0x5AB958, dword!(d3d().cards.force_dx5)),
+    (b"forceno3dcard", 0x5AB94C, dword!(d3d().cards.no_search)),
+    (b"ignoreprimary", 0x5AB950, dword!(d3d().cards.not_primary)),
     (
         b"ignoresecondary",
         0x5AB954,
-        dword!(crate::d3d::owner::d3d().cards.ignore_secondary),
+        dword!(d3d().cards.ignore_secondary),
     ),
-    (
-        b"agpmode",
-        0x5AB95C,
-        dword!(crate::d3d::owner::d3d().cards.agp_mode),
-    ),
-    (
-        b"force3dtrans",
-        0x5AB97C,
-        dword!(crate::d3d::owner::d3d().cards.force_trans),
-    ),
-    (
-        b"force3dalpha",
-        0x5AB984,
-        dword!(crate::d3d::owner::d3d().cards.force_alpha),
-    ),
-    (
-        b"force3dshadow",
-        0x5AB980,
-        dword!(crate::d3d::owner::d3d().cards.force_shadow),
-    ),
+    (b"agpmode", 0x5AB95C, dword!(d3d().cards.agp_mode)),
+    (b"force3dtrans", 0x5AB97C, dword!(d3d().cards.force_trans)),
+    (b"force3dalpha", 0x5AB984, dword!(d3d().cards.force_alpha)),
+    (b"force3dshadow", 0x5AB980, dword!(d3d().cards.force_shadow)),
     (
         b"force3dfogging",
         0x5AB988,
-        dword!(crate::d3d::owner::d3d().cards.force_fogging),
+        dword!(d3d().cards.force_fogging),
     ),
     (
         b"textflashmode",
         0x4F3F74,
-        dword!(crate::strings::owner::strings().text.blend_mode),
+        dword!(strings().text.blend_mode),
     ),
     (
         b"videomodemain",
@@ -300,16 +276,8 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         0x4F68FC,
         dword!(crate::input::owner::INPUT.devices.two_devices_one_player),
     ),
-    (
-        b"nonetwork",
-        0x52A4B0,
-        dword!(crate::net::owner::net().vars.receive_done),
-    ),
-    (
-        b"inetport",
-        0x52AC24,
-        dword!(crate::net::owner::net().vars.port),
-    ),
+    (b"nonetwork", 0x52A4B0, dword!(net().vars.receive_done)),
+    (b"inetport", 0x52AC24, dword!(net().vars.port)),
     (b"screensnapshot", 0x4F52B4, dword!(gfx().shots.on)),
     (b"framecounter", 0x5EB100, dword!(race().frame.counter.show)),
     (

@@ -3,6 +3,7 @@
 //! face count, its angle, its distance, its map place and its nearest replay cameras, then
 //! the two replay camera lists. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -40,7 +41,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = Checkpoints;
     fn deref(&self) -> &Checkpoints {
-        &crate::race::owner::race().shared.buffers.checkpoints
+        &race().shared.buffers.checkpoints
     }
 }
 

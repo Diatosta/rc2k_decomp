@@ -24,6 +24,7 @@ use crate::install::installer::{
     normalise, rb, set_cd, show, sleep, unlock, wb,
 };
 use crate::place::Place;
+use crate::system::owner::system;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
@@ -56,13 +57,7 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
         let cursor = append_string_by_id(0x9F, &g.paths.typed);
         let cursor = append_string_by_id(0xA0, cursor);
         append_byte(cursor, 0);
-        if crate::system::owner::system()
-            .session
-            .machine
-            .keyboard_type
-            .get()
-            == 2
-        {
+        if system().session.machine.keyboard_type.get() == 2 {
             g.paths.typed.set(0, g.run.first_drive.get() as u8);
         }
         i::read_registry::read_registry_here(g);

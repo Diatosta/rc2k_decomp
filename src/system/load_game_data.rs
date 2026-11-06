@@ -30,10 +30,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
+use crate::net::owner::net;
+use crate::race::owner::race;
+use crate::service::owner::service;
 use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -112,19 +116,19 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
 }
 
 pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
+    let race = race();
+    let net = net();
+    let system = system();
     let play = &menus().play;
     outside(Call::LoadOptions)?;
     outside(Call::LoadBestTimes)?;
     outside(Call::ReadSettings)?;
     outside(Call::ReadSku)?;
-    crate::system::owner::system().start.run_count.runs.set(
-        crate::system::owner::system()
-            .start
-            .run_count
-            .runs
-            .get()
-            .wrapping_add(1),
-    );
+    system
+        .start
+        .run_count
+        .runs
+        .set(system.start.run_count.runs.get().wrapping_add(1));
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
     if removes_secret_cars(play.cheats.all_secret_cars.get()) {
@@ -155,13 +159,13 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         default_name(name, NAME_LEN, id, &[])?;
     }
 
-    if crate::net::owner::net().vars.machine_name.get(0) == 0 {
-        let place = crate::pointers::GamePtr::to(&crate::net::owner::net().vars.machine_name);
+    if net.vars.machine_name.get(0) == 0 {
+        let place = crate::pointers::GamePtr::to(&net.vars.machine_name);
         outside(Call::ComputerName(place))?;
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
-        if crate::net::owner::net().vars.machine_name.get(0) == 0 {
+        if net.vars.machine_name.get(0) == 0 {
             default_name(
-                crate::pointers::GamePtr::to(&crate::net::owner::net().vars.machine_name),
+                crate::pointers::GamePtr::to(&net.vars.machine_name),
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
                 &[],
@@ -169,13 +173,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         }
     }
 
-    if crate::race::owner::race()
-        .shared
-        .tyre_change
-        .record_name
-        .get(0)
-        == 0
-    {
+    if race.shared.tyre_change.record_name.get(0) == 0 {
         let mut draws = 0;
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
@@ -186,18 +184,10 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
             }
             // No NUL yet: a short name leaves what was there after it.
             for (k, &b) in name.iter().enumerate() {
-                crate::race::owner::race()
-                    .shared
-                    .tyre_change
-                    .record_name
-                    .set(k, b);
+                race.shared.tyre_change.record_name.set(k, b);
             }
             if !drawn_again(std::array::from_fn(|k| {
-                crate::race::owner::race()
-                    .shared
-                    .tyre_change
-                    .record_name
-                    .get(k)
+                race.shared.tyre_change.record_name.get(k)
             })) {
                 break name.len();
             }
@@ -206,16 +196,8 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 return Err(BadInput("no driver's name that can be taken").into());
             }
         };
-        crate::race::owner::race()
-            .shared
-            .tyre_change
-            .record_name
-            .set(end, 0);
-        crate::race::owner::race()
-            .shared
-            .tyre_change
-            .record
-            .set(TYRE_CHANGE_RECORD);
+        race.shared.tyre_change.record_name.set(end, 0);
+        race.shared.tyre_change.record.set(TYRE_CHANGE_RECORD);
     }
 
     for slot in 0..SLOTS {
@@ -225,17 +207,11 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
-    number_empty_names(
-        &crate::race::owner::race().shared.replays.names,
-        REPLAY_NAME_ID,
-    )?;
+    number_empty_names(&race.shared.replays.names, REPLAY_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
-    number_empty_names(
-        &crate::service::owner::service().set_ups.names,
-        SETUP_NAME_ID,
-    )?;
+    number_empty_names(&service().set_ups.names, SETUP_NAME_ID)?;
     Ok(())
 }
 
@@ -313,8 +289,7 @@ impl RunCount {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
-            as usize
+        crate::pointers::game_address(&raw const system().start.run_count) as usize
     }
 }
 

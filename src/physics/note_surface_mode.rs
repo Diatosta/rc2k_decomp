@@ -9,6 +9,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::surface_flag;
 
@@ -19,9 +20,10 @@ pub fn note_at(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared = &race().shared;
     vec![
-        &crate::race::owner::race().shared.car.camera_view as &dyn Cell32,
-        &crate::race::owner::race().shared.car.camera_mode_is_2_or_3,
+        &shared.car.camera_view as &dyn Cell32,
+        &shared.car.camera_mode_is_2_or_3,
     ]
 }
 

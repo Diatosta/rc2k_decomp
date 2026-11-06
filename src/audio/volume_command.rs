@@ -6,6 +6,8 @@
 //! Nothing for a negative volume; else it is kept in `g_masterVolume` and
 //! `audio::set_master_volume` called with it. One caller, `audio::take_commands`.
 
+use crate::audio::owner::audio;
+
 // ---- Rust version ----
 
 /// `set`: the master volume's setting.
@@ -14,6 +16,6 @@ pub fn volume_command(volume: u32, set: &mut dyn FnMut(u32)) {
     let Some(volume) = rc2k_core::audio::levels::kept_master_volume(volume) else {
         return;
     };
-    crate::audio::owner::audio().state.master_volume.set(volume);
+    audio().state.master_volume.set(volume);
     set(volume);
 }

@@ -15,29 +15,19 @@ pub fn mud_frame(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    let (frames, due) = count_frame(crate::race::owner::race().shared.vars.mud_frames.bits());
-    crate::race::owner::race()
-        .shared
-        .vars
-        .mud_frames
-        .set_bits(frames);
+    let (frames, due) = count_frame(race.shared.vars.mud_frames.bits());
+    race.shared.vars.mud_frames.set_bits(frames);
     if !due {
         return Ok(());
     }
-    crate::race::owner::race()
-        .shared
+    race.shared
         .vars
         .mud_texture
-        .set_bits(texture_turn(
-            crate::race::owner::race().shared.vars.mud_texture.bits(),
-        ));
+        .set_bits(texture_turn(race.shared.vars.mud_texture.bits()));
     mud_texture_turn(race)?;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .vars
         .mud_texture
-        .set_bits(next_texture(
-            crate::race::owner::race().shared.vars.mud_texture.bits(),
-        ));
+        .set_bits(next_texture(race.shared.vars.mud_texture.bits()));
     Ok(())
 }

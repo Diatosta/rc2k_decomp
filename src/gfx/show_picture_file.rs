@@ -25,6 +25,7 @@ use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
+use crate::system::owner::system;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -38,6 +39,7 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 
 /// The Rust version on the picture at `path`.
 pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> {
+    let system = system();
     let gfx = gfx();
     pump_messages_now();
     gfx.pictures.showing.set(1);
@@ -51,8 +53,8 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
         Err(e) => return Err(e),
     };
     let (width, height): (u32, u32) = (
-        crate::system::owner::system().session.screen.width.get(),
-        crate::system::owner::system().session.screen.height.get(),
+        system.session.screen.width.get(),
+        system.session.screen.height.get(),
     );
     crate::gfx::picture::set_size(sizes::screen(width, height));
     let pages = sizes::pages(gfx.display.mode.mode_flags.get());

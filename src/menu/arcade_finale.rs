@@ -15,43 +15,32 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Play;
+use crate::race::owner::race;
 
 /// The Rust version. The original keeps every register of its caller.
 pub fn arcade_finale(play: &Play) -> Result<(), Refused> {
+    let race = race();
     let first = play.players.players[0].get();
-    crate::race::owner::race()
-        .shared
+    race.shared
         .state
         .results
         .finish_player
         .set(first.race_number);
-    crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .finish_kind
-        .set(first.car_number);
-    crate::race::owner::race()
-        .shared
+    race.shared.state.results.finish_kind.set(first.car_number);
+    race.shared
         .state
         .settings
         .car_kind_current
         .set(first.car_number);
-    crate::race::owner::race().shared.state.settings.kept.set(0);
+    race.shared.state.settings.kept.set(0);
     let level = play.arcade.level.get();
     // Converted: `rc2k_core::menu::arcade::levels_left`.
-    crate::race::owner::race()
-        .shared
+    race.shared
         .state
         .results
         .stage_index
         .set(rc2k_core::menu::arcade::levels_left(level));
-    crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .finished
-        .set(0);
+    race.shared.state.results.finished.set(0);
     crate::race::sound_tables::set_up_race_sound_objects(
         &crate::race::sound_tables::ObjectVars::game(),
     )?;

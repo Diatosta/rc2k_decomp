@@ -649,6 +649,7 @@ pub const END: usize = 0x75B940;
 mod tests {
     use super::*;
     use crate::moved::image_bytes;
+    use crate::race::owner::race;
     use core::mem::{offset_of, size_of};
 
     #[test]
@@ -656,10 +657,7 @@ mod tests {
         let size = size_of::<DamageModel>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::race::owner::race().physics.damage).cast::<u8>(),
-                END - START,
-            )
+            std::slice::from_raw_parts((&raw const race().physics.damage).cast::<u8>(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

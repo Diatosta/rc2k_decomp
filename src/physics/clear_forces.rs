@@ -8,12 +8,13 @@
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
+use crate::race::owner::race;
 const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub fn clear_forces() -> Result<(), Refused> {
     clear_records(
-        crate::pointers::GamePtr::to(&crate::race::owner::race().shared.physics_tables.forces),
+        crate::pointers::GamePtr::to(&race().shared.physics_tables.forces),
         COUNT,
     )
 }

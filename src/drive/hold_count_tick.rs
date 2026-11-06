@@ -6,13 +6,16 @@
 //!
 //! Caller: `drive::replay_step`.
 
+use crate::race::owner::race;
+
 /// The Rust version.
 // Converted: `rc2k_core::drive::countdown::hold_tick`.
 pub fn hold_count_tick() {
-    let was = crate::race::owner::race().shared.vars.hold_count.get();
+    let shared = &race().shared;
+    let was = shared.vars.hold_count.get();
     let mut hold = was;
     rc2k_core::drive::countdown::hold_tick(&mut hold);
     if hold != was {
-        crate::race::owner::race().shared.vars.hold_count.set(hold);
+        shared.vars.hold_count.set(hold);
     }
 }

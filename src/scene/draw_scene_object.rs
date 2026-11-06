@@ -39,22 +39,16 @@ pub use rc2k_core::scene::shown::Way;
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
 fn texture_set(course: &crate::race::owner_course::Course) -> Result<(u32, u32), Refused> {
+    let shared = &race().shared;
     use rc2k_core::scene::shown::SetError;
     {
-        let object: u32 = crate::race::owner::race()
-            .shared
-            .switches
-            .object_number
-            .bits();
+        let object: u32 = shared.switches.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
             course.numbers.in_race.bits() != 0,
             |object| scene().objects.tables.object_kind(object),
             |car| {
-                let block: u32 = crate::race::owner::race()
-                    .shared
-                    .work
-                    .car_block(car as usize);
+                let block: u32 = shared.work.car_block(car as usize);
                 (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
             },
         )

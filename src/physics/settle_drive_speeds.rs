@@ -14,6 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -33,10 +34,11 @@ pub struct SettlePlaces {
 
 impl SettlePlaces {
     pub fn game() -> Self {
+        let shared = &race().shared;
         Self {
-            first: &crate::race::owner::race().shared.car.front_wheels_off,
-            second: &crate::race::owner::race().shared.car.rear_wheels_off,
-            fast: &crate::race::owner::race().shared.car.brake,
+            first: &shared.car.front_wheels_off,
+            second: &shared.car.rear_wheels_off,
+            fast: &shared.car.brake,
             scratch: &scene().drawing.scene.scratch,
         }
     }
@@ -70,23 +72,16 @@ pub fn settle_drive_speeds_at(
     g: &GearPlaces,
     s: &SettlePlaces,
 ) -> Result<(), Refused> {
+    let race = race();
     let gear = g.gear.bits();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     let step = || {
         if s.fast.bits() != 0 {
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .settle_fast_step
-                .bits()
+            race.shared.physics_tables.settle_fast_step.bits()
         } else {
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .settle_slow_step
-                .bits()
+            race.shared.physics_tables.settle_slow_step.bits()
         }
     };
     if s.first.bits() != 0 && gear == 0 {

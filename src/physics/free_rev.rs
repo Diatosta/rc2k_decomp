@@ -18,6 +18,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
@@ -29,10 +30,12 @@ fn run(course: &Course) {
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
 pub fn free_rev(course: &Course) {
+    let shared_store = &race().shared;
+
     engine_torque();
     run(course);
     let (e, drag) = (
-        crate::race::owner::race().shared.car.engine_speed.bits(),
+        shared_store.car.engine_speed.bits(),
         scene().drawing.scene.scratch.get(),
     );
     let x = f32::from_bits(e);
@@ -41,31 +44,15 @@ pub fn free_rev(course: &Course) {
     }
     if x < 0.0 {
         let y = x87::add(e, drag);
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed
-            .set_bits(y);
+        shared_store.car.engine_speed.set_bits(y);
         if !below(y, 0) {
-            crate::race::owner::race()
-                .shared
-                .car
-                .engine_speed
-                .set_bits(0);
+            shared_store.car.engine_speed.set_bits(0);
         }
     } else {
         let y = x87::sub(e, drag);
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed
-            .set_bits(y);
+        shared_store.car.engine_speed.set_bits(y);
         if below(y, 0) {
-            crate::race::owner::race()
-                .shared
-                .car
-                .engine_speed
-                .set_bits(0);
+            shared_store.car.engine_speed.set_bits(0);
         }
     }
 }
@@ -78,58 +65,32 @@ pub fn free_rev(course: &Course) {
 /// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
 /// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
 fn x87_1(course: &Course) {
-    let t0 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .drive_ratio
-        .bits());
+    let shared_store = &race().shared;
+
+    let t0 = ld(shared_store.physics_tables.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
-    let t3 = ld(crate::race::owner::race().shared.physics_tables.gear_ratios[1].bits());
+    let t3 = ld(shared_store.physics_tables.gear_ratios[1].bits());
     let t4 = t2 / t3;
     let t5 = ld(course.numbers.k10000.bits());
     let t6 = t4 / t5;
-    let t7 = int(crate::race::owner::race().shared.car.throttle.bits() as i32);
+    let t7 = int(shared_store.car.throttle.bits() as i32);
     let t8 = t6 * t7;
     let t9 = ld(course.numbers.k256.bits());
     let t10 = t8 / t9;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .drive_torque
-        .set_bits(st(t10));
-    let t11 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .drive_torque
-        .bits());
-    let t12 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .step_time
-        .bits());
+    shared_store.physics_tables.drive_torque.set_bits(st(t10));
+    let t11 = ld(shared_store.physics_tables.drive_torque.bits());
+    let t12 = ld(shared_store.physics_tables.step_time.bits());
     let t13 = t11 * t12;
-    let t14 = ld(crate::race::owner::race().shared.physics_tables.gear_ratios[1].bits());
+    let t14 = ld(shared_store.physics_tables.gear_ratios[1].bits());
     let t15 = t13 / t14;
-    let t16 = ld(crate::race::owner::race().shared.car.engine_speed.bits());
+    let t16 = ld(shared_store.car.engine_speed.bits());
     let t17 = t15 + t16;
-    crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed
-        .set_bits(st(t17));
-    let t18 = ld(crate::race::owner::race().shared.car.engine_speed.bits());
-    let t19 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .free_rev_scale
-        .bits());
+    shared_store.car.engine_speed.set_bits(st(t17));
+    let t18 = ld(shared_store.car.engine_speed.bits());
+    let t19 = ld(shared_store.physics_tables.free_rev_scale.bits());
     let t20 = t18 * t19;
-    let t21 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .free_rev_add
-        .bits());
+    let t21 = ld(shared_store.physics_tables.free_rev_add.bits());
     let t22 = t20 + t21;
     scene().drawing.scene.scratch.set_bits(st(t22));
 }
@@ -163,7 +124,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| x87_1(&crate::race::owner::race().course),
+            plain: |_| x87_1(&race().course),
         }]
     }
 

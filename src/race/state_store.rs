@@ -4,6 +4,8 @@
 //! structs of atomic cells with the image's layout, one static; `moved::MOVED` points the
 //! range at it. Ends in unreferenced bytes up to the damage model.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
@@ -434,10 +436,7 @@ mod tests {
         let size = size_of::<RaceState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::race::owner::race().shared.state).cast::<u8>(),
-                END - START,
-            )
+            std::slice::from_raw_parts((&raw const race().shared.state).cast::<u8>(), END - START)
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

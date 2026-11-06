@@ -33,6 +33,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::input::types::{ForceEffect, InputDevice};
 
 // sub_409AEE
@@ -61,7 +62,7 @@ pub fn effect_change(
         || record.sensitivity.get(),
         // the core asks only for a row inside the table
         |n| {
-            crate::input::owner::input().devices.effect_rows[n as usize]
+            input().devices.effect_rows[n as usize]
                 .each_ref()
                 .map(crate::session::Dword::get)
         },

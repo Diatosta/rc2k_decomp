@@ -30,6 +30,7 @@
 //! record's room (16 modes: the original would write over 0x4F51F0's constants) and a size's
 //! place of 0x1000 or more when made (the original reads that far past the list).
 
+use crate::d3d::owner::d3d;
 use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
 use crate::gfx::modes::Modes;
@@ -145,11 +146,8 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags,
                 display.modes.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(display, mode)?;
-            let worked = !tried.carry
-                && mc::kept(
-                    display.choices.mipmapping.get(),
-                    crate::d3d::owner::d3d().cards.mips.get(),
-                );
+            let worked =
+                !tried.carry && mc::kept(display.choices.mipmapping.get(), d3d().cards.mips.get());
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(display, mode)?;
             }
@@ -209,10 +207,7 @@ fn rebuild(display: &Display, current: u32, modes: Option<Vec<GamePtr>>) -> Resu
             .set(display.choices.resolutions.get() + 1);
         listed.push(l.mode);
     }
-    display
-        .choices
-        .mip_limit
-        .set(crate::d3d::owner::d3d().cards.mips.get());
+    display.choices.mip_limit.set(d3d().cards.mips.get());
     display.choices.listed.set(1);
     display
         .choices

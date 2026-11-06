@@ -16,6 +16,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::input::types::InputDevice;
 
 /// Effect `effect` (0 .. 5) of the device `record` told `what` (2 start, 3 set, 4
@@ -29,7 +30,7 @@ pub fn set_effect(
     b: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    let race_on: u32 = crate::input::owner::input().force_feedback.race_on.get();
+    let race_on: u32 = input().force_feedback.race_on.get();
     if wanted(record.effects_on.get() == 1, race_on == 1, effect, what)? {
         record
             .effects

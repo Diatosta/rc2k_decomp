@@ -8,6 +8,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -20,41 +21,21 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let race = race();
     vec![
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .contact_step as &dyn Cell32,
-        &crate::race::owner::race().shared.car.velocity[0],
-        &crate::race::owner::race().shared.car.velocity[1],
-        &crate::race::owner::race().shared.car.velocity[2],
-        &crate::race::owner::race().shared.car.spin[0],
-        &crate::race::owner::race().shared.car.spin[1],
-        &crate::race::owner::race().shared.car.spin[2],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[0],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[1],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[2],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[4],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[5],
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .kept_vectors[6],
+        &race.shared.physics_tables.contact_step as &dyn Cell32,
+        &race.shared.car.velocity[0],
+        &race.shared.car.velocity[1],
+        &race.shared.car.velocity[2],
+        &race.shared.car.spin[0],
+        &race.shared.car.spin[1],
+        &race.shared.car.spin[2],
+        &race.shared.physics_tables.kept_vectors[0],
+        &race.shared.physics_tables.kept_vectors[1],
+        &race.shared.physics_tables.kept_vectors[2],
+        &race.shared.physics_tables.kept_vectors[4],
+        &race.shared.physics_tables.kept_vectors[5],
+        &race.shared.physics_tables.kept_vectors[6],
     ]
 }
 

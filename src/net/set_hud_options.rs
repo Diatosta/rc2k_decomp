@@ -12,6 +12,8 @@
 //! Caller: `net::lets_race`.
 
 use crate::gfx::owner::gfx;
+use crate::net::owner::net;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::cars;
 
@@ -38,44 +40,31 @@ const COPIED_WORDS: [&Dword; 5] = [
 
 /// This machine's car's block.
 pub fn own_block() -> u32 {
-    crate::race::owner::race()
+    race()
         .shared
         .work
-        .car_block(crate::net::owner::net().vars.player.get() as usize)
+        .car_block(net().vars.player.get() as usize)
 }
 
 /// The Rust version.
 pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
+    let race = race();
     let block = own_block();
-    let mut bits = crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .hud_bits_current
-        .get();
+    let mut bits = race.shared.state.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(SWITCHES.map(super::super::session::Dword::get));
     }
     let block = crate::race::trap::car_at(block)?;
     block.option_bits.set(bits);
-    block.camera_view.set(
-        crate::race::owner::race().shared.state.settings.cars[0]
-            .view
-            .get(),
-    );
-    crate::race::owner::race()
-        .shared
+    block
+        .camera_view
+        .set(race.shared.state.settings.cars[0].view.get());
+    race.shared
         .vars
         .mip_setting
         .set(gfx().display.choices.mipmapping.get());
-    for (to, from) in crate::race::owner::race()
-        .shared
-        .vars
-        .settings_words
-        .iter()
-        .zip(COPIED_WORDS)
-    {
+    for (to, from) in race.shared.vars.settings_words.iter().zip(COPIED_WORDS) {
         to.set(from.get());
     }
     Ok(())

@@ -33,13 +33,14 @@ use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
 pub fn find_present_courses() -> Result<(), Refused> {
+    let shared = &race().shared;
     let course = &race().course;
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {
         set_course_number(n)?;
         set_cdat_number(course, 0);
-        crate::race::owner::race().shared.switches.course_present[n as usize].set(0); // dword_621518, 100 flags
+        shared.switches.course_present[n as usize].set(0); // dword_621518, 100 flags
         let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];
@@ -51,7 +52,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;
         if present {
-            crate::race::owner::race().shared.switches.course_present[n as usize].set(1);
+            shared.switches.course_present[n as usize].set(1);
         }
     }
     Ok(())

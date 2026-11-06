@@ -25,6 +25,7 @@
 //! shared (atomic cells and volatile bytes).
 
 use crate::errors::BadInput;
+use crate::input::owner::input;
 use crate::input::types::{Controller, InputDevice};
 use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword, Float};
@@ -332,11 +333,7 @@ pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
     if handle == 0 {
         return None;
     }
-    match crate::input::owner::input()
-        .devices
-        .records
-        .get((handle ^ DEVICE_TAG) as usize)
-    {
+    match input().devices.records.get((handle ^ DEVICE_TAG) as usize) {
         Some(record) => Some(record),
         None => crate::fatal::raise::end(
             "input::store::device_of",

@@ -121,9 +121,9 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     let frame = &race.frame;
     let mut views = u32::MAX;
-    let mode: u32 = crate::race::owner::race().shared.vars.run_kind.get();
+    let mode: u32 = race.shared.vars.run_kind.get();
     if mode != 0 && mode != 2 {
-        views = 1u32.wrapping_shl(crate::race::owner::race().shared.view.drawn_view.get() & 0x1F);
+        views = 1u32.wrapping_shl(race.shared.view.drawn_view.get() & 0x1F);
     }
     frame.shadow_skids.skid_views.set(views);
     let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
@@ -133,8 +133,8 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
         e.lamp_light.set(0);
     }
     let (u, w) = (
-        crate::race::owner::race().shared.vars.fade_uv[0].get(),
-        crate::race::owner::race().shared.vars.fade_uv[1].get(),
+        race.shared.vars.fade_uv[0].get(),
+        race.shared.vars.fade_uv[1].get(),
     );
     for e in entries {
         e.u.set(u);
@@ -213,19 +213,11 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
         if drawing.scene.polygon_vertex_count.get() >= 3 {
             drawing.scene.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
-            crate::race::owner::race()
-                .shared
-                .view
-                .polygon_mode
-                .set(3u32);
+            race.shared.view.polygon_mode.set(3u32);
             drawing.scene.polygon_sides[0].set(0u32);
             drawing.scene.polygon_sides[1].set(1u32);
             crate::scene::draw_polygon::draw_polygon_in_game()?;
-            crate::race::owner::race()
-                .shared
-                .view
-                .polygon_mode
-                .set(0u32);
+            race.shared.view.polygon_mode.set(0u32);
             drawing.scene.polygon_drawn.set(1u32);
             crate::scene::depth_test_on::depth_test_on();
         }

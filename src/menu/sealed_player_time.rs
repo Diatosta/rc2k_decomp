@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
+use crate::race::owner::race;
 
 /// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
@@ -24,12 +25,7 @@ pub fn sealed_player_time(screens: &Screens, byte: u32) -> Result<[u32; 2], Refu
             p.get().time,
             [
                 p.get().car_number as u8,
-                crate::race::owner::race()
-                    .shared
-                    .state
-                    .settings
-                    .run_kind
-                    .get() as u8,
+                race().shared.state.settings.run_kind.get() as u8,
                 byte as u8,
             ],
         )

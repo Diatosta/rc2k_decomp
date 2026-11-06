@@ -10,6 +10,7 @@
 
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::{Cursor, PALETTE};
+use crate::net::owner::net;
 use rc2k_core::net::editing::{self, Setting};
 
 /// The Rust version. The registers the original leaves when an edit starts (eax the item,
@@ -25,7 +26,7 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
                 &crate::install::owner::install().paths.path_a,
             ));
             cursor.bytes(&crate::strings::format_u32::format_u32(
-                crate::net::owner::net().vars.most_players.get(),
+                net().vars.most_players.get(),
                 0,
             ))?;
             cursor.nul()?;

@@ -78,17 +78,14 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
 /// the site in `race::loadlevel_init`, every register followed, no read).
 pub fn init_texture_levels() -> Result<(), Refused> {
+    let shared = &race().shared;
     let scene = scene();
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
     use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
-    let cars = held_cars(crate::race::owner::race().shared.view.race_cars.bits());
-    crate::race::owner::race()
-        .shared
-        .view
-        .race_cars
-        .set_bits(cars);
+    let cars = held_cars(shared.view.race_cars.bits());
+    shared.view.race_cars.set_bits(cars);
     crate::scene::reset_texture_tables::reset_texture_tables();
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
@@ -127,17 +124,12 @@ pub fn init_texture_levels() -> Result<(), Refused> {
                     video,
                 },
                 cars,
-                crate::race::owner::race().shared.view.players.bits() == 1,
+                shared.view.players.bits() == 1,
                 &kinds,
-                crate::race::owner::race()
-                    .shared
-                    .switches
-                    .editor_mode
-                    .bits()
-                    != 0,
+                shared.switches.editor_mode.bits() != 0,
                 other(),
                 |car| {
-                    let kinds = &crate::race::owner::race().shared.vars.race_car_kinds;
+                    let kinds = &shared.vars.race_car_kinds;
                     let own = crate::race::blocks_store::own_car_number();
                     car as usize == own || kinds[car as usize].get() == kinds[own].get()
                 },

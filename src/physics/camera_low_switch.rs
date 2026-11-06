@@ -26,69 +26,37 @@ use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, ov
 pub fn camera_low_switch(race: &Race) -> Result<(), Refused> {
     if !low_switch_looks(
         c0(
-            crate::race::owner::race().shared.car.crash_matrix[5].bits(),
+            race.shared.car.crash_matrix[5].bits(),
             race.course.numbers.zero.bits(),
         ),
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_switch_active
-            .get(),
-        crate::race::owner::race().shared.car.camera_view.get(),
+        race.shared.car.camera_switch_active.get(),
+        race.shared.car.camera_view.get(),
     ) {
         return Ok(());
     }
     if !probe_at(
         race,
-        crate::race::owner::race().shared.car.camera_position[0].get(),
-        crate::race::owner::race().shared.car.camera_position[2].get(),
-        &crate::race::owner::race().shared.car.camera_ground_faces[0],
+        race.shared.car.camera_position[0].get(),
+        race.shared.car.camera_position[2].get(),
+        &race.shared.car.camera_ground_faces[0],
     )? {
         return Ok(());
     }
     if !is_low(over(
-        crate::race::owner::race().shared.car.camera_position[1].get(),
+        race.shared.car.camera_position[1].get(),
         race.physics.ground.ground_height.get(),
     )) {
         return Ok(());
     }
     let s = low_switch(
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_blend_view
-            .get(),
-        crate::race::owner::race().shared.car.step_clock.get(),
+        race.shared.car.camera_blend_view.get(),
+        race.shared.car.step_clock.get(),
     );
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_view_return
-        .set(s.before);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_blend_view
-        .set(s.mode);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_active
-        .set(s.switching);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .set_bits(s.w674);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_length
-        .set(s.w670);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_clock
-        .set(s.clock);
+    race.shared.car.camera_view_return.set(s.before);
+    race.shared.car.camera_blend_view.set(s.mode);
+    race.shared.car.camera_switch_active.set(s.switching);
+    race.shared.car.camera_switch_share.set_bits(s.w674);
+    race.shared.car.camera_switch_length.set(s.w670);
+    race.shared.car.camera_switch_clock.set(s.clock);
     Ok(())
 }

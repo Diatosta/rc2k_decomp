@@ -15,18 +15,11 @@ use rc2k_core::physics::parts::take_bit;
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::take_bit`.
 pub fn sound_on_bit(race: &Race, cl: u32) -> Result<(), Refused> {
-    let (_, cleared) = take_bit(
-        crate::race::owner::race().shared.car.parts_present.bits(),
-        cl,
-    );
+    let (_, cleared) = take_bit(race.shared.car.parts_present.bits(), cl);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    crate::race::owner::race()
-        .shared
-        .car
-        .parts_present
-        .set(cleared);
+    race.shared.car.parts_present.set(cleared);
     { place_car_sound(race) }?;
     Ok(())
 }

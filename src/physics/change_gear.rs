@@ -16,6 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
@@ -32,11 +33,13 @@ pub struct ChangePlaces {
 
 impl ChangePlaces {
     pub fn game() -> Self {
+        let shared_store = &race().shared;
+
         Self {
-            wanted: &crate::race::owner::race().shared.physics_tables.gear_asked,
-            bits: &crate::race::owner::race().shared.car.lost_gear_bits,
-            changed: &crate::race::owner::race().shared.car.gear_changed,
-            changed_2: &crate::race::owner::race().shared.car.gear_changed_2,
+            wanted: &shared_store.physics_tables.gear_asked,
+            bits: &shared_store.car.lost_gear_bits,
+            changed: &shared_store.car.gear_changed,
+            changed_2: &shared_store.car.gear_changed_2,
         }
     }
 }

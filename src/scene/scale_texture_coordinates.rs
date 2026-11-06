@@ -15,6 +15,7 @@
 use crate::errors::Refused;
 use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -30,6 +31,7 @@ pub fn scale_texture_coordinates() -> Result<(), Refused> {
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
 pub fn scale_entries(entries: &Listed) -> Result<(), Refused> {
+    let session = &system().session;
     let drawing = &scene().drawing;
     use rc2k_core::scene::texture_coordinates as coordinates;
     let switches: [u32; 2] = [
@@ -44,16 +46,8 @@ pub fn scale_entries(entries: &Listed) -> Result<(), Refused> {
             for at in [8 + pair * 8, 0xC + pair * 8] {
                 let value = entry.word(at);
                 if let Some(float) = coordinates::float_of(value) {
-                    crate::system::owner::system()
-                        .session
-                        .machine
-                        .work
-                        .set(value);
-                    crate::system::owner::system()
-                        .session
-                        .machine
-                        .work_float
-                        .set(float);
+                    session.machine.work.set(value);
+                    session.machine.work_float.set(float);
                 }
                 entry.set_word(at, coordinates::scaled(value));
             }

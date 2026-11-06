@@ -225,23 +225,20 @@ pub fn reset_refresh(course: &Course) {
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
 pub fn init_checkpoints(physics: &Physics) -> Result<(), Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
-        let kinds = crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .get();
+        let kinds = shared.vars.checkpoint_count.get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
             physics.split_tables.split_colour_count.set(0);
             return Ok(());
         }
-        let end = crate::race::owner::race().shared.vars.last_checkpoint.get();
+        let end = shared.vars.last_checkpoint.get();
         let table = &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             let face = trap.keep_read(crate::session::read_on_in(
-                &crate::race::owner::race().shared.buffers,
+                &shared.buffers,
                 table,
                 n as usize,
                 "the checkpoint table",

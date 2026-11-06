@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Tables};
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -85,11 +86,7 @@ fn settings(menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
         1 => z.wrapping_sub(high(turn, forward)),
         _ => z,
     };
-    let clock: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .bits();
+    let clock: u32 = race().shared.physics_tables.scene_clock.bits();
     let mut set = Settings {
         place: [x, y, z],
         size: None,
@@ -130,10 +127,6 @@ pub fn draw_carousel_entry(
     drawing.object_work.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&drawing.scene.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .object_number
-        .set_bits(set.object);
+    race().shared.switches.object_number.set_bits(set.object);
     draw()
 }

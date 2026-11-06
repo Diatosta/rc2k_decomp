@@ -13,6 +13,7 @@
 
 use crate::errors::Refused;
 use crate::install::page_records::PageEntry;
+use crate::system::owner::system;
 use rc2k_core::install::pages;
 
 /// The pages from the entry `first` on.
@@ -39,7 +40,7 @@ pub fn run_pages(
             return Ok(());
         };
         entry = next;
-        if crate::system::owner::system().session.flags.quitting.get() == 1 {
+        if system().session.flags.quitting.get() == 1 {
             return Ok(());
         }
     }

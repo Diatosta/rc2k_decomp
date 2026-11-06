@@ -10,6 +10,8 @@
 //! the cursor) is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
+#[cfg(test)]
+use crate::race::owner::race;
 
 /// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
@@ -92,7 +94,7 @@ mod tests {
 
     #[test]
     fn faces_are_read_by_place() {
-        let course = &crate::race::owner::race().course;
+        let course = &race().course;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.face_memory.get();

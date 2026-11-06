@@ -41,38 +41,31 @@ fn run(course: &Course) {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
 fn run_at(course: &Course) {
-    crate::race::owner::race()
-        .shared
+    let shared_store = &crate::race::owner::race().shared;
+
+    shared_store
         .car
         .engine_speed_scaled
-        .set_bits(st(ld(crate::race::owner::race().shared.car.local_velocity
-            [2]
-        .bits())
+        .set_bits(st(ld(shared_store.car.local_velocity[2].bits())
             * ld(course.numbers.two_and_a_quarter.bits())));
-    let speed = ld(crate::race::owner::race()
-        .shared
-        .car
-        .engine_speed_scaled
-        .bits());
-    let flags = crate::race::owner::race().shared.car.option_bits.get();
+    let speed = ld(shared_store.car.engine_speed_scaled.bits());
+    let flags = shared_store.car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
         speed * ld(course.numbers.kilometres_in_mile.bits())
     } else {
         speed
     };
-    crate::race::owner::race()
-        .shared
+    shared_store
         .car
         .engine_sound_speed_int
         .set_bits(to_int(scaled) as u32);
     let (z, x, y) = (
-        ld(crate::race::owner::race().shared.car.velocity[2].bits()),
-        ld(crate::race::owner::race().shared.car.velocity[0].bits()),
-        ld(crate::race::owner::race().shared.car.velocity[1].bits()),
+        ld(shared_store.car.velocity[2].bits()),
+        ld(shared_store.car.velocity[0].bits()),
+        ld(shared_store.car.velocity[1].bits()),
     );
     let sum = z * z + (x * x + y * y);
-    crate::race::owner::race()
-        .shared
+    shared_store
         .car
         .sound_speed
         .set_bits(st(sum.sqrt() * ld(course.numbers.two_and_a_quarter.bits())));
@@ -83,20 +76,15 @@ fn run_at(course: &Course) {
 // and the rounding stay x87).
 pub fn engine_sound(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    if crate::race::owner::race().shared.view.players.get() == 1
-        && crate::race::owner::race().shared.view.view_block(0) == 0
-    {
+    if race.shared.view.players.get() == 1 && race.shared.view.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(&race.course);
-    drawing.scene.scratch.set(x87::loaded(
-        crate::race::owner::race().shared.car.engine_speed.bits(),
-    ));
-    let floor = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .idle_engine_speed
-        .bits();
+    drawing
+        .scene
+        .scratch
+        .set(x87::loaded(race.shared.car.engine_speed.bits()));
+    let floor = race.shared.physics_tables.idle_engine_speed.bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),
         f32::from_bits(floor),
@@ -107,18 +95,10 @@ pub fn engine_sound(race: &Race) -> Result<(), Refused> {
         .scratch
         .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
     let (revs, _) = ease_revs(
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_sound_revs
-            .get(),
+        race.shared.car.engine_sound_revs.get(),
         drawing.scene.scratch.get(),
     );
-    crate::race::owner::race()
-        .shared
-        .car
-        .engine_sound_revs
-        .set(revs);
+    race.shared.car.engine_sound_revs.set(revs);
     { car_sound_state(race) }?;
     gear_change_sound()
 }

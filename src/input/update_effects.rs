@@ -21,7 +21,9 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::input::store::device_of;
+use crate::race::owner::race;
 use crate::session::Dword;
 
 /// The variables it reads (the game's or a test's).
@@ -38,15 +40,16 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
+        let input = input();
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
             cars: &crate::sound::owner::sound().race.sounds.player_cars,
             one_player: &crate::sound::owner::sound().race.sounds.one_player,
             count: &crate::sound::owner::sound().race.sounds.count,
-            devices: &crate::input::owner::input().devices.input_devices,
-            views: &crate::race::owner::race().shared.view.view_blocks,
+            devices: &input.devices.input_devices,
+            views: &race().shared.view.view_blocks,
             objects: &crate::sound::owner::sound().race.sounds.objects,
-            two_devices: &crate::input::owner::input().devices.two_devices_one_player,
+            two_devices: &input.devices.two_devices_one_player,
         }
     }
 }

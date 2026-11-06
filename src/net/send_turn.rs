@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::net::{send_extra, send_inputs, send_position};
+use crate::race::owner::race;
 use rc2k_core::net::race::SENT;
 
 /// The Rust version.
@@ -21,10 +22,7 @@ pub fn send_turn() -> Result<(), Refused> {
     ];
     // Converted: `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
-        if kind
-            .due(crate::race::owner::race().shared.car.step_clock.get())
-            .0
-        {
+        if kind.due(race().shared.car.step_clock.get()).0 {
             send()?;
         }
     }

@@ -23,10 +23,7 @@ use rc2k_core::physics::sound_places::{FIRST, object_sound};
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
-    if !listed(
-        &race.frame,
-        crate::race::owner::race().shared.work.current_car.get(),
-    )? {
+    if !listed(&race.frame, race.shared.work.current_car.get())? {
         return Ok(());
     }
     let trap = crate::physics::cells::Trap::new();

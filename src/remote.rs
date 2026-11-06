@@ -19,11 +19,13 @@
 
 #![allow(unsafe_code)]
 
+use crate::audio::owner::audio;
 use crate::effects::owner::effects;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::ffi::CString;
 use std::io::Write;
@@ -129,16 +131,16 @@ pub fn note_open(path: &[u8]) {
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
 fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
-    let viewed = crate::race::blocks_store::car_of(
-        crate::race::owner::race().shared.view.view_blocks[0].get(),
-    );
+    let race = race();
+    let viewed = crate::race::blocks_store::car_of(race.shared.view.view_blocks[0].get());
     match viewed {
         Some(car) if course.numbers.in_race.get() != 0 => car,
-        _ => &crate::race::owner::race().shared.car,
+        _ => &race.shared.car,
     }
 }
 
 fn state(course: &Course) -> String {
+    let race = race();
     use crate::race::checkpoints_store::{CHECKPOINTS, cell_in};
     let screens = &menus().screens;
     #[allow(non_snake_case)]
@@ -154,21 +156,13 @@ fn state(course: &Course) -> String {
         course.numbers.in_race.get(),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.item.get(),
-        crate::system::owner::system()
-            .session
-            .flags
-            .window_focused
-            .get(),
+        system().session.flags.window_focused.get(),
         CAR.speed.get(),
         CAR.stage_time.get(),
         CAR.splits_passed.get(),
         CAR.finish_flag.get(),
         CAR.stuck_count.get(),
-        crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .get(),
+        race.shared.vars.checkpoint_count.get(),
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
@@ -176,42 +170,18 @@ fn state(course: &Course) -> String {
         cell_in(&CHECKPOINTS.map_y, ahead).get() as i32,
         cell_in(&CHECKPOINTS.map_x, near).get() as i32,
         cell_in(&CHECKPOINTS.map_y, near).get() as i32,
-        crate::audio::owner::audio().state.channels_used.get(),
+        audio().state.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.gear.get() as i32,
         CAR.gearbox_kind.get(),
         CAR.driver_kind.get(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_steer
-            .get() as i32,
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_throttle
-            .get(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_brake
-            .get(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_handbrake
-            .get(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_gear_up
-            .get(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_gear_down
-            .get(),
+        race.shared.physics_tables.input_steer.get() as i32,
+        race.shared.physics_tables.input_throttle.get(),
+        race.shared.physics_tables.input_brake.get(),
+        race.shared.physics_tables.input_handbrake.get(),
+        race.shared.physics_tables.input_gear_up.get(),
+        race.shared.physics_tables.input_gear_down.get(),
         CAR.crash_matrix[..12]
             .iter()
             .map(|cell| format!("{:.2}", cell.get()))
@@ -266,7 +236,7 @@ pub fn autodrive_keys(checkpoint: u32) -> u32 {
         if *held == 0 {
             crate::framework::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
-                crate::race::owner::race().shared.car.stage_time.get()
+                race().shared.car.stage_time.get()
             ));
         }
         return rc2k_core::drive::controls::RESET_KEY;
@@ -469,11 +439,7 @@ pub fn shots_loading() {
     reseed();
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .set(0x10000u32);
+    race().shared.physics_tables.scene_clock.set(0x10000u32);
     // The frame rate's text measures the host: not drawn.
     race().frame.counter.show.set(0);
 }

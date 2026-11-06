@@ -9,34 +9,25 @@
 //! Caller: `physics::drive_force`.
 
 use crate::physics::engine_torque::{below, engine_torque};
+use crate::race::owner::race;
 
 /// The Rust version (the exact one, for `physics::drive_force`).
 pub fn engine_torque_or_cut() {
+    let shared_store = &race().shared;
+
     if !below(
-        crate::race::owner::race().shared.car.engine_speed.bits(),
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed_limit
-            .bits(),
+        shared_store.car.engine_speed.bits(),
+        shared_store.car.engine_speed_limit.bits(),
     ) {
-        crate::race::owner::race().shared.car.rev_cut_count.set(5);
-    } else if crate::race::owner::race().shared.car.rev_cut_count.get() != 0 {
-        crate::race::owner::race().shared.car.rev_cut_count.set(
-            crate::race::owner::race()
-                .shared
-                .car
-                .rev_cut_count
-                .get()
-                .wrapping_sub(1),
-        );
+        shared_store.car.rev_cut_count.set(5);
+    } else if shared_store.car.rev_cut_count.get() != 0 {
+        shared_store
+            .car
+            .rev_cut_count
+            .set(shared_store.car.rev_cut_count.get().wrapping_sub(1));
     } else {
         engine_torque();
         return;
     }
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .engine_force
-        .set_bits(0);
+    shared_store.physics_tables.engine_force.set_bits(0);
 }

@@ -571,19 +571,19 @@ impl Car {
     /// arithmetic on their game addresses (statics: found once); none for any other
     /// address, which the callers then look up among the regions.
     pub fn known(address: u32) -> Option<&'static Car> {
+        let shared_store = &crate::race::owner::race().shared;
+
         let replay = &race().replay;
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
         static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
         let &(car, blocks) = HOMES.get_or_init(|| {
             (
-                crate::pointers::game_address(core::ptr::from_ref(
-                    &crate::race::owner::race().shared.car,
-                )),
+                crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)),
                 blocks_addr(replay),
             )
         });
         if address == car {
-            return Some(&crate::race::owner::race().shared.car);
+            return Some(&shared_store.car);
         }
         let off = address.wrapping_sub(blocks) as usize;
         (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT)
@@ -640,6 +640,8 @@ mod tests {
 
     #[test]
     fn car_starts_as_the_games() {
+        let shared_store = &crate::race::owner::race().shared;
+
         // other tests write the work car while they run
         let _lock = crate::store::test_lock();
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
@@ -654,18 +656,14 @@ mod tests {
         assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
-        let car_addr = || {
-            crate::pointers::game_address(core::ptr::from_ref(
-                &crate::race::owner::race().shared.car,
-            ))
-        };
+        let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&shared_store.car));
         assert_eq!(car_addr() % 4, 0);
         assert_eq!(
             car_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::game_address(&raw const crate::race::owner::race().shared.car.gear),
+            crate::pointers::game_address(&raw const shared_store.car.gear),
             car_addr() + 0x1D4
         );
         let mine = unsafe {

@@ -12,6 +12,8 @@
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{Command, Target, TextureNote};
 use crate::framework::log;
+#[cfg(test)]
+use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::ptr::{null, null_mut};
@@ -897,6 +899,7 @@ mod comparison {
 
     #[test]
     fn a_recorded_frame_looks_the_same() {
+        let system = system();
         let Some(path) = std::env::var_os("RC2K_COMPARE_FRAME") else {
             println!("SKIPPED: no RC2K_COMPARE_FRAME");
             return;
@@ -960,16 +963,8 @@ mod comparison {
         };
         let commands = read_commands(&mut Reader(r.0));
 
-        crate::system::owner::system()
-            .session
-            .screen
-            .width
-            .set(width as u32);
-        crate::system::owner::system()
-            .session
-            .screen
-            .height
-            .set(height as u32);
+        system.session.screen.width.set(width as u32);
+        system.session.screen.height.set(height as u32);
         let soft = vec![0u8; width * height * 4];
         let soft_lent = crate::pointers::Lent::new(&soft);
         let target = Target {

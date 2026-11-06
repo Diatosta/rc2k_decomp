@@ -20,6 +20,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
@@ -43,11 +44,7 @@ fn record_at() -> Option<u32> {
 fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
     let scene = scene();
     {
-        let object: u32 = crate::race::owner::race()
-            .shared
-            .switches
-            .object_number
-            .bits();
+        let object: u32 = race().shared.switches.object_number.bits();
         if object >= OBJECTS {
             return Ok(None);
         }
@@ -84,10 +81,7 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
             record
         }
     };
-    crate::session::write_bits(
-        &crate::race::owner::race().shared.switches.fade_words,
-        [other_kind, distance],
-    );
+    crate::session::write_bits(&race.shared.switches.fade_words, [other_kind, distance]);
     scene.drawing.object_work.object_position[0].set_bits(0u32);
     scene.drawing.object_work.object_position[2].set_bits(0u32);
     race.physics.ground.object_fading.set_bits(0u32);
@@ -111,11 +105,7 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
     if other_kind != 0 {
         let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
-            crate::race::owner::race()
-                .shared
-                .switches
-                .object_number
-                .set_bits(other as u32);
+            race.shared.switches.object_number.set_bits(other as u32);
         }
     }
     Ok(())

@@ -26,6 +26,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::chat_line_locked::chat_line_locked;
 use crate::net::dplay_send::dplay_send;
+use crate::net::owner::net;
 use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
 use crate::net::store_received::store_received;
@@ -41,31 +42,28 @@ fn get8(at: usize) -> Result<u8, BadInput> {
     if at >= ROOM as usize {
         return Err(BadInput("a received message past its buffer"));
     }
-    Ok(crate::net::owner::net().vars.receive_data.get(at))
+    Ok(net().vars.receive_data.get(at))
 }
 
 /// The received message from its byte 1 on.
 fn after_first() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&crate::net::owner::net().vars.receive_data).offset(1)
+    crate::pointers::GamePtr::to(&net().vars.receive_data).offset(1)
 }
 
 /// The Rust version.
 pub fn take_messages() -> Result<(), Refused> {
-    if crate::net::owner::net().vars.players.get() > MOST_PLAYERS {
+    let net = net();
+    if net.vars.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 16 players").into());
     }
-    while crate::net::owner::net().vars.dplay.get() != 0 {
+    while net.vars.dplay.get() != 0 {
         let m = receive_message();
         if m.size == 0 {
             break;
         }
-        crate::net::owner::net().vars.messages_taken.set(
-            crate::net::owner::net()
-                .vars
-                .messages_taken
-                .get()
-                .wrapping_add(1),
-        );
+        net.vars
+            .messages_taken
+            .set(net.vars.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
             system_message()?;
             continue;
@@ -73,22 +71,22 @@ pub fn take_messages() -> Result<(), Refused> {
         // The sender among the players (the first compared even with none).
         let mut player = 0;
         let found = loop {
-            if m.from == crate::net::owner::net().vars.player_block(player).id.get() {
+            if m.from == net.vars.player_block(player).id.get() {
                 break true;
             }
             player += 1;
-            if player >= crate::net::owner::net().vars.players.get() {
+            if player >= net.vars.players.get() {
                 break false;
             }
         };
         if !found {
             continue;
         }
-        let block = crate::net::owner::net().vars.player_block(player);
+        let block = net.vars.player_block(player);
         let first = get8(0)?;
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
-        let own_state = crate::net::owner::net().vars.own.state();
+        let own_state = net.vars.own.state();
         // The core asks for the second byte only when it needs it: a refusal is kept.
         let round = || -> Result<bool, BadInput> {
             let refused = std::cell::Cell::new(None);
@@ -97,7 +95,7 @@ pub fn take_messages() -> Result<(), Refused> {
                     refused.set(Some(e));
                     0
                 });
-                (second, crate::net::owner::net().vars.sync.get())
+                (second, net.vars.sync.get())
             });
             refused.take().map_or(Ok(answer), Err)
         };
@@ -105,8 +103,7 @@ pub fn take_messages() -> Result<(), Refused> {
             Kind::Chat => {
                 // A message that fills the buffer loses its last byte to the NUL (the original
                 // writes it over the send buffer's first).
-                crate::net::owner::net()
-                    .vars
+                net.vars
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
                 chat_line_locked(player, after_first())?;
@@ -115,20 +112,13 @@ pub fn take_messages() -> Result<(), Refused> {
                 if !messages::answers_call(round()?, own_state) {
                     continue;
                 }
-                let answer = messages::answer(reply, crate::net::owner::net().vars.sync.get());
-                crate::net::owner::net().vars.sync_answer.set(answer);
-                dplay_send(
-                    block.id.get(),
-                    &crate::net::owner::net()
-                        .vars
-                        .sync_answer
-                        .get()
-                        .to_le_bytes(),
-                );
+                let answer = messages::answer(reply, net.vars.sync.get());
+                net.vars.sync_answer.set(answer);
+                dplay_send(block.id.get(), &net.vars.sync_answer.get().to_le_bytes());
                 (if ready {
-                    &crate::net::owner::net().vars.all_raced
+                    &net.vars.all_raced
                 } else {
-                    &crate::net::owner::net().vars.race_over
+                    &net.vars.race_over
                 })
                 .set(1);
             }
@@ -136,7 +126,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 if !messages::notes_answer(round()?, own_state) {
                     continue;
                 }
-                crate::net::owner::net().vars.set_synced(player as usize, 1);
+                net.vars.set_synced(player as usize, 1);
             }
             Kind::Race => {
                 let length = m.size.wrapping_sub(1);

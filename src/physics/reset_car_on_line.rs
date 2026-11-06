@@ -21,9 +21,9 @@ pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     let lights = &scene().lights;
     let nearest = crate::race::start_place::nearest_checkpoint(race)?;
     for cell in [
-        &crate::race::owner::race().shared.car.checkpoint,
-        &crate::race::owner::race().shared.car.reset_checkpoint,
-        &crate::race::owner::race().shared.car.last_pace_call,
+        &race.shared.car.checkpoint,
+        &race.shared.car.reset_checkpoint,
+        &race.shared.car.last_pace_call,
     ] {
         cell.set(nearest);
     }
@@ -32,20 +32,8 @@ pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     }
     crate::race::start_place::place_car_on_line(&race.course)?;
     crate::race::car_starts::reset_car_motion()?;
-    crate::race::owner::race()
-        .shared
-        .car
-        .value_jump_steps
-        .set(8u32);
-    crate::race::owner::race()
-        .shared
-        .car
-        .light_hold_steps
-        .set(8u32);
-    crate::race::owner::race()
-        .shared
-        .car
-        .reset_marker
-        .set(10u32);
+    race.shared.car.value_jump_steps.set(8u32);
+    race.shared.car.light_hold_steps.set(8u32);
+    race.shared.car.reset_marker.set(10u32);
     Ok(())
 }

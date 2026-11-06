@@ -53,11 +53,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().physics.ground_probe,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().physics.ground_probe, START, END);
     }
 
     #[test]

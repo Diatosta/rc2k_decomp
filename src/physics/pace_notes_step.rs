@@ -22,25 +22,19 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
 fn gates() -> [u32; 7] {
+    let race = race();
     [
-        crate::race::owner::race().shared.car.finish_flag.get(),
-        crate::race::owner::race().shared.car.go_stand_timer.get(),
-        crate::race::owner::race()
-            .shared
-            .car
-            .started_stand_timer
-            .get(),
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .hold_car_revs
-            .get(),
-        crate::race::owner::race().shared.work.in_credits.get(),
+        race.shared.car.finish_flag.get(),
+        race.shared.car.go_stand_timer.get(),
+        race.shared.car.started_stand_timer.get(),
+        race.shared.replay_file.hold_car_revs.get(),
+        race.shared.work.in_credits.get(),
         crate::race::owner::RACE.shared.car.false_start_count.get(),
         crate::race::owner::RACE.shared.car.all_wheels_off.get(),
     ]
@@ -52,41 +46,26 @@ const ONE_F32: u32 = 0x3F80_0000;
 pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
     if !calling(
         gates(),
-        crate::race::owner::race().shared.car.driver_kind.get(),
-        crate::race::owner::race().shared.car.run_ticks.get(),
+        race.shared.car.driver_kind.get(),
+        race.shared.car.run_ticks.get(),
     ) {
         return Ok(());
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
-        crate::race::owner::race().shared.car.local_velocity[2].bits(),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .pace_scale
-            .bits(),
+        race.shared.car.local_velocity[2].bits(),
+        race.shared.physics_tables.pace_scale.bits(),
         race.course.numbers.eight.bits(),
         ONE_F32,
     );
     scene().drawing.scene.scratch.set(ahead as u32);
     let target = call_target(
-        crate::race::owner::race().shared.car.reset_checkpoint.get(),
+        race.shared.car.reset_checkpoint.get(),
         ahead,
-        crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .get(),
+        race.shared.vars.checkpoint_count.get(),
     );
-    if let Some((last, _)) = calls(
-        target,
-        crate::race::owner::race().shared.car.last_pace_call.get(),
-    ) {
-        crate::race::owner::race()
-            .shared
-            .car
-            .last_pace_call
-            .set(last);
+    if let Some((last, _)) = calls(target, race.shared.car.last_pace_call.get()) {
+        race.shared.car.last_pace_call.set(last);
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
@@ -95,11 +74,7 @@ pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
                 break;
             }
         }
-        crate::race::owner::race()
-            .shared
-            .car
-            .last_pace_call
-            .set(target);
+        race.shared.car.last_pace_call.set(target);
     }
     crate::physics::expire_car_events::expire_car_events()?;
     Ok(())

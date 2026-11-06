@@ -21,19 +21,21 @@ use crate::physics::auto_gearbox::auto_gearbox;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox;
 use crate::physics::take_asked_gear::take_asked_gear;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
 pub fn gearbox_step(course: &Course) -> Result<(), Refused> {
+    let race = race();
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
-        crate::race::owner::race().shared.car.finish_flag.get(),
-        || crate::race::owner::race().shared.vars.run_kind.get(),
-        || crate::race::owner::race().shared.car.run_ticks.get(),
-        || crate::race::owner::race().shared.car.driver_kind.get(),
-        || crate::race::owner::race().shared.car.input_keys.get(),
-        || crate::race::owner::race().shared.car.gearbox_kind.get(),
+        race.shared.car.finish_flag.get(),
+        || race.shared.vars.run_kind.get(),
+        || race.shared.car.run_ticks.get(),
+        || race.shared.car.driver_kind.get(),
+        || race.shared.car.input_keys.get(),
+        || race.shared.car.gearbox_kind.get(),
     );
     match turn {
         GearboxTurn::Idle => {}
@@ -44,19 +46,11 @@ pub fn gearbox_step(course: &Course) -> Result<(), Refused> {
         }
         GearboxTurn::Auto => auto_gearbox(course)?,
     }
-    if crate::race::owner::race().shared.car.gear_changed.get() == 1 {
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed
-            .set_bits(x87::mul(
-                crate::race::owner::race().shared.car.engine_speed.bits(),
-                crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .engine_ease
-                    .bits(),
-            ));
+    if race.shared.car.gear_changed.get() == 1 {
+        race.shared.car.engine_speed.set_bits(x87::mul(
+            race.shared.car.engine_speed.bits(),
+            race.shared.physics_tables.engine_ease.bits(),
+        ));
     }
     wheels()
 }

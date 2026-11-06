@@ -13,6 +13,8 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
+use crate::system::owner::system;
+
 // ---- game data ----
 
 // ---- Rust version ----
@@ -30,7 +32,7 @@ pub fn read_volume_serial() {
     // Converted: `rc2k_core::system::machine::volume_registers` (only its writing of +0xF
     // matters here).
     rc2k_core::system::machine::volume_registers(&mut info);
-    crate::system::owner::system()
+    system()
         .work
         .files
         .buffer

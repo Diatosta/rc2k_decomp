@@ -31,6 +31,7 @@ use crate::menu::screen_loop::{
 };
 use crate::menu::update_blink::update_blink;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -62,19 +63,16 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 /// The loop has just set the set-up time to the frame clock.
 fn before_first_frame(_: &Entry) -> Result<(), Refused> {
     let play = &menus().play;
-    play.champ_view.last_key_time.set(
-        crate::system::owner::system()
-            .session
-            .clocks
-            .setup_time
-            .get(),
-    );
+    play.champ_view
+        .last_key_time
+        .set(system().session.clocks.setup_time.get());
     play.cheats.notice_due.set(1u32);
 
     Ok(())
 }
 
 fn idle(_: &Entry) -> Result<Flow, Refused> {
+    let system = system();
     let menus = menus();
     if menus.screens.loop_flags.idle.get() == 0 {
         return Ok(Flow::On);
@@ -94,13 +92,9 @@ fn idle(_: &Entry) -> Result<Flow, Refused> {
     log("menu::main_menu_loop: sub_4161CD has come back");
     menus.screens.loop_flags.idle.set(0u32);
     update_blink(menus);
-    let now = crate::system::owner::system().session.clocks.frame.get();
+    let now = system.session.clocks.frame.get();
     menus.play.champ_view.last_key_time.set(now);
-    crate::system::owner::system()
-        .session
-        .clocks
-        .setup_time
-        .set(now);
+    system.session.clocks.setup_time.set(now);
     Ok(Flow::SetUp)
 }
 

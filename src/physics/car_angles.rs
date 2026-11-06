@@ -11,12 +11,15 @@
 
 use crate::math::x87_run::mul3_to_int;
 use crate::physics::matrix_angles::matrix_angles;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The Rust version: `matrix_angles` of the crash matrix, each angle scaled to the car's
 /// whole-number angle (pitch, heading, roll).
 pub fn car_angles(course: &Course) {
-    matrix_angles(course, &crate::race::owner::race().shared.car.crash_matrix);
+    let shared_store = &race().shared;
+
+    matrix_angles(course, &shared_store.car.crash_matrix);
     let scale = |a: u32| {
         mul3_to_int(
             a,
@@ -27,18 +30,15 @@ pub fn car_angles(course: &Course) {
         .wrapping_shl(4)
     };
     let l = &course.lists;
-    crate::race::owner::race()
-        .shared
+    shared_store
         .car
         .car_pitch
         .set_bits(scale(l.car_pitch.bits()) as u32);
-    crate::race::owner::race()
-        .shared
+    shared_store
         .car
         .car_heading
         .set_bits(scale(l.car_heading.bits()) as u32);
-    crate::race::owner::race()
-        .shared
+    shared_store
         .car
         .car_roll
         .set_bits(scale(l.car_roll.bits()) as u32);

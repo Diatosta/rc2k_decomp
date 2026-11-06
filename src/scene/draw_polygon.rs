@@ -37,6 +37,7 @@
 //! work table and an entry without its vertex.
 
 use crate::d3d::NO_TEXTURE;
+use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::owner::race;
@@ -331,7 +332,7 @@ fn clear_a_switch(entries: &[Listed]) -> Result<(), BadInput> {
     if all == 0xFF {
         let info = crate::scene::polygon_store::POLYGON_WORK
             .texture_infos
-            .get(crate::race::owner::race().shared.view.texture_b.bits() as usize)
+            .get(race().shared.view.texture_b.bits() as usize)
             .ok_or(BadInput("a texture past the records"))?;
         // the record's byte +0x2E
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
@@ -400,7 +401,7 @@ pub fn draw_polygon(
     let kept: [u32; 3] = [
         scene.drawing.scene.polygon_sides[0].bits(),
         scene.drawing.scene.polygon_sides[1].bits(),
-        crate::race::owner::race().shared.view.polygon_mode.bits(),
+        race.shared.view.polygon_mode.bits(),
     ];
     crate::session::write_bits(&scene.drawing.scene.polygon_kept, kept);
     let mirrored = race.physics.ground.view_mirrored.bits() != 0;
@@ -415,15 +416,15 @@ pub fn draw_polygon(
 
     if scene.lights.state.faded.bits() != 0 {
         let (mode, texture): (u32, u32) = (
-            crate::race::owner::race().shared.view.polygon_mode.bits(),
+            race.shared.view.polygon_mode.bits(),
             scene.drawing.scene.texture_page.bits(),
         );
         // `sub_44CAD5`.
         let (from, alpha): (u32, u32) = (
-            crate::d3d::owner::d3d().cards.fade_from.get(),
+            d3d().cards.fade_from.get(),
             race.frame.view_and_records.view_vars.fade_alpha.bits(),
         );
-        let uv = crate::session::read_bits(&crate::race::owner::race().shared.vars.fade_uv);
+        let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(n);
             let by = entry.fog.get() as u32;
@@ -434,26 +435,18 @@ pub fn draw_polygon(
             out.v.set_bits(uv[1]);
         }
         scene.drawing.scene.texture_page.set_bits(FADE_TEXTURE);
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(7u32);
+        race.shared.view.polygon_mode.set_bits(7u32);
         choose_texture(&race.course, outside);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
         submit_polygon(outside);
         scene.drawing.scene.texture_page.set_bits(texture);
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(mode);
+        race.shared.view.polygon_mode.set_bits(mode);
     }
 
     // The mode, with its fallbacks.
-    let mut mode: u32 = crate::race::owner::race().shared.view.polygon_mode.bits();
+    let mut mode: u32 = race.shared.view.polygon_mode.bits();
     if mode == 3 && scene.draw_switches.clears_switch.bits() != 0 {
         clear_a_switch(&entries)?;
     }
@@ -467,11 +460,7 @@ pub fn draw_polygon(
         };
         if let Some(fallback) = fallback {
             mode = fallback;
-            crate::race::owner::race()
-                .shared
-                .view
-                .polygon_mode
-                .set_bits(mode);
+            race.shared.view.polygon_mode.set_bits(mode);
         }
     }
     if let Some((how, passes)) = passes(mode) {
@@ -491,11 +480,7 @@ pub fn draw_polygon(
             race.course.level_grid.smooth.set_bits(smooth.bits());
             copy_set(&entries, pass.set);
             if let Some(as_mode) = pass.as_mode {
-                crate::race::owner::race()
-                    .shared
-                    .view
-                    .polygon_mode
-                    .set_bits(as_mode);
+                race.shared.view.polygon_mode.set_bits(as_mode);
             }
             if pass.no_depth {
                 outside.state(0x0E, 0);
@@ -506,11 +491,7 @@ pub fn draw_polygon(
             }
             submit_polygon(outside);
             if pass.as_mode.is_some() {
-                crate::race::owner::race()
-                    .shared
-                    .view
-                    .polygon_mode
-                    .set_bits(mode);
+                race.shared.view.polygon_mode.set_bits(mode);
             }
             if pass.no_depth {
                 outside.state(0x0E, 1);
@@ -523,11 +504,7 @@ pub fn draw_polygon(
     // `sub_44B9DD`.
     scene.drawing.scene.polygon_sides[0].set_bits(kept[0]);
     scene.drawing.scene.polygon_sides[1].set_bits(kept[1]);
-    crate::race::owner::race()
-        .shared
-        .view
-        .polygon_mode
-        .set_bits(kept[2]);
+    race.shared.view.polygon_mode.set_bits(kept[2]);
     Ok(())
 }
 

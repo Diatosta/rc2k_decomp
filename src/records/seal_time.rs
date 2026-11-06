@@ -30,7 +30,7 @@ pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let value = sealed_value(
         time,
         menus().play.cheats.cheats.get(),
-        crate::race::owner::race().shared.work.patch_switch.bits(),
+        race().shared.work.patch_switch.bits(),
     );
     let bytes = block(value, bytes);
     replay.seal_work.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));

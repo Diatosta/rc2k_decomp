@@ -16,12 +16,13 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::system::owner::system;
 
 // ---- Rust version ----
 
 /// The race's sounds for the frame.
 pub fn race_turn() -> Result<(), Refused> {
-    if crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if system().session.flags.quitting.get() == 1 {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
         crate::standalone::leave_on_close();

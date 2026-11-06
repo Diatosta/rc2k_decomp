@@ -98,7 +98,7 @@ pub fn store_face_normal(
         let corners = [0, 1, 2, 3].map(|n| f.point(n));
         let repeated = repeated_points(
             corners,
-            || crate::race::owner::race().shared.view.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
+            || race.shared.view.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
         crate::race::course_places::update_face_number(face, what, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));

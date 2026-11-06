@@ -181,16 +181,15 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
         scene.objects.tables.slot_kinds[n as usize].set(default);
     }
     // `dword_5CCF7C` = `dword_621844`.
-    scene.objects.tables.slot_kinds[64]
-        .set(crate::race::owner::race().shared.switches.kept_kind.bits());
-    let cars: u32 = crate::race::owner::race().shared.view.race_cars.bits();
+    scene.objects.tables.slot_kinds[64].set(race.shared.switches.kept_kind.bits());
+    let cars: u32 = race.shared.view.race_cars.bits();
     if cars == 0 {
         return Ok(());
     }
     check_object_cars(cars)?;
     let mut slots = car_slot(0);
     for n in 0..cars {
-        let block: u32 = crate::race::owner::race().shared.work.car_block(n as usize);
+        let block: u32 = race.shared.work.car_block(n as usize);
         for (kind, slot) in CAR_KINDS {
             let car = car_at(block)?.car_kind.bits();
             let k = match kind {
@@ -205,7 +204,7 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
     crate::scene::load_front_end_objects::load_front_end_objects(scene)?;
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
-        let block: u32 = crate::race::owner::race().shared.work.car_block(n as usize);
+        let block: u32 = race.shared.work.car_block(n as usize);
         set_up_car_points(race, slot, block)?;
         slot += CAR_SLOT_STEP;
     }

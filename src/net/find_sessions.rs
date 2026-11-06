@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log;
+use crate::net::owner::net;
 use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
@@ -22,17 +23,18 @@ const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
 
 /// The session description made ready: zeroed, its size.
 pub fn zeroed_description() -> Result<(), Refused> {
-    crate::net::owner::net().vars.session_desc.clear();
-    crate::net::owner::net().vars.session_desc.size.set(0x50);
+    let vars = &net().vars;
+    vars.session_desc.clear();
+    vars.session_desc.size.set(0x50);
     Ok(())
 }
 
 /// `EnumSessions` as the code at 0x418A43 calls it.
 pub fn enum_sessions() -> u32 {
-    let application =
-        crate::net::dp_objects::desc(&crate::net::owner::net().vars.session_desc, b"").application;
+    let vars = &net().vars;
+    let application = crate::net::dp_objects::desc(&vars.session_desc, b"").application;
     crate::net::dp_objects::enum_sessions(
-        crate::net::owner::net().vars.dplay.get(),
+        vars.dplay.get(),
         &application,
         crate::net::session_found::callback,
         0,
@@ -48,7 +50,7 @@ pub fn posted_enum_sessions() -> u32 {
 /// The piece `code` made: posted to the receiving thread (`net::post_call`) while
 /// `g_netPosting` is 1, else called here.
 pub fn posted_or_called(code: fn() -> u32) -> u32 {
-    if crate::net::owner::net().vars.posting.get() == 1 {
+    if net().vars.posting.get() == 1 {
         crate::net::post_call::post_call(code)
     } else {
         code()
@@ -57,16 +59,14 @@ pub fn posted_or_called(code: fn() -> u32) -> u32 {
 
 /// The Rust version.
 pub fn find_sessions() -> Result<bool, Refused> {
+    let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_FIND_SESSIONS), true, 2);
-    if crate::net::owner::net().vars.dplay.get() == 0 {
+    if vars.dplay.get() == 0 {
         return Ok(false);
     }
-    crate::net::owner::net().vars.sessions.set(0);
+    vars.sessions.set(0);
     zeroed_description()?;
-    put_bytes(
-        &crate::net::owner::net().vars.session_desc.application,
-        &crate::net::owner::net().vars.app_guid.read(),
-    );
+    put_bytes(&vars.session_desc.application, &vars.app_guid.read());
     let result = posted_or_called(posted_enum_sessions);
     crate::system::restore_window::restore_window();
     Ok(result == 0 || result == CONNECTING)

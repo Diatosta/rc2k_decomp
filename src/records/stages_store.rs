@@ -15,6 +15,7 @@
 
 use crate::errors::BadInput;
 use crate::session::{Bytes, Loose};
+use crate::system::owner::system;
 
 /// A record (0xA4 bytes, IDA's `Record`): +0 the tag (0 a stage, 3 or 4 a rally's end, -1
 /// the table's end), +0x18 the stage's time or length, +0x1C the temperature, +0x24, +0x3C
@@ -1539,30 +1540,18 @@ pub struct RecordRef {
 
 impl RecordTable {
     pub fn rows(self) -> &'static [Record] {
+        let system = system();
         match self {
-            RecordTable::Championship => {
-                &crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .championship
-            }
-            RecordTable::Event(k) => {
-                &crate::system::owner::system().records.stage_tables.events[k].records
-            }
+            RecordTable::Championship => &system.records.stage_tables.championship,
+            RecordTable::Event(k) => &system.records.stage_tables.events[k].records,
         }
     }
 
     fn end(self) -> &'static Loose {
+        let system = system();
         match self {
-            RecordTable::Championship => {
-                &crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .championship_end
-            }
-            RecordTable::Event(k) => {
-                &crate::system::owner::system().records.stage_tables.events[k].end
-            }
+            RecordTable::Championship => &system.records.stage_tables.championship_end,
+            RecordTable::Event(k) => &system.records.stage_tables.events[k].end,
         }
     }
 
@@ -1608,12 +1597,10 @@ impl RecordRef {
 
     /// The place of its byte `off` (the fastest's name at +0x54; the bests' writes).
     pub fn text(self, off: u32) -> crate::pointers::GamePtr {
+        let system = system();
         match self.table.rows().get(self.index) {
-            Some(row) => crate::system::owner::system()
-                .records
-                .stage_tables
-                .record_text(row, off),
-            None => crate::system::owner::system()
+            Some(row) => system.records.stage_tables.record_text(row, off),
+            None => system
                 .records
                 .stage_tables
                 .record_text(self.table.end(), off),
@@ -1636,14 +1623,7 @@ impl RecordRef {
     /// The row (or end mark) at game address `at`; refused for an address that is neither.
     pub fn at(at: u32) -> Result<Self, BadInput> {
         std::iter::once(RecordTable::Championship)
-            .chain(
-                (0..crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .events
-                    .len())
-                    .map(RecordTable::Event),
-            )
+            .chain((0..system().records.stage_tables.events.len()).map(RecordTable::Event))
             .find_map(|table| {
                 let d = at.checked_sub(table.addr())?;
                 let n = d / RECORD_LEN;
@@ -1676,8 +1656,7 @@ pub const END: usize = 0x73B674;
 
 #[cfg(test)]
 pub fn stage_tables_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::system::owner::system().records.stage_tables)
-        + 2
+    crate::pointers::game_address(&raw const system().records.stage_tables) + 2
 }
 
 #[cfg(test)]
@@ -1719,7 +1698,7 @@ mod tests {
             u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize
         };
         let table = |name: usize| stage_tables_addr() + (name - START) as u32;
-        let t = &crate::system::owner::system().records.stage_tables;
+        let t = &system().records.stage_tables;
         for group in 0..4 {
             let list = word(0x735512 + 4 * group);
             for sub in 0..6 {

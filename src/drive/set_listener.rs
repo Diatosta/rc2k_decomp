@@ -64,10 +64,9 @@ pub fn set_listener(race: &Race) -> Result<(), Refused> {
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
-        crate::race::owner::race()
-            .shared
+        race.shared
             .work
-            .car_block(crate::race::owner::race().shared.view.drawn_view.get() as usize),
+            .car_block(race.shared.view.drawn_view.get() as usize),
         "a car's block",
     )?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
@@ -90,19 +89,12 @@ pub fn set_listener(race: &Race) -> Result<(), Refused> {
             .set_bits(race.frame.matrices.view_turn_matrix[o as usize / 4].bits());
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
-        crate::race::owner::race().shared.vars.settings_words[0].get(),
+        race.shared.vars.settings_words[0].get(),
         || race.frame.frame_work.view_out.get(),
     ));
     MARKS_SETTINGS.listener_figures[1].set(race.frame.frame_work.sun_place[0].get());
     MARKS_SETTINGS.listener_figures[2].set(race.frame.frame_work.sun_place[1].get());
-    let f = listener::listener_points(
-        f,
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .ground_drop
-            .get(),
-    );
+    let f = listener::listener_points(f, race.shared.physics_tables.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);
     }

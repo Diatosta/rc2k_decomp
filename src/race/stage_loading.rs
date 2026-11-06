@@ -49,7 +49,7 @@ pub fn load_stage() -> Result<(), Refused> {
     log();
     log();
     indent(3);
-    if crate::race::owner::race().shared.work.in_credits.get() == 0
+    if race.shared.work.in_credits.get() == 0
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
@@ -90,23 +90,11 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(3);
     crate::drive::race_init::race_init()?;
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    let clock: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .bits();
+    let clock: u32 = race.shared.physics_tables.scene_clock.bits();
     race.frame.clock_ticks.clock_b.set(clock);
     race.frame.clock_ticks.sound_ticks.set(0);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .race_clock_now
-        .set(clock);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .race_clock_base
-        .set(clock);
+    race.shared.physics_tables.race_clock_now.set(clock);
+    race.shared.physics_tables.race_clock_base.set(clock);
     race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
     race.frame.panel_and_overlay.panel.lights[0]
         .lit
@@ -120,15 +108,11 @@ pub fn load_stage() -> Result<(), Refused> {
     for car in &CAR_BLOCKS.cars[..8] {
         car.value_jump_steps.set(8);
     }
-    crate::race::owner::race().shared.switches.other_way.set(1);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .view_marks_on
-        .set(1);
+    race.shared.switches.other_way.set(1);
+    race.shared.switches.view_marks_on.set(1);
     race.physics.ground.stage_loading.set(0);
-    crate::race::owner::race().shared.view.view_on[0].set(1);
-    crate::race::owner::race().shared.view.view_on[1].set(1);
+    race.shared.view.view_on[0].set(1);
+    race.shared.view.view_on[1].set(1);
     indent(-3);
     log();
     log();

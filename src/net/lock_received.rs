@@ -8,10 +8,9 @@
 //! Six callers (`net::copy_received`, `net::start_link`, `net::lobby_frame`,
 //! `net::send_chat`, `net::chat_line_locked`, `net::take_messages`). Refuses nothing.
 
+use crate::net::owner::net;
+
 /// The Rust version.
 pub fn lock_received() {
-    crate::sync::wait(
-        crate::net::owner::net().vars.mutex.get(),
-        crate::sync::INFINITE,
-    );
+    crate::sync::wait(net().vars.mutex.get(), crate::sync::INFINITE);
 }

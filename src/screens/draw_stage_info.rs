@@ -26,6 +26,7 @@ use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
     TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
 };
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -37,10 +38,7 @@ pub const TITLE_Y: i32 = 0x77;
 
 /// The record of the event's stage, and its section.
 pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors::BadInput> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     Ok((find_record_in(table, index as i32, section)?, section))
@@ -49,10 +47,7 @@ pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors:
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
 pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
     if menus.play.champ_view.event_mode.get() == 0x13 {

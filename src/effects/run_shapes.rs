@@ -20,6 +20,7 @@ use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::shape_points::turn_all_shapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 
 use crate::effects::owner::effects;
 use crate::math::x87;
@@ -27,27 +28,19 @@ const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
 pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+    let race = race();
     let setup = &effects().setup;
     let marks = crate::effects::setup::marks()?;
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops)?;
-        let clock: u32 = crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .bits();
+        let clock: u32 = race.shared.physics_tables.scene_clock.bits();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&setup.mask_constants.time_random);
-            drops.picks.next.set(
-                (r & 0xFF).wrapping_add(
-                    crate::race::owner::race()
-                        .shared
-                        .physics_tables
-                        .scene_clock
-                        .bits(),
-                ),
-            );
+            drops
+                .picks
+                .next
+                .set((r & 0xFF).wrapping_add(race.shared.physics_tables.scene_clock.bits()));
             let mask = marks.listener_switch_7.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());

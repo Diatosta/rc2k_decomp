@@ -11,8 +11,6 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
-#[cfg(test)]
-#[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 
@@ -51,12 +49,13 @@ mod block_tests {
 
     #[test]
     fn values_are_the_games() {
+        let shared = &race().shared;
         let image = crate::moved::image_bytes(LAST_RACE_START, LAST_RACE_LEN);
         assert_eq!(&race().replay.last_race[..], &image[..]);
         let image = crate::moved::image_bytes(TEMPLATES_START, TEMPLATES_LEN);
         let mine = [
-            &crate::race::owner::race().shared.replay_templates.saved[..],
-            &crate::race::owner::race().shared.replay_templates.own[..],
+            &shared.replay_templates.saved[..],
+            &shared.replay_templates.own[..],
         ]
         .concat();
         assert_eq!(mine, image);
@@ -83,6 +82,7 @@ pub struct ReplayPath {
 
 /// The Rust version. `slot` the replay (ebx).
 pub fn replay_path(replay: &Replay, slot: u32) -> Result<ReplayPath, Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
     let mut number = slot;
@@ -94,18 +94,10 @@ pub fn replay_path(replay: &Replay, slot: u32) -> Result<ReplayPath, Refused> {
                 last_race: true,
             });
         }
-        ReplayFile::Saved(_) => crate::race::owner::race()
-            .shared
-            .replay_templates
-            .saved
-            .to_vec(),
+        ReplayFile::Saved(_) => shared.replay_templates.saved.to_vec(),
         ReplayFile::Own(n) => {
             number = n;
-            crate::race::owner::race()
-                .shared
-                .replay_templates
-                .own
-                .to_vec()
+            shared.replay_templates.own.to_vec()
         }
     };
     let path =

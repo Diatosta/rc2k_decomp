@@ -16,6 +16,7 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -37,44 +38,30 @@ fn lift_car(race: &Race) {
 pub fn finish_run(race: &Race) -> Result<(), Refused> {
     lift_car(race);
     restart_clock();
-    race.frame.clock_ticks.clock_a.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
-    );
-    race.frame.clock_ticks.sound_tick_last.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
-    );
+    race.frame
+        .clock_ticks
+        .clock_a
+        .set(race.shared.physics_tables.scene_clock.get());
+    race.frame
+        .clock_ticks
+        .sound_tick_last
+        .set(race.shared.physics_tables.scene_clock.get());
     for mark in &race.frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
     race.replay.replay_view.play_end.set(u32::MAX);
     restart_clock();
-    race.replay.finish.start_clock.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
-    );
+    race.replay
+        .finish
+        .start_clock
+        .set(race.shared.physics_tables.scene_clock.get());
     loop {
         crate::sound::owner::sound().race.sounds.objects[0]
             .revs
             .set(0);
         input_update();
         crate::drive::finish_timing::finish_timing(race);
-        let n = crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .finished
-            .get();
+        let n = race.shared.state.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
@@ -84,7 +71,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
         ) {
             break;
         }
-        let pressed = |key: usize| crate::input::owner::input().devices.keys_pressed.get(key) != 0;
+        let pressed = |key: usize| input().devices.keys_pressed.get(key) != 0;
         if pressed(1) || pressed(0x1C) {
             break;
         }
@@ -101,6 +88,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions.
@@ -120,7 +108,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_lift(a[0]) },
-            plain: |_| lift_car(crate::race::owner::race()),
+            plain: |_| lift_car(race()),
         }];
         sparse(&blocks, 4000, 204);
     }

@@ -13,12 +13,14 @@
 use crate::errors::Refused;
 use crate::net::dp_session::Desc;
 use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::owner::net;
 use crate::net::tables::{copy_printable_into, with_session};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
 
 /// The Rust version (see the header): the session (none at the end) and the flags.
 pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
+    let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
     log_hex(flags, false);
     if let Some(d) = desc {
@@ -26,9 +28,7 @@ pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
     }
     log_bytes(b"", true, 2);
     let user2 = || desc.map_or(0, |d| d.user[1]);
-    let count = match lists::session_found(flags, desc.is_some(), user2, || {
-        crate::net::owner::net().vars.sessions.get()
-    }) {
+    let count = match lists::session_found(flags, desc.is_some(), user2, || vars.sessions.get()) {
         Found::Stop => return Ok(0),
         Found::Pass => return Ok(1),
         Found::List(n) => n,
@@ -36,7 +36,7 @@ pub fn session_found(desc: Option<&Desc>, flags: u32) -> Result<u32, Refused> {
     let Some(d) = desc else {
         return Ok(0);
     };
-    crate::net::owner::net().vars.sessions.set(count + 1);
+    vars.sessions.set(count + 1);
     let mut name = with_session(count, |s| s.name)?;
     copy_printable_into(d.name.as_bytes(), &mut name, 0x40)?;
     let mut user = [0u8; 16];

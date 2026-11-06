@@ -22,10 +22,12 @@
 //! The names of the texture and colour steps are readings of their variables.
 
 use crate::audio::names_store::SampleNames;
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::race::owner::race;
 use crate::session::Dword;
 
 // ---- the volume steps ----
@@ -96,12 +98,7 @@ pub fn step_texture_setting(screens: &Screens, up: bool) {
     // Converted: `rc2k_core::menu::steps::texture`.
     let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
     screens.option_work.setting_3.set(v);
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .setting_3
-        .set(v);
+    race().shared.state.settings.setting_3.set(v);
 }
 
 /// One of the colour choices: (its number, the table, where the pick goes).
@@ -157,24 +154,16 @@ const CHOICES: [(&Dword, usize); 6] = [
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
 pub fn apply_audio_choices() -> Result<(), Refused> {
+    let audio = audio();
     for (work, n) in CHOICES {
         let value = work.get();
-        crate::audio::owner::audio()
-            .state
-            .audio_options
-            .update(|o| o.choice[n] = value);
+        audio.state.audio_options.update(|o| o.choice[n] = value);
     }
     // `audio::choose_modes` with the game's log (the original's eax there, the last
     // value copied, is read by none of it).
     crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     for (work, n) in CHOICES {
-        work.set(
-            crate::audio::owner::audio()
-                .state
-                .audio_options
-                .get()
-                .applied[n],
-        );
+        work.set(audio.state.audio_options.get().applied[n]);
     }
 
     Ok(())

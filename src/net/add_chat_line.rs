@@ -14,6 +14,7 @@
 //! lock held).
 
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::text::draw_text::GameCanvas;
@@ -46,34 +47,24 @@ fn put<const N: usize>(b: &Bytes<N>, i: usize, v: u8) -> Result<(), BadInput> {
 /// it, as far as a sender's long message takes it).
 fn said_text(name: &[u8], message: &[u8]) -> Vec<u8> {
     let mut text = [name, b"> ", message].concat();
-    text.truncate(crate::net::owner::net().vars.chat_text.read().len() - 1);
+    text.truncate(net().vars.chat_text.read().len() - 1);
     text.push(0);
     text
 }
 
 /// The Rust version.
 pub fn add_chat_line(player: u32, message: GamePtr) -> Result<(), Refused> {
+    let net = net();
     if message.read::<u8>("the chat's text")? == 0 {
         return Ok(());
     }
     let length = crate::strings::text_length::nul_at(message, "the chat's text")?;
     let text = said_text(
-        &crate::net::owner::net()
-            .vars
-            .player_block(player)
-            .name
-            .text(),
+        &net.vars.player_block(player).name.text(),
         &message.read_bytes(length as usize, "the chat's text")?,
     );
-    crate::net::owner::net()
-        .vars
-        .chat_text
-        .write_at(0, &text, "the chat's text")?;
-    let (line, chat, said) = (
-        &crate::net::owner::net().vars.chat_line,
-        &crate::net::owner::net().vars.chat,
-        &crate::net::owner::net().vars.chat_text,
-    );
+    net.vars.chat_text.write_at(0, &text, "the chat's text")?;
+    let (line, chat, said) = (&net.vars.chat_line, &net.vars.chat, &net.vars.chat_text);
     let mut text = 0usize;
     loop {
         // The next line: one character more at a time while it fits.

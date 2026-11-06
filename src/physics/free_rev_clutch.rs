@@ -13,19 +13,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn free_rev_clutch(course: &Course) -> Result<(), Refused> {
-    let gear = crate::race::owner::race().shared.car.gear.get();
-    if gear == 0
-        || crate::race::owner::race()
-            .shared
-            .car
-            .driven_wheels_off
-            .get()
-            == 0
-    {
+    let shared_store = &race().shared;
+
+    let gear = shared_store.car.gear.get();
+    if gear == 0 || shared_store.car.driven_wheels_off.get() == 0 {
         return Ok(());
     }
     if !(-1..=7).contains(&(gear as i32)) {

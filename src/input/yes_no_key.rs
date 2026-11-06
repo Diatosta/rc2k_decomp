@@ -13,6 +13,7 @@
 
 use crate::errors::BadInput;
 use crate::input::key_to_char::{has_layout, key_to_char_for_text};
+use crate::input::owner::input;
 use crate::input::take_key::take_key;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::TEXT_LEN;
@@ -60,7 +61,7 @@ pub fn yes_no_key(given: u32) -> Result<u32, BadInput> {
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
-    let eax = if crate::input::owner::input().keyboard.yes_no_key_given.get() == 1 {
+    let eax = if input().keyboard.yes_no_key_given.get() == 1 {
         given
     } else {
         take_key() as u32

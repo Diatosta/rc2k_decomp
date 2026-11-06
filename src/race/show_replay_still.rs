@@ -37,7 +37,7 @@ fn load_frame(replay: &Replay) {
 /// The Rust version (the original leaves registers nothing reads).
 pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     use crate::drive::*;
-    if !(1..=8).contains(&crate::race::owner::race().shared.view.race_cars.get()) {
+    if !(1..=8).contains(&race.shared.view.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables.still.set(1);
@@ -60,44 +60,31 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
         load_frame(&race.replay);
         load_replay_cars::load_replay_cars();
     }
-    crate::race::owner::race().shared.work.current_car.set(0);
+    race.shared.work.current_car.set(0);
     loop {
         load_car::load_car()?;
-        if !matches!(
-            crate::race::owner::race().shared.car.driver_kind.get(),
-            0 | 2
-        ) {
+        if !matches!(race.shared.car.driver_kind.get(), 0 | 2) {
             race.replay.replay_frames.step_first.set(1);
             crate::physics::camera_frame::camera_frame()?;
             race.replay.replay_frames.step_first.set(0);
         }
         store_car::store_car()?;
-        crate::race::owner::race().shared.work.current_car.set(
-            crate::race::owner::race()
-                .shared
-                .work
-                .current_car
-                .get()
-                .wrapping_add(1),
-        );
-        if crate::race::owner::race().shared.work.current_car.get()
-            == crate::race::owner::race().shared.view.race_cars.get()
-        {
+        race.shared
+            .work
+            .current_car
+            .set(race.shared.work.current_car.get().wrapping_add(1));
+        if race.shared.work.current_car.get() == race.shared.view.race_cars.get() {
             break;
         }
     }
-    crate::race::owner::race().shared.view.view_on[0].set(0);
-    crate::race::owner::race().shared.view.view_on[1].set(0);
+    race.shared.view.view_on[0].set(0);
+    race.shared.view.view_on[1].set(0);
     race.frame.frame_work.drawing.set(1);
-    let kept = crate::race::owner::race().shared.vars.scene_switch.get();
-    crate::race::owner::race().shared.vars.scene_switch.set(1);
+    let kept = race.shared.vars.scene_switch.get();
+    race.shared.vars.scene_switch.set(1);
     // The scene (it reads no register).
     crate::race::draw_race_scene::draw_race_scene()?;
-    crate::race::owner::race()
-        .shared
-        .vars
-        .scene_switch
-        .set(kept);
+    race.shared.vars.scene_switch.set(kept);
     race.frame.frame_work.drawing.set(0);
     race.frame.frame_work.still_2.set(0);
     race.physics.split_tables.still.set(0);

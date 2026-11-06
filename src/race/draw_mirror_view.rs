@@ -15,15 +15,15 @@ use crate::race::owner::Race;
 /// The Rust version (see the header).
 pub fn draw_mirror_view(race: &Race) -> Result<(), Refused> {
     if race.replay.finish.no_place.get() != 0
-        || crate::race::owner::race().shared.work.in_credits.get() != 0
-        || crate::race::owner::race().shared.switches.other_way.get() == 0
+        || race.shared.work.in_credits.get() != 0
+        || race.shared.switches.other_way.get() == 0
     {
         return Ok(());
     }
     race.course
         .level_grid
         .view_value_kept
-        .set_bits(crate::race::owner::race().shared.view.view_depth[1].bits());
+        .set_bits(race.shared.view.view_depth[1].bits());
     let saved = (
         race.frame.view_and_records.view_vars.view_scale.bits(),
         race.course.stage_prefs.grid_reach.bits(),
@@ -36,8 +36,7 @@ pub fn draw_mirror_view(race: &Race) -> Result<(), Refused> {
     race.course.stage_prefs.grid_reach.set_bits(2u32);
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race)?;
-        crate::race::owner::race().shared.view.view_depth[1]
-            .set_bits(race.course.level_grid.view_value_kept.bits());
+        race.shared.view.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(&race.course);
         crate::race::draw_view_scene::draw_view_scene(race)
     })();

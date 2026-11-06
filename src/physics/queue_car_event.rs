@@ -13,65 +13,36 @@
 
 use crate::errors::Refused;
 use crate::physics::cells::{set_changed, set_values_changed, values};
+use crate::race::owner::race;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
 pub fn load() -> CarEvents {
+    let race = race();
     CarEvents {
-        times: values(&crate::race::owner::race().shared.car.car_event_times),
-        events: values(&crate::race::owner::race().shared.car.car_event_codes),
-        count: crate::race::owner::race().shared.car.car_event_count.get(),
-        level: crate::race::owner::race().shared.car.car_event_limit.get(),
-        shown: crate::race::owner::race()
-            .shared
-            .car
-            .car_event_position
-            .get(),
+        times: values(&race.shared.car.car_event_times),
+        events: values(&race.shared.car.car_event_codes),
+        count: race.shared.car.car_event_count.get(),
+        level: race.shared.car.car_event_limit.get(),
+        shown: race.shared.car.car_event_position.get(),
     }
 }
 
 /// What changed from `was` to `now` stored back.
 pub fn store(was: &CarEvents, now: &CarEvents) {
-    set_values_changed(
-        &crate::race::owner::race().shared.car.car_event_times,
-        &was.times,
-        &now.times,
-    );
-    set_values_changed(
-        &crate::race::owner::race().shared.car.car_event_codes,
-        &was.events,
-        &now.events,
-    );
-    set_changed(
-        &crate::race::owner::race().shared.car.car_event_count,
-        was.count,
-        now.count,
-    );
-    set_changed(
-        &crate::race::owner::race().shared.car.car_event_limit,
-        was.level,
-        now.level,
-    );
-    set_changed(
-        &crate::race::owner::race().shared.car.car_event_position,
-        was.shown,
-        now.shown,
-    );
+    let shared = &race().shared;
+    set_values_changed(&shared.car.car_event_times, &was.times, &now.times);
+    set_values_changed(&shared.car.car_event_codes, &was.events, &now.events);
+    set_changed(&shared.car.car_event_count, was.count, now.count);
+    set_changed(&shared.car.car_event_limit, was.level, now.level);
+    set_changed(&shared.car.car_event_position, was.shown, now.shown);
 }
 
 /// The Rust version.
 pub fn queue_car_event(esi: u32, ebx: u32) -> Result<(), Refused> {
     let was = load();
     let mut q = was;
-    q.queue(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .scene_clock
-            .get(),
-        esi,
-        ebx,
-    )?;
+    q.queue(race().shared.physics_tables.scene_clock.get(), esi, ebx)?;
     store(&was, &q);
     Ok(())
 }

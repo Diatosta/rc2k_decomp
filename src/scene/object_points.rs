@@ -9,6 +9,8 @@
 //! contact walks): the original's arithmetic is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
+#[cfg(test)]
+use crate::race::owner::race;
 
 /// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
@@ -90,7 +92,7 @@ mod tests {
 
     #[test]
     fn points_are_read_by_place() {
-        let course = &crate::race::owner::race().course;
+        let course = &race().course;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.object_points.get();

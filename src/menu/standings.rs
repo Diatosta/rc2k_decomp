@@ -10,6 +10,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::session::Dword;
+use crate::system::owner::system;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
 use crate::menu::owner::menus;
@@ -206,10 +207,7 @@ pub fn counted_players(screens: &Screens) -> Result<Vec<PlayerCell>, BadInput> {
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
 pub fn current_event(screens: &Screens) -> Result<usize, BadInput> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     if section >= 64

@@ -28,30 +28,19 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     let k = n as usize;
-    crate::race::owner::race().shared.car.contact_point[0]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_x[k].bits());
-    crate::race::owner::race().shared.car.contact_point[1]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_y[k].bits());
-    crate::race::owner::race().shared.car.contact_point[2]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_z[k].bits());
+    race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
+    race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
+    race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
     { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
     crate::physics::crossed_edge_contact::steps(race)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-        f32::from_bits(crate::race::owner::race().shared.car.contact_depth.bits()),
+        f32::from_bits(race.shared.car.contact_depth.bits()),
     ) {
-        crate::race::owner::race()
-            .shared
-            .car
-            .contact_depth
-            .set_bits(hit.to_bits());
+        race.shared.car.contact_depth.set_bits(hit.to_bits());
     }
-    crate::race::owner::race().shared.car.contact_flag.set(1);
-    crate::race::owner::race()
-        .shared
-        .car
-        .wall_hit_timer
-        .set(0x32);
+    race.shared.car.contact_flag.set(1);
+    race.shared.car.wall_hit_timer.set(0x32);
     crate::physics::feel_ground::feel_ground(race)
 }
 

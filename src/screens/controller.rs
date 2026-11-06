@@ -4,6 +4,7 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::{BadInput, Refused};
+use crate::input::owner::input;
 use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 
@@ -83,7 +84,7 @@ pub fn learn_axis() -> Result<(), Refused> {
         if !m.carry {
             let (byte, found) = l::pedal(control);
             player.update(|p| p.axis_codes[byte] = m.eax as u8);
-            crate::input::owner::input().devices.records[0]
+            input().devices.records[0]
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
             screens.draw_work.figure.set(found);
@@ -118,7 +119,7 @@ pub fn controller_page_refuses(
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;
-    if device != 0 && crate::input::owner::input().devices.device(0).is_none() {
+    if device != 0 && input().devices.device(0).is_none() {
         return Err(crate::errors::BadInput("no input device").into());
     }
     Ok(player)
@@ -155,7 +156,7 @@ pub fn draw_controller_page(
         // with a strength).
         let Some(entry) = (device as usize)
             .checked_sub(1)
-            .and_then(|n| crate::input::owner::input().devices.controllers.get(n))
+            .and_then(|n| input().devices.controllers.get(n))
         else {
             return Err(BadInput("a player's device past the controllers").into());
         };

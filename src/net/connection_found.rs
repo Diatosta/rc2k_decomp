@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log, log_bytes};
+use crate::net::owner::net;
 use crate::net::tables::{copy_printable_into, with_connection};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists;
@@ -21,24 +22,21 @@ use rc2k_core::net::lists;
 /// The Rust version (see the header): the provider's GUID, the connection's address, its
 /// short name.
 pub fn connection_found(guid: &[u8; 16], data: &[u8], short: &[u8]) -> Result<u32, Refused> {
+    let vars = &net().vars;
     log(VIEWER_PANEL.text_ptr(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
-        && [
-            &crate::net::owner::net().vars.sp_serial,
-            &crate::net::owner::net().vars.sp_modem,
-        ]
-        .into_iter()
-        .any(|left_out| left_out.read() == *guid)
+        && [&vars.sp_serial, &vars.sp_modem]
+            .into_iter()
+            .any(|left_out| left_out.read() == *guid)
     {
         return Ok(1);
     }
     crate::net::tables::count(data.len() as u32)?;
-    let Some(count) = lists::connection_listed(crate::net::owner::net().vars.connections.get())
-    else {
+    let Some(count) = lists::connection_listed(vars.connections.get()) else {
         return Ok(0);
     };
-    crate::net::owner::net().vars.connections.set(count + 1);
+    vars.connections.set(count + 1);
     let mut name = with_connection(count, |c| c.name)?;
     copy_printable_into(short, &mut name, 0x40)?;
     with_connection(count, |c| {

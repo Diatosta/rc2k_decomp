@@ -17,8 +17,9 @@ use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub fn play_inputs() -> Result<(), BadInput> {
+    let shared = &race().shared;
     let replay = &race().replay;
-    let car = crate::race::owner::race().shared.work.current_car.get();
+    let car = shared.work.current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
@@ -27,7 +28,7 @@ pub fn play_inputs() -> Result<(), BadInput> {
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        crate::race::owner::race().shared.physics_tables.input_words[k].set(*v);
+        shared.physics_tables.input_words[k].set(*v);
     }
     Ok(())
 }

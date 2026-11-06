@@ -21,8 +21,10 @@
 //! bytes.
 
 use crate::audio::names_store::SampleNames;
+use crate::audio::owner::audio;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::Dword;
 use crate::sound::queue::START_3;
 use crate::sound::sets_store::RaceSoundSets;
@@ -74,13 +76,7 @@ pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput>
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
-    let replay = crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .finished
-        .get()
-        != 0;
+    let replay = race().shared.state.results.finished.get() != 0;
     let (count, other_count) = (r.one_player.get(), r.count.get());
     let kinds = if replay {
         None
@@ -117,7 +113,7 @@ pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput>
     let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
-        let records = &crate::audio::owner::audio().sample_records.records;
+        let records = &audio().sample_records.records;
         records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx);
         records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx);
         ebx += (of_first[n] as usize + 1) as u32;

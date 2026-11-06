@@ -3,6 +3,8 @@
 //! buffer; `moved::MOVED` points the image's address at it.
 
 use crate::session::Bytes;
+#[cfg(test)]
+use crate::strings::owner::strings;
 
 /// The strings' text buffer (IDA 0x93E430 .. 0x93E830, the image's layout).
 #[repr(C, align(16))]
@@ -26,8 +28,7 @@ impl TextBuffer {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::strings::owner::strings().text.buffer)
-            as usize
+        crate::pointers::game_address(&raw const strings().text.buffer) as usize
     }
 }
 

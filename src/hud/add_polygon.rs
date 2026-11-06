@@ -20,12 +20,14 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
 /// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
 pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+    let system = system();
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     {
@@ -39,8 +41,8 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         };
         batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
         let [w, h]: [u32; 2] = [
-            crate::system::owner::system().session.screen.width.get(),
-            crate::system::owner::system().session.screen.height.get(),
+            system.session.screen.width.get(),
+            system.session.screen.height.get(),
         ];
         let [kx, ky] = [
             hud.block.virtual_screen[0].get(),

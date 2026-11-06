@@ -27,6 +27,7 @@ use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
+use crate::service::owner::service;
 use crate::service::pages::{
     BRAKE_BALANCE, ChangePage, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS,
     TYRE,
@@ -71,7 +72,7 @@ pub fn load_setup_slot() -> Result<(), Refused> {
 
     // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
-    let v = SetupValues::from_file(&crate::service::owner::service().set_ups.file.read());
+    let v = SetupValues::from_file(&service().set_ups.file.read());
     let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
         player.update(|q| *field.of(q) = v);
     };

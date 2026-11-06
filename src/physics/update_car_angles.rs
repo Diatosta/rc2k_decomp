@@ -8,6 +8,7 @@
 //! Callers: `sub_43B635` (0x43B83B, 0x43B8B4, after `race::invert_car_matrix`).
 
 use crate::physics::car_angles::car_angles;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 use rc2k_core::physics::motion::angles_wanted as wanted;
@@ -15,13 +16,10 @@ use rc2k_core::physics::motion::angles_wanted as wanted;
 /// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
 pub fn update_car_angles(course: &Course) {
+    let race = race();
     let (force, hold) = (
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_mode_is_2_or_3
-            .get(),
-        crate::race::owner::race().shared.car.all_wheels_off.get(),
+        race.shared.car.camera_mode_is_2_or_3.get(),
+        race.shared.car.all_wheels_off.get(),
     );
     if wanted(force, hold) {
         car_angles(course);

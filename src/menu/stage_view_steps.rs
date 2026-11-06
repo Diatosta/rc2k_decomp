@@ -35,14 +35,12 @@ use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
+use crate::system::owner::system;
 use rc2k_core::menu::stage_screens;
 
 /// The record `index` / `section` pick.
 fn stage_record(screens: &Screens) -> Result<RecordRef, Refused> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section = screens.event.section.get();
     if !has_section(table, section, 600)? {
         return Err(BadInput("a section past the record table").into());

@@ -20,41 +20,41 @@
 use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::queue_notice::queue_notice;
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
 fn gauge(mut k: usize) -> u32 {
+    let shared_store = &race().shared;
+
     use std::slice::from_ref as one;
     let groups: [&[Float]; 24] = [
-        &crate::race::owner::race().shared.car.brake_heat,
-        one(&crate::race::owner::race().shared.car.engine_heat),
-        one(&crate::race::owner::race().shared.car.engine_damage),
-        one(&crate::race::owner::race().shared.car.exhaust_damage),
-        one(&crate::race::owner::race().shared.car.turbo_damage),
-        one(&crate::race::owner::race().shared.car.cooling_damage),
-        one(&crate::race::owner::race().shared.car.clutch_damage),
-        one(&crate::race::owner::race().shared.car.differential_damage),
-        &crate::race::owner::race().shared.car.gear_wear,
-        one(&crate::race::owner::race().shared.car.gearbox_damage),
-        &crate::race::owner::race().shared.car.wheel_hit_damage,
-        one(&crate::race::owner::race().shared.car.body_hit_damage),
-        one(&crate::race::owner::race().shared.car.body_damage),
-        one(&crate::race::owner::race().shared.car.electrics_damage),
-        &crate::race::owner::race().shared.car.light_damage,
-        one(&crate::race::owner::race().shared.car.lights_damage),
-        one(&crate::race::owner::race().shared.car.steering_damage),
-        &crate::race::owner::race().shared.car.suspension_damage,
-        one(&crate::race::owner::race()
-            .shared
-            .car
-            .overall_suspension_damage),
-        one(&crate::race::owner::race().shared.car.brake_wear_a),
-        one(&crate::race::owner::race().shared.car.brake_wear_b),
-        one(&crate::race::owner::race().shared.car.brake_damage),
-        &crate::race::owner::race().shared.car.part_hit_damage,
-        one(&crate::race::owner::race().shared.car.tyre_wear),
+        &shared_store.car.brake_heat,
+        one(&shared_store.car.engine_heat),
+        one(&shared_store.car.engine_damage),
+        one(&shared_store.car.exhaust_damage),
+        one(&shared_store.car.turbo_damage),
+        one(&shared_store.car.cooling_damage),
+        one(&shared_store.car.clutch_damage),
+        one(&shared_store.car.differential_damage),
+        &shared_store.car.gear_wear,
+        one(&shared_store.car.gearbox_damage),
+        &shared_store.car.wheel_hit_damage,
+        one(&shared_store.car.body_hit_damage),
+        one(&shared_store.car.body_damage),
+        one(&shared_store.car.electrics_damage),
+        &shared_store.car.light_damage,
+        one(&shared_store.car.lights_damage),
+        one(&shared_store.car.steering_damage),
+        &shared_store.car.suspension_damage,
+        one(&shared_store.car.overall_suspension_damage),
+        one(&shared_store.car.brake_wear_a),
+        one(&shared_store.car.brake_wear_b),
+        one(&shared_store.car.brake_damage),
+        &shared_store.car.part_hit_damage,
+        one(&shared_store.car.tyre_wear),
     ];
     for group in groups {
         match group.get(k) {
@@ -70,8 +70,10 @@ fn gauge(mut k: usize) -> u32 {
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
 fn steps(physics: &Physics) -> Result<(), Refused> {
+    let shared_store = &race().shared;
+
     let mut levels: [u32; LEVELS] =
-        std::array::from_fn(|k| crate::race::owner::race().shared.car.damage_levels[k].get());
+        std::array::from_fn(|k| shared_store.car.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
         |k| f32::from_bits(gauge(k)),
@@ -81,7 +83,7 @@ fn steps(physics: &Physics) -> Result<(), Refused> {
         |q| queue_notice(q.notice, q.rank, gauge(q.gauge)),
     );
     for (k, &v) in levels.iter().enumerate() {
-        crate::race::owner::race().shared.car.damage_levels[k].set(v);
+        shared_store.car.damage_levels[k].set(v);
     }
     result
 }
@@ -96,9 +98,11 @@ mod gauge_tests {
     /// Each gauge is the dword its number says, from `brake_heat` on.
     #[test]
     fn the_gauges_are_in_a_row() {
-        let first = (&raw const crate::race::owner::race().shared.car.brake_heat) as usize;
+        let shared_store = &crate::race::owner::race().shared;
+
+        let first = (&raw const shared_store.car.brake_heat) as usize;
         assert_eq!(
-            (&raw const crate::race::owner::race().shared.car.tyre_wear) as usize,
+            (&raw const shared_store.car.tyre_wear) as usize,
             first + 46 * 4
         );
     }

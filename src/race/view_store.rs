@@ -5,6 +5,8 @@
 //! counts. `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_VIEW`), as
 //! `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -154,7 +156,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 /// Where IDA 0x63D9B8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::race().shared.view))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.view))
 }
 
 #[cfg(test)]
@@ -165,19 +167,14 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let at = crate::race::blocks_store::VIEW_BLOCKS_IDA - START;
-        crate::gfx::first_values_are_the_games_but(
-            &crate::race::owner::race().shared.view,
-            START,
-            END,
-            |image| {
-                for k in 0..2 {
-                    let o = at + 4 * k;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    image[o..o + 4]
-                        .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
-                }
-            },
-        );
+        crate::gfx::first_values_are_the_games_but(&race().shared.view, START, END, |image| {
+            for k in 0..2 {
+                let o = at + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+            }
+        });
     }
 
     #[test]

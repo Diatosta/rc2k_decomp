@@ -24,6 +24,7 @@ use crate::effects::rain::Weather;
 use crate::effects::snow::SnowLight;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 
 const MOST: i32 = 0x800;
@@ -38,6 +39,7 @@ fn turn_light(frame: &Frame, weather: &Weather) {
 
 /// The Rust version (see the header).
 pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
+    let race = race();
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
     {
@@ -94,7 +96,7 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
         s.inverse.set_bits(inverse);
         let marks = crate::effects::setup::marks()?;
         if marks.other_marks_shown.get() != 0 {
-            let ticks = crate::race::owner::race()
+            let ticks = race
                 .shared
                 .physics_tables
                 .scene_clock
@@ -105,13 +107,8 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
             s.fall.set(fall as u32);
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);
-        s.last_clock.set(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .scene_clock
-                .get(),
-        );
+        s.last_clock
+            .set(race.shared.physics_tables.scene_clock.get());
         for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
                 s.wide_turn[n][m].set_bits(v.bits());
@@ -398,6 +395,7 @@ mod asm_differential {
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::snow::SnowLight;
+    use crate::race::owner::race;
 
     #[test]
     fn turn_light_x87_matches() {
@@ -460,7 +458,7 @@ mod asm_differential {
             |b| reference::turn_light_x87(b[0], b[1]),
             |b| {
                 with_copy(b[1], SnowLight::START, |l| {
-                    super::turn_light_x87(&crate::race::owner::race().frame, l);
+                    super::turn_light_x87(&race().frame, l);
                 });
             },
         );

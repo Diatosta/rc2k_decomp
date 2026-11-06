@@ -4,6 +4,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::menus;
+use crate::system::owner::system;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -33,7 +34,7 @@ pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadI
     let screens = &menus().screens;
     {
         let kind = screens.event.stage_group.get();
-        let stages = crate::system::owner::system()
+        let stages = system()
             .records
             .stage_tables
             .group_event_table(kind, screens.event.stage_sub.get())?;

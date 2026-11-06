@@ -26,6 +26,7 @@ use crate::gfx::glyph_tables::{
 use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -85,7 +86,7 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
         .units
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(crate::system::owner::system().session.screen.bytes.get());
+        .wrapping_mul(system().session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;

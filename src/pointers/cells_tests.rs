@@ -3,6 +3,7 @@
 //! the bytes `shared_memory`'s raw copies give.
 
 use super::*;
+use crate::audio::owner::audio;
 use crate::effects::owner::effects;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
@@ -127,14 +128,15 @@ macro_rules! every_store {
 
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
+    let audio = audio();
     let scene = scene();
     let effects = effects();
     let menus = menus();
     let race = race();
     let _lock = crate::store::test_lock();
     every_store! {
-        crate::audio::owner::audio().state,
-        crate::audio::owner::audio().sample_records,
+        audio.state,
+        audio.sample_records,
         menus.play.players,
         menus.cars.table,
         race.replay.finish,
@@ -148,14 +150,14 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         menus.play.results,
         menus.screens.state,
         race.physics.camera,
-        crate::race::owner::race().shared.car,
+        race.shared.car,
         race.physics.contact,
         race.physics.ground_probe,
         race.physics.ground,
         race.physics.pace,
         race.physics.split_tables,
-        crate::race::owner::race().shared.physics_tables,
-        crate::race::owner::race().shared.buffers,
+        race.shared.physics_tables,
+        race.shared.buffers,
         race.physics.car_specs,
         race.frame.clock_ticks,
         race.course.lists,
@@ -179,17 +181,17 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         race.course.numbers,
         race.frame.panel_clock,
         race.course.stage_prefs,
-        crate::race::owner::race().shared.replay_file,
+        race.shared.replay_file,
         race.frame.scratch,
         race.frame.shadow_skids,
         race.frame.sound_spots,
-        crate::race::owner::race().shared.switches,
-        crate::race::owner::race().shared.tables,
+        race.shared.switches,
+        race.shared.tables,
         race.frame.text_state,
-        crate::race::owner::race().shared.vars,
-        crate::race::owner::race().shared.view,
+        race.shared.vars,
+        race.shared.view,
         race.replay.replay_view,
-        crate::race::owner::race().shared.work,
+        race.shared.work,
         scene.drawing.scene,
         crate::scene::owner::SCENE.draw_switches,
         crate::scene::owner::SCENE.file_numbers,
@@ -244,7 +246,8 @@ fn a_byte_written_into_a_dword_keeps_its_other_bytes() {
 #[test]
 #[ignore = "a timing, run by hand in release"]
 fn timing_of_a_deep_read() {
-    let field = &crate::race::owner::race().shared.work.no_precipitation;
+    let race = race();
+    let field = &race.shared.work.no_precipitation;
     let at = GamePtr::to(field);
     let n = 2_000_000;
     let t = std::time::Instant::now();
@@ -252,7 +255,7 @@ fn timing_of_a_deep_read() {
     for _ in 0..n {
         let mut b = [0; 4];
         load_cells(
-            &crate::race::owner::race().shared.work,
+            &race.shared.work,
             std::mem::offset_of!(crate::race::work_store::RaceWork, no_precipitation),
             &mut b,
         )

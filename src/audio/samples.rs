@@ -12,6 +12,7 @@
 //! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four
 //! bits how many times the data was halved (the frequency is shifted right by them).
 
+use crate::audio::owner::audio;
 use crate::audio::voices::*;
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
@@ -41,6 +42,7 @@ pub fn read_sample(
     size: u32,
     out: &Shared<SampleFile>,
 ) -> Result<bool, Refused> {
+    let state = &audio().state;
     use crate::audio::sample_data as data;
     let mut file = out.get();
     let f = &mut file;
@@ -74,8 +76,8 @@ pub fn read_sample(
                 &&*file,
                 read.bytes_read.unwrap_or(0),
                 &mut core,
-                &flags(&crate::audio::owner::audio().state.sample_bits_flags),
-                &flags(&crate::audio::owner::audio().state.sample_channel_flags),
+                &flags(&state.sample_bits_flags),
+                &flags(&state.sample_channel_flags),
             )
         });
         let found = found?;
@@ -105,11 +107,12 @@ pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::Flags {
 
 /// The game's: the work buffer and `g_sampleFile`.
 pub fn read_sample_in_game(path: GamePtr) -> Result<bool, Refused> {
+    let state = &audio().state;
     read_sample(
         path,
         crate::audio::sample_data::Buffer::Work,
-        crate::audio::owner::audio().state.sample_buffer_size.get(),
-        &crate::audio::owner::audio().state.sample_file,
+        state.sample_buffer_size.get(),
+        &state.sample_file,
     )
 }
 

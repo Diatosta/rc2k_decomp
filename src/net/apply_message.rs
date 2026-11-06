@@ -19,9 +19,11 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::net::owner::net;
 use crate::net::send_inputs::fields;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
@@ -60,22 +62,16 @@ fn note_unbelievable(player: u32) {
 
 /// The Rust version.
 pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
-    log_int(crate::net::owner::net().vars.player.get() as i32, false, 1);
-    log_int(
-        crate::race::owner::race().shared.view.local_car.get() as i32,
-        false,
-        1,
-    );
+    let race = race();
+    log_int(net().vars.player.get() as i32, false, 1);
+    log_int(race.shared.view.local_car.get() as i32, false, 1);
     log_int(message.read::<u8>("a received message")? as i32, false, 1);
     crate::logfile::log_write::log_nul(&TEXT, false, 1);
     log_int(player as i32, true, 1);
     if player >= 8 {
         return Ok(());
     }
-    let block = crate::race::owner::race()
-        .shared
-        .work
-        .car_block(player as usize);
+    let block = race.shared.work.car_block(player as usize);
     // The block is looked up after the message is read and believed: a null one refuses
     // at the first write, as the original's.
     let Some(kind) = Kind::of(message.read("a received message")?) else {
@@ -129,7 +125,7 @@ mod tests {
     /// The places sit where the core's constants put them in the car's block.
     #[test]
     fn the_places_sit_where_the_offsets_were() {
-        let car = &crate::race::owner::race().shared.car;
+        let car = &race().shared.car;
         let base = GamePtr::to(car).addr();
         let at = |cell: &Dword| GamePtr::to(cell).addr() - base;
         assert_eq!(at(&place(car)[0]), 0x134);

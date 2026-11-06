@@ -41,8 +41,7 @@ fn distance(race: &Race, point: [u32; 3]) {
     let dz = word(2).wrapping_sub(race.physics.ground.ground_z.get() as i32);
     drawing.scene.scratch.set_bits(dz as u32);
     let second = int(drawing.scene.scratch.bits() as i32);
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .split_point_distance
         .set_bits(st((first * first + second * second).sqrt()
@@ -74,7 +73,7 @@ fn angle(race: &Race, point: [u32; 3]) {
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
 fn point() -> Result<(u32, u32), Refused> {
     let race_owner = race();
-    let split = crate::race::owner::race().shared.car.splits_passed.get();
+    let split = race().shared.car.splits_passed.get();
     let cp = progress::check_split_point(split, || {
         race_owner.physics.split_tables.checkpoints[1 + split as usize].get()
     })?;
@@ -115,28 +114,17 @@ pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
         .physics
         .ground
         .ground_x
-        .set(crate::race::owner::race().shared.car.position[0].get());
+        .set(race.shared.car.position[0].get());
     race_owner
         .physics
         .ground
         .ground_z
-        .set(crate::race::owner::race().shared.car.position[2].get());
+        .set(race.shared.car.position[2].get());
     distance(race, pt);
     let within = !matches!(
-        f32::from_bits(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .split_point_distance
-                .bits()
-        )
-        .partial_cmp(&f32::from_bits(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .split_distance
-                .bits()
-        )),
+        f32::from_bits(race.shared.physics_tables.split_point_distance.bits()).partial_cmp(
+            &f32::from_bits(race.shared.physics_tables.split_distance.bits())
+        ),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !within {
@@ -144,17 +132,9 @@ pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
     }
     angle(race, pt);
     let car_angle = scene().drawing.scene.scratch.get() << 16;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .split_word
-        .set(car_angle);
+    race.shared.physics_tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .split_heading
-        .set(heading);
+    race.shared.physics_tables.split_heading.set(heading);
     let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }

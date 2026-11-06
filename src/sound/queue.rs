@@ -10,6 +10,7 @@
 //! `sub_40B016` with eax; 9 `sub_40C194` with eax, ecx, edx; 0xB `sub_40C4DD` with eax,
 //! ebx, ecx, edx; 0xA ends the thread's taking for this turn.
 
+use crate::audio::owner::audio;
 use std::sync::atomic::Ordering;
 
 /// Command numbers used by the ported senders.
@@ -20,33 +21,34 @@ pub const END_OF_TURN: u32 = 0xA;
 /// queued; a full queue takes nothing. The count is shared with the audio thread, which
 /// counts it down: it is added to atomically here (the original's `inc` is not).
 pub fn send_command(command: u32, registers: [u32; 7]) {
+    let audio = audio();
     // Converted: `rc2k_core::audio::commands::put` and `record`.
     use rc2k_core::audio::commands::{Put, put, record};
     match put(
-        crate::audio::owner::audio().state.no_audio.get() != 0,
-        crate::audio::owner::audio().state.command_count.get(),
-        crate::audio::owner::audio().state.command_write.get(),
+        audio.state.no_audio.get() != 0,
+        audio.state.command_count.get(),
+        audio.state.command_write.get(),
     ) {
-        Put::NoAudio => crate::audio::owner::audio().state.command_count.set(0),
+        Put::NoAudio => audio.state.command_count.set(0),
         Put::Full => {}
         Put::At { slot, next } => {
             // A slot past the queue ends the program, as an overrun would.
-            crate::audio::owner::audio().commands.records[slot as usize]
-                .set(record(command, registers));
-            crate::audio::owner::audio()
+            audio.commands.records[slot as usize].set(record(command, registers));
+            audio
                 .state
                 .command_count
                 .atomic()
                 .fetch_add(1, Ordering::SeqCst);
-            crate::audio::owner::audio().state.command_write.set(next);
+            audio.state.command_write.set(next);
         }
     }
 }
 
 /// `sub_409C01`: true if commands are still waiting. Without audio the count is cleared.
 pub fn pending() -> bool {
-    if crate::audio::owner::audio().state.no_audio.get() != 0 {
-        crate::audio::owner::audio().state.command_count.set(0);
+    let audio = audio();
+    if audio.state.no_audio.get() != 0 {
+        audio.state.command_count.set(0);
     }
-    crate::audio::owner::audio().state.command_count.get() != 0
+    audio.state.command_count.get() != 0
 }

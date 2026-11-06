@@ -12,16 +12,17 @@
 //! physics).
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 use crate::net::{apply_received, follow_remote, send_turn};
+use crate::race::owner::race;
 
 /// The Rust version.
 pub fn race_step() -> Result<(), Refused> {
-    if crate::net::owner::net().vars.session.get() == 0 {
+    let vars = &net().vars;
+    if vars.session.get() == 0 {
         return Ok(());
     }
-    if crate::race::owner::race().shared.work.current_car.get()
-        == crate::net::owner::net().vars.player.get()
-    {
+    if race().shared.work.current_car.get() == vars.player.get() {
         send_turn::send_turn()?;
         apply_received::apply_received()
     } else {

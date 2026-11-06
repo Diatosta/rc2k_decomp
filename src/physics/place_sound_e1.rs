@@ -17,10 +17,7 @@ use crate::race::owner::Race;
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
 pub fn place_sound_e1(race: &Race) -> Result<(), Refused> {
-    if !listed(
-        &race.frame,
-        crate::race::owner::race().shared.work.current_car.bits(),
-    )? {
+    if !listed(&race.frame, race.shared.work.current_car.bits())? {
         return Ok(());
     }
     let b = band_value(&race.frame, TWIN);

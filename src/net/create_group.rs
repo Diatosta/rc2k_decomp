@@ -11,25 +11,24 @@
 //! Since 2026-10-29 the name goes to `net::dp_objects` as text: the DPNAME is not made.
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 
 /// The player put in the group (`AddPlayerToGroup`): whether it went.
 pub fn join() -> bool {
+    let vars = &net().vars;
     crate::net::dp_objects::add_player_to_group(
-        crate::net::owner::net().vars.dplay.get(),
-        crate::net::owner::net().vars.send_to.get(),
-        crate::net::owner::net().vars.player_id.get(),
+        vars.dplay.get(),
+        vars.send_to.get(),
+        vars.player_id.get(),
     ) == 0
 }
 
 /// The Rust version (see the header).
 pub fn create_group() -> Result<bool, Refused> {
-    let made = crate::net::dp_objects::create_group(
-        crate::net::owner::net().vars.dplay.get(),
-        &crate::net::owner::net().vars.group_name.read(),
-        &[],
-    );
+    let vars = &net().vars;
+    let made = crate::net::dp_objects::create_group(vars.dplay.get(), &vars.group_name.read(), &[]);
     if let Ok(id) = made {
-        crate::net::owner::net().vars.send_to.set(id);
+        vars.send_to.set(id);
     }
     Ok(made.is_ok() && join())
 }

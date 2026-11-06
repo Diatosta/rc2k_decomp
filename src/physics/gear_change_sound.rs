@@ -10,6 +10,7 @@
 //! would be written (the original writes near address 0).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
@@ -33,6 +34,6 @@ pub fn gear_change_sound_at(
 pub fn gear_change_sound() -> Result<(), Refused> {
     gear_change_sound_at(
         crate::sound::store::current_object(),
-        &crate::race::owner::race().shared.car.gear_changed,
+        &race().shared.car.gear_changed,
     )
 }

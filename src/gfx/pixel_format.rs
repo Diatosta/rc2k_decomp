@@ -3,6 +3,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
+use crate::system::owner::system;
 
 /// A pixel layout the game keeps a pointer to (`g_surface.format`, `g_glyphPixelFormat`),
 /// by handle (phase 13): `SCREEN_FORMAT` the screen's record (`g_surfaceFormat`, the
@@ -51,6 +52,5 @@ pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
 pub fn surface_format() -> Result<PixelFormat, BadInput> {
-    crate::pointers::GamePtr::to(&crate::system::owner::system().session.screen.format)
-        .read("the surface's format")
+    crate::pointers::GamePtr::to(&system().session.screen.format).read("the surface's format")
 }

@@ -16,15 +16,12 @@ use crate::race::owner::race;
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step() -> Result<(), Refused> {
+    let race_owner = race();
     let race = race();
     crate::drive::race_clock_tick::race_clock_tick();
-    if crate::race::owner::race().shared.physics_tables.debug[1].get() == 0 {
+    if race_owner.shared.physics_tables.debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .race_tenths
-                .get(),
+            race_owner.shared.physics_tables.race_tenths.get(),
             |ecx| {
                 crate::debug::timing::note_tick();
                 { crate::drive::race_tick::race_tick(race) }?;

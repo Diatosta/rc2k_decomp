@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
+use crate::race::owner::race;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
@@ -54,12 +55,7 @@ pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Ref
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .direction
-        .set(sel.group);
+    race().shared.state.settings.direction.set(sel.group);
     item_1.set(table_title);
 
     let table = if sel.group == 1 { GROUP_1_TIMES } else { TIMES };

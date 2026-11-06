@@ -21,11 +21,12 @@ use rc2k_core::drive::controls::{
 };
 
 fn clear_notice() {
+    let shared = &race().shared;
     for cell in [
-        &crate::race::owner::race().shared.car.notice_last,
-        &crate::race::owner::race().shared.car.notice_id,
-        &crate::race::owner::race().shared.car.notice_time,
-        &crate::race::owner::race().shared.car.notice_shown,
+        &shared.car.notice_last,
+        &shared.car.notice_id,
+        &shared.car.notice_time,
+        &shared.car.notice_shown,
     ] {
         cell.set(0);
     }
@@ -34,62 +35,44 @@ fn clear_notice() {
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub fn reset_request() -> Result<(), Refused> {
+    let race_owner = race();
     let race = race();
-    if !reset_counts(crate::race::owner::race().shared.car.run_ticks.get()) {
+    if !reset_counts(race_owner.shared.car.run_ticks.get()) {
         return Ok(());
     }
     if !reset_held(
-        crate::race::owner::race().shared.car.input_keys.get(),
-        crate::race::owner::race().shared.vars.run_kind.get(),
+        race_owner.shared.car.input_keys.get(),
+        race_owner.shared.vars.run_kind.get(),
         || {
             c0(
-                crate::race::owner::race().shared.car.speed.bits(),
-                crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .reset_speed_limit
-                    .bits(),
+                race_owner.shared.car.speed.bits(),
+                race_owner.shared.physics_tables.reset_speed_limit.bits(),
             )
         },
     ) {
-        if crate::race::owner::race().shared.car.reset_key_count.get() != 0 {
+        if race_owner.shared.car.reset_key_count.get() != 0 {
             clear_notice();
-            crate::race::owner::race().shared.car.reset_key_count.set(0);
+            race_owner.shared.car.reset_key_count.set(0);
         }
         return Ok(());
     }
-    let (first, count, reset) =
-        reset_step(crate::race::owner::race().shared.car.reset_key_count.get());
+    let (first, count, reset) = reset_step(race_owner.shared.car.reset_key_count.get());
     if first {
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_id
-            .set(RESET_NOTICE);
-        crate::race::owner::race()
-            .shared
-            .car
-            .notice_time_b
-            .set(0x19);
-        crate::race::owner::race().shared.car.notice_time.set(0x12C);
+        race_owner.shared.car.notice_id.set(RESET_NOTICE);
+        race_owner.shared.car.notice_time_b.set(0x19);
+        race_owner.shared.car.notice_time.set(0x12C);
     }
-    crate::race::owner::race()
-        .shared
-        .car
-        .reset_key_count
-        .set(count);
+    race_owner.shared.car.reset_key_count.set(count);
     if !reset {
         return Ok(());
     }
-    crate::race::owner::race().shared.car.stage_time.set(
-        crate::race::owner::race()
+    race_owner.shared.car.stage_time.set(
+        race_owner
             .shared
             .car
             .stage_time
             .get()
-            .wrapping_add(reset_penalty(
-                crate::race::owner::race().shared.car.stuck_count.get(),
-            )),
+            .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
     );
     clear_notice();
     { crate::physics::reset_car::reset_car(race) }?;

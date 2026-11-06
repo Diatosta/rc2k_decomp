@@ -12,6 +12,7 @@
 //! (before anything) more than 16 players (the records' room, up to `dword_5AB270`).
 
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::net;
 use crate::net::{lock_received, unlock_received};
 use rc2k_core::net::inbox;
 
@@ -20,7 +21,8 @@ pub const MOST_PLAYERS: u32 = 16;
 
 /// The Rust version.
 pub fn copy_received() -> Result<(), Refused> {
-    let count = || crate::net::owner::net().vars.players.get();
+    let vars = &net().vars;
+    let count = || vars.players.get();
     if count() > MOST_PLAYERS {
         return Err(BadInput("more than the records' 16 players").into());
     }
@@ -28,7 +30,7 @@ pub fn copy_received() -> Result<(), Refused> {
     let mut player = 0u32;
     loop {
         // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
-        let at = crate::net::owner::net().vars.player_block(player).inbox();
+        let at = vars.player_block(player).inbox();
         let mut both = at.read_bytes(2 * inbox::COPIED, "a player's inbox")?;
         inbox::hand_over(&mut both);
         at.write_bytes(&both, "a player's inbox")?;

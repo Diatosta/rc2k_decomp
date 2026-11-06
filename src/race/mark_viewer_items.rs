@@ -12,6 +12,7 @@
 //!
 //! Callers: `race::replay_viewer` (two).
 
+use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -26,11 +27,7 @@ pub fn mark_viewer_items(
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: replay.replay_view.last_race_viewed.get() == 1,
         block,
-        blocks: crate::race::owner::race()
-            .shared
-            .replay_file
-            .index_block_count
-            .get(),
+        blocks: race().shared.replay_file.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .mark_in
             .get(),

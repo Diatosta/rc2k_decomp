@@ -13,6 +13,7 @@
 //! One caller, `start` (0x4010A2).
 
 use crate::errors::{FatalError, Refused};
+use crate::net::owner::net;
 use crate::strings::load_language::notice_kind;
 use crate::threading::create_event::{create_event, handle_flags};
 use crate::threading::create_mutex::create_mutex;
@@ -28,18 +29,19 @@ const NO_MUTEX: FatalError = FatalError {
 
 /// The Rust version.
 pub fn set_up() -> Result<(), Refused> {
-    if notice_kind() == 2 && crate::net::owner::net().vars.most_players.get() as i32 > 4 {
-        crate::net::owner::net().vars.most_players.set(4);
+    let vars = &net().vars;
+    if notice_kind() == 2 && vars.most_players.get() as i32 > 4 {
+        vars.most_players.set(4);
     }
     let event = create_event(0, 0);
     if handle_flags(event).0 {
         return Err(NO_EVENT.into());
     }
-    crate::net::owner::net().vars.event.set(event);
+    vars.event.set(event);
     let mutex = create_mutex();
     if handle_flags(mutex).0 {
         return Err(NO_MUTEX.into());
     }
-    crate::net::owner::net().vars.mutex.set(mutex);
+    vars.mutex.set(mutex);
     Ok(())
 }

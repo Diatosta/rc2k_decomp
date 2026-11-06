@@ -7,12 +7,13 @@
 //! Callers: `drive::finish_run`, `sub_4293CB` (twice). Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version.
 /// The Rust version. The registers and ZF it leaves are read by no caller (liveness: ZF
 /// after `sub_4293CB`'s call has no read point).
 pub fn store_first_car() -> Result<(), Refused> {
-    crate::race::owner::race().shared.work.current_car.set(0);
+    race().shared.work.current_car.set(0);
     crate::drive::store_car::store_car()?;
     Ok(())
 }

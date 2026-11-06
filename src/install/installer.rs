@@ -18,6 +18,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;
 use crate::place::Place;
+use crate::system::owner::system;
 
 // ---- the variables (IDA addresses) ----
 
@@ -272,7 +273,7 @@ pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
     crate::platform::run_frame_now(|| ());
     match frame {
-        Some(frame) if crate::system::owner::system().session.flags.quitting.get() != 1 => frame(),
+        Some(frame) if system().session.flags.quitting.get() != 1 => frame(),
         _ => Ok(false),
     }
 }

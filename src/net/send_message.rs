@@ -15,21 +15,22 @@
 
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
+use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
 pub fn send_message(bytes: GamePtr, count: u32) -> Result<(), Refused> {
+    let net = net();
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
-    let byte = inbox::next_sequence(crate::net::owner::net().vars.sequence.get());
+    let byte = inbox::next_sequence(net.vars.sequence.get());
     let bytes = bytes.read_bytes(count as usize, "a message to send")?;
     let message = inbox::outgoing(byte, &bytes)?;
-    crate::net::owner::net().vars.sequence.set(byte);
-    crate::net::owner::net()
-        .vars
+    net.vars.sequence.set(byte);
+    net.vars
         .send_buffer
         .write_at(0, &message, "the send buffer")?;
-    dplay_send(crate::net::owner::net().vars.send_to.get(), &message);
+    dplay_send(net.vars.send_to.get(), &message);
     Ok(())
 }

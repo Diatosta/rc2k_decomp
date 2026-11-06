@@ -25,20 +25,16 @@ pub fn race_tick(race: &Race) -> Result<(), Refused> {
         }
         .into());
     }
-    if crate::race::owner::race().shared.switches.levers_on.get() == 0 {
+    if race.shared.switches.levers_on.get() == 0 {
         return crate::drive::simple_car_step::simple_car_step(race);
     }
-    crate::race::owner::race().shared.vars.race_ticks.set(
-        crate::race::owner::race()
-            .shared
-            .vars
-            .race_ticks
-            .get()
-            .wrapping_add(1),
-    );
+    race.shared
+        .vars
+        .race_ticks
+        .set(race.shared.vars.race_ticks.get().wrapping_add(1));
     if !rc2k_core::drive::race_ticks::tick_runs(
-        crate::race::owner::race().shared.vars.race_ticks.get(),
-        crate::race::owner::race().shared.view.after_credits.get(),
+        race.shared.vars.race_ticks.get(),
+        race.shared.view.after_credits.get(),
     ) {
         return Ok(());
     }

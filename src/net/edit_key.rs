@@ -15,6 +15,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::movsb;
+use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
@@ -26,9 +27,10 @@ fn set_byte(at: GamePtr, v: u8) -> Result<(), BadInput> {
 
 /// The Rust version.
 pub fn edit_key(key: u8) -> Result<bool, Refused> {
+    let net = net();
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if crate::net::owner::net().vars.edited.get() != editing::NOT_EDITING {
+    if net.vars.edited.get() != editing::NOT_EDITING {
         let text = crate::net::begin_edit::EditedText::edited()?.place();
         let words = text.bytes("an edited text")?;
         match EditKey::of(key) {
@@ -38,15 +40,9 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     &crate::install::owner::install().paths.script_path,
                     editing::TEXT_LEN as u32,
                 )?;
-                crate::net::owner::net()
-                    .vars
-                    .edited
-                    .set(editing::NOT_EDITING);
+                net.vars.edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => crate::net::owner::net()
-                .vars
-                .edited
-                .set(editing::NOT_EDITING),
+            EditKey::Enter => net.vars.edited.set(editing::NOT_EDITING),
             EditKey::Clear => text.fill(0, editing::TEXT_LEN, "an edited text")?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
@@ -62,19 +58,19 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     text.offset(at).write(typed as u16, "an edited text")?;
                     let width = {
                         measure_text_at(
-                            crate::net::owner::net().vars.edit_font.get().game_ptr(),
+                            net.vars.edit_font.get().game_ptr(),
                             text,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
-                    if editing::too_wide(width, crate::net::owner::net().vars.edit_width.get()) {
+                    if editing::too_wide(width, net.vars.edit_width.get()) {
                         set_byte(text.offset(at), 0)?;
                     }
                 }
             }
         }
     }
-    Ok(crate::net::owner::net().vars.edited.get() == u32::MAX)
+    Ok(net.vars.edited.get() == u32::MAX)
 }

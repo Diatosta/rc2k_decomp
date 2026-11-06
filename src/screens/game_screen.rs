@@ -5,6 +5,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -413,7 +414,7 @@ impl GameWork for rc2k_core::screens::stage_panel::Work {
         match self {
             W::Scratch => &screens.draw_work.figure,
             W::Finish => &screens.draw_work.hhmm,
-            W::Entry34 => &crate::race::owner::race().shared.state.settings.stage,
+            W::Entry34 => &race().shared.state.settings.stage,
         }
     }
 }

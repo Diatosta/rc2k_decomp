@@ -15,6 +15,7 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::scene;
@@ -23,6 +24,7 @@ use crate::session::Cell32;
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
+    let race = race();
     x87_1(physics, s.offset_bits());
     for (x, v) in copies(physics).iter().zip(s.taken()) {
         x.set_bits(v);
@@ -30,19 +32,12 @@ pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
     physics
         .camera
         .view_b_heading
-        .set(crate::race::owner::race().shared.car.car_heading.get());
+        .set(race.shared.car.car_heading.get());
     let (mut eax, mut ebx) = (
-        crate::race::owner::race().shared.car.car_pitch.get(),
-        crate::race::owner::race().shared.car.car_roll.get(),
+        race.shared.car.car_pitch.get(),
+        race.shared.car.car_roll.get(),
     );
-    if !matches!(
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_blend_view
-            .get(),
-        1..=3
-    ) {
+    if !matches!(race.shared.car.camera_blend_view.get(), 1..=3) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
@@ -117,7 +112,7 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    &crate::race::owner::race().physics,
+                    &race().physics,
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
                 );
             },

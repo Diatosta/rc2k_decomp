@@ -28,6 +28,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::place::Place;
+use crate::race::owner::race;
 
 // ---- game data ----
 
@@ -92,6 +93,7 @@ pub fn load_texture_picture(
     texture: u32,
     call: &mut dyn FnMut(Call) -> bool,
 ) -> Result<(), BadInput> {
+    let shared = &race().shared;
     {
         write_names(course, number, texture)?;
         let mut gravel_chosen = false;
@@ -99,7 +101,7 @@ pub fn load_texture_picture(
             number,
             texture,
             || scene().textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
-            || crate::race::owner::race().shared.view.race_cars.bits(),
+            || shared.view.race_cars.bits(),
         );
         if let Some(car) = car {
             call(Call::Text(b"carnum".to_vec()));
@@ -107,9 +109,9 @@ pub fn load_texture_picture(
             call(Call::Text(b"grav".to_vec()));
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
-            let tyres = &crate::race::owner::race().shared.vars.car_tyres;
+            let tyres = &shared.vars.car_tyres;
             let gravel = crate::session::read_on_in(
-                &crate::race::owner::race().shared.vars,
+                &shared.vars,
                 tyres,
                 car as usize,
                 "a car's tyre switch",

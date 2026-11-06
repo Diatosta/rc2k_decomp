@@ -29,6 +29,7 @@ use crate::gfx::formats::Formats;
 use crate::gfx::owner::gfx;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::pixel_format::PixelFormat;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -36,7 +37,7 @@ const FORMAT_NUMBER: usize = 0x14; // in the surface's format
 
 /// The surface format's number.
 fn format_number() -> u32 {
-    crate::system::owner::system().session.screen.format[FORMAT_NUMBER / 4].get()
+    system().session.screen.format[FORMAT_NUMBER / 4].get()
 }
 
 /// The converter the game has for the surface's format, or 0.
@@ -101,8 +102,7 @@ pub fn convert_picture(
             // of rotations (+0 negative), set after its loop over the masks (`shr ecx, 1`
             // shifting out the last bit).
             let last = u32::from_le_bytes(bytes[(pixels - 1) * 4..pixels * 4].try_into().unwrap());
-            let carry = last != 0
-                && (crate::system::owner::system().session.screen.format[0].get() as i32) >= 0;
+            let carry = last != 0 && (system().session.screen.format[0].get() as i32) >= 0;
             let scratch = rc2k_core::gfx::pixels::convert_in_place(
                 bytes,
                 pixels,
@@ -138,7 +138,7 @@ pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
     convert_picture(
         &pixel.formats,
         &pixel.converters,
-        crate::system::owner::system().session.screen.bits.get(),
+        system().session.screen.bits.get(),
         converter(&pixel.converters),
     )
 }

@@ -48,24 +48,24 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         .physics
         .ground
         .ground_x
-        .set(crate::race::owner::race().shared.car.position[0].get());
+        .set(race.shared.car.position[0].get());
     race_owner
         .physics
         .ground
         .ground_z
-        .set(crate::race::owner::race().shared.car.position[2].get());
+        .set(race.shared.car.position[2].get());
     race_owner
         .course
         .course
         .light_kept
-        .set(crate::race::owner::race().shared.car.light_level.get());
+        .set(race.shared.car.light_level.get());
     scene.lights.work.car_light_colour.set(0);
     scene.lights.work.lamp_a_colour.set(0);
     race_owner
         .course
         .course
         .ground_face_last
-        .set(crate::race::owner::race().shared.car.probe_point_face[4].get());
+        .set(race.shared.car.probe_point_face[4].get());
     { crate::physics::find_ground::find_ground(race) }?;
     let face = race_owner.course.course.ground_slot.get();
     if face == u32::MAX {
@@ -111,30 +111,22 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         }
     }
     let light = corners(race);
-    crate::race::owner::race().shared.car.light_level.set(light);
-    if crate::race::owner::race().shared.car.light_hold_steps.get() != 0 {
+    race.shared.car.light_level.set(light);
+    if race.shared.car.light_hold_steps.get() != 0 {
         let held = lighting::hold_change(
             light,
             race_owner.course.course.light_kept.get(),
-            crate::race::owner::race().shared.vars.scene_switch.get() != 0,
+            race.shared.vars.scene_switch.get() != 0,
         );
-        crate::race::owner::race()
-            .shared
-            .car
-            .light_level
-            .set(held.light);
+        race.shared.car.light_level.set(held.light);
     }
-    let light = crate::race::owner::race().shared.car.light_level.get();
+    let light = race.shared.car.light_level.get();
     if light >= lighting::TABLE {
         return Err(BadInput("a light index past 0xFF").into());
     }
     let colour = scene.light_tables.light_table[light as usize].get();
     scene.lights.work.car_light_colour.set(colour);
-    crate::race::owner::race()
-        .shared
-        .car
-        .light_colour
-        .set(colour);
+    race.shared.car.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
         return Ok(());
     }
@@ -159,15 +151,11 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         }
         let colour = table[i as usize].get();
         to.set(colour);
-        crate::race::owner::race()
-            .shared
-            .car
-            .light_colour
-            .set(lighting::add_colour(
-                colour,
-                crate::race::owner::race().shared.car.light_colour.get(),
-                crate::system::owner::system().session.machine.has_mmx.get() != 0,
-            ));
+        race.shared.car.light_colour.set(lighting::add_colour(
+            colour,
+            race.shared.car.light_colour.get(),
+            crate::system::owner::system().session.machine.has_mmx.get() != 0,
+        ));
     }
     Ok(())
 }

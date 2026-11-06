@@ -1,9 +1,11 @@
 //! Front-end pages' "unread" steps that copy settings into the page's work variables (stream
 //! A, part F1, 2026-10-18).
 
+use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
+use crate::system::owner::system;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
@@ -28,8 +30,7 @@ pub fn pick_player(n: u32) -> Result<(), Refused> {
 /// register kept.
 pub fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
-    let options: rc2k_core::audio::modes::AudioOptions =
-        crate::audio::owner::audio().state.audio_options.get();
+    let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
     menus()
         .screens
         .option_work
@@ -72,19 +73,13 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
 fn stage_record(a: u32, b: u32, c: u32) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::system::owner::system()
-        .records
-        .stage_tables
-        .group_event_table(a, b)?;
+    let base = system().records.stage_tables.group_event_table(a, b)?;
     Ok((base, crate::records::stages_store::row(base, c)?))
 }
 
 /// What both stage pages read through: refused before anything.
 fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
-    crate::system::owner::system()
-        .records
-        .stage_tables
-        .group_event_table(a, b)?;
+    system().records.stage_tables.group_event_table(a, b)?;
     Ok(())
 }
 

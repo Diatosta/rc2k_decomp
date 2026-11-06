@@ -3,6 +3,8 @@
 //! first values the image's (`tests`); `moved::MOVED` points the image's addresses at it.
 
 use crate::session::{Byte, Bytes, with_runs};
+#[cfg(test)]
+use crate::system::owner::system;
 
 /// The version, copyright, window and class texts (IDA 0x4E0000 .. 0x4E0094, the image's layout).
 #[repr(C, align(16))]
@@ -41,8 +43,7 @@ impl StartTexts {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().start.texts)
-            as usize
+        crate::pointers::game_address(&raw const system().start.texts) as usize
     }
 }
 

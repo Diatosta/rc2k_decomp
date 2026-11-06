@@ -15,13 +15,16 @@
 //!
 //! The race's freeze as a check box.
 
+use crate::audio::owner::audio;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -151,13 +154,7 @@ fn draw_probes(physics: &Physics, ui: &Ui) {
     };
     let list = ui.get_foreground_draw_list();
     let size = ui.current_font_size() / 4.0;
-    for n in 0..crate::race::owner::race()
-        .shared
-        .car
-        .probe_count
-        .get()
-        .min(0x40) as usize
-    {
+    for n in 0..race().shared.car.probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
             wk.probe_x[n].get() as i32,
             wk.probe_y[n].get() as i32,
@@ -566,12 +563,15 @@ fn take_readings(t: &mut Timings) {
 
 /// The "Profiler" tab.
 fn profiler(course: &Course, ui: &Ui) {
+    let session = &system().session;
+    let state = &audio().state;
+    let shared = &race().shared;
     use crate::debug::timing::Stage;
     let mut t = TIMINGS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     take_readings(&mut t);
-    let fps = f32::from_bits(crate::race::owner::race().shared.switches.frame_rate.bits());
+    let fps = f32::from_bits(shared.switches.frame_rate.bits());
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();
     ui.checkbox("Each part in the graph", &mut t.each);
@@ -654,10 +654,7 @@ fn profiler(course: &Course, ui: &Ui) {
             ("Ticks a frame", format!("{:.1}", t.ticks)),
             (
                 "Cars in the race",
-                format!(
-                    "{}",
-                    crate::race::owner::race().shared.view.race_cars.bits()
-                ),
+                format!("{}", shared.view.race_cars.bits()),
             ),
         ],
     );
@@ -680,19 +677,10 @@ fn profiler(course: &Course, ui: &Ui) {
             ("Voices stopping", format!("{stopping}")),
             (
                 "Voices made (for the race's sounds)",
-                format!("{}", crate::audio::owner::audio().state.voice_count.get()),
+                format!("{}", state.voice_count.get()),
             ),
-            (
-                "Channels in use",
-                format!("{}", crate::audio::owner::audio().state.channels_used.get()),
-            ),
-            (
-                "Mode's bits",
-                format!(
-                    "{:08x}",
-                    crate::audio::owner::audio().state.sound_mode.get()
-                ),
-            ),
+            ("Channels in use", format!("{}", state.channels_used.get())),
+            ("Mode's bits", format!("{:08x}", state.sound_mode.get())),
         ],
     );
     // The original profile page's items. `dword_6218B8` is the developers' switch: 1 in the
@@ -721,24 +709,9 @@ fn profiler(course: &Course, ui: &Ui) {
             (
                 "Processor has",
                 names([
-                    (
-                        "MMX",
-                        Some(crate::system::owner::system().session.machine.has_mmx.get()),
-                    ),
-                    (
-                        "3DNow!",
-                        Some(
-                            crate::system::owner::system()
-                                .session
-                                .machine
-                                .has_3dnow
-                                .get(),
-                        ),
-                    ),
-                    (
-                        "SSE",
-                        Some(crate::system::owner::system().session.machine.has_sse.get()),
-                    ),
+                    ("MMX", Some(session.machine.has_mmx.get())),
+                    ("3DNow!", Some(session.machine.has_3dnow.get())),
+                    ("SSE", Some(session.machine.has_sse.get())),
                 ]),
             ),
             (

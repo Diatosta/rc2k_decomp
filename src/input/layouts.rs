@@ -12,6 +12,8 @@
 //! own layout. The readers are `input::key_to_char`, `append_key_name`, `yes_no_key` and the
 //! name editors.
 
+use crate::input::owner::input;
+use crate::strings::owner::strings;
 use rc2k_core::input::layouts::{FILE_LEN, File, Layout, Picked};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -89,10 +91,11 @@ impl Layouts {
 
     /// The start of `load_language`: the built-in layout, in mode 1.
     pub fn use_built_in(&mut self) {
+        let input = input();
         self.built_in = Layout::simple(
-            &crate::input::owner::input().keyboard.plain.read(),
-            &crate::input::owner::input().keyboard.shifted.read(),
-            &crate::input::owner::input().keyboard.key_names.read(),
+            &input.keyboard.plain.read(),
+            &input.keyboard.shifted.read(),
+            &input.keyboard.key_names.read(),
         );
         self.current = Current::BuiltIn;
         self.mode = 1;
@@ -119,17 +122,15 @@ impl Layouts {
 
     /// Keyboard type 2: the NEC keyboard's head (its mode) and layout take the file's place.
     pub fn use_nec(&mut self) {
-        let tables = crate::strings::owner::strings()
-            .language
-            .keyboard
-            .nec_layout;
+        let strings = strings();
+        let tables = strings.language.keyboard.nec_layout;
         let (plain, shifted, names, end) = NEC_TABLES;
         self.nec = Layout::simple(
             &tables[plain..shifted],
             &tables[shifted..names],
             &tables[names..end],
         );
-        let head = crate::strings::owner::strings().language.keyboard.nec_head;
+        let head = strings.language.keyboard.nec_head;
         self.file_bytes[..head.len()].copy_from_slice(&head);
         self.mode = head[NEC_MODE_AT];
         self.current = Current::Nec;
@@ -148,28 +149,21 @@ mod tests {
 
     #[test]
     fn the_built_in_tables_are_where_the_images_pointers_say() {
+        let input = input();
         let block = image_bytes(KEYBOARD_IDA + 4, 0x14);
         assert_eq!(word(&block, 0), 0);
         assert_eq!(word(&block, 4), KEYBOARD_IDA + 0x94);
         assert_eq!(word(&block, 8), KEYBOARD_IDA + 0x114);
         assert_eq!(word(&block, 12), 0);
         assert_eq!(word(&block, 16), KEYBOARD_IDA + 0x194);
-        assert_eq!(
-            crate::input::owner::input().keyboard.plain.read().len(),
-            0x80
-        );
-        assert_eq!(
-            crate::input::owner::input().keyboard.shifted.read().len(),
-            0x80
-        );
-        assert_eq!(
-            crate::input::owner::input().keyboard.key_names.read().len(),
-            0x100
-        );
+        assert_eq!(input.keyboard.plain.read().len(), 0x80);
+        assert_eq!(input.keyboard.shifted.read().len(), 0x80);
+        assert_eq!(input.keyboard.key_names.read().len(), 0x100);
     }
 
     #[test]
     fn the_nec_tables_are_where_the_images_pointers_say() {
+        let strings = strings();
         let at = 0x4F0E10;
         let block = image_bytes(at, 0x14);
         let (plain, shifted, names, end) = NEC_TABLES;
@@ -179,16 +173,7 @@ mod tests {
         assert_eq!(word(&block, 12), 0);
         assert_eq!(word(&block, 16), at + names);
         assert_eq!(end - names, 0x100);
-        assert!(
-            end <= crate::strings::owner::strings()
-                .language
-                .keyboard
-                .nec_layout
-                .len()
-        );
-        assert_eq!(
-            crate::strings::owner::strings().language.keyboard.nec_head[NEC_MODE_AT],
-            1
-        );
+        assert!(end <= strings.language.keyboard.nec_layout.len());
+        assert_eq!(strings.language.keyboard.nec_head[NEC_MODE_AT], 1);
     }
 }

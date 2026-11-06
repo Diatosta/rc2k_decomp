@@ -5,13 +5,16 @@
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
+use crate::input::owner::input;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::trap::{Trap, car_at};
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
@@ -19,10 +22,10 @@ use crate::scene::owner::scene;
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
 pub fn full_view_window(physics: &Physics, first: bool) {
+    let session = &system().session;
     let scene = scene();
-    scene.drawing.scene.view_size[0].set(crate::system::owner::system().session.screen.width.get());
-    scene.drawing.scene.view_size[1]
-        .set(crate::system::owner::system().session.screen.height.get());
+    scene.drawing.scene.view_size[0].set(session.screen.width.get());
+    scene.drawing.scene.view_size[1].set(session.screen.height.get());
     scene.drawing.scene.view_offset[0].set(0);
     scene.drawing.scene.view_offset[1].set(0);
     scene.drawing.scene.view_zoom.set(0x100);
@@ -40,12 +43,13 @@ pub fn full_view_window(physics: &Physics, first: bool) {
 /// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
 pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
+    let session = &system().session;
     let scene = scene();
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
     let n = mirror_entry(
-        crate::race::owner::race().shared.vars.split.get(),
-        crate::race::owner::race().shared.view.drawn_view.get(),
+        race.shared.vars.split.get(),
+        race.shared.view.drawn_view.get(),
         race.frame.panel_and_overlay.panel.flat.get() == 0,
     );
     // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
@@ -73,10 +77,7 @@ pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
         height: sy,
     }) = mirror_window(
         (at(0), at(1)),
-        (
-            crate::system::owner::system().session.screen.width.get(),
-            crate::system::owner::system().session.screen.height.get(),
-        ),
+        (session.screen.width.get(), session.screen.height.get()),
     )
     else {
         trap.finish()?;
@@ -158,10 +159,11 @@ pub fn draw_marks_overlays(race: &Race) -> Result<(), Refused> {
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
 pub fn load_first_car() -> Result<(), Refused> {
-    if crate::race::owner::race().shared.work.car_block(0) == 0 {
+    let shared = &race().shared;
+    if shared.work.car_block(0) == 0 {
         return Err(BadInput("car 0 without its block").into());
     }
-    crate::race::owner::race().shared.work.current_car.set(0);
+    shared.work.current_car.set(0);
     crate::drive::load_car::load_car()?;
     Ok(())
 }
@@ -205,7 +207,7 @@ pub fn copy_mirror_picture(frame: &Frame) -> Result<(), Refused> {
             height: gfx_drawing.draw_surface.height.get(),
             from_pitch: ebp,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16: crate::system::owner::system().session.screen.bits.get() == 0x10,
+            from_16: system().session.screen.bits.get() == 0x10,
             to_16: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
@@ -265,6 +267,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
 /// view block or a slot past 0x3FF.
 pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
+    let shared = &race().shared;
     let textures = &scene().textures;
     // Converted: `rc2k_core::race::view_steps::{FORGET_ORDER, forgets, mirror_on,
     // check_slots}` (each switch read where the original reads it).
@@ -272,10 +275,7 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
     use rc2k_core::race::view_steps::{
         FORGET_COST, FORGET_ORDER, Forget, MIRROR_BIT, MIRROR_COST, check_slots, forgets, mirror_on,
     };
-    let blocks = [
-        crate::race::owner::race().shared.view.view_block(0),
-        crate::race::owner::race().shared.view.view_block(1),
-    ];
+    let blocks = [shared.view.view_block(0), shared.view.view_block(1)];
     if blocks.contains(&0) {
         return Err(BadInput("a view without its car block").into());
     }
@@ -299,7 +299,7 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
         frame.frame_work.mirror_wanted.get(),
         frame.frame_work.mirror_switch.get(),
     );
-    let uploaded = crate::input::owner::input().devices.keys_now.get(0x18) != 0; // byte_4F6B74
+    let uploaded = input().devices.keys_now.get(0x18) != 0; // byte_4F6B74
     let mut slots: Vec<u32> = FORGET_ORDER
         .iter()
         .map(|&(f, _)| source(f))
@@ -363,11 +363,12 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
 
 /// The quad's corners the view window's size from (0, 0).
 fn window_corners() {
+    let shared = &race().shared;
     let drawing = &scene().drawing;
-    crate::race::owner::race().shared.vars.quad_corners[0].set(0);
-    crate::race::owner::race().shared.vars.quad_corners[4].set(0);
-    crate::race::owner::race().shared.vars.quad_corners[1].set(drawing.scene.view_size[0].get());
-    crate::race::owner::race().shared.vars.quad_corners[5].set(drawing.scene.view_size[1].get());
+    shared.vars.quad_corners[0].set(0);
+    shared.vars.quad_corners[4].set(0);
+    shared.vars.quad_corners[1].set(drawing.scene.view_size[0].get());
+    shared.vars.quad_corners[5].set(drawing.scene.view_size[1].get());
 }
 
 /// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
@@ -378,21 +379,21 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
-    if crate::race::owner::race().shared.work.in_credits.get() != 0 {
-        crate::race::owner::race().shared.vars.quad_colour[1].set(NIGHT_ALPHA);
+    if race.shared.work.in_credits.get() != 0 {
+        race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
         window_corners();
-        crate::race::owner::race().shared.vars.quad_colour[0].set(NIGHT_COLOUR);
+        race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
     let sun = race.frame.frame_work.sun_on_screen.get();
     let a = glare_alpha(scene().lights.state.fog_far.get());
-    crate::race::owner::race().shared.vars.quad_colour[1].set(a);
+    race.shared.vars.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
         window_corners();
         // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
         let byte = |k: usize| race.course.stage_prefs.unknown_18c0[k].get() as u8;
-        crate::race::owner::race().shared.vars.quad_colour[0].set(glare_colour(
+        race.shared.vars.quad_colour[0].set(glare_colour(
             race.course.stage_prefs.lamp_table_c.get(),
             byte(0),
             byte(1),
@@ -407,16 +408,15 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
 /// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
 /// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
 pub fn clear_view_depth() {
+    let session = &system().session;
     let scene = scene();
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }
     scene.drawing.scene.cleared_rectangle[0].set(0);
     scene.drawing.scene.cleared_rectangle[1].set(0);
-    scene.drawing.scene.cleared_rectangle[2]
-        .set(crate::system::owner::system().session.screen.width.get());
-    scene.drawing.scene.cleared_rectangle[3]
-        .set(crate::system::owner::system().session.screen.height.get());
+    scene.drawing.scene.cleared_rectangle[2].set(session.screen.width.get());
+    scene.drawing.scene.cleared_rectangle[3].set(session.screen.height.get());
     clear_viewport_unless_held();
 }
 
@@ -432,16 +432,11 @@ pub fn draw_own_car(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
-    if crate::race::owner::race().shared.switches.other_way.get() == 0 {
+    if race.shared.switches.other_way.get() == 0 {
         return Ok(());
     }
-    let number = crate::race::owner::race().shared.view.view_cars
-        [crate::race::owner::race().shared.view.drawn_view.get() as usize]
-        .get();
-    let car = crate::race::owner::race()
-        .shared
-        .work
-        .car_block(car_number(number) as usize);
+    let number = race.shared.view.view_cars[race.shared.view.drawn_view.get() as usize].get();
+    let car = race.shared.work.car_block(car_number(number) as usize);
     if car == 0 {
         return Err(BadInput("the drawn car without its block").into());
     }
@@ -489,6 +484,7 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// and, unless `dword_6416B8`, `effects::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
 pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
+    let session = &system().session;
     let effects = effects();
     let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
@@ -496,24 +492,12 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::view_steps::{
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
-    if crate::race::owner::race()
-        .shared
-        .switches
-        .view_marks_on
-        .get()
-        == 0
-    {
+    if race.shared.switches.view_marks_on.get() == 0 {
         return Ok(());
     }
-    let view = crate::race::owner::race().shared.view.drawn_view.get();
-    let block = crate::race::owner::race()
-        .shared
-        .view
-        .view_block(view as usize);
-    let records = crate::race::owner::race()
-        .shared
-        .work
-        .car_records_resolved()?;
+    let view = race.shared.view.drawn_view.get();
+    let block = race.shared.view.view_block(view as usize);
+    let records = race.shared.work.car_records_resolved()?;
     check_view_marks(
         block,
         |b| GamePtr::to(records[b as usize]).addr(),
@@ -521,12 +505,12 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     )?;
     let (other, own) = marks_shown(
         view,
-        crate::race::owner::race().shared.vars.scene_switch.get(),
+        race.shared.vars.scene_switch.get(),
         race.physics.split_tables.still.get(),
     );
     MARKS_SETTINGS.other_marks_shown.set(other);
     MARKS_SETTINGS.own_marks_shown.set(own);
-    let layout_at = layout_index(view, crate::race::owner::race().shared.vars.split.get());
+    let layout_at = layout_index(view, race.shared.vars.split.get());
     let layout = race.frame.frame_work.view_layouts[layout_at as usize].get();
     MARKS_SETTINGS.marks_layout.set(layout);
     crate::math::cells::copy_cells(
@@ -535,17 +519,15 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
         16,
     );
     crate::drive::share_all_cars::share_all_cars()?;
-    let first = first_word(crate::race::owner::race().shared.vars.run_kind.get());
+    let first = first_word(race.shared.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
-        crate::race::owner::race()
-            .shared
+        race.shared
             .work
             .car_record(b as usize)?
             .at(0)
             .write(first, "a car record's first word")?;
     }
-    crate::race::owner::race()
-        .shared
+    race.shared
         .work
         .car_record(view as usize)?
         .at(0)
@@ -556,12 +538,12 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     );
     let n = race.frame.frame_work.view_layouts[layout_at as usize].get() as usize;
     drawing.scene.view_centre[0].set_bits(int_over_times(
-        crate::system::owner::system().session.screen.width.get(),
+        session.screen.width.get(),
         race.course.numbers.k800.bits(),
         race.frame.frame_work.view_scale_x[n].bits(),
     ));
     drawing.scene.view_centre[1].set_bits(int_over_times(
-        crate::system::owner::system().session.screen.height.get(),
+        session.screen.height.get(),
         race.course.numbers.k600.bits(),
         race.frame.frame_work.view_scale_y[n].bits(),
     ));

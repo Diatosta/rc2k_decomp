@@ -11,6 +11,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::audio::owner::audio;
 use crate::sound::queue::send_command;
 
 // ---- game data ----
@@ -22,9 +23,10 @@ const PLAY_1: u32 = 1;
 /// `sound` at `volume` and `rate`; `place` its ecx, edi and ebp (the pan, or in the 3D
 /// modes the place). The audio thread reads every register of command 1.
 pub fn play_sound(sound: u32, volume: u32, rate: u32, place: [u32; 3]) {
+    let audio = audio();
     let (held_back, mode) = (
-        crate::audio::owner::audio().state.sounds_held_back.get(),
-        crate::audio::owner::audio().state.sound_mode.get(),
+        audio.state.sounds_held_back.get(),
+        audio.state.sound_mode.get(),
     );
     // Converted: `rc2k_core::sound::senders::sound_place`.
     if let Some([esi, ecx, edi, ebp]) =

@@ -16,6 +16,7 @@ use crate::net::draw_centred_item::draw_centred_item;
 use crate::net::draw_number_value::draw_number_value;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::{PALETTE, blit, copy_picture, lock_surface};
+use crate::net::owner::net;
 use crate::net::setting_label::setting_label;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens;
@@ -23,6 +24,7 @@ use rc2k_core::net::screens;
 /// The Rust version (the original keeps every register). Called through
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame() -> Result<(), Refused> {
+    let vars = &net().vars;
     if !lock_surface() {
         return Ok(());
     }
@@ -34,22 +36,10 @@ pub fn settings_frame() -> Result<(), Refused> {
         Number(u32),
     }
     for (item, (label, value)) in [
-        (
-            0x163,
-            Value::Text(&crate::net::owner::net().vars.saved_name),
-        ),
-        (
-            0x164,
-            Value::Text(&crate::net::owner::net().vars.machine_name),
-        ),
-        (
-            0x165,
-            Value::Number(crate::net::owner::net().vars.most_players.get()),
-        ),
-        (
-            0x166,
-            Value::Text(&crate::net::owner::net().vars.host_address),
-        ),
+        (0x163, Value::Text(&vars.saved_name)),
+        (0x164, Value::Text(&vars.machine_name)),
+        (0x165, Value::Number(vars.most_players.get())),
+        (0x166, Value::Text(&vars.host_address)),
     ]
     .into_iter()
     .enumerate()

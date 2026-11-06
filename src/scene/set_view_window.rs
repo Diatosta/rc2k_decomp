@@ -29,6 +29,7 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 // ---- Rust version ----
 
@@ -36,10 +37,7 @@ pub fn set_view_window() {
     let drawing = &scene().drawing;
     let race = race();
     let depth = race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20);
-    crate::session::write_bits(
-        &crate::race::owner::race().shared.view.view_depth,
-        [depth, depth],
-    );
+    crate::session::write_bits(&race.shared.view.view_depth, [depth, depth]);
     let [width, height]: [u32; 2] = crate::session::read_bits(&drawing.scene.view_size);
     let middle = [width >> 1, height >> 1];
     crate::session::write_bits(&drawing.scene.view_middle, middle);
@@ -57,10 +55,10 @@ pub fn set_view_window() {
     };
     crate::session::write_bits(&drawing.scene.clip_edges, edges);
     drawing.scene.view_scale.set_bits(x87::int_float_int_float(
-        crate::system::owner::system().session.screen.width.get() as i32,
+        system().session.screen.width.get() as i32,
         race.frame.view_and_records.view_vars.view_scale.bits(),
         drawing.scene.view_zoom.bits() as i32,
-        crate::race::owner::race().shared.vars.scale_factor.bits(),
+        race.shared.vars.scale_factor.bits(),
     ));
     // `cmp; jns` and `cmp; js`: by the differences' signs.
     let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.bits());
@@ -114,11 +112,11 @@ pub fn set_view_window_plain(race: &Race) {
         size: crate::session::read_bits(&drawing.scene.view_size),
         offsets: crate::session::read_bits(&drawing.scene.view_offset),
         in_race: race.course.numbers.in_race.bits() == 1,
-        screen_width: crate::system::owner::system().session.screen.width.get(),
+        screen_width: system().session.screen.width.get(),
         scale: (
             race.frame.view_and_records.view_vars.view_scale.get(),
             drawing.scene.view_zoom.bits(),
-            crate::race::owner::race().shared.vars.scale_factor.get(),
+            race.shared.vars.scale_factor.get(),
         ),
         nearer: race.course.stage_prefs.nearer.bits(),
         nearer_factor: race.course.numbers.hundredth_a.get(),
@@ -128,10 +126,7 @@ pub fn set_view_window_plain(race: &Race) {
         one: race.course.numbers.one.get(),
     };
     let w = window_settings(&i);
-    crate::session::write_bits(
-        &crate::race::owner::race().shared.view.view_depth,
-        [w.depth, w.depth],
-    );
+    crate::session::write_bits(&race.shared.view.view_depth, [w.depth, w.depth]);
     crate::session::write_bits(&drawing.scene.view_middle, w.middle);
     crate::session::write_bits(&drawing.scene.clip_edges, w.edges);
     drawing.scene.view_scale.set_bits(w.scale.to_bits());

@@ -9,8 +9,10 @@ use crate::menu::owner::menus;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
+use crate::race::owner::race;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
+use crate::system::owner::system;
 use rc2k_core::menu::flow::{self, Picture, Var};
 
 pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
@@ -70,6 +72,7 @@ enum Place {
 }
 
 fn place(v: Var) -> Place {
+    let race = race();
     let menus = menus();
     use Place::Cell;
     match v {
@@ -90,10 +93,8 @@ fn place(v: Var) -> Place {
         Var::Qualifies => Cell(crate::menu::time_trial_qualifies::QUALIFIES),
         Var::Entered => Cell(crate::menu::time_trial_qualifies::ANY_QUALIFIED),
         Var::ServiceDue => Cell(champ::SERVICE_DUE),
-        Var::RaceResult => Cell(&crate::race::owner::race().shared.state.results.results[0].result),
-        Var::RaceResult2 => {
-            Cell(&crate::race::owner::race().shared.state.results.results[1].result)
-        }
+        Var::RaceResult => Cell(&race.shared.state.results.results[0].result),
+        Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
         Var::CarListKind => Cell(CAR_LIST_KIND),
         Var::Cheats => Cell(CHEATS),
         Var::Cleared(k) => Cell(&menus.play.results.before[k as usize]),
@@ -149,7 +150,7 @@ impl flow::Game for Game {
                 .record
                 .ok_or(BadInput("a record field read before a record was found"))
                 .and_then(|r| r.word_at(offset))),
-            Place::Quitting => crate::system::owner::system().session.flags.quitting.get(),
+            Place::Quitting => system().session.flags.quitting.get(),
         }
     }
 
@@ -162,11 +163,7 @@ impl flow::Game for Game {
                 self.fault
                     .ok::<()>(Err(BadInput("a write to a stage record")));
             }
-            Place::Quitting => crate::system::owner::system()
-                .session
-                .flags
-                .quitting
-                .set(value),
+            Place::Quitting => system().session.flags.quitting.set(value),
         }
     }
 
@@ -190,10 +187,7 @@ impl flow::Game for Game {
             C::A8Welcome => m::a8_welcome::a8_welcome()?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
-                let table = crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .championship();
+                let table = system().records.stage_tables.championship();
                 // The original has no end-of-table check: a section past the table's
                 // is refused.
                 if !has_section(table, section, 600)? {

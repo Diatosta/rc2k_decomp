@@ -3,6 +3,7 @@
 //! the cells, the stage line, the caption, the title and the number text (0x100 bytes each),
 //! the stage result's value and the ten page-number texts. Names are readings unless IDA's.
 
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -32,7 +33,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = TextBuffers;
     fn deref(&self) -> &TextBuffers {
-        &crate::race::owner::race().shared.buffers.text
+        &race().shared.buffers.text
     }
 }
 

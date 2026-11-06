@@ -16,37 +16,23 @@
 //! `set_menu_screen_mode` (attrib), whose Rust versions read none.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 use crate::gfx::owner::gfx;
 
 /// The Rust version. `set_up_engine` and `set_up_front_end_scene` run on a scratch
 /// register set (they read none of the caller's: attrib finds only esi read at entry).
 pub fn viewer_tidy_stage() -> Result<(), Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
-    if tidies(
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .viewer_stage_loaded
-            .get(),
-    ) {
-        crate::race::owner::race()
-            .shared
-            .replay_file
-            .viewer_stage_loaded
-            .set(0);
+    if tidies(shared.replay_file.viewer_stage_loaded.get()) {
+        shared.replay_file.viewer_stage_loaded.set(0);
         for step in TIDY_FIRST {
             run(step)?;
         }
-        if frees_fonts(
-            crate::race::owner::race()
-                .shared
-                .replay_file
-                .viewer_fonts_built
-                .get(),
-        ) {
+        if frees_fonts(shared.replay_file.viewer_fonts_built.get()) {
             run(TidyStep::FreeFonts)?;
         }
         for step in TIDY_AFTER {

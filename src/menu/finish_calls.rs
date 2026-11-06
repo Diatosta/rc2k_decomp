@@ -2,6 +2,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
@@ -55,26 +56,15 @@ impl Game {
 
 /// The variables that are in static cells.
 fn cell(menus: &Menus, v: Var) -> Option<&'_ Dword> {
+    let race = race();
     Some(match v {
-        Var::On => &crate::race::owner::race().shared.state.results.finished,
-        Var::Kept => &crate::race::owner::race().shared.state.settings.kept,
-        Var::Leader => &crate::race::owner::race().shared.state.settings.a8_game,
-        Var::SetUpCar => {
-            &crate::race::owner::race()
-                .shared
-                .state
-                .results
-                .finish_player
-        }
-        Var::SetUpDriver => &crate::race::owner::race().shared.state.results.finish_kind,
-        Var::SetUpDriver2 => {
-            &crate::race::owner::race()
-                .shared
-                .state
-                .settings
-                .car_kind_current
-        }
-        Var::SetUpSection => &crate::race::owner::race().shared.state.results.stage_index,
+        Var::On => &race.shared.state.results.finished,
+        Var::Kept => &race.shared.state.settings.kept,
+        Var::Leader => &race.shared.state.settings.a8_game,
+        Var::SetUpCar => &race.shared.state.results.finish_player,
+        Var::SetUpDriver => &race.shared.state.results.finish_kind,
+        Var::SetUpDriver2 => &race.shared.state.settings.car_kind_current,
+        Var::SetUpSection => &race.shared.state.results.stage_index,
         Var::EventMode => &menus.play.champ_view.event_mode,
         Var::Section => &menus.screens.event.section,
         _ => return None,

@@ -20,42 +20,37 @@
 //! volume or pan changes while its sound has ended: the original's ebx (the list's link)
 //! then holds the pan, and it writes the link through it (section 16).
 
+use crate::audio::owner::audio;
 use crate::audio::voices::GamePool;
 use crate::errors::Refused;
 use rc2k_core::audio::voices::Lists;
 
 /// The lists as the mixer's turn reads them (no channel count).
 fn lists() -> Lists {
+    let state = &audio().state;
     Lists {
-        playing: crate::audio::owner::audio().state.playing_voices.get(),
-        stopping: crate::audio::owner::audio().state.stopping_voices.get(),
-        channels_used: crate::audio::owner::audio().state.channels_used.get(),
+        playing: state.playing_voices.get(),
+        stopping: state.stopping_voices.get(),
+        channels_used: state.channels_used.get(),
         channel_count: 0,
     }
 }
 
 fn store(l: &Lists) {
-    crate::audio::owner::audio()
-        .state
-        .playing_voices
-        .set(l.playing);
-    crate::audio::owner::audio()
-        .state
-        .stopping_voices
-        .set(l.stopping);
-    crate::audio::owner::audio()
-        .state
-        .channels_used
-        .set(l.channels_used);
+    let audio = audio();
+    audio.state.playing_voices.set(l.playing);
+    audio.state.stopping_voices.set(l.stopping);
+    audio.state.channels_used.set(l.channels_used);
 }
 
 /// `mix`: `audio::mix`.
 pub fn update_mixer_voices(mix: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    let state = &audio().state;
     // Converted: `rc2k_core::audio::mixer_voices`; the lists stored for the mix, which
     // reads them, and read again after it.
     use rc2k_core::audio::mixer_voices::{after_mix, before_mix};
-    let rate = crate::audio::owner::audio().state.mix_rate.get();
-    let mode = crate::audio::owner::audio().state.sound_mode.get();
+    let rate = state.mix_rate.get();
+    let mode = state.sound_mode.get();
     let mut pool = GamePool;
     let mut l = lists();
     before_mix(&mut pool, &mut l, rate, mode)?;

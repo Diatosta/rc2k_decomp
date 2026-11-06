@@ -15,6 +15,7 @@ use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
 use crate::race::state_store::{RaceCar, RaceResult};
 use crate::session::{Bytes, Dword};
+use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// A player's or a track's record: a game address.
@@ -364,9 +365,11 @@ fn single_rally(
     kind: u32,
     step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let shared = &race().shared;
+    let system = system();
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
-    if crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.get() == 1 {
         crate::standalone::leave_on_close();
     }
     if kind == 3 {
@@ -386,7 +389,7 @@ fn single_rally(
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
     let stage = STAGE.get();
-    let pack = &crate::system::owner::system().records.stage_tables.trak_pak;
+    let pack = &system.records.stage_tables.trak_pak;
     let mut at = 0;
     let entry = loop {
         let entry = pack
@@ -406,18 +409,8 @@ fn single_rally(
         }
     };
     // The entry's +0x1C (temperature) and +0x20 (wind) into the race variables.
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .track_1c
-        .set(entry.temperature.get());
-    crate::race::owner::race()
-        .shared
-        .state
-        .settings
-        .track_20
-        .set(entry.wind.get());
+    shared.state.settings.track_1c.set(entry.temperature.get());
+    shared.state.settings.track_20.set(entry.wind.get());
     for &(from, to) in &SETTINGS_TO_RACE {
         to.set(from.get());
     }
@@ -1980,14 +1973,8 @@ mod tests {
             CURRENT.set(c.current);
             // The track list: entries 0x40 apart from +0x34; the stage's number at +0x34 of
             // the entry; a dword -1 at the start of the entry the list ends at.
-            let entry = |k: usize| {
-                crate::system::owner::system()
-                    .records
-                    .stage_tables
-                    .trak_pak()
-                    + 0x34
-                    + 0x40 * k as u32
-            };
+            let entry =
+                |k: usize| system().records.stage_tables.trak_pak() + 0x34 + 0x40 * k as u32;
             for k in 0..6 {
                 let mut id = rng.next();
                 if id == c.stage {

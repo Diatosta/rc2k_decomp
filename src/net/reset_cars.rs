@@ -10,6 +10,7 @@
 
 use crate::net::clear_car_state::clear_car_state;
 use crate::physics::car_store::Car;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::cars;
 
@@ -32,20 +33,16 @@ fn reset_fields(car: u32) -> [Reset; 7] {
 
 /// The Rust version.
 pub fn reset_cars() -> Result<(), crate::errors::BadInput> {
+    let race = race();
     for car in 0..cars::CARS {
-        let block = crate::race::trap::car_at(
-            crate::race::owner::race()
-                .shared
-                .work
-                .car_block(car as usize),
-        )?;
+        let block = crate::race::trap::car_at(race.shared.work.car_block(car as usize))?;
         for (field, v) in reset_fields(car) {
             field(block).set(v);
         }
         clear_car_state(block)?;
     }
-    crate::race::owner::race().shared.vars.race_level.set(0);
-    crate::race::owner::race().shared.vars.race_stage.set(0);
+    race.shared.vars.race_level.set(0);
+    race.shared.vars.race_stage.set(0);
     Ok(())
 }
 
@@ -57,7 +54,7 @@ mod tests {
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = &crate::race::owner::race().shared.car;
+        let car = &race().shared.car;
         let base = GamePtr::to(car).addr();
         let offsets: Vec<u32> = reset_fields(3)
             .iter()

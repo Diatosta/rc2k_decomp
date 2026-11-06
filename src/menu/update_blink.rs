@@ -15,6 +15,7 @@
 //! 179 callers.
 use crate::menu::owner::Menus;
 use crate::menu::update_frame_clock::update_frame_clock;
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -26,7 +27,7 @@ pub use rc2k_core::menu::blink::blink_states;
 /// What the three variables should be for the clock the game holds now.
 fn states_now(menus: &Menus) -> (u32, u32, u32) {
     blink_states(
-        crate::system::owner::system().session.clocks.frame.get(),
+        system().session.clocks.frame.get(),
         menus.play.champ_view.last_key_time.get(),
         menus.play.champ_view.cursor_time.get(),
         menus.screens.option_work.redefining_key.get(),

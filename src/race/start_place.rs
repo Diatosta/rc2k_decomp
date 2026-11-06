@@ -8,16 +8,13 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
 
 fn count() -> Result<u32, Refused> {
-    let n: u32 = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits();
+    let n: u32 = race().shared.vars.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -45,6 +42,7 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
 pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
+    let shared = &race().shared;
     let lights = &scene().lights;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
@@ -57,13 +55,7 @@ pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
         let (_, b) = check_point(n)?;
         let (x, _) = lerp(get(a, 0)?, get(b, 0)?, t);
         let (y, _) = lerp(get(a, 1)?, get(b, 1)?, t);
-        let y = y.wrapping_add(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .ground_drop
-                .bits(),
-        );
+        let y = y.wrapping_add(shared.physics_tables.ground_drop.bits());
         let (z, _) = lerp(get(a, 2)?, get(b, 2)?, t);
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
@@ -72,14 +64,10 @@ pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
         course.course.place_y.set_bits(y);
         course.course.place_z.set_bits(z);
         course.course.place_heading.set_bits(heading);
-        crate::race::owner::race().shared.car.position[0].set_bits(x);
-        crate::race::owner::race().shared.car.position[2].set(z);
-        crate::race::owner::race()
-            .shared
-            .car
-            .car_heading
-            .set_bits(heading);
-        crate::race::owner::race().shared.car.position[1].set(y);
+        shared.car.position[0].set_bits(x);
+        shared.car.position[2].set(z);
+        shared.car.car_heading.set_bits(heading);
+        shared.car.position[1].set(y);
         Ok(())
     }
 }
@@ -91,11 +79,7 @@ pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
 pub fn distance_to_checkpoint(physics: &Physics, c: u32) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
-    let count: u32 = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits();
+    let count: u32 = race().shared.vars.checkpoint_count.bits();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
         drawing.scene.scratch.set_bits(u32::MAX);
         return Ok(());
@@ -184,11 +168,7 @@ fn measure_held(
     {
         return Ok(());
     }
-    let count: u32 = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits();
+    let count: u32 = race.shared.vars.checkpoint_count.bits();
     let (x, z) = (
         race.physics.ground.ground_x.bits(),
         race.physics.ground.ground_z.bits(),
@@ -272,11 +252,11 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
         race.physics
             .ground
             .ground_x
-            .set_bits(crate::race::owner::race().shared.car.position[0].bits());
+            .set_bits(race.shared.car.position[0].bits());
         race.physics
             .ground
             .ground_z
-            .set_bits(crate::race::owner::race().shared.car.position[2].get());
+            .set_bits(race.shared.car.position[2].get());
         if count == 0 {
             return Ok(0);
         }
@@ -287,8 +267,7 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
             near.distance,
             f32::from_bits(race.course.numbers.k65536.bits()),
         );
-        crate::race::owner::race()
-            .shared
+        race.shared
             .physics_tables
             .nearest_checkpoint_distance
             .set_bits(units.to_bits());
@@ -299,8 +278,9 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
 /// `race::invert_car_matrix` (0x43F16C): `scene::invert_turn` of the work car's matrix
 /// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
 pub fn invert_car_matrix() {
+    let shared = &race().shared;
     crate::scene::view_matrix::invert_turn(
-        &crate::race::owner::race().shared.car.crash_matrix,
-        &crate::race::owner::race().shared.car.car_inverse_matrix,
+        &shared.car.crash_matrix,
+        &shared.car.car_inverse_matrix,
     );
 }

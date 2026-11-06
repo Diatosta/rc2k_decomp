@@ -7,9 +7,10 @@
 //! what `finish_race` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version.
 pub fn finish_race_0() -> Result<(), Refused> {
-    crate::race::owner::race().shared.switches.mask_kind.set(0);
+    race().shared.switches.mask_kind.set(0);
     crate::drive::finish_race::finish_race()
 }

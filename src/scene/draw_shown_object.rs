@@ -37,33 +37,25 @@ struct Game;
 
 impl rc2k_core::scene::shown::RaceObject for Game {
     fn object(&self) -> u32 {
-        crate::race::owner::race()
-            .shared
-            .switches
-            .object_number
-            .bits()
+        race().shared.switches.object_number.bits()
     }
     fn kind_switch(&self) -> u32 {
-        crate::race::owner::race().shared.work.in_credits.bits()
+        race().shared.work.in_credits.bits()
     }
     fn kind_mode(&self) -> u32 {
-        crate::race::owner::race().shared.vars.run_kind.bits()
+        race().shared.vars.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        crate::race::owner::race().shared.switches.other_way.bits()
+        race().shared.switches.other_way.bits()
     }
     fn shown(&self) -> u32 {
         race().course.stage_prefs.shown.bits()
     }
     fn which(&self) -> u32 {
-        crate::race::owner::race()
-            .shared
-            .work
-            .stage_direction
-            .bits()
+        race().shared.work.stage_direction.bits()
     }
     fn only(&self) -> u32 {
         scene().drawing.object_work.only_object.bits()

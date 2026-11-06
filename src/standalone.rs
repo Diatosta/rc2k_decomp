@@ -17,11 +17,13 @@
 
 #![allow(unsafe_code)]
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, Regs, log};
 use crate::gfx::owner::gfx;
 use crate::install::outside::Game as Outside;
 use crate::saves::owner::saves;
+use crate::system::owner::system;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 #[cfg(windows)]
@@ -383,6 +385,7 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// Once, on the main thread, after the image is built: the start-up functions it calls are
 /// still `unsafe` (they write the game's state before any thread of the game's runs).
 fn start() {
+    let system = system();
     let gfx = gfx();
     let r = Regs::default();
     crate::menu::players_store::point_players();
@@ -461,7 +464,7 @@ fn start() {
         }
     }
     // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
-    if crate::system::owner::system().session.machine.has_fpu.get() != 1 {
+    if system.session.machine.has_fpu.get() != 1 {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }
     rust("system::read_command_line");
@@ -476,7 +479,7 @@ fn start() {
         refused("install::check_clio_disc", e, &r);
     }
     rust("install::check_at_start");
-    let no_audio = &crate::audio::owner::audio().state.no_audio;
+    let no_audio = &audio().state.no_audio;
     if let Err(e) = crate::install::check_at_start::check_at_start(
         crate::install::owner::install(),
         &mut Outside,
@@ -565,19 +568,15 @@ fn start() {
     // play since 2026-10-19: `film.rs`).
     stand_in(
         "the window is the active one",
-        &crate::system::owner::system().session.flags.window_active,
+        &system.session.flags.window_active,
         1,
     );
     stand_in(
         "the window has the focus (until SDL says otherwise)",
-        &crate::system::owner::system().session.flags.window_focused,
+        &system.session.flags.window_focused,
         1,
     );
-    stand_in(
-        "the key thread runs",
-        &crate::system::owner::system().session.clocks.key_ticks,
-        1,
-    );
+    stand_in("the key thread runs", &system.session.clocks.key_ticks, 1);
     rust("system::main_loop");
     if let Err(e) = crate::system::main_loop::main_loop_in_game() {
         refused("system::main_loop", e, &r);

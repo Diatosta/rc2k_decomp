@@ -10,6 +10,7 @@
 //! Caller: DirectInput, from `input::joystick_found`.
 
 use crate::errors::BadInput;
+use crate::input::owner::input;
 use crate::input::types::{Controller, DiDeviceObjectInstance};
 
 /// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`, the context
@@ -29,11 +30,7 @@ pub fn axis_found(object: &DiDeviceObjectInstance, entry: &Controller) -> Result
     // Converted: `rc2k_core::input::joystick::axis_bits`.
     let mut axes = [[0u8; 16]; 6];
     for (n, axis) in axes.iter_mut().enumerate() {
-        axis.copy_from_slice(&crate::input::owner::input().guids.axes.read_at(
-            16 * n,
-            16,
-            "an axis GUID",
-        )?);
+        axis.copy_from_slice(&input().guids.axes.read_at(16 * n, 16, "an axis GUID")?);
     }
     let bits =
         rc2k_core::input::joystick::axis_bits(entry.axis_bits.get(), &object.guid_type, &axes);

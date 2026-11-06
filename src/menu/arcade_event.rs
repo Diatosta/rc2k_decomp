@@ -3,7 +3,9 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
+use crate::race::owner::race;
 use crate::session::Dword;
+use crate::system::owner::system;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
@@ -15,13 +17,14 @@ struct Game {
 
 /// The variables that are in the physics block.
 fn cell(v: Var) -> Option<&'static Dword> {
+    let race = race();
     Some(match v {
-        Var::RaceStage => &crate::race::owner::race().shared.state.results.race_stage,
-        Var::RaceLevel => &crate::race::owner::race().shared.state.results.race_level,
-        Var::CheatSwitch => &crate::race::owner::race().shared.state.settings.direction,
-        Var::RaceResult => &crate::race::owner::race().shared.state.results.results[0].result,
-        Var::RaceFigureFFC => &crate::race::owner::race().shared.state.results.figure_ffc,
-        Var::RaceFigure000 => &crate::race::owner::race().shared.state.results.figure_000,
+        Var::RaceStage => &race.shared.state.results.race_stage,
+        Var::RaceLevel => &race.shared.state.results.race_level,
+        Var::CheatSwitch => &race.shared.state.settings.direction,
+        Var::RaceResult => &race.shared.state.results.results[0].result,
+        Var::RaceFigureFFC => &race.shared.state.results.figure_ffc,
+        Var::RaceFigure000 => &race.shared.state.results.figure_000,
         _ => return None,
     })
 }
@@ -102,7 +105,7 @@ impl arcade::Arcade for Game {
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
-                let level = crate::system::owner::system()
+                let level = system()
                     .records
                     .stage_tables
                     .level_table(play.arcade.level.get())?;

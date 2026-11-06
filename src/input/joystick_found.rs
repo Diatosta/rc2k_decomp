@@ -21,6 +21,7 @@ use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::types::{Controller, DiDeviceInstance};
 use crate::pointers::GamePtr;
+use crate::system::owner::system;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<bool, BadInput> {
@@ -39,12 +40,7 @@ fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<
     if di::set_data_format(device2) != 0 {
         return Ok(false);
     }
-    if di::set_cooperative_level(
-        device2,
-        crate::system::owner::system().session.machine.window.get(),
-        5,
-    ) != 0
-    {
+    if di::set_cooperative_level(device2, system().session.machine.window.get(), 5) != 0 {
         return Ok(false);
     }
     let Ok(caps) = di::get_capabilities(device2, CAPS_LEN as u32) else {

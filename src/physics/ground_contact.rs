@@ -42,38 +42,28 @@ fn steps(race: &Race) -> Result<(), Refused> {
     if !rc2k_core::physics::contacts::touches(
         depth,
         limit,
-        crate::race::owner::race().shared.car.all_wheels_off.get() != 0,
+        race.shared.car.all_wheels_off.get() != 0,
     ) {
         return Ok(());
     }
     let n = point_number(&race.physics)?;
     physics_store.contact.ground_contact_started.set(1);
-    crate::race::owner::race().shared.car.contact_point[0]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_x[n].bits());
-    crate::race::owner::race().shared.car.contact_point[1]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_y[n].bits());
-    crate::race::owner::race().shared.car.contact_point[2]
-        .set_bits(crate::race::owner::race().shared.car.probe_point_z[n].bits());
+    race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[n].bits());
+    race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[n].bits());
+    race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[n].bits());
     take_contact(&race.physics, n)?;
     physics_store.contact.contact_slide_limit.set_bits(0);
-    contact_force(
-        race,
-        &crate::race::owner::race().shared.physics_tables.contacts[2],
-    );
+    contact_force(race, &race.shared.physics_tables.contacts[2]);
     { place_sound_e1(race) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-        f32::from_bits(crate::race::owner::race().shared.car.contact_depth.bits()),
+        f32::from_bits(race.shared.car.contact_depth.bits()),
     ) {
-        crate::race::owner::race()
-            .shared
-            .car
-            .contact_depth
-            .set_bits(hit.to_bits());
+        race.shared.car.contact_depth.set_bits(hit.to_bits());
     }
     copy_cells(
         &physics_store.contact.ground_force,
-        &crate::race::owner::race().shared.physics_tables.contacts[2].force,
+        &race.shared.physics_tables.contacts[2].force,
     );
     if sign(physics_store.contact.lowest_depth.get()) {
         { restore_saved_car(&race.physics) }?;

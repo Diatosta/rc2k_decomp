@@ -29,6 +29,7 @@
 use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -53,6 +54,7 @@ const STATE: u32 = 0x30;
 
 /// `sub_45079A`, on the state of face `face`.
 fn step_shape(face: u32) -> Result<(), BadInput> {
+    let shared = &race().shared;
     let scene = scene();
     use crate::race::course_places::{face_field, write_face_field};
     let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
@@ -60,11 +62,7 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     });
     crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
-    let clock: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .bits();
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
         time -= length;
@@ -78,11 +76,7 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
         3 => x87::one_less_int_ratio(time as i32, length as i32),
         _ => 0f32.to_bits(),
     };
-    crate::race::owner::race()
-        .shared
-        .vars
-        .move_fraction
-        .set_bits(fraction);
+    shared.vars.move_fraction.set_bits(fraction);
     scene.lights.work.phase_clock.set_bits(clock);
     crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
     let mut b = [0u8; 16];
@@ -94,12 +88,9 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
 }
 
 pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
+    let shared = &race().shared;
     let scene = scene();
-    let object: u32 = crate::race::owner::race()
-        .shared
-        .switches
-        .object_number
-        .bits();
+    let object: u32 = shared.switches.object_number.bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -111,24 +102,15 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
-    crate::race::owner::race()
-        .shared
-        .vars
-        .move_by
-        .set_bits(0u32);
+    shared.vars.move_by.set_bits(0u32);
     scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .other_way_kind
-        .set_bits(way);
+    shared.switches.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
             scene.objects.slots.first_point[object as usize].get(),
             scene.objects.slots.first_point[object as usize + 1].get(),
         ];
-        crate::race::owner::race()
-            .shared
+        shared
             .vars
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));

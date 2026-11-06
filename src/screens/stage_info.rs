@@ -8,11 +8,12 @@ use crate::menu::owner::Play;
 use crate::menu::owner::menus;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 /// The page's stage record.
 pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
-    let base = crate::system::owner::system()
+    let base = system()
         .records
         .stage_tables
         .level_table(play.arcade.level.get())?;

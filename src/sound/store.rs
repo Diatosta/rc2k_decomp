@@ -20,6 +20,7 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float, Word};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
@@ -223,7 +224,7 @@ pub struct SoundObject {
 /// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
 pub fn current_object() -> &'static SoundObject {
     &crate::sound::owner::sound().race.sounds.objects
-        [(crate::race::owner::race().shared.work.current_car.get() & 7) as usize]
+        [(race().shared.work.current_car.get() & 7) as usize]
 }
 
 impl SoundObject {

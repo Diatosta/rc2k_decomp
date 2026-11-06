@@ -13,12 +13,13 @@ use crate::race::owner::Race;
 
 /// The Rust version: `CAR.driver_kind` 2 resets the grades.
 pub fn grade_or_reset(race: &Race) {
-    if crate::race::owner::race().shared.car.driver_kind.get() == 2 {
+    let shared = &race.shared;
+    if shared.car.driver_kind.get() == 2 {
         reset_grades_at(
             &race.course,
-            crate::pointers::GamePtr::to(&crate::race::owner::race().shared.car),
-            &crate::race::owner::race().shared.car.suspension_stiffness,
-            &crate::race::owner::race().shared.car.ride_height,
+            crate::pointers::GamePtr::to(&shared.car),
+            &shared.car.suspension_stiffness,
+            &shared.car.ride_height,
         );
     } else {
         rate_damage(&race.physics);

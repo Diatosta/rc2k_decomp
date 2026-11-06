@@ -38,7 +38,7 @@ fn cars() -> u32 {
 /// of its callers.
 pub fn car_collisions(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
-    if !matches!(crate::race::owner::race().shared.vars.run_kind.get(), 0 | 2) {
+    if !matches!(race.shared.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
     let n = cars();
@@ -46,34 +46,30 @@ pub fn car_collisions(race: &Race) -> Result<(), Refused> {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
     if (0..n).any(|k| {
-        k != crate::race::owner::race().shared.work.current_car.get()
-            && crate::race::owner::race().shared.work.car_block(k as usize) == 0
+        k != race.shared.work.current_car.get() && race.shared.work.car_block(k as usize) == 0
     }) {
         return Err(BadInput("a null car block").into());
     }
     {
         physics.contact.corner_inside.set(0);
         for car in 0..n {
-            if car == crate::race::owner::race().shared.work.current_car.get() {
+            if car == race.shared.work.current_car.get() {
                 continue;
             }
             physics.contact.other_car_number.set(car);
-            let block = crate::race::owner::race()
-                .shared
-                .work
-                .car_block(car as usize);
+            let block = race.shared.work.car_block(car as usize);
             physics.contact.other_car_block.set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
             set_place([0usize, 1, 2].map(|k| {
-                crate::race::owner::race().shared.car.position[k]
+                race.shared.car.position[k]
                     .get()
                     .wrapping_sub(Car::at(block).position[k].get())
             }));
             multiply_matrices(
-                &crate::race::owner::race().shared.car.crash_matrix,
+                &race.shared.car.crash_matrix,
                 &race.frame.matrices.placed_matrix,
                 &race.frame.matrices.turned_matrix,
             );

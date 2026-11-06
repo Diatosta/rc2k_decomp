@@ -19,6 +19,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -26,16 +27,15 @@ use crate::session::Dword;
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its callers (register liveness, 2026-10-23).
 pub fn draw_flat_quad(course: &Course) -> Result<(), Refused> {
+    let shared = &race().shared;
     let drawing = &scene().drawing;
     drawing.scene.polygon_drawn.set_bits(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
-        rec.u
-            .set(crate::race::owner::race().shared.vars.quad_uv[n].bits());
-        rec.v
-            .set(crate::race::owner::race().shared.vars.quad_uv[4 + n].bits());
+        rec.u.set(shared.vars.quad_uv[n].bits());
+        rec.v.set(shared.vars.quad_uv[4 + n].bits());
     }
     let float = |cell: &Dword| {
         let v = x87::from_int(cell.bits() as i32);
@@ -43,14 +43,14 @@ pub fn draw_flat_quad(course: &Course) -> Result<(), Refused> {
         v
     };
     let [left, right, top, bottom] = [
-        &crate::race::owner::race().shared.vars.quad_corners[0],
-        &crate::race::owner::race().shared.vars.quad_corners[1],
-        &crate::race::owner::race().shared.vars.quad_corners[4],
-        &crate::race::owner::race().shared.vars.quad_corners[5],
+        &shared.vars.quad_corners[0],
+        &shared.vars.quad_corners[1],
+        &shared.vars.quad_corners[4],
+        &shared.vars.quad_corners[5],
     ]
     .map(float);
     let v = |n: usize, o: usize, x: u32| {
-        crate::race::owner::race().shared.vars.quad_vertices[8 * n + o / 4].set_bits(x);
+        shared.vars.quad_vertices[8 * n + o / 4].set_bits(x);
     };
     for (n, x, y) in [
         (0, left, top),
@@ -73,7 +73,7 @@ pub fn draw_flat_quad(course: &Course) -> Result<(), Refused> {
     drawing
         .scene
         .polygon_colour
-        .set_bits(crate::race::owner::race().shared.vars.quad_colour[0].bits() & 0xFF_FFFF);
+        .set_bits(shared.vars.quad_colour[0].bits() & 0xFF_FFFF);
     for n in 0..4 {
         crate::scene::polygon_store::POLYGON_WORK.entries[n]
             .light
@@ -92,11 +92,7 @@ pub fn draw_flat_quad(course: &Course) -> Result<(), Refused> {
     crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
     if drawing.scene.polygon_vertex_count.bits() >= 3 {
-        crate::race::owner::race()
-            .shared
-            .view
-            .polygon_mode
-            .set_bits(6);
+        shared.view.polygon_mode.set_bits(6);
         drawing.scene.polygon_sides[0].set_bits(1);
         drawing.scene.polygon_sides[1].set_bits(0);
         crate::scene::depth_buffer_on::depth_buffer(false);

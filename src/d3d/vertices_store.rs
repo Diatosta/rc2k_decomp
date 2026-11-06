@@ -3,6 +3,7 @@
 //! (`race::buffers_store`). The polygon about to be drawn stands in its first vertices
 //! (`g_polygonVertexCount`, `DRAW.polygon_vertex_count`, says how many).
 
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
@@ -41,7 +42,7 @@ pub struct InBuffers;
 impl core::ops::Deref for InBuffers {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
-        &crate::race::owner::race().shared.buffers.vertices
+        &race().shared.buffers.vertices
     }
 }
 

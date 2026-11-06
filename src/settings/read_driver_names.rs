@@ -20,6 +20,7 @@ use crate::errors::BadInput;
 use crate::menu::owner::menus;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
+use crate::strings::owner::strings;
 
 // ---- game data ----
 
@@ -37,7 +38,7 @@ pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 /// The text of a driver's name from its pointer slot: the slot keeps the name's byte offset
 /// in `NAMES` (the original kept its address), 0 for none. Bounded to `NAMES`.
 pub fn name_at(slot: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&crate::strings::owner::strings().drivers.names).offset(slot)
+    crate::pointers::GamePtr::to(&strings().drivers.names).offset(slot)
 }
 
 /// The path of `var\name.cfg` (without its NUL).
@@ -48,6 +49,7 @@ pub fn path() -> &'static [u8] {
 // ---- Rust version ----
 
 pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<(), BadInput> {
+    let strings = strings();
     let cars = &menus().cars;
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as
@@ -71,7 +73,7 @@ pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<()
             return Err(BadInput("more driver names than their pool holds"));
         }
         let last = format_u32(DRIVERS as u32 - 1, 0x13);
-        crate::pointers::GamePtr::to(&crate::strings::owner::strings().drivers.key)
+        crate::pointers::GamePtr::to(&strings.drivers.key)
             .offset(4)
             .write_bytes(&last, "a driver name's key")?;
         let mut pool = name_at(NAMES_LEN as u32);
@@ -81,7 +83,7 @@ pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<()
                 continue;
             };
             if let Some(name) = &entry.name {
-                crate::pointers::GamePtr::to(&crate::strings::owner::strings().drivers.names)
+                crate::pointers::GamePtr::to(&strings.drivers.names)
                     .offset((4 * driver) as u32)
                     .write(NAMES_LEN as u32 + pool_used, "a driver name's pointer")?;
                 pool.write_bytes(name, "a driver name")?;
@@ -103,6 +105,7 @@ pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<()
 
 #[cfg(test)]
 mod tests {
+    use crate::strings::owner::strings;
     #[test]
     fn the_path_is_the_text_not_the_pointer_to_it() {
         assert_eq!(super::path(), b"var\\name.cfg");
@@ -122,9 +125,7 @@ mod tests {
     #[test]
     fn data_starts_as_the_games() {
         assert_eq!(&image_bytes(0x529D98, 13)[..], &super::PATH[..]);
-        let key: Vec<u8> = (0..8)
-            .map(|i| crate::strings::owner::strings().drivers.key.get(i))
-            .collect();
+        let key: Vec<u8> = (0..8).map(|i| strings().drivers.key.get(i)).collect();
         assert_eq!(&image_bytes(0x529DA5, 8)[..], &key[..]);
         assert!(
             image_bytes(0x95ECF8, super::NAMES_LEN + super::POOL_ROOM)

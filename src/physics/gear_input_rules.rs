@@ -17,6 +17,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
@@ -68,37 +69,23 @@ pub fn rules_at(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let race = race();
     vec![
-        &crate::race::owner::race().shared.car.tyre_change_state as &dyn Cell32,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_gear_down,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_gear_up,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_throttle,
-        &crate::race::owner::race().shared.physics_tables.input_brake,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_handbrake,
-        &crate::race::owner::race().shared.car.gear,
-        &crate::race::owner::race().shared.car.gearbox_kind,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_gear_wanted,
-        &crate::race::owner::race().shared.car.run_ticks,
-        &crate::race::owner::race().shared.vars.run_kind,
-        &crate::race::owner::race().shared.physics_tables.input_steer,
-        &crate::race::owner::race().shared.car.go_stand_timer,
-        &crate::race::owner::race().shared.car.started_stand_timer,
-        &crate::race::owner::race().shared.car.finish_flag,
+        &race.shared.car.tyre_change_state as &dyn Cell32,
+        &race.shared.physics_tables.input_gear_down,
+        &race.shared.physics_tables.input_gear_up,
+        &race.shared.physics_tables.input_throttle,
+        &race.shared.physics_tables.input_brake,
+        &race.shared.physics_tables.input_handbrake,
+        &race.shared.car.gear,
+        &race.shared.car.gearbox_kind,
+        &race.shared.physics_tables.input_gear_wanted,
+        &race.shared.car.run_ticks,
+        &race.shared.vars.run_kind,
+        &race.shared.physics_tables.input_steer,
+        &race.shared.car.go_stand_timer,
+        &race.shared.car.started_stand_timer,
+        &race.shared.car.finish_flag,
     ]
 }
 

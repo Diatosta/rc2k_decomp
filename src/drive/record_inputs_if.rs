@@ -12,10 +12,11 @@ use crate::race::owner::Race;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
 pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
+    let shared = &race.shared;
     let records = rc2k_core::drive::replay_frames::records_inputs(
         race.course.numbers.replay_mode.get(),
-        crate::race::owner::race().shared.work.current_car.get(),
-        || crate::race::owner::race().shared.view.players.get(),
+        shared.work.current_car.get(),
+        || shared.view.players.get(),
     );
     if records == Some(true) {
         crate::drive::record_inputs::record_inputs(&race.replay)?;

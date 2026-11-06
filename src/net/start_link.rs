@@ -42,6 +42,7 @@ enum Way {
 }
 
 fn link() -> Result<Way, Refused> {
+    let vars = &net().vars;
     use crate::net::*;
     if !find_connections::find_connections()? {
         return Ok(Way::Message(NO_CONNECTION));
@@ -60,11 +61,10 @@ fn link() -> Result<Way, Refused> {
     if !connecting::connecting(connection)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
-    if crate::net::owner::net().vars.mode.get() == 1 {
-        crate::net::owner::net().vars.own.head.set(
-            PlayerRecord::STATE,
-            crate::net::owner::net().vars.own.state() | 0x10,
-        );
+    if vars.mode.get() == 1 {
+        vars.own
+            .head
+            .set(PlayerRecord::STATE, vars.own.state() | 0x10);
         return Ok(if hosting::hosting()? {
             Way::On
         } else {
@@ -89,9 +89,10 @@ fn link() -> Result<Way, Refused> {
 
 /// The Rust version: a network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
+    let vars = &net().vars;
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
-    crate::net::owner::net().vars.mode.set(mode);
+    vars.mode.set(mode);
     take_player_settings::take_player_settings();
     let play = &menus().play;
     fill_own_player::fill_own_player(play, &play.names.player_names)?;
@@ -100,16 +101,16 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}
         Way::On => {
-            crate::net::owner::net().vars.session.set(1);
+            vars.session.set(1);
             lock_received::lock_received();
             clear_chat::clear_chat();
             unlock_received::unlock_received();
-            crate::net::owner::net().vars.sync.set(0);
-            crate::net::owner::net().vars.sequence.set(0x80);
-            crate::net::owner::net().vars.after_race.set(0);
+            vars.sync.set(0);
+            vars.sequence.set(0x80);
+            vars.after_race.set(0);
             loop {
-                crate::net::owner::net().vars.all_raced.set(0);
-                crate::net::owner::net().vars.race_over.set(0);
+                vars.all_raced.set(0);
+                vars.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
                 if (lobby_loop::lobby_loop()? as i32) < 0 {
                     break;

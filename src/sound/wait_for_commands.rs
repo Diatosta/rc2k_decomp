@@ -9,6 +9,7 @@
 //! Fourteen callers.
 
 use crate::sound::queue::{END_OF_TURN, pending, send_command};
+use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -39,7 +40,7 @@ impl Parts for Game {
     }
 
     fn quitting(&mut self) -> bool {
-        crate::system::owner::system().session.flags.quitting.get() == 1
+        system().session.flags.quitting.get() == 1
     }
 }
 

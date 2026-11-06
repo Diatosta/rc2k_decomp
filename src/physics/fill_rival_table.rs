@@ -12,6 +12,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
@@ -25,7 +26,7 @@ pub fn fill_rival_table(physics: &Physics) -> Result<(), Refused> {
         physics.split_tables.rival_names[c as usize].set(name);
     }
     // The standings summary (`g_rivals` 1 while it is there: `RACE_STATE.settings.rivals`).
-    if crate::race::owner::race().shared.vars.rivals.get() == 0 {
+    if race().shared.vars.rivals.get() == 0 {
         return Ok(());
     }
     let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows)?;

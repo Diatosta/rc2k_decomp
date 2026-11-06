@@ -22,6 +22,7 @@
 //! shared (relaxed loads and stores; the command count is added to atomically,
 //! `sound::queue`).
 
+use crate::audio::owner::audio;
 use crate::session::{Bytes, Dword, Float, Loose, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
@@ -852,7 +853,7 @@ pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
         ));
     }
     // A name's text by its key in the names buffer (read up to its NUL).
-    Ok(crate::pointers::GamePtr::to(&crate::audio::owner::audio().sample_names).offset(at as u32))
+    Ok(crate::pointers::GamePtr::to(&audio().sample_names).offset(at as u32))
 }
 
 /// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
@@ -886,7 +887,7 @@ pub const fn level_code(ida: u32) -> u32 {
 pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
     let screens = &menus().screens;
     Ok(match code {
-        1 => &crate::audio::owner::audio().state.unit_volume_factor,
+        1 => &audio().state.unit_volume_factor,
         2 => &screens.option_work.menu_sounds_a,
         3 => &screens.option_work.sounds_a,
         4 => &screens.option_work.sounds_b,
@@ -2406,7 +2407,7 @@ mod tests {
     fn the_state_starts_as_the_games() {
         assert_eq!(size_of::<AudioState>(), STATE_END - STATE_IDA);
         assert_eq!(
-            bytes_of(&crate::audio::owner::audio().state, size_of::<AudioState>()),
+            bytes_of(&audio().state, size_of::<AudioState>()),
             image_bytes(STATE_IDA, STATE_END - STATE_IDA)
         );
     }
@@ -2423,19 +2424,12 @@ mod tests {
 
     #[test]
     fn the_sample_records_start_as_the_games() {
+        let audio = audio();
         assert_eq!(size_of::<SampleRecords>(), SAMPLES_END - SAMPLES_IDA);
         // The name keys and volume levels are handles: compared by IDA's addresses.
-        let mut mine = bytes_of(
-            &crate::audio::owner::audio().sample_records,
-            size_of::<SampleRecords>(),
-        );
+        let mut mine = bytes_of(&audio.sample_records, size_of::<SampleRecords>());
         let levels = [0, 0x506958u32, 0x755694, 0x75569C, 0x7556A0];
-        for (n, record) in crate::audio::owner::audio()
-            .sample_records
-            .records
-            .iter()
-            .enumerate()
-        {
+        for (n, record) in audio.sample_records.records.iter().enumerate() {
             let r = record.get();
             let key = if r.data_key == 0 {
                 0
@@ -2455,10 +2449,7 @@ mod tests {
     fn the_queue_starts_as_the_games() {
         assert_eq!(size_of::<CommandQueue>(), QUEUE_END - QUEUE_IDA);
         assert_eq!(
-            bytes_of(
-                &crate::audio::owner::audio().commands,
-                size_of::<CommandQueue>()
-            ),
+            bytes_of(&audio().commands, size_of::<CommandQueue>()),
             image_bytes(QUEUE_IDA, QUEUE_END - QUEUE_IDA)
         );
     }

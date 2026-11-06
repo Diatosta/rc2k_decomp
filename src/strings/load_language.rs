@@ -45,8 +45,10 @@ use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::strings::append_string_by_id::push_string;
+use crate::strings::owner::strings;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::LEXICON_ROOM;
+use crate::system::owner::system;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
 
@@ -68,7 +70,7 @@ pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
 /// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
 /// language shows (2: the builds' notice; 7: Japan).
 pub fn notice_kind() -> u8 {
-    crate::strings::owner::strings().language.locale.get(8)
+    strings().language.locale.get(8)
 }
 
 /// `g_plainLetters` (0x4F0CC8 in the image until 2026-10-24): `g_lowerCase` with the
@@ -113,7 +115,7 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::to(&crate::strings::owner::strings().text.buffer.text);
+    let at = GamePtr::to(&strings().text.buffer.text);
     at.write_bytes(&bytes, "the text buffer")?;
     if with_nul {
         at.offset(bytes.len() as u32)
@@ -127,10 +129,7 @@ fn make_case_tables() -> Result<(), BadInput> {
     let lower = CaseTable::for_language(&built(2, true)?)?;
     set_case_table(&lower.lower);
     let plain = lower.plain_letters(&built(3, true)?);
-    crate::strings::owner::strings()
-        .language
-        .plain_letters
-        .write(&plain.lower);
+    strings().language.plain_letters.write(&plain.lower);
     Ok(())
 }
 
@@ -145,20 +144,18 @@ fn correct_lexicon() -> Result<(), BadInput> {
 
 /// `compile` stands for `strings::compile_lexicon`.
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    let strings = strings();
     compile()?;
     layouts().use_built_in();
 
-    let mut locale = crate::strings::owner::strings().language.locale.read();
+    let mut locale = strings.language.locale.read();
     let found = read_first_match(LOCALE_FILES, &mut locale, 0)?;
-    crate::strings::owner::strings()
-        .language
-        .locale
-        .write(&locale);
+    strings.language.locale.write(&locale);
     if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
     }
     // Converted: `rc2k_core::strings::language::Locale`.
-    let Ok(file) = Locale::parse(&crate::strings::owner::strings().language.locale.read()) else {
+    let Ok(file) = Locale::parse(&strings.language.locale.read()) else {
         return Err(fatal(0x80E3_8382, ""));
     };
     let units = file.units as u32;
@@ -186,13 +183,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     make_case_tables()?;
 
     // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
-    if crate::system::owner::system()
-        .session
-        .machine
-        .keyboard_type
-        .get()
-        == 2
-    {
+    if system().session.machine.keyboard_type.get() == 2 {
         layouts().use_nec();
         crate::install::owner::install()
             .run
@@ -225,9 +216,11 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
+    use crate::strings::owner::strings;
 
     #[test]
     fn first_values_are_the_games() {
+        let strings = strings();
         assert_eq!(
             image_bytes(0x4E075C, super::LOCALE_FILES.len()),
             super::LOCALE_FILES
@@ -238,14 +231,11 @@ mod tests {
         );
         assert_eq!(
             image_bytes(0x4E0798, super::LOCALE_LEN),
-            crate::strings::owner::strings().language.locale.read()
+            strings.language.locale.read()
         );
         assert_eq!(
             image_bytes(0x4F0CC8, 256),
-            crate::strings::owner::strings()
-                .language
-                .plain_letters
-                .read()
+            strings.language.plain_letters.read()
         );
     }
 }

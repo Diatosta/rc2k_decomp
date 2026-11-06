@@ -12,11 +12,13 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::race;
 
 /// The Rust version: this machine's car's time (+0x88) and whether it did not finish
 /// (+0xB0 is -1: `u32::MAX`, else 0).
 pub fn lets_race() -> Result<(u32, u32), Refused> {
-    crate::race::owner::race().shared.view.after_credits.set(0);
+    let race = race();
+    race.shared.view.after_credits.set(0);
     // The eight stored cars' +0xB0 (out).
     for car in &CAR_BLOCKS.cars[..8] {
         car.stop_state.set(0);
@@ -25,10 +27,9 @@ pub fn lets_race() -> Result<(u32, u32), Refused> {
     { crate::drive::play_race::play_race() }?;
     crate::net::keep_hud_options::keep_hud_options()?;
     let block = crate::race::trap::car_at(
-        crate::race::owner::race()
-            .shared
+        race.shared
             .work
-            .car_block(crate::race::owner::race().shared.view.local_car.get() as usize),
+            .car_block(race.shared.view.local_car.get() as usize),
     )?;
     // Converted: `rc2k_core::net::record::not_finished`.
     Ok((

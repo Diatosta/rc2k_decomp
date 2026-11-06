@@ -10,13 +10,14 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
 fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
     at.set(pedal(
-        crate::race::owner::race().shared.car.input_keys.get() & bit != 0,
+        race().shared.car.input_keys.get() & bit != 0,
         input.get(),
         at.get(),
     ));
@@ -25,29 +26,20 @@ fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
 /// The Rust version.
 // Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
 pub fn pedal_inputs() {
+    let race = race();
     step_pedal(
         THROTTLE_KEY,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .input_throttle,
-        &crate::race::owner::race().shared.car.throttle,
+        &race.shared.physics_tables.input_throttle,
+        &race.shared.car.throttle,
     );
     step_pedal(
         BRAKE_KEY,
-        &crate::race::owner::race().shared.physics_tables.input_brake,
-        &crate::race::owner::race().shared.car.brake,
+        &race.shared.physics_tables.input_brake,
+        &race.shared.car.brake,
     );
-    let hand = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .input_handbrake
-        .get();
-    crate::race::owner::race()
-        .shared
+    let hand = race.shared.physics_tables.input_handbrake.get();
+    race.shared
         .car
         .handbrake
-        .set(handbrake(hand, || {
-            crate::race::owner::race().shared.car.handbrake_failed.get()
-        }));
+        .set(handbrake(hand, || race.shared.car.handbrake_failed.get()));
 }

@@ -5,10 +5,12 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`; the flags read by no caller)
 //! Caller: `net::start_link`, before each race.
 
+use crate::net::owner::net;
+
 /// The Rust version.
 pub fn close_if_host() {
     // Converted: `rc2k_core::net::record::is_host`.
-    if rc2k_core::net::record::is_host(crate::net::owner::net().vars.own.state()) {
+    if rc2k_core::net::record::is_host(net().vars.own.state()) {
         crate::net::disable_new_players::disable_new_players();
     }
 }

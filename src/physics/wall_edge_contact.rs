@@ -49,16 +49,16 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
     let drawing = &scene().drawing;
     let race_owner = race;
     let rd = crate::race::scene_points::point_word;
-    crate::race::owner::race().shared.physics_tables.edge_points[0].set(rd(first, 0)?);
-    crate::race::owner::race().shared.physics_tables.edge_points[1].set(rd(first, 2)?);
-    crate::race::owner::race().shared.physics_tables.edge_points[2].set(rd(second, 0)?);
-    crate::race::owner::race().shared.physics_tables.edge_points[3].set(rd(second, 2)?);
-    let dx = crate::race::owner::race().shared.physics_tables.edge_points[2]
+    race.shared.physics_tables.edge_points[0].set(rd(first, 0)?);
+    race.shared.physics_tables.edge_points[1].set(rd(first, 2)?);
+    race.shared.physics_tables.edge_points[2].set(rd(second, 0)?);
+    race.shared.physics_tables.edge_points[3].set(rd(second, 2)?);
+    let dx = race.shared.physics_tables.edge_points[2]
         .get()
-        .wrapping_sub(crate::race::owner::race().shared.physics_tables.edge_points[0].get());
-    let dz = crate::race::owner::race().shared.physics_tables.edge_points[3]
+        .wrapping_sub(race.shared.physics_tables.edge_points[0].get());
+    let dz = race.shared.physics_tables.edge_points[3]
         .get()
-        .wrapping_sub(crate::race::owner::race().shared.physics_tables.edge_points[1].get());
+        .wrapping_sub(race.shared.physics_tables.edge_points[1].get());
     let d = [dx, dz];
     x87_1(&race.course, d);
     drawing
@@ -66,11 +66,7 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
         .scratch
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .wall_heading
-        .set(heading);
+    race.shared.physics_tables.wall_heading.set(heading);
     let out = {
         turn_float_point_xz(
             race_owner.course.numbers.zero.bits(),
@@ -103,11 +99,11 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     edge_normal(race, to, from)?;
     copy_cells(
         &race.physics.contact.contact_car_speed,
-        &crate::race::owner::race().shared.car.velocity,
+        &race.shared.car.velocity,
     );
     copy_cells(
         &race.physics.contact.contact_turn_speed,
-        &crate::race::owner::race().shared.car.spin,
+        &race.shared.car.spin,
     );
     let n = n as usize;
     race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
@@ -118,10 +114,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race.course.numbers.tenth.bits(),
     ));
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(
-        race,
-        &crate::race::owner::race().shared.physics_tables.contacts[4],
-    );
+    contact_force(race, &race.shared.physics_tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }
@@ -145,6 +138,7 @@ fn x87_1(course: &Course, d: [u32; 2]) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
 
@@ -166,7 +160,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(&crate::race::owner::race().course, *view(a[0], 0)),
+            plain: |a| x87_1(&race().course, *view(a[0], 0)),
         }]
     }
 

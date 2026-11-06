@@ -7,10 +7,11 @@
 //! Caller: `net::lets_race`.
 
 use crate::net::set_hud_options::own_block;
+use crate::race::owner::race;
 
 /// The Rust version.
 pub fn keep_hud_options() -> Result<(), crate::errors::BadInput> {
-    crate::race::owner::race()
+    race()
         .shared
         .state
         .results

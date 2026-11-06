@@ -5,6 +5,7 @@
 //! Out: eax = the clock; everything else preserved
 //! Three callers.
 
+use crate::system::owner::system;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
@@ -13,6 +14,6 @@ use crate::system::tick_count::tick_count;
 
 pub fn update_frame_clock() -> u32 {
     let now = tick_count();
-    crate::system::owner::system().session.clocks.frame.set(now);
+    system().session.clocks.frame.set(now);
     now
 }

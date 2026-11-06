@@ -15,55 +15,35 @@ use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};
 use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::gear_store::GEAR;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
 pub fn drive_force(course: &Course) -> Result<(), Refused> {
-    let gear = crate::race::owner::race().shared.car.gear.get();
+    let shared_store = &race().shared;
+
+    let gear = shared_store.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     engine_torque_or_cut();
-    crate::race::owner::race()
-        .shared
+    shared_store
         .physics_tables
         .drive_ratio
         .set_bits(sum_times_int_over_minus(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .engine_force
-                .bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .engine_torque
-                .bits(),
-            crate::race::owner::race().shared.car.throttle.get() as i32,
+            shared_store.physics_tables.engine_force.bits(),
+            shared_store.physics_tables.engine_torque.bits(),
+            shared_store.car.throttle.get() as i32,
             course.numbers.k256.bits(),
         ));
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .drive_torque
-        .set_bits(mul_div2(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_ratio
-                .bits(),
-            GEAR.drive_torque_figure.bits(),
-            crate::race::owner::race().shared.physics_tables.gear_ratios
-                [(gear as i32 + 1) as usize]
-                .bits(),
-            course.numbers.k10000.bits(),
-        ));
-    if crate::race::owner::race().shared.car.drive_cut_steps.get() != 0 {
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .drive_torque
-            .set_bits(0);
+    shared_store.physics_tables.drive_torque.set_bits(mul_div2(
+        shared_store.physics_tables.drive_ratio.bits(),
+        GEAR.drive_torque_figure.bits(),
+        shared_store.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits(),
+        course.numbers.k10000.bits(),
+    ));
+    if shared_store.car.drive_cut_steps.get() != 0 {
+        shared_store.physics_tables.drive_torque.set_bits(0);
     }
     drive_torque_share();
     Ok(())

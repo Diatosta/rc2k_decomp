@@ -14,6 +14,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::sound::store::SoundObject;
 
 // ---- Rust version ----
@@ -28,7 +29,7 @@ fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
         .map(|n| {
             Ok((
                 SoundObject::number(n as u32)?,
-                crate::race::owner::race().shared.work.car_block(n),
+                race().shared.work.car_block(n),
             ))
         })
         .collect::<Result<Vec<_>, BadInput>>()?;

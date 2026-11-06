@@ -14,6 +14,7 @@ use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode, write_from};
 use crate::pointers::GamePtr;
 use crate::saves::owner::saves;
+use crate::system::owner::system;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -27,6 +28,7 @@ const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
 /// `saves::save_best_times` on the game's own file and tables: true if the file was opened
 /// (and so, as far as the function knows, written).
 pub fn in_game() -> Result<bool, Refused> {
+    let system = system();
     let best_times = &saves().best_times;
     if [best_times.allocated.get(), best_times.loaded.get()] != [1, 1] {
         return Ok(false);
@@ -35,11 +37,7 @@ pub fn in_game() -> Result<bool, Refused> {
     let head =
         rc2k_core::saves::kept::head(rc2k_core::saves::kept::BEST_TIMES, packed_local_time());
     for (n, &byte) in head.iter().enumerate() {
-        crate::system::owner::system()
-            .work
-            .files
-            .buffer
-            .set(n, byte);
+        system.work.files.buffer.set(n, byte);
     }
     let Some(file) = open_by_mode(
         &crate::saves::load_best_times::PATH[..crate::saves::load_best_times::PATH_LEN],
@@ -48,7 +46,7 @@ pub fn in_game() -> Result<bool, Refused> {
     else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&crate::system::owner::system().work.files.buffer);
+    let scratch = GamePtr::to(&system.work.files.buffer);
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
         let bytes = crate::saves::best_times::typed(table).bytes()?;

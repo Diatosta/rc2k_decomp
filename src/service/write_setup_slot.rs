@@ -14,6 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
+use crate::service::owner::service;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
@@ -25,6 +26,7 @@ use crate::system::packed_local_time::packed_local_time;
 
 /// True if the file was written.
 pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
+    let service = service();
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
@@ -32,7 +34,7 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     {
-        let file = &crate::service::owner::service().set_ups.file;
+        let file = &service.set_ups.file;
         // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car = |field: rc2k_core::menu::player::SetupField| field.get(player.get());
         let bytes = rc2k_core::saves::kept::setup_file(
@@ -48,7 +50,7 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
             ],
         );
         file.write_at(0, &bytes, "the setup file")?;
-        let template = crate::service::owner::service().template.read();
+        let template = service.template.read();
         let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
         Ok(write_file_from(&path[..], &file.read()[..SETUP_FILE_LEN])?.ok)
     }

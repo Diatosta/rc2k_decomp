@@ -15,6 +15,7 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
@@ -25,7 +26,7 @@ pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> 
         return Ok(());
     }
     share_done(esi);
-    for (to, rate) in crate::race::owner::race()
+    for (to, rate) in race()
         .shared
         .car
         .camera_offset_turns
@@ -49,7 +50,7 @@ pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> 
 /// record's turn rate, passed by value)
 fn x87_1(course: &Course, rate: u32) {
     let t0 = ld(rate);
-    let t1 = ld(crate::race::owner::race().shared.tables.view_share.bits());
+    let t1 = ld(race().shared.tables.view_share.bits());
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.k65536.bits());
     let t4 = t2 * t3;
@@ -80,10 +81,7 @@ mod asm_reference {
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
-                x87_1(
-                    &crate::race::owner::race().course,
-                    crate::scene::x87_mem::Base::dword(a[0], 0),
-                );
+                x87_1(&race().course, crate::scene::x87_mem::Base::dword(a[0], 0));
             },
         }]
     }

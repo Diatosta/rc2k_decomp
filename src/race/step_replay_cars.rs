@@ -14,28 +14,30 @@
 //! of 0 or past 8 (0 goes round 2^32 times).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version (the original leaves registers nothing reads).
 pub fn step_replay_cars() -> Result<(), Refused> {
+    let shared = &race().shared;
     use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
     // RUN_STEPS, next_car}`.
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
-    check_replay_cars(crate::race::owner::race().shared.view.race_cars.get())?;
+    check_replay_cars(shared.view.race_cars.get())?;
     choose_shown_cars::choose_shown_cars()?;
-    crate::race::owner::race().shared.work.current_car.set(0);
+    shared.work.current_car.set(0);
     loop {
         car_input_words::car_input_words()?;
         play_inputs::play_inputs()?;
-        crate::race::owner::race().shared.work.work_block.set(
-            crate::race::owner::race().shared.work.car_block(car_block(
-                crate::race::owner::race().shared.work.current_car.get(),
-            ) as usize),
+        shared.work.work_block.set(
+            shared
+                .work
+                .car_block(car_block(shared.work.current_car.get()) as usize),
         );
         load_car::load_car()?;
-        if car_runs(crate::race::owner::race().shared.car.driver_kind.get()) {
+        if car_runs(shared.car.driver_kind.get()) {
             for step in RUN_STEPS {
                 match step {
                     RunStep::Controls => read_car_controls::read_car_controls()?,
@@ -46,19 +48,13 @@ pub fn step_replay_cars() -> Result<(), Refused> {
                     RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
                 }
             }
-            for clock in [
-                &crate::race::owner::race().shared.car.step_clock,
-                &crate::race::owner::race().shared.car.run_ticks,
-            ] {
+            for clock in [&shared.car.step_clock, &shared.car.run_ticks] {
                 clock.set(clock.get().wrapping_add(1));
             }
         }
         store_car::store_car()?;
-        let (next, done) = next_car(
-            crate::race::owner::race().shared.work.current_car.get(),
-            crate::race::owner::race().shared.view.race_cars.get(),
-        );
-        crate::race::owner::race().shared.work.current_car.set(next);
+        let (next, done) = next_car(shared.work.current_car.get(), shared.view.race_cars.get());
+        shared.work.current_car.set(next);
         if done {
             break;
         }

@@ -31,6 +31,7 @@
 
 #![allow(unsafe_code)]
 
+use crate::d3d::owner::d3d;
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};
 use crate::gfx::owner::gfx;
@@ -347,10 +348,11 @@ pub fn forget_states() {
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
+    let d3d = d3d();
     if vertices.len() < 3 {
         return;
     }
-    let current: u32 = crate::d3d::owner::d3d().cards.current_texture.get();
+    let current: u32 = d3d.cards.current_texture.get();
     let record = (current < MOST)
         .then(|| record_at(1, current).get())
         .filter(|r| r.format != 0);
@@ -388,9 +390,7 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
         }),
         vertices: vertices.into(),
         states: std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
-            std::sync::Arc::new(std::array::from_fn(|n| {
-                crate::d3d::owner::d3d().cards.kept_states[n].get()
-            }))
+            std::sync::Arc::new(std::array::from_fn(|n| d3d.cards.kept_states[n].get()))
         })),
         bounds,
     });
@@ -669,12 +669,7 @@ fn allocate_textures(
     };
     let description: u32 = card.texture_tables.kind_entry(kind as usize & 0xFF);
     card.texture_tables.alpha_kind.set((kind == 3) as u32);
-    let levels = if crate::d3d::owner::d3d().cards.mips.get() == 1 {
-        mips
-    } else {
-        0
-    }
-    .wrapping_add(1);
+    let levels = if d3d().cards.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
     if levels > LEVELS {
         return Err(fatal(0x80A1_8643));
     }
@@ -854,28 +849,27 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
 pub fn begin_layer() {
-    crate::d3d::owner::d3d().cards.in_scene.set(1u32);
+    let d3d = d3d();
+    d3d.cards.in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
-        .chain([(crate::d3d::owner::d3d().cards.fog_state.get(), 0x1A)])
+        .chain([(d3d.cards.fog_state.get(), 0x1A)])
     {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
     // `sub_41ACDE`: no texture is the current one, then none is set.
-    crate::d3d::owner::d3d()
-        .cards
-        .current_texture
-        .set(0xFFFF_FC44u32);
+    d3d.cards.current_texture.set(0xFFFF_FC44u32);
     crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }
 
 /// `d3d::end_scene` for Rust callers: true when a scene was open and is ended (the
 /// original then leaves eax 0 and the zero flag set; the carry always clear).
 pub fn end_layer() -> bool {
+    let d3d = d3d();
     flush();
     {
-        if crate::d3d::owner::d3d().cards.in_scene.get() == 1 {
-            crate::d3d::owner::d3d().cards.in_scene.set(0u32);
+        if d3d.cards.in_scene.get() == 1 {
+            d3d.cards.in_scene.set(0u32);
             return true;
         }
     }

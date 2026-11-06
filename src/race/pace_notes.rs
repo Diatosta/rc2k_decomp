@@ -48,11 +48,7 @@ pub fn game_course() -> Course {
     Course {
         faces: 0,
         window: (0, len),
-        count: crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .bits(),
+        count: race().shared.vars.checkpoint_count.bits(),
     }
 }
 
@@ -75,11 +71,7 @@ impl Stage for GameStage {
         crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .pace_slot_offsets[slot as usize]
-            .bits() // dword_614D14: each slot's byte in the face
+        race().shared.physics_tables.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         race().physics.pace.distance_words.get(tens as usize)

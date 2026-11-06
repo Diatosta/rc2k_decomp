@@ -25,29 +25,24 @@ use rc2k_core::physics::camera_ground::SIDES;
 pub fn camera_over_ground(race: &Race) -> Result<bool, Refused> {
     if !probe_at(
         race,
-        crate::race::owner::race().shared.car.camera_position[0].get(),
-        crate::race::owner::race().shared.car.camera_position[2].get(),
-        &crate::race::owner::race().shared.car.camera_ground_faces[0],
+        race.shared.car.camera_position[0].get(),
+        race.shared.car.camera_position[2].get(),
+        &race.shared.car.camera_ground_faces[0],
     )? {
         return Ok(false);
     }
     for (side, slot) in SIDES
         .into_iter()
-        .zip(&crate::race::owner::race().shared.car.camera_ground_faces[1..])
+        .zip(&race.shared.car.camera_ground_faces[1..])
     {
         race.course.course.ground_face_last.set(slot.get());
         // The y (the original's ebx, a leftover) only goes through the scratch point,
         // which nothing reads after: 0 here.
-        let [x, _, z, _] = turn_point_xz(
-            side as i32,
-            0,
-            0,
-            crate::race::owner::race().shared.car.camera_heading.get(),
-        );
+        let [x, _, z, _] = turn_point_xz(side as i32, 0, 0, race.shared.car.camera_heading.get());
         if !probe_at(
             race,
-            x.wrapping_add(crate::race::owner::race().shared.car.camera_position[0].get()),
-            z.wrapping_add(crate::race::owner::race().shared.car.camera_position[2].get()),
+            x.wrapping_add(race.shared.car.camera_position[0].get()),
+            z.wrapping_add(race.shared.car.camera_position[2].get()),
             slot,
         )? {
             return Ok(false);

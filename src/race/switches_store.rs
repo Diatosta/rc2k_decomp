@@ -1,5 +1,7 @@
 //! The frame and object work, first part (IDA 0x621480 .. 0x6218B0; phase 7, typed): the light and view switches, the object being drawn (number, material, fade, face flags, group mask), the frame-rate clock, the courses found, and a few race flags. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -80,9 +82,7 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 /// Where IDA 0x621480 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::race::owner::race().shared.switches,
-    ))
+    crate::pointers::game_address(std::ptr::from_ref(&race().shared.switches))
 }
 
 #[cfg(test)]
@@ -92,11 +92,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().shared.switches,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&race().shared.switches, START, END);
     }
 
     #[test]

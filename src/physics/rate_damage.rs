@@ -27,161 +27,165 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::scene::matrix3::rounded;
 use crate::session::{Dword, Float};
 
 /// The ramps in order: (destination, figure, table).
 fn ramps_a(physics: &Physics) -> [(&Float, &Float, &[Float; 4]); 2] {
+    let shared = &race().shared;
     [
         (
-            &crate::race::owner::race().shared.car.drive_efficiency[0],
-            &crate::race::owner::race().shared.car.damper_wear[0],
+            &shared.car.drive_efficiency[0],
+            &shared.car.damper_wear[0],
             &physics.damage.lerp_tables[4],
         ),
         (
-            &crate::race::owner::race().shared.car.drive_efficiency[1],
-            &crate::race::owner::race().shared.car.damper_wear[1],
+            &shared.car.drive_efficiency[1],
+            &shared.car.damper_wear[1],
             &physics.damage.lerp_tables[4],
         ),
     ]
 }
 /// More ramps: (destination in the model, the car's figure, table).
 fn ramps_c(physics: &Physics) -> [(&Float, &Float, &[Float; 4]); 18] {
+    let shared = &race().shared;
     [
         (
             &physics.damage.flt_75b490,
-            &crate::race::owner::race().shared.car.clutch_damage,
+            &shared.car.clutch_damage,
             &physics.damage.lerp_tables[7],
         ),
         (
             &physics.damage.flt_75b494,
-            &crate::race::owner::race().shared.car.gearbox_damage,
+            &shared.car.gearbox_damage,
             &physics.damage.lerp_tables[8],
         ),
         (
             &physics.damage.flt_75b498,
-            &crate::race::owner::race().shared.car.gearbox_damage,
+            &shared.car.gearbox_damage,
             &physics.damage.lerp_tables[9],
         ),
         (
             &physics.damage.flt_75b49c,
-            &crate::race::owner::race().shared.car.brake_damage,
+            &shared.car.brake_damage,
             &physics.damage.lerp_tables[10],
         ),
         (
             &physics.damage.flt_75b404,
-            &crate::race::owner::race().shared.car.electrics_damage,
+            &shared.car.electrics_damage,
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b408,
-            &crate::race::owner::race().shared.car.light_damage[0],
+            &shared.car.light_damage[0],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b40c,
-            &crate::race::owner::race().shared.car.light_damage[1],
+            &shared.car.light_damage[1],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b410,
-            &crate::race::owner::race().shared.car.light_damage[2],
+            &shared.car.light_damage[2],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b414,
-            &crate::race::owner::race().shared.car.light_damage[3],
+            &shared.car.light_damage[3],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b418,
-            &crate::race::owner::race().shared.car.light_damage[4],
+            &shared.car.light_damage[4],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b41c,
-            &crate::race::owner::race().shared.car.light_damage[5],
+            &shared.car.light_damage[5],
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b420,
-            &crate::race::owner::race().shared.car.electrics_damage,
+            &shared.car.electrics_damage,
             &physics.damage.lerp_tables[11],
         ),
         (
             &physics.damage.flt_75b424,
-            &crate::race::owner::race().shared.car.light_damage[0],
+            &shared.car.light_damage[0],
             &physics.damage.lerp_tables[12],
         ),
         (
             &physics.damage.flt_75b428,
-            &crate::race::owner::race().shared.car.light_damage[1],
+            &shared.car.light_damage[1],
             &physics.damage.lerp_tables[12],
         ),
         (
             &physics.damage.flt_75b42c,
-            &crate::race::owner::race().shared.car.light_damage[2],
+            &shared.car.light_damage[2],
             &physics.damage.lerp_tables[12],
         ),
         (
             &physics.damage.flt_75b430,
-            &crate::race::owner::race().shared.car.light_damage[3],
+            &shared.car.light_damage[3],
             &physics.damage.lerp_tables[12],
         ),
         (
             &physics.damage.flt_75b434,
-            &crate::race::owner::race().shared.car.light_damage[4],
+            &shared.car.light_damage[4],
             &physics.damage.lerp_tables[12],
         ),
         (
             &physics.damage.flt_75b438,
-            &crate::race::owner::race().shared.car.light_damage[5],
+            &shared.car.light_damage[5],
             &physics.damage.lerp_tables[12],
         ),
     ]
 }
 /// The failures that come and go: (flag, figure while set, figure while clear, turn).
 fn failures(physics: &Physics) -> [(&Dword, &Float, &Float, u32); 7] {
+    let shared = &race().shared;
     [
         (
-            &crate::race::owner::race().shared.car.electrical_failures[0],
+            &shared.car.electrical_failures[0],
             &physics.damage.flt_75b420,
             &physics.damage.flt_75b404,
             0x4,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[1],
+            &shared.car.electrical_failures[1],
             &physics.damage.flt_75b424,
             &physics.damage.flt_75b408,
             0x5,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[2],
+            &shared.car.electrical_failures[2],
             &physics.damage.flt_75b428,
             &physics.damage.flt_75b40c,
             0x6,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[3],
+            &shared.car.electrical_failures[3],
             &physics.damage.flt_75b42c,
             &physics.damage.flt_75b410,
             0x7,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[4],
+            &shared.car.electrical_failures[4],
             &physics.damage.flt_75b430,
             &physics.damage.flt_75b414,
             0x8,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[5],
+            &shared.car.electrical_failures[5],
             &physics.damage.flt_75b434,
             &physics.damage.flt_75b418,
             0x9,
         ),
         (
-            &crate::race::owner::race().shared.car.electrical_failures[6],
+            &shared.car.electrical_failures[6],
             &physics.damage.flt_75b438,
             &physics.damage.flt_75b41c,
             0xA,
@@ -193,7 +197,7 @@ fn failures(physics: &Physics) -> [(&Dword, &Float, &Float, u32); 7] {
 /// `physics::rate_current_car`).
 pub fn rate_damage(physics: &Physics) {
     let d = &physics.damage;
-    let c = &crate::race::owner::race().shared.car;
+    let c = &race().shared.car;
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {
         if less(v.bits(), d.gauge_low.bits()) {

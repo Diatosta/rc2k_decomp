@@ -10,9 +10,11 @@
 //! Platform: the original always runs, here it is only noted. In the standalone
 //! program, and for a recording that swallows, the number is kept and nothing more.
 
+use crate::d3d::owner::d3d;
+
 /// The texture polygons are drawn with from now on (the standalone keeps its number).
 /// Its leftover ecx (0) is read by none of the original's callers (register liveness,
 /// 2026-10-23).
 pub fn set_texture(texture: u32) {
-    crate::d3d::owner::d3d().cards.current_texture.set(texture);
+    d3d().cards.current_texture.set(texture);
 }

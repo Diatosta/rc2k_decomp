@@ -11,6 +11,7 @@
 //! samples a second. Five callers: `audio::make_buffer`, the stream's and the primary
 //! buffer's set-ups.
 
+use crate::audio::owner::audio;
 use crate::errors::{FatalError, Refused};
 
 pub const WAVE_FORMAT_LEN: usize = 0x12;
@@ -31,11 +32,12 @@ const _: () = assert!(std::mem::size_of::<WaveFormat>() == WAVE_FORMAT_LEN);
 
 /// The value a table of two {flag, value} entries has for the flag (`system::find_entry`).
 pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
+    let state = &audio().state;
     use crate::audio::samples::flags;
     use rc2k_core::audio::samples::FormatError;
     // Converted: `rc2k_core::audio::samples::wave_format`.
-    let bits = flags(&crate::audio::owner::audio().state.sample_bits_flags);
-    let channels = flags(&crate::audio::owner::audio().state.sample_channel_flags);
+    let bits = flags(&state.sample_bits_flags);
+    let channels = flags(&state.sample_channel_flags);
     match rc2k_core::audio::samples::wave_format(format, frequency, &bits, &channels) {
         Ok(w) => Ok(WaveFormat {
             tag: 1,
@@ -58,14 +60,14 @@ pub fn wave_format(format: u32, frequency: u32) -> Result<WaveFormat, Refused> {
 
 pub fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Refused> {
     let f = wave_format(format, frequency)?;
-    crate::audio::owner::audio().state.wave_format.set(f);
+    audio().state.wave_format.set(f);
     Ok(())
 }
 
 /// `g_waveFormat` as the platform's format (what `CreateSoundBuffer` and `SetFormat` read
 /// of it).
 pub fn platform_format() -> crate::platform_sound::Format {
-    let w = crate::audio::owner::audio().state.wave_format.get();
+    let w = audio().state.wave_format.get();
     crate::platform_sound::Format {
         channels: w.channels as u32,
         bits: w.bits as u32,

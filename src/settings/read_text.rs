@@ -12,6 +12,7 @@ use crate::errors::BadInput;
 use crate::files::read_file::read_file;
 use crate::pointers::GamePtr;
 use crate::settings::TEXT_ROOM;
+use crate::system::owner::system;
 
 // ---- Rust version ----
 
@@ -20,14 +21,10 @@ use crate::settings::TEXT_ROOM;
 pub fn read_text(
     path: impl crate::files::handle::GamePath,
 ) -> Result<Option<(GamePtr, u32)>, BadInput> {
+    let system = system();
     {
-        let text = GamePtr::to(&crate::system::owner::system().work.files.buffer);
-        let read = read_file(
-            path,
-            GamePtr::to(&crate::system::owner::system().work.files.buffer),
-            TEXT_ROOM,
-            0,
-        )?;
+        let text = GamePtr::to(&system.work.files.buffer);
+        let read = read_file(path, GamePtr::to(&system.work.files.buffer), TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);

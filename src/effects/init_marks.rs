@@ -15,6 +15,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
+use crate::system::owner::system;
 
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
@@ -26,6 +27,7 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 /// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
 pub fn init_marks(course: &Course, effects: &Effects, seed: u32) -> Result<(), Refused> {
+    let system = system();
     use crate::effects::*;
     let (ring, masks) = (&effects.ring, &effects.masks);
     let weather = &effects.weather;
@@ -59,12 +61,9 @@ pub fn init_marks(course: &Course, effects: &Effects, seed: u32) -> Result<(), R
         setup::tick_clock()?;
         effects.setup.frame.steps.set_bits(0u32);
         let less: u32 = effects.setup.floats.one.bits();
-        for (n, side) in [
-            &crate::system::owner::system().session.screen.width,
-            &crate::system::owner::system().session.screen.height,
-        ]
-        .into_iter()
-        .enumerate()
+        for (n, side) in [&system.session.screen.width, &system.session.screen.height]
+            .into_iter()
+            .enumerate()
         {
             let half = side.get() >> 1;
             // The screen's middle x, it less `flt_76516C`, the same for y.

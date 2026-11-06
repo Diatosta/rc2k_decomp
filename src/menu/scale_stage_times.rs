@@ -12,6 +12,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
+use crate::race::owner::race;
 use crate::records::stages_store::RecordRef;
 use crate::session::{read_all, write_all};
 
@@ -23,19 +24,12 @@ pub fn held_section() -> u32 {
 
 /// The four times as scaled (see the header), and the two factors.
 pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
+    let race = race();
     // flt_60463C, flt_604654: 6 each
     let s = section as usize;
     let f: [u32; 2] = [
-        crate::race::owner::race()
-            .shared
-            .tables
-            .stage_time_factors_last[s]
-            .bits(),
-        crate::race::owner::race()
-            .shared
-            .tables
-            .stage_time_factors_first[s]
-            .bits(),
+        race.shared.tables.stage_time_factors_last[s].bits(),
+        race.shared.tables.stage_time_factors_first[s].bits(),
     ];
     // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
@@ -46,12 +40,13 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 /// `record` the stage's record (edi in the original; its +0x40 is logged). The original
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
 pub fn scale_stage_times(screens: &Screens, record: RecordRef) -> Result<(), Refused> {
+    let race = race();
     use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
     let times: [u32; 4] = read_all(&screens.state.menus.class_times);
     let (times, f) = scaled(times, section);
-    crate::race::owner::race().shared.work.stage_time_scales[0].set_bits(f[0]);
-    crate::race::owner::race().shared.work.stage_time_scales[1].set_bits(f[1]);
+    race.shared.work.stage_time_scales[0].set_bits(f[0]);
+    race.shared.work.stage_time_scales[1].set_bits(f[1]);
     write_all(&screens.state.menus.class_times, times);
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);

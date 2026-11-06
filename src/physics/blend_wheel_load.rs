@@ -13,6 +13,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -22,14 +23,7 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-    if less(
-        get(0),
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .wheel_load_limit
-            .bits(),
-    ) {
+    if less(get(0), race().shared.physics_tables.wheel_load_limit.bits()) {
         return;
     }
     let zero: u32 = course.numbers.zero.bits();
@@ -52,20 +46,22 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared_store = &race().shared;
+
     vec![
-        &crate::race::owner::race().shared.car.contact_depth as &dyn Cell32,
-        &crate::race::owner::race().shared.car.contact_point[0],
-        &crate::race::owner::race().shared.car.contact_point[1],
-        &crate::race::owner::race().shared.car.contact_point[2],
+        &shared_store.car.contact_depth as &dyn Cell32,
+        &shared_store.car.contact_point[0],
+        &shared_store.car.contact_point[1],
+        &shared_store.car.contact_point[2],
         &scene().drawing.scene.scratch,
-        &crate::race::owner::race().shared.car.impact_octant_marks[0],
-        &crate::race::owner::race().shared.car.impact_octant_marks[1],
-        &crate::race::owner::race().shared.car.impact_octant_marks[2],
-        &crate::race::owner::race().shared.car.impact_octant_marks[3],
-        &crate::race::owner::race().shared.car.impact_octant_marks[4],
-        &crate::race::owner::race().shared.car.impact_octant_marks[5],
-        &crate::race::owner::race().shared.car.impact_octant_marks[6],
-        &crate::race::owner::race().shared.car.impact_octant_marks[7],
+        &shared_store.car.impact_octant_marks[0],
+        &shared_store.car.impact_octant_marks[1],
+        &shared_store.car.impact_octant_marks[2],
+        &shared_store.car.impact_octant_marks[3],
+        &shared_store.car.impact_octant_marks[4],
+        &shared_store.car.impact_octant_marks[5],
+        &shared_store.car.impact_octant_marks[6],
+        &shared_store.car.impact_octant_marks[7],
     ]
 }
 

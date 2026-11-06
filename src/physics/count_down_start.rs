@@ -13,25 +13,24 @@
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
 /// The Rust version.
 pub fn count_down_start(frame: &Frame) -> Result<(), Refused> {
+    let shared_store = &race().shared;
+
     let mut c = CarStart {
-        finished: crate::race::owner::race().shared.car.finish_flag.get(),
-        timer: crate::race::owner::race().shared.car.run_ticks.get(),
-        countdown: crate::race::owner::race().shared.car.time_left.get(),
+        finished: shared_store.car.finish_flag.get(),
+        timer: shared_store.car.run_ticks.get(),
+        countdown: shared_store.car.time_left.get(),
         ..CarStart::default()
     };
     match c.count_down_start() {
         StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
         StartCount::Counted { beep, .. } => {
-            crate::race::owner::race()
-                .shared
-                .car
-                .time_left
-                .set(c.countdown);
+            shared_store.car.time_left.set(c.countdown);
             if beep {
                 set_flag(frame, &crate::sound::owner::sound().race.stage.once[1])?;
             }

@@ -4,6 +4,8 @@
 //! `moved::MOVED` points the image's address at it.
 
 use crate::session::Bytes;
+#[cfg(test)]
+use crate::system::owner::system;
 
 /// The shared 64 KB scratch (IDA 0x93E8B0 .. 0x94E8B0, the image's layout).
 #[repr(C, align(16))]
@@ -46,7 +48,7 @@ impl Scratch {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::system::owner::system().work.files) as usize
+        crate::pointers::game_address(&raw const system().work.files) as usize
     }
 }
 

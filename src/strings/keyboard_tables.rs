@@ -5,6 +5,8 @@
 //! addresses any more (`input::layouts` reads the layout's tables by offset).
 
 use crate::session::with_runs;
+#[cfg(test)]
+use crate::strings::owner::strings;
 
 /// The built-in NEC keyboard's file head, layout and tables (IDA 0x4F0DC8 .. 0x4F3034, the image's layout).
 pub struct KeyboardTables {
@@ -38,21 +40,12 @@ mod tests {
 
     #[test]
     fn keyboardtables_starts_as_the_games() {
+        let strings = strings();
         let image = crate::moved::image_bytes(KeyboardTables::START, KeyboardTables::LEN);
         let mut mine = Vec::new();
-        mine.extend_from_slice(
-            &crate::strings::owner::strings()
-                .language
-                .keyboard
-                ._gap_4f0dc8,
-        );
-        mine.extend_from_slice(&crate::strings::owner::strings().language.keyboard.nec_head);
-        mine.extend_from_slice(
-            &crate::strings::owner::strings()
-                .language
-                .keyboard
-                .nec_layout,
-        );
+        mine.extend_from_slice(&strings.language.keyboard._gap_4f0dc8);
+        mine.extend_from_slice(&strings.language.keyboard.nec_head);
+        mine.extend_from_slice(&strings.language.keyboard.nec_layout);
         assert_eq!(mine, image);
     }
 

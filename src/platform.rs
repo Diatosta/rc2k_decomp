@@ -33,6 +33,7 @@ use crate::gfx::set_clip::set_clip;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::system::find_entry::find_entry;
+use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -63,7 +64,7 @@ pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
 pub fn quitting() -> bool {
-    crate::system::owner::system().session.flags.quitting.get() == 1
+    system().session.flags.quitting.get() == 1
 }
 
 // ---- gfx::choose_screen_modes (0x404481) ----
@@ -135,6 +136,7 @@ fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<
 }
 
 fn set_screen_mode(mode: u32) -> Result<(), String> {
+    let system = system();
     let gfx = gfx();
     gfx.display.mode.mode_flags.set(mode);
     let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
@@ -148,39 +150,15 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     // As the original (0x404C55): every texture given back before the screen changes;
     // the game loads again what it needs (a trial's 0x40 more found the pool full).
     crate::platform_3d::release_all_textures();
-    crate::system::owner::system()
-        .session
-        .screen
-        .width
-        .set(width);
-    crate::system::owner::system()
-        .session
-        .screen
-        .height
-        .set(height);
-    crate::system::owner::system().session.screen.bits.set(bits);
-    crate::system::owner::system()
-        .session
-        .screen
-        .bytes
-        .set(bytes);
-    crate::system::owner::system()
-        .session
-        .screen
-        .row_bytes
-        .set(bytes * width);
-    crate::system::owner::system()
-        .session
-        .screen
-        .row_dwords
-        .set((bytes * width) >> 2);
-    crate::system::owner::system().session.screen.kind.set(kind);
+    system.session.screen.width.set(width);
+    system.session.screen.height.set(height);
+    system.session.screen.bits.set(bits);
+    system.session.screen.bytes.set(bytes);
+    system.session.screen.row_bytes.set(bytes * width);
+    system.session.screen.row_dwords.set((bytes * width) >> 2);
+    system.session.screen.kind.set(kind);
     // The z-buffer's depth, which the original picks by the 3D device: none here.
-    crate::system::owner::system()
-        .session
-        .screen
-        .depth_bits
-        .set(0x10u32);
+    system.session.screen.depth_bits.set(0x10u32);
 
     // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
     // +0xC red, +0x10 no alpha.
@@ -189,7 +167,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     } else {
         [0x001F, 0x07E0, 0xF800]
     };
-    let format = &crate::system::owner::system().session.screen.format;
+    let format = &system.session.screen.format;
     for (n, mask) in masks.into_iter().enumerate() {
         format[1 + n].set(mask);
     }
@@ -349,6 +327,7 @@ pub fn set_menu_mode_now() -> bool {
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); `g_surfaceLocked` after it (1: locked).
 pub fn lock_surface() -> u32 {
+    let system = system();
     let gfx = gfx();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
@@ -358,29 +337,15 @@ pub fn lock_surface() -> u32 {
         // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
         let s = &gfx.drawing.draw_surface;
         let (row_bytes, pitch): (u32, u32) = (
-            crate::system::owner::system()
-                .session
-                .screen
-                .row_bytes
-                .get(),
+            system.session.screen.row_bytes.get(),
             gfx.drawing.draw_surface.present_pitch.get(),
         );
-        s.width
-            .set(crate::system::owner::system().session.screen.width.get());
-        s.height
-            .set(crate::system::owner::system().session.screen.height.get());
-        s.bits_per_pixel
-            .set(crate::system::owner::system().session.screen.bits.get());
-        s.bytes_per_pixel
-            .set(crate::system::owner::system().session.screen.bytes.get());
+        s.width.set(system.session.screen.width.get());
+        s.height.set(system.session.screen.height.get());
+        s.bits_per_pixel.set(system.session.screen.bits.get());
+        s.bytes_per_pixel.set(system.session.screen.bytes.get());
         s.row_bytes.set(row_bytes);
-        s.row_dwords.set(
-            crate::system::owner::system()
-                .session
-                .screen
-                .row_dwords
-                .get(),
-        );
+        s.row_dwords.set(system.session.screen.row_dwords.get());
         s.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
         s.pitch.set(pitch);
         s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
@@ -560,17 +525,18 @@ pub fn frame_counters() -> [u64; 5] {
 /// The screen's width and height.
 #[cfg(debug_ui)]
 pub fn screen_size() -> (u32, u32) {
+    let system = system();
     (
-        crate::system::owner::system().session.screen.width.get(),
-        crate::system::owner::system().session.screen.height.get(),
+        system.session.screen.width.get(),
+        system.session.screen.height.get(),
     )
 }
 
 /// The screen's pixels (its width times its height).
 #[cfg(debug_ui)]
 pub fn screen_pixels() -> u64 {
-    u64::from(crate::system::owner::system().session.screen.width.get())
-        * u64::from(crate::system::owner::system().session.screen.height.get())
+    let system = system();
+    u64::from(system.session.screen.width.get()) * u64::from(system.session.screen.height.get())
 }
 
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
@@ -628,7 +594,7 @@ pub fn show_frame_now() -> bool {
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits
                 ));
-                crate::system::owner::system().session.flags.quitting.set(1);
+                system().session.flags.quitting.set(1);
             }
         }
         crate::platform_timing::start_sampler();

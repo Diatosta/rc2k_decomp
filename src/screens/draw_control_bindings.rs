@@ -19,15 +19,17 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::screens::game_screen::ControlsScreen;
+use crate::screens::owner::screens;
 use crate::text::draw_text::Canvas;
 
 // byte_A8BC54
 
 /// The directions' names (`word_755200`, `word_755212`).
 fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
+    let screens = screens();
     rc2k_core::screens::controls::DirectionNames {
-        pad: crate::screens::owner::screens().controls.pad(),
-        stick: crate::screens::owner::screens().controls.stick(),
+        pad: screens.controls.pad(),
+        stick: screens.controls.stick(),
     }
 }
 
@@ -57,12 +59,13 @@ pub fn binding_text(
 
 /// Returns the carry.
 pub fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let screens = screens();
     let Some(player) = crate::menu::player::player(menus().screens.event.current_player.get())
     else {
         return Err(BadInput("no current player").into());
     };
-    let learning: u32 = crate::screens::owner::screens().controls.learning.get();
-    let row: u32 = crate::screens::owner::screens().controls.learned.get();
+    let learning: u32 = screens.controls.learning.get();
+    let row: u32 = screens.controls.learned.get();
     let mut texts: [Vec<u8>; 10] = Default::default();
     for (n, text) in texts.iter_mut().enumerate() {
         *text = binding_text(player, n as u32)?;

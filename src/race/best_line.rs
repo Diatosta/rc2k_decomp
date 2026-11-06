@@ -27,11 +27,7 @@ fn check_face(n: u32) -> u32 {
 }
 
 fn count() -> Result<u32, Refused> {
-    let n: u32 = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits();
+    let n: u32 = race().shared.vars.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -41,19 +37,10 @@ fn count() -> Result<u32, Refused> {
 /// `race::set_line_face_kind` (0x44574A): `g_lineFaceKind` 0x3E with `g_stageDirection`
 /// 0, 0x3D with 1, else 0.
 pub fn set_line_face_kind() {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::checkpoints::line_face_kind`.
-    let kind = rc2k_core::race::checkpoints::line_face_kind(
-        crate::race::owner::race()
-            .shared
-            .work
-            .stage_direction
-            .bits(),
-    );
-    crate::race::owner::race()
-        .shared
-        .vars
-        .line_face_kind
-        .set_bits(kind);
+    let kind = rc2k_core::race::checkpoints::line_face_kind(shared.work.stage_direction.bits());
+    shared.vars.line_face_kind.set_bits(kind);
 }
 
 /// `race::add_surface_share` (0x445F7B): with `g_surfaceWeight` not 0, surface `surface`
@@ -61,23 +48,20 @@ pub fn set_line_face_kind() {
 /// the count as a whole number). The exact x87 version (for `race::surface_shares`, whose
 /// whole numbers are rounded from the shares).
 pub fn add_surface_share(course: &Course, surface: u32) {
-    let weight = crate::race::owner::race().shared.vars.surface_weight.bits() as i32;
+    let shared = &race().shared;
+    let weight = shared.vars.surface_weight.bits() as i32;
     if weight == 0 {
         return;
     }
     // g_surfaceShares: 16 floats
-    let share = &crate::race::owner::race().shared.vars.surface_shares[(surface & 0xF) as usize];
+    let share = &shared.vars.surface_shares[(surface & 0xF) as usize];
     // 256, 0.25, 100
     let [a, b, c] = [
         course.numbers.k256.bits(),
         course.numbers.quarter.bits(),
         course.numbers.hundred.bits(),
     ];
-    let count = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits() as i32;
+    let count = shared.vars.checkpoint_count.bits() as i32;
     share.set_bits(x87::surface_share(weight, a, b, count, c, share.bits()));
 }
 
@@ -85,6 +69,7 @@ pub fn add_surface_share(course: &Course, surface: u32) {
 /// +0x2C (the map's x and y words) not 0: `g_mapAnchorCount` + 1, and it; None at
 /// `g_checkpointCount` (the original's carry). Refuses more checkpoints than the lists hold.
 pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::checkpoints::next_map_anchor`.
     let n = count()?;
     let trap = Trap::new();
@@ -98,18 +83,10 @@ pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
     });
     trap.finish()?;
     if anchor.is_some() {
-        crate::race::owner::race()
-            .shared
+        shared
             .vars
             .map_anchor_count
-            .set_bits(
-                crate::race::owner::race()
-                    .shared
-                    .vars
-                    .map_anchor_count
-                    .bits()
-                    .wrapping_add(1),
-            );
+            .set_bits(shared.vars.map_anchor_count.bits().wrapping_add(1));
     }
     Ok(anchor)
 }
@@ -170,7 +147,7 @@ pub fn cameras() -> [Cameras; 2] {
 
 /// The map work cell at `o` (the original's offsets, from 0xB8).
 fn work(o: u32) -> &'static Dword {
-    &crate::race::owner::race().shared.vars.map_work[((o - 0xB8) / 4) as usize]
+    &race().shared.vars.map_work[((o - 0xB8) / 4) as usize]
 }
 
 fn read_n(table: &Dword, n: u32) -> u32 {
@@ -202,18 +179,13 @@ fn face_count(course: &Course) -> Result<u32, Refused> {
 /// `g_lastCheckpoint` it - 1. With fewer than two, both counts 0. Refuses no faces or
 /// 0x100000 or more, and more of the kind than the list holds.
 pub fn sort_checkpoints(course: &Course) -> Result<(), Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::checkpoints::{line_face_kind, chain}`; the faces of the
     // kind listed here as the original lists them.
     use rc2k_core::race::checkpoints::{chain, line_face_kind};
     {
         let n = face_count(course)?;
-        let kind = line_face_kind(
-            crate::race::owner::race()
-                .shared
-                .work
-                .stage_direction
-                .bits(),
-        );
+        let kind = line_face_kind(shared.work.stage_direction.bits());
         let of_kind = |b: u32, kind: u8| -> Result<bool, BadInput> {
             Ok(face_field::<u8>(b, 0)? == 0xFF && face_field::<u8>(b, 1)? == kind)
         };
@@ -229,25 +201,14 @@ pub fn sort_checkpoints(course: &Course) -> Result<(), Refused> {
         set_line_face_kind();
         let mut list = Vec::new();
         for b in 0..n {
-            if of_kind(
-                b,
-                crate::race::owner::race().shared.vars.line_face_kind.bits() as u8,
-            )? {
+            if of_kind(b, shared.vars.line_face_kind.bits() as u8)? {
                 write_n(&CHECKPOINTS.checkpoint_faces[0], list.len() as u32, b);
                 list.push(b);
             }
         }
         if list.len() < 2 {
-            crate::race::owner::race()
-                .shared
-                .vars
-                .line_face_total
-                .set_bits(0u32);
-            crate::race::owner::race()
-                .shared
-                .vars
-                .checkpoint_count
-                .set_bits(0u32);
+            shared.vars.line_face_total.set_bits(0u32);
+            shared.vars.checkpoint_count.set_bits(0u32);
             return Ok(());
         }
         let trap = Trap::new();
@@ -273,18 +234,9 @@ pub fn sort_checkpoints(course: &Course) -> Result<(), Refused> {
         for (k, &f) in list.iter().enumerate() {
             write_n(&CHECKPOINTS.checkpoint_faces[0], k as u32, f);
         }
-        crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .set_bits(c.length);
-        crate::race::owner::race()
-            .shared
-            .vars
-            .line_face_total
-            .set_bits(c.length);
-        crate::race::owner::race()
-            .shared
+        shared.vars.checkpoint_count.set_bits(c.length);
+        shared.vars.line_face_total.set_bits(c.length);
+        shared
             .vars
             .last_checkpoint
             .set_bits(c.length.wrapping_sub(1));
@@ -342,17 +294,14 @@ pub fn checkpoint_angles(course: &Course) -> Result<(), Refused> {
 /// its one caller, `build_best_line`, never reaches (it calls with two line faces or more,
 /// and `sort_checkpoints` makes the checkpoint count the same).
 pub fn checkpoint_distances() -> Result<(), Refused> {
+    let shared = &race().shared;
     let n = count()?;
     if n < 2 {
         return Err(BadInput("fewer than two checkpoints: the original writes at ecx").into());
     }
     let trap = Trap::new();
     {
-        let last: u32 = crate::race::owner::race()
-            .shared
-            .vars
-            .last_checkpoint
-            .bits();
+        let last: u32 = shared.vars.last_checkpoint.bits();
         if last == 0 || last >= MOST_CHECKS {
             return Err(BadInput("a last checkpoint of 0 or past the lists").into());
         }
@@ -380,7 +329,7 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
                 }
             };
             let d = [w(a, 0).wrapping_sub(w(b, 0)), w(a, 2).wrapping_sub(w(b, 2))];
-            crate::session::write_bits(&crate::race::owner::race().shared.vars.line_from, d);
+            crate::session::write_bits(&shared.vars.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
             scene().drawing.scene.scratch.set_bits(length);
             length
@@ -400,6 +349,7 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
 /// checkpoint's nearest of them (x and z of their first points, the length rounded; the
 /// last of the nearest when two are as near). Refuses no faces or 0x100000 or more.
 pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
+    let shared = &race().shared;
     let n = count()?;
     if n < 2 {
         return Ok(());
@@ -427,7 +377,7 @@ pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
                 crate::race::scene_points::point_word(p, 0)?,
                 crate::race::scene_points::point_word(p, 2)?,
             ];
-            crate::session::write_bits(&crate::race::owner::race().shared.vars.line_from, from);
+            crate::session::write_bits(&shared.vars.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
                 let q = match point_of(read_n((set.list)(), e)) {
                     Ok(q) => q,
@@ -449,10 +399,7 @@ pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
                 d
             });
             trap.finish()?;
-            crate::session::write_bits(
-                &crate::race::owner::race().shared.vars.line_nearest,
-                [nearest.0, nearest.1],
-            );
+            crate::session::write_bits(&shared.vars.line_nearest, [nearest.0, nearest.1]);
             write_n((set.nearest)(), c, nearest.1);
         }
     }
@@ -466,12 +413,13 @@ pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
 /// their sum; 0 without a +0x21, or with its kind (+0x2C, by `dword_63D9D0`) 4 or 5),
 /// +1's by 0x100 less; then the shares made whole numbers.
 pub fn surface_shares(course: &Course) -> Result<(), Refused> {
+    let shared = &race().shared;
     let n = count()?;
     if n < 2 {
         return Ok(());
     }
     {
-        for share in &crate::race::owner::race().shared.vars.surface_shares {
+        for share in &shared.vars.surface_shares {
             share.set_bits(0u32);
         }
         let faces: u32 = course.course.course_face_count.bits();
@@ -504,29 +452,27 @@ pub fn surface_shares(course: &Course) -> Result<(), Refused> {
             // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
             // field's 4 dwords), so read by address.
             let kind: u32 = crate::session::read_on_in(
-                &crate::race::owner::race().shared.view,
-                &crate::race::owner::race().shared.view.surface_kinds,
+                &shared.view,
+                &shared.view.surface_kinds,
                 byte(second, 0x2C)? as usize,
                 "the surface kinds table",
             )?;
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
-            crate::race::owner::race()
-                .shared
+            shared
                 .vars
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(weight));
             four(face_byte(1)?)?;
-            crate::race::owner::race()
-                .shared
+            shared
                 .vars
                 .surface_weight
                 .set_bits(rc2k_core::race::best_line::first_weight(
-                    crate::race::owner::race().shared.vars.surface_weight.bits(),
+                    shared.vars.surface_weight.bits(),
                 ));
             four(second)?;
         }
         for c in 0..16 {
-            let share = &crate::race::owner::race().shared.vars.surface_shares[c];
+            let share = &shared.vars.surface_shares[c];
             share.set_bits(x87::to_int(share.bits()) as u32);
         }
     }

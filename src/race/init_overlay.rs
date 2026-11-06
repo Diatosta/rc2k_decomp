@@ -29,14 +29,9 @@ pub fn init_overlay(race: &Race) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
-        let (found, parts) = overlay_parts(
-            crate::race::owner::race()
-                .shared
-                .vars
-                .checkpoint_count
-                .get(),
-            || race.physics.split_tables.split_colour_count.get(),
-        )?;
+        let (found, parts) = overlay_parts(race.shared.vars.checkpoint_count.get(), || {
+            race.physics.split_tables.split_colour_count.get()
+        })?;
         if let Some(count) = found {
             race.frame.panel_and_overlay.panel.overlay_parts.set(count);
         }
@@ -53,7 +48,7 @@ pub fn init_overlay(race: &Race) -> Result<(), Refused> {
                 let distances = &crate::race::checkpoints_store::CHECKPOINTS.distances;
                 let distance = |k: u32| {
                     crate::session::read_on_in(
-                        &crate::race::owner::race().shared.buffers,
+                        &race.shared.buffers,
                         distances,
                         k as usize,
                         "an overlay variable",
@@ -109,8 +104,8 @@ pub fn init_overlay(race: &Race) -> Result<(), Refused> {
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);
         }
-        for car in 0..crate::race::owner::race().shared.work.car_blocks.len() {
-            let block = crate::race::owner::race().shared.work.car_block(car);
+        for car in 0..race.shared.work.car_blocks.len() {
+            let block = race.shared.work.car_block(car);
             for off in OVERLAY_CLEARED {
                 crate::race::race_init::state_cell(crate::race::trap::car_at(block)?, off)?.set(0);
             }

@@ -25,6 +25,7 @@ use crate::install::installer::{
 };
 use crate::install::name_tables::{FILES, FOLDERS};
 use crate::place::Place;
+use crate::system::owner::system;
 
 fn game_dir() -> Place {
     Place::from(&crate::install::owner::install().paths.game_dir)
@@ -74,7 +75,7 @@ fn message(count: u32, table: impl Into<crate::place::Place>, y: u32) -> Result<
         }
         sleep(1);
         pump();
-        if crate::system::owner::system().session.flags.quitting.get() == 1 {
+        if system().session.flags.quitting.get() == 1 {
             break;
         }
     }

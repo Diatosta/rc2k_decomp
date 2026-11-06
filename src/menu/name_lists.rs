@@ -5,6 +5,7 @@
 
 use crate::errors::BadInput;
 use crate::place::Place;
+use crate::race::owner::race;
 use crate::saves::owner::saves;
 use crate::service::state::menu_item;
 use crate::session::{Bytes, Dword};
@@ -46,7 +47,7 @@ pub fn savegame_name() -> Result<Place, BadInput> {
 /// The name of the highlighted replay.
 pub fn replay_name() -> Result<Place, BadInput> {
     highlighted(
-        &crate::race::owner::race().shared.replays.names,
+        &race().shared.replays.names,
         REPLAY_PAGE_RVA,
         REPLAYS_PER_PAGE,
     )

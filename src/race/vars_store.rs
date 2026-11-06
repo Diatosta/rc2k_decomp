@@ -5,6 +5,8 @@
 //! colours and vertices. `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`RACE_VARS`), as `CAR`. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -194,7 +196,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceVars>());
 /// Where IDA 0x6235E8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::race().shared.vars))
+    crate::pointers::game_address(core::ptr::from_ref(&race().shared.vars))
 }
 
 #[cfg(test)]
@@ -204,7 +206,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&crate::race::owner::race().shared.vars, START, END);
+        crate::gfx::first_values_are_the_games(&race().shared.vars, START, END);
     }
 
     #[test]

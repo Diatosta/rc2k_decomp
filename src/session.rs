@@ -11,6 +11,8 @@
 
 #![allow(unsafe_code)]
 
+#[cfg(test)]
+use crate::system::owner::system;
 use std::cell::UnsafeCell;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
@@ -819,20 +821,21 @@ mod tests {
 
     #[test]
     fn the_blocks_start_as_the_images_bytes() {
+        let system = system();
         assert_eq!(
-            bytes_of(&crate::system::owner::system().session.screen),
+            bytes_of(&system.session.screen),
             image_bytes(SCREEN_IDA, SCREEN_LEN)
         );
         assert_eq!(
-            bytes_of(&crate::system::owner::system().session.flags),
+            bytes_of(&system.session.flags),
             image_bytes(FLAGS_IDA, FLAGS_LEN)
         );
         assert_eq!(
-            bytes_of(&crate::system::owner::system().session.machine),
+            bytes_of(&system.session.machine),
             image_bytes(MACHINE_IDA, MACHINE_LEN)
         );
         assert_eq!(
-            bytes_of(&crate::system::owner::system().session.clocks),
+            bytes_of(&system.session.clocks),
             image_bytes(CLOCKS_IDA, CLOCKS_LEN)
         );
     }

@@ -12,6 +12,7 @@
 //! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the
 //! original reads past them; not worked out).
 
+use crate::audio::owner::audio;
 use crate::audio::voices::{SampleRecord, voice};
 use crate::errors::BadInput;
 
@@ -25,7 +26,7 @@ pub fn record(n: u32) -> Result<SampleRecord, BadInput> {
     if n >= RECORDS {
         return Err(BadInput("a sample past the 0x1CD records"));
     }
-    Ok(crate::audio::owner::audio().sample_records.records[n as usize].get())
+    Ok(audio().sample_records.records[n as usize].get())
 }
 
 /// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's

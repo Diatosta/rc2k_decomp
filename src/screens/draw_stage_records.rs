@@ -22,6 +22,7 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
 use crate::strings::units::units;
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -48,7 +49,7 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
     let sub: u32 = screens.event.stage_sub.get();
-    let table = crate::system::owner::system()
+    let table = system()
         .records
         .stage_tables
         .group_event_table(group, sub)?;

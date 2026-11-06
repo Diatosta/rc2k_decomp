@@ -9,16 +9,16 @@
 //! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
+use crate::net::owner::net;
 
 /// The Rust version (see the header): the player's id and short name.
 pub fn player_found(id: u32, short: &[u8]) -> Result<u32, Refused> {
-    let Some(count) =
-        rc2k_core::net::lists::player_found(crate::net::owner::net().vars.players.get())
-    else {
+    let vars = &net().vars;
+    let Some(count) = rc2k_core::net::lists::player_found(vars.players.get()) else {
         return Ok(0);
     };
-    crate::net::owner::net().vars.players.set(count + 1);
-    let player = crate::net::owner::net().vars.player_block(count);
+    vars.players.set(count + 1);
+    let player = vars.player_block(count);
     player.id.set(id);
     let written = crate::strings::copy_printable::printable_from(short, 0x1F)?;
     player.name.write_at(0, &written, "a player's name")?;

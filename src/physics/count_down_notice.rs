@@ -11,25 +11,20 @@
 //! above are the original's, for reference.
 
 use crate::physics::cells::set_changed;
+use crate::race::owner::race;
 use rc2k_core::physics::notices::Notice;
 
 /// The Rust version.
 pub fn count_down_notice() {
+    let shared_store = &race().shared;
+
     let was = Notice {
-        shown: crate::race::owner::race().shared.car.notice_shown.get(),
-        time: crate::race::owner::race().shared.car.notice_time.get(),
+        shown: shared_store.car.notice_shown.get(),
+        time: shared_store.car.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
     n.count_down();
-    set_changed(
-        &crate::race::owner::race().shared.car.notice_time,
-        was.time,
-        n.time,
-    );
-    set_changed(
-        &crate::race::owner::race().shared.car.notice_shown,
-        was.shown,
-        n.shown,
-    );
+    set_changed(&shared_store.car.notice_time, was.time, n.time);
+    set_changed(&shared_store.car.notice_shown, was.shown, n.shown);
 }

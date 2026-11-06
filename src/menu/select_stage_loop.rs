@@ -17,6 +17,7 @@ use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
+use crate::net::owner::net;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -80,7 +81,7 @@ pub const SCREEN: Screen = Screen {
     action_menu: None,
     no_quit_check: false,
     before_asking: &[],
-    ask_unless: Some(|| crate::net::owner::net().vars.session.get()),
+    ask_unless: Some(|| net().vars.session.get()),
     leaving: &[],
     leave_saved_item: None,
     keys_menu: None,

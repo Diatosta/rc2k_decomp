@@ -32,8 +32,7 @@ pub fn probe_and_keep_at(race: &Race) -> Result<(), Refused> {
         physics.contact.saved_probe_z[k].set(physics.contact.probe_z[k].get());
     }
     for k in 0..0x40 {
-        physics.contact.saved_probe_faces[k]
-            .set(crate::race::owner::race().shared.car.probe_point_face[k].get());
+        physics.contact.saved_probe_faces[k].set(race.shared.car.probe_point_face[k].get());
     }
     Ok(())
 }

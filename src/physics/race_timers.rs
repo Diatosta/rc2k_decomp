@@ -29,23 +29,18 @@ use crate::race::owner::Race;
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(race: &Race) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .weight
-        .set_bits(1.0f32.to_bits());
-    let finished = crate::race::owner::race().shared.car.finish_flag.get() != 0;
+    race.shared.physics_tables.weight.set_bits(1.0f32.to_bits());
+    let finished = race.shared.car.finish_flag.get() != 0;
     let factor = if finished {
         race.physics.split_tables.timer_factor.bits()
     } else {
         0
     };
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .weight
         .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
-    let run = timer_run(crate::race::owner::race().shared.vars.run_kind.bits());
+    let run = timer_run(race.shared.vars.run_kind.bits());
     if run == TimerRun::None {
         return Ok(());
     }

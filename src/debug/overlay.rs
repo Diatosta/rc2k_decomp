@@ -5,6 +5,7 @@
 //! both 0 every frame): the freeze is kept here and put back by `input::end_frame`
 //! (`words`); the page stays 0 (the original's pages are the UI's tabs now).
 
+use crate::input::owner::input;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 /// The keys (scan codes in `g_keysNow` / `g_keysPressed`): Ctrl, F11, F12.
@@ -40,23 +41,16 @@ pub fn toggle_ui() {
 /// both taken out of `g_keysDown` (the bindings read it), `g_keysNow` and `g_keysPressed`,
 /// so that the game does not see them (F12 is its map).
 pub fn take_keys() {
-    if crate::input::owner::input()
-        .devices
-        .keys_now
-        .get(CONTROL_KEY)
-        == 0
-    {
+    let devices = &input().devices;
+    if devices.keys_now.get(CONTROL_KEY) == 0 {
         return;
     }
-    let pressed = |key| crate::input::owner::input().devices.keys_pressed.get(key) & 1 != 0;
+    let pressed = |key| devices.keys_pressed.get(key) & 1 != 0;
     let freeze = pressed(FREEZE_KEY);
     for key in [UI_KEY, FREEZE_KEY] {
-        crate::input::owner::input().devices.keys_down.set(key, 0);
-        crate::input::owner::input().devices.keys_now.set(key, 0);
-        crate::input::owner::input()
-            .devices
-            .keys_pressed
-            .set(key, 0);
+        devices.keys_down.set(key, 0);
+        devices.keys_now.set(key, 0);
+        devices.keys_pressed.set(key, 0);
     }
     if freeze {
         set_frozen(!frozen());

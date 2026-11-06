@@ -17,6 +17,7 @@ use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
 use crate::session::Dword;
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
@@ -244,13 +245,10 @@ pub struct StageTimes {
 
 fn champ_records() -> Result<RecordTable, BadInput> {
     let screens = &menus().screens;
-    crate::system::owner::system()
-        .records
-        .stage_tables
-        .group_event_table(
-            screens.event.stage_group.get(),
-            screens.event.stage_sub.get(),
-        )
+    system().records.stage_tables.group_event_table(
+        screens.event.stage_group.get(),
+        screens.event.stage_sub.get(),
+    )
 }
 
 fn champ_table() -> &'static StageTable {
@@ -262,7 +260,7 @@ fn champ_table() -> &'static StageTable {
 }
 
 fn rally_records() -> Result<RecordTable, BadInput> {
-    crate::system::owner::system()
+    system()
         .records
         .stage_tables
         .level_table(menus().play.arcade.level.get())
@@ -390,10 +388,7 @@ const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 /// `records::find_record` of the record table: the section's record `index`.
 pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
-        crate::system::owner::system()
-            .records
-            .stage_tables
-            .championship(),
+        system().records.stage_tables.championship(),
         index as i32,
         SECTION.get(),
     )
@@ -402,10 +397,7 @@ pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
 /// Whether the record table has the section (the look-up has no end): for the refusals.
 pub fn section_there() -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
-        crate::system::owner::system()
-            .records
-            .stage_tables
-            .championship(),
+        system().records.stage_tables.championship(),
         SECTION.get(),
         0x400,
     )

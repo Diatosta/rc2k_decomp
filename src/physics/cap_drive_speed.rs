@@ -10,6 +10,7 @@
 
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -36,26 +37,16 @@ pub type CapPlaces = [&'static dyn Cell32; 4];
 
 /// The core.
 pub fn cap_drive_speed_at(course: &Course, v: CapPlaces) {
+    let shared_store = &race().shared;
+
     let zero = course.numbers.zero.bits();
     put(
         v[0],
         over_abs_plus_minus(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_speed_cap
-                .bits(),
+            shared_store.physics_tables.drive_speed_cap.bits(),
             at(v[1]),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_speed_cap_a
-                .bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .drive_speed_cap_b
-                .bits(),
+            shared_store.physics_tables.drive_speed_cap_a.bits(),
+            shared_store.physics_tables.drive_speed_cap_b.bits(),
         ),
     );
     if below(at(v[0]), zero) {
@@ -68,14 +59,13 @@ pub fn cap_drive_speed_at(course: &Course, v: CapPlaces) {
 }
 
 fn game() -> CapPlaces {
+    let shared_store = &race().shared;
+
     [
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .drive_speed_figure,
-        &crate::race::owner::race().shared.car.local_velocity[2],
+        &shared_store.physics_tables.drive_speed_figure,
+        &shared_store.car.local_velocity[2],
         &scene().drawing.scene.scratch,
-        &crate::race::owner::race().shared.car.drive_speed_a,
+        &shared_store.car.drive_speed_a,
     ]
 }
 

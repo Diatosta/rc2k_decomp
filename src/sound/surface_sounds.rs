@@ -27,6 +27,7 @@ use crate::math::x87_float::{ld, st, to_int};
 use crate::scene::x87_mem::{Base, fld, mov};
 use crate::sound::sets_store::SoundRequest;
 use crate::sound::store::{SoundObject, WHEEL_SURFACES};
+use crate::system::owner::system;
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
@@ -34,6 +35,7 @@ use rc2k_core::sound::surfaces;
 /// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
 fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Refused> {
+    let system = system();
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
         crate::sound::owner::sound().race.surface.across.bits(),
@@ -48,12 +50,12 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
         if second == 0 {
             x87_1(
                 &crate::sound::owner::sound().race.surface,
-                &crate::system::owner::system().session.machine.scratch,
+                &system.session.machine.scratch,
             );
         } else {
             x87_2(
                 &crate::sound::owner::sound().race.surface,
-                &crate::system::owner::system().session.machine.scratch,
+                &system.session.machine.scratch,
             );
         }
     }

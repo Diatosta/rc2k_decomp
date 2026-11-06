@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::PALETTE;
+use crate::net::owner::net;
 use rc2k_core::net::screens::{self, ButtonFont};
 
 pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
@@ -39,7 +40,7 @@ pub fn item_font(
     if screens::item_lit(
         item,
         crate::install::owner::install().pages.choice.get(),
-        || crate::net::owner::net().vars.edited.get(),
+        || net().vars.edited.get(),
         blink,
     ) {
         lit
@@ -50,37 +51,34 @@ pub fn item_font(
 
 /// The Rust version.
 pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result<(), Refused> {
+    let net = net();
     use crate::text::draw_text::GameCanvas;
-    crate::net::owner::net().button.text.set(string);
-    crate::net::owner::net().button.flags.set(flags);
-    crate::net::owner::net().button.x.set(x);
-    crate::net::owner::net().button.y.set(y);
-    crate::net::owner::net().button.item.set(item);
+    net.button.text.set(string);
+    net.button.flags.set(flags);
+    net.button.x.set(x);
+    net.button.y.set(y);
+    net.button.item.set(item);
     let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
         string,
         PALETTE.game_ptr(),
         x as i32,
         &mut GameCanvas,
     )?;
-    crate::net::owner::net().button.width.set(measured.width);
+    net.button.width.set(measured.width);
     // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
-    let place = screens::button(
-        crate::net::owner::net().button.width.get(),
-        crate::net::owner::net().button.x.get(),
-        flags,
-    );
-    crate::net::owner::net().button.tiles.set(place.tiles);
+    let place = screens::button(net.button.width.get(), net.button.x.get(), flags);
+    net.button.tiles.set(place.tiles);
     if flags & screens::CENTRED != 0 {
-        crate::net::owner::net().button.x.set(place.text_x);
+        net.button.x.set(place.text_x);
     }
     let blit = |glyph: u32, at: u32| -> Result<(), Refused> {
-        crate::net::lobby::blit(glyph, at, crate::net::owner::net().button.y.get())
+        crate::net::lobby::blit(glyph, at, net.button.y.get())
     };
     let mut left = place.left;
     blit(screens::LEFT_END, left)?;
     left = left.wrapping_add(screens::END_WIDTH);
     let kept = left;
-    let mut tiles = crate::net::owner::net().button.tiles.get();
+    let mut tiles = net.button.tiles.get();
     loop {
         blit(screens::TILE, left)?;
         left = left.wrapping_add(screens::TILE_WIDTH);
@@ -91,12 +89,12 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
     }
     blit(
         screens::RIGHT_END,
-        kept.wrapping_add(crate::net::owner::net().button.width.get()),
+        kept.wrapping_add(net.button.width.get()),
     )?;
     let lit = screens::item_lit(
         item,
         crate::install::owner::install().pages.choice.get(),
-        || crate::net::owner::net().vars.edited.get(),
+        || net.vars.edited.get(),
         || {
             screens::blink_lit(
                 crate::install::owner::install().pages.frame_clock.get(),
@@ -110,10 +108,10 @@ pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result
         ButtonFont::Dim => FONT_DIM,
     };
     crate::text::draw_string_by_id::draw_string_by_id_at(
-        crate::net::owner::net().button.text.get(),
+        net.button.text.get(),
         font.game_ptr(),
-        crate::net::owner::net().button.x.get() as i32,
-        crate::net::owner::net().button.y.get() as i32,
+        net.button.x.get() as i32,
+        net.button.y.get() as i32,
         &mut GameCanvas,
     )?;
     Ok(())

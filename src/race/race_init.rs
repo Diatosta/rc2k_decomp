@@ -15,7 +15,7 @@ use crate::session::Dword;
 pub const BLOCKS: u32 = 8;
 /// Car block n (`g_carBlocks`[n]).
 pub fn block(n: u32) -> u32 {
-    crate::race::owner::race().shared.work.car_block(n as usize)
+    race().shared.work.car_block(n as usize)
 }
 
 /// The car block's dword at `off`, for the offsets the race state and the overlay's clearing
@@ -41,7 +41,7 @@ pub fn state_cell(car: &Car, off: u32) -> Result<&Dword, BadInput> {
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
 pub fn clear_race_slots() {
-    for slot in &crate::race::owner::race().shared.work.race_slots {
+    for slot in &race().shared.work.race_slots {
         slot.part.set(0);
     }
 }
@@ -50,9 +50,7 @@ pub fn clear_race_slots() {
 /// `dword_71C3E0` is set), +0x18 and +0x1C 0.
 pub fn reset_car_starts() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let value = rc2k_core::race::cars::start_value(
-        crate::race::owner::race().shared.work.in_credits.bits() != 0,
-    );
+    let value = rc2k_core::race::cars::start_value(race().shared.work.in_credits.bits() != 0);
     for n in 0..BLOCKS {
         let b = block(n);
         {
@@ -122,19 +120,10 @@ pub fn reset_car_race_state() -> Result<(), BadInput> {
 /// `g_checkpointCount` - 2 negative. Refuses a look that would run past the list (the
 /// original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
 pub fn first_check_checkpoint() -> Result<u32, Refused> {
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
-    let count: u32 = crate::race::owner::race()
-        .shared
-        .vars
-        .checkpoint_count
-        .bits();
-    let last = || {
-        crate::race::owner::race()
-            .shared
-            .vars
-            .last_checkpoint
-            .bits()
-    };
+    let count: u32 = shared.vars.checkpoint_count.bits();
+    let last = || shared.vars.last_checkpoint.bits();
     let trap = Trap::new();
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();

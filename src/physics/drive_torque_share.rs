@@ -26,29 +26,19 @@ fn put(a: &dyn Cell32, v: u32) {
 /// The core on the variables' cells: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
 pub fn drive_torque_share_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
+    let shared_store = &crate::race::owner::race().shared;
+
     let n = if v[1].bits() == 1 {
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .torque_share_a
-            .get()
+        shared_store.physics_tables.torque_share_a.get()
     } else {
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .torque_share_b
-            .get()
+        shared_store.physics_tables.torque_share_b.get()
     };
     v[0].set_bits(n);
     put(
         v[3],
         abs_fidiv(
             v[2].bits(),
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .torque_share_c
-                .get() as i32,
+            shared_store.physics_tables.torque_share_c.get() as i32,
         ),
     );
     let one = course.numbers.one.bits();
@@ -68,22 +58,18 @@ pub fn drive_torque_share_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared_store = &crate::race::owner::race().shared;
+
     let drawing = &scene().drawing;
     vec![
         &drawing.scene.scratch as &dyn Cell32,
-        &crate::race::owner::race().shared.car.drive_kind,
-        &crate::race::owner::race().shared.car.local_velocity[2],
+        &shared_store.car.drive_kind,
+        &shared_store.car.local_velocity[2],
         &drawing.scene.work_float_a,
         &drawing.scene.work_float_b,
-        &crate::race::owner::race().shared.car.gear_ratio_setting,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .torque_share,
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .drive_torque,
+        &shared_store.car.gear_ratio_setting,
+        &shared_store.physics_tables.torque_share,
+        &shared_store.physics_tables.drive_torque,
     ]
 }
 

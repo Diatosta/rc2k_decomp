@@ -15,6 +15,8 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
+use crate::input::owner::input;
+use crate::race::owner::race;
 use crate::session::read_all;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
 
@@ -35,70 +37,50 @@ const STATES: [(u32, u32); 11] = [
 /// The Rust version: the mode `mode` (eax), the car `car` (esi); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
 pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
+    let race = race();
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
     let (number, shift) = layout(mode, car);
     let table = 8 * number as usize;
     for k in 0..4 {
-        crate::race::owner::race().shared.tyre_change.panel[k]
-            .set(crate::race::owner::race().shared.tyre_change.layouts[table + k].get());
+        race.shared.tyre_change.panel[k].set(race.shared.tyre_change.layouts[table + k].get());
     }
     for k in 0..4 {
-        crate::race::owner::race().shared.tyre_change.parts[k]
-            .set(crate::race::owner::race().shared.tyre_change.layouts[table + 4 + k].get());
+        race.shared.tyre_change.parts[k].set(race.shared.tyre_change.layouts[table + 4 + k].get());
     }
-    let panel =
-        std::array::from_fn(|k| crate::race::owner::race().shared.tyre_change.panel[k].get());
+    let panel = std::array::from_fn(|k| race.shared.tyre_change.panel[k].get());
     let [x, y] = wheel_place(
         panel,
         [
-            crate::race::owner::race().shared.tyre_change.wheel[2].get(),
-            crate::race::owner::race().shared.tyre_change.wheel[3].get(),
+            race.shared.tyre_change.wheel[2].get(),
+            race.shared.tyre_change.wheel[3].get(),
         ],
         shift,
     );
-    crate::race::owner::race().shared.tyre_change.wheel[0].set(x);
-    crate::race::owner::race().shared.tyre_change.wheel[1].set(y);
-    crate::race::owner::race()
-        .shared
-        .tyre_change
-        .player
-        .set(car);
-    let Some(device) = crate::input::owner::input()
-        .devices
-        .input_device(car as usize)?
-    else {
+    race.shared.tyre_change.wheel[0].set(x);
+    race.shared.tyre_change.wheel[1].set(y);
+    race.shared.tyre_change.player.set(car);
+    let Some(device) = input().devices.input_device(car as usize)? else {
         return Err(crate::errors::BadInput("a tyre screen car without a device").into());
     };
-    set_texture(
-        crate::race::owner::race()
-            .shared
-            .tyre_change
-            .device_texture
-            .get(),
-    );
+    set_texture(race.shared.tyre_change.device_texture.get());
     for (value, state) in STATES {
         set_render_state(value, state);
     }
     crate::drive::tyre_quad::tyre_quad_cells(
-        &crate::race::owner::race().shared.tyre_change.panel_texture,
-        &crate::race::owner::race().shared.tyre_change.panel,
+        &race.shared.tyre_change.panel_texture,
+        &race.shared.tyre_change.panel,
         0xFF_FFFF,
     )?;
     crate::drive::tyre_quad::tyre_quad_cells(
-        &crate::race::owner::race().shared.tyre_change.wheel_texture,
-        &crate::race::owner::race().shared.tyre_change.wheel,
+        &race.shared.tyre_change.wheel_texture,
+        &race.shared.tyre_change.wheel,
         0xFF_FFFF,
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
-        read_all(
-            &crate::race::owner::race()
-                .shared
-                .tyre_change
-                .turning_texture,
-        ),
-        &crate::race::owner::race().shared.tyre_change.turning_rect,
+        read_all(&race.shared.tyre_change.turning_texture),
+        &race.shared.tyre_change.turning_rect,
         0xFF_FFFF,
         device,
     )?;

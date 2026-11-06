@@ -462,12 +462,13 @@ const IMPACT_MARKS: [CarFloat; 8] = [
 
 /// Car `car`'s eight impact marks in the results record (`results[car].field_24c`).
 fn result_marks(car: usize) -> &'static [Dword; 8] {
-    &crate::race::owner::race().shared.state.results.results[car].field_24c
+    &race().shared.state.results.results[car].field_24c
 }
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the
 /// original's order.
 pub fn graham_to_shaun() -> Vec<Step<Place>> {
+    let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(446));
     let rule = c"-------------------------------------";
     b.push(Text(rule, true));
@@ -480,11 +481,7 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         b.push(Value(place, Kind::Int));
     }
     for car in 0..2 {
-        let settings = |f: fn(&RaceCar) -> &Dword| {
-            Cell(f(
-                &crate::race::owner::race().shared.state.settings.cars[car]
-            ))
-        };
+        let settings = |f: fn(&RaceCar) -> &Dword| Cell(f(&shared.state.settings.cars[car]));
         for (field, setting) in SETTING_BRAKES {
             b.push(Brake(CarCell(car, field), settings(setting)));
         }
@@ -498,35 +495,23 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
     b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
     b.push(Store(CarCell(0, |c| &c.brake_balance)));
     for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
-        b.push(Load(Cell(
-            &crate::race::owner::race().shared.state.settings.cars[car].gearing,
-        )));
+        b.push(Load(Cell(&shared.state.settings.cars[car].gearing)));
         b.push(Store(Var(colour)));
     }
     for car in 0..2 {
         b.push(Copy(
             CarCell(car, |c| &c.start_slot_value),
-            Cell(&crate::race::owner::race().shared.state.settings.cars[car].race_number),
+            Cell(&shared.state.settings.cars[car].race_number),
         ));
     }
     for car in 0..2 {
-        b.push(Load(Cell(
-            &crate::race::owner::race().shared.state.settings.cars[car].view,
-        )));
+        b.push(Load(Cell(&shared.state.settings.cars[car].view)));
         b.push(Store(CarCell(car, |c| &c.camera_view)));
         b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
     }
     let hud_bits = [
-        &crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .hud_bits_current,
-        &crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .hud_bits_first,
+        &shared.state.results.hud_bits_current,
+        &shared.state.results.hud_bits_first,
     ];
     b.push(Text(c"[onerace.car1overbits]", false));
     b.push(Value(Cell(hud_bits[0]), Kind::Int));
@@ -539,12 +524,7 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
         b.push(LoadImm(0));
         for (field, bit) in OPTION_BITS {
-            b.push(BitIf(
-                Cell(field(
-                    &crate::race::owner::race().shared.state.settings.cars[car],
-                )),
-                bit,
-            ));
+            b.push(BitIf(Cell(field(&shared.state.settings.cars[car])), bit));
         }
         b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
         b.push(Store(CarCell(car, |c| &c.option_bits)));
@@ -554,9 +534,7 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         for (field, setting) in GAUGES {
             b.push(IntToFloat(
                 CarBits(car, field),
-                Cell(setting(
-                    &crate::race::owner::race().shared.state.settings.cars[car],
-                )),
+                Cell(setting(&shared.state.settings.cars[car])),
             ));
         }
         for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(car)) {
@@ -739,6 +717,7 @@ static TAIL_OUT: [Step<Place>; 6] = [
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
 /// original's order; skipped while a replay is shown.
 pub fn shaun_to_graham() -> Vec<Step<Place>> {
+    let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(344));
     b.push(Text(c"-------------------------------------", true));
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
@@ -749,31 +728,17 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
         0,
     ));
     b.push(Copy(
-        Cell(
-            &crate::race::owner::race()
-                .shared
-                .state
-                .results
-                .hud_bits_current,
-        ),
+        Cell(&shared.state.results.hud_bits_current),
         CarCell(0, |c| &c.option_bits),
     ));
     b.push(Copy(
-        Cell(
-            &crate::race::owner::race()
-                .shared
-                .state
-                .results
-                .hud_bits_first,
-        ),
+        Cell(&shared.state.results.hud_bits_first),
         CarCell(1, |c| &c.option_bits),
     ));
     for car in 0..2 {
         for (field, setting) in GAUGES {
             b.push(FloatToInt(
-                Cell(setting(
-                    &crate::race::owner::race().shared.state.settings.cars[car],
-                )),
+                Cell(setting(&shared.state.settings.cars[car])),
                 CarBits(car, field),
             ));
         }

@@ -12,21 +12,20 @@
 //! above are the original's, for reference.
 
 use crate::physics::cells::set_changed;
+use crate::race::owner::race;
 use rc2k_core::physics::easing::ease_value;
 
 /// The Rust version.
 pub fn ease_car_value() {
-    let was = crate::race::owner::race().shared.car.eased_value.get();
+    let shared_store = &race().shared;
+
+    let was = shared_store.car.eased_value.get();
     let mut value = was;
     ease_value(
-        crate::race::owner::race().shared.vars.scene_switch.get(),
-        crate::race::owner::race().shared.car.value_jump_steps.get(),
-        crate::race::owner::race().shared.car.eased_target.get(),
+        shared_store.vars.scene_switch.get(),
+        shared_store.car.value_jump_steps.get(),
+        shared_store.car.eased_target.get(),
         &mut value,
     );
-    set_changed(
-        &crate::race::owner::race().shared.car.eased_value,
-        was,
-        value,
-    );
+    set_changed(&shared_store.car.eased_value, was, value);
 }

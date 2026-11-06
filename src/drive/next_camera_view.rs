@@ -13,6 +13,7 @@ use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
@@ -35,10 +36,7 @@ pub fn next_view_at(car: &Car, players: &Dword, step: &Dword) -> Result<(), BadI
 
 /// The Rust version, on the block at `s`.
 pub fn next_camera_view(s: u32) -> Result<(), BadInput> {
+    let shared = &race().shared;
     let car = crate::race::blocks_store::block_at(s, "a car's block")?;
-    next_view_at(
-        car,
-        &crate::race::owner::race().shared.view.players,
-        &crate::race::owner::race().shared.car.step_clock,
-    )
+    next_view_at(car, &shared.view.players, &shared.car.step_clock)
 }

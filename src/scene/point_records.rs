@@ -117,10 +117,9 @@ fn cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
 /// The cells of a quad vertex's or a pool record.
 fn far_cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
     let (all, k): (&'static [Dword], u32) = match r {
-        _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
-            &crate::race::owner::race().shared.vars.quad_vertices,
-            r - QUAD_FIRST,
-        ),
+        _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => {
+            (&race().shared.vars.quad_vertices, r - QUAD_FIRST)
+        }
         _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => (
             &crate::scene::polygon_store::POLYGON_WORK.record_pool,
             r - POOL_FIRST,

@@ -11,29 +11,30 @@
 //! sound object.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use rc2k_core::physics::engine::shares_figures;
 
 /// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
 pub fn share_engine_sound() -> Result<(), Refused> {
+    let race = race();
     let so = crate::sound::store::current_object();
     if shares_figures(
-        crate::race::owner::race().shared.car.contact_depth.get(),
+        race.shared.car.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),
     ) {
-        for (k, figure) in crate::race::owner::race()
+        for (k, figure) in race
             .shared
             .car
             .contact_point
             .iter()
-            .chain([&crate::race::owner::race().shared.car.contact_depth])
+            .chain([&race.shared.car.contact_depth])
             .enumerate()
         {
             so.knock_in[k].set(figure.bits());
         }
     }
-    so.knock_d4
-        .set(crate::race::owner::race().shared.car.steer_trim.get());
+    so.knock_d4.set(race.shared.car.steer_trim.get());
     so.new_revs.set(1);
     Ok(())
 }

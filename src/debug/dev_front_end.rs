@@ -63,17 +63,14 @@ const REPLAY: u32 = 4;
 
 /// `dev_front_end::set_up_race` (0x446994): the race's variables from the settings.
 fn set_up_race() -> Result<(), Refused> {
+    let shared = &race().shared;
     use crate::race::blocks_store::CAR_BLOCKS;
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
     let gears = s.gears.load(Relaxed);
-    crate::race::owner::race()
-        .shared
-        .vars
-        .stage_number
-        .set(s.course.load(Relaxed));
-    crate::race::owner::race().shared.vars.race_car_kinds[0].set(car);
-    crate::race::owner::race().shared.vars.race_car_kinds[1].set((car + 1) % 0x17);
+    shared.vars.stage_number.set(s.course.load(Relaxed));
+    shared.vars.race_car_kinds[0].set(car);
+    shared.vars.race_car_kinds[1].set((car + 1) % 0x17);
     // The two blocks' start slots. The set-up figures and tyres stay the player's
     // (`copy_settings_in`; the original set defaults here; owner, 2026-10-30).
     for (block, slot) in CAR_BLOCKS.cars[..2].iter().zip([1, 2]) {
@@ -82,43 +79,15 @@ fn set_up_race() -> Result<(), Refused> {
     for block in &CAR_BLOCKS.cars[..2] {
         block.camera_view.set(4);
     }
-    crate::race::owner::race().shared.vars.car_colours[0].set(gears);
-    crate::race::owner::race().shared.vars.car_colours[1].set(gears);
-    crate::race::owner::race()
-        .shared
-        .vars
-        .mip_setting
-        .set(s.mips.load(Relaxed));
-    crate::race::owner::race()
-        .shared
-        .vars
-        .run_kind
-        .set(s.mode.load(Relaxed));
-    crate::race::owner::race()
-        .shared
-        .vars
-        .direction
-        .set(s.direction.load(Relaxed));
-    crate::race::owner::race()
-        .shared
-        .view
-        .race_cars
-        .set(s.cars.load(Relaxed) + 1);
-    crate::race::owner::race()
-        .shared
-        .view
-        .players
-        .set(s.screens.load(Relaxed) + 1);
-    crate::race::owner::race()
-        .shared
-        .vars
-        .race_level
-        .set(s.rally.load(Relaxed));
-    crate::race::owner::race()
-        .shared
-        .vars
-        .race_stage
-        .set(s.stage.load(Relaxed));
+    shared.vars.car_colours[0].set(gears);
+    shared.vars.car_colours[1].set(gears);
+    shared.vars.mip_setting.set(s.mips.load(Relaxed));
+    shared.vars.run_kind.set(s.mode.load(Relaxed));
+    shared.vars.direction.set(s.direction.load(Relaxed));
+    shared.view.race_cars.set(s.cars.load(Relaxed) + 1);
+    shared.view.players.set(s.screens.load(Relaxed) + 1);
+    shared.vars.race_level.set(s.rally.load(Relaxed));
+    shared.vars.race_stage.set(s.stage.load(Relaxed));
     // What a race's start had left of the last, in both blocks: the damage and wear gauges
     // (the neutral gear's wear too, which the network race's clearing leaves).
     for block in &CAR_BLOCKS.cars[..2] {
@@ -131,11 +100,12 @@ fn set_up_race() -> Result<(), Refused> {
 /// `f` between what the menus' own route does round a race (`race::single_rally`): the
 /// game's mode changes of `sub_44326D` are the menus' here.
 fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
+    let shared = &race().shared;
     // `sub_44326D`'s, which the race's sound objects are made from (without them, a race
     // with no engine heard); the menus' own put back after.
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
-    let settings = &crate::race::owner::race().shared.state.settings;
+    let settings = &shared.state.settings;
     let menus: [(&Dword, u32); 6] = [
         (&settings.car_kind_current, car),
         (&settings.car_kind_first, (car + 1) % 0x17),
@@ -160,7 +130,7 @@ fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> 
     stage_free::render3d_tidy()?;
     stage_free::objects_tidy()?;
     race_end::release_textures();
-    crate::race::owner::race().shared.switches.mask_kind.set(0);
+    shared.switches.mask_kind.set(0);
     race_shell::clear_player_absences();
     f()?;
     step(Call::StopMusic)?;
@@ -184,23 +154,14 @@ fn test_course() -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     round_a_race(|| {
         race.course.numbers.replay_mode.set(1);
-        crate::race::owner::race()
-            .shared
-            .tables
-            .noise_seed
-            .set(0x1234_5678);
+        race.shared.tables.noise_seed.set(0x1234_5678);
         race.physics.split_tables.arcade_kind.set(2);
-        crate::race::owner::race()
-            .shared
-            .switches
-            .editor_mode
-            .set(0);
+        race.shared.switches.editor_mode.set(0);
         // Free play leaves the car where it was: on another course, or with no race
         // yet, that is nowhere, and the first search ends the game (seen 2026-10-30).
         let course = SETTINGS.course.load(Relaxed);
         crate::debug::screens::place_free_play(
-            !crate::debug::screens::raced()
-                || crate::race::owner::race().shared.vars.stage_number.bits() != course,
+            !crate::debug::screens::raced() || race.shared.vars.stage_number.bits() != course,
         );
         // The player's settings, as a race from the menus; then this tab's.
         crate::race::settings_copy::copy_settings_in()?;
@@ -210,7 +171,7 @@ fn test_course() -> Result<(), Refused> {
         stage_loading::load_stage()?;
         race_end::record_replay_header();
         replay::open_replay()?;
-        crate::race::owner::race().shared.view.after_credits.set(0);
+        race.shared.view.after_credits.set(0);
         crate::drive::play_race::play_race()?;
         replay::close_replay()?;
         race_end::tidy_everything()
@@ -224,7 +185,7 @@ fn finish_sequence() -> Result<(), Refused> {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
         race.course.numbers.replay_mode.set(1);
-        let results = &crate::race::owner::race().shared.state.results;
+        let results = &race.shared.state.results;
         race.replay.finish.no_place.set(1);
         results
             .stage_index
@@ -248,11 +209,12 @@ fn credits() -> Result<(), Refused> {
 
 /// `sub_4430C0`: the last race's replay (nothing happens without one).
 fn last_replay() -> Result<(), Refused> {
+    let shared = &race().shared;
     let course = &race().course;
     round_a_race(|| {
         course.numbers.replay_mode.set(2);
-        crate::race::owner::race().shared.view.player_options[0].set(u32::MAX);
-        crate::race::owner::race().shared.view.player_options[1].set(u32::MAX);
+        shared.view.player_options[0].set(u32::MAX);
+        shared.view.player_options[1].set(u32::MAX);
         let result =
             crate::race::replay_mode::replay_mode(crate::race::replay_viewer::Mode::LastRace);
         course.numbers.replay_mode.set(0);

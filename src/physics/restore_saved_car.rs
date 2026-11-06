@@ -14,43 +14,33 @@
 //! before writing.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The Rust version. Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
-    let n = restore_count(crate::race::owner::race().shared.car.probe_count.get())?;
-    crate::race::owner::race()
-        .shared
+    let race = race();
+    let n = restore_count(race.shared.car.probe_count.get())?;
+    race.shared
         .physics_tables
         .clear_place_count
-        .set(restored(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .clear_place_count
-                .get(),
-        ));
-    for (to, from) in crate::race::owner::race()
+        .set(restored(race.shared.physics_tables.clear_place_count.get()));
+    for (to, from) in race
         .shared
         .car
         .position
         .iter()
-        .zip(&crate::race::owner::race().shared.physics_tables.saved_place)
+        .zip(&race.shared.physics_tables.saved_place)
     {
         to.set(from.get());
     }
-    for (to, from) in crate::race::owner::race()
+    for (to, from) in race
         .shared
         .car
         .crash_matrix
         .iter()
-        .zip(
-            &crate::race::owner::race()
-                .shared
-                .physics_tables
-                .saved_matrix,
-        )
+        .zip(&race.shared.physics_tables.saved_matrix)
     {
         to.set_bits(from.bits());
     }
@@ -58,10 +48,7 @@ pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
     // follows each).
     crate::session::copy_on_in(
         (&physics.contact, &physics.contact.probe_saved_faces),
-        (
-            &crate::race::owner::race().shared.car,
-            &crate::race::owner::race().shared.car.probe_point_face,
-        ),
+        (&race.shared.car, &race.shared.car.probe_point_face),
         n as usize,
         "the saved faces",
     )?;

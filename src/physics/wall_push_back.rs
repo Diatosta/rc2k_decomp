@@ -26,7 +26,7 @@ use crate::race::owner::Race;
 /// callers.
 pub fn steps(race: &Race) -> Result<(), Refused> {
     let work = &race.frame.scratch.work_vector;
-    copy_cells(work, &crate::race::owner::race().shared.car.velocity);
+    copy_cells(work, &race.shared.car.velocity);
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
@@ -37,23 +37,16 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     copy_cells(&race.physics.contact.contact_normal, work);
     copy_cells(
         &race.physics.contact.contact_car_speed,
-        &crate::race::owner::race().shared.car.velocity,
+        &race.shared.car.velocity,
     );
     copy_cells(
         &race.physics.contact.contact_turn_speed,
-        &crate::race::owner::race().shared.car.spin,
+        &race.shared.car.spin,
     );
     fill_cells(&race.physics.contact.contact_point, 0);
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(
-        race,
-        &crate::race::owner::race().shared.physics_tables.contacts[4],
-    );
+    contact_force(race, &race.shared.physics_tables.contacts[4]);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .wall_heading
-        .set(u32::MAX);
+    race.shared.physics_tables.wall_heading.set(u32::MAX);
     Ok(())
 }

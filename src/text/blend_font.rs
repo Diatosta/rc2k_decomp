@@ -20,6 +20,7 @@ use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
+use crate::strings::owner::strings;
 use crate::text::font::Font;
 
 // ---- game data ----
@@ -47,7 +48,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
-    let mode: u32 = crate::strings::owner::strings().text.blend_mode.get();
+    let mode: u32 = strings().text.blend_mode.get();
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
@@ -86,6 +87,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
 #[cfg(test)]
 mod tests {
     use crate::moved::image_bytes;
+    use crate::strings::owner::strings;
 
     #[test]
     fn data_starts_as_the_games() {
@@ -99,7 +101,7 @@ mod tests {
             .flat_map(|w| w.get().to_le_bytes())
             .collect();
         assert_eq!(bytes, image_bytes(0x4F3B74, 0x400));
-        let mode = crate::strings::owner::strings().text.blend_mode.get();
+        let mode = strings().text.blend_mode.get();
         assert_eq!(mode.to_le_bytes().to_vec(), image_bytes(0x4F3F74, 4));
     }
 }

@@ -63,6 +63,7 @@ fn refusal() -> Result<Option<&'static str>, BadInput> {
 /// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub fn share_all_cars() -> Result<(), Refused> {
+    let race_owner = race();
     let race = race();
     if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
@@ -72,11 +73,7 @@ pub fn share_all_cars() -> Result<(), Refused> {
     set_listener(race)?;
     keep_lead_car_values(&race.frame);
     for (n, (block, record, sound)) in cars()?.into_iter().enumerate() {
-        crate::race::owner::race()
-            .shared
-            .work
-            .current_car
-            .set(n as u32);
+        race_owner.shared.work.current_car.set(n as u32);
         share_car_state(
             &race.course,
             crate::physics::car_store::Car::at(block),
@@ -84,7 +81,7 @@ pub fn share_all_cars() -> Result<(), Refused> {
             sound,
         )?;
     }
-    let first_record = crate::race::owner::race()
+    let first_record = race_owner
         .shared
         .work
         .car_record(crate::race::blocks_store::own_car_number())?;

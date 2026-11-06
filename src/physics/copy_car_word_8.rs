@@ -7,6 +7,7 @@
 //!
 //! Caller: `sub_43C8AC`.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -16,10 +17,12 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let shared_store = &race().shared;
+
     vec![
-        &crate::race::owner::race().shared.car.step_clock as &dyn Cell32,
-        &crate::race::owner::race().shared.physics_tables.time_marks[1],
-        &crate::race::owner::race().shared.physics_tables.time_marks[0],
+        &shared_store.car.step_clock as &dyn Cell32,
+        &shared_store.physics_tables.time_marks[1],
+        &shared_store.physics_tables.time_marks[0],
     ]
 }
 

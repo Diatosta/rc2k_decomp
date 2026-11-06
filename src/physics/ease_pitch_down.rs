@@ -7,13 +7,14 @@
 //!
 //! Caller: `sub_43907F` (0x4392F3).
 
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_down;
 
 fn game(physics: &Physics) -> Vec<&dyn Cell32> {
     vec![
-        &crate::race::owner::race().shared.car.camera_pitch as &dyn Cell32,
+        &race().shared.car.camera_pitch as &dyn Cell32,
         &physics.camera.pitch_floor,
         &physics.camera.pitch_step,
     ]

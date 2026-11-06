@@ -40,11 +40,9 @@ fn below(x: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn wheel_springs(race: &Race) {
+    let shared = &race.shared;
     let drawing = &scene().drawing;
-    let (c, ph) = (
-        &crate::race::owner::race().shared.car,
-        &crate::race::owner::race().shared.physics_tables,
-    );
+    let (c, ph) = (&shared.car, &shared.physics_tables);
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);

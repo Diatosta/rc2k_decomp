@@ -93,31 +93,21 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     let corner_point =
         |at| crate::race::course_places::face_field::<u32>(face, at, "a face's corner");
     let (from, to) = (corner_point(first)?, corner_point(second)?);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .crossed_edge[0]
-        .set(from);
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .crossed_edge[1]
-        .set(to);
+    race.shared.physics_tables.crossed_edge[0].set(from);
+    race.shared.physics_tables.crossed_edge[1].set(to);
     edge_normal(race, from, to)?;
-    race_owner.physics.contact.crossed_heading.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .wall_heading
-            .get(),
-    );
+    race_owner
+        .physics
+        .contact
+        .crossed_heading
+        .set(race.shared.physics_tables.wall_heading.get());
     copy3(
         &race_owner.physics.contact.contact_car_speed,
-        &crate::race::owner::race().shared.car.velocity,
+        &race.shared.car.velocity,
     );
     copy3(
         &race_owner.physics.contact.contact_turn_speed,
-        &crate::race::owner::race().shared.car.spin,
+        &race.shared.car.spin,
     );
     race_owner.physics.contact.contact_point[0]
         .set_bits(race_owner.physics.contact.probe_turned_x[k].bits());
@@ -130,10 +120,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race_owner.course.numbers.tenth.bits(),
     ));
     race_owner.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(
-        race,
-        &crate::race::owner::race().shared.physics_tables.contacts[1],
-    );
+    contact_force(race, &race.shared.physics_tables.contacts[1]);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }

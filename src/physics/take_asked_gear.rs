@@ -11,21 +11,19 @@
 use crate::errors::Refused;
 use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub fn take_asked_gear(course: &Course) -> Result<(), Refused> {
+    let race = race();
     let run = || -> Result<(), Refused> {
-        crate::race::owner::race().shared.car.gear_changed.set(0u32);
-        let word: u32 = crate::race::owner::race().shared.car.input_keys.get();
+        race.shared.car.gear_changed.set(0u32);
+        let word: u32 = race.shared.car.input_keys.get();
         let asked = rc2k_core::physics::gearbox::asked_gear(word);
         let gear = allowed_gear(course, asked)?;
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .gear_asked
-            .set(gear);
+        race.shared.physics_tables.gear_asked.set(gear);
         change_gear(course)
     };
 

@@ -13,13 +13,11 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::{Holder, RecordRef};
+use crate::system::owner::system;
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
 fn current_record() -> Result<RecordRef, BadInput> {
-    let table = crate::system::owner::system()
-        .records
-        .stage_tables
-        .championship();
+    let table = system().records.stage_tables.championship();
     let section: u32 = SECTION_RVA.get();
     let index: u32 = INDEX_RVA.get();
     if section >= 64

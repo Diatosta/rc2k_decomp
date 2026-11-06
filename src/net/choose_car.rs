@@ -11,6 +11,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
+use crate::net::owner::net;
 use crate::net::store::PlayerRecord;
 use crate::session::Dword;
 
@@ -21,6 +22,7 @@ pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
 pub fn choose_car() -> Result<(), Refused> {
+    let vars = &net().vars;
     let menus = menus();
     let play = &menus.play;
     CLEARED.set(0);
@@ -30,11 +32,11 @@ pub fn choose_car() -> Result<(), Refused> {
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;
-        crate::net::owner::net().vars.own.head.set(
+        vars.own.head.set(
             PlayerRecord::CAR,
             play.players.players[0].get().car_number as u8,
         );
-        crate::net::owner::net().vars.own.head.set(
+        vars.own.head.set(
             PlayerRecord::COLOURS,
             play.players.players[0].get().gearing as u8,
         );

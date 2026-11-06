@@ -19,15 +19,11 @@ pub fn mud_texture_turn(race: &Race) -> Result<(), Refused> {
     texture_and_mud()?;
     let [red, green, blue] = mud_colour(&race.course);
     // Converted: `rc2k_core::race::mud::packed_colour`.
-    crate::race::owner::race()
-        .shared
+    race.shared
         .vars
         .mud_packed
         .set(rc2k_core::race::mud::packed_colour([red, green, blue]));
-    for turn in [
-        &crate::race::owner::race().shared.vars.mud_turn_a,
-        &crate::race::owner::race().shared.vars.mud_turn_b,
-    ] {
+    for turn in [&race.shared.vars.mud_turn_a, &race.shared.vars.mud_turn_b] {
         turn[1].set(turn[0].get());
         turn[0].set(0);
     }

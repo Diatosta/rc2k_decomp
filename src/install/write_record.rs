@@ -13,12 +13,13 @@
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;
+use crate::strings::owner::strings;
 
 /// The record written; whether the write worked (the original leaves `write_file`'s carry
 /// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
 /// dropped it, and the install was judged by the change of folder before it.
 pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
-    let start = crate::place::Place::from(&crate::strings::owner::strings().text.buffer.text);
+    let start = crate::place::Place::from(&strings().text.buffer.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
     let locale_at = crate::files::state::locale_directory_place();

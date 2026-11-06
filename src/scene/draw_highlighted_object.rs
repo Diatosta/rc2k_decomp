@@ -44,6 +44,7 @@ pub fn draw_highlighted(
     menus: &Menus,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let shared = &race().shared;
     let drawing = &scene().drawing;
     let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
@@ -55,11 +56,7 @@ pub fn draw_highlighted(
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
-    let clock: u32 = crate::race::owner::race()
-        .shared
-        .physics_tables
-        .scene_clock
-        .bits();
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
     drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
     drawing.object_work.place[2].set(screens.state.carousel.z.get());
     drawing.object_work.place[0].set_bits(0u32);
@@ -75,11 +72,7 @@ pub fn draw_highlighted(
     }
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind);
-    crate::race::owner::race()
-        .shared
-        .switches
-        .object_number
-        .set_bits(object);
+    shared.switches.object_number.set_bits(object);
     draw()
 }
 

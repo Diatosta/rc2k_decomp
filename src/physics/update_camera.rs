@@ -43,6 +43,7 @@ use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewVars;
@@ -68,40 +69,35 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
     };
     let face = crate::race::checkpoints_store::nth(
         replay,
-        crate::race::checkpoints_store::nth(
-            nearest,
-            crate::race::owner::race().shared.car.checkpoint.get() as usize,
-        )
-        .get() as usize,
+        crate::race::checkpoints_store::nth(nearest, race.shared.car.checkpoint.get() as usize)
+            .get() as usize,
     )
     .get();
     let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")
         .unwrap_or_else(|e| crate::fatal::raise::end("a checkpoint face", e));
     for k in 0..3 {
-        crate::race::owner::race().shared.car.camera_position[k as usize].set(
+        race.shared.car.camera_position[k as usize].set(
             crate::race::scene_points::point_word(point, k)
                 .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
         );
     }
     crate::physics::camera_height_bias::camera_height_bias(race)?;
     let d = |k: usize| {
-        crate::race::owner::race().shared.car.position[k]
+        race.shared.car.position[k]
             .get()
-            .wrapping_sub(crate::race::owner::race().shared.car.camera_position[k].get())
+            .wrapping_sub(race.shared.car.camera_position[k].get())
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
     x87_1(&race.course, v);
-    crate::race::owner::race()
-        .shared
+    race.shared
         .car
         .camera_heading
-        .set(crate::race::owner::race().shared.car.camera_heading.get() << 4);
-    crate::race::owner::race()
-        .shared
+        .set(race.shared.car.camera_heading.get() << 4);
+    race.shared
         .car
         .camera_pitch
-        .set((crate::race::owner::race().shared.car.camera_pitch.get() << 4).wrapping_neg());
+        .set((race.shared.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(race, w);
     scene().drawing.scene.scratch.set(dz);
@@ -115,29 +111,20 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
                 &race_owner.frame.view_and_records.view_vars.camera_vector,
             )
         }));
-    crate::race::owner::race()
-        .shared
+    race.shared
         .car
         .camera_zoom
         .set_bits(race_owner.physics.camera.camera_zoom_kept.bits());
     if record()?.fixed_zoom.get() != 0 {
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_zoom
-            .set_bits(0x180);
+        race.shared.car.camera_zoom.set_bits(0x180);
         x87_3(race);
         hold_low(
-            &crate::race::owner::race().shared.car.camera_zoom,
+            &race.shared.car.camera_zoom,
             &race_owner.course.numbers.k384,
         );
     }
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_roll_turn
-        .set(0);
-    for turn in &crate::race::owner::race().shared.car.camera_offset_turns {
+    race.shared.car.camera_roll_turn.set(0);
+    for turn in &race.shared.car.camera_offset_turns {
         turn.set(0);
     }
     Ok(())
@@ -149,10 +136,9 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
 pub fn steps(race: &Race) -> Result<(), Refused> {
     crate::physics::camera_low_switch::camera_low_switch(race)?;
     for k in 0..3 {
-        race.frame.frame_work.camera_car[k]
-            .set(crate::race::owner::race().shared.car.position[k].get());
+        race.frame.frame_work.camera_car[k].set(race.shared.car.position[k].get());
     }
-    let car = crate::race::owner::race().shared.car.car_kind.get();
+    let car = race.shared.car.car_kind.get();
     // The car kind's light record (the original does not bound the kind; one past the 34
     // would read on into the gear figures, refused here).
     let head = LIGHT_RECORDS
@@ -170,14 +156,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
         ViewVars::record(1).focus[2].set_bits(crate::math::x87::loaded(head[10]));
     }
-    if crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_active
-        .get()
-        == 0
-        && let Some(second) =
-            camera_view::fixed_camera(crate::race::owner::race().shared.car.camera_view.get())
+    if race.shared.car.camera_switch_active.get() == 0
+        && let Some(second) = camera_view::fixed_camera(race.shared.car.camera_view.get())
     {
         fixed_camera(race, second)?;
         return Ok(());
@@ -191,91 +171,56 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        let v = crate::race::owner::race().shared.car.position[k].get();
+        let v = race.shared.car.position[k].get();
         copy.set(v);
-        crate::race::owner::race().shared.car.camera_position[k].set(v);
+        race.shared.car.camera_position[k].set(v);
     }
     race.course
         .course
         .place_heading
-        .set(crate::race::owner::race().shared.car.car_heading.get());
-    if crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_active
-        .get()
-        != 0
-    {
+        .set(race.shared.car.car_heading.get());
+    if race.shared.car.camera_switch_active.get() != 0 {
         if camera_view::switch_over(
-            crate::race::owner::race().shared.car.step_clock.get(),
-            crate::race::owner::race()
-                .shared
-                .car
-                .camera_switch_clock
-                .get(),
-            crate::race::owner::race()
-                .shared
-                .car
-                .camera_switch_length
-                .get(),
+            race.shared.car.step_clock.get(),
+            race.shared.car.camera_switch_clock.get(),
+            race.shared.car.camera_switch_length.get(),
         ) {
-            crate::race::owner::race()
-                .shared
+            race.shared.car.camera_switch_active.set(0);
+            race.shared.car.camera_switch_share.set_bits(0);
+            race.shared
                 .car
-                .camera_switch_active
-                .set(0);
-            crate::race::owner::race()
-                .shared
-                .car
-                .camera_switch_share
-                .set_bits(0);
-            crate::race::owner::race().shared.car.camera_view.set(
-                crate::race::owner::race()
-                    .shared
-                    .car
-                    .camera_blend_view
-                    .get(),
-            );
-            crate::race::owner::race()
-                .shared
+                .camera_view
+                .set(race.shared.car.camera_blend_view.get());
+            race.shared
                 .car
                 .value_jump_steps
                 .set(camera_view::SWITCH_HOLD);
-            let after = camera_view::mode_after_switch(
-                crate::race::owner::race().shared.car.camera_view.get(),
-            );
-            if after != crate::race::owner::race().shared.car.camera_view.get() {
-                crate::race::owner::race().shared.car.camera_view.set(after);
+            let after = camera_view::mode_after_switch(race.shared.car.camera_view.get());
+            if after != race.shared.car.camera_view.get() {
+                race.shared.car.camera_view.set(after);
             }
         } else {
             x87_5();
             hold_high(
-                &crate::race::owner::race().shared.car.camera_switch_share,
+                &race.shared.car.camera_switch_share,
                 &race.course.numbers.one,
             );
             hold_low(
-                &crate::race::owner::race().shared.car.camera_switch_share,
+                &race.shared.car.camera_switch_share,
                 &race.course.numbers.zero,
             );
         }
     }
     let (mode, before) = (
-        crate::race::owner::race().shared.car.camera_view.get(),
-        crate::race::owner::race()
-            .shared
-            .car
-            .camera_blend_view
-            .get(),
+        race.shared.car.camera_view.get(),
+        race.shared.car.camera_blend_view.get(),
     );
     camera_view::check_modes(mode, before)?;
     crate::physics::take_view_a::take_view_a(&race.physics, ViewVars::record_of(mode as usize)?)?;
     crate::physics::take_view_b::take_view_b(&race.physics, ViewVars::record_of(before as usize)?);
     x87_6(&race.physics);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
-    let (work, offset_turns) = (
-        &race.physics.camera,
-        &crate::race::owner::race().shared.car.camera_offset_turns,
-    );
+    let (work, offset_turns) = (&race.physics.camera, &race.shared.car.camera_offset_turns);
     let rows: [(&dyn Cell32, &dyn Cell32, &dyn Cell32); 9] = [
         (
             &work.camera_offset_x,
@@ -326,7 +271,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     for (to, x, y) in rows {
         x87_7(&race.course, x, y, to);
     }
-    for turn in &crate::race::owner::race().shared.car.camera_offset_turns {
+    for turn in &race.shared.car.camera_offset_turns {
         turn.set(turn.get() << 16);
     }
     race.physics
@@ -351,7 +296,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .set(race.physics.camera.view_a_aux_2.get());
     x87_8(&race.physics);
     hold_low(
-        &crate::race::owner::race().shared.car.camera_zoom,
+        &race.shared.car.camera_zoom,
         &race.frame.view_and_records.view_vars.camera_zoom_hold,
     );
     crate::physics::ease_view_angles::ease_view_angles(&race.course)?;
@@ -372,6 +317,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 /// `int [rc + 0x31A688] = ((atan2(int [v + 0], int [v + 4]) * [rc + 0x1C5D98]) * [rc + 0x1C5E28]) * [rc + 0x1C5DD4]`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_1(course: &Course, v: [u32; 3]) {
+    let race = race();
     let t0 = int(v[0] as i32);
     let t1 = int(v[1] as i32);
     let t2 = t0.atan2(t1);
@@ -381,11 +327,7 @@ fn x87_1(course: &Course, v: [u32; 3]) {
     let t6 = t4 * t5;
     let t7 = ld(course.numbers.one_over_two_pi.bits());
     let t8 = t6 * t7;
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_heading
-        .set_bits(to_int(t8) as u32);
+    race.shared.car.camera_heading.set_bits(to_int(t8) as u32);
     let t9 = int(v[2] as i32);
     let t10 = int(v[0] as i32);
     let t11 = t10 * t10;
@@ -400,11 +342,7 @@ fn x87_1(course: &Course, v: [u32; 3]) {
     let t20 = t18 * t19;
     let t21 = ld(course.numbers.one_over_two_pi.bits());
     let t22 = t20 * t21;
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_pitch
-        .set_bits(to_int(t22) as u32);
+    race.shared.car.camera_pitch.set_bits(to_int(t22) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -431,16 +369,12 @@ fn x87_2(race: &Race, v: [u32; 3]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A6A0] = (int [rc + 0x31A6A0] * [rc + 0x20631C]) / [rc + 0x1C5D48]`
 fn x87_3(race: &Race) {
-    let t0 = int(crate::race::owner::race().shared.car.camera_zoom.bits() as i32);
+    let t0 = int(race.shared.car.camera_zoom.bits() as i32);
     let t1 = ld(race.frame.view_and_records.view_vars.camera_distance.bits());
     let t2 = t0 * t1;
     let t3 = ld(race.course.numbers.five.bits());
     let t4 = t2 / t3;
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_zoom
-        .set_bits(st(t4));
+    race.shared.car.camera_zoom.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -454,6 +388,7 @@ fn x87_3(race: &Race) {
 /// `[rc + 0x206570] = [d + 0x24]`
 /// `[rc + 0x206574] = int [d + 0x20] * [rc + 0x1C5DA0]`
 fn x87_4(course: &Course, d: &[u32; 11]) {
+    let race = race();
     let t0 = int(d[0] as i32);
     let t1 = ld(course.numbers.one_over_65536.bits());
     let t2 = t0 * t1;
@@ -461,11 +396,7 @@ fn x87_4(course: &Course, d: &[u32; 11]) {
     let t3 = int(d[1] as i32);
     let t4 = ld(course.numbers.one_over_65536.bits());
     let t5 = t3 * t4;
-    let t6 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .camera_drop
-        .bits());
+    let t6 = ld(race.shared.physics_tables.camera_drop.bits());
     let t7 = t5 - t6;
     ViewVars::record(2).focus[1].set_bits(st(t7));
     let t8 = int(d[2] as i32);
@@ -479,11 +410,7 @@ fn x87_4(course: &Course, d: &[u32; 11]) {
     let t14 = int(d[5] as i32);
     let t15 = ld(course.numbers.one_over_65536.bits());
     let t16 = t14 * t15;
-    let t17 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .camera_drop
-        .bits());
+    let t17 = ld(race.shared.physics_tables.camera_drop.bits());
     let t18 = t16 - t17;
     ViewVars::record(3).focus[1].set_bits(st(t18));
     let t19 = int(d[6] as i32);
@@ -502,24 +429,13 @@ fn x87_4(course: &Course, d: &[u32; 11]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A674] = (int [rc + 0x319FE0] - int [rc + 0x31A668]) / int [rc + 0x31A670]`
 fn x87_5() {
-    let t0 = int(crate::race::owner::race().shared.car.step_clock.bits() as i32);
-    let t1 = int(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_clock
-        .bits() as i32);
+    let race = race();
+    let t0 = int(race.shared.car.step_clock.bits() as i32);
+    let t1 = int(race.shared.car.camera_switch_clock.bits() as i32);
     let t2 = t0 - t1;
-    let t3 = int(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_length
-        .bits() as i32);
+    let t3 = int(race.shared.car.camera_switch_length.bits() as i32);
     let t4 = t2 / t3;
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .set_bits(st(t4));
+    race.shared.car.camera_switch_share.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -528,14 +444,11 @@ fn x87_5() {
 /// `int [rc + 0x208B50] = ((int [rc + 0x208B68] - int [rc + 0x208B5C]) * [rc + 0x31A674]) + int [rc + 0x208B5C]`
 /// `int [rc + 0x208B54] = ((int [rc + 0x208B6C] - int [rc + 0x208B60]) * [rc + 0x31A674]) + int [rc + 0x208B60]`
 fn x87_6(physics: &Physics) {
+    let race = race();
     let t0 = int(physics.camera.view_b_pitch.bits() as i32);
     let t1 = int(physics.camera.view_a_pitch.bits() as i32);
     let t2 = t0 - t1;
-    let t3 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .bits());
+    let t3 = ld(race.shared.car.camera_switch_share.bits());
     let t4 = t2 * t3;
     let t5 = int(physics.camera.view_a_pitch.bits() as i32);
     let t6 = t4 + t5;
@@ -543,11 +456,7 @@ fn x87_6(physics: &Physics) {
     let t7 = int(physics.camera.view_b_heading.bits() as i32);
     let t8 = int(physics.camera.view_a_heading.bits() as i32);
     let t9 = t7 - t8;
-    let t10 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .bits());
+    let t10 = ld(race.shared.car.camera_switch_share.bits());
     let t11 = t9 * t10;
     let t12 = int(physics.camera.view_a_heading.bits() as i32);
     let t13 = t11 + t12;
@@ -555,11 +464,7 @@ fn x87_6(physics: &Physics) {
     let t14 = int(physics.camera.view_b_roll.bits() as i32);
     let t15 = int(physics.camera.view_a_roll.bits() as i32);
     let t16 = t14 - t15;
-    let t17 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .bits());
+    let t17 = ld(race.shared.car.camera_switch_share.bits());
     let t18 = t16 * t17;
     let t19 = int(physics.camera.view_a_roll.bits() as i32);
     let t20 = t18 + t19;
@@ -573,11 +478,7 @@ fn x87_7(course: &Course, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
     let t0 = ld(x.bits());
     let t1 = ld(y.bits());
     let t2 = t0 - t1;
-    let t3 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .camera_switch_share
-        .bits());
+    let t3 = ld(race().shared.car.camera_switch_share.bits());
     let t4 = t2 * t3;
     let t5 = ld(y.bits());
     let t6 = t4 + t5;
@@ -591,11 +492,7 @@ fn x87_7(course: &Course, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
 /// `[rc + 0x31A6A0] = int [rc + 0x208BF0]`
 fn x87_8(physics: &Physics) {
     let t0 = int(physics.camera.view_blend_aux_2.bits() as i32);
-    crate::race::owner::race()
-        .shared
-        .car
-        .camera_zoom
-        .set_bits(st(t0));
+    race().shared.car.camera_zoom.set_bits(st(t0));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

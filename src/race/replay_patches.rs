@@ -10,14 +10,15 @@
 //! Both keep every register (`pusha` / `popa`).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
 /// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
 pub fn switches() -> impl Iterator<Item = &'static Dword> {
-    std::iter::once(&crate::race::owner::race().shared.work.patch_switch)
-        .chain(crate::race::owner::race().shared.work.patch_settings.iter())
+    let shared = &race().shared;
+    std::iter::once(&shared.work.patch_switch).chain(shared.work.patch_settings.iter())
 }
 
 /// `rep movsd` of the dwords, forwards.
@@ -39,11 +40,7 @@ pub fn apply_replay_patches() -> Result<(), Refused> {
         VIEWER_PANEL.patches_in_force.set(1);
         move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches()); // unk_5C2C98
         move_dwords(switches(), REPLAY_WORK.header_patches.iter()); // unk_719C58
-        crate::race::owner::race()
-            .shared
-            .work
-            .patches_applied
-            .set(0);
+        race().shared.work.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches();
     }
     Ok(())
@@ -60,11 +57,7 @@ pub fn restore_replay_patches() -> Result<(), Refused> {
     ) {
         VIEWER_PANEL.patches_in_force.set(0);
         move_dwords(switches(), VIEWER_PANEL.kept_patch_switches.iter());
-        crate::race::owner::race()
-            .shared
-            .work
-            .patches_applied
-            .set(0);
+        race().shared.work.patches_applied.set(0);
         crate::physics::apply_patches::apply_patches();
     }
     Ok(())

@@ -10,9 +10,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
+use crate::net::owner::net;
 
 /// The Rust version.
 pub fn settings_done() -> Result<(), Refused> {
+    let vars = &net().vars;
     let saved = if crate::net::find_connections::find_connections()? {
         crate::net::find_saved_connection::find_saved_connection()?
     } else {
@@ -21,8 +23,8 @@ pub fn settings_done() -> Result<(), Refused> {
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(n)?,
         None => {
-            zero(&crate::net::owner::net().vars.saved_connection, 0x10)?;
-            zero(&crate::net::owner::net().vars.saved_name, 0x40)?;
+            zero(&vars.saved_connection, 0x10)?;
+            zero(&vars.saved_name, 0x40)?;
         }
     }
     crate::net::stop::stop()

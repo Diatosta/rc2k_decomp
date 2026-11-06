@@ -15,6 +15,7 @@ use crate::physics::gear_bit::gear_bit;
 use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use std::cmp::Ordering;
 
@@ -28,25 +29,22 @@ pub fn below(a: u32, b: u32) -> bool {
 
 /// The common end of a change: +0x1D0 = `dword_613FA4`, the hold 20, both words 1.
 pub fn settle() {
-    crate::race::owner::race().shared.car.drive_cut_steps.set(
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .drive_cut_steps
-            .get(),
-    );
-    crate::race::owner::race()
-        .shared
+    let race = race();
+    race.shared
+        .car
+        .drive_cut_steps
+        .set(race.shared.physics_tables.drive_cut_steps.get());
+    race.shared
         .car
         .gear_change_hold
         .set(rc2k_core::physics::gear_shifts::HOLD);
-    crate::race::owner::race().shared.car.gear_changed.set(1);
-    crate::race::owner::race().shared.car.gear_changed_2.set(1);
+    race.shared.car.gear_changed.set(1);
+    race.shared.car.gear_changed_2.set(1);
 }
 
 /// Neutral, then `settle`.
 pub fn neutral() {
-    crate::race::owner::race().shared.car.gear.set(0);
+    race().shared.car.gear.set(0);
     settle();
 }
 
@@ -75,13 +73,10 @@ pub fn revs_speed() -> Result<(), Refused> {
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
 pub fn over_top() -> u32 {
+    let race = race();
     x87::div(
-        crate::race::owner::race().shared.car.engine_speed.bits(),
-        crate::race::owner::race()
-            .shared
-            .car
-            .engine_speed_limit
-            .bits(),
+        race.shared.car.engine_speed.bits(),
+        race.shared.car.engine_speed_limit.bits(),
     )
 }
 
@@ -90,8 +85,5 @@ pub fn ratio(gear: u32) -> Result<u32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(
-        crate::race::owner::race().shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize]
-            .bits(),
-    )
+    Ok(race().shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits())
 }

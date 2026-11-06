@@ -15,17 +15,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::apply_message::apply_message;
 use crate::net::copy_received::{MOST_PLAYERS, copy_received};
+use crate::net::owner::net;
 
 /// The Rust version.
 pub fn apply_received() -> Result<(), Refused> {
-    let count = || crate::net::owner::net().vars.players.get();
+    let vars = &net().vars;
+    let count = || vars.players.get();
     if count() == 0 || count() > MOST_PLAYERS {
         return Err(BadInput("no players, or more than the records' 16").into());
     }
     copy_received()?;
     let mut player = 0;
     loop {
-        let block = crate::net::owner::net().vars.player_block(player);
+        let block = vars.player_block(player);
         let mut left = block.copied_count.get();
         if left != 0 {
             let mut record = crate::pointers::GamePtr::to(&block.copied);

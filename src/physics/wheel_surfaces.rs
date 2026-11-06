@@ -40,6 +40,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::{PhysicsTables, Surface};
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -64,7 +65,7 @@ fn check(course: &Course) -> Result<(), Refused> {
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if crate::race::owner::race().shared.car.tyre_kind.get() > 5 {
+    if race().shared.car.tyre_kind.get() > 5 {
         return Err(BadInput("a surface table index past 5").into());
     }
     Ok(())
@@ -78,7 +79,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     check(&race.course)?;
     for c in 0..5u32 {
         let cc = c as usize;
-        let f = crate::race::owner::race().shared.car.probe_point_face[cc].get();
+        let f = race.shared.car.probe_point_face[cc].get();
         let face_byte = |offset| -> Result<u32, Refused> {
             Ok(u32::from(crate::race::course_places::face_field::<u8>(
                 f,
@@ -96,53 +97,31 @@ fn steps(race: &Race) -> Result<(), Refused> {
             ebx ^= 1;
         }
         let (_, _, d1) = flip_cell_index(face_byte(0)?, ebx, edx);
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .surface_firsts[cc]
-            .set(d1);
+        race.shared.physics_tables.surface_firsts[cc].set(d1);
         let (_, _, d2) = flip_cell_index(face_byte(0x20)?, ebx, edx);
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .surface_seconds[cc]
-            .set(d2);
+        race.shared.physics_tables.surface_seconds[cc].set(d2);
         {
-            let e = crate::race::owner::race()
-                .shared
-                .physics_tables
-                .surface_firsts[cc]
-                .get();
-            crate::race::owner::race().shared.car.wheel_surface_a[cc]
-                .set(info_byte(t1, e.wrapping_add(0x10))?);
-            crate::race::owner::race().shared.car.wheel_cell_a_byte18[cc]
-                .set(info_byte(t1, e.wrapping_add(0x18))?);
-            crate::race::owner::race().shared.car.wheel_cell_a_byte14[cc]
-                .set(info_byte(t1, e.wrapping_add(0x14))?);
+            let e = race.shared.physics_tables.surface_firsts[cc].get();
+            race.shared.car.wheel_surface_a[cc].set(info_byte(t1, e.wrapping_add(0x10))?);
+            race.shared.car.wheel_cell_a_byte18[cc].set(info_byte(t1, e.wrapping_add(0x18))?);
+            race.shared.car.wheel_cell_a_byte14[cc].set(info_byte(t1, e.wrapping_add(0x14))?);
             let t2 = face_byte(0x21)?;
-            let e2 = crate::race::owner::race()
-                .shared
-                .physics_tables
-                .surface_seconds[cc]
-                .get();
-            crate::race::owner::race().shared.car.wheel_surface_b[cc]
-                .set(info_byte(t2, e2.wrapping_add(0x10))?);
-            crate::race::owner::race().shared.car.wheel_cell_b_byte18[cc]
-                .set(info_byte(t2, e2.wrapping_add(0x18))?);
-            crate::race::owner::race().shared.car.wheel_cell_b_byte14[cc]
-                .set(info_byte(t2, e2.wrapping_add(0x14))?);
-            crate::race::owner::race().shared.car.wheel_surface_blend[cc].set_bits(0);
+            let e2 = race.shared.physics_tables.surface_seconds[cc].get();
+            race.shared.car.wheel_surface_b[cc].set(info_byte(t2, e2.wrapping_add(0x10))?);
+            race.shared.car.wheel_cell_b_byte18[cc].set(info_byte(t2, e2.wrapping_add(0x18))?);
+            race.shared.car.wheel_cell_b_byte14[cc].set(info_byte(t2, e2.wrapping_add(0x14))?);
+            race.shared.car.wheel_surface_blend[cc].set_bits(0);
             let kind_index = info_byte(t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(
-                &crate::race::owner::race().shared.view,
-                &crate::race::owner::race().shared.view.surface_kinds,
+                &race.shared.view,
+                &race.shared.view.surface_kinds,
                 kind_index as usize,
                 "the surface kinds (a byte index past the table)",
             )?;
             if kind != 5
                 && kind != 4
-                && crate::race::owner::race().shared.car.wheel_surface_b[cc].get() != 0
+                && race.shared.car.wheel_surface_b[cc].get() != 0
                 && face_byte(0x21)? != 0
             {
                 let (x, y, z) = if physics.contact.probe_face_flip[cc].get() == 1 {
@@ -158,40 +137,34 @@ fn steps(race: &Race) -> Result<(), Refused> {
             if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
                 != 0
             {
-                crate::race::owner::race().shared.car.wheel_surface_a[cc].set(5);
-                crate::race::owner::race().shared.car.wheel_surface_b[cc].set(5);
-                crate::race::owner::race().shared.car.wheel_cell_a_byte18[cc].set(0x3C);
-                crate::race::owner::race().shared.car.wheel_cell_b_byte18[cc].set(0x3C);
-                crate::race::owner::race().shared.car.wheel_cell_a_byte14[cc].set(0);
-                crate::race::owner::race().shared.car.wheel_cell_b_byte14[cc].set(0);
+                race.shared.car.wheel_surface_a[cc].set(5);
+                race.shared.car.wheel_surface_b[cc].set(5);
+                race.shared.car.wheel_cell_a_byte18[cc].set(0x3C);
+                race.shared.car.wheel_cell_b_byte18[cc].set(0x3C);
+                race.shared.car.wheel_cell_a_byte14[cc].set(0);
+                race.shared.car.wheel_cell_b_byte14[cc].set(0);
             }
             let (s1, s2) = (
-                crate::race::owner::race().shared.car.wheel_surface_a[cc].get(),
-                crate::race::owner::race().shared.car.wheel_surface_b[cc].get(),
+                race.shared.car.wheel_surface_a[cc].get(),
+                race.shared.car.wheel_surface_b[cc].get(),
             );
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
             let (esi, edi) = (
-                &crate::race::owner::race().shared.physics_tables.surfaces[s1 as usize],
-                &crate::race::owner::race().shared.physics_tables.surfaces[s2 as usize],
+                &race.shared.physics_tables.surfaces[s1 as usize],
+                &race.shared.physics_tables.surfaces[s2 as usize],
             );
             x87_3(esi, edi, cc);
             let (ps, pd) = (
                 PhysicsTables::surface_table_index(s1)?,
                 PhysicsTables::surface_table_index(s2)?,
             );
-            let k = crate::race::owner::race().shared.car.tyre_kind.get();
+            let k = race.shared.car.tyre_kind.get();
             x87_4(
                 &race.course,
-                &crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .surface_tables[ps..],
-                &crate::race::owner::race()
-                    .shared
-                    .physics_tables
-                    .surface_tables[pd..],
+                &race.shared.physics_tables.surface_tables[ps..],
+                &race.shared.physics_tables.surface_tables[pd..],
                 k as usize,
             );
             x87_5(esi, edi, cc);
@@ -200,20 +173,16 @@ fn steps(race: &Race) -> Result<(), Refused> {
     x87_6();
     for c in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
-        let on = hard(crate::race::owner::race().shared.car.wheel_surface_a[c].get())
-            || hard(crate::race::owner::race().shared.car.wheel_surface_b[c].get());
-        crate::race::owner::race().shared.physics_tables.hard_ground[c].set(on as u32);
+        let on = hard(race.shared.car.wheel_surface_a[c].get())
+            || hard(race.shared.car.wheel_surface_b[c].get());
+        race.shared.physics_tables.hard_ground[c].set(on as u32);
     }
-    let hard = crate::race::owner::race().shared.physics_tables.hard_ground[0]
+    let hard = race.shared.physics_tables.hard_ground[0]
         .get()
-        .wrapping_add(crate::race::owner::race().shared.physics_tables.hard_ground[1].get())
-        .wrapping_add(crate::race::owner::race().shared.physics_tables.hard_ground[2].get())
-        .wrapping_add(crate::race::owner::race().shared.physics_tables.hard_ground[3].get());
-    crate::race::owner::race()
-        .shared
-        .car
-        .hard_ground_count
-        .set(hard);
+        .wrapping_add(race.shared.physics_tables.hard_ground[1].get())
+        .wrapping_add(race.shared.physics_tables.hard_ground[2].get())
+        .wrapping_add(race.shared.physics_tables.hard_ground[3].get());
+    race.shared.car.hard_ground_count.set(hard);
     let below = |a: u32, b: u32| {
         !matches!(
             f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
@@ -221,42 +190,29 @@ fn steps(race: &Race) -> Result<(), Refused> {
         )
     };
     let mut least = if below(
-        crate::race::owner::race().shared.physics_tables.point_grips[0].bits(),
-        crate::race::owner::race().shared.physics_tables.point_grips[1].bits(),
+        race.shared.physics_tables.point_grips[0].bits(),
+        race.shared.physics_tables.point_grips[1].bits(),
     ) {
-        crate::race::owner::race().shared.physics_tables.point_grips[0].bits()
+        race.shared.physics_tables.point_grips[0].bits()
     } else {
-        crate::race::owner::race().shared.physics_tables.point_grips[1].bits()
+        race.shared.physics_tables.point_grips[1].bits()
     };
-    crate::race::owner::race()
-        .shared
+    race.shared
         .car
         .ground_bump_scale
         .set_bits(crate::math::x87::loaded(least));
-    for k in &crate::race::owner::race().shared.physics_tables.point_grips[2..5] {
-        least = if below(
-            crate::race::owner::race()
-                .shared
-                .car
-                .ground_bump_scale
-                .bits(),
-            k.bits(),
-        ) {
-            crate::race::owner::race()
-                .shared
-                .car
-                .ground_bump_scale
-                .bits()
+    for k in &race.shared.physics_tables.point_grips[2..5] {
+        least = if below(race.shared.car.ground_bump_scale.bits(), k.bits()) {
+            race.shared.car.ground_bump_scale.bits()
         } else {
             k.bits()
         };
-        crate::race::owner::race()
-            .shared
+        race.shared
             .car
             .ground_bump_scale
             .set_bits(crate::math::x87::loaded(least));
     }
-    x87_7(&race.course);
+    x87_7(&crate::race::owner::race().course);
     Ok(())
 }
 
@@ -293,7 +249,7 @@ fn x87_2(race: &Race, c: usize) {
     let t8 = t2 + t7;
     let t9 = ld(race.course.numbers.k256.bits());
     let t10 = t8 / t9;
-    crate::race::owner::race().shared.car.wheel_surface_blend[c].set_bits(st(t10));
+    race.shared.car.wheel_surface_blend[c].set_bits(st(t10));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -301,20 +257,21 @@ fn x87_2(race: &Race, c: usize) {
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
 fn x87_3(s: &Surface, d: &Surface, c: usize) {
+    let shared = &race().shared;
     let t0 = ld(s.grip.bits());
     let t1 = ld(d.grip.bits());
     let t2 = t1 - t0;
-    let t3 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t3 = ld(shared.car.wheel_surface_blend[c].bits());
     let t4 = t2 * t3;
     let t5 = t0 + t4;
-    crate::race::owner::race().shared.physics_tables.point_grips[c].set_bits(st(t5));
+    shared.physics_tables.point_grips[c].set_bits(st(t5));
     let t6 = ld(s.blend_2c.bits());
     let t7 = ld(d.blend_2c.bits());
     let t8 = t7 - t6;
-    let t9 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t9 = ld(shared.car.wheel_surface_blend[c].bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    crate::race::owner::race().shared.car.point_surface_2c[c].set_bits(st(t11));
+    shared.car.point_surface_2c[c].set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -322,32 +279,25 @@ fn x87_3(s: &Surface, d: &Surface, c: usize) {
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
+    let race = race();
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
-    let t9 = ld(crate::race::owner::race().shared.car.surface_blend.bits());
+    let t9 = ld(race.shared.car.surface_blend.bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
     let t12 = ld(course.numbers.hundredth_a.bits());
     let t13 = t11 * t12;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[0]
-        .set_bits(st(t13));
+    race.shared.physics_tables.surface_scales[0].set_bits(st(t13));
     let t14 = int(d[k + 1].get() as i32);
     let t15 = int(d[k + 7].get() as i32);
     let t16 = t15 - t14;
-    let t17 = ld(crate::race::owner::race().shared.car.surface_blend.bits());
+    let t17 = ld(race.shared.car.surface_blend.bits());
     let t18 = t16 * t17;
     let t19 = t14 + t18;
     let t20 = ld(course.numbers.hundredth_a.bits());
     let t21 = t19 * t20;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[1]
-        .set_bits(st(t21));
+    race.shared.physics_tables.surface_scales[1].set_bits(st(t21));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -360,153 +310,91 @@ fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
 /// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
 fn x87_5(s: &Surface, d: &Surface, c: usize) {
+    let race = race();
     let t0 = ld(s.slide_grip.bits());
-    let t1 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[0]
-        .bits());
+    let t1 = ld(race.shared.physics_tables.surface_scales[0].bits());
     let t2 = t0 * t1;
     let t3 = ld(d.slide_grip.bits());
-    let t4 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[1]
-        .bits());
+    let t4 = ld(race.shared.physics_tables.surface_scales[1].bits());
     let t5 = t3 * t4;
     let t6 = t5 - t2;
-    let t7 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t7 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t8 = t6 * t7;
     let t9 = t2 + t8;
-    let t10 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_surface[2]
-        .bits());
+    let t10 = ld(race.shared.physics_tables.spec_surface[2].bits());
     let t11 = t9 * t10;
-    crate::race::owner::race().shared.physics_tables.wheel_loads[c].set_bits(st(t11));
+    race.shared.physics_tables.wheel_loads[c].set_bits(st(t11));
     let t12 = ld(s.accel_grip.bits());
-    let t13 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[0]
-        .bits());
+    let t13 = ld(race.shared.physics_tables.surface_scales[0].bits());
     let t14 = t12 * t13;
     let t15 = ld(d.accel_grip.bits());
-    let t16 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[1]
-        .bits());
+    let t16 = ld(race.shared.physics_tables.surface_scales[1].bits());
     let t17 = t15 * t16;
     let t18 = t17 - t14;
-    let t19 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t19 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t20 = t18 * t19;
     let t21 = t14 + t20;
-    let t22 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_surface[0]
-        .bits());
+    let t22 = ld(race.shared.physics_tables.spec_surface[0].bits());
     let t23 = t21 * t22;
-    crate::race::owner::race().shared.physics_tables.wheel_grips[c].set_bits(st(t23));
+    race.shared.physics_tables.wheel_grips[c].set_bits(st(t23));
     let t24 = ld(s.brake_grip.bits());
-    let t25 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[0]
-        .bits());
+    let t25 = ld(race.shared.physics_tables.surface_scales[0].bits());
     let t26 = t24 * t25;
     let t27 = ld(d.brake_grip.bits());
-    let t28 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_scales[1]
-        .bits());
+    let t28 = ld(race.shared.physics_tables.surface_scales[1].bits());
     let t29 = t27 * t28;
     let t30 = t29 - t26;
-    let t31 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t31 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t32 = t30 * t31;
     let t33 = t26 + t32;
-    let t34 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .spec_surface[1]
-        .bits());
+    let t34 = ld(race.shared.physics_tables.spec_surface[1].bits());
     let t35 = t33 * t34;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .wheel_grips_b[c]
-        .set_bits(st(t35));
+    race.shared.physics_tables.wheel_grips_b[c].set_bits(st(t35));
     let t36 = ld(s.drag.bits());
     let t37 = ld(d.drag.bits());
     let t38 = t37 - t36;
-    let t39 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t39 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t40 = t38 * t39;
     let t41 = t36 + t40;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[c]
-        .set_bits(st(t41));
+    race.shared.physics_tables.surface_blends[c].set_bits(st(t41));
     let t42 = ld(s.blend_24.bits());
     let t43 = ld(d.blend_24.bits());
     let t44 = t43 - t42;
-    let t45 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t45 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t46 = t44 * t45;
     let t47 = t42 + t46;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[5 + c]
-        .set_bits(st(t47));
+    race.shared.physics_tables.surface_blends[5 + c].set_bits(st(t47));
     let t48 = ld(s.blend_10[1].bits());
     let t49 = ld(d.blend_10[1].bits());
     let t50 = t49 - t48;
-    let t51 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t51 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t52 = t50 * t51;
     let t53 = t48 + t52;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[10 + c]
-        .set_bits(st(t53));
+    race.shared.physics_tables.surface_blends[10 + c].set_bits(st(t53));
     let t54 = ld(s.blend_10[0].bits());
     let t55 = ld(d.blend_10[0].bits());
     let t56 = t55 - t54;
-    let t57 = ld(crate::race::owner::race().shared.car.wheel_surface_blend[c].bits());
+    let t57 = ld(race.shared.car.wheel_surface_blend[c].bits());
     let t58 = t56 * t57;
     let t59 = t54 + t58;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[15 + c]
-        .set_bits(st(t59));
+    race.shared.physics_tables.surface_blends[15 + c].set_bits(st(t59));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214268] = ((([rc + 0x214284] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [rc + 0x213FEC]`
 fn x87_6() {
-    let t0 = ld(crate::race::owner::race().shared.physics_tables.wheel_loads[0].bits());
-    let t1 = ld(crate::race::owner::race().shared.physics_tables.wheel_loads[1].bits());
+    let race = race();
+    let t0 = ld(race.shared.physics_tables.wheel_loads[0].bits());
+    let t1 = ld(race.shared.physics_tables.wheel_loads[1].bits());
     let t2 = t0 + t1;
-    let t3 = ld(crate::race::owner::race().shared.physics_tables.wheel_loads[2].bits());
+    let t3 = ld(race.shared.physics_tables.wheel_loads[2].bits());
     let t4 = t2 + t3;
-    let t5 = ld(crate::race::owner::race().shared.physics_tables.wheel_loads[3].bits());
+    let t5 = ld(race.shared.physics_tables.wheel_loads[3].bits());
     let t6 = t4 + t5;
-    let t7 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .wheel_load_scale
-        .bits());
+    let t7 = ld(race.shared.physics_tables.wheel_load_scale.bits());
     let t8 = t6 * t7;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .wheel_load
-        .set_bits(st(t8));
+    race.shared.physics_tables.wheel_load.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -520,101 +408,49 @@ fn x87_6() {
 /// `[rc + 0x223DA8] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
 fn x87_7(course: &Course) {
+    let race = race();
     let drawing = &scene().drawing;
-    let t0 = ld(crate::race::owner::race()
-        .shared
-        .car
-        .ground_bump_scale
-        .bits());
-    let t1 = ld(crate::race::owner::race().shared.physics_tables.handling[6].bits());
+    let t0 = ld(race.shared.car.ground_bump_scale.bits());
+    let t1 = ld(race.shared.physics_tables.handling[6].bits());
     let t2 = t0 * t1;
-    crate::race::owner::race()
-        .shared
-        .car
-        .ground_bump_scale
-        .set_bits(st(t2));
-    let t3 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[0]
-        .bits());
-    let t4 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[2]
-        .bits());
+    race.shared.car.ground_bump_scale.set_bits(st(t2));
+    let t3 = ld(race.shared.physics_tables.surface_blend[0].bits());
+    let t4 = ld(race.shared.physics_tables.surface_blend[2].bits());
     let t5 = t3 - t4;
-    let t6 = ld(crate::race::owner::race().shared.car.surface_blend.bits());
+    let t6 = ld(race.shared.car.surface_blend.bits());
     let t7 = t5 * t6;
-    let t8 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[2]
-        .bits());
+    let t8 = ld(race.shared.physics_tables.surface_blend[2].bits());
     let t9 = t7 + t8;
     drawing.scene.surface_point[0].set_bits(st(t9));
-    let t10 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[1]
-        .bits());
-    let t11 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[3]
-        .bits());
+    let t10 = ld(race.shared.physics_tables.surface_blend[1].bits());
+    let t11 = ld(race.shared.physics_tables.surface_blend[3].bits());
     let t12 = t10 - t11;
-    let t13 = ld(crate::race::owner::race().shared.car.surface_blend.bits());
+    let t13 = ld(race.shared.car.surface_blend.bits());
     let t14 = t12 * t13;
-    let t15 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blend[3]
-        .bits());
+    let t15 = ld(race.shared.physics_tables.surface_blend[3].bits());
     let t16 = t14 + t15;
     drawing.scene.surface_point[1].set_bits(st(t16));
     let t17 = ld(drawing.scene.surface_point[1].bits());
     let t18 = ld(drawing.scene.surface_point[0].bits());
     let t19 = t17 - t18;
-    let t20 = int(crate::race::owner::race()
-        .shared
-        .car
-        .suspension_stiffness
-        .bits() as i32);
+    let t20 = int(race.shared.car.suspension_stiffness.bits() as i32);
     let t21 = ld(course.numbers.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
     let t24 = ld(drawing.scene.surface_point[0].bits());
     let t25 = t23 + t24;
-    crate::race::owner::race()
-        .shared
+    race.shared
         .physics_tables
         .surface_softness
         .set_bits(st(t25));
-    let t26 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[4]
-        .bits());
-    crate::race::owner::race().shared.physics_tables.wheel_drag[0].set_bits(st(t26));
-    let t27 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[9]
-        .bits());
-    crate::race::owner::race().shared.physics_tables.wheel_drag[1].set_bits(st(t27));
-    let t28 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[14]
-        .bits());
-    crate::race::owner::race().shared.vars.wheel_turn_a[0].set_bits(st(t28));
-    let t29 = ld(crate::race::owner::race()
-        .shared
-        .physics_tables
-        .surface_blends[19]
-        .bits());
-    crate::race::owner::race().shared.vars.wheel_turn_a[1].set_bits(st(t29));
+    let t26 = ld(race.shared.physics_tables.surface_blends[4].bits());
+    race.shared.physics_tables.wheel_drag[0].set_bits(st(t26));
+    let t27 = ld(race.shared.physics_tables.surface_blends[9].bits());
+    race.shared.physics_tables.wheel_drag[1].set_bits(st(t27));
+    let t28 = ld(race.shared.physics_tables.surface_blends[14].bits());
+    race.shared.vars.wheel_turn_a[0].set_bits(st(t28));
+    let t29 = ld(race.shared.physics_tables.surface_blends[19].bits());
+    race.shared.vars.wheel_turn_a[1].set_bits(st(t29));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

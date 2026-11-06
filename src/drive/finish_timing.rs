@@ -79,29 +79,13 @@ pub fn timing_from(race: &Race, now: u32) {
     }
     replay.finish.share.set_bits(0);
     let late = !c0(replay.finish.time.bits(), replay.finish.limit_c.bits());
-    if crate::race::owner::race()
-        .shared
-        .state
-        .results
-        .finished
-        .get()
-        != 0
-        && late
-    {
+    if race.shared.state.results.finished.get() != 0 && late {
         replay.finish.share.set_bits(0x3F80_0000);
         if c0(replay.finish.time.bits(), replay.finish.limit_d.bits()) {
             share(&race.replay);
         }
     }
-    if late
-        && crate::race::owner::race()
-            .shared
-            .state
-            .results
-            .finished
-            .get()
-            != 0
-    {
+    if late && race.shared.state.results.finished.get() != 0 {
         MARKS_SETTINGS.race_done.set(1);
     }
 }
@@ -115,6 +99,7 @@ pub fn finish_timing(race: &Race) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -160,7 +145,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_time(a[0]) },
-                plain: |_| time(crate::race::owner::race()),
+                plain: |_| time(race()),
             },
             Block {
                 name: "finish_timing middle",
@@ -175,7 +160,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_middle(a[0]) },
-                plain: |_| eased_middle(crate::race::owner::race()),
+                plain: |_| eased_middle(race()),
             },
             Block {
                 name: "finish_timing end",
@@ -185,7 +170,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_end(a[0]) },
-                plain: |_| eased_end(crate::race::owner::race()),
+                plain: |_| eased_end(race()),
             },
             Block {
                 name: "finish_timing share",
@@ -195,7 +180,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_share(a[0]) },
-                plain: |_| share(&crate::race::owner::race().replay),
+                plain: |_| share(&race().replay),
             },
         ]
     }

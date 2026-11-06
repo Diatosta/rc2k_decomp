@@ -19,9 +19,11 @@
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
 use crate::d3d::draw_fan_unclipped::polygon;
+use crate::d3d::owner::d3d;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
 use crate::scene::owner::scene;
+use crate::system::owner::system;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -56,6 +58,7 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 }
 
 pub fn submit_polygon(outside: &mut dyn Outside) {
+    let session = &system().session;
     let scene = scene();
     let has_3d = scene.objects.tables.has_3d.get() != 0;
     let texture: u32 = scene.drawing.scene.polygon_texture.bits();
@@ -65,7 +68,7 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != crate::d3d::owner::d3d().cards.current_texture.get() && has_3d {
+        if texture != d3d().cards.current_texture.get() && has_3d {
             outside.set_texture(texture);
         }
     }
@@ -76,8 +79,8 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
     }
     if !vertices_fit(
         &vertices,
-        crate::system::owner::system().session.screen.width.get(),
-        crate::system::owner::system().session.screen.height.get(),
+        session.screen.width.get(),
+        session.screen.height.get(),
     ) {
         outside.bad_vertex();
         return;

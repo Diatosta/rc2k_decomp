@@ -15,6 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
+use crate::service::owner::service;
 use crate::session::{Bytes, Dword};
 
 // ---- game data ----
@@ -61,23 +62,21 @@ pub const fn template() -> Bytes<27> {
 
 // "CRSU"
 pub fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(
-        &crate::service::owner::service().set_ups.names,
-        slot as usize * NAME_LEN,
-    )
+    crate::place::Place::In(&service().set_ups.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
 pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
+    let service = service();
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
     {
-        let template = crate::service::owner::service().template.read();
+        let template = service.template.read();
         let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-        let file = &crate::service::owner::service().set_ups.file;
+        let file = &service.set_ups.file;
         let mut bytes = file.read();
         let read = read_file_into(&path[..], &mut bytes[..SETUP_FILE_LEN], 0)?;
         file.write(&bytes);

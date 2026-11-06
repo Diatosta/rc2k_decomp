@@ -18,6 +18,7 @@ use crate::gfx::picture::has_picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
+use crate::system::owner::system;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -26,6 +27,7 @@ use rc2k_core::gfx::picture_size as sizes;
 
 /// Returns whether the file was read.
 pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
+    let system = system();
     let gfx = gfx();
     // Refused before anything is written, if there is no buffer.
     if !has_picture() {
@@ -35,10 +37,10 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
     set_size(sizes::READ);
     clear_picture()?;
     let read = read_picture_file(path);
-    let screen_width: u32 = crate::system::owner::system().session.screen.width.get();
+    let screen_width: u32 = system.session.screen.width.get();
     set_size(sizes::screen(
         screen_width,
-        crate::system::owner::system().session.screen.height.get(),
+        system.session.screen.height.get(),
     ));
     if !read? {
         return Ok(false);

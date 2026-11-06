@@ -19,6 +19,7 @@
 //! both logged. Callers: `audio::start`, the advanced audio screen (0x4707A3).
 //! Refuses a quality past `g_qualityModes` (the original reads past it).
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 
 const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
@@ -27,18 +28,19 @@ pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts as the game holds them.
 pub fn game_facts() -> Facts {
+    let audio = audio();
     Facts {
-        qualities: crate::audio::owner::audio()
+        qualities: audio
             .state
             .quality_modes
             .each_ref()
             .map(super::super::session::Dword::get),
-        has_3d: crate::audio::owner::audio().state.has_3d.get(),
-        has_a3d2: crate::audio::owner::audio().state.has_a3d2.get(),
-        has_eax: crate::audio::owner::audio().state.has_eax.get(),
+        has_3d: audio.state.has_3d.get(),
+        has_a3d2: audio.state.has_a3d2.get(),
+        has_eax: audio.state.has_eax.get(),
         // `g_soundCaps`' free hardware 3D buffers (+0x24).
-        hw_3d_buffers: crate::audio::owner::audio().state.sound_caps.get_u32(0x24),
-        voice_manager_on: crate::audio::owner::audio().state.voice_manager_on.get(),
+        hw_3d_buffers: audio.state.sound_caps.get_u32(0x24),
+        voice_manager_on: audio.state.voice_manager_on.get(),
     }
 }
 
@@ -60,16 +62,14 @@ pub fn choose_modes(
 
 /// On the game's variables, logging with `log`.
 pub fn in_game(log: Log) -> Result<(), Refused> {
+    let state = &audio().state;
     // The options and the two modes are worked on in place, as the original does.
-    let mut o = crate::audio::owner::audio().state.audio_options.get();
-    let (mut race, mut menu) = (
-        crate::audio::owner::audio().state.race_sound_mode.get(),
-        crate::audio::owner::audio().state.menu_sound_mode.get(),
-    );
+    let mut o = state.audio_options.get();
+    let (mut race, mut menu) = (state.race_sound_mode.get(), state.menu_sound_mode.get());
     let done = choose_modes(&mut o, &mut race, &mut menu, &game_facts(), log);
-    crate::audio::owner::audio().state.audio_options.set(o);
-    crate::audio::owner::audio().state.race_sound_mode.set(race);
-    crate::audio::owner::audio().state.menu_sound_mode.set(menu);
+    state.audio_options.set(o);
+    state.race_sound_mode.set(race);
+    state.menu_sound_mode.set(menu);
     done
 }
 

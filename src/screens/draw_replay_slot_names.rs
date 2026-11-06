@@ -13,6 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::name_lists::{NAME_LEN, REPLAY_PAGE_RVA};
+use crate::race::owner::race;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -24,10 +25,7 @@ use crate::text::draw_text::Canvas;
 // stru_51E8C4
 /// The name of replay slot `slot`.
 fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(
-        &crate::race::owner::race().shared.replays.names,
-        slot as usize * NAME_LEN,
-    )
+    crate::place::Place::In(&race().shared.replays.names, slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----

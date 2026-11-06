@@ -17,6 +17,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::race;
+use crate::system::owner::system;
 
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
@@ -26,6 +27,7 @@ const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platf
 /// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
 /// no caller (only DF live after the other four calls).
 pub fn race_frame(eax: u32) -> Result<u32, Refused> {
+    let system = system();
     let race = race();
     let frame = &race.frame;
     // The calls below read no register at entry (liveness: `pump_messages`,
@@ -33,19 +35,12 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
     // from call to call, and only `show_frame`'s carry is read.
     let mut eax = eax;
     crate::platform::pump_messages_now();
-    if crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.get() == 1 {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
         crate::standalone::leave_on_close();
     }
-    if crate::system::owner::system()
-        .session
-        .flags
-        .window_active
-        .get()
-        != 0
-        && crate::system::owner::system().session.flags.lost.get() != 1
-    {
+    if system.session.flags.window_active.get() != 0 && system.session.flags.lost.get() != 1 {
         // `scene::begin_scene` leaves the carry clear: the frame is never lost there.
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
@@ -66,7 +61,7 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
             return Ok(eax);
         }
     }
-    if crate::system::owner::system().session.flags.quitting.get() == 1 {
+    if system.session.flags.quitting.get() == 1 {
         return Ok(eax);
     }
     // The surfaces restored: never here (the window is always active, nothing is lost).

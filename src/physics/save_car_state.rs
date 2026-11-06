@@ -11,39 +11,37 @@
 //! (unsigned; `dword_6D2814` has 0x40 before `dword_6D2914`), before writing.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use rc2k_core::physics::saved_car::save_count;
 
 /// The Rust version (`restore_saved_car`'s, the other way). Converted:
 /// `rc2k_core::physics::saved_car::save_count` (at most 0x40 faces: the list's room).
 pub fn save_car_state(physics: &Physics) -> Result<(), Refused> {
-    let n = save_count(crate::race::owner::race().shared.car.probe_count.get())?;
-    crate::race::owner::race()
-        .shared
-        .physics_tables
-        .clear_place_count
-        .set(0);
-    for (to, from) in crate::race::owner::race()
+    let race = race();
+    let n = save_count(race.shared.car.probe_count.get())?;
+    race.shared.physics_tables.clear_place_count.set(0);
+    for (to, from) in race
         .shared
         .physics_tables
         .saved_place
         .iter()
-        .zip(&crate::race::owner::race().shared.car.position)
+        .zip(&race.shared.car.position)
     {
         to.set(from.get());
     }
-    for (to, from) in crate::race::owner::race()
+    for (to, from) in race
         .shared
         .physics_tables
         .saved_matrix
         .iter()
-        .zip(&crate::race::owner::race().shared.car.crash_matrix)
+        .zip(&race.shared.car.crash_matrix)
     {
         to.set_bits(from.bits());
     }
     for (to, from) in physics.contact.probe_saved_faces[..n]
         .iter()
-        .zip(&crate::race::owner::race().shared.car.probe_point_face[..n])
+        .zip(&race.shared.car.probe_point_face[..n])
     {
         to.set(from.get());
     }

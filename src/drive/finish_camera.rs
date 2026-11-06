@@ -49,6 +49,7 @@ pub fn finish_camera(replay: &Replay) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -91,7 +92,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_lines(a[0]) },
-                plain: |_| lines(&crate::race::owner::race().replay),
+                plain: |_| lines(&race().replay),
             },
             Block {
                 name: "finish_camera last line",
@@ -101,7 +102,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_last(a[0]) },
-                plain: |_| last_line(&crate::race::owner::race().replay),
+                plain: |_| last_line(&race().replay),
             },
         ]
     }

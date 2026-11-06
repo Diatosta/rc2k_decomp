@@ -16,18 +16,20 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
 /// `race::set_all_plates` (see the header).
 pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
+    let shared = &race().shared;
     let scene = scene();
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
     // FIXED_PICTURES, car_pictures}`.
     use rc2k_core::race::stage_objects::{
         CAR_PICTURE_KINDS, FIXED_PICTURES, PREF_PIECES, car_pictures, check_picture_cars,
     };
-    let cars: u32 = crate::race::owner::race().shared.view.race_cars.bits();
+    let cars: u32 = shared.view.race_cars.bits();
     check_picture_cars(cars)?;
     let pictures = GamePtr::to(&scene.textures.places.kind_pictures);
     for (kind, dwords) in PREF_PIECES {
@@ -49,7 +51,7 @@ pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
     let mut at = pictures.offset(4 * CAR_PICTURE_KINDS as u32);
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
-            crate::race::owner::race().shared.vars.race_car_kinds[car as usize].get(), // g_raceCarKinds
+            shared.vars.race_car_kinds[car as usize].get(), // g_raceCarKinds
         );
         for picture in car_pictures(first) {
             at.write(picture, "a car's pictures")?;

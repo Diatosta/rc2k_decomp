@@ -37,6 +37,7 @@ use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::owner::saves;
 use crate::screens::stage_panel::table_dword_at;
+use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -66,10 +67,7 @@ pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result
         let index = saves.savegame_preview.saved[2].get() as i32;
         let section = saves.savegame_preview.saved[3].get();
         let mode_13 = saves.savegame_preview.saved[5].get() == 0x13;
-        let table = crate::system::owner::system()
-            .records
-            .stage_tables
-            .championship();
+        let table = system().records.stage_tables.championship();
         let title = Title {
             mode_13,
             section: if mode_13 {

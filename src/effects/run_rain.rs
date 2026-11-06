@@ -26,6 +26,7 @@
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
+use crate::race::owner::race;
 
 const MOST_DROPS: i32 = 0x100;
 use crate::d3d::vertices_store::VERTICES;
@@ -127,12 +128,7 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
         keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
         if setup.kind_floats.running.bits() != 0 {
-            let clock = crate::race::owner::race()
-                .shared
-                .physics_tables
-                .scene_clock
-                .get()
-                & 0xF_FFFF;
+            let clock = race().shared.physics_tables.scene_clock.get() & 0xF_FFFF;
             r.drift.set(
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
             );

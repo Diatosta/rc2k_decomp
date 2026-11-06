@@ -1,15 +1,15 @@
 //! The race frame's texts (`sub_4547AE`'s, IDA 2026-10-18): the frame rate and the credits
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
+use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
-#[cfg(test)]
-#[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::scene::owner::scene;
 use crate::session::{Dword, Word};
+use crate::system::owner::system;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -20,9 +20,7 @@ pub fn draw_frame_rate(frame: &Frame, canvas: &mut dyn Canvas) -> Result<(), Ref
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     frame.text_state.text_mode.set(2);
-    let rate = shown_rate(f32::from_bits(
-        crate::race::owner::race().shared.switches.frame_rate.bits(),
-    ));
+    let rate = shown_rate(f32::from_bits(race().shared.switches.frame_rate.bits()));
     scene().drawing.scene.scratch.set(rate as u32);
     if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
@@ -50,10 +48,7 @@ fn credit_line(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
-    if !rc2k_core::race::credits::shown(
-        y,
-        crate::system::owner::system().session.screen.height.get(),
-    ) {
+    if !rc2k_core::race::credits::shown(y, system().session.screen.height.get()) {
         return Ok(());
     }
     draw_string_by_id_at(id, font.game_ptr(), x, y, canvas)?;
@@ -164,11 +159,12 @@ pub fn roll_credits(
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
 ) -> Result<(), Refused> {
+    let session = &system().session;
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
-    let width = crate::system::owner::system().session.screen.width.get() as i32;
-    let height: u32 = crate::system::owner::system().session.screen.height.get();
+    let width = session.screen.width.get() as i32;
+    let height: u32 = session.screen.height.get();
     if eax == 0 {
         frame.credits.clock.set(tick_count());
         let top = start_top(height);
@@ -212,14 +208,7 @@ pub fn roll_credits(
     );
     frame.credits.top.set(top);
     frame.credits.clock.set(clock);
-    if !rolled_off(
-        below,
-        crate::audio::owner::audio()
-            .state
-            .music_stream
-            .get()
-            .playing,
-    ) {
+    if !rolled_off(below, audio().state.music_stream.get().playing) {
         return Ok(());
     }
     frame.credits.done.set(1);

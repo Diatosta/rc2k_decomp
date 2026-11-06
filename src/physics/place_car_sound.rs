@@ -19,22 +19,14 @@ use crate::session::Dword;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
 pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let so = crate::sound::store::current_object();
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [
-        d(
-            &crate::race::owner::race().shared.car.position[0],
-            &crate::race::owner::race().shared.car.camera_position[0],
-        ),
-        d(
-            &crate::race::owner::race().shared.car.position[1],
-            &crate::race::owner::race().shared.car.camera_position[1],
-        ),
-        d(
-            &crate::race::owner::race().shared.car.position[2],
-            &crate::race::owner::race().shared.car.camera_position[2],
-        ),
+        d(&shared.car.position[0], &shared.car.camera_position[0]),
+        d(&shared.car.position[1], &shared.car.camera_position[1]),
+        d(&shared.car.position[2], &shared.car.camera_position[2]),
     ];
     let out = rotate_point(&race.frame.matrices.view_turn_matrix, p);
     let k = race.course.numbers.one_over_65536.bits();

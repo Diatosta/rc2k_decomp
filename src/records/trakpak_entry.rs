@@ -14,16 +14,12 @@
 use crate::errors::BadInput;
 use crate::errors::{FatalError, Refused};
 use crate::records::stages_store::{RecordRef, TrackEntry};
+use crate::system::owner::system;
 
 // ---- game data ----
 
 pub fn loaded_pack_id() -> u32 {
-    crate::system::owner::system()
-        .records
-        .stage_tables
-        .trak_pak
-        .pack_id
-        .get()
+    system().records.stage_tables.trak_pak.pack_id.get()
 }
 
 // ---- Rust version ----
@@ -56,9 +52,10 @@ pub fn trakpak_entry(
 pub fn record_entry(record: RecordRef) -> Result<crate::pointers::GamePtr, Refused> {
     let record = record.record()?;
     Ok(trakpak_entry(
-        crate::pointers::GamePtr::to(&crate::system::owner::system().records.stage_tables).offset(
-            core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak) as u32,
-        ),
+        crate::pointers::GamePtr::to(&system().records.stage_tables)
+            .offset(
+                core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak) as u32,
+            ),
         record.track(),
         record.pack_id(),
         loaded_pack_id(),
@@ -111,13 +108,7 @@ pub fn track_of(record: RecordRef) -> Result<Track, Refused> {
     let at = record_entry(record)?;
     let index = record.record()?.track() as usize;
     Ok(
-        match crate::system::owner::system()
-            .records
-            .stage_tables
-            .trak_pak
-            .tracks
-            .get(index)
-        {
+        match system().records.stage_tables.trak_pak.tracks.get(index) {
             Some(entry) => Track::InPack(entry),
             None => Track::RunOn(at),
         },

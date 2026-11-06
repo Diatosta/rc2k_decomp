@@ -7,7 +7,9 @@
 
 use crate::debug::kstar::write_at;
 use crate::debug::wear_page::value_at;
+use crate::race::owner::race;
 use crate::session::Dword;
+use crate::system::owner::system;
 use dear_imgui_rs::Ui;
 
 /// `g_debugExtensionsSwitch`, `g_useSse`, `g_use3dNow`, `g_useMmx`.
@@ -28,13 +30,15 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
 
 /// The tab.
 pub fn tab(ui: &Ui) {
-    let words = &crate::race::owner::race().shared.vars.settings_words;
+    let session = &system().session;
+    let shared = &race().shared;
+    let words = &shared.vars.settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
     tick(
         ui,
         1,
         "Mipmaps' setting",
-        &crate::race::owner::race().shared.vars.mip_setting,
+        &shared.vars.mip_setting,
         "the original's mipmaps; our rasteriser filters alike either way: no change",
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
@@ -43,17 +47,11 @@ pub fn tab(ui: &Ui) {
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);
         write_at(EXTENSIONS, v);
-        write_at(
-            USE_SSE,
-            v & crate::system::owner::system().session.machine.has_sse.get(),
-        );
+        write_at(USE_SSE, v & session.machine.has_sse.get());
         // Not the original's: its 3DNow way (`sub_45BF89`) is not ported and would end the
         // program, so it stays off on a processor that has it.
         write_at(USE_3DNOW, 0);
-        write_at(
-            USE_MMX,
-            v & crate::system::owner::system().session.machine.has_mmx.get(),
-        );
+        write_at(USE_MMX, v & session.machine.has_mmx.get());
     }
     ui.same_line();
     let used = [(USE_SSE, "SSE"), (USE_3DNOW, "3DNow!"), (USE_MMX, "MMX")]
@@ -101,7 +99,7 @@ pub fn tab(ui: &Ui) {
         ui,
         9,
         "View marks",
-        &crate::race::owner::race().shared.switches.view_marks_on,
+        &shared.switches.view_marks_on,
         "the effects on the view (race::frame_views); a stage's load sets it on",
     );
 }

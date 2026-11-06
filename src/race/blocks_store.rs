@@ -6,6 +6,7 @@
 //! back. `#[repr(C)]` with the image's layout, over the race block's bytes (`CAR_BLOCKS`),
 //! as `CAR`.
 
+use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
@@ -129,8 +130,8 @@ pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 /// the first block's address wherever it means the player's car, so on a joined machine the
 /// cockpit's effects, the mud and the listener followed the host's car.
 pub fn own_car_number() -> usize {
-    if crate::net::owner::net().vars.session.get() == 1 {
-        let local = crate::race::owner::race().shared.view.local_car.get() as usize;
+    if net().vars.session.get() == 1 {
+        let local = race().shared.view.local_car.get() as usize;
         if local < 8 { local } else { 0 }
     } else {
         0

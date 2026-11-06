@@ -24,36 +24,25 @@ use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 pub fn track_checkpoints(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
     let checkpoint = { crate::physics::find_car_checkpoint::find_car_checkpoint(race) }?;
-    check_tracked(
-        checkpoint,
-        crate::race::owner::race().shared.car.splits_passed.get(),
-    )?;
-    crate::race::owner::race()
-        .shared
-        .car
-        .checkpoint
-        .set(checkpoint);
+    check_tracked(checkpoint, race.shared.car.splits_passed.get())?;
+    race.shared.car.checkpoint.set(checkpoint);
     scene().lights.state.line_place.set(checkpoint);
     { crate::physics::checkpoint_offset::checkpoint_offset(&race.course) }?;
     crate::physics::off_line_warnings::off_line_warnings(&race.frame)?;
     let next = crate::race::checkpoints_store::cell_in(
         &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
-        crate::race::owner::race().shared.car.checkpoint.get() as usize,
+        race.shared.car.checkpoint.get() as usize,
     )
     .get()
     .wrapping_sub(1);
-    if at_split_end(
-        next.wrapping_add(1),
-        crate::race::owner::race().shared.car.splits_passed.get(),
-    ) {
-        crate::race::owner::race()
-            .shared
+    if at_split_end(next.wrapping_add(1), race.shared.car.splits_passed.get()) {
+        race.shared
             .car
             .reset_checkpoint
-            .set(crate::race::owner::race().shared.car.checkpoint.get());
+            .set(race.shared.car.checkpoint.get());
     }
     if !split_ahead(
-        crate::race::owner::race().shared.car.splits_passed.get(),
+        race.shared.car.splits_passed.get(),
         physics_store.split_tables.split_colour_count.get(),
     ) {
         return Ok(());
@@ -62,21 +51,13 @@ pub fn track_checkpoints(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     let split = physics_store.split_tables.checkpoints
-        [1 + crate::race::owner::race().shared.car.splits_passed.get() as usize]
+        [1 + race.shared.car.splits_passed.get() as usize]
         .get();
-    crate::race::owner::race()
-        .shared
+    race.shared.car.reset_checkpoint.set(split);
+    race.shared.car.checkpoint.set(split);
+    race.shared
         .car
-        .reset_checkpoint
-        .set(split);
-    crate::race::owner::race().shared.car.checkpoint.set(split);
-    crate::race::owner::race().shared.car.splits_passed.set(
-        crate::race::owner::race()
-            .shared
-            .car
-            .splits_passed
-            .get()
-            .wrapping_add(1),
-    );
+        .splits_passed
+        .set(race.shared.car.splits_passed.get().wrapping_add(1));
     Ok(())
 }

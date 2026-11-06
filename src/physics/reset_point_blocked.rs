@@ -15,6 +15,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::line_places;
 
@@ -39,12 +40,10 @@ pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block:
 
 /// The Rust version.
 pub fn reset_point_blocked(block: u32) -> bool {
+    let race = race();
     reset_point_blocked_at(
-        &crate::race::owner::race()
-            .shared
-            .physics_tables
-            .reset_candidate,
-        &crate::race::owner::race().shared.vars.checkpoint_count,
+        &race.shared.physics_tables.reset_candidate,
+        &race.shared.vars.checkpoint_count,
         block,
     )
 }

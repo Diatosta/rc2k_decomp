@@ -27,6 +27,7 @@
 //! that does not loop without its channel or buffer; a voice to stop without its buffer; a
 //! marked voice's volume or pan past the volume table.
 
+use crate::audio::owner::audio;
 use crate::audio::store::ENVIRONMENT;
 use crate::audio::voices::{GamePool, voice};
 use crate::errors::{BadInput, Refused};
@@ -36,11 +37,12 @@ const MODE_MIXER: u32 = 0x4_0000;
 /// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
 /// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
 pub fn update_voices() -> Result<(), Refused> {
+    let audio = audio();
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
-    if crate::audio::owner::audio().state.use_a3d.get() == 1 {
+    if audio.state.use_a3d.get() == 1 {
         return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());
     }
-    let mode = crate::audio::owner::audio().state.sound_mode.get();
+    let mode = audio.state.sound_mode.get();
     if mode & crate::audio::make_buffer::MODE_OWN_BUFFERS == 0 {
         if mode & MODE_MIXER != 0 {
             crate::audio::update_mixer_voices::update_mixer_voices_in_game()?;
@@ -48,43 +50,25 @@ pub fn update_voices() -> Result<(), Refused> {
         return Ok(());
     }
     let mut l = Lists {
-        playing: crate::audio::owner::audio().state.playing_voices.get(),
-        stopping: crate::audio::owner::audio().state.stopping_voices.get(),
-        channels_used: crate::audio::owner::audio().state.channels_used.get(),
+        playing: audio.state.playing_voices.get(),
+        stopping: audio.state.stopping_voices.get(),
+        channels_used: audio.state.channels_used.get(),
         channel_count: 0,
     };
     let mut room = Room {
-        asked: crate::audio::owner::audio().state.eax_room.get(),
-        set: crate::audio::owner::audio().state.eax_room_set.get(),
+        asked: audio.state.eax_room.get(),
+        set: audio.state.eax_room_set.get(),
         environment: ENVIRONMENT.get(),
-        kept: crate::audio::owner::audio().state.environment_kept.get(),
-        commit: crate::audio::owner::audio().state.commit_3d.get(),
+        kept: audio.state.environment_kept.get(),
+        commit: audio.state.commit_3d.get(),
     };
     let store = |l: &Lists, room: &Room| {
-        crate::audio::owner::audio()
-            .state
-            .playing_voices
-            .set(l.playing);
-        crate::audio::owner::audio()
-            .state
-            .stopping_voices
-            .set(l.stopping);
-        crate::audio::owner::audio()
-            .state
-            .channels_used
-            .set(l.channels_used);
-        crate::audio::owner::audio()
-            .state
-            .eax_room_set
-            .set(room.set);
-        crate::audio::owner::audio()
-            .state
-            .environment_kept
-            .set(room.kept);
-        crate::audio::owner::audio()
-            .state
-            .commit_3d
-            .set(room.commit);
+        audio.state.playing_voices.set(l.playing);
+        audio.state.stopping_voices.set(l.stopping);
+        audio.state.channels_used.set(l.channels_used);
+        audio.state.eax_room_set.set(room.set);
+        audio.state.environment_kept.set(room.kept);
+        audio.state.commit_3d.set(room.commit);
     };
     let mut pool = GamePool;
     // No step reads what the update changes (the room's step reads the room asked).

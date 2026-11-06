@@ -9,13 +9,15 @@
 //! Caller: `net::close_if_host`.
 
 use crate::net::lobby::{log, log_hex};
+use crate::net::owner::net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
 /// The Rust version.
 pub fn disable_new_players() {
-    if crate::net::owner::net().vars.own.state() & 0x10 == 0 {
+    let net = net();
+    if net.vars.own.state() & 0x10 == 0 {
         return;
     }
     log(
@@ -23,19 +25,14 @@ pub fn disable_new_players() {
         false,
         2,
     );
-    if crate::net::owner::net().vars.dplay.get() == 0 {
+    if net.vars.dplay.get() == 0 {
         return;
     }
-    crate::net::owner::net()
-        .vars
+    net.vars
         .session_desc
         .flags
-        .set(crate::net::owner::net().vars.session_desc.flags.get() | CLOSED);
-    let desc = crate::net::dp_objects::desc(
-        &crate::net::owner::net().vars.session_desc,
-        &crate::net::owner::net().vars.machine_name.read(),
-    );
-    let result =
-        crate::net::dp_objects::set_session_desc(crate::net::owner::net().vars.dplay.get(), &desc);
+        .set(net.vars.session_desc.flags.get() | CLOSED);
+    let desc = crate::net::dp_objects::desc(&net.vars.session_desc, &net.vars.machine_name.read());
+    let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
     log_hex(result, true);
 }
