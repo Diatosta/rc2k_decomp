@@ -44,6 +44,7 @@ use crate::scene::fill_light_tables::fill_light_tables;
 use crate::scene::fill_scene_light_tables::fill_scene_light_tables;
 use crate::scene::known_kind::known_kind;
 use crate::scene::known_kind_picture::known_kind_picture;
+use crate::scene::owner::scene;
 use crate::scene::reload_slot_textures::reload_slot_textures;
 use crate::scene::reset_texture_places::reset_texture_places;
 use crate::scene::reset_texture_tables::reset_texture_tables;
@@ -54,10 +55,10 @@ use crate::session::Dword;
 // ---- game data ----
 const SHOW_BAR: u32 = 0x4467C7; // sub_4467C7
 fn system_levels() -> &'static [Dword; 1024] {
-    &crate::scene::owner::scene().objects.tables.system_levels
+    &scene().objects.tables.system_levels
 }
 fn video_levels() -> &'static [Dword; 1024] {
-    &crate::scene::owner::scene().objects.tables.video_levels
+    &scene().objects.tables.video_levels
 }
 type Levels = fn() -> &'static [Dword; 1024];
 /// The textures needed: how many, the first, the levels' table, the tag.
@@ -104,7 +105,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {
             levels()[texture].set(0);
-            crate::scene::owner::scene().objects.tables.texture_tags[texture].set(tag);
+            scene.objects.tables.texture_tags[texture].set(tag);
         }
     }
     crate::scene::set_up_textures::set_up_textures()?;
@@ -126,30 +127,27 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     FRAME_SWITCHES.other_way.set_bits(1u32);
     fill_light_tables(scene, course)?;
 
-    crate::scene::owner::scene().objects.tables.slot_kinds[0].set(1);
+    scene.objects.tables.slot_kinds[0].set(1);
     for slot in 1..0x29 {
-        crate::scene::owner::scene().objects.tables.slot_kinds[slot].set(0x258 + slot as u32);
+        scene.objects.tables.slot_kinds[slot].set(0x258 + slot as u32);
     }
     for slot in 0x29..0x2D {
-        crate::scene::owner::scene().objects.tables.slot_kinds[slot].set(0x262 + slot as u32);
+        scene.objects.tables.slot_kinds[slot].set(0x262 + slot as u32);
     }
     for place in 0..0x22usize {
-        crate::scene::owner::scene().objects.tables.slot_kinds[0x2D + place]
-            .set(known_kind(place as u32));
+        scene.objects.tables.slot_kinds[0x2D + place].set(known_kind(place as u32));
     }
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(scene)?;
     reset_texture_places();
 
-    crate::scene::owner::scene().textures.places.kind_pictures[0x87].set(0x82A);
+    scene.textures.places.kind_pictures[0x87].set(0x82A);
     for (k, &picture) in MENU_PICTURES.iter().enumerate() {
-        crate::scene::owner::scene().textures.places.kind_pictures[0x258 + k].set(picture);
+        scene.textures.places.kind_pictures[0x258 + k].set(picture);
     }
     for place in picture_places() {
         let mut picture = known_kind_picture(place);
         for k in 0..8 {
-            crate::scene::owner::scene().textures.places.kind_pictures
-                [0x2BC + place as usize * 8 + k]
-                .set(picture);
+            scene.textures.places.kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
             picture = picture.wrapping_add(1);
         }
     }

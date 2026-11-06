@@ -22,6 +22,7 @@
 //! `rc2k_core::scene::pictures`.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::race::owner::race;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
@@ -49,6 +50,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let gfx_grading = &gfx().grading;
     let course = &race().course;
     let textures: u32 = scene.textures.places.totals[3].get();
     if textures == 0 || textures > TEXTURES {
@@ -73,16 +75,16 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         course.stage_prefs.scene_size_b.get(),
     ];
     for texture in 0..textures {
-        crate::gfx::owner::gfx().grading.reading.set(1u32);
+        gfx_grading.reading.set(1u32);
         let wanted = scene.textures.places.wanted_pictures[texture as usize].get();
         let [scale, saturation] = read_size(wanted, size);
-        let grading = &crate::gfx::owner::gfx().grading;
+        let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(course, texture)?;
         step_loading_bar(texture)?;
     }
-    let grading = &crate::gfx::owner::gfx().grading;
+    let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);

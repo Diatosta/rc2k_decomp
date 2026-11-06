@@ -2,6 +2,8 @@
 //! (IDA 0x764F90 .. 0x764FC8) and `KeptView` (0x769236 .. 0x769312). A reading: the
 //! vectors the car view hands the marks, kept from frame to frame and turned.
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// A factor, a vector, and the vector scaled by the factor (0x1C bytes).
@@ -186,18 +188,17 @@ mod tests {
 
     #[test]
     fn the_vectors_start_as_the_games() {
+        let frame = &effects().frame;
         assert_eq!(size_of::<VectorSource>(), 0x1C);
         assert_eq!(size_of::<ViewSources>(), ViewSources::LEN);
         assert_eq!(size_of::<KeptView>(), KeptView::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&crate::effects::owner::effects().frame.view_sources)
-                == image(ViewSources::START, ViewSources::LEN),
+            bytes(&frame.view_sources) == image(ViewSources::START, ViewSources::LEN),
             "SOURCES starts differently from the image"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().frame.kept_view)
-                == image(KeptView::START, KeptView::LEN),
+            bytes(&frame.kept_view) == image(KeptView::START, KeptView::LEN),
             "KEPT starts differently from the image"
         );
         let k = KeptView::START;

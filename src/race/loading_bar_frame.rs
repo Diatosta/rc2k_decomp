@@ -23,6 +23,7 @@ use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 use crate::session::FLAGS;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
@@ -76,11 +77,7 @@ fn frame(course: &Course) -> Result<(), Refused> {
     {
         return Ok(());
     }
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .scene_state
-        .set_bits(FRAME_MARK);
+    scene().lights.state.scene_state.set_bits(FRAME_MARK);
     if FLAGS.quitting.get() == 1 {
         return Ok(());
     }

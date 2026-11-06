@@ -39,6 +39,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
+use crate::gfx::owner::gfx;
 use crate::input::layouts::layouts;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
@@ -197,11 +198,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         ));
     }
     if kind == 7 {
-        crate::gfx::owner::gfx()
-            .fonts
-            .glyph_tables
-            .units
-            .set(0x2EEu32);
+        gfx().fonts.glyph_tables.units.set(0x2EEu32);
     }
 
     correct_lexicon()?;

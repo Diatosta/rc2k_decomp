@@ -199,6 +199,7 @@ impl Fonts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn fonts_starts_as_the_games() {
@@ -220,7 +221,7 @@ mod tests {
         for n in 0..4 {
             let at = Fonts::START + 0x20 * n;
             let image = crate::moved::image_bytes(at + 0x14, 8);
-            let font = crate::gfx::owner::gfx().fonts.menu_fonts.menu_fonts[n].get();
+            let font = gfx().fonts.menu_fonts.menu_fonts[n].get();
             assert_eq!(
                 (font.palette.to_le_bytes(), font.glyph_table.to_le_bytes()),
                 (

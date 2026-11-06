@@ -11,16 +11,13 @@
 //! standalone program the screen is copied into the texture's memory of ours
 //! (`platform_3d::copy_screen_to_system_texture`).
 use crate::race::owner_frame::Frame;
+use crate::scene::owner::scene;
 
 /// The Rust version (see the header).
 pub fn copy_screen_to_texture(frame: &Frame) {
     if frame.frame_work.mirror_wanted.bits() != 0 {
         crate::platform_3d::copy_screen_to_system_texture(
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .mirror_picture
-                .bits(),
+            scene().drawing.scene.mirror_picture.bits(),
         );
     }
 }

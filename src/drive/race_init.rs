@@ -21,6 +21,7 @@
 //! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
 //! as the original.
 
+use crate::effects::owner::effects;
 use crate::errors::{FatalError, Refused};
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
@@ -100,7 +101,7 @@ pub fn race_init() -> Result<(), Refused> {
         MARKS_SETTINGS.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
-        crate::effects::frame_marks::frame_marks(crate::effects::owner::effects())?;
+        crate::effects::frame_marks::frame_marks(effects())?;
         crate::effects::run_frame::run_frame()?;
     }
     crate::race::race_init::clear_race_slots();

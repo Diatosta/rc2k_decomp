@@ -26,6 +26,7 @@
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -62,10 +63,7 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 
 /// Returns what the function leaves in eax, if it changes it.
 pub fn normalise_vector(race: &Race) -> Result<Option<u32>, BadInput> {
-    normalise(
-        race,
-        crate::scene::owner::scene().draw_switches.use_sse.bits() != 0,
-    )
+    normalise(race, scene().draw_switches.use_sse.bits() != 0)
 }
 
 /// The original's SSE path: each component times the approximate reciprocal root of the
@@ -97,11 +95,7 @@ pub fn normalise(race: &Race, sse: bool) -> Result<Option<u32>, BadInput> {
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
     crate::session::write_first(&race.frame.scratch.work_vector, &scaled.map(unsigned_zero));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(inverse);
+    scene().drawing.scene.scratch.set_bits(inverse);
     Ok(Some(sum))
 }
 

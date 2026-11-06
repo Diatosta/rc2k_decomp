@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
+use crate::gfx::owner::gfx;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
 
@@ -30,7 +31,7 @@ pub const PNG_SETTING_START: usize = 0x51B97C;
 /// reader}`.
 pub fn read_picture_file(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};
-    let png = &crate::gfx::owner::gfx().png;
+    let png = &gfx().png;
     let text = path.text("a picture's path")?;
     if &ending(&text)? == b".pcx" {
         return Ok(read_pcx(&text)?);

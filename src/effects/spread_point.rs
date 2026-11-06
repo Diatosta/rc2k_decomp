@@ -12,6 +12,7 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -19,6 +20,7 @@ use crate::session::Dword;
 
 /// The Rust version (see the header): the three out and eax.
 pub fn spread_point(paths: &Paths, inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
+    let setup = &effects().setup;
     let [spread, b, c, d] = inputs.map(rounded);
 
     let first = paths
@@ -30,17 +32,8 @@ pub fn spread_point(paths: &Paths, inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32
     let second = first.rotate_right(12);
     let third = second.rotate_right(12);
     paths.spread_random.random.set(third);
-    let k = crate::effects::owner::effects()
-        .setup
-        .floats
-        .spread_scale
-        .get_u32(0) as u64
-        | (crate::effects::owner::effects()
-            .setup
-            .floats
-            .spread_scale
-            .get_u32(4) as u64)
-            << 32;
+    let k = setup.floats.spread_scale.get_u32(0) as u64
+        | (setup.floats.spread_scale.get_u32(4) as u64) << 32;
     let d = x87::grown(third as i32, k, d, spread);
     let c = x87::grown(second as i32, k, c, spread);
     let b = x87::grown(first as i32, k, b, spread);

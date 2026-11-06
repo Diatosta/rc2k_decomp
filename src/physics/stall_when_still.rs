@@ -22,6 +22,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::rounded;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
@@ -52,7 +53,7 @@ fn game() -> Vec<&'static dyn Cell32> {
         &PHYSICS.kept_motion[0] as &dyn Cell32,
         &PHYSICS.kept_motion[1],
         &PHYSICS.kept_motion[2],
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &scene().drawing.scene.scratch,
         &CAR.local_velocity[0],
         &CAR.local_velocity[1],
         &CAR.local_velocity[2],

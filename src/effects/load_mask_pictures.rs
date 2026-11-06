@@ -13,6 +13,7 @@
 //! taken), memory or a picture not had, as its steps do.
 
 use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};
+use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 
 const NAMES: i32 = 6;
@@ -199,12 +200,7 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
         )?;
         return Err(BadInput("a mask surface wider than 256").into());
     }
-    let kind = (crate::effects::owner::effects()
-        .kinds
-        .marks_kind
-        .kind
-        .bits() as i32)
-        .clamp(0, MOST_KIND) as u32;
+    let kind = (effects().kinds.marks_kind.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
     let number: u32 = KIND_PICTURES.numbers[kind as usize];
     let digits = [
         ((number / 10) as u8).wrapping_add(b'0'),

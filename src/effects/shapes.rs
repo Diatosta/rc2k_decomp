@@ -3,6 +3,7 @@
 //! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
 //! the radii after the curve), and sets up what follows.
 
+use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
@@ -284,11 +285,7 @@ fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> R
                 at += 6;
             }
         }
-        let value: u32 = crate::effects::owner::effects()
-            .setup
-            .floats
-            .two_fifty_six
-            .bits();
+        let value: u32 = effects().setup.floats.two_fifty_six.bits();
         for n in 0..FANS as usize {
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;

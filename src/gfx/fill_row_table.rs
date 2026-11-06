@@ -11,6 +11,7 @@
 //! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 
 // ---- game data ----
 
@@ -23,12 +24,12 @@ pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
 #[cfg(test)]
 pub fn home() -> usize {
-    (crate::pointers::game_address(crate::gfx::owner::gfx().drawing.row_table.as_ptr())) as usize
+    (crate::pointers::game_address(gfx().drawing.row_table.as_ptr())) as usize
 }
 
 /// The address the table holds for a row.
 pub fn row_address(row: u32) -> u32 {
-    match crate::gfx::owner::gfx().drawing.row_table.get(row as usize) {
+    match gfx().drawing.row_table.get(row as usize) {
         Some(cell) => cell.get(),
         None => crate::fatal::raise::end(
             "gfx::row_address",
@@ -44,16 +45,15 @@ pub fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), BadInput> 
         return Err(BadInput("a row count the row table has no room for"));
     }
     // Converted: `rc2k_core::gfx::pixels::row_table`.
-    for (cell, address) in
-        crate::gfx::owner::gfx()
-            .drawing
-            .row_table
-            .iter()
-            .zip(rc2k_core::gfx::pixels::row_table(
-                first,
-                step,
-                rows as usize,
-            ))
+    for (cell, address) in gfx()
+        .drawing
+        .row_table
+        .iter()
+        .zip(rc2k_core::gfx::pixels::row_table(
+            first,
+            step,
+            rows as usize,
+        ))
     {
         cell.set(address);
     }
@@ -66,11 +66,7 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().drawing.row_table,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().drawing.row_table, START, START + LEN);
     }
 
     #[test]
@@ -78,7 +74,7 @@ mod block_tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(START + LEN - 4),
-            crate::gfx::owner::gfx().drawing.row_table[601].addr() as usize
+            gfx().drawing.row_table[601].addr() as usize
         );
     }
 }

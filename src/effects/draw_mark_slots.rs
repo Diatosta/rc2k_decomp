@@ -24,6 +24,7 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::mark_slots::slot_matrix;
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -36,11 +37,12 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// Why it refuses, if it does, worked out before anything is written.
 fn refusal() -> Option<&'static str> {
+    let effects = effects();
     {
-        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+        if effects.setup.settings.is_set.get() == 0 {
             return Some("no marks settings");
         }
-        for slot in &crate::effects::owner::effects().blocks.slots.slots {
+        for slot in &effects.blocks.slots.slots {
             if (slot.life.get() as i32) > 0 && slot.matrix.get() == 0 {
                 return Some("a live mark slot with a null matrix");
             }
@@ -52,6 +54,7 @@ fn refusal() -> Option<&'static str> {
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
 pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
+    let effects = effects();
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
@@ -66,24 +69,14 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
     crate::scene::set_texture::set_texture(
         crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
     );
-    for s in crate::effects::owner::effects()
-        .blocks
-        .slots
-        .slots
-        .iter()
-        .rev()
-    {
+    for s in effects.blocks.slots.slots.iter().rev() {
         if (s.life.get() as i32) <= 0 {
             continue;
         }
         s.life.set(
-            s.life.get().wrapping_sub(
-                crate::effects::owner::effects()
-                    .setup
-                    .clock
-                    .frame_ticks
-                    .get(),
-            ),
+            s.life
+                .get()
+                .wrapping_sub(effects.setup.clock.frame_ticks.get()),
         );
         let p = s.point.get() as usize * 3;
         let at = |n: usize| {
@@ -95,7 +88,7 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             )
         };
         let [a, b, c] = [at(0)? ^ 0x8000_0000, at(1)?, at(2)?];
-        let k4 = crate::effects::owner::effects()
+        let k4 = effects
             .blocks
             .slot_tuning
             .place_k
@@ -111,24 +104,19 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
         let twice = rotate_point(&race.frame.matrices.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
-            crate::effects::owner::effects().blocks.slots.work[n].set(v);
+            effects.blocks.slots.work[n].set(v);
         }
-        let r = crate::effects::owner::effects()
+        let r = effects
             .blocks
             .slot_tuning
             .draw_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        crate::effects::owner::effects()
-            .blocks
-            .slot_tuning
-            .draw_random
-            .set(r);
-        let corner =
-            &crate::effects::owner::effects().blocks.corners.corners[((r & 7) + 0x50) as usize];
+        effects.blocks.slot_tuning.draw_random.set(r);
+        let corner = &effects.blocks.corners.corners[((r & 7) + 0x50) as usize];
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
-        let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+        let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -147,35 +135,19 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
             y,
             crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
-            crate::effects::owner::effects().blocks.slots.slots[0]
-                .size
-                .bits(),
+            effects.blocks.slots.slots[0].size.bits(),
         );
-        crate::effects::owner::effects().blocks.slots.work[0].set(px);
-        crate::effects::owner::effects().blocks.slots.work[1].set(py);
-        crate::effects::owner::effects()
-            .blocks
-            .slot_tuning
-            .half
-            .set_bits(half);
+        effects.blocks.slots.work[0].set(px);
+        effects.blocks.slots.work[1].set(py);
+        effects.blocks.slot_tuning.half.set_bits(half);
         let corners = [
             (x87::sub(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::add(py, half)),
             (x87::sub(px, half), x87::add(py, half)),
         ];
-        let depth = x87::mul(
-            x,
-            crate::effects::owner::effects().frame.draw_work.z_k.bits(),
-        );
-        let rhw = x87::reciprocal_times(
-            x,
-            crate::effects::owner::effects()
-                .blocks
-                .slot_tuning
-                .rhw_k
-                .bits(),
-        );
+        let depth = x87::mul(x, effects.frame.draw_work.z_k.bits());
+        let rhw = x87::reciprocal_times(x, effects.blocks.slot_tuning.rhw_k.bits());
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.x.set_bits(vx);

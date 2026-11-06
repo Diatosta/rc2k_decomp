@@ -23,6 +23,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
@@ -43,17 +44,14 @@ fn sign(v: u32) -> bool {
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
 fn key_step() -> u32 {
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(0xA0_0000);
+    let drawing = &scene().drawing;
+    drawing.scene.scratch.set(0xA0_0000);
     scale(
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &drawing.scene.scratch,
         &PHYSICS.handling[8],
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &drawing.scene.scratch,
     );
-    crate::scene::owner::scene().drawing.scene.scratch.get()
+    drawing.scene.scratch.get()
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
@@ -90,6 +88,7 @@ fn steer(cell: &Dword, step: u32) {
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
 pub fn steer_inputs() {
+    let drawing = &scene().drawing;
     let course = &race().course;
     let mut keys = PHYSICS.input_steer.get() == 0;
     if !keys && CAR.driver_kind.get() != 2 {
@@ -101,53 +100,25 @@ pub fn steer_inputs() {
     } else {
         CAR.steering.set(0);
         let product = i64::from(PHYSICS.input_steer.get() as i32) * i64::from(RIGHT as i32);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set((product >> 8) as u32);
+        drawing.scene.scratch.set((product >> 8) as u32);
         scale(
-            &crate::scene::owner::scene().drawing.scene.scratch,
+            &drawing.scene.scratch,
             &PHYSICS.handling[7],
-            &crate::scene::owner::scene().drawing.scene.scratch,
+            &drawing.scene.scratch,
         );
-        if sign(
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .get()
-                .wrapping_sub(LEFT),
-        ) {
-            crate::scene::owner::scene().drawing.scene.scratch.set(LEFT);
+        if sign(drawing.scene.scratch.get().wrapping_sub(LEFT)) {
+            drawing.scene.scratch.set(LEFT);
         }
-        if !sign(
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .get()
-                .wrapping_sub(RIGHT),
-        ) {
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set(RIGHT);
+        if !sign(drawing.scene.scratch.get().wrapping_sub(RIGHT)) {
+            drawing.scene.scratch.set(RIGHT);
         }
-        CAR.steering_raw
-            .set(crate::scene::owner::scene().drawing.scene.scratch.get());
-        CAR.steering
-            .set(crate::scene::owner::scene().drawing.scene.scratch.get());
+        CAR.steering_raw.set(drawing.scene.scratch.get());
+        CAR.steering.set(drawing.scene.scratch.get());
     }
     // 0x439F7D: the trim.
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(RIGHT);
+    drawing.scene.scratch.set(RIGHT);
     scale(
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &drawing.scene.scratch,
         &CAR.steering_efficiency,
         &CAR.steer_trim,
     );
@@ -194,10 +165,11 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_key(a[0]) },
                 plain: |_| {
+                    let drawing = &scene().drawing;
                     scale(
-                        &crate::scene::owner::scene().drawing.scene.scratch,
+                        &drawing.scene.scratch,
                         &PHYSICS.handling[8],
-                        &crate::scene::owner::scene().drawing.scene.scratch,
+                        &drawing.scene.scratch,
                     );
                 },
             },
@@ -210,10 +182,11 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_device(a[0]) },
                 plain: |_| {
+                    let drawing = &scene().drawing;
                     scale(
-                        &crate::scene::owner::scene().drawing.scene.scratch,
+                        &drawing.scene.scratch,
                         &PHYSICS.handling[7],
-                        &crate::scene::owner::scene().drawing.scene.scratch,
+                        &drawing.scene.scratch,
                     );
                 },
             },
@@ -226,8 +199,9 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_trim(a[0]) },
                 plain: |_| {
+                    let drawing = &scene().drawing;
                     scale(
-                        &crate::scene::owner::scene().drawing.scene.scratch,
+                        &drawing.scene.scratch,
                         &CAR.steering_efficiency,
                         &CAR.steer_trim,
                     );

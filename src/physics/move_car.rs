@@ -11,6 +11,7 @@ use crate::math::x87_run::mul2_to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -42,7 +43,7 @@ fn game() -> Vec<&'static dyn Cell32> {
         &CAR.position[0],
         &CAR.position[1],
         &CAR.position[2],
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &scene().drawing.scene.scratch,
     ]
 }
 

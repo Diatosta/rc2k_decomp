@@ -16,6 +16,7 @@
 
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
+use crate::effects::owner::effects;
 use crate::effects::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
     emit_particle_18,
@@ -26,16 +27,10 @@ use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 
 /// The chance and the random it would be met by, worked out without writing.
 fn chance(wheel: &MarkRecord) -> Result<(i32, u32), Refused> {
+    let effects = effects();
     Ok({
-        let chance = x87::mul_to_int(
-            wheel.chance.bits(),
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_pow_16
-                .bits(),
-        );
-        let r = crate::effects::owner::effects()
+        let chance = x87::mul_to_int(wheel.chance.bits(), effects.setup.floats.two_pow_16.bits());
+        let r = effects
             .kinds
             .emitter
             .wheel_random
@@ -95,7 +90,7 @@ pub fn emit_wheel_particles(
     {
         let (chance, _) = chance(wheel)?;
         effects.ring.work.whole.set(chance as u32);
-        let r = next_c5(&crate::effects::owner::effects().kinds.emitter.wheel_random);
+        let r = next_c5(&effects.kinds.emitter.wheel_random);
         if copies(chance, r) {
             wheel.take_surface();
         }

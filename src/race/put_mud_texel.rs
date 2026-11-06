@@ -9,11 +9,13 @@
 //! `put_surface_pixel` refuses (no format, no surface), before anything.
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
 /// The Rust version (see the header): eax as it leaves it.
 pub fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
+    let drawing = &gfx().drawing;
     let Some((x, y)) = texel_place(x, y) else {
         return Ok(components);
     };
@@ -21,8 +23,8 @@ pub fn put_mud_texel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
     if !rc2k_core::race::mud::inside(
         x,
         y,
-        crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
-        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+        drawing.draw_surface.width.get(),
+        drawing.draw_surface.height.get(),
     ) {
         return Ok(components);
     }

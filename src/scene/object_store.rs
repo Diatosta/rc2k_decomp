@@ -110,15 +110,12 @@ pub fn piece_addr() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::owner::scene;
     use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::scene::owner::scene().drawing.object_work,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&scene().drawing.object_work, START, END);
     }
 
     #[test]

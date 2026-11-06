@@ -27,6 +27,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -110,6 +111,7 @@ pub fn emit_particle_1(
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let effects = effects();
     {
         if let Some(why) = refusal(ring, wheel)? {
             return Err(BadInput(why).into());
@@ -129,21 +131,14 @@ pub fn emit_particle_1(
         if under {
             return Ok(());
         }
-        let one: u32 = crate::effects::owner::effects().setup.floats.one.bits();
+        let one: u32 = effects.setup.floats.one.bits();
         if x87::compare_status(kept, one) != 0x100 {
             ring.work.whole.set(one);
         }
         let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
         ring.work.life.set(life as u32);
-        let fade = x87::mul(
-            strength,
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_fifty_five
-                .bits(),
-        );
+        let fade = x87::mul(strength, effects.setup.floats.two_fifty_five.bits());
         ring.work.fade.set_bits(fade);
         if next_entry(ring)?.is_none() {
             return Ok(());
@@ -153,15 +148,11 @@ pub fn emit_particle_1(
         let car = emitting_car()?;
         let m = car.whole()?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
-        crate::effects::owner::effects()
-            .setup
-            .frame
-            .emit_side
-            .set_bits(side as u32);
+        effects.setup.frame.emit_side.set_bits(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
                 wheel.place[k].bits(),
-                crate::effects::owner::effects().kinds.emitter.side_b[k].bits(),
+                effects.kinds.emitter.side_b[k].bits(),
                 side,
             ))
         })?;
@@ -169,14 +160,7 @@ pub fn emit_particle_1(
         put(0x14, rounded(place[1]))?;
         put(
             0x28,
-            x87::ext_less(
-                place[1],
-                crate::effects::owner::effects()
-                    .setup
-                    .floats
-                    .two_pow_16
-                    .bits(),
-            ),
+            x87::ext_less(place[1], effects.setup.floats.two_pow_16.bits()),
         )?;
         put(0x18, rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
@@ -187,7 +171,7 @@ pub fn emit_particle_1(
                     [matrix_cell(m, k4)?, wheel.speed_10.bits(), f[0]],
                     [matrix_cell(m, 0x20 + k4)?, wheel.speed_18.bits(), f[1]],
                     [
-                        crate::effects::owner::effects().kinds.emitter.side_b[k].bits(),
+                        effects.kinds.emitter.side_b[k].bits(),
                         wheel.speed_c.bits(),
                         f[2],
                     ],
@@ -213,10 +197,7 @@ pub fn emit_particle_1(
         put(0x84, life as u32)?;
         put(0x78, x87::over_int(fade, life))?;
         put(0x74, fade)?;
-        put(
-            0x68,
-            crate::effects::owner::effects().kinds.emitter.car.get(),
-        )?;
+        put(0x68, effects.kinds.emitter.car.get())?;
         put(0x70, SIZE)?;
         put(0x6C, car.word(0x88)?)?;
         put(

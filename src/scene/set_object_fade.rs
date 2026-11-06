@@ -21,6 +21,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::scene::owner::scene;
 use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
 use crate::scene::set_object_material::MATERIAL_LEN;
@@ -32,11 +33,7 @@ const OBJECTS: u32 = 0x100;
 
 fn record_at() -> Option<u32> {
     {
-        let place: u32 = crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .object_place
-            .bits();
+        let place: u32 = scene().drawing.object_work.object_place.bits();
         crate::scene::point_records::held()
             .then(|| crate::scene::point_records::of_scene_point(place))
     }
@@ -45,15 +42,13 @@ fn record_at() -> Option<u32> {
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
+    let scene = scene();
     {
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         if object >= OBJECTS {
             return Ok(None);
         }
-        let kind: u32 = crate::scene::owner::scene()
-            .objects
-            .tables
-            .object_kind(object);
+        let kind: u32 = scene.objects.tables.object_kind(object);
         let material = crate::scene::polygon::materials_ptr()
             .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
         let word = |at: usize| {
@@ -64,25 +59,17 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
         };
         let (other_kind, distance) = (word(0x1D)?, word(0x22)?);
         let looked_at = (other_kind | distance) != 0
-            && crate::scene::owner::scene()
-                .drawing
-                .object_work
-                .object_place
-                .bits()
-                != u32::MAX;
+            && scene.drawing.object_work.object_place.bits() != u32::MAX;
         Ok(Some((other_kind, distance, looked_at)))
     }
 }
 
 pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> {
+    let scene = scene();
     let Some((other_kind, distance, needs_record)) = words()? else {
         return Err(BadInput("an object's number past the tables"));
     };
-    let place: u32 = crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_place
-        .bits();
+    let place: u32 = scene.drawing.object_work.object_place.bits();
     // What can refuse is asked before anything is written.
     let record = match (needs_record, record_at()) {
         (false, _) => 0,
@@ -95,16 +82,8 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
         }
     };
     crate::session::write_bits(&FRAME_SWITCHES.fade_words, [other_kind, distance]);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_position[0]
-        .set_bits(0u32);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_position[2]
-        .set_bits(0u32);
+    scene.drawing.object_work.object_position[0].set_bits(0u32);
+    scene.drawing.object_work.object_position[2].set_bits(0u32);
     race.physics.ground.object_fading.set_bits(0u32);
     race.physics.ground.object_fade[0].set_bits(0x100u32);
     if !needs_record {
@@ -113,17 +92,9 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
     if field(record, 0)? != place {
         make_scene_record(place, record)?;
     }
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_position[0]
-        .set_bits(x87::to_int(field(record, 0x10)?) as u32);
+    scene.drawing.object_work.object_position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
     let depth = x87::to_int(field(record, 0x18)?);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_position[2]
-        .set_bits(depth as u32);
+    scene.drawing.object_work.object_position[2].set_bits(depth as u32);
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {
         return Ok(());
@@ -132,8 +103,7 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
     crate::session::write_bits(&race.physics.ground.object_fade, [fade, fade]);
     race.physics.ground.object_fading.set_bits(1u32);
     if other_kind != 0 {
-        let kinds: [u32; 0x100] =
-            crate::session::read_bits(&crate::scene::owner::scene().objects.tables.object_kinds);
+        let kinds: [u32; 0x100] = crate::session::read_bits(&scene.objects.tables.object_kinds);
         if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
             FRAME_SWITCHES.object_number.set_bits(other as u32);
         }

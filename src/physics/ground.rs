@@ -18,6 +18,7 @@ use crate::physics::plane_height::plane_height;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The first and last faces (+8, +0xC) of course record `record`.
@@ -86,7 +87,7 @@ pub fn face_shares_at(race: &Race) -> Result<(), Refused> {
     for &(cell, value) in &d {
         cell.set(value);
     }
-    let sse = crate::scene::owner::scene().draw_switches.use_sse.get() != 0;
+    let sse = scene().draw_switches.use_sse.get() != 0;
     let i = [
         d[0].1,
         d[1].1,

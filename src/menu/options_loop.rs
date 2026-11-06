@@ -16,19 +16,17 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
+use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let menus = menus();
     crate::strings::units::set_units(menus.play.players.players[0].get().metric_units); // g_isImperialUnits
-    crate::scene::owner::scene().drawing.scene.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0x27u32);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_zoom
-        .set(0x140u32);
+    drawing.scene.view_offset[0].set(0xFFFFFF64u32);
+    drawing.scene.view_offset[1].set(0x27u32);
+    drawing.scene.view_zoom.set(0x140u32);
     prepare_scene();
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.state.carousel.menu.set(0x7u32);

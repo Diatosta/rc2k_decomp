@@ -16,6 +16,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;
+use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
@@ -71,7 +72,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     }
     let palette = GamePtr::to(&BLENDED_PALETTE);
     blend_palette(
-        &crate::gfx::owner::gfx().pixel.formats,
+        &gfx().pixel.formats,
         from_palette,
         to_palette,
         palette,

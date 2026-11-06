@@ -36,7 +36,7 @@ fn project(weather: &Weather) {
 pub fn draw_rain_streak(weather: &Weather, place: [[u8; 10]; 3]) -> Result<(), Refused> {
     let rain = &weather.rain;
     {
-        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+        if effects().setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turn(weather, &place);
@@ -60,6 +60,7 @@ pub fn draw_rain_streak(weather: &Weather, place: [[u8; 10]; 3]) -> Result<(), R
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 

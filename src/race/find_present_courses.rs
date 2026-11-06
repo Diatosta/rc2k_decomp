@@ -29,6 +29,7 @@ fn paths(course: &Course) -> [crate::pointers::GamePtr; 2] {
         crate::pointers::GamePtr::to(&p.cdat_files),
     ]
 }
+use crate::scene::owner::scene;
 use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
@@ -45,9 +46,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
             let path = paths(course)[file as usize];
             read_whole_file(
                 path,
-                crate::pointers::GamePtr::to(
-                    &crate::scene::owner::scene().drawing.scene.work_dword,
-                ),
+                crate::pointers::GamePtr::to(&scene().drawing.scene.work_dword),
                 PROBE_BYTES,
             )?;
             Ok::<u32, Refused>(BYTES_READ.get())

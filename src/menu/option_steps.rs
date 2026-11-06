@@ -24,6 +24,7 @@
 use crate::audio::names_store::SampleNames;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::race::state_store::RACE_STATE;
@@ -80,16 +81,13 @@ pub fn volume_step(screens: &Screens, v: Volume) {
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode(screens: &Screens) {
+    let display = &gfx().display;
     // Converted: `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
-        crate::gfx::owner::gfx().display.choices.resolution.get(),
-        crate::gfx::owner::gfx().display.choices.resolutions.get(),
+        display.choices.resolution.get(),
+        display.choices.resolutions.get(),
     );
-    crate::gfx::owner::gfx()
-        .display
-        .choices
-        .resolution
-        .set(mode);
+    display.choices.resolution.set(mode);
     let changed = screens.option_work.mode_changed.get() ^ 1;
     screens.option_work.mode_changed.set(changed);
 }

@@ -13,6 +13,7 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
@@ -24,6 +25,7 @@ use crate::session::Dword;
 
 /// The Rust version (see the header).
 pub fn view_motion(frame: &Frame) -> Result<(), Refused> {
+    let effects = effects();
     let m = &frame.matrices.view_place;
     // The original's six floats on its stack: the third row, then the step.
     let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));
@@ -33,30 +35,23 @@ pub fn view_motion(frame: &Frame) -> Result<(), Refused> {
     let zero = [extended(0); 3];
     let place = rotate_point(m, zero);
     for k in 0..3 {
-        let step = x87::ext_less(
-            place[k],
-            crate::effects::owner::effects().frame.draw_frame.last[k].bits(),
-        );
-        crate::effects::owner::effects().frame.draw_work.step[k].set_bits(step);
+        let step = x87::ext_less(place[k], effects.frame.draw_frame.last[k].bits());
+        effects.frame.draw_work.step[k].set_bits(step);
         local[3 + k].set(step);
     }
     normalise(&local[3..]);
-    crate::effects::owner::effects()
+    effects
         .frame
         .view_vars
         .facing
         .set_bits(rounded(dot_product3(load(&local[..3]), load(&local[3..]))));
     let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
-        crate::effects::owner::effects().frame.draw_frame.last[k].set_bits(rounded(*p));
+        effects.frame.draw_frame.last[k].set_bits(rounded(*p));
     }
-    let ticks: i32 = crate::effects::owner::effects()
-        .setup
-        .clock
-        .frame_ticks
-        .get() as i32;
+    let ticks: i32 = effects.setup.clock.frame_ticks.get() as i32;
     for k in 0..3 {
-        let a = &crate::effects::owner::effects().frame.draw_work.step[k];
+        let a = &effects.frame.draw_work.step[k];
         a.set_bits(x87::over_int(a.bits(), ticks));
     }
     Ok(())

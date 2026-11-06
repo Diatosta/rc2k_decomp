@@ -3,6 +3,7 @@
 //! halvings apart the two are.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{
@@ -373,8 +374,7 @@ impl Record {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record =
-            Record(&crate::gfx::owner::gfx().card.texture_tables.system.records[texture as usize]);
+        let record = Record(&gfx().card.texture_tables.system.records[texture as usize]);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }
@@ -391,7 +391,7 @@ impl Record {
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
         let at = self.get().format;
-        crate::gfx::owner::gfx()
+        gfx()
             .card
             .texture_tables
             .descriptions
@@ -421,6 +421,7 @@ pub fn fatal(code: u32) -> Refused {
 /// The least colour, then the alpha from the kept picture or the colours keyed, then
 /// the grading.
 pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> Result<(), Refused> {
+    let gfx_grading = &gfx().grading;
     let count = width.wrapping_mul(height);
     if count == 0 {
         return Err(BadInput("a picture of no pixels").into());
@@ -436,14 +437,14 @@ pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> R
             key_texture_colours(pixels, count, key)?;
         }
         let (reading, scale, saturation) = (
-            crate::gfx::owner::gfx().grading.reading.get(),
-            crate::gfx::owner::gfx().grading.scale.get(),
-            crate::gfx::owner::gfx().grading.saturation.get(),
+            gfx_grading.reading.get(),
+            gfx_grading.scale.get(),
+            gfx_grading.saturation.get(),
         );
         if grading(reading, scale, saturation) {
             let mut table = [0u8; 0x100];
             grade_texture(pixels, count, key, scale, saturation, &mut table)?;
-            crate::gfx::owner::gfx().grading.grades.write(&table);
+            gfx_grading.grades.write(&table);
         }
     }
     Ok(())
@@ -451,10 +452,11 @@ pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> R
 
 /// The number of halvings from 256 a size is, by the game's table.
 fn halvings(size: u32) -> Option<u32> {
+    let card = &gfx().card;
     (0..5).find_map(|n| {
         let (number, of) = (
-            crate::gfx::owner::gfx().card.texture_tables.sizes[2 * n].get(),
-            crate::gfx::owner::gfx().card.texture_tables.sizes[2 * n + 1].get(),
+            card.texture_tables.sizes[2 * n].get(),
+            card.texture_tables.sizes[2 * n + 1].get(),
         );
         (of == size).then_some(number)
     })
@@ -519,7 +521,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games_but(
-            &crate::gfx::owner::gfx().card.texture_tables,
+            &gfx().card.texture_tables,
             START,
             START + LEN,
             |image| {
@@ -534,6 +536,7 @@ mod block_tests {
 
     #[test]
     fn moved_knows_the_block() {
+        let card = &gfx().card;
         assert_eq!(offset_of!(Textures, sizes), 0x5ABA98 - START);
         assert_eq!(offset_of!(Textures, kinds), 0x5ABAC0 - START);
         assert_eq!(offset_of!(Textures, descriptions), 0x5ABAD4 - START);
@@ -542,22 +545,11 @@ mod block_tests {
         assert_eq!(offset_of!(Pool, records), 4);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx()
-                .card
-                .texture_tables
-                .alpha_kind
-                .addr() as usize
+            card.texture_tables.alpha_kind.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5B521C),
-            (crate::pointers::game_address(
-                crate::gfx::owner::gfx()
-                    .card
-                    .texture_tables
-                    .system
-                    .records
-                    .as_ptr()
-            )) as usize
+            (crate::pointers::game_address(card.texture_tables.system.records.as_ptr())) as usize
         );
     }
 }

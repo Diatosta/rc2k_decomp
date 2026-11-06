@@ -21,6 +21,7 @@ use crate::errors::Refused;
 use crate::gfx::decode_png::decode_png;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::owner::Png;
+use crate::gfx::owner::gfx;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
@@ -48,6 +49,7 @@ fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
 
 /// The part with the file's memory held: whether it worked.
 fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
+    let pictures = &gfx().pictures;
     // The file's memory Rust's (phase 12), counted on the list as the game's block was.
     let mut file =
         crate::memory::owned::counted(crate::pointers::GamePtr::to(&png.file.memory), size)?;
@@ -59,30 +61,17 @@ fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
     decode_png(
         png,
         file,
-        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        pictures.picture.buffer.get(),
         crate::gfx::png::info_ptr(),
     )?;
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .flags
-        .set(0x802u32);
+    pictures.picture.flags.set(0x802u32);
     lay_out_png()?;
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(crate::gfx::owner::gfx().pictures.decoder.width.get());
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(crate::gfx::owner::gfx().pictures.decoder.height.get());
-    crate::gfx::owner::gfx()
-        .pictures
+    pictures.picture.width.set(pictures.decoder.width.get());
+    pictures.picture.height.set(pictures.decoder.height.get());
+    pictures
         .picture
         .row_bytes
-        .set(crate::gfx::owner::gfx().pictures.decoder.stride.get());
+        .set(pictures.decoder.stride.get());
     if crate::gfx::png::info_byte(core::mem::offset_of!(crate::gfx::png::PngInfo, has_palette)) == 1
     {
         palette_pixels_to_dwords()?;

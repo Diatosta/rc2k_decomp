@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn set_up_lit_engine() -> Result<(), Refused> {
@@ -20,28 +21,12 @@ pub fn set_up_lit_engine() -> Result<(), Refused> {
     crate::race::find_present_courses::find_present_courses()?;
     // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,
     // `dword_635094`, `dword_635098`.
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .light_lowest
-        .set_bits(0x50u32);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .light_highest
-        .set_bits(0xFFu32);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .light_level
-        .set_bits(0xB4u32);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .light_strength
-        .set_bits(0xB4u32);
-    crate::scene::owner::scene().drawing.object_work.light_turns[0].set_bits(0x6Eu32);
-    crate::scene::owner::scene().drawing.object_work.light_turns[1].set_bits(0x1Eu32);
-    crate::scene::fill_light_tables::fill_light_tables(crate::scene::owner::scene(), course)?;
+    scene().drawing.object_work.light_lowest.set_bits(0x50u32);
+    scene().drawing.object_work.light_highest.set_bits(0xFFu32);
+    scene().drawing.object_work.light_level.set_bits(0xB4u32);
+    scene().drawing.object_work.light_strength.set_bits(0xB4u32);
+    scene().drawing.object_work.light_turns[0].set_bits(0x6Eu32);
+    scene().drawing.object_work.light_turns[1].set_bits(0x1Eu32);
+    crate::scene::fill_light_tables::fill_light_tables(scene(), course)?;
     Ok(())
 }

@@ -17,6 +17,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 use rc2k_core::physics::progress;
 
 /// The Rust version: the car's checkpoint (eax): the nearest within the window about the
@@ -41,11 +42,7 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
     }
     let (from, to) = progress::near_window(CAR.checkpoint.get());
     let near = crate::race::start_place::nearest_checkpoint_in(race, from, to)?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(near.distance);
+    scene().drawing.scene.scratch.set(near.distance);
     // g_nearestCheckpointDistance
     PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
         int_80(near.distance as i32, false),

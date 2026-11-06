@@ -26,6 +26,7 @@ use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to
 use crate::gfx::converters::Converters;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::gfx::formats::Formats;
+use crate::gfx::owner::gfx;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::session::SCREEN;
@@ -56,10 +57,8 @@ pub fn convert_picture(
     screen_bits: u32,
     converter: u32,
 ) -> Result<CarryLeft, BadInput> {
-    let (width, height): (u32, u32) = (
-        crate::gfx::owner::gfx().pictures.picture.width.get(),
-        crate::gfx::owner::gfx().pictures.picture.height.get(),
-    );
+    let pictures = &gfx().pictures;
+    let (width, height): (u32, u32) = (pictures.picture.width.get(), pictures.picture.height.get());
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }
@@ -120,24 +119,19 @@ pub fn convert_picture(
             return Ok(carry);
         }
     }
-    crate::gfx::owner::gfx()
-        .pictures
+    pictures
         .picture
         .flags
-        .set(crate::gfx::owner::gfx().pictures.picture.flags.get() & 0xFFFF_F0FF | 0x200);
-    let row_bytes = crate::gfx::owner::gfx().pictures.picture.row_bytes.get();
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(row_bytes >> 1);
+        .set(pictures.picture.flags.get() & 0xFFFF_F0FF | 0x200);
+    let row_bytes = pictures.picture.row_bytes.get();
+    pictures.picture.row_bytes.set(row_bytes >> 1);
     // `shr`: the bit shifted out.
     Ok(row_bytes & 1 != 0)
 }
 
 /// With the screen's bits and the surface format's converter as they are now.
 pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
-    let pixel = &crate::gfx::owner::gfx().pixel;
+    let pixel = &gfx().pixel;
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }

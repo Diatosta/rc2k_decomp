@@ -60,12 +60,13 @@ pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
 /// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
 /// by nobody).
 pub fn set_race_screen_mode() {
-    crate::platform::set_mode_now(crate::gfx::owner::gfx().display.mode.race_mode.get());
+    crate::platform::set_mode_now(gfx().display.mode.race_mode.get());
 }
 
 // ---- batch 12 ----
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 
 /// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the
 /// platform's; a `call` and a `retn`).

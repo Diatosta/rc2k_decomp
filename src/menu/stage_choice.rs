@@ -3,6 +3,7 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
+use crate::gfx::owner::gfx;
 use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
@@ -24,6 +25,7 @@ const NO_MAP: FatalError = FatalError {
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
 pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
+    let gfx = gfx();
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
@@ -59,11 +61,10 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
-    crate::gfx::owner::gfx()
-        .pictures
+    gfx.pictures
         .picture
         .flags
-        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
+        .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
     blit_glyph_on_surface(
         MAP_SPRITE,

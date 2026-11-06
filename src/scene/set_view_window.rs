@@ -30,23 +30,20 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 use crate::session::SCREEN;
 
 // ---- Rust version ----
 
 pub fn set_view_window() {
+    let drawing = &scene().drawing;
     let race = race();
     let depth = race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20);
     crate::session::write_bits(&RACE_VIEW.view_depth, [depth, depth]);
-    let [width, height]: [u32; 2] =
-        crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.view_size);
+    let [width, height]: [u32; 2] = crate::session::read_bits(&drawing.scene.view_size);
     let middle = [width >> 1, height >> 1];
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.view_middle,
-        middle,
-    );
-    let offsets: [u32; 2] =
-        crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.view_offset);
+    crate::session::write_bits(&drawing.scene.view_middle, middle);
+    let offsets: [u32; 2] = crate::session::read_bits(&drawing.scene.view_offset);
     // top, bottom, left, right
     let edges = if race.course.numbers.in_race.bits() == 1 {
         [0, height, 0, width]
@@ -58,20 +55,13 @@ pub fn set_view_window() {
             width.wrapping_sub(offsets[0]),
         ]
     };
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.clip_edges,
-        edges,
-    );
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_scale
-        .set_bits(x87::int_float_int_float(
-            SCREEN.width.get() as i32,
-            race.frame.view_and_records.view_vars.view_scale.bits(),
-            crate::scene::owner::scene().drawing.scene.view_zoom.bits() as i32,
-            RACE_VARS.scale_factor.bits(),
-        ));
+    crate::session::write_bits(&drawing.scene.clip_edges, edges);
+    drawing.scene.view_scale.set_bits(x87::int_float_int_float(
+        SCREEN.width.get() as i32,
+        race.frame.view_and_records.view_vars.view_scale.bits(),
+        drawing.scene.view_zoom.bits() as i32,
+        RACE_VARS.scale_factor.bits(),
+    ));
     // `cmp; jns` and `cmp; js`: by the differences' signs.
     let mut nearer = 100u32.wrapping_sub(race.course.stage_prefs.nearer.bits());
     if (nearer.wrapping_sub(0x5A) as i32) < 0 {
@@ -81,64 +71,30 @@ pub fn set_view_window() {
         nearer = 0x64;
     }
     let divisor = x87::int_times(nearer as i32, race.course.numbers.hundredth_a.bits());
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .depth_divisor
-        .set_bits(divisor);
+    drawing.scene.depth_divisor.set_bits(divisor);
     let product = depth as u64 * 0x1_0000;
     let low = product as u32;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(low);
+    drawing.scene.scratch.set_bits(low);
     let farthest = x87::int_over(low as i32, divisor);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .farthest
-        .set_bits(farthest);
-    crate::scene::owner::scene()
-        .drawing
+    drawing.scene.farthest.set_bits(farthest);
+    drawing
         .scene
         .one_over_farthest
         .set_bits(x87::reciprocal(farthest));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .farthest_scaled
-        .set(x87::mul_div_div_to_int(
-            farthest,
-            crate::scene::owner::scene().drawing.scene.fade_a.bits(),
-            crate::scene::owner::scene().drawing.scene.fade_b.bits(),
-            race.course.numbers.k65536.bits(),
-        ) as u32);
-    crate::scene::owner::scene()
-        .drawing
+    drawing.scene.farthest_scaled.set(x87::mul_div_div_to_int(
+        farthest,
+        drawing.scene.fade_a.bits(),
+        drawing.scene.fade_b.bits(),
+        race.course.numbers.k65536.bits(),
+    ) as u32);
+    drawing
         .scene
         .clip_farthest
-        .set(x87::mul_to_int(
-            farthest,
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .clip_factor
-                .bits(),
-        ) as u32);
+        .set(x87::mul_to_int(farthest, drawing.scene.clip_factor.bits()) as u32);
     let float = |value: u32| x87::from_int(value as i32);
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.view_offset_float,
-        offsets.map(float),
-    );
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.clip_screen,
-        edges.map(float),
-    );
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.view_centre,
-        middle.map(float),
-    );
+    crate::session::write_bits(&drawing.scene.view_offset_float, offsets.map(float));
+    crate::session::write_bits(&drawing.scene.clip_screen, edges.map(float));
+    crate::session::write_bits(&drawing.scene.view_centre, middle.map(float));
     let one: u32 = race.course.numbers.one.bits();
     crate::session::write_bits(
         &race.frame.sound_spots.less_one,
@@ -151,90 +107,45 @@ pub fn set_view_window() {
 /// `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(race: &Race) {
+    let drawing = &scene().drawing;
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
         reach: race.course.stage_prefs.grid_reach.bits(),
-        size: crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.view_size),
-        offsets: crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.view_offset),
+        size: crate::session::read_bits(&drawing.scene.view_size),
+        offsets: crate::session::read_bits(&drawing.scene.view_offset),
         in_race: race.course.numbers.in_race.bits() == 1,
         screen_width: SCREEN.width.get(),
         scale: (
             race.frame.view_and_records.view_vars.view_scale.get(),
-            crate::scene::owner::scene().drawing.scene.view_zoom.bits(),
+            drawing.scene.view_zoom.bits(),
             RACE_VARS.scale_factor.get(),
         ),
         nearer: race.course.stage_prefs.nearer.bits(),
         nearer_factor: race.course.numbers.hundredth_a.get(),
-        fade: [
-            crate::scene::owner::scene().drawing.scene.fade_a.get(),
-            crate::scene::owner::scene().drawing.scene.fade_b.get(),
-        ],
+        fade: [drawing.scene.fade_a.get(), drawing.scene.fade_b.get()],
         turn: race.course.numbers.k65536.get(),
-        clip_factor: crate::scene::owner::scene().drawing.scene.clip_factor.get(),
+        clip_factor: drawing.scene.clip_factor.get(),
         one: race.course.numbers.one.get(),
     };
     let w = window_settings(&i);
     crate::session::write_bits(&RACE_VIEW.view_depth, [w.depth, w.depth]);
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.view_middle,
-        w.middle,
-    );
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.scene.clip_edges,
-        w.edges,
-    );
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_scale
-        .set_bits(w.scale.to_bits());
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .depth_divisor
-        .set_bits(w.divisor.to_bits());
+    crate::session::write_bits(&drawing.scene.view_middle, w.middle);
+    crate::session::write_bits(&drawing.scene.clip_edges, w.edges);
+    drawing.scene.view_scale.set_bits(w.scale.to_bits());
+    drawing.scene.depth_divisor.set_bits(w.divisor.to_bits());
     let low = w.product as u32;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(low);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .farthest
-        .set(w.farthest);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .one_over_farthest
-        .set(w.reciprocal);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .farthest_scaled
-        .set(w.fade_depth as u32);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .clip_farthest
-        .set_bits(w.clip_farthest as u32);
+    drawing.scene.scratch.set_bits(low);
+    drawing.scene.farthest.set(w.farthest);
+    drawing.scene.one_over_farthest.set(w.reciprocal);
+    drawing.scene.farthest_scaled.set(w.fade_depth as u32);
+    drawing.scene.clip_farthest.set_bits(w.clip_farthest as u32);
     let set = |cells: &[crate::session::Float], v: &[f32]| {
         for (cell, &x) in cells.iter().zip(v) {
             cell.set(x);
         }
     };
-    set(
-        &crate::scene::owner::scene().drawing.scene.view_offset_float,
-        &w.offset_floats,
-    );
-    set(
-        &crate::scene::owner::scene().drawing.scene.clip_screen,
-        &w.edge_floats,
-    );
-    set(
-        &crate::scene::owner::scene().drawing.scene.view_centre,
-        &w.middle_floats,
-    );
+    set(&drawing.scene.view_offset_float, &w.offset_floats);
+    set(&drawing.scene.clip_screen, &w.edge_floats);
+    set(&drawing.scene.view_centre, &w.middle_floats);
     set(&race.frame.sound_spots.less_one, &w.less_one);
 }

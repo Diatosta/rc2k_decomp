@@ -8,6 +8,7 @@
 //!
 //! Caller: `effects::morph_object_points`.
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::MarkCar;
@@ -24,11 +25,7 @@ pub fn blend_corner(block: &MarkCar, to: u32, from: u32, base: [u32; 3]) -> Resu
         let src = crate::scene::object_points::point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
         let f = x87::loaded(block.word(BLOCK + 0x90 + 4 * signs)?);
-        crate::effects::owner::effects()
-            .clipping
-            .blend_work
-            .factor
-            .set_bits(f);
+        effects().clipping.blend_work.factor.set_bits(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
             let c = 4 * c as u32;
@@ -76,7 +73,7 @@ mod blend_work_tests {
     fn blend_work_starts_as_the_games() {
         assert_eq!(size_of::<BlendWork>(), BlendWork::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().clipping.blend_work)
+            bytes(&effects().clipping.blend_work)
                 == crate::moved::image_bytes(BlendWork::START, BlendWork::LEN),
             "BLEND_WORK starts differently from the image"
         );

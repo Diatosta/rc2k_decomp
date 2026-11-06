@@ -30,6 +30,7 @@ use crate::menu::go_back;
 use crate::menu::owner::{Menus, menus};
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
+use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::SLOTS;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
@@ -54,6 +55,7 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 /// The Rust version (see the header).
 pub fn load_savegame() -> Result<(), Refused> {
+    let saves = saves();
     let menus = menus();
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {
@@ -71,18 +73,12 @@ pub fn load_savegame() -> Result<(), Refused> {
         return Ok(());
     }
 
-    let mut cursor =
-        GamePtr::to(&crate::saves::owner::saves().save_games.file).offset(PAYLOAD_OFFSET as u32);
+    let mut cursor = GamePtr::to(&saves.save_games.file).offset(PAYLOAD_OFFSET as u32);
     for at in head(menus) {
         at.set(cursor.read::<u32>("the savegame's head")?);
         cursor = cursor.offset(4);
     }
-    if crate::saves::owner::saves()
-        .savegame_preview
-        .use_savegame_keys
-        .get()
-        == 0
-    {
+    if saves.savegame_preview.use_savegame_keys.get() == 0 {
         crate::saves::keep_player_settings::keep_player_settings(cursor)?;
     }
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;

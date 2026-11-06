@@ -87,39 +87,31 @@ impl Decoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().pictures.decoder,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().pictures.decoder, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let pictures = &gfx().pictures;
         assert_eq!(offset_of!(Decoder, width), 0x519124 - START);
         assert_eq!(offset_of!(Decoder, format), 0x519148 - START);
         assert_eq!(offset_of!(Decoder, palette), 0x519154 - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx()
-                .pictures
-                .decoder
-                .builder_flags
-                .addr() as usize
+            pictures.decoder.builder_flags.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x519154),
-            (crate::pointers::game_address(
-                crate::gfx::owner::gfx().pictures.decoder.palette.as_ptr()
-            )) as usize
+            (crate::pointers::game_address(pictures.decoder.palette.as_ptr())) as usize
         );
         assert_eq!(
             crate::moved::place(0x519140),
-            crate::gfx::owner::gfx().pictures.decoder.pixels.addr() as usize
+            pictures.decoder.pixels.addr() as usize
         );
     }
 }

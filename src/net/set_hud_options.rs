@@ -11,6 +11,7 @@
 //!      reads no register: `lq 0x444CEE`, live_in empty)
 //! Caller: `net::lets_race`.
 
+use crate::gfx::owner::gfx;
 use crate::net::store::NET;
 use crate::race::state_store::RACE_STATE;
 use crate::race::vars_store::RACE_VARS;
@@ -59,7 +60,7 @@ pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
         .set(RACE_STATE.settings.cars[0].view.get());
     RACE_VARS
         .mip_setting
-        .set(crate::gfx::owner::gfx().display.choices.mipmapping.get());
+        .set(gfx().display.choices.mipmapping.get());
     for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
         to.set(from.get());
     }

@@ -3,8 +3,10 @@
 //! the bytes `shared_memory`'s raw copies give.
 
 use super::*;
+use crate::effects::owner::effects;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 use crate::shared_memory;
 
 /// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
@@ -125,6 +127,8 @@ macro_rules! every_store {
 
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
+    let scene = scene();
+    let effects = effects();
     let menus = menus();
     let race = race();
     let _lock = crate::store::test_lock();
@@ -135,9 +139,9 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         menus.cars.table,
         race.replay.finish,
         race.replay.replay_frames,
-        crate::effects::owner::effects().frame.view_vars,
-        crate::effects::owner::effects().paths.spline_head,
-        crate::effects::owner::effects().setup.work,
+        effects.frame.view_vars,
+        effects.paths.spline_head,
+        effects.setup.work,
         menus.tables.captions,
         menus.tables.draw_lists,
         menus.tables.lists,
@@ -186,17 +190,17 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         crate::race::view_store::RACE_VIEW,
         race.replay.replay_view,
         crate::race::work_store::RACE_WORK,
-        crate::scene::owner::scene().drawing.scene,
+        scene.drawing.scene,
         crate::scene::owner::SCENE.draw_switches,
         crate::scene::owner::SCENE.file_numbers,
-        crate::scene::owner::scene().textures.kinds,
-        crate::scene::owner::scene().lights.state,
+        scene.textures.kinds,
+        scene.lights.state,
         crate::scene::owner::SCENE.light_tables,
-        crate::scene::owner::scene().lights.work,
-        crate::scene::owner::scene().objects.slots,
-        crate::scene::owner::scene().drawing.object_work,
-        crate::scene::owner::scene().objects.tables,
-        crate::scene::owner::scene().textures.places,
+        scene.lights.work,
+        scene.objects.slots,
+        scene.drawing.object_work,
+        scene.objects.tables,
+        scene.textures.places,
     }
 }
 

@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
+use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use crate::session::SCREEN;
 use rc2k_core::gfx::picture_size as sizes;
@@ -38,8 +39,9 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 
 /// The Rust version on the picture at `path`.
 pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> {
+    let gfx = gfx();
     pump_messages_now();
-    crate::gfx::owner::gfx().pictures.showing.set(1);
+    gfx.pictures.showing.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
     // `rescaled`).
     crate::gfx::picture::set_size(sizes::READ);
@@ -51,18 +53,14 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
     };
     let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
     crate::gfx::picture::set_size(sizes::screen(width, height));
-    let pages = sizes::pages(crate::gfx::owner::gfx().display.mode.mode_flags.get());
+    let pages = sizes::pages(gfx.display.mode.mode_flags.get());
     if !read {
         crate::gfx::clear_picture::clear_picture()?;
     } else {
-        let was_showing = crate::gfx::owner::gfx().pictures.showing.get();
-        crate::gfx::owner::gfx().pictures.showing.set(0);
-        if was_showing != 0 && crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get() != 0 {
-            crate::gfx::owner::gfx()
-                .pictures
-                .picture
-                .flags
-                .set(0x802u32);
+        let was_showing = gfx.pictures.showing.get();
+        gfx.pictures.showing.set(0);
+        if was_showing != 0 && gfx.fonts.menu_fonts.palettes.get() != 0 {
+            gfx.pictures.picture.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface()?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 0xC0,
@@ -72,16 +70,15 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
                 &mut crate::text::draw_text::GameCanvas,
             )?;
         }
-        if sizes::rescaled(crate::gfx::owner::gfx().pictures.decoder.width.get(), width) {
+        if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
             for _ in 0..pages {
                 // `cmp g_surfaceLocked, 1`'s carry: not locked.
                 if lock_surface() < 1 {
                     return Ok(());
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
-                    &crate::gfx::owner::gfx().rescale,
-                    crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().drawing.draw_surface.x)
-                        .limited(0x30),
+                    &gfx.rescale,
+                    crate::pointers::GamePtr::to(&gfx.drawing.draw_surface.x).limited(0x30),
                 )?;
                 unlock_surface();
                 show_frame_now();
@@ -103,14 +100,11 @@ mod block_tests {
 
     #[test]
     fn first_value_is_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().pictures.showing,
-            SHOWING_START,
-            SHOWING_START + 4,
-        );
+        let pictures = &gfx().pictures;
+        crate::gfx::first_values_are_the_games(&pictures.showing, SHOWING_START, SHOWING_START + 4);
         assert_eq!(
             crate::moved::place(SHOWING_START),
-            crate::gfx::owner::gfx().pictures.showing.addr() as usize
+            pictures.showing.addr() as usize
         );
     }
 }

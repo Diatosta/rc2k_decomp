@@ -10,6 +10,7 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded;
@@ -18,22 +19,16 @@ use crate::session::write_bits;
 
 /// The Rust version (see the header).
 pub fn view_heading(frame: &Frame) {
+    let effects_frame = &effects().frame;
     let x = x87::loaded(frame.matrices.view_place[2].bits());
     let z = x87::loaded(frame.matrices.view_place[10].bits());
-    write_bits(
-        &crate::effects::owner::effects().frame.draw_frame.level,
-        [x, 0, z],
-    );
+    write_bits(&effects_frame.draw_frame.level, [x, 0, z]);
     let mut heading = rounded(angle_between_vectors(
-        &crate::effects::owner::effects().frame.draw_frame.level,
-        &crate::effects::owner::effects().frame.draw_frame.other,
+        &effects_frame.draw_frame.level,
+        &effects_frame.draw_frame.other,
     ));
-    if crate::effects::owner::effects().frame.draw_frame.level[0].bits() & 0x8000_0000 == 0 {
+    if effects_frame.draw_frame.level[0].bits() & 0x8000_0000 == 0 {
         heading = x87::two_pi_less(heading);
     }
-    crate::effects::owner::effects()
-        .frame
-        .view_vars
-        .heading
-        .set_bits(heading);
+    effects_frame.view_vars.heading.set_bits(heading);
 }

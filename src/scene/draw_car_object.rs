@@ -33,6 +33,7 @@ use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
+use crate::scene::owner::scene;
 use crate::session::write_all;
 
 // ---- game data ----
@@ -73,13 +74,14 @@ pub fn draw_shown_car(
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
     let clock: u32 = PHYSICS.scene_clock.bits();
-    crate::scene::owner::scene().drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
-    crate::scene::owner::scene().drawing.object_work.place[2].set(screens.state.carousel.z.get());
+    drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
+    drawing.object_work.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind);
@@ -102,10 +104,6 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     pick_pictures(menus)?;
     map_texture_places();
     load_slot_textures_in_game()?;
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .draw_mode
-        .set_bits(0u32);
+    scene().lights.state.draw_mode.set_bits(0u32);
     draw_shown_car(&menus.screens, &mut || draw_menu_object_in_game(race))
 }

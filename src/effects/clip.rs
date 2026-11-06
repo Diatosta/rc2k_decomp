@@ -2,6 +2,8 @@
 //! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
 
 use crate::d3d::vertices_store::Vertex;
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4, the image's layout; phase 7, typed state).
@@ -102,17 +104,16 @@ mod tests {
 
     #[test]
     fn the_variables_start_as_the_games() {
+        let clipping = &effects().clipping;
         assert_eq!(size_of::<ClipScreen>(), ClipScreen::LEN);
         assert_eq!(size_of::<GlowState>(), GlowState::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&crate::effects::owner::effects().clipping.clip)
-                == image(ClipScreen::START, ClipScreen::LEN),
+            bytes(&clipping.clip) == image(ClipScreen::START, ClipScreen::LEN),
             "CLIP starts differently from the image"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().clipping.glow)
-                == image(GlowState::START, GlowState::LEN),
+            bytes(&clipping.glow) == image(GlowState::START, GlowState::LEN),
             "GLOW starts differently from the image"
         );
         assert_eq!(

@@ -5,6 +5,7 @@
 
 use crate::errors::BadInput;
 use crate::place::Place;
+use crate::saves::owner::saves;
 use crate::service::state::menu_item;
 use crate::session::{Bytes, Dword};
 
@@ -36,7 +37,7 @@ fn highlighted<const N: usize>(
 /// The name of the highlighted saved game.
 pub fn savegame_name() -> Result<Place, BadInput> {
     highlighted(
-        &crate::saves::owner::saves().save_games.names,
+        &saves().save_games.names,
         SAVEGAME_PAGE_RVA,
         SAVEGAMES_PER_PAGE,
     )

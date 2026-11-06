@@ -23,6 +23,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::saves::default_times::to_the_log;
+use crate::saves::owner::saves;
 
 // ---- game data ----
 
@@ -48,6 +49,7 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
 pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
+    let best_times = &saves().best_times;
     let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
@@ -73,7 +75,7 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
         .race_music_volume
         .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
-        crate::saves::owner::saves().best_times.list(),
+        best_times.list(),
         crate::records::stages_store::STAGE_TABLES.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
@@ -83,7 +85,7 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
         .champ_view
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
-    if crate::saves::owner::saves().best_times.loaded.get() != 1 {
+    if best_times.loaded.get() != 1 {
         menus.screens.draw_work.work_0c.set(0u32);
         default_best_scores::default_best_scores()?;
         menus.screens.draw_work.work_0c.set(0u32);
@@ -96,7 +98,7 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
         default_stage_times::default_stage_times(stage, &mut to_the_log)?;
         menus.screens.draw_work.work_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
-        crate::saves::owner::saves().best_times.loaded.set(1);
+        best_times.loaded.set(1);
     }
     if menus.screens.loop_flags.options_loaded.get() != 1 {
         for table in record_tables() {

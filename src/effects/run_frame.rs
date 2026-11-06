@@ -12,6 +12,7 @@
 //!
 //! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::race;
@@ -40,11 +41,7 @@ fn share(at: usize, start: u32) {
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set_bits(x87::int_over_int_times(
         took,
-        crate::effects::owner::effects()
-            .setup
-            .frame
-            .frame_cycles
-            .bits() as i32,
+        effects().setup.frame.frame_cycles.bits() as i32,
         FRAME_K.times[at].to_bits(),
     ));
 }

@@ -21,6 +21,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
@@ -28,7 +29,7 @@ const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a seco
 /// One try: the candidate set; true when a block is in the way (CF).
 fn blocked() -> bool {
     PHYSICS.reset_candidate.set(
-        crate::scene::owner::scene()
+        scene()
             .lights
             .state
             .line_place
@@ -46,16 +47,9 @@ fn blocked() -> bool {
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
 pub fn reset_car(race: &Race) -> Result<(), Refused> {
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .line_place
-        .set(CAR.reset_checkpoint.get());
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .line_fraction
-        .set(0);
+    let lights = &scene().lights;
+    lights.state.line_place.set(CAR.reset_checkpoint.get());
+    lights.state.line_fraction.set(0);
     if RACE_VARS.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
@@ -72,11 +66,7 @@ pub fn reset_car(race: &Race) -> Result<(), Refused> {
             CAR.stuck_count.set(CAR.stuck_count.get().wrapping_sub(100));
             return Ok(());
         }
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .line_place
-            .set(PHYSICS.reset_candidate.get());
+        lights.state.line_place.set(PHYSICS.reset_candidate.get());
     }
     crate::race::start_place::place_car_on_line(&race.course)?;
     crate::physics::reset_car_on_line::reset_car_on_line(race)?;

@@ -43,6 +43,7 @@ use crate::physics::vector_length::vector_length;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use crate::scene::view_matrix::cross_product;
 use crate::session::Float;
 
@@ -63,6 +64,7 @@ fn fill3(to: &[Float], v: u32) {
 /// The Rust version: `record` the one the contact's force goes to (the original's
 /// `dword_614B40`, set by each caller just before).
 pub fn contact_force(race: &Race, record: &ForceRecord) {
+    let drawing = &scene().drawing;
     cross_product(
         &race.physics.contact.contact_turn_speed,
         &race.physics.contact.contact_point,
@@ -83,10 +85,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
         }),
     );
     x87_2(race);
-    hold_low(
-        &race.physics.contact.contact_depth,
-        &crate::scene::owner::scene().drawing.scene.scratch,
-    );
+    hold_low(&race.physics.contact.contact_depth, &drawing.scene.scratch);
     // 0x45F222: the push the turn would give.
     cross_product(
         &race.physics.contact.contact_point,
@@ -122,11 +121,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
     );
     let factor = extended(race.physics.contact.contact_factor.bits());
     scale_vector(&race.physics.contact.contact_normal_push, factor);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(rounded(factor));
+    drawing.scene.scratch.set(rounded(factor));
     let along = {
         dot_product(
             &race.physics.contact.contact_point_speed,
@@ -138,11 +133,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
         &race.physics.contact.contact_normal,
     );
     scale_vector(&race.physics.contact.contact_normal_speed, along);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(rounded(along));
+    drawing.scene.scratch.set(rounded(along));
     copy3(
         &race.physics.contact.contact_side_speed,
         &race.physics.contact.contact_point_speed,
@@ -166,11 +157,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
         );
         let part = x87_5(&race.physics);
         scale_vector(&race.physics.contact.contact_extra, part);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set(rounded(part));
+        drawing.scene.scratch.set(rounded(part));
     }
     x87_1(
         &race.physics.contact.contact_normal_push,
@@ -241,11 +228,7 @@ fn x87_2(race: &Race) {
     let t3 = t0 - t2;
     let t4 = ld(race.course.numbers.hundredth_a.bits());
     let t5 = t3 + t4;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(st(t5));
+    scene().drawing.scene.scratch.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -311,11 +294,7 @@ fn x87_6(physics: &Physics) -> u16 {
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(st(t8));
+    scene().drawing.scene.scratch.set_bits(st(t8));
     let t9 = ld(physics.contact.contact_slide_limit_held.bits());
     compare(t8, t9)
 }
@@ -327,8 +306,9 @@ fn x87_6(physics: &Physics) -> u16 {
 /// `[rc + 0x2D3148] = [rc + 0x2D3148] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x22400C] = [rc + 0x2D30FC] / [rc + 0x22400C]`
 fn x87_7(physics: &Physics) {
+    let drawing = &scene().drawing;
     let t0 = ld(physics.contact.contact_slide_limit_held.bits());
-    let t1 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
+    let t1 = ld(drawing.scene.scratch.bits());
     let t2 = t0 / t1;
     let t3 = ld(physics.contact.contact_slide[0].bits());
     let t4 = t3 * t2;
@@ -339,11 +319,7 @@ fn x87_7(physics: &Physics) {
     let t7 = ld(physics.contact.contact_slide[2].bits());
     let t8 = t7 * t2;
     physics.contact.contact_slide[2].set_bits(st(t8));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(st(t2));
+    drawing.scene.scratch.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

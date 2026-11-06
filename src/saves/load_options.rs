@@ -14,8 +14,10 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
+use crate::saves::owner::saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
 
@@ -37,7 +39,7 @@ mod path_tests {
         );
         assert_eq!(
             crate::moved::place(PATH_START),
-            crate::saves::owner::saves().files.options_path.addr() as usize
+            saves().files.options_path.addr() as usize
         );
     }
 }
@@ -48,6 +50,8 @@ pub const PIECES_LEN: usize = 0xB656;
 /// The file's pieces after its head, in order: (where each is, its length).
 #[rustfmt::skip]
 pub fn pieces() -> [(GamePtr, usize); 69] {
+let saves = saves();
+let display = &gfx().display;
     use crate::audio::store::AUDIO;
     use crate::net::store::NET;
     use crate::race::state_store::RACE_STATE;
@@ -60,9 +64,9 @@ let menus = menus();
     let names = |n: u32| GamePtr::to(&menus.play.names.player_names).offset(0x20 * n).limited(0x20);
     [
         (GamePtr::to(&RUN_COUNT.runs), 0x4),                            // how many times the game was run
-        (GamePtr::to(&crate::gfx::owner::gfx().display.mode.menu_mode), 0x4),                     // the menus' screen mode
-        (GamePtr::to(&crate::gfx::owner::gfx().display.mode.race_mode), 0x4),                     // the race's screen mode
-        (GamePtr::to(&crate::gfx::owner::gfx().display.choices.mipmapping), 0x4),                 // mipmapping, off or on
+        (GamePtr::to(&display.mode.menu_mode), 0x4),                     // the menus' screen mode
+        (GamePtr::to(&display.mode.race_mode), 0x4),                     // the race's screen mode
+        (GamePtr::to(&display.choices.mipmapping), 0x4),                 // mipmapping, off or on
         (GamePtr::to(&AUDIO.menu_sound_mode), 0x4),                     // the menus' sound mode
         (GamePtr::to(&AUDIO.race_sound_mode), 0x4),                     // the race's sound mode
         (GamePtr::to(&AUDIO.master_volume), 0x4),                       // the master volume
@@ -76,15 +80,15 @@ let menus = menus();
         (GamePtr::to(&NET.host_address), 0x40),                         // the host's address (TCP/IP)
         (GamePtr::to(&NET.port), 0x4),                                  // the TCP/IP port
         (GamePtr::to(&NET.saved_connection), 0x10),                     // the saved connection's GUID
-        (GamePtr::to(&crate::saves::owner::saves().save_games.kept_a), 0x4),                         // a saved-games word, not worked out
-        (GamePtr::to(&crate::saves::owner::saves().save_games.kept_b), 0x4),                         // a saved-games word, not worked out
+        (GamePtr::to(&saves.save_games.kept_a), 0x4),                         // a saved-games word, not worked out
+        (GamePtr::to(&saves.save_games.kept_b), 0x4),                         // a saved-games word, not worked out
         (GamePtr::to(&SET_UPS.kept), 0x4),                              // a car set-ups word, not worked out
         (GamePtr::to(&TYRE_CHANGE.record_name), 0x20),                  // the tyre change record holder's name
         (GamePtr::to(&TYRE_CHANGE.record), 0x4),                        // the tyre change record time
-        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[0]), 0x4),                                   // four dwords nothing else reads
-        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[1]), 0x4),
-        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[2]), 0x4),
-        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[3]), 0x4),
+        (GamePtr::to(&saves.files.options_kept[0]), 0x4),                                   // four dwords nothing else reads
+        (GamePtr::to(&saves.files.options_kept[1]), 0x4),
+        (GamePtr::to(&saves.files.options_kept[2]), 0x4),
+        (GamePtr::to(&saves.files.options_kept[3]), 0x4),
         (GamePtr::to(&menus.play.players.players[0]), 0x28C),                 // the four players' records
         (GamePtr::to(&menus.play.players.players[1]), 0x28C),
         (GamePtr::to(&menus.play.players.players[2]), 0x28C),
@@ -118,12 +122,12 @@ let menus = menus();
         (GamePtr::to(&STAGE_TABLES.events[9].records), 0x47C),
         (GamePtr::to(&STAGE_TABLES.events[10].records), 0x47C),
         (GamePtr::to(&STAGE_TABLES.events[11].records), 0x47C),
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[0]), 0xC30),                  // the six rallies' best times
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[1]), 0xC30),
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[2]), 0xC30),
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[3]), 0xC30),
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[4]), 0xC30),
-        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[5]), 0xC30),
+        (GamePtr::to(&saves.rally_times.rallies[0]), 0xC30),                  // the six rallies' best times
+        (GamePtr::to(&saves.rally_times.rallies[1]), 0xC30),
+        (GamePtr::to(&saves.rally_times.rallies[2]), 0xC30),
+        (GamePtr::to(&saves.rally_times.rallies[3]), 0xC30),
+        (GamePtr::to(&saves.rally_times.rallies[4]), 0xC30),
+        (GamePtr::to(&saves.rally_times.rallies[5]), 0xC30),
         (names(0), 0x20),                                               // the four players' names
         (names(1), 0x20),
         (names(2), 0x20),
@@ -170,7 +174,7 @@ pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Resu
 pub fn load_game_options() -> Result<bool, Refused> {
     let pieces = pieces();
     load_options(
-        crate::pointers::GamePtr::to(&crate::saves::owner::saves().files.options_path),
+        crate::pointers::GamePtr::to(&saves().files.options_path),
         &mut Places {
             loaded: &menus().screens.loop_flags.options_loaded,
             pieces: &pieces,
@@ -181,18 +185,12 @@ pub fn load_game_options() -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
+    use crate::saves::owner::saves;
     #[test]
     fn kept_starts_as_the_games() {
         let image = crate::moved::image_bytes(0x4F66DD, 20);
         let mine = unsafe {
-            std::slice::from_raw_parts(
-                crate::saves::owner::saves()
-                    .files
-                    .options_kept
-                    .as_ptr()
-                    .cast::<u8>(),
-                20,
-            )
+            std::slice::from_raw_parts(saves().files.options_kept.as_ptr().cast::<u8>(), 20)
         };
         assert_eq!(mine, &image[..]);
     }

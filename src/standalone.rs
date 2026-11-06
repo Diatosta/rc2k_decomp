@@ -19,7 +19,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, Regs, log};
+use crate::gfx::owner::gfx;
 use crate::install::outside::Game as Outside;
+use crate::saves::owner::saves;
 use crate::session::MACHINE;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -201,7 +203,7 @@ fn stack_returns(esp: usize) -> String {
 /// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
 /// first, once the front end has its tables: before that a save would write blanks.
 pub fn leave_on_close() -> ! {
-    let tables = &crate::saves::owner::saves().best_times;
+    let tables = &saves().best_times;
     if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
         && let Err(e) = crate::saves::save_game_data::save_in_game()
     {
@@ -382,17 +384,17 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// Once, on the main thread, after the image is built: the start-up functions it calls are
 /// still `unsafe` (they write the game's state before any thread of the game's runs).
 fn start() {
+    let gfx = gfx();
     let r = Regs::default();
     crate::menu::players_store::point_players();
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
-    crate::gfx::owner::gfx().fonts.typefaces.objects[56]
+    gfx.fonts.typefaces.objects[56]
         .palette
-        .set(crate::gfx::owner::gfx().fonts.menu_fonts.palette_sheet[0].addr());
+        .set(gfx.fonts.menu_fonts.palette_sheet[0].addr());
     // `g_surface.format` (0x4F49B8): the image points it at the format record; the
     // record is `session::SCREEN`'s, named by its handle (the platform sets it again at
     // every lock).
-    crate::gfx::owner::gfx()
-        .drawing
+    gfx.drawing
         .draw_surface
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
@@ -519,17 +521,13 @@ fn start() {
     // `system::open_window` (0x4103DE) and `gfx::probe_exclusive_mode` (0x404981):
     // SDL's (`SDL_DOES`).
     rust("gfx::find_3d_cards");
-    crate::gfx::find_3d_cards::find_3d_cards(&crate::gfx::owner::gfx().display);
+    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display);
     rust("gfx::list_primary_modes");
-    if let Err(e) =
-        crate::gfx::list_primary_modes::list_primary_modes(&crate::gfx::owner::gfx().display)
-    {
+    if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes(&gfx.display) {
         refused("gfx::list_primary_modes", e, &r);
     }
     rust("gfx::list_secondary_modes");
-    if let Err(e) =
-        crate::gfx::list_secondary_modes::list_secondary_modes(&crate::gfx::owner::gfx().display)
-    {
+    if let Err(e) = crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display) {
         refused("gfx::list_secondary_modes", e, &r);
     }
     rust("net::set_up");
@@ -555,15 +553,13 @@ fn start() {
         refused("gfx::allocate_picture_buffer", e, &r);
     }
     rust("gfx::set_component_format");
-    if let Err(e) = crate::gfx::set_component_format::set_component_format(
-        &crate::gfx::owner::gfx().pixel.formats,
-    ) {
+    if let Err(e) = crate::gfx::set_component_format::set_component_format(&gfx.pixel.formats) {
         refused("gfx::set_component_format", e, &r);
     }
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table();
     rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters(&crate::gfx::owner::gfx().pixel.converters);
+    crate::gfx::install_converters::install_converters(&gfx.pixel.converters);
     // `sound::open_cd_audio` (0x40F9DE): cut out of this build (`pusha; jmp` to its
     // end), so not called.
     // What the window's procedure and the key thread tell the main loop (the films

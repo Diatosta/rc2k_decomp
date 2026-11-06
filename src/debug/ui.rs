@@ -21,6 +21,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
+use crate::scene::owner::scene;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -100,12 +101,13 @@ static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
 /// The first view's scene has been drawn.
 pub fn note_view(frame: &Frame) {
+    let drawing = &scene().drawing;
     let view = (
         std::array::from_fn(|n| frame.matrices.view_matrix[n].get()),
-        crate::scene::owner::scene().drawing.scene.view_scale.get(),
+        drawing.scene.view_scale.get(),
         [
-            f32::from_bits(crate::scene::owner::scene().drawing.scene.view_centre[0].bits()),
-            f32::from_bits(crate::scene::owner::scene().drawing.scene.view_centre[1].bits()),
+            f32::from_bits(drawing.scene.view_centre[0].bits()),
+            f32::from_bits(drawing.scene.view_centre[1].bits()),
         ],
     );
     *VIEW

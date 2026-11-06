@@ -16,6 +16,7 @@ use crate::math::x87_run::{compare_full, toward_one};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (edx the slot).
@@ -51,7 +52,7 @@ fn game() -> Vec<&'static dyn Cell32> {
         &CAR.contact_point[0],
         &CAR.contact_point[1],
         &CAR.contact_point[2],
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &scene().drawing.scene.scratch,
         &CAR.impact_octant_marks[0],
         &CAR.impact_octant_marks[1],
         &CAR.impact_octant_marks[2],

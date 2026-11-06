@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
+use crate::scene::owner::scene;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::session::Dword;
 
@@ -67,11 +68,7 @@ pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
 pub fn listed() -> Result<Listed, BadInput> {
-    let count: u32 = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits();
+    let count: u32 = scene().drawing.scene.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));
     }

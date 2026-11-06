@@ -18,6 +18,7 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::memory::free_list::free_list;
@@ -29,13 +30,14 @@ const CAR_PART: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
 fn lists(ring: &Ring, masks: &Masks) -> [GamePtr; 6] {
+    let blocks = &effects().blocks;
     [
         GamePtr::to(&ring.pool.list),      // g_marksRingList
         GamePtr::to(&ring.work.list),      // stru_935620
         GamePtr::to(&masks.blocks.list_b), // g_marksBMaskList
         GamePtr::to(&masks.blocks.list_a), // stru_934D76
-        GamePtr::to(&crate::effects::owner::effects().blocks.places.list), // g_marksPlacesList
-        GamePtr::to(&crate::effects::owner::effects().blocks.links.list), // g_marksLinksList
+        GamePtr::to(&blocks.places.list),  // g_marksPlacesList
+        GamePtr::to(&blocks.links.list),   // g_marksLinksList
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).

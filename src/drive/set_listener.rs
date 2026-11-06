@@ -35,6 +35,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::multiply_matrices;
+use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
@@ -56,6 +57,7 @@ fn figures() -> Result<[i32; 6], Refused> {
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub fn set_listener(race: &Race) -> Result<(), Refused> {
+    let scene = scene();
     let physics = &race.physics;
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
@@ -155,19 +157,11 @@ pub fn set_listener(race: &Race) -> Result<(), Refused> {
     MARKS_SETTINGS
         .listener_flag
         .set(u32::from(car.handbrake.get() != 0));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(0x2000_0000);
+    scene.drawing.scene.scratch.set(0x2000_0000);
     MARKS_SETTINGS.listener_scale.set_bits(int_over_int_plus(
         car.steer_angle_visual.get() as i32,
         0x2000_0000,
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .listener_camera
-            .bits(),
+        scene.lights.state.listener_camera.bits(),
     ));
     MARKS_SETTINGS
         .listener_float_a

@@ -18,6 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
 
 // ---- game data ----
@@ -31,30 +32,23 @@ pub fn fog_polygon() -> Result<(), Refused> {
 
 /// `fog_polygon` on the polygon's entries as listed.
 pub fn fog_entries(entries: &Listed) -> Result<(), Refused> {
+    let scene = scene();
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
     if entries.iter().any(|entry| entry.record.get() == 0) {
         return Err(BadInput("an entry without its record").into());
     }
-    let length: u32 = crate::scene::owner::scene()
-        .lights
-        .state
-        .fog_table_length
-        .bits();
+    let length: u32 = scene.lights.state.fog_table_length.bits();
     if length > TABLE_LEN {
         return Err(BadInput("a fog table longer than its room").into());
     }
-    let fixed = (crate::scene::owner::scene().lights.state.view_kind.bits() == 4)
-        .then(|| crate::scene::owner::scene().lights.state.fog_next.bits());
+    let fixed =
+        (scene.lights.state.view_kind.bits() == 4).then(|| scene.lights.state.fog_next.bits());
     for entry in entries {
         let record = entry.record.get();
         let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(depth as u32);
+        scene.drawing.scene.scratch.set_bits(depth as u32);
         // A place past the length is the last one; with no length (the menus)
         // that is the byte before the table, as in the original.
         let place = depth.max(0) as u32 >> 13;
@@ -64,15 +58,10 @@ pub fn fog_entries(entries: &Listed) -> Result<(), Refused> {
             length.wrapping_sub(1)
         };
         // A length of 0 reads the byte before the table, as the original.
-        let fog = match crate::scene::owner::scene()
-            .lights
-            .state
-            .fog_table
-            .get(place as usize / 4)
-        {
+        let fog = match scene.lights.state.fog_table.get(place as usize / 4) {
             Some(cell) => cell.get().to_le_bytes()[place as usize % 4],
             // A run-on before the table, as the original.
-            None => GamePtr::to(&crate::scene::owner::scene().lights.state.fog_table)
+            None => GamePtr::to(&scene.lights.state.fog_table)
                 .unbounded()
                 .offset(place)
                 .read::<u8>("the fog table")?,

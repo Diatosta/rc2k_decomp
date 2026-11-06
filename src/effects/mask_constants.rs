@@ -2,6 +2,8 @@
 //! of the marks' block (phase 7, typed state): the spans' and rings' constants, the eased
 //! steps', the corners', the pixels' and the rows'.
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Dword, Float};
 
 /// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30, the image's layout; phase 7, typed state).
@@ -99,9 +101,7 @@ impl MaskConstants {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().setup.mask_constants,
-        ) as usize
+        crate::pointers::game_address(&raw const effects().setup.mask_constants) as usize
     }
 }
 

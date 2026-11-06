@@ -81,19 +81,14 @@ pub fn windscreen_flakes_frame(
     if marks.listener_switch_6.get() == 0 {
         return Ok(());
     }
-    if crate::effects::owner::effects()
-        .setup
-        .kind_floats
-        .running
-        .bits()
-        == 0
-    {
+    if effects().setup.kind_floats.running.bits() == 0 {
         return Ok(());
     }
     windscreen_flakes_step(masks, drops, fl)?;
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,

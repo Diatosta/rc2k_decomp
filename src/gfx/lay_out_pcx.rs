@@ -17,6 +17,7 @@
 //! The name is a reading.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 
 // ---- Rust version ----
@@ -24,67 +25,37 @@ use crate::gfx::palette_to_dwords::palette_to_dwords;
 /// Converted: `rc2k_core::gfx::pcx::lay_out`, on the header and the variables in game memory.
 /// Returns the layout it stored.
 pub fn lay_out_pcx() -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
+    let pictures = &gfx().pictures;
     let target = rc2k_core::gfx::pcx::Target {
-        width: crate::gfx::owner::gfx().pictures.picture.width.get(),
-        height: crate::gfx::owner::gfx().pictures.picture.height.get(),
-        width_limit: crate::gfx::owner::gfx().pictures.pcx.width_limit.get(),
-        height_limit: crate::gfx::owner::gfx().pictures.pcx.height_limit.get(),
-        flags: crate::gfx::owner::gfx().pictures.picture.flags.get(),
-        row_bytes: crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        width: pictures.picture.width.get(),
+        height: pictures.picture.height.get(),
+        width_limit: pictures.pcx.width_limit.get(),
+        height_limit: pictures.pcx.height_limit.get(),
+        flags: pictures.picture.flags.get(),
+        row_bytes: pictures.picture.row_bytes.get(),
     };
-    let l = rc2k_core::gfx::pcx::lay_out(
-        &crate::gfx::owner::gfx().pictures.pcx.header.read(),
-        &target,
-    );
+    let l = rc2k_core::gfx::pcx::lay_out(&pictures.pcx.header.read(), &target);
     for (at, value) in [
-        (&crate::gfx::owner::gfx().pictures.pcx.planes, l.planes),
-        (
-            &crate::gfx::owner::gfx().pictures.pcx.line_bytes,
-            l.line_bytes,
-        ),
-        (
-            &crate::gfx::owner::gfx().pictures.pcx.file_width,
-            l.file_width,
-        ),
-        (&crate::gfx::owner::gfx().pictures.decoder.width, l.width),
-        (
-            &crate::gfx::owner::gfx().pictures.pcx.file_height,
-            l.file_height,
-        ),
-        (&crate::gfx::owner::gfx().pictures.decoder.height, l.height),
-        (
-            &crate::gfx::owner::gfx().pictures.decoder.pixel_bits,
-            l.pixel_bits,
-        ),
-        (
-            &crate::gfx::owner::gfx().pictures.decoder.pixel_bytes,
-            l.pixel_bytes,
-        ),
-        (
-            &crate::gfx::owner::gfx().pictures.decoder.row_bytes,
-            l.row_bytes,
-        ),
-        (
-            &crate::gfx::owner::gfx().pictures.decoder.row_dwords,
-            l.row_dwords,
-        ),
-        (&crate::gfx::owner::gfx().pictures.decoder.stride, l.stride),
-        (
-            &crate::gfx::owner::gfx().pictures.decoder.row_gap,
-            l.row_gap,
-        ),
+        (&pictures.pcx.planes, l.planes),
+        (&pictures.pcx.line_bytes, l.line_bytes),
+        (&pictures.pcx.file_width, l.file_width),
+        (&pictures.decoder.width, l.width),
+        (&pictures.pcx.file_height, l.file_height),
+        (&pictures.decoder.height, l.height),
+        (&pictures.decoder.pixel_bits, l.pixel_bits),
+        (&pictures.decoder.pixel_bytes, l.pixel_bytes),
+        (&pictures.decoder.row_bytes, l.row_bytes),
+        (&pictures.decoder.row_dwords, l.row_dwords),
+        (&pictures.decoder.stride, l.stride),
+        (&pictures.decoder.row_gap, l.row_gap),
     ] {
         at.set(value);
     }
-    crate::gfx::owner::gfx()
-        .pictures
-        .decoder
-        .pixels
-        .set(crate::gfx::owner::gfx().pictures.picture.buffer.get());
+    pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
-        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().pictures.pcx.file_palette),
-        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().pictures.decoder.palette),
+        crate::pointers::GamePtr::to(&pictures.pcx.file_palette),
+        crate::pointers::GamePtr::to(&pictures.decoder.palette),
     )?;
     Ok(l)
 }

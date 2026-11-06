@@ -13,9 +13,11 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 
 /// The Rust version (see the header).
 pub fn draw_view_overlays(race: &Race) -> Result<(), Refused> {
+    let draw_switches = &scene().draw_switches;
     use crate::hud::overlay_states::overlay_states;
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
@@ -30,16 +32,10 @@ pub fn draw_view_overlays(race: &Race) -> Result<(), Refused> {
     draw_flat_triangle();
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();
-    let kept: u32 = crate::scene::owner::scene().draw_switches.far_on.bits();
-    crate::scene::owner::scene()
-        .draw_switches
-        .far_on
-        .set_bits(0u32);
+    let kept: u32 = draw_switches.far_on.bits();
+    draw_switches.far_on.set_bits(0u32);
     let drawn = draw_own_car(race);
-    crate::scene::owner::scene()
-        .draw_switches
-        .far_on
-        .set_bits(kept);
+    draw_switches.far_on.set_bits(kept);
     drawn?;
     draw_screen_tint(race)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;

@@ -16,6 +16,7 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, screen_entry,
 };
+use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -70,18 +71,9 @@ pub const SCREEN: Screen = Screen {
         &menus().tables.texts.new_simulation_picture
     }))],
     after_first_frame: &[
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_offset[0],
-            0x7,
-        ),
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_offset[1],
-            0xA,
-        ),
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_zoom,
-            0x100,
-        ),
+        Step::Write(|| &scene().drawing.scene.view_offset[0], 0x7),
+        Step::Write(|| &scene().drawing.scene.view_offset[1], 0xA),
+        Step::Write(|| &scene().drawing.scene.view_zoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,

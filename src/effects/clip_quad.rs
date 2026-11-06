@@ -18,6 +18,7 @@
 //! cannot come: the quad is the vertices' own).
 
 use crate::d3d::vertices_store::Vertex;
+use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::Float;
@@ -58,8 +59,9 @@ fn copy_vertex(from: &Vertex, to: &Vertex) {
 /// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
 /// vertex numbers wrap at 4.
 pub fn clip_quad() -> Result<bool, Refused> {
+    let effects = effects();
     {
-        let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
+        let settings: u32 = effects.setup.settings.is_set.get();
         if settings == 0 {
             return Err(BadInput("null marks settings").into());
         }
@@ -70,7 +72,7 @@ pub fn clip_quad() -> Result<bool, Refused> {
             return Ok(false);
         }
         let (edge, coord, other, below) = EDGES[mode as usize - 1];
-        let line: u32 = crate::effects::owner::effects().clipping.clip.edges[edge].bits();
+        let line: u32 = effects.clipping.clip.edges[edge].bits();
         // The test of vertex k: inside.
         let t = |k: usize| -> bool {
             let v = coord(&q[k]).bits() as i32;
@@ -111,7 +113,7 @@ pub fn clip_quad() -> Result<bool, Refused> {
         } else {
             return Ok(false);
         }
-        let work = &crate::effects::owner::effects().clipping.clip.vertices;
+        let work = &effects.clipping.clip.vertices;
         let mut built = 0;
         let mut k = edi;
         loop {
@@ -152,11 +154,7 @@ pub fn clip_quad() -> Result<bool, Refused> {
             .scene
             .polygon_vertex_count
             .set_bits(count);
-        crate::effects::owner::effects()
-            .clipping
-            .glow
-            .clip_count
-            .set(count);
+        effects.clipping.glow.clip_count.set(count);
     }
     Ok(false)
 }

@@ -25,6 +25,7 @@ use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
+use crate::scene::owner::scene;
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
@@ -70,11 +71,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         let point = [extended(y), extended(x)].map(to_f64);
         crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(4u32);
+    scene().drawing.scene.polygon_vertex_count.set_bits(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }
 

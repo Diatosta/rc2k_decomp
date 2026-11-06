@@ -14,6 +14,7 @@
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -21,30 +22,22 @@ const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
 fn prepare(ring: &Ring, record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+    let effects = effects();
     {
-        let size = x87::int_times_to_int(
-            object.word(0x90)? as i32,
-            crate::effects::owner::effects().setup.floats.three.bits(),
-        );
+        let size =
+            x87::int_times_to_int(object.word(0x90)? as i32, effects.setup.floats.three.bits());
         object.at(0x90).write::<i32>(size, "a mark's field")?;
         record.pace.set(record.pace.get().wrapping_add(PACE));
-        crate::effects::owner::effects().kinds.emitter.record.set(2);
+        effects.kinds.emitter.record.set(2);
         let flip = record.flip.get() ^ 1;
         record.flip.set(flip);
         if flip & 1 == 0 {
-            crate::effects::owner::effects().kinds.emitter.record.set(3);
+            effects.kinds.emitter.record.set(3);
         }
         record.speed_c.set_bits(0);
-        let chance = x87::mul_to_int(
-            record.chance.bits(),
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_pow_16
-                .bits(),
-        );
+        let chance = x87::mul_to_int(record.chance.bits(), effects.setup.floats.two_pow_16.bits());
         ring.work.whole.set(chance as u32);
-        let r = next_c5(&crate::effects::owner::effects().kinds.emitter.body_random);
+        let r = next_c5(&effects.kinds.emitter.body_random);
         if ((r & 0xFFFF) as i32) < chance {
             record.take_surface();
         }

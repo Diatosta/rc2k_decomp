@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
+use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
@@ -28,50 +29,27 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of the panel drawn.
 pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let savegame_preview = &saves().savegame_preview;
     let tables = &menus().tables;
     // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     let page = menus().tables.pages.save_page.get();
-    match preview(
-        menu_item(),
-        page,
-        crate::saves::owner::saves()
-            .savegame_preview
-            .shown_slot
-            .get(),
-    ) {
+    match preview(menu_item(), page, savegame_preview.shown_slot.get()) {
         Preview::NoSlot => {
-            crate::saves::owner::saves()
-                .savegame_preview
-                .nothing_to_show
-                .set(1u32);
-            crate::saves::owner::saves()
-                .savegame_preview
-                .shown_slot
-                .set(NO_SLOT);
+            savegame_preview.nothing_to_show.set(1u32);
+            savegame_preview.shown_slot.set(NO_SLOT);
             return draw_empty_savegame(canvas);
         }
         Preview::Slot { slot, read: true } => {
             // Refused before anything is written: a slot past the list.
             let found = read_savegame_slot(slot)?;
-            crate::saves::owner::saves()
-                .savegame_preview
-                .shown_slot
-                .set(slot);
-            crate::saves::owner::saves()
-                .savegame_preview
-                .nothing_to_show
-                .set(!found as u32);
+            savegame_preview.shown_slot.set(slot);
+            savegame_preview.nothing_to_show.set(!found as u32);
         }
         Preview::Slot { .. } => {}
     }
-    if crate::saves::owner::saves()
-        .savegame_preview
-        .nothing_to_show
-        .get()
-        == 1
-    {
+    if savegame_preview.nothing_to_show.get() == 1 {
         draw_empty_savegame(canvas)
     } else {
         draw_savegame_details(tables, canvas)

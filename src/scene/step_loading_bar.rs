@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -28,7 +29,7 @@ fn ends() -> rc2k_core::scene::loading::BarEnds {
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
 fn progress(done: u32) -> Option<u32> {
-    let textures: u32 = crate::scene::owner::scene().textures.places.totals[3].get();
+    let textures: u32 = scene().textures.places.totals[3].get();
     ends().progress(done, textures)
 }
 

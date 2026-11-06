@@ -9,6 +9,7 @@
 //! Refuses what `free_list` refuses.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 use crate::memory::free_list::free_list;
 
 // ---- Rust version ----
@@ -24,6 +25,7 @@ pub fn free_fonts(
 
 /// With the game's list and palettes' place.
 pub fn free_fonts_in_game() -> Result<(), BadInput> {
-    let list = crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory);
-    free_fonts(list, &crate::gfx::owner::gfx().fonts.menu_fonts.palettes)
+    let fonts = &gfx().fonts;
+    let list = crate::pointers::GamePtr::to(&fonts.glyph_tables.memory);
+    free_fonts(list, &fonts.menu_fonts.palettes)
 }

@@ -89,6 +89,7 @@ pub fn gather_savegame(menus: &Menus, buffer: GamePtr) -> Result<(), BadInput> {
 mod tests {
     use super::*;
     use crate::menu::owner::menus;
+    use crate::saves::owner::saves;
     use rc2k_core::menu::player::Player;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
@@ -98,7 +99,7 @@ mod tests {
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &menus().play;
         let _guard = crate::store::test_lock();
-        let buffer = GamePtr::to(&crate::saves::owner::saves().save_games.file);
+        let buffer = GamePtr::to(&saves().save_games.file);
         let file_before = buffer.read_bytes(LEN, "the file").unwrap();
         let players_before = play
             .players

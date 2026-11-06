@@ -1850,7 +1850,7 @@ impl MenuId {
         (0..MENU_COUNT)
             .map(MenuId)
             .find(|m| std::ptr::eq(m.labels(), head))
-            .expect("a menu of crate::menu::owner::menus().tables.menus'")
+            .expect("a menu of MENUS'")
     }
 }
 

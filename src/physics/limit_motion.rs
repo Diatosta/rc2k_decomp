@@ -25,6 +25,7 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -46,6 +47,7 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
 pub fn limit_motion() {
+    let drawing = &scene().drawing;
     let mut bad = false;
     for k in 0..3usize {
         let ecx = CAR.velocity[k].bits() & 0x7F80_0000;
@@ -74,11 +76,7 @@ pub fn limit_motion() {
         hold(&CAR.velocity[k], &PHYSICS.velocity_limit);
     }
     let length = rounded(vector_length(&CAR.velocity));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .motion_length
-        .set_bits(length);
+    drawing.scene.motion_length.set_bits(length);
     let top = PHYSICS.top_speed.bits();
     let past = matches!(
         f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
@@ -89,11 +87,7 @@ pub fn limit_motion() {
         let factor = crate::math::x87_run::div_80(top, length);
         scale_vector(&CAR.velocity, factor);
         scale_vector(&CAR.local_velocity, factor);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set(rounded(factor));
+        drawing.scene.scratch.set(rounded(factor));
     }
 }
 

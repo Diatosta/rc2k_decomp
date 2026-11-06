@@ -6,6 +6,7 @@ use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The render states both batches set: (value, state).
@@ -73,9 +74,10 @@ pub fn textured() -> Batch {
 /// "drawtri" and its code (level 1); the count and word 0. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves.
 pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
+    let scene = scene();
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     if !textured {
-        set_texture(crate::scene::owner::scene().textures.kinds.kind_first_slots[135].get());
+        set_texture(scene.textures.kinds.kind_first_slots[135].get());
     }
     for (value, state) in STATES {
         set_render_state(if state == 0x14 { b.blend } else { value }, state);
@@ -86,13 +88,7 @@ pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
         if textured {
             // Inside `pusha`: the look-up, then its texture set.
             crate::scene::look_up_texture::look_up_texture();
-            set_texture(
-                crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .polygon_texture
-                    .get(),
-            );
+            set_texture(scene.drawing.scene.polygon_texture.get());
         }
         let result = (b.draw)(b.word.get(), count);
         if result != 0 {
@@ -127,16 +123,15 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
 pub fn draw_view_backdrop(course: &Course) {
+    let scene = scene();
     RACE_VARS.quad_uv[0].set(0xF8_0000);
     RACE_VARS.quad_uv[4].set(0x8_0000);
-    let left = crate::scene::owner::scene().drawing.scene.view_offset[0].get();
+    let left = scene.drawing.scene.view_offset[0].get();
     RACE_VARS.quad_corners[0].set(left);
-    RACE_VARS.quad_corners[1]
-        .set(left.wrapping_add(crate::scene::owner::scene().drawing.scene.view_size[0].get()));
-    let top = crate::scene::owner::scene().drawing.scene.view_offset[1].get();
+    RACE_VARS.quad_corners[1].set(left.wrapping_add(scene.drawing.scene.view_size[0].get()));
+    let top = scene.drawing.scene.view_offset[1].get();
     RACE_VARS.quad_corners[4].set(top);
-    RACE_VARS.quad_corners[5]
-        .set(top.wrapping_add(crate::scene::owner::scene().drawing.scene.view_size[1].get()));
+    RACE_VARS.quad_corners[5].set(top.wrapping_add(scene.drawing.scene.view_size[1].get()));
     let v = &crate::d3d::vertices_store::VERTICES.vertices;
     let x0 = int_and_one(course, RACE_VARS.quad_corners[0].get(), false);
     v[0].x.set_bits(x0);
@@ -164,15 +159,9 @@ pub fn draw_view_backdrop(course: &Course) {
     for vertex in &v[..4] {
         vertex.colour.set(0xFF00_0000);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set(4);
+    scene.drawing.scene.polygon_vertex_count.set(4);
     crate::scene::glow_render_states::glow_render_states();
-    crate::scene::set_texture::set_texture(
-        crate::scene::owner::scene().textures.kinds.kind_first_slots[192].get(),
-    );
+    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[192].get());
     crate::d3d::draw_fan_unclipped::draw_fan_unclipped();
     crate::scene::depth_buffer_on::depth_buffer(true);
 }

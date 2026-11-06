@@ -12,20 +12,19 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 
 /// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
 /// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
 /// Those take no register (they are called with none); the registers left are read by
 /// none of the callers.
 pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
+    let lights = &scene().lights;
     let nearest = crate::race::start_place::nearest_checkpoint(race)?;
     for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
         cell.set(nearest);
     }
-    for cell in [
-        &crate::scene::owner::scene().lights.state.line_place,
-        &crate::scene::owner::scene().lights.state.line_fraction,
-    ] {
+    for cell in [&lights.state.line_place, &lights.state.line_fraction] {
         cell.set(nearest);
     }
     crate::race::start_place::place_car_on_line(&race.course)?;

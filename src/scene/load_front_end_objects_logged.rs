@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_hex8::log_hex8;
+use crate::scene::owner::scene;
 
 const RULE: &std::ffi::CStr = c"===========================";
 const LOADED: &std::ffi::CStr = c"Front end objects loaded";
@@ -18,29 +19,13 @@ const RULE_2: &std::ffi::CStr = c"===========================";
 type Total = (&'static std::ffi::CStr, fn() -> u32);
 const TOTALS: [Total; 4] = [
     // "total points", g_objectPointCount
-    (c"total points", || {
-        crate::scene::owner::scene()
-            .objects
-            .tables
-            .point_count
-            .get()
-    }),
+    (c"total points", || scene().objects.tables.point_count.get()),
     (c"total pointmem", || {
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .point_memory_total
-            .bits()
+        scene().drawing.object_work.point_memory_total.bits()
     }),
-    (c"total faces", || {
-        crate::scene::owner::scene().objects.tables.face_count.get()
-    }),
+    (c"total faces", || scene().objects.tables.face_count.get()),
     (c"total facemem", || {
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .face_memory_total
-            .bits()
+        scene().drawing.object_work.face_memory_total.bits()
     }),
 ];
 

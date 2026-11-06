@@ -26,6 +26,7 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
 use crate::strings::text_buffer::TEXT_BUFFER;
 
@@ -45,6 +46,7 @@ fn bar_width() -> Result<u32, Refused> {
 
 /// `install::progress_frame`'s Rust version: its carry (the last lock's or show's).
 pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
+    let drawing = &gfx().drawing;
     let width = bar_width()?;
     let mut carry = false;
     for _ in 0..2 {
@@ -61,9 +63,8 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
             )),
         )?;
         let x = g.pages.bar.get_u32(0);
-        let kept_clip: u32 = crate::gfx::owner::gfx().drawing.blit.clip.right.get();
-        crate::gfx::owner::gfx()
-            .drawing
+        let kept_clip: u32 = drawing.blit.clip.right.get();
+        drawing
             .blit
             .clip
             .right
@@ -75,12 +76,7 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
             0,
             g.run.bar_glyphs.get(),
         )?;
-        crate::gfx::owner::gfx()
-            .drawing
-            .blit
-            .clip
-            .right
-            .set(kept_clip);
+        drawing.blit.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
         TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;

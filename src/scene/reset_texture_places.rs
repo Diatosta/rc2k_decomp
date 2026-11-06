@@ -6,15 +6,18 @@
 //! -1 throughout `dword_5D9968` and `dword_5D8968` (each texture's place), 0x400 dwords each.
 //! Two callers.
 
+use crate::scene::owner::scene;
+
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn reset_texture_places() {
+    let textures = &scene().textures;
     // dword_5D9968, dword_5D8968: 0x1000 bytes each, 0xFF.
     for table in [
-        &crate::scene::owner::scene().textures.places.loaded_pictures,
-        &crate::scene::owner::scene().textures.places.wanted_pictures,
+        &textures.places.loaded_pictures,
+        &textures.places.wanted_pictures,
     ] {
         for cell in table {
             cell.set(u32::MAX);

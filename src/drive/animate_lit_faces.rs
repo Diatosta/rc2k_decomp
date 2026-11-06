@@ -33,6 +33,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
+use crate::scene::owner::scene;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -108,6 +109,7 @@ pub fn animate_at(race: &Race) -> Result<(), Refused> {
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
 fn animate_faces(race: &Race) -> Result<(), Refused> {
+    let scene = scene();
     let mut k = 0;
     loop {
         let f = list(&race.physics, k).get();
@@ -120,18 +122,15 @@ fn animate_faces(race: &Race) -> Result<(), Refused> {
             let point_number = at(f, 4)?;
             let dx = crate::race::scene_points::point_word(point_number, 0)?
                 .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
-            crate::scene::owner::scene().drawing.scene.scratch.set(dx);
+            scene.drawing.scene.scratch.set(dx);
             let dz = crate::race::scene_points::point_word(point_number, 2)?
                 .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
-            crate::scene::owner::scene().drawing.scene.scratch.set(dz);
+            scene.drawing.scene.scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
             race.physics.contact.lit_face_distance.set(d);
             let step = pace(d);
             race.physics.contact.lit_face_pace.set(step);
-            let kind_of: u32 = crate::scene::owner::scene()
-                .objects
-                .tables
-                .object_kind(object as u32);
+            let kind_of: u32 = scene.objects.tables.object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
             let kind = crate::scene::polygon_store::POLYGON_WORK
                 .object_materials

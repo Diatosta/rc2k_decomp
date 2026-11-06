@@ -12,6 +12,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
 use crate::menu::owner::menus;
@@ -21,21 +22,9 @@ use crate::text::draw_text::Canvas;
 type Name = (fn() -> u32, u32, i32);
 
 const NAMES: [Name; 8] = [
-    (
-        || crate::gfx::owner::gfx().display.choices.card.get(),
-        0x38F,
-        0,
-    ),
-    (
-        || crate::gfx::owner::gfx().display.choices.buffering.get(),
-        0x391,
-        2,
-    ),
-    (
-        || crate::gfx::owner::gfx().display.choices.mipmapping.get(),
-        0x56D,
-        3,
-    ),
+    (|| gfx().display.choices.card.get(), 0x38F, 0),
+    (|| gfx().display.choices.buffering.get(), 0x391, 2),
+    (|| gfx().display.choices.mipmapping.get(), 0x56D, 3),
     (|| menus().screens.option_work.setting_0.get(), 0x56D, 4),
     (|| menus().screens.option_work.setting_1.get(), 0x56D, 5),
     (|| menus().screens.option_work.setting_2.get(), 0x396, 6),
@@ -45,25 +34,20 @@ const NAMES: [Name; 8] = [
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).
 pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let display = &gfx().display;
     // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
     {
         if rc2k_core::screens::settings_pages::graphics_item(
-            crate::gfx::owner::gfx().display.choices.has_primary.get(),
-            crate::gfx::owner::gfx().display.choices.has_secondary.get(),
+            display.choices.has_primary.get(),
+            display.choices.has_secondary.get(),
         ) {
             enable_item(2)?;
         } else {
             disable_item(2)?;
         }
-        let place = crate::gfx::owner::gfx().display.choices.resolution.get();
-        let v = |i: usize| {
-            crate::gfx::owner::gfx()
-                .display
-                .choices
-                .list
-                .dword(place, i, "a screen mode")
-        };
+        let place = display.choices.resolution.get();
+        let v = |i: usize| display.choices.list.dword(place, i, "a screen mode");
         let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),

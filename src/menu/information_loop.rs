@@ -17,27 +17,23 @@ use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, log_line, prepare_scene,
     screen_entry,
 };
+use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let screens = &menus().screens;
     // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: Start");
-    crate::scene::owner::scene().drawing.scene.view_offset[0].set(0xFFFFFF64u32);
-    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0x27u32);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_zoom
-        .set(0x140u32);
+    drawing.scene.view_offset[0].set(0xFFFFFF64u32);
+    drawing.scene.view_offset[1].set(0x27u32);
+    drawing.scene.view_zoom.set(0x140u32);
     prepare_scene();
-    crate::scene::owner::scene().drawing.scene.clip_edges[2].set(0xFFFFFFD8u32);
-    crate::scene::owner::scene().drawing.scene.clip_edges[3].set(0x2F8u32);
-    crate::scene::owner::scene().drawing.scene.clip_screen[2]
-        .set(crate::scene::owner::scene().drawing.scene.clip_edges[2].bits() as i32 as f32);
-    crate::scene::owner::scene().drawing.scene.clip_screen[3]
-        .set(crate::scene::owner::scene().drawing.scene.clip_edges[3].bits() as i32 as f32);
+    drawing.scene.clip_edges[2].set(0xFFFFFFD8u32);
+    drawing.scene.clip_edges[3].set(0x2F8u32);
+    drawing.scene.clip_screen[2].set(drawing.scene.clip_edges[2].bits() as i32 as f32);
+    drawing.scene.clip_screen[3].set(drawing.scene.clip_edges[3].bits() as i32 as f32);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x9u32);
     carousel(None)?;

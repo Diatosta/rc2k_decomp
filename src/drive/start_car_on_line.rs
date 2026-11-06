@@ -22,6 +22,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_course::Course;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
@@ -41,6 +42,7 @@ pub fn car_number(start: usize) -> Result<u32, BadInput> {
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
 pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> {
+    let lights = &scene().lights;
     let start = RACE_TABLES.start_slot.get();
     start_places::check_start(start)?;
     CAR.start_slot_value.set(car_number(start as usize)?);
@@ -49,16 +51,8 @@ pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> 
     for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
         cell.set(checkpoint);
     }
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .line_place
-        .set(checkpoint);
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .line_fraction
-        .set(checkpoint);
+    lights.state.line_place.set(checkpoint);
+    lights.state.line_fraction.set(checkpoint);
     let share = start_places::start_share(
         start as i32,
         RACE_TABLES.arcade_cars.get() as i32,

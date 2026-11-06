@@ -22,6 +22,7 @@ use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use crate::scene::view_matrix::cross_product;
 
 /// The Rust version.
@@ -39,11 +40,7 @@ pub fn lever_push(course: &Course) {
     for factor in [&PHYSICS.lever_share_left, &PHYSICS.lever_share] {
         let f = extended(factor.bits());
         scale_vector(&PHYSICS.lever_push_turned, f);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set(rounded(f));
+        scene().drawing.scene.scratch.set(rounded(f));
     }
     for (from, int, place) in [
         (

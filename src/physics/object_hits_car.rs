@@ -23,6 +23,7 @@ use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -33,6 +34,7 @@ use rc2k_core::physics::contacts;
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
 pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refused> {
+    let objects = &scene().objects;
     let race_owner = race;
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
@@ -43,7 +45,7 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
             .get()
             .wrapping_add(1),
     );
-    let count = crate::scene::owner::scene().objects.slots.point_counts[number as usize].get();
+    let count = objects.slots.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.
     let points = if count == 0 {
@@ -53,7 +55,7 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
-        crate::scene::owner::scene().objects.slots.first_point[number as usize].get(),
+        objects.slots.first_point[number as usize].get(),
         count,
         points,
         0,

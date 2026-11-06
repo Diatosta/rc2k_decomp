@@ -13,6 +13,7 @@
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -73,6 +74,7 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
+    let setup = &effects().setup;
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask =
@@ -132,18 +134,10 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
     ring.work.count.set(0);
 
     let [eighth, edge, pixel, step]: [u32; 4] = [
-        crate::effects::owner::effects().setup.floats.eighth.bits(),
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .over_512
-            .bits(),
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .over_256
-            .bits(),
-        crate::effects::owner::effects().setup.floats.over_32.bits(),
+        setup.floats.eighth.bits(),
+        setup.floats.over_512.bits(),
+        setup.floats.over_256.bits(),
+        setup.floats.over_32.bits(),
     ];
     let places = &masks.surface.places;
     let end = size_of_val(places);
@@ -253,7 +247,7 @@ mod mask_list_tests {
     fn mask_list_starts_as_the_games() {
         assert_eq!(size_of::<MaskList>(), MaskList::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().masks.list)
+            bytes(&effects().masks.list)
                 == crate::moved::image_bytes(MaskList::START, MaskList::LEN),
             "MASK_LIST starts differently from the image"
         );

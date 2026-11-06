@@ -20,18 +20,16 @@ use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::owner::Race;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
+use crate::scene::owner::scene;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let object = race.physics.contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
-    set_turn_y(
-        crate::scene::owner::scene().drawing.object_work.angles[0]
-            .get()
-            .wrapping_neg(),
-    );
+    set_turn_y(drawing.object_work.angles[0].get().wrapping_neg());
     let (out, turn_y, turn_x) = (
         &race.frame.matrices.object_turn_matrix,
         &race.frame.matrices.turn_y_matrix,
@@ -44,35 +42,19 @@ pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
     for k in 0..16 {
         out[k].set_bits(turn_y[k].bits());
     }
-    if crate::scene::owner::scene().drawing.object_work.angles[1].get() != 0 {
-        set_turn_y(
-            crate::scene::owner::scene().drawing.object_work.angles[2]
-                .get()
-                .wrapping_neg(),
-        );
+    if drawing.object_work.angles[1].get() != 0 {
+        set_turn_y(drawing.object_work.angles[2].get().wrapping_neg());
         multiply_matrices(&out, &turn_y, &lit);
-        set_turn_x(
-            crate::scene::owner::scene().drawing.object_work.angles[1]
-                .get()
-                .wrapping_neg(),
-        );
+        set_turn_x(drawing.object_work.angles[1].get().wrapping_neg());
         multiply_matrices(&lit, &turn_x, &turned);
-        set_turn_y(crate::scene::owner::scene().drawing.object_work.angles[2].get());
+        set_turn_y(drawing.object_work.angles[2].get());
         multiply_matrices(&turned, &turn_y, &out);
     }
-    let figure = crate::scene::owner::scene().drawing.object_work.size.get();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(figure);
+    let figure = drawing.object_work.size.get();
+    drawing.scene.scratch.set(figure);
     let sixteen = 16.0f32.to_bits();
     let share = ext_div2(int_80(figure as i32, false), sixteen, 0x3F80_0000);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(share);
+    drawing.scene.scratch.set(share);
     for cell in out {
         cell.set_bits(x87::mul(cell.bits(), share));
     }

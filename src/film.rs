@@ -35,6 +35,7 @@
 #![allow(unsafe_code)]
 
 use crate::framework::log;
+use crate::gfx::owner::gfx;
 use std::ffi::{CStr, c_char, c_void};
 
 /// IDA's address of the `nofmv` switch.
@@ -597,7 +598,7 @@ fn pack(value: u32, mask: u32) -> u32 {
 /// The picture stretched over the locked surface (`g_surface`), a checked row at a time.
 fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
-    let s = &crate::gfx::owner::gfx().drawing.draw_surface;
+    let s = &gfx().drawing.draw_surface;
     let (sw, sh) = (s.width.get() as usize, s.height.get() as usize);
     let bytes = s.bytes_per_pixel.get() as usize;
     let pitch = s.pitch.get();
@@ -718,8 +719,9 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
 pub fn play_film(path: crate::pointers::GamePtr) -> bool {
-    let reports: u32 = crate::gfx::owner::gfx().reports.on.get();
-    crate::gfx::owner::gfx().reports.on.set(0);
+    let gfx_reports = &gfx().reports;
+    let reports: u32 = gfx_reports.on.get();
+    gfx_reports.on.set(0);
     // A key pending before the film is dropped (`input::take_key`).
     crate::input::take_key::take_key();
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
@@ -754,7 +756,7 @@ pub fn play_film(path: crate::pointers::GamePtr) -> bool {
             }
         }
     }
-    crate::gfx::owner::gfx().reports.on.set(reports);
+    gfx_reports.on.set(reports);
     ended
 }
 

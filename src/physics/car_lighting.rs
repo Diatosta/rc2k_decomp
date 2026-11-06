@@ -24,6 +24,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
@@ -44,6 +45,7 @@ fn corners(race: &Race) -> u32 {
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
 pub fn car_lighting(race: &Race) -> Result<(), Refused> {
+    let scene = scene();
     let race_owner = race;
     race_owner
         .physics
@@ -60,16 +62,8 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         .course
         .light_kept
         .set(CAR.light_level.get());
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .car_light_colour
-        .set(0);
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .lamp_a_colour
-        .set(0);
+    scene.lights.work.car_light_colour.set(0);
+    scene.lights.work.lamp_a_colour.set(0);
     race_owner
         .course
         .course
@@ -92,12 +86,12 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         race_owner.physics.ground.share_s.set(s);
         race_owner.physics.ground.share_t.set(t);
     }
-    crate::scene::owner::scene()
+    scene
         .lights
         .work
         .ground_texture_s
         .set(race_owner.physics.ground.share_s.get());
-    crate::scene::owner::scene()
+    scene
         .lights
         .work
         .ground_texture_t
@@ -133,12 +127,8 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
     if light >= lighting::TABLE {
         return Err(BadInput("a light index past 0xFF").into());
     }
-    let colour = crate::scene::owner::scene().light_tables.light_table[light as usize].get();
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .car_light_colour
-        .set(colour);
+    let colour = scene.light_tables.light_table[light as usize].get();
+    scene.lights.work.car_light_colour.set(colour);
     CAR.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
         return Ok(());
@@ -146,13 +136,13 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
     for (first, table, to) in [
         (
             0x28u32,
-            &crate::scene::owner::scene().light_tables.lamp_table_a,
-            &crate::scene::owner::scene().lights.work.lamp_a_colour,
+            &scene.light_tables.lamp_table_a,
+            &scene.lights.work.lamp_a_colour,
         ),
         (
             0x2C,
-            &crate::scene::owner::scene().light_tables.lamp_table_b,
-            &crate::scene::owner::scene().lights.work.lamp_b_colour,
+            &scene.light_tables.lamp_table_b,
+            &scene.lights.work.lamp_b_colour,
         ),
     ] {
         for k in 0..4u32 {

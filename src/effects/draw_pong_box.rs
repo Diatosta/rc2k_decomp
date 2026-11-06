@@ -22,12 +22,7 @@ use crate::d3d::vertices_store::VERTICES;
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 fn sides(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
-    sides_x87(
-        v,
-        &pong.state,
-        &crate::effects::owner::effects().setup.floats,
-        &fl.tables,
-    );
+    sides_x87(v, &pong.state, &effects().setup.floats, &fl.tables);
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
@@ -66,6 +61,7 @@ pub fn draw_pong_box(pong: &Pong, fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
     crate::effects::clip_quad::draw_fan();
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::st_cell;
 use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 use crate::math::x87_float as bh;

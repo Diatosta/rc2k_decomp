@@ -1,6 +1,8 @@
 //! The loose variables from the x87 status word at 0x71C814 to the cosine search's constants (up to 0x71CA60): the status of the last compare (`scene::vector3`, the marks), the pixel shake, the edge scratch, the marks' random seed, the sound pair, the cosine search's constants. Names are readings unless IDA's.
 //! Most of the dwords after 0x71C8D6 lie at addresses that are not a multiple of 4 (`Loose32`).
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::race::panel_store::Loose32;
 use crate::session::{Bytes, Dword};
 
@@ -60,9 +62,7 @@ const _: () = assert!(END - START == core::mem::size_of::<MarksWork>());
 /// Where IDA 0x71C814 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::effects::owner::effects().setup.work,
-    ))
+    crate::pointers::game_address(std::ptr::from_ref(&effects().setup.work))
 }
 
 #[cfg(test)]
@@ -72,11 +72,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::effects::owner::effects().setup.work,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&effects().setup.work, START, END);
     }
 
     #[test]

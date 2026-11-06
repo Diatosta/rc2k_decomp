@@ -10,6 +10,7 @@
 //! (no address).
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::memory::owned::Owned;
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
@@ -17,14 +18,11 @@ pub const PICTURE_DWORDS: usize = 0x75300;
 
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
 pub fn set_size(size: rc2k_core::gfx::picture_size::PictureSize) {
+    let pictures = &gfx().pictures;
     let [width, height, row_bytes] = size.dwords();
-    crate::gfx::owner::gfx().pictures.picture.width.set(width);
-    crate::gfx::owner::gfx().pictures.picture.height.set(height);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(row_bytes);
+    pictures.picture.width.set(width);
+    pictures.picture.height.set(height);
+    pictures.picture.row_bytes.set(row_bytes);
 }
 
 /// The picture buffers, by the number `PICTURE.buffer` holds.
@@ -67,12 +65,12 @@ pub fn with_buffer<R>(handle: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, 
 
 /// `f` on the picture buffer's bytes (`PICTURE.buffer`).
 pub fn with_picture<R>(f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    with_buffer(crate::gfx::owner::gfx().pictures.picture.buffer.get(), f)
+    with_buffer(gfx().pictures.picture.buffer.get(), f)
 }
 
 /// Whether a picture buffer is set (`PICTURE.buffer` not 0).
 pub fn has_picture() -> bool {
-    crate::gfx::owner::gfx().pictures.picture.buffer.get() != 0
+    gfx().pictures.picture.buffer.get() != 0
 }
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.
@@ -134,6 +132,7 @@ mod tests {
 
     #[test]
     fn a_pcx_file_is_decoded_into_the_picture_buffer() {
+        let pictures = &gfx().pictures;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
@@ -141,8 +140,7 @@ mod tests {
         let _region = crate::pointers::Lent::new(&memory);
         let list =
             crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
-        crate::gfx::owner::gfx()
-            .pictures
+        pictures
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
@@ -171,20 +169,15 @@ mod tests {
         drop(path_at);
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
-        let palette: [u32; 256] = crate::gfx::owner::gfx().pictures.decoder.palette();
+        let palette: [u32; 256] = pictures.decoder.palette();
         let (width, stride) = (
-            crate::gfx::owner::gfx().pictures.decoder.width.get(),
-            crate::gfx::owner::gfx().pictures.decoder.stride.get() as usize,
+            pictures.decoder.width.get(),
+            pictures.decoder.stride.get() as usize,
         );
         assert_eq!(width, 4);
         for (n, number) in (1..=8usize).enumerate() {
             let at = (n / 4) * stride + (n % 4) * 4;
-            let pixel = read_bytes(
-                crate::gfx::owner::gfx().pictures.picture.buffer.get(),
-                at,
-                4,
-            )
-            .unwrap();
+            let pixel = read_bytes(pictures.picture.buffer.get(), at, 4).unwrap();
             assert_eq!(
                 u32::from_le_bytes(pixel.try_into().unwrap()),
                 palette[number],
@@ -231,21 +224,18 @@ mod tests {
 
     /// The picture buffer's first 6 x 4 bytes after `read_png` of `file`.
     fn read_png_file(file: &[u8]) -> Vec<u8> {
+        let gfx = gfx();
         let name = format!("target/rc2k_png_test_{}.png", std::process::id());
         std::fs::write(&name, file).unwrap();
-        let read = crate::gfx::read_png::read_png(&crate::gfx::owner::gfx().png, name.as_bytes());
+        let read = crate::gfx::read_png::read_png(&gfx.png, name.as_bytes());
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
-        read_bytes(
-            crate::gfx::owner::gfx().pictures.picture.buffer.get(),
-            0,
-            6 * 4,
-        )
-        .unwrap()
+        read_bytes(gfx.pictures.picture.buffer.get(), 0, 6 * 4).unwrap()
     }
 
     #[test]
     fn a_png_file_is_decoded_its_first_row_against_zeros() {
+        let pictures = &gfx().pictures;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
@@ -253,14 +243,13 @@ mod tests {
         let _region = crate::pointers::Lent::new(&memory);
         let list =
             crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
-        crate::gfx::owner::gfx()
-            .pictures
+        pictures
             .picture
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
         set_size(rc2k_core::gfx::picture_size::READ);
         let plain = read_png_file(&png(0));
-        assert_eq!(crate::gfx::owner::gfx().pictures.picture.width.get(), 3);
+        assert_eq!(pictures.picture.width.get(), 3);
         assert_eq!(
             &plain[..3],
             &[30, 20, 10],

@@ -5,6 +5,7 @@
 //! 2026-10-19. A step's refusal is the function's (2026-10-23: no longer handed to the step's
 //! address).
 
+use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
@@ -13,6 +14,7 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::file_numbers_store::texts;
+use crate::scene::owner::scene;
 const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
@@ -124,6 +126,7 @@ impl Steps {
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
 pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
+    let scene = scene();
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
@@ -146,7 +149,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(-3);
     s.step(
         &mut || {
-            crate::scene::set_up_object_memory::set_up_object_memory(crate::scene::owner::scene())?;
+            crate::scene::set_up_object_memory::set_up_object_memory(scene)?;
             Ok(())
         },
         None,
@@ -206,12 +209,8 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(3);
     crate::race::game_map::load_game_map(
         &race.frame,
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::MAP_PATH),
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::MAP_KEY),
+        scene.file_numbers.text_ptr(texts::MAP_PATH),
+        scene.file_numbers.text_ptr(texts::MAP_KEY),
     )?;
     s.progress(0x5A)?;
     s.indent(-3);
@@ -225,7 +224,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    let effects = crate::effects::owner::effects();
+    let effects = effects();
     crate::effects::init_mark_step::init_mark_step(effects)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
@@ -235,15 +234,11 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(3);
     level::reset_refresh(&race.course);
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .marks_mask
-        .set_bits((flags & 2) >> 1);
+    scene.lights.work.marks_mask.set_bits((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {
         car.lights_on.set(flags & 1);
     }
-    crate::scene::owner::scene()
+    scene
         .lights
         .work
         .lamps_mask
@@ -266,9 +261,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     )?;
     s.step(
         &mut || {
-            crate::scene::fill_scene_light_tables::fill_scene_light_tables(
-                crate::scene::owner::scene(),
-            )?;
+            crate::scene::fill_scene_light_tables::fill_scene_light_tables(scene)?;
             Ok(())
         },
         Some(0x62),

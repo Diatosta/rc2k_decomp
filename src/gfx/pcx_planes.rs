@@ -10,25 +10,20 @@ pub const LEN: usize = 0x9526F8 - START;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().pictures.planes,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().pictures.planes, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::gfx().pictures.planes.addr() as usize
-        );
+        let pictures = &gfx().pictures;
+        assert_eq!(crate::moved::place(START), pictures.planes.addr() as usize);
         assert_eq!(
             crate::moved::place(START + LEN - 1),
-            (crate::gfx::owner::gfx().pictures.planes.addr() + LEN as u32 - 1) as usize
+            (pictures.planes.addr() + LEN as u32 - 1) as usize
         );
     }
 }

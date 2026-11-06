@@ -20,6 +20,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
@@ -54,6 +55,7 @@ pub fn emit_particle_13(
     ring: &Ring,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let effects = effects();
     if let Some(why) = refusal(ring, object)? {
         return Err(BadInput(why).into());
     }
@@ -68,16 +70,8 @@ pub fn emit_particle_13(
     let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(
         t,
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .plus_65_536
-            .bits(),
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .seven_hundred
-            .bits(),
+        effects.setup.floats.plus_65_536.bits(),
+        effects.setup.floats.seven_hundred.bits(),
         particles.kind13_set.lift.bits(),
         car.whole()?,
     );
@@ -85,7 +79,7 @@ pub fn emit_particle_13(
     put(field::PLACE_Y, y)?;
     put(field::GROUND_Y, y_less)?;
     put(field::PLACE_Z, z)?;
-    let one: u32 = crate::effects::owner::effects().setup.floats.one.bits();
+    let one: u32 = effects.setup.floats.one.bits();
     let s = x87::one_less_inverse(object.word(8)?, particles.kind13_set.strength_k.bits(), one);
     ring.work.whole.set(s);
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
@@ -103,17 +97,9 @@ pub fn emit_particle_13(
     let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .over_65536
-            .bits(),
+        effects.setup.floats.over_65536.bits(),
         motion,
-        crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32,
+        effects.setup.clock.frame_ticks.get() as i32,
         [x, y, z],
     );
     put(field::PLACE_X, moved[0])?;
@@ -126,31 +112,13 @@ pub fn emit_particle_13(
     put(field::LIFE, LIFE)?;
     put(
         field::ALPHA_FADE,
-        x87::times_over_int(
-            s,
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_fifty_seven
-                .bits(),
-            LIFE as i32,
-        ),
+        x87::times_over_int(s, effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
     )?;
     put(
         field::ALPHA,
-        x87::mul(
-            s,
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_fifty_six
-                .bits(),
-        ),
+        x87::mul(s, effects.setup.floats.two_fifty_six.bits()),
     )?;
-    put(
-        field::CAR,
-        crate::effects::owner::effects().kinds.emitter.car.get(),
-    )?;
+    put(field::CAR, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(
         particles.kind13_set.size_k[0].bits(),
         s,

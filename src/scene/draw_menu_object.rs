@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::scene::matrix::make_object_matrix;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -29,19 +30,12 @@ pub fn draw_menu_object(
     course: &crate::race::owner_course::Course,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let lights = &scene().lights;
     {
         course.course.shine.set_bits(0x200u32);
         step(Step::Matrix)?;
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .view_kind
-            .set_bits(5u32);
-        crate::scene::owner::scene()
-            .lights
-            .work
-            .light_kind
-            .set_bits(4u32);
+        lights.state.view_kind.set_bits(5u32);
+        lights.work.light_kind.set_bits(4u32);
         step(Step::Draw)?;
         course.course.shine.set_bits(0x100u32);
         Ok(())

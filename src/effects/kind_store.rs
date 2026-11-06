@@ -15,6 +15,8 @@
 //! The code between them in the image (0x9332AC .. 0x933458 and 0x933FC8 .. 0x934160: a
 //! string and unreferenced data) is the tables' leading gap.
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`; phase 7, typed state). The offsets are from its start.
@@ -1900,21 +1902,19 @@ mod tests {
 
     #[test]
     fn the_statics_start_as_the_games() {
+        let kinds = &effects().kinds;
         let image = crate::moved::image_bytes;
         assert_eq!(size_of::<QuadWork>(), 0xF8);
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.quad_1)
-                == image(Quad1::START, Quad1::LEN),
+            bytes(&kinds.quad_1) == image(Quad1::START, Quad1::LEN),
             "QUAD_1"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.quad_2)
-                == image(Quad2::START, Quad2::LEN),
+            bytes(&kinds.quad_2) == image(Quad2::START, Quad2::LEN),
             "QUAD_2"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.quad_3)
-                == image(Quad3::START, Quad3::LEN),
+            bytes(&kinds.quad_3) == image(Quad3::START, Quad3::LEN),
             "QUAD_3"
         );
         assert_eq!(size_of::<KindTables<0x1AC>>(), Tables1::LEN);
@@ -1930,13 +1930,11 @@ mod tests {
         assert_eq!(size_of::<KindExtras1>(), KindExtras1::LEN);
         assert_eq!(size_of::<KindExtra2>(), KindExtra2::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.extras_1)
-                == image(KindExtras1::START, KindExtras1::LEN),
+            bytes(&kinds.extras_1) == image(KindExtras1::START, KindExtras1::LEN),
             "EXTRAS_1"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.extra_2)
-                == image(KindExtra2::START, KindExtra2::LEN),
+            bytes(&kinds.extra_2) == image(KindExtra2::START, KindExtra2::LEN),
             "EXTRA_2"
         );
         assert_eq!(size_of::<KindConsts>(), Consts1::LEN);

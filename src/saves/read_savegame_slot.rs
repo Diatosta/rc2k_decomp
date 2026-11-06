@@ -14,20 +14,22 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
+use crate::saves::owner::saves;
 use crate::saves::write_savegame_slot::{FILE_LEN, SLOTS, slot_name};
 
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
 pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
+    let saves = saves();
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    let template = crate::saves::owner::saves().files.savegame_template.read();
+    let template = saves.files.savegame_template.read();
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-    let mut bytes = crate::saves::owner::saves().save_games.file.read();
+    let mut bytes = saves.save_games.file.read();
     let read = read_file_into(&path[..], &mut bytes[..FILE_LEN], 0)?;
-    crate::saves::owner::saves().save_games.file.write(&bytes);
+    saves.save_games.file.write(&bytes);
     // Converted: `rc2k_core::saves::kept::slot_name`.
     use rc2k_core::saves::kept;
     let block = &bytes[..0x30];

@@ -6,18 +6,14 @@
 //!
 //! Caller: `sub_4C1148`.
 
+use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 
 /// The Rust version (see the header).
 pub fn copy_first_point(drops: &WindscreenDrops) {
+    let frame = &effects().frame;
     for (n, to) in drops.tilt.point.iter().enumerate() {
-        to.set_bits(crate::effects::owner::effects().frame.kept_view.vector[n].bits());
+        to.set_bits(frame.kept_view.vector[n].bits());
     }
-    drops.tilt.length.set(
-        crate::effects::owner::effects()
-            .frame
-            .kept_view
-            .length
-            .get(),
-    );
+    drops.tilt.length.set(frame.kept_view.length.get());
 }

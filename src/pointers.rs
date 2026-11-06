@@ -1607,6 +1607,7 @@ mod cells_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use rc2k_core::strings::bytes::Bytes;
 
     #[test]
@@ -1634,7 +1635,7 @@ mod tests {
 
     #[test]
     fn moved_stores_are_regions() {
-        let font = crate::gfx::owner::gfx().fonts.typefaces.objects[0].addr();
+        let font = gfx().fonts.typefaces.objects[0].addr();
         assert!(GamePtr::new(font).read::<[u8; 0x20]>("test").is_ok());
     }
 

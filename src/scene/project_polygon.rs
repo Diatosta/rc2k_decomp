@@ -18,6 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
 
@@ -35,6 +36,7 @@ pub fn project_entries(
     course: &crate::race::owner_course::Course,
     entries: &Listed,
 ) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -46,7 +48,7 @@ pub fn project_entries(
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = f32::from_bits(crate::scene::owner::scene().drawing.scene.farthest.bits());
+    let far = f32::from_bits(drawing.scene.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(course, entry.point.get())?;
@@ -63,10 +65,6 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_outside_count
-        .set_bits(outside);
+    drawing.scene.polygon_outside_count.set_bits(outside);
     Ok(())
 }

@@ -29,6 +29,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::owner::gfx;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use rc2k_core::gfx::uploads::{self};
@@ -49,18 +50,11 @@ pub struct GameSurfaces;
 
 impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
-        match crate::platform_3d::lock_surface(
-            surface,
-            crate::gfx::owner::gfx().card.upload.description.addr(),
-        ) {
+        let card = &gfx().card;
+        match crate::platform_3d::lock_surface(surface, card.upload.description.addr()) {
             0 => Ok((
-                crate::gfx::owner::gfx()
-                    .card
-                    .upload
-                    .description
-                    .pixels
-                    .get(),
-                crate::gfx::owner::gfx().card.upload.description.pitch.get(),
+                card.upload.description.pixels.get(),
+                card.upload.description.pitch.get(),
             )),
             e => Err(e),
         }
@@ -75,7 +69,7 @@ impl Surfaces for GameSurfaces {
 }
 
 fn direct_draw_failed(code: u32) -> Refused {
-    if crate::gfx::owner::gfx().reports.on.get() == 1 {
+    if gfx().reports.on.get() == 1 {
         fatal(code)
     } else {
         BadInput("DirectDraw failed and the original's stack goes astray").into()

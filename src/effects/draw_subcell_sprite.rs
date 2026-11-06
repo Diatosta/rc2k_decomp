@@ -30,18 +30,13 @@ const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
 fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(
-        frame,
-        p,
-        &ring.work,
-        &crate::effects::owner::effects().frame.draw_work,
-    );
+    turn_x87(frame, p, &ring.work, &effects().frame.draw_work);
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
 fn square() {
-    square_x87(&crate::effects::owner::effects().frame.draw_work);
+    square_x87(&effects().frame.draw_work);
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
@@ -55,6 +50,7 @@ pub fn draw_subcell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
+    let effects = effects();
     if subcell >= SUBCELLS {
         return Err(BadInput("a mark subcell past g_marksSubcellPlaces").into());
     }
@@ -62,12 +58,11 @@ pub fn draw_subcell_sprite(
         return Err(BadInput("a null ring entry").into());
     }
     fog_at(0)?;
-    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+    if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(frame, ring, &place);
-    if crate::effects::owner::effects().frame.draw_work.turned[2].bits() as i32
-        <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32
+    if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
     {
         return Ok(());
     }
@@ -77,7 +72,7 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);
     }
-    crate::effects::owner::effects().frame.draw_work.half[0].set_bits(size);
+    effects.frame.draw_work.half[0].set_bits(size);
     let at = subcell << 4;
     let place = |n: usize| masks.surface.word(0x400 + at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
@@ -102,6 +97,7 @@ pub fn draw_subcell_sprite(
 }
 
 use crate::effects::frame_state::DrawWork;
+use crate::effects::owner::effects;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;

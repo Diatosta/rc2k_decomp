@@ -13,11 +13,13 @@ use crate::race::owner_physics::Physics;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::texts;
+use crate::scene::owner::scene;
 
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
 pub fn number_places() -> [crate::place::Place; 9] {
+    let file_numbers = &scene().file_numbers;
     use crate::place::Place;
     let p = &race().course.level_paths;
     [
@@ -27,18 +29,9 @@ pub fn number_places() -> [crate::place::Place; 9] {
         Place::from(&p.cdat_src_2).add(0xD),
         Place::from(&p.localdat_src).add(0xD),
         Place::from(&p.localdat_files).add(0x12),
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::NUMBER_PLACE_A)
-            .into(),
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::NUMBER_PLACE_B)
-            .into(),
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::NUMBER_PLACE_C)
-            .into(),
+        file_numbers.text_ptr(texts::NUMBER_PLACE_A).into(),
+        file_numbers.text_ptr(texts::NUMBER_PLACE_B).into(),
+        file_numbers.text_ptr(texts::NUMBER_PLACE_C).into(),
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -134,29 +127,16 @@ pub fn copy_texture_info_tail() -> Result<(), BadInput> {
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
 pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
+    let file_numbers = &scene().file_numbers;
     let info = course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = crate::race::course_places::read_file_into_info;
+    read(file_numbers.text_ptr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
+    read(file_numbers.text_ptr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
     read(
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::TEXTURE_INFO_A),
-        0,
-        0x1F_4000,
-    )?;
-    read(
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::MARK_INFO),
-        0x1C_2000,
-        0x8000,
-    )?;
-    read(
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::TEXTURE_INFO_B),
+        file_numbers.text_ptr(texts::TEXTURE_INFO_B),
         0x1F_4000,
         0x1F_4000,
     )?;
@@ -180,9 +160,7 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        crate::scene::owner::scene()
-            .file_numbers
-            .text_ptr(texts::ERROR_LIST_PATH),
+        scene().file_numbers.text_ptr(texts::ERROR_LIST_PATH),
         &frame.error_list.list,
     )?;
     Ok(())

@@ -13,6 +13,7 @@
 use crate::errors::Refused;
 use crate::files::handle::{close, open_by_mode, write_from};
 use crate::pointers::GamePtr;
+use crate::saves::owner::saves;
 use crate::system::packed_local_time::packed_local_time;
 
 // ---- game data ----
@@ -26,11 +27,8 @@ const WRITTEN: [usize; 6] = [1, 2, 3, 4, 7, 8];
 /// `saves::save_best_times` on the game's own file and tables: true if the file was opened
 /// (and so, as far as the function knows, written).
 pub fn in_game() -> Result<bool, Refused> {
-    if [
-        crate::saves::owner::saves().best_times.allocated.get(),
-        crate::saves::owner::saves().best_times.loaded.get(),
-    ] != [1, 1]
-    {
+    let best_times = &saves().best_times;
+    if [best_times.allocated.get(), best_times.loaded.get()] != [1, 1] {
         return Ok(false);
     }
     // Converted: `rc2k_core::saves::kept::head`.

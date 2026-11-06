@@ -22,6 +22,7 @@ use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
+use crate::scene::owner::scene;
 use crate::session::SCREEN;
 
 // ---- game data ----
@@ -57,12 +58,9 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 }
 
 pub fn submit_polygon(outside: &mut dyn Outside) {
-    let has_3d = crate::scene::owner::scene().objects.tables.has_3d.get() != 0;
-    let texture: u32 = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_texture
-        .bits();
+    let scene = scene();
+    let has_3d = scene.objects.tables.has_3d.get() != 0;
+    let texture: u32 = scene.drawing.scene.polygon_texture.bits();
     if texture == NO_TEXTURE {
         if has_3d {
             outside.set_texture(NO_TEXTURE);
@@ -76,11 +74,7 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
     let vertices = polygon();
     if !vertices.is_empty() {
         // The check clears this before it looks at a vertex.
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(0u32);
+        scene.drawing.scene.scratch.set_bits(0u32);
     }
     if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
         outside.bad_vertex();

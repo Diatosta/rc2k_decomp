@@ -86,48 +86,36 @@ impl SurfaceDesc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::{offset_of, size_of};
 
     #[test]
     fn first_values_are_the_games() {
         assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().card.upload,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().card.upload, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let card = &gfx().card;
         assert_eq!(offset_of!(SurfaceDesc, pitch), 0x10);
         assert_eq!(offset_of!(SurfaceDesc, pixels), 0x24);
         assert_eq!(offset_of!(Upload, trying), 0x5ABA88 - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx().card.upload.description.addr() as usize
+            card.upload.description.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA28),
-            crate::gfx::owner::gfx()
-                .card
-                .upload
-                .description
-                .pitch
-                .addr() as usize
+            card.upload.description.pitch.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA3C),
-            crate::gfx::owner::gfx()
-                .card
-                .upload
-                .description
-                .pixels
-                .addr() as usize
+            card.upload.description.pixels.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA88),
-            crate::gfx::owner::gfx().card.upload.trying.addr() as usize
+            card.upload.trying.addr() as usize
         );
     }
 }

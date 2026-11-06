@@ -9,12 +9,13 @@
 //! Called directly (2026-10-23).
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header).
 pub fn free_glyph_tables() -> Result<(), Refused> {
     {
         crate::memory::free_list::free_list(crate::pointers::GamePtr::to(
-            &crate::gfx::owner::gfx().fonts.glyph_tables.memory,
+            &gfx().fonts.glyph_tables.memory,
         ))
     }?;
     Ok(())

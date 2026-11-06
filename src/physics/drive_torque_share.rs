@@ -17,6 +17,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -54,12 +55,13 @@ pub fn drive_torque_share_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
 }
 
 fn game() -> Vec<&'static dyn Cell32> {
+    let drawing = &scene().drawing;
     vec![
-        &crate::scene::owner::scene().drawing.scene.scratch as &dyn Cell32,
+        &drawing.scene.scratch as &dyn Cell32,
         &CAR.drive_kind,
         &CAR.local_velocity[2],
-        &crate::scene::owner::scene().drawing.scene.work_float_a,
-        &crate::scene::owner::scene().drawing.scene.work_float_b,
+        &drawing.scene.work_float_a,
+        &drawing.scene.work_float_b,
         &CAR.gear_ratio_setting,
         &PHYSICS.torque_share,
         &PHYSICS.drive_torque,

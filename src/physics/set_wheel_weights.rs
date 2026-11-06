@@ -19,10 +19,11 @@ use crate::math::x87_run::{compare_full, weight_force};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 
 /// The Rust version. The registers the original leaves are read by none of its callers (esi).
 pub fn set_wheel_weights(race: &Race) {
-    let scratch = &crate::scene::owner::scene().drawing.scene.scratch;
+    let scratch = &scene().drawing.scene.scratch;
     let one: u32 = race.course.numbers.one.bits();
     let high: u32 = race.course.numbers.five.bits();
     let k: u32 = race.course.numbers.quarter.bits();

@@ -60,28 +60,26 @@ impl Blitter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().drawing.blit,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().drawing.blit, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let drawing = &gfx().drawing;
         assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
         assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx().drawing.blit.clip.left.addr() as usize
+            drawing.blit.clip.left.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F5058),
-            crate::gfx::owner::gfx().drawing.blit.rows_left.addr() as usize
+            drawing.blit.rows_left.addr() as usize
         );
     }
 }

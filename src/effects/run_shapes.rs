@@ -21,24 +21,21 @@ use crate::effects::shape_points::turn_all_shapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 
+use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
 pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+    let setup = &effects().setup;
     let marks = crate::effects::setup::marks()?;
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops)?;
         let clock: u32 = PHYSICS.scene_clock.bits();
         if clock as i32 >= drops.picks.next.get() as i32 {
-            let r = next_c5(
-                &crate::effects::owner::effects()
-                    .setup
-                    .mask_constants
-                    .time_random,
-            );
+            let r = next_c5(&setup.mask_constants.time_random);
             drops
                 .picks
                 .next
@@ -47,14 +44,9 @@ pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused>
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());
             }
-            let moving = next_c5(
-                &crate::effects::owner::effects()
-                    .setup
-                    .mask_constants
-                    .move_random,
-            )
-            .rotate_right(16)
-            .wrapping_add(clock)
+            let moving = next_c5(&setup.mask_constants.move_random)
+                .rotate_right(16)
+                .wrapping_add(clock)
                 & drops.picks.masks[mask as usize].get();
             drops.picks.moving.set(1);
             if moving == 0 {
@@ -66,18 +58,13 @@ pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused>
             return Ok(());
         }
         let rate = if marks.listener_switch_5.get() == 1 {
-            (drops.picks.index.get() >> 3 != 0)
-                .then_some(&crate::effects::owner::effects().setup.mask_constants.rates[0])
+            (drops.picks.index.get() >> 3 != 0).then_some(&setup.mask_constants.rates[0])
         } else {
-            Some(&crate::effects::owner::effects().setup.mask_constants.rates[1])
+            Some(&setup.mask_constants.rates[1])
         };
         if let Some(rate) = rate {
             let count = x87::int_times_plus_int_to_int(
-                crate::effects::owner::effects()
-                    .setup
-                    .clock
-                    .frame_ticks
-                    .get() as i32,
+                setup.clock.frame_ticks.get() as i32,
                 rate.bits(),
                 masks.vars.count.get() as i32,
             );

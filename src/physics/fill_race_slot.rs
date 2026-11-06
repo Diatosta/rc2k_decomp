@@ -23,6 +23,7 @@ use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::physics::car_store::CAR;
 use crate::race::owner_course::Course;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
@@ -30,6 +31,7 @@ use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
 pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
+    let scene = scene();
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
@@ -43,18 +45,14 @@ pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
     slot.part.set(part);
     let i = |t: usize| {
         int_80(
-            crate::scene::owner::scene().objects.slots.part_extents[t][part as usize].get() as i32,
+            scene.objects.slots.part_extents[t][part as usize].get() as i32,
             false,
         )
     };
     let out = rotate_point(&CAR.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .object_position[k]
-            .set_bits(n);
+        scene.drawing.object_work.object_position[k].set_bits(n);
         slot.place[k].set(n.wrapping_add(CAR.position[k].get()));
     }
     slot.car_word.set(CAR.probe_point_face[4].get());
@@ -64,31 +62,19 @@ pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
     }
     let k = RACE_WORK.part_fling.bits();
     slot.motion[0].set_bits(int_mul_add(
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .object_position[0]
-            .get() as i32,
+        scene.drawing.object_work.object_position[0].get() as i32,
         k,
         CAR.velocity[0].bits(),
         None,
     ));
     slot.motion[1].set_bits(int_mul_add(
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .object_position[1]
-            .get() as i32,
+        scene.drawing.object_work.object_position[1].get() as i32,
         k,
         CAR.velocity[1].bits(),
         Some(course.numbers.two.bits()),
     ));
     slot.motion[2].set_bits(int_mul_add(
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .object_position[2]
-            .get() as i32,
+        scene.drawing.object_work.object_position[2].get() as i32,
         k,
         CAR.velocity[2].bits(),
         None,

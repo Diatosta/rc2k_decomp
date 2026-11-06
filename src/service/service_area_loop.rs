@@ -44,6 +44,7 @@
 use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -89,35 +90,14 @@ pub const SCREEN: Screen = Screen {
     ],
     set_up_first: &[Step::Write(|| &menus().screens.flow.left_service, 0)],
     prepare: &[
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_offset[0],
-            0,
-        ), // dword_623FB0
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_offset[1],
-            0,
-        ), // dword_623FB4
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.view_zoom,
-            0x100,
-        ), // dword_624080
+        Step::Write(|| &scene().drawing.scene.view_offset[0], 0), // dword_623FB0
+        Step::Write(|| &scene().drawing.scene.view_offset[1], 0), // dword_623FB4
+        Step::Write(|| &scene().drawing.scene.view_zoom, 0x100),  // dword_624080
         Step::Call(Callee::PrepareScene),
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.clip_edges[2],
-            0,
-        ), // dword_6241DC
-        Step::Write(
-            || &crate::scene::owner::scene().drawing.scene.clip_edges[3],
-            800,
-        ), // dword_6241E0
-        Step::WriteF32(
-            || &crate::scene::owner::scene().drawing.scene.clip_screen[2],
-            0.0,
-        ), // flt_6241EC
-        Step::WriteF32(
-            || &crate::scene::owner::scene().drawing.scene.clip_screen[3],
-            800.0,
-        ), // flt_6241F0
+        Step::Write(|| &scene().drawing.scene.clip_edges[2], 0), // dword_6241DC
+        Step::Write(|| &scene().drawing.scene.clip_edges[3], 800), // dword_6241E0
+        Step::WriteF32(|| &scene().drawing.scene.clip_screen[2], 0.0), // flt_6241EC
+        Step::WriteF32(|| &scene().drawing.scene.clip_screen[3], 800.0), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],

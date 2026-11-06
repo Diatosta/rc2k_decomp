@@ -82,26 +82,18 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
 pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
     let (paths, masks) = (&effects.paths, &effects.masks);
     let (particles, ring) = (&effects.particles, &effects.ring);
-    let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
+    let settings: u32 = effects.setup.settings.is_set.get();
     if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
     let count = cars()?.len() as u32;
     for n in (0..count).rev() {
-        crate::effects::owner::effects()
-            .kinds
-            .emitter
-            .tag
-            .set(x87::int_times_int_to_int(
-                n as i32,
-                crate::effects::owner::effects().kinds.emitter.tag_k.get() as i32,
-            ) as u32);
+        effects.kinds.emitter.tag.set(x87::int_times_int_to_int(
+            n as i32,
+            effects.kinds.emitter.tag_k.get() as i32,
+        ) as u32);
         let car = &crate::effects::setup::marks()?.cars[n as usize];
-        crate::effects::owner::effects()
-            .kinds
-            .emitter
-            .car
-            .set(car_handle(n as usize));
+        effects.kinds.emitter.car.set(car_handle(n as usize));
         let whole = car.whole()?;
         adjugate_matrix(whole, &car.head[0x94 / 4..]);
         for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
@@ -117,7 +109,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
                 x87::sub(matrix_cell(whole, 0x30 + k4)?, car.word(0x40 + k4)?),
             )?;
         }
-        let mean_k: u32 = crate::effects::owner::effects().setup.floats.quarter.bits();
+        let mean_k: u32 = effects.setup.floats.quarter.bits();
         for k in 0..3 {
             let k4 = 4 * k;
             car.put(
@@ -134,8 +126,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         car.put(0x40, matrix_cell(whole, 0x30)?)?;
         car.put(0x44, matrix_cell(whole, 0x34)?)?;
         car.put(0x48, matrix_cell(whole, 0x38)?)?;
-        let [k1, k2, k3] = read_bits(&crate::effects::owner::effects().kinds.emitter.rate_k);
-        let one: u32 = crate::effects::owner::effects().setup.floats.one.bits();
+        let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
+        let one: u32 = effects.setup.floats.one.bits();
         let (length, rate) = x87::length_and_rate(
             [car.word(0x4C)?, car.word(0x50)?, car.word(0x54)?],
             k1,
@@ -151,30 +143,25 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             }
         }
         let parts = car.parts()?;
-        let up = read_bits(&crate::effects::owner::effects().kinds.emitter.up);
+        let up = read_bits(&effects.kinds.emitter.up);
         let across = [
             x87::product_difference(up[1], matrix_cell(parts, 8)?, up[2], matrix_cell(parts, 4)?),
             x87::product_difference(up[2], matrix_cell(parts, 0)?, up[0], matrix_cell(parts, 8)?),
             x87::product_difference(up[0], matrix_cell(parts, 4)?, up[1], matrix_cell(parts, 0)?),
         ];
         let across = x87::normalised3(across, one);
-        write_bits(
-            &crate::effects::owner::effects().kinds.emitter.across,
-            across,
-        );
+        write_bits(&effects.kinds.emitter.across, across);
         let b = x87::crossed_turned(across, car.parts()?, car.whole()?);
-        write_bits(&crate::effects::owner::effects().kinds.emitter.side_b, b);
+        write_bits(&effects.kinds.emitter.side_b, b);
         let a = [
             x87::product_difference(b[1], across[2], b[2], across[1]),
             x87::product_difference(b[2], across[0], b[0], across[2]),
             x87::product_difference(b[0], across[1], b[1], across[0]),
         ];
-        write_bits(&crate::effects::owner::effects().kinds.emitter.side_a, a);
+        write_bits(&effects.kinds.emitter.side_a, a);
         let model = car.word(4)?;
-        crate::effects::owner::effects().kinds.emitter.looks[0]
-            .set(paths.spline_head.look(2 * model as usize));
-        crate::effects::owner::effects().kinds.emitter.looks[1]
-            .set(paths.spline_head.look(2 * model as usize + 2));
+        effects.kinds.emitter.looks[0].set(paths.spline_head.look(2 * model as usize));
+        effects.kinds.emitter.looks[1].set(paths.spline_head.look(2 * model as usize + 2));
         if car.word(0x30)? != 0 {
             car.put(0x30, car.word(0x30)?.wrapping_sub(1))?;
         } else {

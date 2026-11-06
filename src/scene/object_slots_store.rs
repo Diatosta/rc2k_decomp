@@ -4,6 +4,7 @@
 //! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
 //! the race block's bytes (`OBJECT_SLOTS`). Names are readings unless IDA's.
 
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -43,13 +44,8 @@ impl ObjectTables {
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
         // The tables are contiguous; a slot far past them is the caller's slip, as it was the
         // original's (a checked read: outside the allocation ends the program).
-        crate::session::read_on_in(
-            &crate::scene::owner::scene().objects.slots,
-            table,
-            slot,
-            "an object slot",
-        )
-        .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
+        crate::session::read_on_in(&scene().objects.slots, table, slot, "an object slot")
+            .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
 
@@ -74,9 +70,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 /// Where IDA 0x62DB5C is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::scene::owner::scene().objects.slots,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&scene().objects.slots))
 }
 
 #[cfg(test)]
@@ -86,11 +80,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::scene::owner::scene().objects.slots,
-            START,
-            END,
-        );
+        crate::gfx::first_values_are_the_games(&scene().objects.slots, START, END);
     }
 
     #[test]

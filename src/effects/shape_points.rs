@@ -5,6 +5,7 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::masks::PointList;
+use crate::effects::owner::effects;
 use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
@@ -405,11 +406,7 @@ pub fn make_shape_set(
 /// objects, what `make_shape_set` refuses for any of them, before writing.
 pub fn make_shape_sets(course: &Course, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let kind: u32 = crate::effects::owner::effects()
-            .kinds
-            .marks_kind
-            .kind
-            .bits();
+        let kind: u32 = effects().kinds.marks_kind.kind.bits();
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }

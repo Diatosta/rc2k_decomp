@@ -44,6 +44,7 @@ use crate::strings::copy_printable::copy_printable;
 // Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
 // driver's name).
 use crate::menu::owner::menus;
+use crate::saves::owner::saves;
 use rc2k_core::system::game_data::{
     ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
@@ -191,10 +192,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     for slot in 0..SLOTS {
         outside(Call::ReadSavegameSlot(slot))?;
     }
-    number_empty_names(
-        &crate::saves::owner::saves().save_games.names,
-        SAVEGAME_NAME_ID,
-    )?;
+    number_empty_names(&saves().save_games.names, SAVEGAME_NAME_ID)?;
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }

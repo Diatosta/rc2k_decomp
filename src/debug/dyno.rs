@@ -19,6 +19,7 @@ use crate::physics::tables_store::PHYSICS;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
@@ -80,6 +81,7 @@ static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
 fn places() -> [&'static dyn Cell32; 15] {
+    let drawing = &scene().drawing;
     [
         &CAR.gear,
         &CAR.throttle,
@@ -92,10 +94,10 @@ fn places() -> [&'static dyn Cell32; 15] {
         &PHYSICS.engine_force,
         &PHYSICS.engine_torque,
         &PHYSICS.torque_share,
-        &crate::scene::owner::scene().drawing.scene.scratch,
-        &crate::scene::owner::scene().drawing.scene.work_dword,
-        &crate::scene::owner::scene().drawing.scene.work_float_a,
-        &crate::scene::owner::scene().drawing.scene.work_float_b,
+        &drawing.scene.scratch,
+        &drawing.scene.work_dword,
+        &drawing.scene.work_float_a,
+        &drawing.scene.work_float_b,
     ]
 }
 

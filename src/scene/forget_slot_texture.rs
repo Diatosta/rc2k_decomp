@@ -8,12 +8,13 @@
 //! 0x400 dwords).
 
 use crate::errors::Refused;
+use crate::scene::owner::scene;
 
 /// The Rust version (see the header).
 pub fn forget_slot_texture(slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::scene::textures::forget_slot_texture`.
     Ok(crate::scene::textures::with_cells(
-        [&crate::scene::owner::scene().textures.places.slot_loaded],
+        [&scene().textures.places.slot_loaded],
         |[loaded]| rc2k_core::scene::textures::forget_slot_texture(loaded, slot),
     )?)
 }

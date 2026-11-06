@@ -13,6 +13,7 @@
 //! Eight callers.
 
 use crate::errors::Refused;
+use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
 use crate::session::MACHINE;
 
@@ -22,13 +23,7 @@ use crate::session::MACHINE;
 
 // Converted: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates() -> Result<(), Refused> {
-    if (crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits() as i32)
-        <= 0
-    {
+    if (scene().drawing.scene.polygon_vertex_count.bits() as i32) <= 0 {
         return Ok(());
     }
     scale_entries(&listed()?)
@@ -36,10 +31,11 @@ pub fn scale_texture_coordinates() -> Result<(), Refused> {
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
 pub fn scale_entries(entries: &Listed) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     use rc2k_core::scene::texture_coordinates as coordinates;
     let switches: [u32; 2] = [
-        crate::scene::owner::scene().drawing.scene.polygon_sides[0].bits(),
-        crate::scene::owner::scene().drawing.scene.polygon_sides[1].bits(),
+        drawing.scene.polygon_sides[0].bits(),
+        drawing.scene.polygon_sides[1].bits(),
     ];
     for entry in entries {
         for (pair, switch) in switches.into_iter().enumerate() {

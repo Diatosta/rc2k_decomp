@@ -22,11 +22,7 @@ fn centres(pong: &Pong) {
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
 fn new_way(pong: &Pong) {
-    new_way_x87(
-        &pong.state,
-        &pong.rules,
-        crate::effects::owner::effects().setup.floats.one.bits(),
-    );
+    new_way_x87(&pong.state, &pong.rules, effects().setup.floats.one.bits());
 }
 
 /// The Rust version (see the header).
@@ -50,6 +46,7 @@ pub fn pong_ball_hits(pong: &Pong) {
     p.ball_way[1].set_bits(p.difference[1].bits());
 }
 
+use crate::effects::owner::effects;
 use crate::math::x87_float::{ld, st};
 
 /// `centres`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.

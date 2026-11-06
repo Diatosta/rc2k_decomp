@@ -8,6 +8,7 @@
 //! (0 at x as given, 2 centred, 3 right-aligned or fixed pitch, 4 measuring), its line
 //! height (+8) the size of the sheet it was built from (10, 21, 23, 27, 13).
 
+use crate::gfx::owner::gfx;
 use crate::session::{Byte, Dword};
 use rc2k_core::text::Font;
 
@@ -212,7 +213,7 @@ impl Fonts {
 #[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.typefaces) as usize
+    crate::pointers::game_address(&raw const gfx().fonts.typefaces) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -238,7 +239,7 @@ impl FontId {
     }
 
     pub fn object(self) -> &'static FontObject {
-        &crate::gfx::owner::gfx().fonts.typefaces.objects[self.0]
+        &gfx().fonts.typefaces.objects[self.0]
     }
 
     /// Where the object is.
@@ -372,11 +373,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().fonts.typefaces,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().fonts.typefaces, START, START + LEN);
     }
 
     #[test]
@@ -387,9 +384,7 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x51EAB8),
-            crate::gfx::owner::gfx().fonts.typefaces.objects[56]
-                .palette
-                .addr() as usize
+            gfx().fonts.typefaces.objects[56].palette.addr() as usize
         );
         assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
     }

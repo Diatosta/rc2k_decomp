@@ -19,24 +19,20 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Entry, FrameRoutine, List, Screen, Step, prepare_scene, screen_entry,
 };
+use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn prepare(_: &Entry) -> Result<(), Refused> {
-    crate::scene::owner::scene().drawing.scene.view_offset[0].set(0x0u32);
-    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0x0u32);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_zoom
-        .set(0x100u32);
+    let drawing = &scene().drawing;
+    drawing.scene.view_offset[0].set(0x0u32);
+    drawing.scene.view_offset[1].set(0x0u32);
+    drawing.scene.view_zoom.set(0x100u32);
     prepare_scene();
-    crate::scene::owner::scene().drawing.scene.clip_edges[2].set(0x0u32);
-    crate::scene::owner::scene().drawing.scene.clip_edges[3].set(0x320u32);
-    crate::scene::owner::scene().drawing.scene.clip_screen[2]
-        .set(crate::scene::owner::scene().drawing.scene.clip_edges[2].bits() as i32 as f32);
-    crate::scene::owner::scene().drawing.scene.clip_screen[3]
-        .set(crate::scene::owner::scene().drawing.scene.clip_edges[3].bits() as i32 as f32);
+    drawing.scene.clip_edges[2].set(0x0u32);
+    drawing.scene.clip_edges[3].set(0x320u32);
+    drawing.scene.clip_screen[2].set(drawing.scene.clip_edges[2].bits() as i32 as f32);
+    drawing.scene.clip_screen[3].set(drawing.scene.clip_edges[3].bits() as i32 as f32);
     Ok(())
 }
 

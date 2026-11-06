@@ -8,6 +8,7 @@ use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
 use crate::session::Bytes;
 
+use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
 
@@ -122,12 +123,7 @@ pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), R
             .run_count
             .set(masks.vars.run_count.get().wrapping_add(1));
         s.rows.set(masks.vars.runs.get());
-        let scales: [u32; 3] = read_bits(
-            &crate::effects::owner::effects()
-                .setup
-                .mask_constants
-                .ring_scales,
-        );
+        let scales: [u32; 3] = read_bits(&effects().setup.mask_constants.ring_scales);
         let ends = [
             x87::mul(s.angle_ends[0].bits(), scales[0]),
             x87::mul(s.angle_ends[1].bits(), scales[1]),

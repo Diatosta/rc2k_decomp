@@ -12,6 +12,7 @@
 //! `net::choose_car`, `net::choose_stage`.
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::net::lobby::{copy_picture, draw_string};
 use crate::net::store::NET;
 
@@ -19,13 +20,13 @@ pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 /// The Rust version.
 pub fn show_background() -> Result<(), Refused> {
+    let gfx = gfx();
     crate::gfx::load_picture::load_picture(&crate::gfx::texts::CHATZONE)?;
     crate::gfx::convert_picture::convert_picture_now()?;
-    crate::gfx::owner::gfx()
-        .pictures
+    gfx.pictures
         .picture
         .flags
-        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
+        .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
     let title = if NET.session.get() == 1 {
         0x15A

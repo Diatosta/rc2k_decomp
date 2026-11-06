@@ -49,27 +49,17 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
     }
     let m = &race.frame.matrices.view_place;
     for n in 0..3 {
-        let p: [u32; 3] = read_bits(&crate::effects::owner::effects().frame.draw_frame.points[n]);
+        let p: [u32; 3] = read_bits(&effects.frame.draw_frame.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
         for (k, v) in turned.iter().enumerate() {
-            crate::effects::owner::effects()
-                .frame
-                .view_vars
-                .turned_points[n][k]
-                .set_bits(rounded(*v));
+            effects.frame.view_vars.turned_points[n][k].set_bits(rounded(*v));
         }
     }
     let what = "a stage record's corners";
     let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
     // 0x80 bytes of 16-bit little-endian words for each corner record.
     let (records, _) = corners.as_chunks::<0x80>();
-    for (record, bytes) in crate::effects::owner::effects()
-        .blocks
-        .corners
-        .corners
-        .iter()
-        .zip(records)
-    {
+    for (record, bytes) in effects.blocks.corners.corners.iter().zip(records) {
         let (pairs, _) = bytes.as_chunks::<2>();
         for (word, pair) in record.words.iter().zip(pairs) {
             word.set(u16::from_le_bytes(*pair));
@@ -79,53 +69,23 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
         .draw_switches
         .marks_source
         .bits();
-    if source
-        != crate::effects::owner::effects()
+    if source != effects.frame.draw_frame.last_source.get() {
+        effects
             .frame
-            .draw_frame
-            .last_source
-            .get()
-    {
-        crate::effects::owner::effects().frame.view_vars.step.set(
-            crate::effects::owner::effects()
-                .frame
-                .view_vars
-                .step
-                .get()
-                .wrapping_add(1)
-                & 7,
-        );
+            .view_vars
+            .step
+            .set(effects.frame.view_vars.step.get().wrapping_add(1) & 7);
     }
-    crate::effects::owner::effects()
-        .frame
-        .draw_frame
-        .last_source
-        .set(source);
-    crate::effects::owner::effects()
-        .setup
-        .work
-        .sound_source
-        .set(source);
-    crate::effects::owner::effects()
-        .setup
-        .work
-        .sound_zero
-        .set(0);
-    crate::effects::owner::effects()
-        .frame
-        .view_vars
-        .cleared
-        .set(0);
+    effects.frame.draw_frame.last_source.set(source);
+    effects.setup.work.sound_source.set(source);
+    effects.setup.work.sound_zero.set(0);
+    effects.frame.view_vars.cleared.set(0);
     cars_particles::cars_particles(effects)?;
     view_heading::view_heading(&race.frame);
     view_motion::view_motion(&race.frame)?;
     let start = rdtsc();
     begin_quads::begin_quads();
-    let frame = crate::effects::owner::effects()
-        .setup
-        .frame
-        .frame_cycles
-        .bits() as i32;
+    let frame = effects.setup.frame.frame_cycles.bits() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
     TIMES[0]
         .1

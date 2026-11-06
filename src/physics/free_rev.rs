@@ -21,6 +21,7 @@ use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
 fn run(course: &Course) {
@@ -32,10 +33,7 @@ fn run(course: &Course) {
 pub fn free_rev(course: &Course) {
     engine_torque();
     run(course);
-    let (e, drag) = (
-        CAR.engine_speed.bits(),
-        crate::scene::owner::scene().drawing.scene.scratch.get(),
-    );
+    let (e, drag) = (CAR.engine_speed.bits(), scene().drawing.scene.scratch.get());
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {
         return;
@@ -88,11 +86,7 @@ fn x87_1(course: &Course) {
     let t20 = t18 * t19;
     let t21 = ld(PHYSICS.free_rev_add.bits());
     let t22 = t20 + t21;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(st(t22));
+    scene().drawing.scene.scratch.set_bits(st(t22));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

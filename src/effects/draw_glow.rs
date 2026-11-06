@@ -10,6 +10,7 @@
 //!
 //! Caller: `effects::run_frame` (0x4D1693).
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
@@ -19,8 +20,9 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
 pub fn draw_glow() -> Result<(), Refused> {
+    let clipping = &effects().clipping;
     {
-        if crate::effects::owner::effects().clipping.glow.off.get() == 1 {
+        if clipping.glow.off.get() == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
@@ -31,17 +33,17 @@ pub fn draw_glow() -> Result<(), Refused> {
         );
         let place = [
             x87::add_80(
-                crate::effects::owner::effects().clipping.glow.place[2].bits(),
-                crate::effects::owner::effects().clipping.glow.offset[0].bits(),
+                clipping.glow.place[2].bits(),
+                clipping.glow.offset[0].bits(),
             ),
             x87::add_80(
-                crate::effects::owner::effects().clipping.glow.place[1].bits(),
-                crate::effects::owner::effects().clipping.glow.offset[1].bits(),
+                clipping.glow.place[1].bits(),
+                clipping.glow.offset[1].bits(),
             ),
-            extended(crate::effects::owner::effects().clipping.glow.place[0].bits()),
+            extended(clipping.glow.place[0].bits()),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
-            crate::effects::owner::effects().clipping.glow.angle.get(),
+            clipping.glow.angle.get(),
             0xFFFF_FFFF,
             0x1_0000,
             place,

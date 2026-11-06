@@ -15,12 +15,13 @@
 //! the menus), by address (`net::lobby`'s `CLEAR_FRONT`, the typed tables).
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::session::SCREEN;
 
 /// The Rust version (see the header): in the standalone the lock fails, so only the
 /// checks are made.
 pub fn clear_front_surface() -> Result<(), Refused> {
-    if crate::gfx::owner::gfx().drawing.surfaces.front.get() != 0 && SCREEN.height.get() == 0 {
+    if gfx().drawing.surfaces.front.get() != 0 && SCREEN.height.get() == 0 {
         return Err(BadInput("a screen height of 0 (2^32 rows)").into());
     }
     Ok(())

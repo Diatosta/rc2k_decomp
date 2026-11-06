@@ -4,6 +4,8 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
+#[cfg(debug_ui)]
+use crate::saves::owner::saves;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// A race has been played this session (`drive::play_race`).
@@ -54,10 +56,7 @@ pub fn ask_cspecs() {
 /// Whether the section has its table (the draw refuses one without).
 #[cfg(debug_ui)]
 pub fn section_has_times(section: usize) -> bool {
-    crate::saves::owner::saves()
-        .rally_times
-        .table_of(section)
-        .is_ok()
+    saves().rally_times.table_of(section).is_ok()
 }
 
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets

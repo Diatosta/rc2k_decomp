@@ -1302,6 +1302,7 @@ pub fn best_times_addr() -> u32 {
 mod tests {
     use super::*;
     use crate::moved::image_bytes;
+    use crate::saves::owner::saves;
     use core::mem::{offset_of, size_of};
 
     #[test]
@@ -1320,6 +1321,7 @@ mod tests {
 
     #[test]
     fn rally_times_start_as_the_games() {
+        let rally_times = &saves().rally_times;
         let len = RallyTimes::END - RallyTimes::START;
         assert_eq!(size_of::<RallyTimes>(), len);
         assert_eq!(
@@ -1341,24 +1343,14 @@ mod tests {
             let name = u32::from_le_bytes(image[4 * n..4 * n + 4].try_into().unwrap());
             assert_eq!(name as usize, 0x742CB0 + 20 * 0x9C * n);
             assert_eq!(
-                crate::saves::owner::saves().rally_times.table_of(n),
+                rally_times.table_of(n),
                 Ok(RallyTimes::home() as u32 + name - RallyTimes::START as u32)
             );
             assert_eq!(
-                crate::saves::owner::saves()
-                    .rally_times
-                    .table_of(n)
-                    .unwrap(),
-                crate::pointers::game_address(core::ptr::from_ref(
-                    &crate::saves::owner::saves().rally_times.rallies[n]
-                ))
+                rally_times.table_of(n).unwrap(),
+                crate::pointers::game_address(core::ptr::from_ref(&rally_times.rallies[n]))
             );
         }
-        assert!(
-            crate::saves::owner::saves()
-                .rally_times
-                .table_of(6)
-                .is_err()
-        );
+        assert!(rally_times.table_of(6).is_err());
     }
 }

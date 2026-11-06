@@ -3,12 +3,14 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 #[cfg(test)]
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
+use crate::scene::owner::scene;
 use crate::session::{Dword, SCREEN, Word};
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -21,11 +23,7 @@ pub fn draw_frame_rate(frame: &Frame, canvas: &mut dyn Canvas) -> Result<(), Ref
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     frame.text_state.text_mode.set(2);
     let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(rate as u32);
+    scene().drawing.scene.scratch.set(rate as u32);
     if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
     }
@@ -33,7 +31,7 @@ pub fn draw_frame_rate(frame: &Frame, canvas: &mut dyn Canvas) -> Result<(), Ref
     let bytes = fps_text(rate);
     t.write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
-        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.menu_fonts.menu_fonts[3]),
+        crate::pointers::GamePtr::to(&gfx().fonts.menu_fonts.menu_fonts[3]),
         t,
         0x190,
         4,

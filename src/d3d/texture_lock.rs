@@ -6,6 +6,7 @@
 //! its method table; `platform_3d::lock_surface` / `unlock_surface`), +0x60 locked.
 
 use crate::errors::FatalError;
+use crate::gfx::owner::gfx;
 
 pub const RECORD: u32 = 0x78;
 
@@ -13,7 +14,7 @@ pub const RECORD: u32 = 0x78;
 /// texture tables as a whole.
 pub fn record(slot: u32) -> crate::pointers::GamePtr {
     use crate::gfx::texture_upload::{Pool, Textures};
-    crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().card.texture_tables).offset(
+    crate::pointers::GamePtr::to(&gfx().card.texture_tables).offset(
         ((core::mem::offset_of!(Textures, system) + core::mem::offset_of!(Pool, records)) as u32)
             .wrapping_add(slot.wrapping_mul(RECORD)),
     )

@@ -2,6 +2,7 @@
 //! `components_to_pixel`) are told it, and the surface's own layout.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 
 /// A pixel layout the game keeps a pointer to (`g_surface.format`, `g_glyphPixelFormat`),
 /// by handle (phase 13): `SCREEN_FORMAT` the screen's record (`g_surfaceFormat`, the
@@ -15,7 +16,7 @@ const NO_TEXTURE_FORMAT: u32 = TEXTURE_FORMAT | 0xFF;
 /// The handle for texture kind `n`'s layout, as the original takes its address
 /// (`kinds[n] + 8`) when it keeps it: the description it names now.
 pub fn texture_kind_format(n: usize) -> u32 {
-    match crate::gfx::owner::gfx().card.texture_tables.kind_index(n) {
+    match gfx().card.texture_tables.kind_index(n) {
         Some(k) => TEXTURE_FORMAT | k as u32,
         None => NO_TEXTURE_FORMAT,
     }
@@ -26,7 +27,7 @@ pub fn texture_kind_format(n: usize) -> u32 {
 /// gives a handle no read finds, as the original's read there would go wrong.
 // `description` is the number a texture record keeps in its kind field.
 pub fn texture_description_format(description: u32) -> u32 {
-    let descriptions = &crate::gfx::owner::gfx().card.texture_tables.descriptions;
+    let descriptions = &gfx().card.texture_tables.descriptions;
     match descriptions.iter().position(|d| d.addr() == description) {
         Some(k) => TEXTURE_FORMAT | k as u32,
         None => NO_TEXTURE_FORMAT,
@@ -39,7 +40,7 @@ pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
     if handle == SCREEN_FORMAT {
         return surface_format();
     }
-    let descriptions = &crate::gfx::owner::gfx().card.texture_tables.descriptions;
+    let descriptions = &gfx().card.texture_tables.descriptions;
     match handle.checked_sub(TEXTURE_FORMAT) {
         Some(k) if (k as usize) < descriptions.len() => Ok(descriptions[k as usize].get().format),
         _ => Err(BadInput("a pixel layout's handle that names none")),

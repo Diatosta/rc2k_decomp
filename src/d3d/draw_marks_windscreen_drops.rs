@@ -12,20 +12,14 @@
 //! the standalone skipped it).
 
 /// The windscreen drops drawn: Direct3D's result, always 0 here.
+use crate::gfx::owner::gfx;
 pub fn draw_marks_windscreen_drops() -> u32 {
+    let card = &gfx().card;
     crate::platform_3d::draw_indexed_bytes(
-        &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
-        crate::gfx::owner::gfx()
-            .card
-            .windscreen_drop_batch
-            .vertex_count
-            .get(),
-        &crate::gfx::owner::gfx().card.windscreen_drop_batch.fans,
-        crate::gfx::owner::gfx()
-            .card
-            .windscreen_drop_batch
-            .index_count
-            .get(),
+        &card.windscreen_drop_batch.records,
+        card.windscreen_drop_batch.vertex_count.get(),
+        &card.windscreen_drop_batch.fans,
+        card.windscreen_drop_batch.index_count.get(),
     );
     0
 }

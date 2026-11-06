@@ -16,6 +16,7 @@ use crate::gfx::blit_glyph::BlitCall;
 
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
+use crate::gfx::owner::gfx;
 use crate::gfx::picture_as_surface::picture_as_surface;
 use crate::text::draw_text::Canvas;
 
@@ -29,14 +30,14 @@ pub fn load_background(
     path: &dyn crate::session::TextPlace,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let gfx = gfx();
     // Whether the file was read is not looked at.
     load_picture(path)?;
     convert_picture_now()?;
-    crate::gfx::owner::gfx()
-        .pictures
+    gfx.pictures
         .picture
         .flags
-        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
+        .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
     { canvas.blit_glyph(BlitCall::sprite(FRAME_SPRITE, 0, 0)) }?;
     Ok(())

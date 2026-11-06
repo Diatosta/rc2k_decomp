@@ -19,9 +19,11 @@ use crate::pointers::GamePtr;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 
 /// `race::set_all_plates` (see the header).
 pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
+    let scene = scene();
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
     // FIXED_PICTURES, car_pictures}`.
     use rc2k_core::race::stage_objects::{
@@ -29,7 +31,7 @@ pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
     };
     let cars: u32 = RACE_VIEW.race_cars.bits();
     check_picture_cars(cars)?;
-    let pictures = GamePtr::to(&crate::scene::owner::scene().textures.places.kind_pictures);
+    let pictures = GamePtr::to(&scene.textures.places.kind_pictures);
     for (kind, dwords) in PREF_PIECES {
         // The prefs' picture lists (`PREF_PIECES`' kinds) start at `picture_lists_a`
         // (0x60A57C), 0x32C14 bytes above the pictures; a piece runs past the field.
@@ -41,7 +43,7 @@ pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
     }
     for (kind, picture) in FIXED_PICTURES {
         crate::scene::texture_places_store::cell_at(
-            &crate::scene::owner::scene().textures.places.kind_pictures[0],
+            &scene.textures.places.kind_pictures[0],
             kind as u32,
         )
         .set(picture);
@@ -56,7 +58,7 @@ pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
             at = at.offset(4);
         }
     }
-    crate::scene::reload_system_textures::reload_system_textures(crate::scene::owner::scene())?;
+    crate::scene::reload_system_textures::reload_system_textures(scene)?;
     crate::scene::reload_slot_textures::reload_slot_textures()?;
     Ok(())
 }

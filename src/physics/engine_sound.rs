@@ -30,6 +30,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::matrix3::extended;
+use crate::scene::owner::scene;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -68,36 +69,26 @@ fn run_at(course: &Course) {
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub fn engine_sound(race: &Race) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(&race.course);
-    crate::scene::owner::scene()
-        .drawing
+    drawing
         .scene
         .scratch
         .set(x87::loaded(CAR.engine_speed.bits()));
     let floor = PHYSICS.idle_engine_speed.bits();
     let held = hold_low(
-        f32::from_bits(crate::scene::owner::scene().drawing.scene.scratch.get()),
+        f32::from_bits(drawing.scene.scratch.get()),
         f32::from_bits(floor),
     );
-    crate::scene::owner::scene()
-        .drawing
+    drawing.scene.scratch.set(held.to_bits());
+    drawing
         .scene
         .scratch
-        .set(held.to_bits());
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(ext_to_int(extended(
-            crate::scene::owner::scene().drawing.scene.scratch.get(),
-        )) as u32);
-    let (revs, _) = ease_revs(
-        CAR.engine_sound_revs.get(),
-        crate::scene::owner::scene().drawing.scene.scratch.get(),
-    );
+        .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
+    let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), drawing.scene.scratch.get());
     CAR.engine_sound_revs.set(revs);
     { car_sound_state(race) }?;
     gear_change_sound()

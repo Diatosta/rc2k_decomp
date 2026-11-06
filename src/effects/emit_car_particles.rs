@@ -31,7 +31,7 @@ use crate::session::{read_bits, write_bits};
 /// The Rust version (see the header): `o` the car's object (the original's esi).
 pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), Refused> {
     o.whole()?;
-    let k = read_bits(&crate::effects::owner::effects().kinds.emitter.place_k);
+    let k = read_bits(&effects.kinds.emitter.place_k);
     let z1 = x87::int_times(o.word(0xC)? as i32, k[0]);
     o.put(0x118, z1)?;
     o.put(0x160, z1)?;
@@ -47,12 +47,11 @@ pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), 
     for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
         o.put(a, y)?;
     }
-    crate::effects::owner::effects().kinds.emitter.looks[0]
-        .set(x87::to_int(o.word(0x110)? & 0x7FFF_FFFF) as u32);
-    crate::effects::owner::effects().kinds.emitter.looks[1].set(x87::abs_sum_times_to_int(
+    effects.kinds.emitter.looks[0].set(x87::to_int(o.word(0x110)? & 0x7FFF_FFFF) as u32);
+    effects.kinds.emitter.looks[1].set(x87::abs_sum_times_to_int(
         o.word(0x118)?,
         o.word(0x1A8)?,
-        crate::effects::owner::effects().setup.floats.half.bits(),
+        effects.setup.floats.half.bits(),
     ) as u32);
     let m = o.whole()?;
     for p in [0x110, 0x158, 0x1A0, 0x1E8] {
@@ -71,33 +70,28 @@ pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), 
     for n in 0..4 {
         if n == 2 {
             write_bits(
-                &crate::effects::owner::effects().kinds.emitter.side_a,
+                &effects.kinds.emitter.side_a,
                 [matrix_cell(m, 0)?, matrix_cell(m, 4)?, matrix_cell(m, 8)?],
             );
             write_bits(
-                &crate::effects::owner::effects().kinds.emitter.side_b,
+                &effects.kinds.emitter.side_b,
                 crate::effects::try_from_fn(|i__| {
                     let f = [0x20, 0x24, 0x28][i__];
                     Ok(matrix_cell(m, f)? ^ 0x8000_0000)
                 })?,
             );
         }
-        crate::effects::owner::effects()
-            .kinds
-            .emitter
-            .record
-            .set(n as u32);
+        effects.kinds.emitter.record.set(n as u32);
         emit_wheel_particles(effects, &o.records[n], o)?;
     }
-    let sides: [u32; 6] = std::array::from_fn(|n| {
-        x87::loaded(crate::effects::owner::effects().kinds.emitter.body_k[n].bits())
-    });
+    let sides: [u32; 6] =
+        std::array::from_fn(|n| x87::loaded(effects.kinds.emitter.body_k[n].bits()));
     write_bits(
-        &crate::effects::owner::effects().kinds.emitter.side_a,
+        &effects.kinds.emitter.side_a,
         [sides[0], sides[1], sides[2]],
     );
     write_bits(
-        &crate::effects::owner::effects().kinds.emitter.side_b,
+        &effects.kinds.emitter.side_b,
         [sides[3], sides[4], sides[5]],
     );
     emit_body_particles(effects, &o.records[4], o)?;

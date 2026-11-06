@@ -12,6 +12,7 @@
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first).
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::place_spline::place_spline;
 use crate::errors::{BadInput, Refused};
@@ -64,7 +65,8 @@ fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 pub fn run_splines(paths: &Paths) -> Result<(), Refused> {
-    let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
+    let setup = &effects().setup;
+    let settings: u32 = setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -73,23 +75,9 @@ pub fn run_splines(paths: &Paths) -> Result<(), Refused> {
         return Err(BadInput("more than 8 splines").into());
     }
     {
-        step_made(
-            paths,
-            crate::effects::owner::effects()
-                .setup
-                .clock
-                .frame_ticks
-                .get()
-                >> 1,
-        )?;
-        let s = crate::effects::owner::effects()
-            .setup
-            .work
-            .seed
-            .get()
-            .wrapping_mul(0x9D)
-            .wrapping_add(0x47);
-        crate::effects::owner::effects().setup.work.seed.set(s);
+        step_made(paths, setup.clock.frame_ticks.get() >> 1)?;
+        let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+        setup.work.seed.set(s);
         let k = paths
             .spline_constants
             .wave_k

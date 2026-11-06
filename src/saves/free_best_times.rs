@@ -10,6 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::memory::free_list::free_list;
+use crate::saves::owner::saves;
 
 // ---- game data ----
 
@@ -18,10 +19,10 @@ use crate::memory::free_list::free_list;
 pub fn free_best_times(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     free_list(list)?;
     crate::saves::best_times::give_back_all();
-    crate::saves::owner::saves().best_times.allocated.set(0);
+    saves().best_times.allocated.set(0);
     Ok(())
 }
 
 pub fn free_in_game() -> Result<(), BadInput> {
-    free_best_times(crate::saves::owner::saves().best_times.list())
+    free_best_times(saves().best_times.list())
 }

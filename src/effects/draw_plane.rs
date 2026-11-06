@@ -89,12 +89,12 @@ fn plane_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
 fn plane_corners(fl: &WindscreenFlakes) {
-    plane_corners_x87(&fl.tables, &crate::effects::owner::effects().kinds.quad_3);
+    plane_corners_x87(&fl.tables, &effects().kinds.quad_3);
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
 fn plane_projected() {
-    plane_projected_x87(&crate::effects::owner::effects().kinds.quad_3);
+    plane_projected_x87(&effects().kinds.quad_3);
 }
 
 /// The Rust version (see the header).
@@ -103,9 +103,10 @@ pub fn draw_plane(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
+    let effects = effects();
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
-    let corner: u32 = crate::effects::owner::effects().kinds.quad_3.corner.get();
+    let corner: u32 = effects.kinds.quad_3.corner.get();
     plane_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
@@ -135,9 +136,9 @@ pub fn draw_plane(
         crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
     );
     plane_corners(fl);
-    let entry = &crate::effects::owner::effects().blocks.corners.corners[corner as usize];
+    let entry = &effects.blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+    let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -157,7 +158,7 @@ pub fn draw_plane(
         VERTICES.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (crate::effects::owner::effects().kinds.quad_3.corners[n][2].bits() as i32)
+        if (effects.kinds.quad_3.corners[n][2].bits() as i32)
             <= (race.course.numbers.k4096_a.bits() as i32)
         {
             return Ok(());
@@ -165,15 +166,11 @@ pub fn draw_plane(
     }
     plane_projected();
     let [kind, z_k]: [u32; 2] = [
-        crate::effects::owner::effects()
-            .setup
-            .kind_floats
-            .kind_float
-            .bits(),
-        crate::effects::owner::effects().frame.draw_work.z_k.bits(),
+        effects.setup.kind_floats.kind_float.bits(),
+        effects.frame.draw_work.z_k.bits(),
     ];
     for n in 0..4 {
-        let c = &crate::effects::owner::effects().kinds.quad_3.corners[n];
+        let c = &effects.kinds.quad_3.corners[n];
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(c[0].bits());
         vertex.y.set_bits(c[1].bits());
@@ -186,7 +183,7 @@ pub fn draw_plane(
         ));
     }
     for n in 0..4 {
-        let depth: u32 = crate::effects::owner::effects().kinds.quad_3.corners[n][2].bits();
+        let depth: u32 = effects.kinds.quad_3.corners[n][2].bits();
         VERTICES.vertices[n].rhw.set_bits(x87::reciprocal_times(
             depth,
             PLANE_TUNING.rhw_k[n].to_bits(),
@@ -197,6 +194,7 @@ pub fn draw_plane(
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;

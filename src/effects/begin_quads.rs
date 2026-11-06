@@ -12,6 +12,7 @@
 //! Caller: `sub_4C3EEE`.
 
 use crate::d3d::vertices_store::VERTICES;
+use crate::effects::owner::effects;
 use crate::session::read_bits;
 
 /// The render states set (value, state).
@@ -20,6 +21,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
 pub fn begin_quads() {
+    let frame = &effects().frame;
     {
         crate::scene::set_texture::set_texture(
             crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
@@ -29,13 +31,8 @@ pub fn begin_quads() {
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        let colour: u32 = crate::effects::owner::effects()
-            .frame
-            .draw_frame
-            .colour
-            .get();
-        let [a, b, c, d]: [u32; 4] =
-            read_bits(&crate::effects::owner::effects().frame.draw_frame.places);
+        let colour: u32 = frame.draw_frame.colour.get();
+        let [a, b, c, d]: [u32; 4] = read_bits(&frame.draw_frame.places);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
             let at = &VERTICES.vertices[k];
@@ -50,17 +47,9 @@ pub fn begin_quads() {
             .scene
             .polygon_vertex_count
             .set_bits(4u32);
-        crate::effects::owner::effects()
-            .frame
-            .draw_work
-            .z_k
-            .set_bits(crate::math::x87::reciprocal(
-                crate::scene::owner::scene().drawing.scene.farthest.bits(),
-            ));
-        crate::effects::owner::effects()
-            .frame
-            .draw_frame
-            .cleared
-            .set(0);
+        frame.draw_work.z_k.set_bits(crate::math::x87::reciprocal(
+            crate::scene::owner::scene().drawing.scene.farthest.bits(),
+        ));
+        frame.draw_frame.cleared.set(0);
     }
 }

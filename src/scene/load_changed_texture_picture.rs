@@ -13,6 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -27,18 +28,19 @@ pub fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let textures = &scene().textures;
     if texture >= TEXTURES {
         return Err(BadInput("a texture past the pictures' tables").into());
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        crate::scene::owner::scene().textures.places.wanted_pictures[at].get(),
-        || crate::scene::owner::scene().textures.places.loaded_pictures[at].get(),
+        textures.places.wanted_pictures[at].get(),
+        || textures.places.loaded_pictures[at].get(),
     ) else {
         return Ok(());
     };
     load(wanted, texture)?;
-    crate::scene::owner::scene().textures.places.loaded_pictures[at].set(wanted);
+    textures.places.loaded_pictures[at].set(wanted);
     Ok(())
 }
 

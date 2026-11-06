@@ -20,15 +20,15 @@ use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::state_store::RACE_STATE;
+use crate::scene::owner::scene;
 
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
 fn time(race: &Race) {
     race.replay
         .finish
         .time
-        .set_bits(st(int(
-            crate::scene::owner::scene().drawing.scene.scratch.bits() as i32,
-        ) / ld(race.course.numbers.thousand.bits())));
+        .set_bits(st(int(scene().drawing.scene.scratch.bits() as i32)
+            / ld(race.course.numbers.thousand.bits())));
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
@@ -66,11 +66,7 @@ fn share(replay: &Replay) {
 pub fn timing_from(race: &Race, now: u32) {
     let replay = &race.replay;
     let since = now.wrapping_sub(replay.finish.start_clock.get());
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(since);
+    scene().drawing.scene.scratch.set(since);
     time(race);
     if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
         replay

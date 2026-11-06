@@ -94,17 +94,12 @@ pub fn windscreen_drops_frame(
     masks: &Masks,
     drops: &WindscreenDrops,
 ) -> Result<(), Refused> {
+    let setup = &effects().setup;
     if let Some(why) = refusal(drops)? {
         return Err(BadInput(why).into());
     }
     {
-        if crate::effects::owner::effects()
-            .setup
-            .kind_floats
-            .running
-            .bits()
-            != 0
-        {
+        if setup.kind_floats.running.bits() != 0 {
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops);
@@ -115,19 +110,9 @@ pub fn windscreen_drops_frame(
                 continue;
             }
             drops.state.live.set(drops.state.live.get().wrapping_add(1));
-            if crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .running
-                .bits()
-                != 0
-            {
+            if setup.kind_floats.running.bits() != 0 {
                 let x = x87::to_int(get(drops, e + ITEM_X));
-                crate::effects::owner::effects()
-                    .setup
-                    .work
-                    .scratch
-                    .set(x as u32);
+                setup.work.scratch.set(x as u32);
                 drift_cell(drops, 4 * (((x as u32) >> 3) & 0xFF));
                 drift_move(drops, 4 * get(drops, e + ITEM_KIND), e);
             }
@@ -171,12 +156,7 @@ pub fn windscreen_drops_frame(
         let marks = crate::effects::setup::marks()?;
         let live: u32 = drops.state.live.bits();
         if (live as i32) < marks.listener_switch_2.get() as i32
-            && crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .running
-                .bits()
-                != 0
+            && setup.kind_floats.running.bits() != 0
         {
             crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops)?;
         }
@@ -184,6 +164,7 @@ pub fn windscreen_drops_frame(
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_at, ld_cell, st_at};
 use crate::math::x87_float as bh;
 
@@ -309,13 +290,7 @@ fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
     }
     // Every vertex's depth.
     let depth = (bh::ld(drops.state.depth.bits())
-        + bh::ld(
-            crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .kind_float
-                .bits(),
-        ))
+        + bh::ld(effects().setup.kind_floats.kind_float.bits()))
         * bh::ld(work.inverse.bits());
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
@@ -659,6 +634,7 @@ mod asm_reference {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
+    use crate::effects::owner::effects;
     use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::tuning::MarksKindFloats;
     use crate::effects::typed_sync::{overlay, with_overlays};
@@ -1095,7 +1071,7 @@ mod asm_differential {
                     with_overlays(
                         b[1],
                         &[overlay(
-                            &crate::effects::owner::effects().setup.kind_floats,
+                            &effects().setup.kind_floats,
                             MarksKindFloats::START,
                         )],
                         || {

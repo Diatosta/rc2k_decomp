@@ -34,10 +34,7 @@ fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 2]) {
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
 fn projected(fl: &WindscreenFlakes) {
-    projected_x87(
-        &crate::effects::owner::effects().setup.kind_floats,
-        &fl.tables,
-    );
+    projected_x87(&effects().setup.kind_floats, &fl.tables);
 }
 
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
@@ -64,6 +61,7 @@ pub fn draw_windscreen_flake(
     crate::effects::clip_quad::draw_fan();
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
 use crate::math::x87_float as bh;

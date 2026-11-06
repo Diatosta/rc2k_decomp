@@ -9,6 +9,7 @@ use crate::errors::BadInput;
 use crate::files::read_stream_byte::read_stream_byte;
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
+use crate::gfx::owner::gfx;
 use crate::gfx::pcx::{HEADER_PLANES, on_stream, read_header, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::read_pcx_8bit::read_file_palette;
@@ -16,33 +17,28 @@ use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 
 /// The part between the open and the close: whether it worked.
 fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
+    let pictures = &gfx().pictures;
     if !read_file_palette(stream) || !read_stream_header(stream)? {
         return Ok(false);
     }
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .flags
-        .set(0x100u32);
+    pictures.picture.flags.set(0x100u32);
     lay_out_pcx()?;
 
     let (width, height, line_bytes): (u32, u32, u32) = (
-        crate::gfx::owner::gfx().pictures.decoder.width.get(),
-        crate::gfx::owner::gfx().pictures.decoder.height.get(),
-        crate::gfx::owner::gfx().pictures.pcx.line_bytes.get(),
+        pictures.decoder.width.get(),
+        pictures.decoder.height.get(),
+        pictures.pcx.line_bytes.get(),
     );
     if height == 0 {
-        return Err(BadInput(
-            "a crate::gfx::owner::gfx().pictures.pcx picture without rows",
-        ));
+        return Err(BadInput("a PCX picture without rows"));
     }
-    let gap: u32 = crate::gfx::owner::gfx().pictures.decoder.row_gap.get();
+    let gap: u32 = pictures.decoder.row_gap.get();
     // The byte offset in the decoded buffer.
     let mut to = 0usize;
     // The byte a run repeats, and how much of the run is left.
     let (mut byte, mut run) = (0u8, 0u32);
     with_buffer(
-        crate::gfx::owner::gfx().pictures.decoder.pixels.get(),
+        pictures.decoder.pixels.get(),
         |pixels| -> Result<(), BadInput> {
             for _ in 0..height {
                 let mut column = 0u32;
@@ -83,12 +79,7 @@ pub fn read_sheet(path: &[u8]) -> Result<bool, BadInput> {
     if !read_header(path)? {
         return Ok(false);
     }
-    match crate::gfx::owner::gfx()
-        .pictures
-        .pcx
-        .header
-        .get(HEADER_PLANES)
-    {
+    match gfx().pictures.pcx.header.get(HEADER_PLANES) {
         1 => read_pcx_indexed(path),
         3 => read_pcx_24bit(path),
         _ => Ok(false),

@@ -20,6 +20,7 @@ use crate::race::owner_course::Course;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::race::vars_store::RACE_VARS;
+use crate::scene::owner::scene;
 
 // g_surface.format
 
@@ -55,29 +56,22 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 /// The Rust version (see the header): the texel of place number `number` (its low 16
 /// bits) muddied.
 pub fn muddy_texel(course: &Course, number: u32) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
     let n = texture_and_mud()?;
     let (x, y) = shuffled_place(number);
     let strength = strength_at(n, x, y)?;
-    let kept: u32 = crate::scene::owner::scene().drawing.scene.scratch.bits();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(strength);
+    let kept: u32 = drawing.scene.scratch.bits();
+    drawing.scene.scratch.set_bits(strength);
     let texel = { mud_texel(strength_row(y), x, y) }?;
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(course, texel, tint_amount(strength));
     if let Err(e) = { put_mud_texel(tinted | MUD_TOP, x, y) } {
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(kept);
+        drawing.scene.scratch.set_bits(kept);
         return Err(e);
     }
     Ok(())

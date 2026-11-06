@@ -19,6 +19,7 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -35,14 +36,15 @@ fn needs_clipping(
     course: &crate::race::owner_course::Course,
     count: u32,
 ) -> Result<bool, BadInput> {
+    let drawing = &scene().drawing;
     use rc2k_core::scene::polygons::{Edges, Vertex};
     if (count as i32).wrapping_sub(3) < 0 {
         return Ok(false);
     }
     let edges = Edges {
         least: course.numbers.zero.get(),
-        right: crate::scene::owner::scene().drawing.scene.clip_screen[3].get(),
-        bottom: crate::scene::owner::scene().drawing.scene.clip_screen[1].get(),
+        right: drawing.scene.clip_screen[3].get(),
+        bottom: drawing.scene.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record = crate::scene::polygon::entry(n)?.record.get();
@@ -63,29 +65,21 @@ pub fn draw_object_polygon(
     race: &crate::race::owner::Race,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let physics = &race.physics;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
-    let count: u32 = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits();
+    let count: u32 = drawing.scene.polygon_vertex_count.bits();
     if !fits(count) {
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
-    crate::scene::owner::scene()
-        .drawing
+    drawing
         .scene
         .polygon_next_record
         .set_bits(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_next_entry
-        .set_bits(count);
+    drawing.scene.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(&race.course, count)?) {
         physics
@@ -105,26 +99,14 @@ pub fn draw_object_polygon(
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(3u32);
+    drawing.scene.polygon_vertex_count.set_bits(3u32);
     step(Step::Draw)?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(count);
+    drawing.scene.polygon_vertex_count.set_bits(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
             entries[to].copy_from(&kept[from]);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(3u32);
+        drawing.scene.polygon_vertex_count.set_bits(3u32);
         step(Step::Draw)?;
     }
     Ok(())

@@ -36,6 +36,7 @@ use crate::race::owner::Race;
 use crate::race::work_store::{RACE_WORK, RaceSlot};
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
+use crate::scene::owner::scene;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 use crate::session::Cell32;
 
@@ -49,6 +50,7 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 /// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
 pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let dt = PHYSICS.step_time.bits();
     let k65536 = race.course.numbers.k65536.bits();
     copy(&s.place, &RACE_WORK.slot_place);
@@ -76,7 +78,7 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
-        crate::scene::owner::scene().drawing.scene.scratch.set(d);
+        drawing.scene.scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].set_bits(neg_product_plus(
@@ -118,10 +120,6 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
             return Ok(());
         }
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(abs_of(s.motion[1].bits()));
+    drawing.scene.scratch.set(abs_of(s.motion[1].bits()));
     Ok(())
 }

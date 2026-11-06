@@ -19,6 +19,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -43,7 +44,7 @@ fn rate(particles: &Particles, wheel: &MarkRecord) -> Result<i32, Refused> {
             k1,
             k2,
             k3,
-            crate::effects::owner::effects().setup.floats.one.bits(),
+            effects().setup.floats.one.bits(),
             k4,
         )
     })
@@ -76,6 +77,7 @@ pub fn emit_particle_21(
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let effects = effects();
     {
         if let Some(why) = refusal(particles, ring, wheel, object)? {
             return Err(BadInput(why).into());
@@ -94,8 +96,8 @@ pub fn emit_particle_21(
         let m = car.whole()?;
         let r = next_c5(&particles.kind21_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
-        crate::effects::owner::effects().kinds.emitter.sides[0].set(a as u32);
-        crate::effects::owner::effects().kinds.emitter.sides[1].set(b as u32);
+        effects.kinds.emitter.sides[0].set(a as u32);
+        effects.kinds.emitter.sides[1].set(b as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             let k = 4 * k as u32;
             Ok(x87::pair_sum_80(
@@ -132,39 +134,22 @@ pub fn emit_particle_21(
         put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
         put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
         put(field::CELL, LOOK)?;
-        let s = crate::effects::owner::effects()
+        let s = effects
             .setup
             .work
             .seed
             .get()
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
-        crate::effects::owner::effects().setup.work.seed.set(s);
+        effects.setup.work.seed.set(s);
         put(field::SIZE, x87::from_int(((s & 0x3FFF) + 0x4000) as i32))?;
         put(field::LIFE, LIFE)?;
         put(
             field::ALPHA_FADE,
-            x87::over_int(
-                crate::effects::owner::effects()
-                    .setup
-                    .floats
-                    .two_fifty_seven
-                    .bits(),
-                LIFE as i32,
-            ),
+            x87::over_int(effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
         )?;
-        put(
-            field::ALPHA,
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_fifty_five
-                .bits(),
-        )?;
-        put(
-            field::CAR,
-            crate::effects::owner::effects().kinds.emitter.car.get(),
-        )?;
+        put(field::ALPHA, effects.setup.floats.two_fifty_five.bits())?;
+        put(field::CAR, effects.kinds.emitter.car.get())?;
         let size = car.word(0x90)?.wrapping_add(g.rate as u32);
         put(field::SIZE_GOAL, size)?;
         put(0x6C, car.word(0x88)?)?;

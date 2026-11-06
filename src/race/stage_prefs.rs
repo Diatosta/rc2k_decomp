@@ -11,6 +11,7 @@ use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
@@ -146,10 +147,7 @@ pub fn get_mat_crash() {
         CAR.car_pitch.get(),
         CAR.car_roll.get(),
     ]);
-    crate::session::write_bits(
-        &crate::scene::owner::scene().drawing.object_work.angles,
-        turns,
-    );
+    crate::session::write_bits(&scene().drawing.object_work.angles, turns);
     matrix::set_turn_x(turns[0]);
     matrix::set_turn_y(turns[1]);
     matrix::set_turn_z_16(turns[2]);

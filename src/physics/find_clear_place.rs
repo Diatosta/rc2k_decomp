@@ -26,6 +26,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use rc2k_core::physics::clear_place;
 
 // g_logEnabled
@@ -49,11 +50,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(PHYSICS.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&CAR.velocity, factor);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(rounded(factor));
+    scene().drawing.scene.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     PHYSICS

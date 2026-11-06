@@ -30,6 +30,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_components::{Piece, blit_components, game_target};
+use crate::gfx::owner::gfx;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, ready_picture};
@@ -171,11 +172,7 @@ pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Re
             pixels,
             row_bytes: height.wrapping_mul(4),
         };
-        let blitted = blit_components(
-            &crate::gfx::owner::gfx().pixel.formats,
-            &piece,
-            &game_target()?,
-        );
+        let blitted = blit_components(&gfx().pixel.formats, &piece, &game_target()?);
         crate::d3d::unlock_texture::unlock_texture(texture)?;
         blitted?;
     }

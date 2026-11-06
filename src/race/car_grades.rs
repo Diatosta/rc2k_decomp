@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
+use crate::scene::owner::scene;
 use crate::session::{Dword, Float};
 
 /// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
@@ -115,11 +116,7 @@ pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
     for &(from, to, thresholds) in &GRADES {
         let x = f32::from_bits(from(car).bits());
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(tried);
+        scene().drawing.scene.scratch.set_bits(tried);
         to(car).set_bits(grade);
     }
     Ok(())

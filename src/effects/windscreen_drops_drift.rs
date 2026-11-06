@@ -26,12 +26,12 @@ use crate::session::{Bytes, Float};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(drops: &WindscreenDrops, m: &MarksSettings) {
-    view_moved_x87(drops, m, &crate::effects::owner::effects().setup.clock);
+    view_moved_x87(drops, m, &effects().setup.clock);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 fn move_kept(drops: &WindscreenDrops, m: &MarksSettings) {
-    move_kept_x87(drops, m, &crate::effects::owner::effects().setup.clock);
+    move_kept_x87(drops, m, &effects().setup.clock);
 }
 
 /// The Rust version (see the header).
@@ -78,6 +78,7 @@ pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 

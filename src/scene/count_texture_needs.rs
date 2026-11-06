@@ -13,6 +13,7 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -23,16 +24,14 @@ use crate::logfile::log_int::log_int;
 
 /// The four totals. Reads only.
 fn totals() -> Result<[u32; 4], BadInput> {
+    let objects = &scene().objects;
     // Converted: `rc2k_core::scene::textures::count_needs`.
     let (totals, _) = crate::scene::textures::with_cells(
-        [
-            &crate::scene::owner::scene().objects.tables.system_levels,
-            &crate::scene::owner::scene().objects.tables.video_levels,
-        ],
+        [&objects.tables.system_levels, &objects.tables.video_levels],
         |[system, video]| {
             rc2k_core::scene::textures::count_needs(system, video, |level| {
                 crate::scene::texture_places_store::cell_at(
-                    &crate::scene::owner::scene().objects.tables.level_sizes[0],
+                    &objects.tables.level_sizes[0],
                     level as u32,
                 )
                 .get()
@@ -47,13 +46,7 @@ pub fn count_texture_needs(
     log: &mut dyn FnMut(Result<&'static std::ffi::CStr, u32>, bool),
 ) -> Result<(), BadInput> {
     let totals = totals()?;
-    for (cell, total) in crate::scene::owner::scene()
-        .textures
-        .places
-        .totals
-        .iter()
-        .zip(totals)
-    {
+    for (cell, total) in scene().textures.places.totals.iter().zip(totals) {
         cell.set(total);
     }
     log(Ok(c"VID"), false);

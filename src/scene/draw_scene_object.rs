@@ -23,6 +23,7 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
+use crate::scene::owner::scene;
 
 // ---- game data ----
 // scene::draw_described_object
@@ -46,12 +47,7 @@ fn texture_set(course: &crate::race::owner_course::Course) -> Result<(u32, u32),
         let t = rc2k_core::scene::shown::texture_set(
             object,
             course.numbers.in_race.bits() != 0,
-            |object| {
-                crate::scene::owner::scene()
-                    .objects
-                    .tables
-                    .object_kind(object)
-            },
+            |object| scene().objects.tables.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
                 (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
@@ -75,13 +71,11 @@ pub fn draw_scene_object(
     race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let scene = scene();
     let (set, object) = texture_set(&race.course)?;
     race.physics.ground.object_texture_set.set_bits(set);
-    let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object as usize].get();
-    match rc2k_core::scene::shown::way(
-        faces,
-        crate::scene::owner::scene().lights.state.draw_mode.bits(),
-    ) {
+    let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
+    match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
         Some(way) => draw(way),
         None => Ok(()),
     }

@@ -11,17 +11,17 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 use crate::memory::own_heap;
 
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {
-    if crate::gfx::owner::gfx().pictures.picture.list.get().head != 0 && own_heap() == 1 {
+    let pictures = &gfx().pictures;
+    if pictures.picture.list.get().head != 0 && own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)"));
     }
-    crate::gfx::owner::gfx().pictures.picture.flags.set(0u32);
-    crate::gfx::owner::gfx().pictures.picture.buffer.set(0u32);
+    pictures.picture.flags.set(0u32);
+    pictures.picture.buffer.set(0u32);
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Main);
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(
-        &crate::gfx::owner::gfx().pictures.picture.list,
-    ))
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&pictures.picture.list))
 }

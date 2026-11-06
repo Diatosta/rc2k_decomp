@@ -1,6 +1,7 @@
 //! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image
 //! (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F52B4 .. 0x4F52C4.
 
+use crate::gfx::owner::gfx;
 use crate::session::{Bytes, Dword};
 
 /// IDA's address of the block's first byte.
@@ -34,12 +35,12 @@ impl Shots {
 
 /// Whether screenshots are on.
 pub fn on() -> u32 {
-    crate::gfx::owner::gfx().shots.on.get()
+    gfx().shots.on.get()
 }
 
 /// The switch's first byte.
 pub fn on_byte() -> u8 {
-    crate::gfx::owner::gfx().shots.on.get() as u8
+    gfx().shots.on.get() as u8
 }
 
 #[cfg(test)]

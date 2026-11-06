@@ -24,6 +24,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
+use crate::scene::owner::scene;
 use crate::scene::raise_texture_needs::raise_texture_needs;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
 use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
@@ -76,6 +77,7 @@ fn run(
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
+    let textures = &scene().textures;
     for step in steps {
         match *step {
             Step::Text(text, newline) => {
@@ -89,7 +91,7 @@ fn run(
             }
             Step::Count(index) => {
                 let counter = crate::scene::texture_places_store::cell_at(
-                    &crate::scene::owner::scene().textures.places.counters[0],
+                    &textures.places.counters[0],
                     index,
                 );
                 counter.set(counter.get().wrapping_add(1));
@@ -106,9 +108,7 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if crate::scene::owner::scene().textures.places.step_flags[flag].get() == 0
-                    && run(inner, call)?
-                {
+                if textures.places.step_flags[flag].get() == 0 && run(inner, call)? {
                     return Ok(true);
                 }
             }
@@ -120,18 +120,13 @@ fn run(
 pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
+    let textures = &scene().textures;
     // The original does this after the first two log lines and the count, which
     // touch neither.
-    for counter in &crate::scene::owner::scene().textures.places.counters {
+    for counter in &textures.places.counters {
         counter.set(0);
     }
-    for (n, flag) in crate::scene::owner::scene()
-        .textures
-        .places
-        .step_flags
-        .iter()
-        .enumerate()
-    {
+    for (n, flag) in textures.places.step_flags.iter().enumerate() {
         flag.set((n == 0) as u32);
     }
     if run(&STEPS, call)? {

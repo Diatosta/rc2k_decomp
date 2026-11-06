@@ -57,6 +57,7 @@ fn keep_y(weather: &Weather, i: usize) {
 
 /// The Rust version (see the header).
 pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
+    let setup = &effects().setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
     {
@@ -106,50 +107,27 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
             .scene
             .polygon_vertex_count
             .set_bits(4u32);
-        if crate::effects::owner::effects()
-            .setup
-            .kind_floats
-            .running
-            .bits()
-            != 0
-        {
+        if setup.kind_floats.running.bits() != 0 {
             crate::effects::drift_offsets::drift_offsets(weather);
         }
         let marks = crate::effects::setup::marks()?;
         let e = marks.marks_layout.get() as usize;
-        if marks.own_marks_shown.get() != 0
-            || crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .running
-                .bits()
-                != 0
-        {
+        if marks.own_marks_shown.get() != 0 || setup.kind_floats.running.bits() != 0 {
             box_moved(weather, e);
         }
         for n in 0..3 {
             r.motion[n].set_bits(r.moves[e][n].bits());
         }
         move_length(weather);
-        let status = crate::effects::owner::effects().setup.work.fpu_status.get() & 0x700;
-        crate::effects::owner::effects()
-            .setup
-            .work
-            .fpu_status
-            .set(status);
+        let status = setup.work.fpu_status.get() & 0x700;
+        setup.work.fpu_status.set(status);
         if status != 0x100 {
             move_held(weather);
         }
         r.last_views[e][0].set(r.view[0].get());
         keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
-        if crate::effects::owner::effects()
-            .setup
-            .kind_floats
-            .running
-            .bits()
-            != 0
-        {
+        if setup.kind_floats.running.bits() != 0 {
             let clock = PHYSICS.scene_clock.get() & 0xF_FFFF;
             r.drift.set(
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
@@ -182,6 +160,7 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 
 /// `box_moved`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.

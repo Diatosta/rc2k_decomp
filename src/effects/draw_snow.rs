@@ -37,11 +37,7 @@ fn turn(weather: &Weather, v: &[u32; 3]) {
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
 fn fade(weather: &Weather) {
-    fade_x87(
-        &weather.snow,
-        &weather.snow_light,
-        &crate::effects::owner::effects().setup.floats,
-    );
+    fade_x87(&weather.snow, &weather.snow_light, &effects().setup.floats);
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
@@ -101,7 +97,7 @@ fn refusal(weather: &Weather) -> Option<&'static str> {
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
-    if n > 0 && crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+    if n > 0 && effects().setup.settings.is_set.get() == 0 {
         return Some("no marks settings");
     }
     None
@@ -127,13 +123,7 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
             }
             turn(weather, &[ebx, eax, ecx]);
             if snow.depth.get() as i32 > 0x1_0000 {
-                if crate::effects::owner::effects()
-                    .setup
-                    .kind_floats
-                    .fading
-                    .bits()
-                    != 0
-                {
+                if effects().setup.kind_floats.fading.bits() != 0 {
                     fade(weather);
                     let mut index = snow_light.fade_index.get();
                     if (snow_light.dot.bits() as i32) < 0 {
@@ -172,6 +162,7 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 

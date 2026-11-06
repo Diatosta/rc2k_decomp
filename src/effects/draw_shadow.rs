@@ -104,6 +104,7 @@ pub fn draw_shadow_with(
     sh: &Shadow,
     depth: bool,
 ) -> Result<(), Refused> {
+    let effects = effects();
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
     let corner: u32 = q.corner.get();
@@ -158,9 +159,9 @@ pub fn draw_shadow_with(
             q.corners[n][k].set_bits(rounded(v));
         }
     }
-    let entry = &crate::effects::owner::effects().blocks.corners.corners[corner as usize]; // under 0x100, checked before
+    let entry = &effects.blocks.corners.corners[corner as usize]; // under 0x100, checked before
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+    let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -179,7 +180,7 @@ pub fn draw_shadow_with(
         }
     }
     projected_x87(sh);
-    let z_k: u32 = crate::effects::owner::effects().frame.draw_work.z_k.bits();
+    let z_k: u32 = effects.frame.draw_work.z_k.bits();
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(q.corners[n][0].bits());
@@ -191,6 +192,7 @@ pub fn draw_shadow_with(
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;

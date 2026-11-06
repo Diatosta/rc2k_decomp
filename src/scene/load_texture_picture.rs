@@ -47,6 +47,7 @@ fn folders(course: &'static crate::race::owner_course::Course) -> [(Place, Place
         ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
     ]
 }
+use crate::scene::owner::scene;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 // gfx::load_picture_to_texture
 
@@ -68,15 +69,10 @@ fn write_names(
     number: u32,
     texture: u32,
 ) -> Result<(), BadInput> {
+    let file_numbers = &scene().file_numbers;
     {
-        crate::scene::owner::scene()
-            .file_numbers
-            .picture_number
-            .set(number);
-        crate::scene::owner::scene()
-            .file_numbers
-            .picture_texture
-            .set(texture);
+        file_numbers.picture_number.set(number);
+        file_numbers.picture_texture.set(texture);
         for ((name, second_name, at), (first, second)) in
             folders(course).into_iter().zip(names(number))
         {
@@ -104,13 +100,7 @@ pub fn load_texture_picture(
         let car = picture_car(
             number,
             texture,
-            || {
-                crate::scene::owner::scene()
-                    .textures
-                    .kinds
-                    .kind_first_textures[0x100]
-                    .get()
-            }, // dword_5D0EE8,
+            || scene().textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
             || RACE_VIEW.race_cars.bits(),
         );
         if let Some(car) = car {

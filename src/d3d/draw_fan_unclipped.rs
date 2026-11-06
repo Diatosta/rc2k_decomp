@@ -11,16 +11,13 @@
 
 use crate::d3d::Vertex;
 use crate::d3d::vertices_store::VERTICES;
+use crate::scene::owner::scene;
 
 /// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
 /// the buffer holds is a count gone wrong (the original reads on past it, into other
 /// variables): a refusal.
 pub fn polygon() -> smallvec::SmallVec<[Vertex; 6]> {
-    let count = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits() as usize;
+    let count = scene().drawing.scene.polygon_vertex_count.bits() as usize;
     let vertices = &VERTICES.vertices;
     if count > vertices.len() {
         crate::framework::log(&format!(

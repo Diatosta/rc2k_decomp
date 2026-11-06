@@ -3,6 +3,7 @@
 //! face's), summed into the eight settings blocks (at `g_marksSettings` + 0x29C, 0x4C8
 //! apart) by the face's kind, and then made shares of what they were.
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -244,7 +245,7 @@ pub fn measure_lines(course: &Course, paths: &Paths) -> Result<(), Refused> {
                 measure_kind_lines(course, paths, from, to, block)?;
             }
             if paths.lines_work.shares.get() == 1 {
-                let hundred: u32 = crate::effects::owner::effects().setup.floats.hundred.bits();
+                let hundred: u32 = effects().setup.floats.hundred.bits();
                 let share = |at: GamePtr, of: GamePtr| -> Result<_, Refused> {
                     put(
                         at,
@@ -483,7 +484,7 @@ mod lines_work_tests {
     #[test]
     fn a_blocks_points_are_named_by_number() {
         let _lock = crate::store::test_lock();
-        let paths = &crate::effects::owner::effects().paths;
+        let paths = &effects().paths;
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);

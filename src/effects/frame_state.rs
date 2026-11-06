@@ -3,6 +3,8 @@
 //! the frame's turned points, view and quads (`DrawFrame`), and the lens flare's tables
 //! (`FlareParts`, `FlareScales`).
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971, the image's layout; phase 7, typed state).
@@ -93,8 +95,7 @@ impl DrawWork {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.draw_work)
-            as usize
+        crate::pointers::game_address(&raw const effects().frame.draw_work) as usize
     }
 }
 
@@ -157,8 +158,7 @@ impl ViewVars {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.view_vars)
-            as usize
+        crate::pointers::game_address(&raw const effects().frame.view_vars) as usize
     }
 }
 
@@ -270,8 +270,7 @@ impl DrawFrame {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.draw_frame)
-            as usize
+        crate::pointers::game_address(&raw const effects().frame.draw_frame) as usize
     }
 }
 
@@ -365,8 +364,7 @@ impl FlareParts {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.flare_parts)
-            as usize
+        crate::pointers::game_address(&raw const effects().frame.flare_parts) as usize
     }
 }
 
@@ -399,9 +397,7 @@ impl FlareScales {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().frame.flare_scales,
-        ) as usize
+        crate::pointers::game_address(&raw const effects().frame.flare_scales) as usize
     }
 }
 

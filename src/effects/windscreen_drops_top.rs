@@ -20,6 +20,7 @@
 //! anything.
 
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
 use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -36,7 +37,7 @@ const POINTS: u32 = 0x30;
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
 fn frame_axes(drops: &WindscreenDrops, m: &MarksSettings) {
-    frame_axes_x87(drops, m, &crate::effects::owner::effects().setup.clock);
+    frame_axes_x87(drops, m, &effects().setup.clock);
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
@@ -116,14 +117,7 @@ pub fn windscreen_drops_top(
             crate::effects::windscreen_drops_frame::draw_batch()?;
         }
         let marks = crate::effects::setup::marks()?;
-        if marks.listener_switch_6.get() != 0
-            && crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .running
-                .bits()
-                != 0
-        {
+        if marks.listener_switch_6.get() != 0 && effects().setup.kind_floats.running.bits() != 0 {
             crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
         }
     }

@@ -50,6 +50,7 @@ fn run(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
+    let setup = &effects().setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
@@ -57,33 +58,15 @@ fn run(
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        if crate::effects::owner::effects()
-            .setup
-            .kind_floats
-            .running
-            .bits()
-            != 0
-        {
+        if setup.kind_floats.running.bits() != 0 {
             windscreen_flakes_spawn(drops, fl)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {
                 continue;
             }
-            if crate::effects::owner::effects()
-                .setup
-                .kind_floats
-                .running
-                .bits()
-                != 0
-            {
-                let age = item.age.get().wrapping_add(
-                    crate::effects::owner::effects()
-                        .setup
-                        .clock
-                        .frame_ticks
-                        .get(),
-                );
+            if setup.kind_floats.running.bits() != 0 {
+                let age = item.age.get().wrapping_add(setup.clock.frame_ticks.get());
                 item.age.set(age);
                 if age as i32 >= LIFE {
                     item.live.set(0);
@@ -112,6 +95,7 @@ fn run(
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 
 /// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order: the two

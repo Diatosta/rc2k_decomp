@@ -9,11 +9,10 @@
 //! Caller: `sub_4C1270`.
 
 /// The Rust version (see the header).
+use crate::effects::owner::effects;
 pub fn keep_vectors() {
-    let (k, s) = (
-        &crate::effects::owner::effects().frame.kept_view,
-        &crate::effects::owner::effects().frame.view_sources.sources,
-    );
+    let frame = &effects().frame;
+    let (k, s) = (&frame.kept_view, &frame.view_sources.sources);
     for (from, to) in [
         // (from, to), in the original's order
         (&k.pushed[1], &k.kept_a.vector[0]),

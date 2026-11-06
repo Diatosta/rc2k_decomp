@@ -10,6 +10,7 @@
 //! stays. Six callers. The registers above are the original's; a call by address goes through
 //! `routes.rs`, which maps them.
 
+use crate::scene::owner::scene;
 use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
@@ -17,12 +18,13 @@ use crate::scene::textures::with_cells;
 /// What the original leaves in eax, ecx and edi no caller reads (register liveness,
 /// 2026-10-23: its five call sites).
 pub fn map_texture_places() {
+    let textures = &scene().textures;
     // Converted: `rc2k_core::scene::textures::map_places`.
     with_cells(
         [
-            &crate::scene::owner::scene().textures.places.slot_wanted,
-            &crate::scene::owner::scene().textures.places.wanted_pictures,
-            &crate::scene::owner::scene().textures.places.place_slot,
+            &textures.places.slot_wanted,
+            &textures.places.wanted_pictures,
+            &textures.places.place_slot,
         ],
         |[wanted, pictures, places]| {
             rc2k_core::scene::textures::map_places(wanted, pictures, places)

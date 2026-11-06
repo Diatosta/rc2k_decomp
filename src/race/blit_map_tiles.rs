@@ -15,6 +15,7 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::race::game_map::{GAME_MAP, Tile};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
@@ -26,6 +27,7 @@ pub fn blit_map_tiles(
     first_x: u32,
     first_y: u32,
 ) -> Result<(), Refused> {
+    let drawing = &gfx().drawing;
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.
@@ -36,12 +38,8 @@ pub fn blit_map_tiles(
         return Ok(());
     }
     let (bytes, pitch, pixels) = (
-        crate::gfx::owner::gfx()
-            .drawing
-            .draw_surface
-            .bytes_per_pixel
-            .get(),
-        crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
+        drawing.draw_surface.bytes_per_pixel.get(),
+        drawing.draw_surface.pitch.get(),
         crate::gfx::surface::address()?,
     );
     let tiles = u32::from(GAME_MAP.is_taken());
@@ -50,11 +48,7 @@ pub fn blit_map_tiles(
         return Err(e.into());
     }
     frame.map.row_gap.set(row_gap(pitch, bytes));
-    let surface = crate::gfx::rows::Rows::new(
-        pixels,
-        pitch,
-        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
-    );
+    let surface = crate::gfx::rows::Rows::new(pixels, pitch, drawing.draw_surface.height.get());
     let black = frame.map.black.get();
     for row in 0..BLITTED {
         for col in 0..BLITTED {

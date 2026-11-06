@@ -14,6 +14,7 @@ use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::faces_store::FACES;
+use crate::scene::owner::scene;
 use crate::scene::polygon_store::POLYGON_WORK;
 
 // FACES.sort_entries: 0x1000 of 8 bytes
@@ -87,6 +88,7 @@ pub fn points_there(course: &Course) -> Result<(), Refused> {
 /// and `OBJECT_WORK.face_depth` = depth + `LEVEL_GRID.depth_shift` as whole numbers, hidden when the depth is below
 /// |x| (the sign of the difference). Refuses (before anything) no point records or points.
 pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
+    let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -114,20 +116,12 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
     points_there(&race.course)?;
     let record = point_record(face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .object_position[0]
-        .set_bits(x as u32);
+    drawing.object_work.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
         race.course.level_grid.depth_shift.bits(),
     );
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .face_depth
-        .set_bits(depth as u32);
+    drawing.object_work.face_depth.set_bits(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
 }
 
@@ -171,11 +165,7 @@ pub fn face_depth(course: &Course, face: u32) -> Result<(), Refused> {
             let mut key = to_int(depth(0)?) as u32;
             for k in 1..4 {
                 let d = to_int(depth(k)?) as u32;
-                crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .scratch
-                    .set_bits(d);
+                scene().drawing.scene.scratch.set_bits(d);
                 key = deeper(key, d);
             }
             key
@@ -372,6 +362,7 @@ pub fn face_hide_mask(frame: &Frame) -> Result<(), Refused> {
 /// (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
 /// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
 pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &race.course.level_grid.course_grid;
     for k in 0..0x400 {
@@ -393,17 +384,9 @@ pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
         race.course.level_grid.turned_x.set_bits(x);
         race.course.level_grid.turned_z.set_bits(z);
         let length = float_hypot(x, z);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(length);
+        drawing.scene.scratch.set_bits(length);
         let limit = crate::math::x87::from_int(race.course.level_grid.far_cell_limit.get() as i32);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .work_float_b
-            .set_bits(limit);
+        drawing.scene.work_float_b.set_bits(limit);
         if below_or_unordered(length, two) {
             continue;
         }

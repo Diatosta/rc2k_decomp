@@ -17,6 +17,7 @@
 
 use crate::errors::Refused;
 
+use crate::gfx::owner::gfx;
 use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version. `set_up_engine` and `set_up_front_end_scene` run on a scratch
@@ -41,6 +42,7 @@ pub fn viewer_tidy_stage() -> Result<(), Refused> {
 }
 
 fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
+    let fonts = &gfx().fonts;
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     match step {
@@ -54,8 +56,8 @@ fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
         TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
-            crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory),
-            &crate::gfx::owner::gfx().fonts.menu_fonts.palettes,
+            crate::pointers::GamePtr::to(&fonts.glyph_tables.memory),
+            &fonts.menu_fonts.palettes,
         )?,
         TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
         TidyStep::SetUpFrontEnd => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,

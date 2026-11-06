@@ -34,6 +34,7 @@ use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C66D).
@@ -64,26 +65,18 @@ fn down(course: &Course) -> Result<Shift, Refused> {
 
 /// The automatic's tests (0x43C798).
 fn tests() -> Result<Shift, Refused> {
+    let drawing = &scene().drawing;
     // `revs_from_speed` leaves ebx the gear it reads: the same.
     let gear = CAR.gear.get();
     let kept = CAR.engine_speed.bits();
     revs_speed()?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(over_top());
+    drawing.scene.scratch.set(over_top());
     CAR.engine_speed.set_bits(kept);
     shifts::auto_tests(
         gear,
         || CAR.all_wheels_off.get() != 0,
         || CAR.brake.get() != 0,
-        || {
-            !below(
-                crate::scene::owner::scene().drawing.scene.scratch.get(),
-                GEAR.shift_up_point.bits(),
-            )
-        },
+        || !below(drawing.scene.scratch.get(), GEAR.shift_up_point.bits()),
         || {
             !below(
                 CAR.local_velocity[2].bits(),
@@ -91,17 +84,13 @@ fn tests() -> Result<Shift, Refused> {
             )
         },
         || {
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set(over_top());
+            drawing.scene.scratch.set(over_top());
             if !shifts::above_first(gear) {
                 return Ok(false);
             }
             let (rb, rl) = (ratio(gear)?, ratio(gear.wrapping_sub(1))?);
             if mul_div_status(
-                crate::scene::owner::scene().drawing.scene.scratch.get(),
+                drawing.scene.scratch.get(),
                 rb,
                 rl,
                 GEAR.shift_ratio_figure.bits(),
@@ -115,10 +104,7 @@ fn tests() -> Result<Shift, Refused> {
             } else {
                 GEAR.shift_down_point.bits()
             };
-            Ok(below(
-                crate::scene::owner::scene().drawing.scene.scratch.get(),
-                point,
-            ))
+            Ok(below(drawing.scene.scratch.get(), point))
         },
         || {
             below(

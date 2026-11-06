@@ -15,6 +15,7 @@ use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The most cars `g_carBlocks` has.
@@ -170,6 +171,7 @@ fn move_turned(course: &Course, x: u32, z: u32) {
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub fn start_car() -> Result<(), Refused> {
+    let lights = &scene().lights;
     let race = race();
     let course = &race.course;
     let replay = &race.replay;
@@ -198,23 +200,11 @@ pub fn start_car() -> Result<(), Refused> {
             mode,
             crate::race::work_store::RACE_WORK.current_car.get(),
         );
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .line_place
-            .set(place);
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .line_fraction
-            .set(0);
+        lights.state.line_place.set(place);
+        lights.state.line_fraction.set(0);
         if replay.finish.no_place.get() != 0 {
-            crate::scene::owner::scene().lights.state.line_place.set(0);
-            crate::scene::owner::scene()
-                .lights
-                .state
-                .line_fraction
-                .set(0);
+            lights.state.line_place.set(0);
+            lights.state.line_fraction.set(0);
         }
         crate::race::start_place::place_car_on_line(course)?;
         if replay.finish.no_place.get() == 0 {

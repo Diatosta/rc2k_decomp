@@ -2,6 +2,7 @@
 //! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -23,7 +24,7 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places() -> Result<(), Refused> {
     crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&crate::effects::owner::effects().blocks.places.list),
+        crate::pointers::GamePtr::to(&effects().blocks.places.list),
         PLACES_LEN,
     )
 }
@@ -102,7 +103,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links() -> Result<(), Refused> {
     crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&crate::effects::owner::effects().blocks.links.list),
+        crate::pointers::GamePtr::to(&effects().blocks.links.list),
         LINKS_LEN,
     )?;
     scale_corners();
@@ -117,10 +118,11 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
 pub fn scale_corners() {
+    let effects = effects();
     {
-        let scale: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+        let scale: u32 = effects.frame.draw_work.uv_k.bits();
         for n in (0..CORNERS).rev() {
-            let record = &crate::effects::owner::effects().blocks.corners.corners[n as usize];
+            let record = &effects.blocks.corners.corners[n as usize];
             let word = |o: u32| record.words[o as usize / 2].get();
             let mut values = [0u32; 8];
             for (k, &o) in CORNER_PAIRS.iter().enumerate() {
@@ -140,11 +142,8 @@ pub fn scale_corners() {
                 (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
             };
             let (across, along) = (side(4, 0), side(0xA, 2));
-            write_bits(
-                &crate::effects::owner::effects().frame.draw_work.half,
-                [across, along],
-            );
-            let slope = &crate::effects::owner::effects().blocks.corner_slopes.slopes[n as usize];
+            write_bits(&effects.frame.draw_work.half, [across, along]);
+            let slope = &effects.blocks.corner_slopes.slopes[n as usize];
             slope
                 .slope
                 .set_bits(x87::int_ratio(along as i32, across as i32));
@@ -162,13 +161,7 @@ pub fn reset_settings_blocks() -> Result<(), Refused> {
         for n in (0..SETTINGS_BLOCKS).rev() {
             let at = |o: u32| marks.cars[n as usize].at(o);
             for k in 0..6u32 {
-                let v = x87::loaded(
-                    crate::effects::owner::effects()
-                        .kinds
-                        .emitter
-                        .settings_start[k as usize]
-                        .bits(),
-                );
+                let v = x87::loaded(effects().kinds.emitter.settings_start[k as usize].bits());
                 at(0x4C + 4 * k).write(v, "a settings block")?;
             }
             let mut last = [0u32; 3];
@@ -227,8 +220,7 @@ impl PlacesBlock {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.places)
-            as usize
+        crate::pointers::game_address(&raw const effects().blocks.places) as usize
     }
 }
 
@@ -266,8 +258,7 @@ impl MarkLinks {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.links)
-            as usize
+        crate::pointers::game_address(&raw const effects().blocks.links) as usize
     }
 }
 
@@ -316,9 +307,7 @@ impl CornerSlopes {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(
-            &raw const crate::effects::owner::effects().blocks.corner_slopes,
-        ) as usize
+        crate::pointers::game_address(&raw const effects().blocks.corner_slopes) as usize
     }
 }
 
@@ -362,8 +351,7 @@ impl MarkCorners {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.corners)
-            as usize
+        crate::pointers::game_address(&raw const effects().blocks.corners) as usize
     }
 }
 
@@ -526,7 +514,7 @@ mod ring_pool_tests {
     fn ring_pool_starts_as_the_games() {
         assert_eq!(size_of::<RingPool>(), RingPool::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().ring.pool)
+            bytes(&effects().ring.pool)
                 == crate::moved::image_bytes(RingPool::START, RingPool::LEN),
             "RING_POOL starts differently from the image"
         );

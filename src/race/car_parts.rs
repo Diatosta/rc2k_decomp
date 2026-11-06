@@ -12,6 +12,7 @@ use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
+use crate::scene::owner::scene;
 use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
@@ -40,6 +41,7 @@ fn axles(model: u32) -> Result<Option<[u32; 5]>, BadInput> {
 /// its axle with its height (+0x910 ..), into `flt_6417E0` .. `flt_6418A0`. Refuses (before
 /// anything) axle values whose scaling would fault.
 pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
+    let scene = scene();
     // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
     // steering}` (the size's and the speed's floats the x87's).
     use crate::math::x87::loaded;
@@ -57,8 +59,8 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     let on = c.lights_on.bits();
     let s = mark_switches(&PartState {
         on,
-        marks_mask: crate::scene::owner::scene().lights.work.marks_mask.get(),
-        lamps_mask: crate::scene::owner::scene().lights.work.lamps_mask.get(),
+        marks_mask: scene.lights.work.marks_mask.get(),
+        lamps_mask: scene.lights.work.lamps_mask.get(),
         inside: c.brake.bits(),
         mode: c.camera_view.bits(),
         reversing: c.gear.bits(),
@@ -82,31 +84,21 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     race.physics.camera.axle_height.set(height);
     race.physics.camera.axle_front_z.set(front_z);
     race.physics.camera.car_axles.set(ax[4]);
-    crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .size
-        .set(0x10);
-    crate::scene::owner::scene().drawing.object_work.part_values[2].set(c.shown_steering.get());
-    crate::scene::owner::scene().drawing.object_work.part_values[0]
-        .set_bits(c.driven_wheel_turns[0].bits());
-    crate::scene::owner::scene().drawing.object_work.part_values[1]
-        .set_bits(c.driven_wheel_turns[1].bits());
+    scene.drawing.object_work.size.set(0x10);
+    scene.drawing.object_work.part_values[2].set(c.shown_steering.get());
+    scene.drawing.object_work.part_values[0].set_bits(c.driven_wheel_turns[0].bits());
+    scene.drawing.object_work.part_values[1].set_bits(c.driven_wheel_turns[1].bits());
     for i in 0..3 {
-        crate::scene::owner::scene().drawing.object_work.place[i].set_bits(c.position[i].bits());
+        scene.drawing.object_work.place[i].set_bits(c.position[i].bits());
     }
     copy_cells(&c.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
     for i in 0..4 {
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .part_weights[i]
-            .set_bits(c.wheel_spring_force[i].bits());
+        scene.drawing.object_work.part_weights[i].set_bits(c.wheel_spring_force[i].bits());
     }
     set_place([
-        crate::scene::owner::scene().drawing.object_work.place[0].get(),
-        crate::scene::owner::scene().drawing.object_work.place[1].get(),
-        crate::scene::owner::scene().drawing.object_work.place[2].get(),
+        scene.drawing.object_work.place[0].get(),
+        scene.drawing.object_work.place[1].get(),
+        scene.drawing.object_work.place[2].get(),
     ]);
     crate::math::cells::copy_cells(
         &race.frame.matrices.placed_matrix,
@@ -114,10 +106,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
         16,
     );
     // (x, z, the x turn, the height, the matrix): the four wheels.
-    let (c, o) = (
-        &race.physics.camera,
-        &crate::scene::owner::scene().drawing.object_work,
-    );
+    let (c, o) = (&race.physics.camera, &scene.drawing.object_work);
     let parts = |n: usize| &race.frame.frame_work.part_matrices[n..n + 16];
     for (n, (x, z, spin, lift, out)) in [
         (
@@ -153,7 +142,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     .enumerate()
     {
         if n == 2 {
-            crate::scene::owner::scene().drawing.object_work.part_values[2].set(0);
+            scene.drawing.object_work.part_values[2].set(0);
         }
         set_place([
             x.get().wrapping_neg(),
@@ -165,7 +154,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
         let turned = &race.frame.matrices.turned_matrix;
         let lit = &race.frame.matrices.lit_matrix;
         multiply_matrices(placed, &race.frame.matrices.turn_x_matrix, turned);
-        set_turn_y(crate::scene::owner::scene().drawing.object_work.part_values[2].get());
+        set_turn_y(scene.drawing.object_work.part_values[2].get());
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
         set_place([x.get(), lift.get(), z.get()]);
         multiply_matrices(lit, placed, out);

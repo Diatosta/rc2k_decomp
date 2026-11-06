@@ -11,10 +11,12 @@
 //! memory.
 
 use crate::errors::BadInput;
+use crate::scene::owner::scene;
 
 // ---- Rust version ----
 
 pub fn reset_objects(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
+    let scene = scene();
     {
         let (memory, room): (u32, u32) = (
             course.lists.object_points.bits(),
@@ -27,32 +29,20 @@ pub fn reset_objects(course: &crate::race::owner_course::Course) -> Result<(), B
             crate::scene::object_points::clear((room >> 2) as usize * 4)?;
         }
         for table in [
-            &crate::scene::owner::scene().objects.slots.first_point,
-            &crate::scene::owner::scene().objects.slots.point_counts,
-            &crate::scene::owner::scene().objects.slots.normal_counts,
-            &crate::scene::owner::scene().objects.slots.first_face,
-            &crate::scene::owner::scene().objects.slots.face_counts,
+            &scene.objects.slots.first_point,
+            &scene.objects.slots.point_counts,
+            &scene.objects.slots.normal_counts,
+            &scene.objects.slots.first_face,
+            &scene.objects.slots.face_counts,
         ] {
             for cell in table {
                 cell.set(0);
             }
         }
-        crate::scene::owner::scene()
-            .objects
-            .tables
-            .point_count
-            .set(1);
-        crate::scene::owner::scene()
-            .objects
-            .tables
-            .face_count
-            .set(0);
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .face_cursor
-            .set_bits(0u32);
-        for kind in &crate::scene::owner::scene().objects.tables.object_kinds {
+        scene.objects.tables.point_count.set(1);
+        scene.objects.tables.face_count.set(0);
+        scene.drawing.object_work.face_cursor.set_bits(0u32);
+        for kind in &scene.objects.tables.object_kinds {
             kind.set(u32::MAX);
         }
         Ok(())

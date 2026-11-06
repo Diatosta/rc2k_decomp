@@ -39,6 +39,7 @@ use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
 use crate::scene::objects::{FACES, SLOTS};
+use crate::scene::owner::scene;
 use crate::scene::set_object_file_names::set_object_file_names;
 
 // ---- game data ----
@@ -263,26 +264,16 @@ fn shape(
 
 /// The three fatal errors at the end, in the original's order.
 fn check(course: &crate::race::owner_course::Course) -> Result<(), Refused> {
-    if crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .face_cursor
-        .bits()
-        > course.lists.face_memory_room.bits()
-    {
+    let scene = scene();
+    if scene.drawing.object_work.face_cursor.bits() > course.lists.face_memory_room.bits() {
         return Err(NO_FACE_MEMORY.into());
     }
-    if crate::scene::owner::scene()
-        .objects
-        .tables
-        .point_count
-        .get()
-        .wrapping_mul(12)
+    if scene.objects.tables.point_count.get().wrapping_mul(12)
         > course.lists.object_points_room.bits()
     {
         return Err(NO_POINT_MEMORY.into());
     }
-    if crate::scene::owner::scene().objects.tables.face_count.get() >= FACES {
+    if scene.objects.tables.face_count.get() >= FACES {
         return Err(NO_FACE_ROOM.into());
     }
     Ok(())

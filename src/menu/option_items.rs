@@ -31,6 +31,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::GFX;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
 use crate::race::settings_copy::{Place, var};
 use crate::race::state_store::RACE_STATE;
@@ -121,10 +122,7 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
             set(v, steps::flip(get(v) as u32) as i32);
             set(other, steps::flip(get(other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices(
-                &crate::gfx::owner::gfx().display,
-                false,
-            )?;
+            crate::gfx::screen_mode_choices::screen_mode_choices(&gfx().display, false)?;
         }
         Kind::SwitchAudio => {
             set(v, steps::flip(get(v) as u32) as i32);

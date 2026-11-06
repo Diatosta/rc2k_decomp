@@ -15,6 +15,7 @@ use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 
+use crate::scene::owner::scene;
 use rc2k_core::hud::icons;
 
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
@@ -57,10 +58,6 @@ pub fn draw_icon(
         // `fild` through `dword_75C060`: it keeps the last.
         hud.block.scratch.set(y);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(4u32);
+    scene().drawing.scene.polygon_vertex_count.set_bits(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

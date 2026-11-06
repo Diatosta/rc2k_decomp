@@ -39,6 +39,7 @@ use crate::gfx::glyph_builder::{
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
 use crate::gfx::glyph_store;
+use crate::gfx::owner::gfx;
 use crate::gfx::picture::{read_bytes, with_buffer, with_picture, write_bytes};
 use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
@@ -122,43 +123,17 @@ fn text(text: &[u8], newline: bool) {
 
 /// `sub_41299B` with eax = 1: the two lines about a sheet.
 fn log_sheet(path: &[u8], image: bool, backdrop: u32, transparent: u32) {
-    text(
-        b"Extracting: crate::gfx::owner::gfx().pictures.pcx\0",
-        false,
-    );
+    let pictures = &gfx().pictures;
+    text(b"Extracting: PCX\0", false);
     crate::logfile::log_write::log_nul(path, false, 1);
-    log_int(
-        crate::gfx::owner::gfx().pictures.pcx.file_width.get() as i32,
-        false,
-        1,
-    );
-    log_int(
-        crate::gfx::owner::gfx().pictures.pcx.file_height.get() as i32,
-        false,
-        1,
-    );
-    log_int(
-        (crate::gfx::owner::gfx().pictures.pcx.planes.get() as i32).wrapping_mul(8),
-        true,
-        1,
-    );
+    log_int(pictures.pcx.file_width.get() as i32, false, 1);
+    log_int(pictures.pcx.file_height.get() as i32, false, 1);
+    log_int((pictures.pcx.planes.get() as i32).wrapping_mul(8), true, 1);
     text(b"Extracting:\0", false);
     text(if image { b"IMAGE\0" } else { b"ALPHA\0" }, false);
-    log_int(
-        crate::gfx::owner::gfx().pictures.decoder.width.get() as i32,
-        false,
-        1,
-    );
-    log_int(
-        crate::gfx::owner::gfx().pictures.decoder.height.get() as i32,
-        false,
-        1,
-    );
-    log_int(
-        crate::gfx::owner::gfx().pictures.decoder.pixel_bits.get() as i32,
-        false,
-        1,
-    );
+    log_int(pictures.decoder.width.get() as i32, false, 1);
+    log_int(pictures.decoder.height.get() as i32, false, 1);
+    log_int(pictures.decoder.pixel_bits.get() as i32, false, 1);
     text(b"backdrop=\0", false);
     log_hex8(backdrop, false, 1);
     text(b"transparent=\0", false);
@@ -245,19 +220,16 @@ fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refu
 /// either way.
 /// The path's text, up to its NUL.
 fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
+    let pictures = &gfx().pictures;
     vars.alpha_loaded.set(0u32);
-    let flags: u32 = crate::gfx::owner::gfx()
-        .pictures
-        .decoder
-        .builder_flags
-        .get();
+    let flags: u32 = pictures.decoder.builder_flags.get();
     if flags & ONE_FILE != 0 {
         return Err(fatal(0x80E4_F411, ""));
     }
-    let number: u32 = crate::gfx::owner::gfx().pictures.decoder.number.get();
+    let number: u32 = pictures.decoder.number.get();
     let path = numbered_path_bytes(template, number)?;
     if file_exists(&path)? && read_sheet(&path)? {
-        if crate::gfx::owner::gfx().pictures.picture.flags.get() & 0x100 == 0 {
+        if pictures.picture.flags.get() & 0x100 == 0 {
             return Err(fatal(
                 0x80E4_F412,
                 "Component colour/alpha files must be 8bit",
@@ -265,52 +237,33 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
         }
         let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
         vars.pixel_size.set(1u32);
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .builder_flags
-            .set(flags);
+        pictures.decoder.builder_flags.set(flags);
         fill_row_table(
             0,
-            crate::gfx::owner::gfx().pictures.decoder.stride.get(),
-            crate::gfx::owner::gfx().pictures.decoder.height.get(),
+            pictures.decoder.stride.get(),
+            pictures.decoder.height.get(),
         )?;
         let mut convert = |components: u32| components;
-        let backdrop = with_buffer(
-            crate::gfx::owner::gfx().pictures.decoder.pixels.get(),
-            |pixels| {
-                let sheet = Sheet {
-                    flags,
-                    pixel_size: 1,
-                    width: crate::gfx::owner::gfx().pictures.decoder.width.get(),
-                    height: crate::gfx::owner::gfx().pictures.decoder.height.get(),
-                    backdrop: 0,
-                    transparent: 0,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften: false,
-                };
-                if sheet.width == 0 {
-                    return Err(BadInput("a sheet without columns"));
-                }
-                Ok(backdrop_of(&sheet))
-            },
-        )??;
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .backdrop
-            .set(backdrop);
-        let transparent = transparent_of(
-            flags,
-            backdrop,
-            &crate::gfx::owner::gfx().pictures.decoder.palette,
-        );
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .transparent
-            .set(transparent);
+        let backdrop = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+            let sheet = Sheet {
+                flags,
+                pixel_size: 1,
+                width: pictures.decoder.width.get(),
+                height: pictures.decoder.height.get(),
+                backdrop: 0,
+                transparent: 0,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften: false,
+            };
+            if sheet.width == 0 {
+                return Err(BadInput("a sheet without columns"));
+            }
+            Ok(backdrop_of(&sheet))
+        })??;
+        pictures.decoder.backdrop.set(backdrop);
+        let transparent = transparent_of(flags, backdrop, &pictures.decoder.palette);
+        pictures.decoder.transparent.set(transparent);
         if level() as i32 >= 3 {
             let path = numbered_path_bytes(template, number)?;
             log_sheet(&path, false, backdrop, transparent);
@@ -320,11 +273,7 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
         with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
             .ok_or(BadInput("a picture buffer shorter than two halves"))?;
     }
-    crate::gfx::owner::gfx()
-        .pictures
-        .decoder
-        .number
-        .set(number.wrapping_add(1));
+    pictures.decoder.number.set(number.wrapping_add(1));
     Ok(())
 }
 
@@ -334,53 +283,37 @@ pub fn build_glyphs(
     template: &[u8],
     list: crate::pointers::GamePtr,
 ) -> Result<(), Refused> {
+    let pictures = &gfx().pictures;
     let template = &template[..template
         .iter()
         .position(|&b| b == 0)
         .unwrap_or(template.len())];
     let work = crate::pointers::GamePtr::to(&LEXICON.memory);
-    crate::gfx::owner::gfx().pictures.decoder.number.set(0u32);
+    pictures.decoder.number.set(0u32);
     loop {
-        if crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .builder_flags
-            .get()
-            & WITH_ALPHA
-            != 0
-        {
+        if pictures.decoder.builder_flags.get() & WITH_ALPHA != 0 {
             read_alpha_sheet(vars, template)?;
         }
-        let mut flags: u32 = crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .builder_flags
-            .get();
+        let mut flags: u32 = pictures.decoder.builder_flags.get();
         let path = if flags & ONE_FILE != 0 {
             template.to_vec()
         } else {
-            let path = numbered_path_bytes(
-                template,
-                crate::gfx::owner::gfx().pictures.decoder.number.get(),
-            )?;
+            let path = numbered_path_bytes(template, pictures.decoder.number.get())?;
             if !file_exists(&path)? {
                 return Ok(());
             }
             path
         };
         if !read_sheet(&path)? {
-            return Err(fatal(
-                0x80E4_F010,
-                "Error loading crate::gfx::owner::gfx().pictures.pcx file",
-            ));
+            return Err(fatal(0x80E4_F010, "Error loading PCX file"));
         }
 
         let mut pixel_size = 1;
         flags &= !(DIRECT_COLOUR | WIDE_HEAD);
         let mut format = None;
-        if crate::gfx::owner::gfx().pictures.picture.flags.get() & 0x100 == 0 {
+        if pictures.picture.flags.get() & 0x100 == 0 {
             flags |= DIRECT_COLOUR | WIDE_HEAD;
-            let layout = crate::gfx::owner::gfx().pictures.decoder.format.get();
+            let layout = pictures.decoder.format.get();
             if layout == 0 {
                 return Err(BadInput("no pixel layout for a sheet of components").into());
             }
@@ -388,70 +321,45 @@ pub fn build_glyphs(
             pixel_size = direct_pixel_size(&layout);
             format = Some(layout);
         }
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .builder_flags
-            .set(flags);
+        pictures.decoder.builder_flags.set(flags);
         vars.pixel_size.set(pixel_size);
         fill_row_table(
             0,
-            crate::gfx::owner::gfx().pictures.decoder.stride.get(),
-            crate::gfx::owner::gfx().pictures.decoder.height.get(),
+            pictures.decoder.stride.get(),
+            pictures.decoder.height.get(),
         )?;
 
         let mut convert = |components: u32| match &format {
             Some(format) => components_to_pixel(format, components),
             None => components,
         };
-        let (width, height) = (
-            crate::gfx::owner::gfx().pictures.decoder.width.get(),
-            crate::gfx::owner::gfx().pictures.decoder.height.get(),
-        );
+        let (width, height) = (pictures.decoder.width.get(), pictures.decoder.height.get());
         if width == 0 {
             return Err(BadInput("a sheet without columns").into());
         }
         let soften = flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() != 1;
         // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
-        let backdrop = with_buffer(
-            crate::gfx::owner::gfx().pictures.decoder.pixels.get(),
-            |pixels| {
-                backdrop_of(&Sheet {
-                    flags,
-                    pixel_size,
-                    width,
-                    height,
-                    backdrop: 0,
-                    transparent: 0,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften,
-                })
-            },
-        )?;
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .backdrop
-            .set(backdrop);
-        let transparent = transparent_of(
-            flags,
-            backdrop,
-            &crate::gfx::owner::gfx().pictures.decoder.palette,
-        );
-        crate::gfx::owner::gfx()
-            .pictures
-            .decoder
-            .transparent
-            .set(transparent);
+        let backdrop = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+            backdrop_of(&Sheet {
+                flags,
+                pixel_size,
+                width,
+                height,
+                backdrop: 0,
+                transparent: 0,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften,
+            })
+        })?;
+        pictures.decoder.backdrop.set(backdrop);
+        let transparent = transparent_of(flags, backdrop, &pictures.decoder.palette);
+        pictures.decoder.transparent.set(transparent);
         let logging = level() as i32 >= 3;
         if logging {
             // The original makes the path anew for the line.
             let path = match flags & ONE_FILE {
-                0 => numbered_path_bytes(
-                    template,
-                    crate::gfx::owner::gfx().pictures.decoder.number.get(),
-                )?,
+                0 => numbered_path_bytes(template, pictures.decoder.number.get())?,
                 _ => template.to_vec(),
             };
             log_sheet(&path, true, backdrop, transparent);
@@ -465,7 +373,7 @@ pub fn build_glyphs(
                 ));
             }
             let half = 4 * HALF_PICTURE_DWORDS;
-            let buffer = crate::gfx::owner::gfx().pictures.picture.buffer.get();
+            let buffer = pictures.picture.buffer.get();
             let alphas = read_bytes(buffer, half, half)?;
             let mut kept = read_bytes(buffer, 0, half)?;
             for (pixel, alpha) in kept
@@ -481,23 +389,20 @@ pub fn build_glyphs(
         }
 
         rewind_list(work)?;
-        let glyphs = with_buffer(
-            crate::gfx::owner::gfx().pictures.decoder.pixels.get(),
-            |pixels| {
-                Sheet {
-                    flags,
-                    pixel_size,
-                    width,
-                    height,
-                    backdrop,
-                    transparent,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften,
-                }
-                .glyphs()
-            },
-        )??;
+        let glyphs = with_buffer(pictures.decoder.pixels.get(), |pixels| {
+            Sheet {
+                flags,
+                pixel_size,
+                width,
+                height,
+                backdrop,
+                transparent,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften,
+            }
+            .glyphs()
+        })??;
         let mut bytes = 0u32;
         for (number, glyph) in glyphs.iter().enumerate() {
             let record = glyph.data.len() as u32;
@@ -530,14 +435,10 @@ pub fn build_glyphs(
         if flags & ONE_FILE != 0 {
             return Ok(());
         }
-        crate::gfx::owner::gfx().pictures.decoder.number.set(
-            crate::gfx::owner::gfx()
-                .pictures
-                .decoder
-                .number
-                .get()
-                .wrapping_add(1),
-        );
+        pictures
+            .decoder
+            .number
+            .set(pictures.decoder.number.get().wrapping_add(1));
     }
 }
 

@@ -12,6 +12,7 @@
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
@@ -23,6 +24,7 @@ pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new
 
 /// The Rust version (`x` the caller's ecx).
 pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let gfx = gfx();
     use crate::gfx::rect::{Palette, fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
     use crate::text::measure_string_by_id::measure_string_by_id_at;
@@ -38,8 +40,8 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
         canvas,
     )?;
     let (sw, sh) = (
-        crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
-        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+        gfx.drawing.draw_surface.width.get(),
+        gfx.drawing.draw_surface.height.get(),
     );
     let font = crate::gfx::typefaces::fonts::BOX_TEXT.game_ptr();
     let b = layout(
@@ -57,7 +59,7 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
     BOX[0].set(b.rect[0]);
     BOX[1].set(b.rect[1]);
     let rect = crate::gfx::rect::rect_of(&BOX);
-    let palettes = Palette::Held(crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get());
+    let palettes = Palette::Held(gfx.fonts.menu_fonts.palettes.get());
     fill_rect(rect, FILL, palettes)?;
     frame_rect(rect, 0, 0, FRAME, palettes);
     draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;

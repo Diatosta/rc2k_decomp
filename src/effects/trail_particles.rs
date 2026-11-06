@@ -17,6 +17,7 @@
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -60,6 +61,7 @@ pub fn trail_particles(
     ring: &Ring,
     p: u32,
 ) -> Result<(), Refused> {
+    let effects = effects();
     {
         if ring.pool.used.get() != FULL {
             if p == 0 {
@@ -79,20 +81,16 @@ pub fn trail_particles(
             ring.pool.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| set_particle(particles, e, o, v);
             put(8, 4)?;
-            let s = crate::effects::owner::effects()
+            let s = effects
                 .setup
                 .work
                 .seed
                 .get()
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
-            crate::effects::owner::effects().setup.work.seed.set(s);
-            let k1 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
-            let k2 = crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .trail_random_k
-                .bits();
+            effects.setup.work.seed.set(s);
+            let k1 = effects.frame.draw_work.uv_k.bits();
+            let k2 = effects.kinds.particle_tuning.trail_random_k.bits();
             ring.pool
                 .burst_radius
                 .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
@@ -113,28 +111,14 @@ pub fn trail_particles(
                     x87::diff_times_plus_times(
                         particle(particles, p, last)?,
                         particle(particles, p, place)?,
-                        crate::effects::owner::effects()
-                            .kinds
-                            .particle_tuning
-                            .trail_axes[2 * n]
-                            .bits(),
+                        effects.kinds.particle_tuning.trail_axes[2 * n].bits(),
                         particle(particles, p, motion)?,
-                        crate::effects::owner::effects()
-                            .kinds
-                            .particle_tuning
-                            .trail_axes[2 * n + 1]
-                            .bits(),
+                        effects.kinds.particle_tuning.trail_axes[2 * n + 1].bits(),
                     ),
                 )?;
             }
             let (moved, _) = jitter_point([
-                extended(
-                    crate::effects::owner::effects()
-                        .kinds
-                        .particle_tuning
-                        .trail_spread
-                        .bits(),
-                ),
+                extended(effects.kinds.particle_tuning.trail_spread.bits()),
                 extended(particle(particles, e, 0x34)?),
                 extended(particle(particles, e, 0x2C)?),
                 extended(particle(particles, e, 0x28)?),
@@ -142,7 +126,7 @@ pub fn trail_particles(
             put(0x34, rounded(moved[0]))?;
             put(0x2C, rounded(moved[1]))?;
             put(0x28, rounded(moved[2]))?;
-            let [a, b] = crate::effects::owner::effects()
+            let [a, b] = effects
                 .kinds
                 .particle_tuning
                 .trail_size_k
@@ -157,11 +141,7 @@ pub fn trail_particles(
             put(
                 0x40,
                 x87::over_int(
-                    crate::effects::owner::effects()
-                        .kinds
-                        .particle_tuning
-                        .trail_life_k
-                        .bits(),
+                    effects.kinds.particle_tuning.trail_life_k.bits(),
                     LIFE as i32,
                 ),
             )?;

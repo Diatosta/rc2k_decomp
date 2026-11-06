@@ -20,6 +20,7 @@ use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
 use crate::scene::list_object_face::list_object_face;
 use crate::scene::list_object_faces::list_object_faces;
+use crate::scene::owner::scene;
 use crate::scene::place_object_points::place_object_points;
 use crate::scene::set_object_fade::set_object_fade;
 use crate::scene::set_object_light::set_object_light_in_game;
@@ -62,10 +63,11 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (`sub_45BF89`) is not ported:
 /// a refusal ends the program.
 fn place_object_points_any(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    if crate::scene::owner::scene().draw_switches.use_3dnow.bits() != 0 {
+    let draw_switches = &scene().draw_switches;
+    if draw_switches.use_3dnow.bits() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
-    if crate::scene::owner::scene().draw_switches.use_sse.bits() != 0 {
+    if draw_switches.use_sse.bits() != 0 {
         return crate::scene::place_object_points::place_object_points_sse(race);
     }
     place_object_points(race)?;

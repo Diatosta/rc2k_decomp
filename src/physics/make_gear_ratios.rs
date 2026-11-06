@@ -22,6 +22,7 @@ use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
@@ -83,7 +84,7 @@ fn game() -> Vec<&'static dyn Cell32> {
         &PHYSICS.gear_ratios[6],
         &PHYSICS.gear_ratios[7],
         &PHYSICS.gear_ratios[8],
-        &crate::scene::owner::scene().drawing.scene.scratch,
+        &scene().drawing.scene.scratch,
         &PHYSICS.gear_ratio_step,
     ]
 }

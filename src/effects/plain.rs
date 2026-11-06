@@ -2,6 +2,7 @@
 //! buffers, read and written where the blocks' instructions did. Floats go through
 //! `x87_float`'s `X` (what the x87 holds).
 
+use crate::effects::owner::effects;
 use crate::math::x87_float::{self as bh, X};
 
 /// `fld dword ptr` of a float cell (a typed record's field).
@@ -65,6 +66,6 @@ pub(crate) fn st80_at<const N: usize>(bytes: &crate::session::Bytes<N>, offset: 
 /// `fstsw word ptr [g_fpuStatus]`: the status's compare bits into the low half of
 /// `MARKS_WORK.fpu_status` (its high half kept).
 pub(crate) fn set_status(status: u16) {
-    let s = &crate::effects::owner::effects().setup.work.fpu_status;
+    let s = &effects().setup.work.fpu_status;
     s.set_bits((s.bits() & 0xFFFF_0000) | u32::from(status));
 }

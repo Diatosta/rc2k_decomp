@@ -15,6 +15,7 @@
 //! before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -23,12 +24,13 @@ const PARTS: u32 = 0x11;
 
 /// The Rust version (see the header).
 pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
-    let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
+    let effects = effects();
+    let settings: u32 = effects.setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
     let marks = crate::effects::setup::marks()?;
-    if crate::effects::owner::effects()
+    if effects
         .frame
         .flare_parts
         .corner
@@ -43,43 +45,32 @@ pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = x87::sub(marks.listener_figures[2].get(), cy) ^ 0x8000_0000;
-    crate::effects::owner::effects().frame.draw_frame.flare_way[0].set_bits(dx);
-    crate::effects::owner::effects().frame.draw_frame.flare_way[1].set_bits(dy);
-    crate::effects::owner::effects().frame.flare_parts.unit[0].set_bits(x87::loaded(dx));
-    crate::effects::owner::effects().frame.flare_parts.unit[1].set_bits(x87::loaded(dy));
-    crate::effects::owner::effects().frame.flare_parts.unit[2].set_bits(0);
-    crate::scene::vector3::normalise(&crate::effects::owner::effects().frame.flare_parts.unit);
+    effects.frame.draw_frame.flare_way[0].set_bits(dx);
+    effects.frame.draw_frame.flare_way[1].set_bits(dy);
+    effects.frame.flare_parts.unit[0].set_bits(x87::loaded(dx));
+    effects.frame.flare_parts.unit[1].set_bits(x87::loaded(dy));
+    effects.frame.flare_parts.unit[2].set_bits(0);
+    crate::scene::vector3::normalise(&effects.frame.flare_parts.unit);
     let length = crate::math::x87_load::float_hypot(dx, dy);
-    crate::effects::owner::effects()
-        .frame
-        .draw_frame
-        .flare_length
-        .set_bits(length);
+    effects.frame.draw_frame.flare_length.set_bits(length);
     let alpha = x87::times_subr_to_int(
         length,
-        crate::effects::owner::effects().frame.flare_scales.fade[0].bits(),
-        crate::effects::owner::effects().frame.flare_scales.fade[1].bits(),
+        effects.frame.flare_scales.fade[0].bits(),
+        effects.frame.flare_scales.fade[1].bits(),
     )
     .max(0);
     let product = u64::from(marks.listener_figures[0].get()) * u64::from(alpha as u32);
     let alpha = (product as u32) >> 8;
-    let size_k: u32 = crate::effects::owner::effects()
-        .frame
-        .flare_scales
-        .size_k
-        .bits();
+    let size_k: u32 = effects.frame.flare_scales.size_k.bits();
     for k in (0..PARTS as usize).rev() {
         let level: u32 = paths.wave_levels.levels[k].get();
         let y = x87::times_plus_80(dy, level, cy, false);
         let x = x87::times_plus_80(dx, level, cx, true);
         draw_flare_part(
-            crate::effects::owner::effects().frame.flare_parts.corner[k].get(),
+            effects.frame.flare_parts.corner[k].get(),
             0,
             alpha,
-            x87::int_times_to_int(
-                crate::effects::owner::effects().frame.flare_parts.size[k].get() as i32,
-                size_k,
-            ) as u32,
+            x87::int_times_to_int(effects.frame.flare_parts.size[k].get() as i32, size_k) as u32,
             0xFF_FFFF,
             [x, y],
         )?;

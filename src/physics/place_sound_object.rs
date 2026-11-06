@@ -17,6 +17,7 @@ use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
@@ -29,12 +30,7 @@ pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
         physics_store.contact.face_object.get(),
-        |thing| {
-            crate::scene::owner::scene()
-                .objects
-                .tables
-                .object_kind(thing)
-        },
+        |thing| scene().objects.tables.object_kind(thing),
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
             trap.keep(

@@ -32,25 +32,23 @@ impl Surfaces {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().drawing.surfaces,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().drawing.surfaces, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let drawing = &gfx().drawing;
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx().drawing.surfaces.front.addr() as usize
+            drawing.surfaces.front.addr() as usize
         );
         assert_eq!(
             crate::moved::place(START + 4),
-            crate::gfx::owner::gfx().drawing.surfaces.back.addr() as usize
+            drawing.surfaces.back.addr() as usize
         );
     }
 }

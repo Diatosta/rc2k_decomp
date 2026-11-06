@@ -2,6 +2,8 @@
 //! state): `MarksFrame` (IDA 0x765110 .. 0x765140), `MarksFloats` (0x765140 .. 0x765238) and
 //! `MarksKindFloats` (0x765238 .. 0x7652A4).
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140, the image's layout; phase 7, typed state).
@@ -63,7 +65,7 @@ mod marks_frame_tests {
     fn marks_frame_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFrame>(), MarksFrame::LEN);
-        let p = (&raw const crate::effects::owner::effects().setup.frame).cast::<u8>();
+        let p = (&raw const effects().setup.frame).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFrame>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -273,7 +275,7 @@ mod marks_floats_tests {
     fn marks_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFloats>(), MarksFloats::LEN);
-        let p = (&raw const crate::effects::owner::effects().setup.floats).cast::<u8>();
+        let p = (&raw const effects().setup.floats).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -455,7 +457,7 @@ mod marks_kind_floats_tests {
     fn marks_kind_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksKindFloats>(), MarksKindFloats::LEN);
-        let p = (&raw const crate::effects::owner::effects().setup.kind_floats).cast::<u8>();
+        let p = (&raw const effects().setup.kind_floats).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksKindFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

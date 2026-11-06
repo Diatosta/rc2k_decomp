@@ -31,6 +31,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 use crate::scene::point_records;
 use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 
@@ -159,11 +160,7 @@ pub fn record_offset(
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        crate::scene::owner::scene()
-            .objects
-            .tables
-            .point_count
-            .get(),
+        scene().objects.tables.point_count.get(),
         course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
@@ -182,6 +179,7 @@ pub struct Projected {
 /// A scene point's record made anew (`sub_44CF4E`, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput> {
+    let scene = scene();
     let race = race();
     let points: u32 = race.course.course.scene_points.bits();
     if points == 0 {
@@ -205,26 +203,17 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput>
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
         let v = [
-            crate::scene::owner::scene().drawing.scene.view_scale.bits(),
-            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
-            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+            scene.drawing.scene.view_scale.bits(),
+            scene.drawing.scene.view_centre[0].bits(),
+            scene.drawing.scene.view_centre[1].bits(),
             race.course.course.flat_depth.bits(),
         ];
         let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-        to_screen(
-            &mut r,
-            &v,
-            flat,
-            &crate::scene::owner::scene().drawing.scene.scratch,
-        );
+        to_screen(&mut r, &v, flat, &scene.drawing.scene.scratch);
     }
-    if crate::scene::owner::scene().lights.state.draw_mode.bits() == 1 {
+    if scene.lights.state.draw_mode.bits() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(LOWERED_BY.to_bits());
+        scene.drawing.scene.scratch.set_bits(LOWERED_BY.to_bits());
     }
     point_records::set(record, r)?;
     Ok(())

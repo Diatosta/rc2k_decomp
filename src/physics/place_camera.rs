@@ -15,6 +15,7 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::ViewVars;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
@@ -85,11 +86,7 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     CAR.camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(whole[2] as u32);
+    scene().drawing.scene.scratch.set(whole[2] as u32);
     let car = [
         race.frame.frame_work.camera_car[0].get(),
         race.frame.frame_work.camera_car[1].get(),

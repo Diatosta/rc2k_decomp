@@ -23,10 +23,8 @@ const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
 fn ribbon() {
-    ribbon_x87(
-        &crate::effects::owner::effects().frame.draw_work,
-        &crate::effects::owner::effects().frame.view_vars,
-    );
+    let frame = &effects().frame;
+    ribbon_x87(&frame.draw_work, &frame.view_vars);
 }
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
@@ -38,14 +36,15 @@ pub fn draw_ribbon(
     width: u32,
     colour: u32,
 ) -> Result<(), Refused> {
+    let effects = effects();
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
     {
-        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+        if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        crate::effects::owner::effects().frame.draw_work.half[0].set_bits(width >> 1);
+        effects.frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(colour);
@@ -61,10 +60,10 @@ pub fn draw_ribbon(
             VERTICES.vertices[n].v.set_bits(v);
         }
         for depth in [
-            crate::effects::owner::effects().frame.draw_work.turned[2].bits(),
-            crate::effects::owner::effects().frame.draw_work.second[2].bits(),
+            effects.frame.draw_work.turned[2].bits(),
+            effects.frame.draw_work.second[2].bits(),
         ] {
-            if depth as i32 <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32 {
+            if depth as i32 <= effects.frame.draw_work.near.bits() as i32 {
                 return Ok(());
             }
         }
@@ -83,6 +82,7 @@ pub fn draw_ribbon(
 }
 
 use crate::effects::frame_state::{DrawWork, ViewVars};
+use crate::effects::owner::effects;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;

@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::formats::Formats;
+use crate::gfx::owner::gfx;
 
 // ---- Rust version ----
 
@@ -30,15 +31,12 @@ pub struct Target {
 
 /// The surface (a texture: refused while it is the picture buffer).
 pub fn game_target() -> Result<Target, BadInput> {
+    let drawing = &gfx().drawing;
     Ok(Target {
         rows: crate::gfx::rows::Rows::surface()?,
-        bytes_per_pixel: crate::gfx::owner::gfx()
-            .drawing
-            .draw_surface
-            .bytes_per_pixel
-            .get(),
+        bytes_per_pixel: drawing.draw_surface.bytes_per_pixel.get(),
         // `g_surface.format`: the address of the surface's `PixelFormat`.
-        format: crate::gfx::owner::gfx().drawing.draw_surface.format.get(),
+        format: drawing.draw_surface.format.get(),
     })
 }
 

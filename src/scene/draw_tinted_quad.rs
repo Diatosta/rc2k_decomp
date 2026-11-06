@@ -19,16 +19,14 @@ use crate::math::x87;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its 856 call sites (register liveness, 2026-10-23).
 pub fn draw_tinted_quad() -> Result<(), Refused> {
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_drawn
-        .set_bits(0);
+    let drawing = &scene().drawing;
+    drawing.scene.polygon_drawn.set_bits(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
         rec.record
@@ -38,11 +36,7 @@ pub fn draw_tinted_quad() -> Result<(), Refused> {
     }
     let float = |cell: &Dword| {
         let v = x87::from_int(cell.bits() as i32);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(v);
+        drawing.scene.scratch.set_bits(v);
         v
     };
     let [left, right, top, bottom] = [
@@ -67,8 +61,7 @@ pub fn draw_tinted_quad() -> Result<(), Refused> {
         v(n, 0x18, depth);
     }
     let see = RACE_VARS.quad_colour[1].bits() as u8;
-    crate::scene::owner::scene()
-        .drawing
+    drawing
         .scene
         .polygon_colour
         .set_bits(RACE_VARS.quad_colour[0].bits());
@@ -80,13 +73,8 @@ pub fn draw_tinted_quad() -> Result<(), Refused> {
         rec.lamp_light.set(0);
         rec.fog.set(0xFF);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(4);
-    crate::scene::owner::scene()
-        .drawing
+    drawing.scene.polygon_vertex_count.set_bits(4);
+    drawing
         .scene
         .polygon_next_record
         .set_bits(crate::scene::polygon::pool_start());
@@ -94,38 +82,20 @@ pub fn draw_tinted_quad() -> Result<(), Refused> {
         crate::scene::polygon::list_cell(n as usize).set(n);
     }
     crate::scene::polygon::list_cell(4).set(0);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_next_entry
-        .set_bits(4);
+    drawing.scene.polygon_next_entry.set_bits(4);
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-    if crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits()
-        >= 3
-    {
+    if drawing.scene.polygon_vertex_count.bits() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         RACE_VIEW.polygon_mode.set_bits(3);
-        crate::scene::owner::scene().drawing.scene.polygon_textures[0].set_bits(0xFFFF_FFFF);
-        crate::scene::owner::scene().drawing.scene.polygon_textures[1].set_bits(0xFFFF_FFFF);
-        crate::scene::owner::scene().drawing.scene.polygon_sides[0].set_bits(0);
-        crate::scene::owner::scene().drawing.scene.polygon_sides[1].set_bits(1);
+        drawing.scene.polygon_textures[0].set_bits(0xFFFF_FFFF);
+        drawing.scene.polygon_textures[1].set_bits(0xFFFF_FFFF);
+        drawing.scene.polygon_sides[0].set_bits(0);
+        drawing.scene.polygon_sides[1].set_bits(1);
         crate::scene::draw_polygon::draw_polygon_in_game()?;
         RACE_VIEW.polygon_mode.set_bits(0);
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_drawn
-            .set_bits(1);
+        drawing.scene.polygon_drawn.set_bits(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_colour
-        .set_bits(0xFF_FFFF);
+    drawing.scene.polygon_colour.set_bits(0xFF_FFFF);
     Ok(())
 }

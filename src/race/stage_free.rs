@@ -4,6 +4,7 @@
 //! pointers 0.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::memory::{MemoryList, own_heap};
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
@@ -96,11 +97,11 @@ pub const MUD: Freeing = Freeing {
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
 pub const FONTS: Freeing = Freeing {
     // g_gameFontMemory
-    list: || crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.game_fonts.memory),
+    list: || crate::pointers::GamePtr::to(&gfx().fonts.game_fonts.memory),
     counted: false,
     // g_gameFontGlyphs
     cleared: &[|| {
-        crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[0].update(|f| f.glyph_table = 0);
+        gfx().fonts.menu_fonts.game_fonts[0].update(|f| f.glyph_table = 0);
     }],
     given_back: || {},
 };

@@ -68,11 +68,7 @@ fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
 fn facing(ring: &Ring, car: &MarkCar) {
-    facing_x87(
-        car,
-        &crate::effects::owner::effects().setup.floats,
-        &ring.work,
-    );
+    facing_x87(car, &effects().setup.floats, &ring.work);
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
@@ -82,22 +78,18 @@ fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) 
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
 fn pull_facing(ring: &Ring, car: &MarkCar, length: &[u8; 10]) {
-    pull_facing_x87(
-        car,
-        length,
-        &crate::effects::owner::effects().setup.floats,
-        &ring.work,
-    );
+    pull_facing_x87(car, length, &effects().setup.floats, &ring.work);
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
 fn pull_strength(ring: &Ring, e: u32, car: &MarkCar) {
+    let setup = &effects().setup;
     pull_strength_x87(
         ring,
         e,
         car,
-        &crate::effects::owner::effects().setup.clock,
-        &crate::effects::owner::effects().setup.floats,
+        &setup.clock,
+        &setup.floats,
         &ring.work,
         &ring.kinds,
     );
@@ -232,11 +224,7 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 /// The life and the ground: whether the entry dies.
 fn aged(ring: &Ring, e: u32, ground: bool) -> Result<bool, Refused> {
     Ok({
-        let t: u32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get();
+        let t: u32 = effects().setup.clock.frame_ticks.get();
         let life = eg(ring, e, field::LIFE)?;
         ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
         if life < t {
@@ -292,20 +280,13 @@ fn whole(ring: &Ring, v: i32) -> u32 {
 
 /// The angle on and the place moved.
 fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
+    let setup = &effects().setup;
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = setup.clock.frame_ticks.get() as i32;
         if spin {
             let turn = x87::int_times_to_int(
                 eg(ring, e, field::ANGLE_RATE)? as i32,
-                crate::effects::owner::effects()
-                    .setup
-                    .clock
-                    .ticks_scaled
-                    .bits(),
+                setup.clock.ticks_scaled.bits(),
             ) as u32;
             ep(
                 ring,
@@ -333,11 +314,7 @@ fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
 
 fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -351,11 +328,7 @@ fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
 /// The three dampings (a part that changes sign stops at 0).
 fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
         for (o, kk) in [field::MOTION_X, field::MOTION_Y, field::MOTION_Z]
             .into_iter()
             .zip(ks)
@@ -375,11 +348,7 @@ fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
 /// The size pulled toward +0x70.
 fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
         let (w, f) = x87::approach(
             eg(ring, e, field::SIZE_GOAL)? as i32,
             eg(ring, e, field::SIZE)?,
@@ -402,11 +371,7 @@ fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
 
 fn fade(ring: &Ring, e: u32) -> Result<(), Refused> {
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -508,11 +473,7 @@ fn drift_kind(
         }
         spin_and_move(ring, e, true)?;
         gain_y(ring, e, ks[0])?;
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -602,11 +563,7 @@ fn fading_kind(
             }
             _ => {
                 fade(ring, e)?;
-                let t: i32 = crate::effects::owner::effects()
-                    .setup
-                    .clock
-                    .frame_ticks
-                    .get() as i32;
+                let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
                 ep(
                     ring,
                     e,
@@ -621,6 +578,7 @@ fn fading_kind(
 
 /// Kind 1's pull of its +0x64 when near and facing.
 fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
+    let setup = &effects().setup;
     {
         let car = entry_car(ring, e)?;
         let mut length = [0u8; 10];
@@ -633,25 +591,8 @@ fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
             return Ok(());
         }
         pull_strength(ring, e, car);
-        if (ring.work.whole.get() as i32)
-            > (crate::effects::owner::effects()
-                .setup
-                .floats
-                .pull_limit
-                .bits() as i32)
-        {
-            ep(
-                ring,
-                e,
-                0x64,
-                x87::loaded(
-                    crate::effects::owner::effects()
-                        .setup
-                        .floats
-                        .two_pow_16
-                        .bits(),
-                ),
-            )?;
+        if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
+            ep(ring, e, 0x64, x87::loaded(setup.floats.two_pow_16.bits()))?;
         }
     }
     Ok(())
@@ -676,11 +617,7 @@ fn boxed_kind(
         let size = eg(ring, e, field::SIZE)?;
         let f = x87::int_times_times_to_int(
             eg(ring, e, field::LIFE)? as i32,
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .twentieth
-                .bits(),
+            effects().setup.floats.twentieth.bits(),
             eg(ring, e, 0x5C)?,
         );
         ring.work.whole.set(f as u32);
@@ -782,6 +719,7 @@ pub fn run_ring(frame: &Frame, masks: &Masks, ring: &Ring) -> Result<(), Refused
     Ok(())
 }
 
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
@@ -1140,7 +1078,7 @@ mod ring_kinds_tests {
     fn ring_kinds_starts_as_the_games() {
         assert_eq!(size_of::<RingKinds>(), RingKinds::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().ring.kinds)
+            bytes(&effects().ring.kinds)
                 == crate::moved::image_bytes(RingKinds::START, RingKinds::LEN),
             "RING_KINDS starts differently from the image"
         );
@@ -1448,6 +1386,7 @@ mod asm_differential {
     use super::asm_reference as reference;
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::{Op, Spec, differential, with_copy};
+    use crate::effects::owner::effects;
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
     use crate::race::marks_settings_store::MarkCar;
@@ -1495,6 +1434,7 @@ mod asm_differential {
 
     #[test]
     fn box_x87_matches() {
+        let ring = &effects().ring;
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
@@ -1545,21 +1485,9 @@ mod asm_differential {
             |b| reference::box_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(
-                        &crate::effects::owner::effects().ring,
-                        b[1],
-                        0x10,
-                        0x1C,
-                        |e| {
-                            super::box_x87(
-                                &crate::effects::owner::effects().ring,
-                                w,
-                                e,
-                                &whole_at(b[2]),
-                                &car_matrix(b[3]),
-                            );
-                        },
-                    );
+                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                        super::box_x87(ring, w, e, &whole_at(b[2]), &car_matrix(b[3]));
+                    });
                 });
             },
         );
@@ -1610,6 +1538,7 @@ mod asm_differential {
 
     #[test]
     fn pull_length_x87_matches() {
+        let ring = &effects().ring;
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
@@ -1655,31 +1584,18 @@ mod asm_differential {
             |b| reference::pull_length_x87(b[0], b[1], b[2], b[3], b[4]),
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(
-                        &crate::effects::owner::effects().ring,
-                        b[1],
-                        0x10,
-                        0x1C,
-                        |e| {
-                            let mut length = [0xAA; 10];
-                            let kinds = super::RingKinds {
-                                near_less: f32::from_bits(word(b[4] + 0x4C)),
-                                ..crate::effects::owner::EFFECTS.ring.kinds
-                            };
-                            super::pull_length_x87(
-                                &crate::effects::owner::effects().ring,
-                                e,
-                                &whole_at(b[2]),
-                                &mut length,
-                                w,
-                                &kinds,
-                            );
-                            unsafe {
-                                crate::pointers::host_at(b[3])
-                                    .copy_from_nonoverlapping(length.as_ptr(), 10);
-                            }
-                        },
-                    );
+                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                        let mut length = [0xAA; 10];
+                        let kinds = super::RingKinds {
+                            near_less: f32::from_bits(word(b[4] + 0x4C)),
+                            ..crate::effects::owner::EFFECTS.ring.kinds
+                        };
+                        super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
+                        unsafe {
+                            crate::pointers::host_at(b[3])
+                                .copy_from_nonoverlapping(length.as_ptr(), 10);
+                        }
+                    });
                 });
             },
         );
@@ -1745,6 +1661,7 @@ mod asm_differential {
 
     #[test]
     fn pull_strength_x87_matches() {
+        let ring = &effects().ring;
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
@@ -1780,29 +1697,23 @@ mod asm_differential {
             |b| {
                 with_copy(b[0], MarksFloats::START, |f| {
                     with_copy(b[0], RingWork::START, |w| {
-                        crate::effects::ring_entries::with_entry_at(
-                            &crate::effects::owner::effects().ring,
-                            b[1],
-                            0x64,
-                            0x68,
-                            |e| {
-                                let car = car_with(b[2], 0, &[0x88]);
-                                let kinds = super::RingKinds {
-                                    near_scale: f32::from_bits(word(b[3] + 0x50)),
-                                    near_rate: f32::from_bits(word(b[3] + 0x54)),
-                                    ..crate::effects::owner::EFFECTS.ring.kinds
-                                };
-                                super::pull_strength_x87(
-                                    &crate::effects::owner::effects().ring,
-                                    e,
-                                    &car,
-                                    crate::effects::setup::clock_at(b[0]),
-                                    f,
-                                    w,
-                                    &kinds,
-                                );
-                            },
-                        );
+                        crate::effects::ring_entries::with_entry_at(ring, b[1], 0x64, 0x68, |e| {
+                            let car = car_with(b[2], 0, &[0x88]);
+                            let kinds = super::RingKinds {
+                                near_scale: f32::from_bits(word(b[3] + 0x50)),
+                                near_rate: f32::from_bits(word(b[3] + 0x54)),
+                                ..crate::effects::owner::EFFECTS.ring.kinds
+                            };
+                            super::pull_strength_x87(
+                                ring,
+                                e,
+                                &car,
+                                crate::effects::setup::clock_at(b[0]),
+                                f,
+                                w,
+                                &kinds,
+                            );
+                        });
                     });
                 });
             },
@@ -1811,6 +1722,7 @@ mod asm_differential {
 
     #[test]
     fn box_place_x87_matches() {
+        let ring = &effects().ring;
         const SPEC: Spec = Spec {
             operands: &[
                 Op::Base {
@@ -1849,20 +1761,9 @@ mod asm_differential {
             |b| reference::box_place_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy(b[0], RingWork::START, |w| {
-                    crate::effects::ring_entries::with_entry_at(
-                        &crate::effects::owner::effects().ring,
-                        b[1],
-                        0x10,
-                        0x1C,
-                        |e| {
-                            super::box_place_x87(
-                                &crate::effects::owner::effects().ring,
-                                w,
-                                e,
-                                &car_matrix(b[2]),
-                            );
-                        },
-                    );
+                    crate::effects::ring_entries::with_entry_at(ring, b[1], 0x10, 0x1C, |e| {
+                        super::box_place_x87(ring, w, e, &car_matrix(b[2]));
+                    });
                 });
             },
         );

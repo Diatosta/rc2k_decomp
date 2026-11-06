@@ -44,25 +44,20 @@ impl BarVars {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().drawing.bar,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().drawing.bar, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(
-            crate::moved::place(START),
-            crate::gfx::owner::gfx().drawing.bar.x.addr() as usize
-        );
+        let drawing = &gfx().drawing;
+        assert_eq!(crate::moved::place(START), drawing.bar.x.addr() as usize);
         assert_eq!(
             crate::moved::place(0x755238),
-            crate::gfx::owner::gfx().drawing.bar.percent.addr() as usize
+            drawing.bar.percent.addr() as usize
         );
     }
 }

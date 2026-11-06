@@ -11,22 +11,20 @@
 //! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`.
 
 use crate::errors::Refused;
+use crate::scene::owner::scene;
 
 /// The Rust version (see the header). Whether the copy and the showing worked is not
 /// looked at (the original's carries are not).
 pub fn inspection_screen() -> Result<(), Refused> {
-    crate::scene::owner::scene().drawing.scene.view_offset[0].set_bits(0u32);
-    crate::scene::owner::scene().drawing.scene.view_offset[1].set_bits(0u32);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .view_zoom
-        .set_bits(0x100u32);
+    let drawing = &scene().drawing;
+    drawing.scene.view_offset[0].set_bits(0u32);
+    drawing.scene.view_offset[1].set_bits(0u32);
+    drawing.scene.view_zoom.set_bits(0x100u32);
     crate::scene::prepare_menu_scene::prepare_menu_scene();
-    crate::scene::owner::scene().drawing.scene.clip_edges[2].set_bits(0u32);
-    crate::scene::owner::scene().drawing.scene.clip_edges[3].set_bits(0x320u32);
-    crate::scene::owner::scene().drawing.scene.clip_screen[2].set_bits(0.0f32.to_bits());
-    crate::scene::owner::scene().drawing.scene.clip_screen[3].set_bits(800.0f32.to_bits());
+    drawing.scene.clip_edges[2].set_bits(0u32);
+    drawing.scene.clip_edges[3].set_bits(0x320u32);
+    drawing.scene.clip_screen[2].set_bits(0.0f32.to_bits());
+    drawing.scene.clip_screen[3].set_bits(800.0f32.to_bits());
     crate::service::load_background::load_background()?;
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
         &mut crate::gfx::copy_picture_to_surface::GameSurface,

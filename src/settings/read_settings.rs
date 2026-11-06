@@ -13,9 +13,12 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
+use crate::saves::owner::saves;
+use crate::scene::owner::scene;
 use crate::session::{Dword, Loose};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
@@ -175,7 +178,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"bundleheapsize",
         0x51B980,
-        dword!(crate::gfx::owner::gfx().fonts.glyph_tables.units),
+        dword!(gfx().fonts.glyph_tables.units),
     ),
     (
         b"imageheapsize",
@@ -185,7 +188,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"gamegfxheapsize",
         0x5BE894,
-        dword!(crate::gfx::owner::gfx().fonts.game_fonts.units),
+        dword!(gfx().fonts.game_fonts.units),
     ),
     (
         b"forcedx5",
@@ -240,17 +243,17 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"videomodemain",
         0x4F4944,
-        dword!(crate::gfx::owner::gfx().display.mode.menu_mode),
+        dword!(gfx().display.mode.menu_mode),
     ),
     (
         b"videomodegame",
         0x4F4948,
-        dword!(crate::gfx::owner::gfx().display.mode.race_mode),
+        dword!(gfx().display.mode.race_mode),
     ),
     (
         b"v3driverfix",
         0x624238,
-        dword!(crate::scene::owner::scene().drawing.scene.v3_driver_fix),
+        dword!(scene().drawing.scene.v3_driver_fix),
     ),
     (
         b"nopngdecode",
@@ -303,11 +306,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
         dword!(crate::net::store::NET.receive_done),
     ),
     (b"inetport", 0x52AC24, dword!(crate::net::store::NET.port)),
-    (
-        b"screensnapshot",
-        0x4F52B4,
-        dword!(crate::gfx::owner::gfx().shots.on),
-    ),
+    (b"screensnapshot", 0x4F52B4, dword!(gfx().shots.on)),
     (b"framecounter", 0x5EB100, dword!(race().frame.counter.show)),
     (
         b"noreplay",
@@ -339,11 +338,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"usesavegamekeys",
         0x755144,
-        dword!(
-            crate::saves::owner::saves()
-                .savegame_preview
-                .use_savegame_keys
-        ),
+        dword!(saves().savegame_preview.use_savegame_keys),
     ),
     (
         b"sensiblesaving",

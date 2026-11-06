@@ -25,6 +25,7 @@
 //! a text longer than the text buffer, and what its calls refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -41,14 +42,12 @@ fn set_clip(edge: &Dword, v: u32) {
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
 fn font() -> &'static crate::gfx::typefaces::FontObject {
-    &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2]
+    &gfx().fonts.menu_fonts.game_fonts[2]
 }
 
 /// A line's height (`FONTS.game_fonts[0]`'s).
 fn line() -> u32 {
-    crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[0]
-        .get()
-        .line_height as u32
+    gfx().fonts.menu_fonts.game_fonts[0].get().line_height as u32
 }
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
@@ -95,7 +94,7 @@ fn text(
 
 /// The text buffer drawn three times, each 0x78 to the left and a line down.
 fn three_times(x: u32, y: u32) -> Result<(), Refused> {
-    crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0x168);
+    gfx().fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
     text(font(), &TEXT_BUFFER.text, x, y)?;
     for _ in 0..2 {
@@ -109,38 +108,26 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
 pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
+    let gfx = gfx();
     let clips = (
-        clip(&crate::gfx::owner::gfx().drawing.blit.clip.left),
-        clip(&crate::gfx::owner::gfx().drawing.blit.clip.right),
+        clip(&gfx.drawing.blit.clip.left),
+        clip(&gfx.drawing.blit.clip.right),
     );
     let done = (|| -> Result<(), Refused> {
         let failed = { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
         if !failed && TYRE.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
-                (
-                    0x129u32,
-                    &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2],
-                    4u32,
-                ),
-                (
-                    0x12A,
-                    &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[1],
-                    0xFC,
-                ),
-                (
-                    0x12B,
-                    &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[0],
-                    0x84,
-                ),
+                (0x129u32, &gfx.fonts.menu_fonts.game_fonts[2], 4u32),
+                (0x12A, &gfx.fonts.menu_fonts.game_fonts[1], 0xFC),
+                (0x12B, &gfx.fonts.menu_fonts.game_fonts[0], 0x84),
             ]
             .into_iter()
             .enumerate()
             {
                 match n {
                     0 => {
-                        crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2]
-                            .update(|f| f.box_width = 0xF8);
+                        gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
                         y = 0x80;
                     }
                     1 => y = 0,
@@ -154,23 +141,23 @@ pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
                     &mut crate::text::draw_text::GameCanvas,
                 )?;
                 if n == 0 {
-                    set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.left, 0x80);
+                    set_clip(&gfx.drawing.blit.clip.left, 0x80);
                 }
             }
         }
-        set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.left, 0x80);
+        set_clip(&gfx.drawing.blit.clip.left, 0x80);
         fill(0x80, 0x32, 0x80, 0x4B)?;
         { build_text(0x12E, Some(TYRE.record.get())) }?;
         three_times(0x84, 0x32)?;
-        set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.left, 0);
+        set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(0, 0x99, 0x100, 0x19)?;
-        crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
+        gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
         text(font(), &TYRE.record_name, 4, 0x99)?;
         let x = if TYRE.player.get() == 0 {
-            set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.right, 0x7F);
+            set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0
         } else {
-            set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.left, 0x80);
+            set_clip(&gfx.drawing.blit.clip.left, 0x80);
             0x80
         };
         fill(x, 0xB2, 0x80, 0x4B)?;
@@ -190,7 +177,7 @@ pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
         TYRE.drawn.set(1);
         Ok(())
     })();
-    set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.left, clips.0);
-    set_clip(&crate::gfx::owner::gfx().drawing.blit.clip.right, clips.1);
+    set_clip(&gfx.drawing.blit.clip.left, clips.0);
+    set_clip(&gfx.drawing.blit.clip.right, clips.1);
     done
 }

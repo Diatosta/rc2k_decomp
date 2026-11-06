@@ -17,6 +17,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
+use crate::scene::owner::scene;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps. The registers the original leaves are read by none of its callers.
@@ -26,11 +27,7 @@ pub fn track_checkpoints(race: &Race) -> Result<(), Refused> {
     let checkpoint = { crate::physics::find_car_checkpoint::find_car_checkpoint(race) }?;
     check_tracked(checkpoint, CAR.splits_passed.get())?;
     CAR.checkpoint.set(checkpoint);
-    crate::scene::owner::scene()
-        .lights
-        .state
-        .line_place
-        .set(checkpoint);
+    scene().lights.state.line_place.set(checkpoint);
     { crate::physics::checkpoint_offset::checkpoint_offset(&race.course) }?;
     crate::physics::off_line_warnings::off_line_warnings(&race.frame)?;
     let next = crate::race::checkpoints_store::cell_in(

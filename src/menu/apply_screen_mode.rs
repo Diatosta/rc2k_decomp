@@ -13,6 +13,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
 
@@ -20,7 +21,7 @@ use crate::menu::screen_items_store::slot;
 pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
-    let display = &crate::gfx::owner::gfx().display;
+    let display = &gfx().display;
     // `gfx::screen_mode_choices` (0x4045D6): the carry says the chosen mode was not taken.
     let taken =
         !crate::gfx::screen_mode_choices::screen_mode_choices(display, TRY_CHOSEN_MODE != 0)?.carry;

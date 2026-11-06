@@ -2,6 +2,7 @@
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
@@ -65,8 +66,7 @@ impl MarksClock {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::effects::owner::effects().setup.clock)
-            as usize
+        crate::pointers::game_address(&raw const effects().setup.clock) as usize
     }
 }
 
@@ -89,16 +89,15 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
 pub fn seed_noise(weather: &Weather) {
+    let setup = &effects().setup;
     // Converted: `rc2k_core::effects::noise::seed_noise`.
-    let (tables, seed) = rc2k_core::effects::noise::seed_noise(
-        crate::effects::owner::effects().setup.work.seed.get(),
-    );
+    let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.seed.get());
     for (table, values) in weather.rain.noise.iter().zip(tables) {
         for (cell, v) in table.iter().zip(values) {
             cell.set(v);
         }
     }
-    crate::effects::owner::effects().setup.work.seed.set(seed);
+    setup.work.seed.set(seed);
     weather.rain.drawn.set(0);
 }
 
@@ -137,7 +136,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
 
 /// `effects::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0.
 pub fn clear_slots() {
-    for slot in &crate::effects::owner::effects().blocks.slots.slots {
+    for slot in &effects().blocks.slots.slots {
         slot.life.set(0);
     }
 }
@@ -149,7 +148,8 @@ pub fn clear_slots() {
 /// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
 /// taken as a float (section 16) times `flt_93CC14`.
 pub fn tick_clock() -> Result<(), Refused> {
-    let c = &crate::effects::owner::effects().setup.clock;
+    let setup = &effects().setup;
+    let c = &setup.clock;
     {
         let clock: u32 = PHYSICS.scene_clock.bits();
         if c.started.get() == 0 {
@@ -158,13 +158,8 @@ pub fn tick_clock() -> Result<(), Refused> {
                 r.set(clock);
             }
             c.frame_ticks.set(0);
-            c.reciprocal.set_bits(x87::loaded(
-                crate::effects::owner::effects()
-                    .setup
-                    .clock_k
-                    .first_reciprocal
-                    .bits(),
-            ));
+            c.reciprocal
+                .set_bits(x87::loaded(setup.clock_k.first_reciprocal.bits()));
             return Ok(());
         }
         c.now.set(clock);
@@ -180,20 +175,12 @@ pub fn tick_clock() -> Result<(), Refused> {
         c.frame_ticks.set(ticks);
         c.quarter.set(ticks >> 2);
         c.sixteenth.set(ticks >> 4);
-        let (reciprocal, scaled) = x87::reciprocal_int_and_times(
-            ticks as i32,
-            crate::effects::owner::effects().setup.floats.quarter.bits(),
-        );
+        let (reciprocal, scaled) =
+            x87::reciprocal_int_and_times(ticks as i32, setup.floats.quarter.bits());
         c.reciprocal.set_bits(reciprocal);
         c.reciprocal_scaled.set_bits(scaled);
-        c.ticks_scaled.set_bits(x87::mul(
-            ticks,
-            crate::effects::owner::effects()
-                .setup
-                .clock_k
-                .ticks_scale
-                .bits(),
-        ));
+        c.ticks_scaled
+            .set_bits(x87::mul(ticks, setup.clock_k.ticks_scale.bits()));
     }
     Ok(())
 }
@@ -302,7 +289,7 @@ pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
             cell.set(*v);
         }
     }
-    crate::effects::owner::effects().setup.work.seed.set(t.seed);
+    effects().setup.work.seed.set(t.seed);
     weather.snow.flag.set(0);
     let values = weather
         .snow_light
@@ -356,7 +343,7 @@ impl SettingsPointer {
 /// the one record `g_marksSettings` points at); refused while it points at none, where the
 /// original's reads through it would fault.
 pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettings, BadInput> {
-    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+    if effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings"));
     }
     Ok(&crate::race::marks_settings_store::MARKS_SETTINGS)
@@ -408,7 +395,7 @@ mod clock_k_tests {
     fn clock_k_starts_as_the_games() {
         assert_eq!(size_of::<ClockK>(), ClockK::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().setup.clock_k)
+            bytes(&effects().setup.clock_k)
                 == crate::moved::image_bytes(ClockK::START, ClockK::LEN),
             "CLOCK_K starts differently from the image"
         );
@@ -446,11 +433,7 @@ mod clock_tests {
         assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
         assert_eq!(
             crate::moved::place(SettingsPointer::START),
-            crate::effects::owner::effects()
-                .setup
-                .settings
-                .is_set
-                .addr() as usize
+            effects().setup.settings.is_set.addr() as usize
         );
     }
 }

@@ -11,6 +11,7 @@
 //! a first slot past the table.
 
 use crate::errors::BadInput;
+use crate::scene::owner::scene;
 use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
@@ -18,15 +19,13 @@ use crate::scene::textures::with_cells;
 /// What the original leaves in eax, ebx, ecx and edi no caller reads (register liveness,
 /// 2026-10-23: its five call sites).
 pub fn assign_kind_textures() -> Result<(), BadInput> {
+    let scene_textures = &scene().textures;
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     with_cells(
         [
-            &crate::scene::owner::scene().textures.kinds.kind_first_slots,
-            &crate::scene::owner::scene()
-                .textures
-                .kinds
-                .kind_first_textures,
-            &crate::scene::owner::scene().textures.places.slot_wanted,
+            &scene_textures.kinds.kind_first_slots,
+            &scene_textures.kinds.kind_first_textures,
+            &scene_textures.places.slot_wanted,
         ],
         |[slots, textures, wanted]| {
             rc2k_core::scene::textures::assign_kind_textures(slots, textures, wanted)

@@ -18,6 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -27,6 +28,7 @@ const MOST: u32 = 0x100;
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
 pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    let scene = scene();
     use rc2k_core::scene::lamps::{self, Lamp};
 
     let lamps: u32 = RACE_VIEW.lamp_count.bits();
@@ -38,8 +40,7 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
     let mmx = MACHINE.has_mmx.get() != 0;
-    let place: [u32; 3] =
-        crate::session::read_bits(&crate::scene::owner::scene().lights.state.lit_place);
+    let place: [u32; 3] = crate::session::read_bits(&scene.lights.state.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
@@ -58,28 +59,13 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
         }
     });
     let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
-    let out = lamps::add_point_lights(
-        list,
-        place,
-        at,
-        crate::scene::owner::scene().lights.work.light_colour.bits(),
-        mmx,
-    );
+    let out = lamps::add_point_lights(list, place, at, scene.lights.work.light_colour.bits(), mmx);
     reading.finish()?;
     for (to, value) in [
         (&race.physics.ground.point_light_strength, out.strength),
-        (
-            &crate::scene::owner::scene().lights.work.lamp_tint,
-            out.colour,
-        ),
-        (
-            &crate::scene::owner::scene().drawing.scene.scratch,
-            out.distance,
-        ),
-        (
-            &crate::scene::owner::scene().lights.work.light_colour,
-            out.light,
-        ),
+        (&scene.lights.work.lamp_tint, out.colour),
+        (&scene.drawing.scene.scratch, out.distance),
+        (&scene.lights.work.light_colour, out.light),
     ] {
         if let Some(v) = value {
             to.set_bits(v);

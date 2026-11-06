@@ -11,13 +11,15 @@
 //! Caller: `d3d::lock_texture`.
 
 use crate::d3d::texture_lock::{field, get};
+use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header).
 pub fn texture_surface_info(
     record: crate::pointers::GamePtr,
 ) -> Result<(), crate::errors::BadInput> {
+    let gfx = gfx();
     // Converted: `rc2k_core::d3d::textures::surface_info`.
-    let description = &crate::gfx::owner::gfx().card.upload.description;
+    let description = &gfx.card.upload.description;
     let kind = field(record, 0xC);
     let f = rc2k_core::d3d::textures::surface_info(
         field(record, 4),
@@ -27,7 +29,7 @@ pub fn texture_surface_info(
         description.pitch.get(),
         description.pixels.get(),
     );
-    let surface = &crate::gfx::owner::gfx().drawing.draw_surface;
+    let surface = &gfx.drawing.draw_surface;
     for (field, v) in [
         (&surface.width, f.width),
         (&surface.height, f.height),

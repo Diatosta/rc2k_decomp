@@ -13,6 +13,7 @@
 use crate::errors::Refused;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 
 /// The Rust version: the object's (hidden, eax left).
 pub fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
@@ -24,11 +25,6 @@ pub fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
     Ok(rc2k_core::scene::kinds::kind_is_hidden(
         settings,
         object,
-        |n| {
-            crate::scene::owner::scene()
-                .objects
-                .tables
-                .object_kind(n as u32)
-        },
+        |n| scene().objects.tables.object_kind(n as u32),
     )?)
 }

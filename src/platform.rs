@@ -28,6 +28,7 @@
 
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
+use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
 use crate::race::owner::Race;
 use crate::race::owner::race;
@@ -73,12 +74,13 @@ pub fn quitting() -> bool {
 /// original's choices in order) and the graphics options' choices. Fails (the original's
 /// carry, which its caller makes fatal error 0x90201101) when no mode works.
 pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
+    let gfx_display = &gfx().display;
     {
         // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
         // mode table lists it: the window takes any listed mode, and every listed mode
         // passes the 3D check (`gfx::mark_3d_modes`).
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
-        let display = &crate::gfx::owner::gfx().display;
+        let display = &gfx_display;
         let (table, count) = (
             crate::gfx::modes::Modes::mode_table_ptr(),
             display.modes.count.get(),
@@ -112,10 +114,7 @@ pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
     // whatever eax holds).
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(
-        &crate::gfx::owner::gfx().display,
-        false,
-    );
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx_display, false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"
@@ -138,7 +137,8 @@ fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<
 }
 
 fn set_screen_mode(mode: u32) -> Result<(), String> {
-    crate::gfx::owner::gfx().display.mode.mode_flags.set(mode);
+    let gfx = gfx();
+    gfx.display.mode.mode_flags.set(mode);
     let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
         .ok_or("a screen size that is not known")?;
     let (width, height) = (size & 0xFFFF, size >> 16);
@@ -172,9 +172,9 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         format[1 + n].set(mask);
     }
     format[4].set(0);
-    describe_format(&crate::gfx::owner::gfx().pixel.formats, format);
+    describe_format(&gfx.pixel.formats, format);
     // The screen's own texture description (`TEXTURE_TABLES.descriptions[4]`).
-    crate::gfx::owner::gfx().card.texture_tables.descriptions[4].update(|d| {
+    gfx.card.texture_tables.descriptions[4].update(|d| {
         d.found = 1;
         d.bytes_per_pixel = bytes;
         let six: [u32; 6] = std::array::from_fn(|n| format[n].get());
@@ -273,24 +273,12 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         unsafe { SDL_DestroyTexture(old_texture) };
     }
     let pixels = crate::pointers::LentBytes::from_vec(vec![0u8; (bytes * width * height) as usize]);
-    crate::gfx::owner::gfx()
-        .drawing
-        .draw_surface
-        .present_pixels
-        .set(pixels.addr());
-    crate::gfx::owner::gfx()
-        .drawing
-        .draw_surface
-        .present_pitch
-        .set(bytes * width);
-    crate::gfx::owner::gfx()
-        .drawing
-        .draw_surface
-        .present_gap
-        .set(0u32);
+    gfx.drawing.draw_surface.present_pixels.set(pixels.addr());
+    gfx.drawing.draw_surface.present_pitch.set(bytes * width);
+    gfx.drawing.draw_surface.present_gap.set(0u32);
     // "There are surfaces": what the game's own code asks.
-    crate::gfx::owner::gfx().drawing.surfaces.front.set(1);
-    crate::gfx::owner::gfx().drawing.surfaces.back.set(1);
+    gfx.drawing.surfaces.front.set(1);
+    gfx.drawing.surfaces.back.set(1);
     *screen = Some(Screen {
         window: window.expose_provenance(),
         renderer: renderer.expose_provenance(),
@@ -300,7 +288,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         bits,
         pixels,
     });
-    crate::gfx::owner::gfx().display.mode.mode_set.set(mode);
+    gfx.display.mode.mode_set.set(mode);
     crate::platform_3d::describe_texture_formats(bits);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
@@ -326,7 +314,7 @@ pub fn set_mode_now(mode: u32) -> bool {
 pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    let mode = crate::gfx::owner::gfx().display.mode.menu_mode.get();
+    let mode = gfx().display.mode.menu_mode.get();
     let done = set_screen_mode(mode);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
@@ -339,20 +327,17 @@ pub fn set_menu_mode_now() -> bool {
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); `g_surfaceLocked` after it (1: locked).
 pub fn lock_surface() -> u32 {
+    let gfx = gfx();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !quitting() && have {
-        crate::gfx::owner::gfx().locked.surface.set(1);
+        gfx.locked.surface.set(1);
         // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
-        let s = &crate::gfx::owner::gfx().drawing.draw_surface;
+        let s = &gfx.drawing.draw_surface;
         let (row_bytes, pitch): (u32, u32) = (
             GAME_SCREEN.row_bytes.get(),
-            crate::gfx::owner::gfx()
-                .drawing
-                .draw_surface
-                .present_pitch
-                .get(),
+            gfx.drawing.draw_surface.present_pitch.get(),
         );
         s.width.set(GAME_SCREEN.width.get());
         s.height.set(GAME_SCREEN.height.get());
@@ -362,26 +347,21 @@ pub fn lock_surface() -> u32 {
         s.row_dwords.set(GAME_SCREEN.row_dwords.get());
         s.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
         s.pitch.set(pitch);
-        s.pixels.set(
-            crate::gfx::owner::gfx()
-                .drawing
-                .draw_surface
-                .present_pixels
-                .get(),
-        );
+        s.pixels.set(gfx.drawing.draw_surface.present_pixels.get());
         crate::gfx::surface::on_address();
         s.row_gap.set(pitch.wrapping_sub(row_bytes));
         set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     }
-    crate::gfx::owner::gfx().locked.surface.get()
+    gfx.locked.surface.get()
 }
 
 /// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
 /// it (1: it was).
 pub fn unlock_surface() -> u32 {
-    let locked: u32 = crate::gfx::owner::gfx().locked.surface.get();
+    let gfx_locked = &gfx().locked;
+    let locked: u32 = gfx_locked.surface.get();
     if locked == 1 {
-        crate::gfx::owner::gfx().locked.surface.set(0);
+        gfx_locked.surface.set(0);
     }
     locked
 }
@@ -556,6 +536,7 @@ pub fn screen_pixels() -> u64 {
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
 pub fn show_frame_now() -> bool {
+    let drawing = &gfx().drawing;
     let race = race();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
@@ -584,19 +565,14 @@ pub fn show_frame_now() -> bool {
             if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
-            crate::gfx::owner::gfx()
-                .drawing
+            drawing
                 .draw_surface
                 .flipped
-                .set(crate::gfx::owner::gfx().drawing.draw_surface.flipped.get() ^ 1);
-            crate::gfx::owner::gfx().drawing.draw_surface.frames.set(
-                crate::gfx::owner::gfx()
-                    .drawing
-                    .draw_surface
-                    .frames
-                    .get()
-                    .wrapping_add(1),
-            );
+                .set(drawing.draw_surface.flipped.get() ^ 1);
+            drawing
+                .draw_surface
+                .frames
+                .set(drawing.draw_surface.frames.get().wrapping_add(1));
             #[cfg(feature = "remote")]
             if let Some(pixels) = shot {
                 crate::remote::frame(&pixels, screen.width as u32, screen.height as u32);

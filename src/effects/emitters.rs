@@ -5,6 +5,7 @@
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
 
+use crate::effects::owner::effects;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -58,7 +59,7 @@ pub fn take_entry(ring: &Ring, tag: u32, kind: u32) -> Result<u32, Refused> {
         ring.work.cursor.set(e);
         ring.work.count.set(ring.work.count.get().wrapping_add(1));
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        put(8, crate::effects::owner::effects().kinds.emitter.tag.get())?;
+        put(8, effects().kinds.emitter.tag.get())?;
         put(0x90, tag)?;
         put(0xC, kind)?;
         e
@@ -76,17 +77,13 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
 
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
 pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
-    crate::race::marks_settings_store::car_or_none(
-        crate::effects::owner::effects().kinds.emitter.car.get(),
-    )
-    .ok_or(BadInput("no car for the emitters"))
+    crate::race::marks_settings_store::car_or_none(effects().kinds.emitter.car.get())
+        .ok_or(BadInput("no car for the emitters"))
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
-    match crate::race::marks_settings_store::car_or_none(
-        crate::effects::owner::effects().kinds.emitter.car.get(),
-    ) {
+    match crate::race::marks_settings_store::car_or_none(effects().kinds.emitter.car.get()) {
         Some(car) => Ok(car.has_block(0x24)?),
         None => Ok(false),
     }
@@ -121,7 +118,7 @@ pub fn gate(
             k1,
             k2,
             k3,
-            crate::effects::owner::effects().setup.floats.one.bits(),
+            effects().setup.floats.one.bits(),
             k4,
         );
         gate_with(wheel, object, rate)?
@@ -284,7 +281,7 @@ mod tests {
     #[test]
     fn the_emitters_vars_starts_as_the_games() {
         assert_eq!(size_of::<EmitterVars>(), EmitterVars::LEN);
-        let p = (&raw const crate::effects::owner::effects().kinds.emitter).cast::<u8>();
+        let p = (&raw const effects().kinds.emitter).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<EmitterVars>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

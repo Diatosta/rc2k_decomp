@@ -5,9 +5,11 @@
 //! 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
@@ -15,6 +17,7 @@ use crate::strings::text_buffer::TEXT_BUFFER;
 /// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
 /// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
 pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
+    let fonts = &gfx().fonts;
     let text = text.into();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
@@ -22,18 +25,11 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     }
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-    let line = crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[0]
-        .get()
-        .line_height as u32; // a line's height
+    let line = fonts.menu_fonts.game_fonts[0].get().line_height as u32; // a line's height
     crate::gfx::rows::clear_surface_rows(0, name_rows(line))?;
-    crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = NAME_BOX);
+    fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
-        draw_text_in_game(
-            &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[2],
-            text,
-            x,
-            y,
-        )?;
+        draw_text_in_game(&fonts.menu_fonts.game_fonts[2], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -59,6 +55,7 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
 /// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
 /// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
 pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
+    let gfx = gfx();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
         return Ok(());
@@ -66,13 +63,8 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
     // time_places}`.
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
-    let line = crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[0]
-        .get()
-        .line_height as u32;
-    let start = time_start(
-        line,
-        crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
-    );
+    let line = gfx.fonts.menu_fonts.game_fonts[0].get().line_height as u32;
+    let start = time_start(line, gfx.drawing.draw_surface.pitch.get());
     crate::gfx::rows::clear_surface_rows(start, time_rows(line))?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // block's next dword, so the place is bounded to the block, not the label.
@@ -86,13 +78,8 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     .zip(time_places(line))
     {
         let text = GamePtr::to(&frame.panel_and_overlay.overlay).offset(label as u32);
-        crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(
-            &crate::gfx::owner::gfx().fonts.menu_fonts.game_fonts[3],
-            text,
-            x,
-            y,
-        )?;
+        gfx.fonts.menu_fonts.game_fonts[3].update(|f| f.box_width = TIME_BOX);
+        draw_text_in_game(&gfx.fonts.menu_fonts.game_fonts[3], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -107,6 +94,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
+    let textures = &scene().textures;
     let (Some(a), Some(b)) = (RACE_VIEW.view_car(0), RACE_VIEW.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
@@ -127,14 +115,7 @@ pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
         frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(
-            frame,
-            crate::scene::owner::scene()
-                .textures
-                .kinds
-                .kind_first_textures[196]
-                .get(),
-        )?;
+        draw_time_plate(frame, textures.kinds.kind_first_textures[196].get())?;
         for (from, to) in [
             (
                 &frame.panel_and_overlay.overlay.label_behind[0],
@@ -164,24 +145,10 @@ pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
         match NameAsk::of(asked) {
             NameAsk::Nothing => continue,
             NameAsk::Id(_) => {
-                draw_plate_by_id(
-                    crate::scene::owner::scene()
-                        .textures
-                        .kinds
-                        .kind_first_textures[slot]
-                        .get(),
-                    asked,
-                )?;
+                draw_plate_by_id(textures.kinds.kind_first_textures[slot].get(), asked)?;
             }
             NameAsk::Text(_) => {
-                draw_name_plate(
-                    crate::scene::owner::scene()
-                        .textures
-                        .kinds
-                        .kind_first_textures[slot]
-                        .get(),
-                    asked,
-                )?;
+                draw_name_plate(textures.kinds.kind_first_textures[slot].get(), asked)?;
             }
         }
         // ebx at the store: the name asked for (every drawing keeps its registers).

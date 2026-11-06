@@ -12,15 +12,15 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
+use crate::scene::owner::scene;
 use crate::scene::x87_mem::{Base, cells, fistp, fld};
 
 // ---- Rust version ----
 
 pub fn light_dot() -> i32 {
-    let [p0, p1, p2] =
-        crate::session::read_bits(&crate::scene::owner::scene().lights.work.light_dot_point);
-    let [l0, l1, l2] =
-        crate::session::read_bits(&crate::scene::owner::scene().lights.work.light_dot_light);
+    let scene = scene();
+    let [p0, p1, p2] = crate::session::read_bits(&scene.lights.work.light_dot_point);
+    let [l0, l1, l2] = crate::session::read_bits(&scene.lights.work.light_dot_light);
     let v = [
         p0,
         p1,
@@ -28,19 +28,11 @@ pub fn light_dot() -> i32 {
         l0,
         l1,
         l2,
-        crate::scene::owner::scene()
-            .lights
-            .work
-            .light_dot_factor
-            .bits(),
+        scene.lights.work.light_dot_factor.bits(),
     ];
     let mut out = [0u32];
     dot(&v[..], cells(&mut out));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(out[0]);
+    scene.drawing.scene.scratch.set_bits(out[0]);
     out[0] as i32
 }
 

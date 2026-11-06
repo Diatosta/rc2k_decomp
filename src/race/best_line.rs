@@ -13,6 +13,7 @@ use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The entries `g_checkpointFaces` and the lists after it have room for.
@@ -267,11 +268,7 @@ pub fn checkpoint_angles(course: &Course) -> Result<(), Refused> {
                 };
                 let dx = w(q, 0).wrapping_sub(w(p, 0)) as i32;
                 let dz = w(q, 2).wrapping_sub(w(p, 2)) as i32;
-                crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .scratch
-                    .set_bits(dz as u32);
+                scene().drawing.scene.scratch.set_bits(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
             || read_n(&CHECKPOINTS.angles[0], 2),
@@ -328,11 +325,7 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
             let d = [w(a, 0).wrapping_sub(w(b, 0)), w(a, 2).wrapping_sub(w(b, 2))];
             crate::session::write_bits(&RACE_VARS.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(length);
+            scene().drawing.scene.scratch.set_bits(length);
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
@@ -395,11 +388,7 @@ pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
                 };
                 let dz = w(q, 2).wrapping_sub(from[1]);
                 let d = x87::int_hypot(w(q, 0).wrapping_sub(from[0]) as i32, dz as i32) as u32;
-                crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .scratch
-                    .set_bits(d);
+                scene().drawing.scene.scratch.set_bits(d);
                 d
             });
             trap.finish()?;
@@ -561,11 +550,7 @@ pub fn map_segment(course: &Course) -> Result<(), Refused> {
             };
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(z as u32);
+            scene().drawing.scene.scratch.set_bits(z as u32);
             let [x, _, z, _] = turn_point_xz(x, number as i32, z, map_angle);
             write_n(&CHECKPOINTS.map_x[0], e, x.wrapping_add(place_a[0]));
             write_n(
@@ -635,6 +620,7 @@ const SUMMARY: Summary = [
 /// a rule; `dword_6365E4` and `dword_6365EC` 0. The registers it leaves are read by no
 /// caller (conversion phase 3, 2026-10-24).
 pub fn build_best_line() -> Result<(), Refused> {
+    let lights = &scene().lights;
     let course = &race().course;
     use crate::logfile::log_int::log_int;
     let text =
@@ -664,12 +650,8 @@ pub fn build_best_line() -> Result<(), Refused> {
         }
         text(RULE_RVA[1], true);
         // dword_6365E4, dword_6365EC
-        crate::scene::owner::scene().lights.state.line_place.set(0);
-        crate::scene::owner::scene()
-            .lights
-            .state
-            .line_fraction
-            .set(0);
+        lights.state.line_place.set(0);
+        lights.state.line_fraction.set(0);
     }
     Ok(())
 }

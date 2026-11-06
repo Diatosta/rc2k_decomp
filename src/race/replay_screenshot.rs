@@ -13,6 +13,7 @@
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
@@ -36,10 +37,7 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
     if crate::platform::lock_surface() >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(
-            &crate::gfx::owner::gfx().shots,
-            Some(&name),
-        )?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx().shots, Some(&name))?;
         crate::platform::unlock_surface();
     }
     VIEWER_PANEL.picture_clock.set(

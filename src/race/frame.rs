@@ -10,6 +10,7 @@ use crate::physics::car_store::Car;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::scene::owner::scene;
 
 fn block(n: u32) -> u32 {
     crate::race::work_store::RACE_WORK.car_block(n as usize)
@@ -203,19 +204,15 @@ pub fn race_keys() -> Result<(), Refused> {
 /// started, then run, its time when done added. It reads no register at entry; the eax and
 /// esi it leaves are read by no caller (`drive::race_loop`).
 pub fn tyre_change() -> Result<(), Refused> {
+    let textures = &scene().textures;
     use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     use crate::race::tyre_store::TYRE_CHANGE as TYRE;
     let car = &CAR_BLOCKS.cars[0];
-    TYRE.texture.set(
-        crate::scene::owner::scene()
-            .textures
-            .kinds
-            .kind_first_textures[599]
-            .get(),
-    );
+    TYRE.texture
+        .set(textures.kinds.kind_first_textures[599].get());
     TYRE.device_texture
-        .set(crate::scene::owner::scene().textures.kinds.kind_first_slots[599].get());
+        .set(textures.kinds.kind_first_slots[599].get());
     if car.parts_present.get() & 0x1E != 0x1E
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C

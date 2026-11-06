@@ -32,6 +32,7 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
+use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 
 /// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
@@ -87,11 +88,7 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     push_apart(race, &other.position);
     let factor = extended(race_owner.course.numbers.three.bits());
     scale_vector(&race_owner.physics.contact.bump_push, factor);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(rounded(factor));
+    scene().drawing.scene.scratch.set(rounded(factor));
     add_push(&race.physics, &other.velocity);
     turn_speed(met_car);
     turn_speed(&CAR);

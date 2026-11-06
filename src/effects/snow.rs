@@ -5,6 +5,8 @@
 //! the walk's variables and the curve records) and `SnowLight` (0x8DB430 .. 0x8DB558: the
 //! light, the fade colours and the constants).
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// The snow's random tables (0x800 flakes) (IDA 0x8C6000 .. 0x8D2000, the image's layout; phase 7, typed state).
@@ -447,7 +449,7 @@ mod tests {
 
     #[test]
     fn the_tables_start_as_the_games() {
-        let weather = &crate::effects::owner::effects().weather;
+        let weather = &effects().weather;
         assert_eq!(size_of::<SnowTables>(), SnowTables::LEN);
         assert_eq!(size_of::<SnowCurve>(), SnowCurve::LEN);
         assert!(

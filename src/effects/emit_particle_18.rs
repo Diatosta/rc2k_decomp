@@ -18,6 +18,7 @@
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
@@ -30,18 +31,11 @@ const ONE: u32 = 0x3F80_0000; // fld1
 
 /// The count (and the flags' part it is scaled by), worked out without writing.
 fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
+    let setup = &effects().setup;
     Ok({
         let n = ((record.flags.get() >> 6) << 2) as i32;
-        let (size, k) = (
-            record.size.bits(),
-            crate::effects::owner::effects().setup.floats.over_32.bits(),
-        );
-        let under = x87::times_compare(
-            size,
-            k,
-            crate::effects::owner::effects().setup.floats.one.bits(),
-        ) & 0x700
-            == 0x100;
+        let (size, k) = (record.size.bits(), setup.floats.over_32.bits());
+        let under = x87::times_compare(size, k, setup.floats.one.bits()) & 0x700 == 0x100;
         let count = if under {
             x87::times_int_to_int(size, k, n)
         } else {
@@ -58,6 +52,7 @@ pub fn emit_particle_18(
     record: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let effects = effects();
     {
         let flags = record.flags.get();
         masks.surface.wheel_flags.set(flags);
@@ -80,20 +75,14 @@ pub fn emit_particle_18(
             let e = take_entry(ring, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
             let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-            let m = crate::effects::owner::effects()
+            let m = effects
                 .kinds
                 .emitter
                 .motion
                 .each_ref()
                 .map(|r| extended(r.bits()));
             let (moved, _) = jitter_point([
-                extended(
-                    crate::effects::owner::effects()
-                        .setup
-                        .floats
-                        .hundred_twenty_eight
-                        .bits(),
-                ),
+                extended(effects.setup.floats.hundred_twenty_eight.bits()),
                 m[2],
                 m[1],
                 m[0],
@@ -107,11 +96,7 @@ pub fn emit_particle_18(
                 field::GROUND_Y,
                 x87::sub(
                     record.place[1].bits(),
-                    crate::effects::owner::effects()
-                        .setup
-                        .floats
-                        .two_pow_16
-                        .bits(),
+                    effects.setup.floats.two_pow_16.bits(),
                 ),
             )?;
             put(field::PLACE_Z, x87::loaded(record.place[2].bits()))?;
@@ -123,20 +108,10 @@ pub fn emit_particle_18(
                 put(o, 0)?;
             }
             put(field::LIFE, LIFE)?;
-            put(
-                field::CAR,
-                crate::effects::owner::effects().kinds.emitter.car.get(),
-            )?;
+            put(field::CAR, effects.kinds.emitter.car.get())?;
             put(
                 field::ALPHA_FADE,
-                x87::over_int(
-                    crate::effects::owner::effects()
-                        .setup
-                        .floats
-                        .two_fifty_seven
-                        .bits(),
-                    LIFE as i32,
-                ),
+                x87::over_int(effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
             )?;
         }
     }

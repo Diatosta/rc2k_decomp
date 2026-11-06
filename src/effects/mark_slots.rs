@@ -3,6 +3,8 @@
 //! (0x9353A6 .. 0x935412: constants and randoms; on an address 2 more than a multiple of 4
 //! in the image).
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::race::owner_frame::Frame;
 use crate::session::{Bytes, Dword, Float};
 
@@ -155,18 +157,17 @@ mod tests {
 
     #[test]
     fn the_slots_start_as_the_games() {
+        let blocks = &effects().blocks;
         assert_eq!(size_of::<MarkSlot>(), 0x14);
         assert_eq!(size_of::<MarkSlots>(), MarkSlots::LEN);
         assert_eq!(size_of::<SlotTuning>(), SlotTuning::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&crate::effects::owner::effects().blocks.slots)
-                == image(MarkSlots::START, MarkSlots::LEN),
+            bytes(&blocks.slots) == image(MarkSlots::START, MarkSlots::LEN),
             "SLOTS starts differently from the image"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().blocks.slot_tuning)
-                == image(SlotTuning::START, SlotTuning::LEN),
+            bytes(&blocks.slot_tuning) == image(SlotTuning::START, SlotTuning::LEN),
             "TUNING starts differently from the image"
         );
         use core::mem::offset_of;

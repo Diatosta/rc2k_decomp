@@ -13,6 +13,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::faces_store::FACES;
+use crate::scene::owner::scene;
 use crate::session::Dword;
 use crate::session::MACHINE;
 
@@ -110,7 +111,7 @@ pub(super) fn add_lamp_entry(race: &Race, lamp: u32) -> Result<(), BadInput> {
     let frame = &race.frame;
     let point = self::lamp(&race.course, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;
-    let turned = &crate::scene::owner::scene().drawing.object_work.place;
+    let turned = &scene().drawing.object_work.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
@@ -188,12 +189,13 @@ pub(super) fn car_light_on_point(
     course: &Course,
     car: &crate::physics::car_store::Car,
 ) -> Result<(), BadInput> {
+    let scene = scene();
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
     if car.lights_on.bits() == 0 {
         return Ok(());
     }
-    let place = &crate::scene::owner::scene().lights.state.lit_place;
+    let place = &scene.lights.state.lit_place;
     let d = [
         place[0].get().wrapping_sub(car.position[0].bits()),
         place[1].get().wrapping_sub(car.position[1].bits()),
@@ -203,7 +205,7 @@ pub(super) fn car_light_on_point(
         d.map(|v| v as i32),
         &crate::session::read_bits(&car.car_inverse_matrix),
     );
-    crate::session::write_bits(&crate::scene::owner::scene().lights.state.turned_light, t);
+    crate::session::write_bits(&scene.lights.state.turned_light, t);
     let k: u32 = course.numbers.one_over_65536.bits();
     let s1 = int_square_sum_scaled_to_int(
         t[2].wrapping_sub(0x20_0000) as i32,
@@ -213,21 +215,14 @@ pub(super) fn car_light_on_point(
     );
     // The second spread is worked out and then not used (eax is loaded over it).
     let s2 = int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(s2);
+    scene.drawing.scene.scratch.set_bits(s2);
     let index = headlight_index(s1, t[1], car.marks_count.bits());
-    let colour = crate::scene::owner::scene().light_tables.car_light_table[index as usize].get();
-    crate::scene::owner::scene()
+    let colour = scene.light_tables.car_light_table[index as usize].get();
+    scene
         .lights
         .work
         .light_colour
-        .set_bits(add_colours(
-            colour,
-            crate::scene::owner::scene().lights.work.light_colour.bits(),
-        ));
+        .set_bits(add_colours(colour, scene.lights.work.light_colour.bits()));
     Ok(())
 }
 
@@ -269,13 +264,14 @@ pub(super) fn car_lights_on_point(course: &Course) -> Result<(), BadInput> {
 /// 0 .. 0xFF) as a grey, times its colour (+8, `LIGHT_WORK.lamp_tint`) byte by byte, added to
 /// `g_lightColour`.
 pub(super) fn lamp_lights_on_point(race: &Race) -> Result<(), BadInput> {
+    let scene = scene();
     let physics = &race.physics;
     {
         let count: u32 = RACE_VIEW.lamp_count.bits();
         if count == 0 {
             return Ok(());
         }
-        let place = &crate::scene::owner::scene().lights.state.lit_place;
+        let place = &scene.lights.state.lit_place;
         for n in 0..count {
             let lamp = self::lamp(&race.course, n)?;
             let strength = lamp[1].get();
@@ -284,29 +280,21 @@ pub(super) fn lamp_lights_on_point(race: &Race) -> Result<(), BadInput> {
                 continue;
             }
             let tint = lamp[2].get();
-            crate::scene::owner::scene().lights.work.lamp_tint.set(tint);
+            scene.lights.work.lamp_tint.set(tint);
             let point = lamp[0].get();
             let at = crate::race::scene_points::point_number(point)?;
             let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(distance);
+            scene.drawing.scene.scratch.set_bits(distance);
             let (grey, _) = rc2k_core::race::lights::lamp_grey(
                 distance,
                 physics.ground.point_light_strength.bits(),
             );
             let light = add_colours(
                 rc2k_core::race::lights::multiply_colours(grey, tint),
-                crate::scene::owner::scene().lights.work.light_colour.bits(),
+                scene.lights.work.light_colour.bits(),
             );
-            crate::scene::owner::scene()
-                .lights
-                .work
-                .light_colour
-                .set_bits(light);
+            scene.lights.work.light_colour.set_bits(light);
         }
     }
     Ok(())
@@ -332,11 +320,7 @@ pub fn light_colour_at(race: &Race) -> Result<(), Refused> {
     // headlight_index, lamp_grey, add_colours, multiply_colours}` (the turned place, the
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour()?;
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .light_colour
-        .set_bits(0u32);
+    scene().lights.work.light_colour.set_bits(0u32);
     car_lights_on_point(&race.course)?;
     lamp_lights_on_point(race)?;
     Ok(())
@@ -346,27 +330,20 @@ pub fn light_colour_at(race: &Race) -> Result<(), Refused> {
 /// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
 /// (`add_colours`, through `DRAW.scratch`).
 pub fn view_light() -> Result<(), Refused> {
+    let scene = scene();
     let race = race();
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour()?;
     crate::session::write_bits(
-        &crate::scene::owner::scene().lights.state.lit_place,
+        &scene.lights.state.lit_place,
         crate::session::read_bits(&CAR.position),
     );
     light_colour_at(race)?;
-    let light: u32 = crate::scene::owner::scene().lights.work.light_colour.bits();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(light);
-    race.frame.frame_work.view_light.set(add_colours(
-        crate::scene::owner::scene()
-            .lights
-            .work
-            .view_light_base
-            .bits(),
-        light,
-    ));
+    let light: u32 = scene.lights.work.light_colour.bits();
+    scene.drawing.scene.scratch.set_bits(light);
+    race.frame
+        .frame_work
+        .view_light
+        .set(add_colours(scene.lights.work.view_light_base.bits(), light));
     Ok(())
 }

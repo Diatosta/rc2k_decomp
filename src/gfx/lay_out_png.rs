@@ -11,44 +11,42 @@
 //! `gfx::read_png`. The name is a reading.
 
 use crate::errors::BadInput;
+use crate::gfx::owner::gfx;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::png::{PngInfo, info_dword};
 
 // ---- Rust version ----
 
 pub fn lay_out_png() -> Result<(), BadInput> {
+    let pictures = &gfx().pictures;
     use core::mem::offset_of;
     // Converted: `rc2k_core::gfx::png::layout`.
     let layout = rc2k_core::gfx::png::layout(
         info_dword(offset_of!(PngInfo, width)),
         info_dword(offset_of!(PngInfo, height)),
-        crate::gfx::owner::gfx().pictures.picture.flags.get(),
+        pictures.picture.flags.get(),
     );
     for (at, value) in [
-        &crate::gfx::owner::gfx().pictures.decoder.width,
-        &crate::gfx::owner::gfx().pictures.decoder.height,
-        &crate::gfx::owner::gfx().pictures.decoder.pixel_bits,
-        &crate::gfx::owner::gfx().pictures.decoder.pixel_bytes,
-        &crate::gfx::owner::gfx().pictures.decoder.row_bytes,
-        &crate::gfx::owner::gfx().pictures.decoder.row_dwords,
-        &crate::gfx::owner::gfx().pictures.decoder.stride,
-        &crate::gfx::owner::gfx().pictures.decoder.row_gap,
+        &pictures.decoder.width,
+        &pictures.decoder.height,
+        &pictures.decoder.pixel_bits,
+        &pictures.decoder.pixel_bytes,
+        &pictures.decoder.row_bytes,
+        &pictures.decoder.row_dwords,
+        &pictures.decoder.stride,
+        &pictures.decoder.row_gap,
     ]
     .into_iter()
     .zip(layout)
     {
         at.set(value);
     }
-    crate::gfx::owner::gfx()
-        .pictures
-        .decoder
-        .pixels
-        .set(crate::gfx::owner::gfx().pictures.picture.buffer.get());
+    pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
         crate::pointers::GamePtr::to(&crate::files::scratch::SCRATCH.buffer)
             .offset(offset_of!(PngInfo, palette) as u32),
-        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().pictures.decoder.palette),
+        crate::pointers::GamePtr::to(&pictures.decoder.palette),
     )?;
     Ok(())
 }

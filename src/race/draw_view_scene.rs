@@ -17,6 +17,7 @@ use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::faces_store::FACES;
+use crate::scene::owner::scene;
 
 /// A list of the faces store at byte `off` of it, bounded by the whole buffers block: a
 /// flare's entry is read as a description of 0x3C bytes, past its own 8
@@ -49,11 +50,7 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
         return draw_view_tint();
     }
     // dword_635014, dword_635018.
-    for cell in &crate::scene::owner::scene()
-        .drawing
-        .object_work
-        .view_cleared
-    {
+    for cell in &scene().drawing.object_work.view_cleared {
         cell.set(0);
     }
     race_sound_tick(&race.frame)?; // 0x14

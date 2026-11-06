@@ -36,6 +36,7 @@ use crate::effects::emit_particle_11::Kind11Set;
 use crate::effects::emit_particle_13::Kind13Set;
 use crate::effects::emit_particle_19::{TwinState, TwinTuning};
 use crate::effects::emit_particle_21::Kind21Set;
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -63,8 +64,9 @@ fn colour_index(particles: &Particles, e: u32, life: u32) -> Result<(i32, bool),
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, Refused> {
+    let setup = &effects().setup;
     Ok({
-        let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
+        let settings: u32 = setup.settings.is_set.get();
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
@@ -72,11 +74,7 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
         if marks.race_done.get() == 0 {
             return Ok(None);
         }
-        let ticks: u32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get();
+        let ticks: u32 = setup.clock.frame_ticks.get();
         let mut e: u32 = ring.pool.free.get();
         let used = ring.pool.used.get() as i32;
         if used > 0 && (e == 0 || particle(particles, e, 0)? == 0) {
@@ -109,13 +107,10 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
 
 /// The step of the kind at e (see the header): whether the entry dies.
 fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
+    let effects = effects();
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
-        let t: i32 = crate::effects::owner::effects()
-            .setup
-            .clock
-            .frame_ticks
-            .get() as i32;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         let move_place = |with_up: bool| -> Result<_, Refused> {
             set_particle(
                 particles,
@@ -187,20 +182,16 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        crate::effects::owner::effects().kinds.particle_tuning.dust[0].bits(),
+                        effects.kinds.particle_tuning.dust[0].bits(),
                         t,
                     ),
                 )?;
-                gain_int(&crate::effects::owner::effects().kinds.particle_tuning.dust[1])?;
+                gain_int(&effects.kinds.particle_tuning.dust[1])?;
                 let s = x87::compare_status(
-                    crate::effects::owner::effects().kinds.particle_tuning.dust[2].bits(),
+                    effects.kinds.particle_tuning.dust[2].bits(),
                     particle(particles, e, 0x2C)?,
                 );
-                crate::effects::owner::effects()
-                    .setup
-                    .work
-                    .fpu_status
-                    .set(s as u32);
+                effects.setup.work.fpu_status.set(s as u32);
                 if s != 0x100 {
                     burst_particles::burst_particles(particles, ring, e)?;
                     return Ok(true);
@@ -218,11 +209,11 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        crate::effects::owner::effects().kinds.particle_tuning.trail[0].bits(),
+                        effects.kinds.particle_tuning.trail[0].bits(),
                         t,
                     ),
                 )?;
-                gain_int(&crate::effects::owner::effects().kinds.particle_tuning.trail[1])?;
+                gain_int(&effects.kinds.particle_tuning.trail[1])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
                 ring.pool.index.set(i as u32);
                 let alpha = particle(particles, e, 0x3C)? & 0xFF00_0000;
@@ -237,15 +228,9 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
             }
             kind => {
                 let k = if kind == 9 {
-                    &crate::effects::owner::effects()
-                        .kinds
-                        .particle_tuning
-                        .burst9
+                    &effects.kinds.particle_tuning.burst9
                 } else {
-                    &crate::effects::owner::effects()
-                        .kinds
-                        .particle_tuning
-                        .burst8
+                    &effects.kinds.particle_tuning.burst8
                 };
                 move_place(true)?;
                 set_particle(
@@ -275,26 +260,24 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                 gain_int(&k[4])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
                 ring.pool.index.set(i as u32);
-                let tint = crate::effects::owner::effects()
-                    .kinds
-                    .burst_colours
-                    .table
-                    .get_u32((particle(particles, e, 0x48)? as usize).wrapping_add(4 * i as usize))
-                    & 0xFF_FFFF;
+                let tint =
+                    effects.kinds.burst_colours.table.get_u32(
+                        (particle(particles, e, 0x48)? as usize).wrapping_add(4 * i as usize),
+                    ) & 0xFF_FFFF;
                 if tint == 0 {
                     return Ok(true);
                 }
                 let colour = (particle(particles, e, 0x3C)? & 0xFF00_0000) | tint;
                 let mut size = particle(particles, e, 0x38)?;
                 if kind == 9 {
-                    let s = crate::effects::owner::effects()
+                    let s = effects
                         .setup
                         .work
                         .seed
                         .get()
                         .wrapping_mul(0x9D)
                         .wrapping_add(0x47);
-                    crate::effects::owner::effects().setup.work.seed.set(s);
+                    effects.setup.work.seed.set(s);
                     if s.rotate_right(16) & 0x7F == 0 {
                         size = size.wrapping_add(BIGGER);
                     }
@@ -308,6 +291,7 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
 
 /// The Rust version (see the header).
 pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Result<(), Refused> {
+    let effects = effects();
     if let Some(why) = refusal(particles, ring)? {
         return Err(BadInput(why).into());
     }
@@ -325,11 +309,7 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                 break;
             }
             let next = particle(particles, e, 4)?;
-            let t: u32 = crate::effects::owner::effects()
-                .setup
-                .clock
-                .frame_ticks
-                .get();
+            let t: u32 = effects.setup.clock.frame_ticks.get();
             let life = particle(particles, e, 0x44)?;
             set_particle(particles, e, 0x44, life.wrapping_sub(t))?;
             let mut dies = life < t;
@@ -338,11 +318,7 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                     particle(particles, e, 0x10)?,
                     particle(particles, e, 0x24)?,
                 );
-                crate::effects::owner::effects()
-                    .setup
-                    .work
-                    .fpu_status
-                    .set(s as u32);
+                effects.setup.work.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
                     dies = step(frame, particles, ring, e)?;
@@ -366,24 +342,24 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
             }
             e = next;
         }
-        if crate::effects::owner::effects().setup.frame.steps.bits() & 7 != 0 {
+        if effects.setup.frame.steps.bits() & 7 != 0 {
             return Ok(());
         }
         crate::sound::owner::sound().race.stage.random[0].set(1);
         let seed = || {
-            let s = crate::effects::owner::effects()
+            let s = effects
                 .setup
                 .work
                 .seed
                 .get()
                 .wrapping_mul(0x9D)
                 .wrapping_add(0x47);
-            crate::effects::owner::effects().setup.work.seed.set(s);
+            effects.setup.work.seed.set(s);
             s & 0xFFFF
         };
         let r = seed();
         let view = |o: usize| frame.matrices.view_place[o / 4].bits();
-        let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+        let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
                 r as i32,
@@ -393,60 +369,26 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                 cosine,
             )
         };
-        let x = wave(
-            &crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_x,
-            view(0x30),
-            false,
-        );
+        let x = wave(&effects.kinds.particle_tuning.puff_x, view(0x30), false);
         let y = x87::loaded(view(0x34));
-        let z = wave(
-            &crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_z,
-            view(0x38),
-            true,
-        );
+        let z = wave(&effects.kinds.particle_tuning.puff_z, view(0x38), true);
         let lift = seed();
         let up = x87::int_times_plus_times_plus(
             lift as i32,
             uv_k,
-            crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_y[0]
-                .bits(),
-            crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_y[1]
-                .bits(),
-            crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_y[2]
-                .bits(),
+            effects.kinds.particle_tuning.puff_y[0].bits(),
+            effects.kinds.particle_tuning.puff_y[1].bits(),
+            effects.kinds.particle_tuning.puff_y[2].bits(),
         );
         let mx = x87::sub_mul(
             view(0x30),
             x,
-            crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_m[0]
-                .bits(),
+            effects.kinds.particle_tuning.puff_m[0].bits(),
         );
         let mz = x87::sub_mul(
             view(0x38),
             z,
-            crate::effects::owner::effects()
-                .kinds
-                .particle_tuning
-                .puff_m[1]
-                .bits(),
+            effects.kinds.particle_tuning.puff_m[1].bits(),
         );
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             particles.puff_work.puff[n].set_bits(v);
@@ -684,7 +626,7 @@ mod burst_colours_tests {
     fn burst_colours_starts_as_the_games() {
         assert_eq!(size_of::<BurstColours>(), BurstColours::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.burst_colours)
+            bytes(&effects().kinds.burst_colours)
                 == crate::moved::image_bytes(BurstColours::START, BurstColours::LEN),
             "BURST_COLOURS starts differently from the image"
         );
@@ -816,7 +758,7 @@ mod particle_tuning_tests {
     fn particle_tuning_starts_as_the_games() {
         assert_eq!(size_of::<ParticleTuning>(), ParticleTuning::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().kinds.particle_tuning)
+            bytes(&effects().kinds.particle_tuning)
                 == crate::moved::image_bytes(ParticleTuning::START, ParticleTuning::LEN),
             "PARTICLE_TUNING starts differently from the image"
         );

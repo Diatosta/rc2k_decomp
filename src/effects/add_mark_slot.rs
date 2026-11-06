@@ -9,42 +9,26 @@
 //! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
 //! random at once: only the second is kept.
 
+use crate::effects::owner::effects;
 use crate::math::x87;
 
 const TIME: u32 = 0x3C;
 
 /// The Rust version (see the header).
 pub fn add_mark_slot(what: u32, matrix: u32) {
-    for slot in crate::effects::owner::effects()
-        .blocks
-        .slots
-        .slots
-        .iter()
-        .rev()
-    {
+    let blocks = &effects().blocks;
+    for slot in blocks.slots.slots.iter().rev() {
         if slot.life.get() as i32 > 0 {
             continue;
         }
-        let random = crate::effects::owner::effects()
-            .blocks
+        let random = blocks
             .slot_tuning
             .slot_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        crate::effects::owner::effects()
-            .blocks
-            .slot_tuning
-            .slot_random
-            .set(random);
-        let float = x87::int_plus(
-            (random & 0xFFFF) as i32,
-            crate::effects::owner::effects()
-                .blocks
-                .slot_tuning
-                .base
-                .bits(),
-        );
+        blocks.slot_tuning.slot_random.set(random);
+        let float = x87::int_plus((random & 0xFFFF) as i32, blocks.slot_tuning.base.bits());
         slot.life.set(TIME);
         slot.point.set(what);
         slot.matrix.set(matrix);

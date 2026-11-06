@@ -5,6 +5,8 @@
 //! / `block` and in the entries' links (+0 the one before, +4 the one after) as the
 //! original held their addresses. Each field keeps its offset in the original's record.
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::BadInput;
 use crate::math::x87_float::{self as bh, X};
@@ -142,7 +144,7 @@ mod tests {
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
-        let ring = &crate::effects::owner::effects().ring;
+        let ring = &effects().ring;
         take(
             ring,
             crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),

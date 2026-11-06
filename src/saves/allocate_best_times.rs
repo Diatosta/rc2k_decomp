@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::records::stages_store::{RecordRef, RecordTable};
+use crate::saves::owner::saves;
 use rc2k_core::saves::tables::TABLES;
 
 // ---- game data ----
@@ -43,13 +44,14 @@ pub fn allocate_best_times(
     list: crate::pointers::GamePtr,
     records: RecordTable,
 ) -> Result<(), Refused> {
-    if crate::saves::owner::saves().best_times.allocated.get() == 1 {
+    let best_times = &saves().best_times;
+    if best_times.allocated.get() == 1 {
         return Ok(());
     }
     let sizes = sizes(count_stages(records)?);
-    crate::saves::owner::saves().best_times.allocated.set(1);
+    best_times.allocated.set(1);
     for (n, size) in sizes.into_iter().enumerate() {
-        let place = &crate::saves::owner::saves().best_times.tables[n];
+        let place = &best_times.tables[n];
         place.size.set(size);
         crate::saves::best_times::typed(n).take(list, size)?;
     }

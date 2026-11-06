@@ -14,6 +14,7 @@
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::scene::owner::scene;
 use crate::session::MACHINE;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
@@ -47,11 +48,7 @@ pub fn measure_frame_rate(course: &Course) -> Option<u32> {
     let now = whole as u32;
     FRAME_SWITCHES.frame_now.set_bits(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(cycles as u32);
+        scene().drawing.scene.scratch.set_bits(cycles as u32);
         frame_rate_plain(course, cycles);
     }
     FRAME_SWITCHES.frame_last.set_bits(now);

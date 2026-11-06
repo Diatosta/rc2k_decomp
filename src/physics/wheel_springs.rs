@@ -29,6 +29,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
+use crate::scene::owner::scene;
 use std::cmp::Ordering;
 
 /// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
@@ -41,19 +42,16 @@ fn below(x: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn wheel_springs(race: &Race) {
+    let drawing = &scene().drawing;
     let (c, ph) = (&CAR, &PHYSICS);
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q.bits());
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .work_dword
-            .set(old);
+        drawing.scene.work_dword.set(old);
         c.wheel_squeeze_last[k].set_bits(old);
         let eax = race.physics.contact.probe_height[k].get().wrapping_neg();
-        crate::scene::owner::scene().drawing.scene.scratch.set(eax);
+        drawing.scene.scratch.set(eax);
         q.set_bits(ext_div2(
             int_80(eax as i32, false),
             race.course.numbers.k65536.bits(),
@@ -72,7 +70,7 @@ pub fn wheel_springs(race: &Race) {
         ));
         damping.set_bits(sub_mul(
             q.bits(),
-            crate::scene::owner::scene().drawing.scene.work_dword.get(),
+            drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
         if below(damping.bits(), race.course.numbers.zero.bits()) {

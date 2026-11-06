@@ -64,33 +64,31 @@ impl Picture {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gfx::owner::gfx;
     use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::gfx::owner::gfx().pictures.picture,
-            START,
-            START + LEN,
-        );
+        crate::gfx::first_values_are_the_games(&gfx().pictures.picture, START, START + LEN);
     }
 
     #[test]
     fn moved_knows_the_block() {
+        let pictures = &gfx().pictures;
         assert_eq!(offset_of!(Picture, flags), 0x4F49CC - START);
         assert_eq!(offset_of!(Picture, buffer), 0x4F49DC - START);
         assert_eq!(offset_of!(Picture, list), 0x4F49E4 - START);
         assert_eq!(
             crate::moved::place(START),
-            crate::gfx::owner::gfx().pictures.picture.name.addr() as usize
+            pictures.picture.name.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F49E4),
-            crate::gfx::owner::gfx().pictures.picture.list.addr() as usize
+            pictures.picture.list.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x4F49DC),
-            crate::gfx::owner::gfx().pictures.picture.buffer.addr() as usize
+            pictures.picture.buffer.addr() as usize
         );
     }
 }

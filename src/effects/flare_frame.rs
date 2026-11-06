@@ -7,6 +7,7 @@
 //!
 //! Caller: `effects::run_frame` (0x4D1645). Refuses null settings, before anything.
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 
@@ -14,7 +15,7 @@ use crate::errors::{BadInput, Refused};
 /// with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame(paths: &Paths) -> Result<(), Refused> {
     {
-        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+        if effects().setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         crate::scene::set_texture::set_texture(

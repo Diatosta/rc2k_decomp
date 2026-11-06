@@ -14,6 +14,7 @@
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::log;
+use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
@@ -27,6 +28,7 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 /// The Rust version (the original keeps ebp, ecx, edi and edx; it leaves eax 0 and esi
 /// as the main menu does, which its callers do not read).
 pub fn run_front_end() -> Result<(), Refused> {
+    let fonts = &gfx().fonts;
     let play = &menus().play;
     log("menu::run_front_end: the Rust version runs");
     menus()
@@ -45,8 +47,8 @@ pub fn run_front_end() -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(
-        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory),
-        &crate::gfx::owner::gfx().fonts.menu_fonts.palettes,
+        crate::pointers::GamePtr::to(&fonts.glyph_tables.memory),
+        &fonts.menu_fonts.palettes,
     )?;
     crate::saves::list_car_numbers::list_car_numbers()?;
     log("menu::run_front_end: the Rust version has come back");

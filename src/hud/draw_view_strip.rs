@@ -16,8 +16,10 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::gfx;
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
+use crate::scene::owner::scene;
 use crate::session::SCREEN;
 use rc2k_core::hud::strips;
 
@@ -36,29 +38,26 @@ fn quad_input(o: usize) -> &'static crate::session::Dword {
 fn sizes(v: [u32; 4]) {
     let (sizes, _) = strips::sizes(v, SCREEN.width.get(), SCREEN.height.get());
     for (n, x) in sizes.into_iter().enumerate() {
-        crate::gfx::owner::gfx().strips.sizes[n].set(x);
+        gfx().strips.sizes[n].set(x);
     }
 }
 
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let course = &race().course;
-    let sizes: [u32; 4] = std::array::from_fn(|n| crate::gfx::owner::gfx().strips.sizes[n].get());
+    let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         quad_input(o).set_bits(v);
     }
     if let Some(t) = texture {
-        crate::scene::owner::scene().drawing.scene.polygon_textures[0].set_bits(t);
+        drawing.scene.polygon_textures[0].set_bits(t);
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_alpha
-        .set_bits(0xFF);
+    drawing.scene.polygon_alpha.set_bits(0xFF);
     quad_input(0).set_bits(0xFFFF_FFFF);
-    crate::scene::owner::scene().drawing.scene.polygon_sides[0].set_bits(1);
-    crate::scene::owner::scene().drawing.scene.polygon_sides[1].set_bits(0);
+    drawing.scene.polygon_sides[0].set_bits(1);
+    drawing.scene.polygon_sides[1].set_bits(0);
     crate::scene::draw_flat_quad::draw_flat_quad(course)
 }
 
@@ -74,7 +73,7 @@ pub fn overlay_tail(frame: &Frame) -> Result<(), Refused> {
     }
     for (v, rows) in strips::TAIL {
         sizes(v);
-        let get = |n: usize| crate::gfx::owner::gfx().strips.sizes[n].get();
+        let get = |n: usize| gfx().strips.sizes[n].get();
         quad(get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
@@ -83,15 +82,16 @@ pub fn overlay_tail(frame: &Frame) -> Result<(), Refused> {
 /// The Rust version (see the header): view `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
 pub fn draw_view_strip(frame: &Frame, view: u32) -> Result<(), Refused> {
+    let strips = &gfx().strips;
     if view >= strips::VIEWS {
         return Err(BadInput("a view past the overlay's tables").into());
     }
     {
         let top = strips::top_entry(view, frame.panel_and_overlay.panel.flat.get());
-        let top: u32 = crate::gfx::owner::gfx().strips.tops[top as usize].get();
-        let left: u32 = crate::gfx::owner::gfx().strips.lefts[view as usize].get();
+        let top: u32 = strips.tops[top as usize].get();
+        let left: u32 = strips.lefts[view as usize].get();
         sizes([top, strips::HEIGHT, left, strips::WIDTH]);
-        let get = |n: usize| crate::gfx::owner::gfx().strips.sizes[n].get();
+        let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
             quad(left, width, rows, None)?;

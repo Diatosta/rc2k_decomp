@@ -19,6 +19,7 @@ use crate::errors::BadInput;
 use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
+use crate::gfx::owner::gfx;
 use crate::gfx::pcx::{on_stream, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 
@@ -26,26 +27,20 @@ use crate::gfx::picture::{put_or_end, with_buffer};
 
 /// The part between the open and the close: whether it worked.
 fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
+    let pictures = &gfx().pictures;
     if !read_stream_header(stream)? {
         return Ok(false);
     }
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .flags
-        .set(0x800u32);
+    pictures.picture.flags.set(0x800u32);
     let layout = lay_out_pcx()?;
     // Converted: `rc2k_core::gfx::pcx::decode_planes`.
-    with_buffer(
-        crate::gfx::owner::gfx().pictures.decoder.pixels.get(),
-        |pixels| {
-            rc2k_core::gfx::pcx::decode_planes(
-                &layout,
-                || read_stream_byte(stream).map(ByteRead::value),
-                |to, byte| put_or_end(pixels, to as usize, &[byte]),
-            )
-        },
-    )??
+    with_buffer(pictures.decoder.pixels.get(), |pixels| {
+        rc2k_core::gfx::pcx::decode_planes(
+            &layout,
+            || read_stream_byte(stream).map(ByteRead::value),
+            |to, byte| put_or_end(pixels, to as usize, &[byte]),
+        )
+    })??
     .ok_or(BadInput("a PCX picture without rows or columns"))?;
     Ok(true)
 }

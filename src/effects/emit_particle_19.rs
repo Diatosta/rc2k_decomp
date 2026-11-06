@@ -22,6 +22,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -102,6 +103,7 @@ pub fn emit_twin(
     set: &TwinSet,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let effects = effects();
     if let Some(why) = refusal(ring, set, object)? {
         return Err(BadInput(why).into());
     }
@@ -137,11 +139,7 @@ pub fn emit_twin(
             .map(|(a, k)| x87::mul_80(a, k.bits()))
             .collect::<Vec<_>>();
     let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
-    let step: u32 = crate::effects::owner::effects()
-        .setup
-        .clock
-        .reciprocal
-        .bits();
+    let step: u32 = effects.setup.clock.reciprocal.bits();
     for n in 0..3 {
         put(
             field::MOTION_X + 4 * n as u32,
@@ -164,27 +162,10 @@ pub fn emit_twin(
     put(field::LIFE, life)?;
     put(
         field::ALPHA_FADE,
-        x87::over_int(
-            crate::effects::owner::effects()
-                .setup
-                .floats
-                .two_fifty_seven
-                .bits(),
-            life as i32,
-        ),
+        x87::over_int(effects.setup.floats.two_fifty_seven.bits(), life as i32),
     )?;
-    put(
-        field::ALPHA,
-        crate::effects::owner::effects()
-            .setup
-            .floats
-            .two_fifty_five
-            .bits(),
-    )?;
-    put(
-        field::CAR,
-        crate::effects::owner::effects().kinds.emitter.car.get(),
-    )?;
+    put(field::ALPHA, effects.setup.floats.two_fifty_five.bits())?;
+    put(field::CAR, effects.kinds.emitter.car.get())?;
     Ok(())
 }
 

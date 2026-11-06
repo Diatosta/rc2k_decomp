@@ -13,6 +13,7 @@
 
 use crate::effects::draw_shadow::{SECOND, draw_shadow_with};
 use crate::effects::mask_store::Masks;
+use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -28,7 +29,7 @@ fn shadow_refuses() -> Option<Refused> {
     if corner >= 0x100 {
         return Some(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+    if effects().setup.settings.is_set.get() == 0 {
         return Some(BadInput("no marks settings").into());
     }
     SECOND.angle_refuses()
@@ -46,7 +47,7 @@ pub fn draw_overlays(race: &Race, masks: &Masks, drops: &WindscreenDrops) -> Res
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        let effects = crate::effects::owner::effects();
+        let effects = effects();
         let fl = &effects.windscreen_flakes;
         crate::effects::draw_plane::draw_plane(race, drops, fl)?;
         crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(

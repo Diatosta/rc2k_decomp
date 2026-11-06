@@ -2,6 +2,7 @@
 //! "LOADLEVEL_TIDY", IDA 2026-10-17), and the replay header's record (`sub_460246`). Here
 //! their steps.
 
+use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
@@ -264,7 +265,7 @@ pub fn tidy_stage() -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::tidy_marks::tidy_marks(crate::effects::owner::effects())?;
+    crate::effects::tidy_marks::tidy_marks(effects())?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(course, &FONTS))?;

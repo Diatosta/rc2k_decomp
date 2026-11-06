@@ -18,6 +18,7 @@ use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
+use crate::scene::owner::scene;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 
@@ -79,11 +80,7 @@ pub fn shadow_angles(race: &Race) -> Result<(), Refused> {
         if crate::math::x87_load::below_or_unordered(v, zero) {
             v = two_pi_plus(v);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set_bits(v);
+        scene().drawing.scene.scratch.set_bits(v);
         record.angle.set(mul_to_int(v, unit) as u32);
         record.zeroed.set(0);
     }
@@ -230,6 +227,7 @@ fn crossing_block(
     ea: &PolygonEntry,
     eb: &PolygonEntry,
 ) -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     use crate::math::x87_float::{int, ld, st, to_int};
     {
         let word = |n: usize| int(race.frame.frame_work.shadow_work[n].bits() as i32);
@@ -245,26 +243,21 @@ fn crossing_block(
                 int(a as i32) + (int(b as i32) - int(a as i32)) * share,
             ))
         };
-        crate::scene::owner::scene().drawing.scene.clip_work[2].set_bits(whole(0)? as u32);
-        crate::scene::owner::scene().drawing.scene.clip_work[4].set_bits(whole(2)? as u32);
+        drawing.scene.clip_work[2].set_bits(whole(0)? as u32);
+        drawing.scene.clip_work[4].set_bits(whole(2)? as u32);
         let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
-        crate::scene::owner::scene().drawing.scene.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
-        crate::scene::owner::scene().drawing.scene.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
+        drawing.scene.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
+        drawing.scene.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
         let byte = |a: &Byte, b: &Byte| {
             let (a, b) = (int(a.get().into()), int(b.get().into()));
             to_int(a + (b - a) * share) as u32
         };
-        crate::scene::owner::scene()
-            .drawing
+        drawing
             .scene
             .vertex_byte_21
             .set(byte(&ea.amount, &eb.amount));
-        crate::scene::owner::scene().drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .scratch
-            .set(st(share));
+        drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
+        drawing.scene.scratch.set(st(share));
     }
     Ok(())
 }
@@ -280,6 +273,7 @@ fn edge_crossing(
     eb: &PolygonEntry,
     ed: &PolygonEntry,
 ) -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     let frame = &race.frame;
     {
         let (pa, pb) = (ea.point.get(), eb.point.get());
@@ -303,29 +297,15 @@ fn edge_crossing(
         w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
         crossing_block(race, pa, pb, ea, eb)?;
         let n = rd(&frame.frame_work.shadow_scene);
-        put_point_word(
-            &race.course,
-            n,
-            0,
-            crate::scene::owner::scene().drawing.scene.clip_work[2].bits(),
-        )?;
+        put_point_word(&race.course, n, 0, drawing.scene.clip_work[2].bits())?;
         put_point_word(&race.course, n, 1, 0)?;
-        put_point_word(
-            &race.course,
-            n,
-            2,
-            crate::scene::owner::scene().drawing.scene.clip_work[4].bits(),
-        )?;
+        put_point_word(&race.course, n, 2, drawing.scene.clip_work[4].bits())?;
         ed.point.set(n);
         frame.frame_work.shadow_scene.set(n.wrapping_add(1));
-        ed.u2
-            .set(crate::scene::owner::scene().drawing.scene.clip_work[10].bits());
-        ed.v2
-            .set(crate::scene::owner::scene().drawing.scene.clip_work[11].bits());
-        ed.amount
-            .set(rd(&crate::scene::owner::scene().drawing.scene.vertex_byte_21) as u8);
-        ed.fog
-            .set(rd(&crate::scene::owner::scene().drawing.scene.clip_work_2[0]) as u8);
+        ed.u2.set(drawing.scene.clip_work[10].bits());
+        ed.v2.set(drawing.scene.clip_work[11].bits());
+        ed.amount.set(rd(&drawing.scene.vertex_byte_21) as u8);
+        ed.fog.set(rd(&drawing.scene.clip_work_2[0]) as u8);
     }
     Ok(())
 }
@@ -333,13 +313,10 @@ fn edge_crossing(
 /// `sub_457A85`: the polygon cut by the edge from scene point `from` to scene point `to`
 /// (kept: those on the inner side, and the crossings), with three vertices or more.
 fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     let frame = &race.frame;
     {
-        let count: u32 = crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .bits();
+        let count: u32 = drawing.scene.polygon_vertex_count.bits();
         if count < 3 {
             return Ok(());
         }
@@ -393,18 +370,13 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
                 })
             },
             |a, b| {
-                let next: u32 = crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .polygon_next_entry
-                    .bits();
+                let next: u32 = drawing.scene.polygon_next_entry.bits();
                 let crossing =
                     (|| edge_crossing(race, work_entry(a)?, work_entry(b)?, work_entry(next)?))();
                 if let Err(err) = crossing {
                     trap.keep(err);
                 }
-                crate::scene::owner::scene()
-                    .drawing
+                drawing
                     .scene
                     .polygon_next_entry
                     .set_bits(next.wrapping_add(1));
@@ -424,11 +396,7 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
             },
         );
         trap.finish()?;
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(added);
+        drawing.scene.polygon_vertex_count.set_bits(added);
     }
     Ok(())
 }
@@ -439,6 +407,7 @@ fn clip_to_edge(race: &Race, from: u32, to: u32) -> Result<(), BadInput> {
 /// 0x100000 in z is met (or none is); else cut by its three edges in turn while three vertices
 /// are left (`sub_457A85`, with `sub_457BE8` the side test and `sub_457CA8` the crossing).
 pub fn clip_shadow_to_face(race: &Race) -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     let frame = &race.frame;
     {
         let corners = [
@@ -459,21 +428,11 @@ pub fn clip_shadow_to_face(race: &Race) -> Result<(), BadInput> {
         );
         trap.finish()?;
         if !found.near {
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .polygon_vertex_count
-                .set_bits(0u32);
+            drawing.scene.polygon_vertex_count.set_bits(0u32);
             return Ok(());
         }
         for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
-            if crate::scene::owner::scene()
-                .drawing
-                .scene
-                .polygon_vertex_count
-                .bits()
-                < 3
-            {
+            if drawing.scene.polygon_vertex_count.bits() < 3 {
                 return Ok(());
             }
             clip_to_edge(race, corners[a], corners[b])?;
@@ -522,15 +481,12 @@ fn raise_onto_face(race: &Race, index: u32) -> Result<(), Refused> {
 /// it. Refuses what the projection and the clips refuse (after the work is set; not met with a
 /// hull's few vertices) and a hull list past 0x40.
 pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
+    let drawing = &scene().drawing;
     let count: u32 = race.frame.frame_work.shadow_list_count.get();
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_drawn
-        .set(0u32);
+    drawing.scene.polygon_drawn.set(0u32);
     let list = &POLYGON_WORK.list;
     copy_on_in(
         (&race.frame.frame_work, &race.frame.frame_work.shadow_list),
@@ -538,11 +494,7 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
         count as usize,
         "the shadow list",
     )?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(count);
+    drawing.scene.polygon_vertex_count.set_bits(count);
     write_on_in(
         &crate::race::buffers_store::BUFFERS,
         list,
@@ -550,18 +502,14 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
         race.frame.frame_work.shadow_list[0].get(),
         "the polygon list",
     )?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_next_entry
-        .set_bits(0x20u32);
+    drawing.scene.polygon_next_entry.set_bits(0x20u32);
     let scene: u32 = race.course.course.scene_point_count.get();
     race.frame
         .frame_work
         .shadow_scene
         .set(scene.wrapping_add(0x30));
-    crate::scene::owner::scene().drawing.scene.polygon_sides[0].set(0u32);
-    crate::scene::owner::scene().drawing.scene.polygon_sides[1].set(1u32);
+    drawing.scene.polygon_sides[0].set(0u32);
+    drawing.scene.polygon_sides[1].set(1u32);
     let mut at = (scene & 0xFFF) * 0x20;
     for _ in 0..0x40 {
         crate::scene::point_records::put_field(
@@ -572,20 +520,10 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
         at = (at + 0x20) & 0x1FFE0;
     }
     clip_shadow_to_face(race)?;
-    if crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits()
-        < 3
-    {
+    if drawing.scene.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }
-    let n: u32 = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits();
+    let n: u32 = drawing.scene.polygon_vertex_count.bits();
     for k in 0..n {
         raise_onto_face(
             race,
@@ -599,59 +537,31 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
     }
     crate::scene::project_polygon::project_polygon()?;
     crate::scene::fog_polygon::fog_polygon()?;
-    crate::scene::owner::scene()
-        .drawing
+    drawing
         .scene
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
-    let outside: u32 = crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_outside_count
-        .get();
+    let outside: u32 = drawing.scene.polygon_outside_count.get();
     if outside != 0 {
-        if outside
-            == crate::scene::owner::scene()
-                .drawing
-                .scene
-                .polygon_vertex_count
-                .bits()
-        {
+        if outside == drawing.scene.polygon_vertex_count.bits() {
             return Ok(());
         }
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
-        if crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .bits()
-            < 3
-        {
+        if drawing.scene.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
     }
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-    if crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .bits()
-        < 3
-    {
+    if drawing.scene.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }
-    crate::scene::owner::scene().drawing.scene.polygon_textures[0].set(u32::MAX);
-    crate::scene::owner::scene().drawing.scene.polygon_textures[1]
-        .set(race.frame.frame_work.shadow_texture.get());
-    crate::scene::owner::scene().drawing.scene.polygon_sides[0].set(0u32);
-    crate::scene::owner::scene().drawing.scene.polygon_sides[1].set(1u32);
+    drawing.scene.polygon_textures[0].set(u32::MAX);
+    drawing.scene.polygon_textures[1].set(race.frame.frame_work.shadow_texture.get());
+    drawing.scene.polygon_sides[0].set(0u32);
+    drawing.scene.polygon_sides[1].set(1u32);
     RACE_VIEW.polygon_mode.set(5u32);
     crate::scene::draw_polygon::draw_polygon_in_game()?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_drawn
-        .set(1u32);
+    drawing.scene.polygon_drawn.set(1u32);
     Ok(())
 }
 
@@ -735,11 +645,7 @@ fn sun_slant(frame: &Frame, sun: u32, turn: u32) {
     let (sin, cos) = (int(turn as i32) / int(0x80)).times_pi().sin_cos();
     frame.shadow_skids.slant_x.set_bits(st(cos * cot));
     frame.shadow_skids.slant_z.set_bits(st(cot * sin));
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set(0x80u32);
+    scene().drawing.scene.scratch.set(0x80u32);
 }
 
 /// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
@@ -1384,11 +1290,7 @@ mod asm_reference {
                 for a in &places[7..] {
                     game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
-                crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .scratch
-                    .set_bits(0xAAAA_AAAAu32);
+                scene().drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
                 let both = [pa, pb].concat();
                 crate::race::scene_points::with_test_points(&both, || {
                     let entry = |a: u32| {

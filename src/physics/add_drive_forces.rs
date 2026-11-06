@@ -13,6 +13,7 @@ use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 fn put(a: &dyn Cell32, v: u32) {
@@ -37,7 +38,7 @@ pub fn add_drive_forces_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &crate::scene::owner::scene().drawing.scene.scratch as &dyn Cell32,
+        &scene().drawing.scene.scratch as &dyn Cell32,
         &CAR.drive_kind,
         &PHYSICS.wheel_loads[0],
         &PHYSICS.wheel_loads[1],

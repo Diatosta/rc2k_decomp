@@ -30,6 +30,7 @@ use crate::race::work_store::RACE_WORK;
 
 // ---- game data ----
 use crate::race::owner::race;
+use crate::scene::owner::scene;
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
@@ -48,10 +49,7 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         RACE_VARS.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
-        crate::scene::owner::scene()
-            .objects
-            .tables
-            .object_kind(object)
+        scene().objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
         FRAME_SWITCHES.other_way.bits()
@@ -63,14 +61,10 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         RACE_WORK.stage_direction.bits()
     }
     fn only(&self) -> u32 {
-        crate::scene::owner::scene()
-            .drawing
-            .object_work
-            .only_object
-            .bits()
+        scene().drawing.object_work.only_object.bits()
     }
     fn faces(&self, object: u32) -> u32 {
-        crate::scene::owner::scene().objects.slots.face_counts[object as usize].get()
+        scene().objects.slots.face_counts[object as usize].get()
     }
 }
 
@@ -81,19 +75,16 @@ pub fn draw_shown_object(
     course: &crate::race::owner_course::Course,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<bool, Refused> {
+    let scene = scene();
     let race = course.numbers.in_race.bits() != 0;
     if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .drawing_object
-        .set_bits(1u32);
+    scene.lights.work.drawing_object.set_bits(1u32);
     let show = if race {
         rc2k_core::scene::shown::race_shown(&Game)
     } else {
-        for (cell, byte) in crate::scene::owner::scene()
+        for (cell, byte) in scene
             .objects
             .tables
             .car_mark_textures
@@ -107,10 +98,6 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    crate::scene::owner::scene()
-        .lights
-        .work
-        .drawing_object
-        .set_bits(0u32);
+    scene.lights.work.drawing_object.set_bits(0u32);
     Ok(show)
 }

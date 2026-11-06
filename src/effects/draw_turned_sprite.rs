@@ -21,6 +21,7 @@ use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
 use crate::d3d::vertices_store::VERTICES;
+use crate::effects::owner::effects;
 const ANGLES: u32 = 0x1000;
 
 /// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
@@ -31,21 +32,22 @@ pub fn draw_turned_sprite(
     size: u32,
     place: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
+    let effects = effects();
     if angle >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
     }
     {
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
-        if (c as i32) > crate::effects::owner::effects().frame.draw_work.near.bits() as i32
-            && crate::effects::owner::effects().setup.settings.is_set.get() == 0
+        if (c as i32) > effects.frame.draw_work.near.bits() as i32
+            && effects.setup.settings.is_set.get() == 0
         {
             return Err(BadInput("no marks settings").into());
         }
         for (n, v) in [a, b, c].into_iter().enumerate() {
-            crate::effects::owner::effects().frame.draw_work.turned[n].set_bits(v);
+            effects.frame.draw_work.turned[n].set_bits(v);
         }
-        if (c as i32) <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32 {
+        if (c as i32) <= effects.frame.draw_work.near.bits() as i32 {
             return Ok(());
         }
         let colour = colour | 0xFF_FFFF;
@@ -53,7 +55,7 @@ pub fn draw_turned_sprite(
             crate::scene::owner::scene().drawing.scene.view_scale.bits(),
             crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
             crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
-            crate::effects::owner::effects().frame.draw_work.z_k.bits(),
+            effects.frame.draw_work.z_k.bits(),
         ];
         let sin = crate::scene::engine_tables_store::sine(angle as usize).bits();
         let cos = crate::scene::engine_tables_store::cosine(angle as usize).bits();
@@ -68,7 +70,7 @@ pub fn draw_turned_sprite(
             v.y.set_bits(sq[6 + n]);
         }
         for (n, v) in sq[2..6].iter().enumerate() {
-            crate::effects::owner::effects().frame.draw_work.sprite_half[n].set_bits(*v);
+            effects.frame.draw_work.sprite_half[n].set_bits(*v);
         }
         if clip_quad()? {
             return Ok(());

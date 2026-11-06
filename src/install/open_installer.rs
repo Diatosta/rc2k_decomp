@@ -15,6 +15,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
@@ -43,6 +44,7 @@ fn read<const N: usize>(
 }
 
 pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let gfx = gfx();
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
@@ -81,11 +83,10 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture(&g.names.backdrop)?;
     crate::gfx::convert_picture::convert_picture_now()?;
-    crate::gfx::owner::gfx()
-        .pictures
+    gfx.pictures
         .picture
         .flags
-        .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
+        .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;
     draw_string(0x94, FONT_94.game_ptr(), 0x316, 0x2F)?;
     draw_string(0x1000, FONT_1000.game_ptr(), 0x320, 0x24B)?;

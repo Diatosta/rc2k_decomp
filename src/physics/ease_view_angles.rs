@@ -18,6 +18,7 @@ use crate::physics::camera_view::{record, share_done};
 use crate::physics::car_store::CAR;
 use crate::race::owner_course::Course;
 use crate::race::tables_store::RACE_TABLES;
+use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> {
@@ -30,7 +31,7 @@ pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> 
         x87_1(course, rate.get());
         to.set(
             to.get()
-                .wrapping_add(crate::scene::owner::scene().drawing.scene.scratch.get() << 16),
+                .wrapping_add(scene().drawing.scene.scratch.get() << 16),
         );
     }
     Ok(())
@@ -48,11 +49,7 @@ fn x87_1(course: &Course, rate: u32) {
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.k65536.bits());
     let t4 = t2 * t3;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .scratch
-        .set_bits(to_int(t4) as u32);
+    scene().drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

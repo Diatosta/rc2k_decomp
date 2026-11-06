@@ -4,6 +4,8 @@
 //! is 1 more than a multiple of 4 in the image; here its dwords are aligned from the
 //! first.
 
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::session::{Bytes, Dword, Float};
 
 /// The rain's variables (IDA 0x8BC405 .. 0x8BDE55, the image's layout; phase 7, typed state).
@@ -368,15 +370,15 @@ pub mod tests {
 
     #[test]
     fn the_rain_starts_as_the_games() {
+        let weather = &effects().weather;
         assert_eq!(size_of::<RainState>(), RainState::LEN);
         assert_eq!(size_of::<RainRules>(), RainRules::LEN);
         assert!(
-            bytes(&crate::effects::owner::effects().weather.rain)
-                == crate::moved::image_bytes(RainState::START, RainState::LEN),
+            bytes(&weather.rain) == crate::moved::image_bytes(RainState::START, RainState::LEN),
             "RAIN starts differently from the image"
         );
         assert!(
-            bytes(&crate::effects::owner::effects().weather.rain_rules)
+            bytes(&weather.rain_rules)
                 == crate::moved::image_bytes(RainRules::START, RainRules::LEN),
             "RAIN_RULES starts differently from the image"
         );

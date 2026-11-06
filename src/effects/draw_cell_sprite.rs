@@ -32,23 +32,19 @@ const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
 fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(
-        frame,
-        p,
-        &ring.work,
-        &crate::effects::owner::effects().frame.draw_work,
-    );
+    turn_x87(frame, p, &ring.work, &effects().frame.draw_work);
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
 /// between the x87 steps): the square, turned, about the projected place. Gives what the
 /// original loads into edi at +0x17B: `flt_8EB8C1` between its two stores.
 fn square(k: u32, angle: u32) -> u32 {
+    let effects = effects();
     square_x87(
         k as usize,
         angle as usize,
-        &crate::effects::owner::effects().frame.draw_work,
-        &crate::effects::owner::effects().blocks.corner_slopes,
+        &effects.frame.draw_work,
+        &effects.blocks.corner_slopes,
     )
 }
 
@@ -69,6 +65,7 @@ pub fn draw_cell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
+    let effects = effects();
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
@@ -80,12 +77,11 @@ pub fn draw_cell_sprite(
     }
     // The fog's and the clip's refusals, before anything.
     fog_at(0)?;
-    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
+    if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(frame, ring, &place);
-    if crate::effects::owner::effects().frame.draw_work.turned[2].bits() as i32
-        <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32
+    if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
     {
         return Ok(());
     }
@@ -95,7 +91,7 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);
     }
-    crate::effects::owner::effects().frame.draw_work.sprite_half[0].set_bits(size);
+    effects.frame.draw_work.sprite_half[0].set_bits(size);
     let at = cell << 4;
     let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
@@ -121,6 +117,7 @@ pub fn draw_cell_sprite(
 
 use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::DrawWork;
+use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::{cosine, sine};

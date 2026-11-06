@@ -17,6 +17,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
+use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The switches and the scratch: the game's or a test's.
@@ -38,7 +39,7 @@ impl SettlePlaces {
             first: &CAR.front_wheels_off,
             second: &CAR.rear_wheels_off,
             fast: &CAR.brake,
-            scratch: &crate::scene::owner::scene().drawing.scene.scratch,
+            scratch: &scene().drawing.scene.scratch,
         }
     }
 }

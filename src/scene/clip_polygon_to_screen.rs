@@ -17,6 +17,7 @@
 use crate::errors::BadInput;
 use crate::race::owner::race;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
+use crate::scene::owner::scene;
 use crate::session::Float;
 
 // ---- game data ----
@@ -25,13 +26,14 @@ use crate::session::Float;
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
+    let drawing = &scene().drawing;
     let entries = listed_with_records()?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
-        edge(&crate::scene::owner::scene().drawing.scene.clip_screen[2]),
-        edge(&crate::scene::owner::scene().drawing.scene.clip_screen[3]),
-        edge(&crate::scene::owner::scene().drawing.scene.clip_screen[0]),
-        edge(&crate::scene::owner::scene().drawing.scene.clip_screen[1]),
+        edge(&drawing.scene.clip_screen[2]),
+        edge(&drawing.scene.clip_screen[3]),
+        edge(&drawing.scene.clip_screen[0]),
+        edge(&drawing.scene.clip_screen[1]),
     );
     let mut mask = 0;
     for entry in &entries {
@@ -53,54 +55,25 @@ fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
 }
 
 pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
+    let drawing = &scene().drawing;
     let course = &race().course;
     let (entries, mask) = outside_mask()?;
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .screen_clipped
-        .set_bits(1u32);
+    drawing.scene.screen_clipped.set_bits(1u32);
     if mask == 0 {
         return Ok(());
     }
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_clip_mask
-        .set_bits(mask);
+    drawing.scene.polygon_clip_mask.set_bits(mask);
     or_undone(|| {
         let mut listed = Some(entries);
         for (bit, edge, inside_past) in [
-            (
-                1,
-                Edge::X(crate::scene::owner::scene().drawing.scene.clip_screen[2].bits()),
-                true,
-            ),
-            (
-                2,
-                Edge::X(crate::scene::owner::scene().drawing.scene.clip_screen[3].bits()),
-                false,
-            ),
-            (
-                4,
-                Edge::Y(crate::scene::owner::scene().drawing.scene.clip_screen[0].bits()),
-                true,
-            ),
-            (
-                8,
-                Edge::Y(crate::scene::owner::scene().drawing.scene.clip_screen[1].bits()),
-                false,
-            ),
+            (1, Edge::X(drawing.scene.clip_screen[2].bits()), true),
+            (2, Edge::X(drawing.scene.clip_screen[3].bits()), false),
+            (4, Edge::Y(drawing.scene.clip_screen[0].bits()), true),
+            (8, Edge::Y(drawing.scene.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
                 listed = clip_pass(course, listed, edge, inside_past, mask)?;
-                if crate::scene::owner::scene()
-                    .drawing
-                    .scene
-                    .polygon_vertex_count
-                    .bits()
-                    < 3
-                {
+                if drawing.scene.polygon_vertex_count.bits() < 3 {
                     break;
                 }
             }

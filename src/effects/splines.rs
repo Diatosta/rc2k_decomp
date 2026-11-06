@@ -4,6 +4,7 @@
 //! object's faces of one kind, centred, turned, graded by height and ordered. These are the
 //! leaves; every function takes the record in ebp.
 
+use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -132,7 +133,7 @@ mod spline_handle_tests {
 
     #[test]
     fn a_record_reads_on_into_the_next_table_and_not_past_the_last() {
-        let paths = &crate::effects::owner::effects().paths;
+        let paths = &effects().paths;
         let last_of_a = Spline::record(0, 7);
         assert_eq!(
             last_of_a.get(paths, SPLINE_LEN).unwrap(),
@@ -637,11 +638,7 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
     }
-    let kind: u32 = crate::effects::owner::effects()
-        .kinds
-        .marks_kind
-        .kind
-        .bits();
+    let kind: u32 = effects().kinds.marks_kind.kind.bits();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }

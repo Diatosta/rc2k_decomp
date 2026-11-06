@@ -8,6 +8,7 @@ use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
+use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
 use std::marker::PhantomData;
@@ -185,12 +186,13 @@ fn font_of(f: impl GameFont) -> GamePtr {
 
 /// Where a clip edge is kept.
 fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::Dword {
+    let drawing = &gfx().drawing;
     use rc2k_core::screens::screen::Edge;
     match edge {
-        Edge::Left => &crate::gfx::owner::gfx().drawing.blit.clip.left,
-        Edge::Right => &crate::gfx::owner::gfx().drawing.blit.clip.right,
-        Edge::Top => &crate::gfx::owner::gfx().drawing.blit.clip.top,
-        Edge::Bottom => &crate::gfx::owner::gfx().drawing.blit.clip.bottom,
+        Edge::Left => &drawing.blit.clip.left,
+        Edge::Right => &drawing.blit.clip.right,
+        Edge::Top => &drawing.blit.clip.top,
+        Edge::Bottom => &drawing.blit.clip.bottom,
     }
 }
 

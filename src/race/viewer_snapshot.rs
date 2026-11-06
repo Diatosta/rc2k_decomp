@@ -11,6 +11,7 @@
 //! lock and unlock (the platform's) and the writer are called directly (2026-10-23).
 
 use crate::errors::Refused;
+use crate::gfx::owner::gfx;
 use crate::race::find_snapshot_number::digits_place;
 use crate::race::owner_replay::Replay;
 
@@ -30,7 +31,7 @@ pub fn viewer_snapshot(replay: &Replay) -> Result<(), Refused> {
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
-            &crate::gfx::owner::gfx().shots,
+            &gfx().shots,
             Some(&replay.snapshot.text()),
         )?;
         crate::platform::unlock_surface();
