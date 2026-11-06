@@ -90,8 +90,11 @@ pub struct RaceCar {
     pub _gap_4c: Dword,
     /// `Player.controls_50` bytes 0x00 .. 0x24 (record +0x50 .. +0x74), one word each.
     pub controls_50: [Dword; 9],
-    /// The word after them: not taken (the record's +0x74 goes to `controls_74`).
-    pub _gap_70: Dword,
+    /// The word after them: not copied from the player's record by `race::single_rally` or
+    /// `net::take_player_settings` (the record's +0x74 goes to `controls_74`); yet
+    /// `input::set_up_device` reads it as the control word of the ninth binding (key byte
+    /// 0x5C, controls word 0x48), as the original.
+    pub unset_control: Dword,
     /// `Player.controls_50` bytes 0x24 .. 0x28 (record +0x74).
     pub controls_74: Dword,
     /// `Player.controls_50` bytes 0x28 .. 0x2C (record +0x78).
@@ -283,7 +286,7 @@ pub static RACE_STATE: RaceState = RaceState {
                     Dword::new(0),
                     Dword::new(0),
                 ],
-                _gap_70: Dword::new(0),
+                unset_control: Dword::new(0),
                 controls_74: Dword::new(0),
                 controls_78: Dword::new(0),
                 keys: Bytes::new(sparse::<12>(&[(
@@ -334,7 +337,7 @@ pub static RACE_STATE: RaceState = RaceState {
                     Dword::new(0),
                     Dword::new(0),
                 ],
-                _gap_70: Dword::new(0),
+                unset_control: Dword::new(0),
                 controls_74: Dword::new(0),
                 controls_78: Dword::new(0),
                 keys: Bytes::new(sparse::<12>(&[(

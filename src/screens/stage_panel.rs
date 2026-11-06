@@ -91,6 +91,8 @@ pub fn draw_stage_body_in(
         canvas.blit_glyph(call)?;
     }
     let entry = || -> Result<Entry, Refused> {
+        // By offset: past the pack's 36 entries the original's index reads on into what
+        // follows it (`trakpak_entry::Track`), and every field here may be reached so.
         let entry = record_entry(record)?;
         let fault = crate::menu::event_flow::Fault::default();
         let f = |o: u32| fault.read_at::<u32>(entry.offset(o), "a stage record");

@@ -23,8 +23,8 @@ use crate::race::state_store::RaceCar;
 use crate::session::Dword;
 use std::mem::offset_of;
 
-// The controls run from the car's `controller` (+0) to the key bytes (+0x54): the words 0x20
-// and 0x48 are the gaps the car's record names.
+// The controls run from the car's `controller` (+0) to the key bytes (+0x54): the word 0x20
+// is a gap no binding reads, 0x48 the word the copies from the player's record pass over.
 const _: () = assert!(offset_of!(RaceCar, controls_78) - offset_of!(RaceCar, controller) == 0x50);
 const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller) == 0x54);
 
@@ -51,7 +51,7 @@ pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused>
         &car.controls_50[6],
         &car.controls_50[7],
         &car.controls_50[8],
-        &car._gap_70,
+        &car.unset_control,
         &car.controls_74,
         &car.controls_78,
     ];
