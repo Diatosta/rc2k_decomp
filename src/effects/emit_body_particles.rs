@@ -14,6 +14,7 @@
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;
 use crate::effects::ring_store::RING_WORK;
+use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -45,9 +46,13 @@ fn prepare(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused>
 
 /// The Rust version (see the header): `record` the body's record (the original's edi),
 /// `object` the car's object (esi).
-pub fn emit_body_particles(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_body_particles(
+    particles: &Particles,
+    record: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
         prepare(record, object)?;
-        emit(Table::Body, record.kind.get(), record, object)
+        emit(particles, Table::Body, record.kind.get(), record, object)
     }
 }

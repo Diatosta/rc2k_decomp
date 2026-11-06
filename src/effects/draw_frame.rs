@@ -16,6 +16,7 @@
 
 use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::frame_state::{DRAW_FRAME, VIEW_VARS};
+use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -41,7 +42,7 @@ fn rdtsc() -> u32 {
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
-pub fn draw_frame() -> Result<(), Refused> {
+pub fn draw_frame(particles: &Particles) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
     let info: u32 = COURSE_LISTS.course_info.bits();
     if info == 0 {
@@ -66,7 +67,7 @@ pub fn draw_frame() -> Result<(), Refused> {
     MARKS_WORK.sound_source.set(source);
     MARKS_WORK.sound_zero.set(0);
     VIEW_VARS.cleared.set(0);
-    cars_particles::cars_particles()?;
+    cars_particles::cars_particles(particles)?;
     view_heading::view_heading();
     view_motion::view_motion()?;
     let start = rdtsc();

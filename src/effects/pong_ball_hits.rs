@@ -12,37 +12,37 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::pong::{self, PONG, PONG_RULES, PongRules, PongState};
+use crate::effects::pong::{self, Pong, PongRules, PongState};
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
-fn centres() {
-    centres_x87(&PONG, &PONG_RULES);
+fn centres(pong: &Pong) {
+    centres_x87(&pong.state, &pong.rules);
 }
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
-fn new_way() {
-    new_way_x87(&PONG, &PONG_RULES, MARKS_FLOATS.one.bits());
+fn new_way(pong: &Pong) {
+    new_way_x87(&pong.state, &pong.rules, MARKS_FLOATS.one.bits());
 }
 
 /// The Rust version (see the header).
-pub fn pong_ball_hits() {
-    let (over, _) = pong::overlap();
+pub fn pong_ball_hits(pong: &Pong) {
+    let (over, _) = pong::overlap(pong);
     if !over {
         return;
     }
-    let p = &PONG;
+    let p = &pong.state;
     p.hits.set(p.hits.get().wrapping_add(1));
     p.steps.set(p.steps.get().wrapping_add(4));
     for n in 0..2 {
         p.ball[n].set_bits(x87::sub(p.ball[n].bits(), p.ball_way[n].bits()));
     }
-    centres();
+    centres(pong);
     if p.difference[0].bits() == 0 {
-        p.difference[0].set_bits(x87::sub(p.difference[0].bits(), PONG_RULES.nudge.bits()));
+        p.difference[0].set_bits(x87::sub(p.difference[0].bits(), pong.rules.nudge.bits()));
     }
-    new_way();
+    new_way(pong);
     p.ball_way[0].set_bits(p.difference[0].bits());
     p.ball_way[1].set_bits(p.difference[1].bits());
 }

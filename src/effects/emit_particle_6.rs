@@ -19,6 +19,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::ring_entries::field;
+use crate::effects::run_particles::Particles;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
@@ -52,7 +53,11 @@ const MOTION: [[(&Float, Speed); 3]; 3] = [
 ];
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
         let flags = wheel.flags.get();
         if flags & 0xC0 == 0 {
@@ -63,7 +68,7 @@ fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'stat
             object,
             &wheel.speed_c,
             &wheel.speed_18,
-            &KIND6_SET.rate_k,
+            &particles.kind6_set.rate_k,
         )?
         .passes
             || next_entry()?.is_none()
@@ -83,9 +88,13 @@ fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'stat
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_6(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(wheel, object)? {
+        if let Some(why) = refusal(particles, wheel, object)? {
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
@@ -98,7 +107,7 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
             object,
             &wheel.speed_c,
             &wheel.speed_18,
-            &KIND6_SET.rate_k,
+            &particles.kind6_set.rate_k,
         )?;
         RING_WORK.rate.set(g.rate as u32);
         if let Some(count) = g.count {
@@ -111,7 +120,7 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
         let m = car.whole()?;
-        let r = next_c5(&KIND6_SET.side_random);
+        let r = next_c5(&particles.kind6_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);
         EMITTER.sides[1].set(b as u32);
@@ -131,7 +140,7 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         put(field::PLACE_Y, rounded(place[1]))?;
         put(
             field::GROUND_Y,
-            x87::ext_less(place[1], KIND6_SET.lift.bits()),
+            x87::ext_less(place[1], particles.kind6_set.lift.bits()),
         )?;
         put(field::PLACE_X, rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|a| {
@@ -142,7 +151,7 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
                         [
                             f.bits(),
                             s(wheel).bits(),
-                            KIND6_SET.motion_k[3 * a + n].bits(),
+                            particles.kind6_set.motion_k[3 * a + n].bits(),
                         ]
                     })
                 })?)
@@ -151,7 +160,7 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         put(field::MOTION_Z, motion[2])?;
         put(field::MOTION_Y, motion[1])?;
         put(field::MOTION_X, motion[0])?;
-        let r = next_c5(&KIND6_SET.spin_random);
+        let r = next_c5(&particles.kind6_set.spin_random);
         put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
         put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
         put(field::CELL, flags & 0x3F)?;
@@ -173,8 +182,8 @@ pub fn emit_particle_6(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
             field::SIZE,
             x87::int_times_plus(
                 size as i32,
-                KIND6_SET.size_k[0].bits(),
-                KIND6_SET.size_k[1].bits(),
+                particles.kind6_set.size_k[0].bits(),
+                particles.kind6_set.size_k[1].bits(),
             ),
         )?;
     }
@@ -199,30 +208,34 @@ pub struct Kind6Set {
     pub size_k: [Float; 2],
 }
 
-/// Kind6Set's first values.
-pub static KIND6_SET: Kind6Set = Kind6Set {
-    rate_k: [
-        Float::from_bits(0x4282AC08),
-        Float::from_bits(0x3951B717),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x48400000),
-    ],
-    side_random: Dword::new(0x0),
-    lift: Float::from_bits(0x47800000),
-    motion_k: [
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0xC2449BA6),
-        Float::from_bits(0x41D1374C),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0xC2449BA6),
-        Float::from_bits(0x41D1374C),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0xC2449BA6),
-        Float::from_bits(0x41D1374C),
-    ],
-    spin_random: Dword::new(0x0),
-    size_k: [Float::from_bits(0x3E99999A), Float::from_bits(0x46000000)],
-};
+impl Kind6Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind6Set {
+            rate_k: [
+                Float::from_bits(0x4282AC08),
+                Float::from_bits(0x3951B717),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x48400000),
+            ],
+            side_random: Dword::new(0x0),
+            lift: Float::from_bits(0x47800000),
+            motion_k: [
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0xC2449BA6),
+                Float::from_bits(0x41D1374C),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0xC2449BA6),
+                Float::from_bits(0x41D1374C),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0xC2449BA6),
+                Float::from_bits(0x41D1374C),
+            ],
+            spin_random: Dword::new(0x0),
+            size_k: [Float::from_bits(0x3E99999A), Float::from_bits(0x46000000)],
+        }
+    }
+}
 
 impl Kind6Set {
     pub const START: usize = 0x93A41A;
@@ -245,7 +258,8 @@ mod kind6_set_tests {
     fn kind6_set_starts_as_the_games() {
         assert_eq!(size_of::<Kind6Set>(), Kind6Set::LEN);
         assert!(
-            bytes(&KIND6_SET) == crate::moved::image_bytes(Kind6Set::START, Kind6Set::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind6_set)
+                == crate::moved::image_bytes(Kind6Set::START, Kind6Set::LEN),
             "KIND6_SET starts differently from the image"
         );
         assert_eq!(offset_of!(Kind6Set, rate_k), 0x93A41A - Kind6Set::START);

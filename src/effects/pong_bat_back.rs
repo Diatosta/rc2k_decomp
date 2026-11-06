@@ -10,13 +10,14 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::pong::{self, PONG};
+use crate::effects::pong::{self, Pong};
 
 /// The Rust version (see the header).
-pub fn pong_bat_back() {
-    let (over, _) = pong::overlap();
+pub fn pong_bat_back(pong: &Pong) {
+    let (over, _) = pong::overlap(pong);
     if over {
-        PONG.bat[0].set_bits(PONG.saved_bat[0].get());
-        PONG.bat[1].set_bits(PONG.saved_bat[1].get());
+        let p = &pong.state;
+        p.bat[0].set_bits(p.saved_bat[0].get());
+        p.bat[1].set_bits(p.saved_bat[1].get());
     }
 }

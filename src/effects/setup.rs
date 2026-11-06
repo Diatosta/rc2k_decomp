@@ -2,7 +2,7 @@
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
-use crate::effects::snow::{SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS};
+use crate::effects::rain::Weather;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -84,16 +84,16 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// `effects::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
-pub fn seed_noise() {
+pub fn seed_noise(weather: &Weather) {
     // Converted: `rc2k_core::effects::noise::seed_noise`.
     let (tables, seed) = rc2k_core::effects::noise::seed_noise(MARKS_WORK.seed.get());
-    for (table, values) in crate::effects::rain::RAIN.noise.iter().zip(tables) {
+    for (table, values) in weather.rain.noise.iter().zip(tables) {
         for (cell, v) in table.iter().zip(values) {
             cell.set(v);
         }
     }
     MARKS_WORK.seed.set(seed);
-    crate::effects::rain::RAIN.drawn.set(0);
+    weather.rain.drawn.set(0);
 }
 
 /// `effects::make_wave_tables` (0x4C4E2F): once (`g_marksWaveDone` 0): the 0x11 levels,
@@ -191,13 +191,17 @@ pub const CURVE_RECORDS: u32 = 0x20;
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
-pub fn make_noise_curve() -> Result<(), Refused> {
+pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
-    let divisors = SNOW_LIGHT.divisors.each_ref().map(|d| d.get() as i32);
+    let divisors = weather
+        .snow_light
+        .divisors
+        .each_ref()
+        .map(|d| d.get() as i32);
     if !divisors.into_iter().all(core::divisor_fits) {
         return Err(BadInput("a remainder's divisor is 0, 1 or -1: idiv traps").into());
     }
-    for (cell, v) in SNOW_VARS.curve_vars.iter().zip([
+    for (cell, v) in weather.snow_vars.curve_vars.iter().zip([
         0u32,
         core::LEAST_STEP as u32,
         core::MOST_STEP as u32,
@@ -207,18 +211,22 @@ pub fn make_noise_curve() -> Result<(), Refused> {
         cell.set(v);
     }
     // The roundings follow the x87's control word: the x87's.
-    let (scale, damp) = (SNOW_LIGHT.curve_scale.bits(), SNOW_LIGHT.curve_damp.bits());
+    let (scale, damp) = (
+        weather.snow_light.curve_scale.bits(),
+        weather.snow_light.curve_damp.bits(),
+    );
     let w = core::walk(
-        SNOW_VARS.curve_vars[5].get(),
+        weather.snow_vars.curve_vars[5].get(),
         |v| x87::int_times_to_int(v, scale),
         |v| x87::int_times_to_int(v, damp),
     );
-    SNOW_VARS.curve_vars[5].set(w.sum as u32);
-    SNOW_VARS.curve_vars[0].set(w.value as u32);
-    SNOW_VARS.curve_vars[4].set(w.step as u32);
+    weather.snow_vars.curve_vars[5].set(w.sum as u32);
+    weather.snow_vars.curve_vars[0].set(w.value as u32);
+    weather.snow_vars.curve_vars[4].set(w.step as u32);
     let mut curve = w.curve;
     let mut copy = vec![0; CURVE_LEN as usize];
-    let weights = SNOW_LIGHT
+    let weights = weather
+        .snow_light
         .smooth_weights
         .each_ref()
         .map(super::super::session::Float::bits);
@@ -227,29 +235,34 @@ pub fn make_noise_curve() -> Result<(), Refused> {
             x87::weighted3_to_int(a, b, c, weights[0], weights[1], weights[2])
         });
     }
-    for (cell, v) in SNOW_CURVE.curve.iter().zip(&curve) {
+    for (cell, v) in weather.snow_curve.curve.iter().zip(&curve) {
         cell.set(*v as u32);
     }
-    for (cell, v) in SNOW_CURVE.copy.iter().zip(&copy) {
+    for (cell, v) in weather.snow_curve.copy.iter().zip(&copy) {
         cell.set(*v as u32);
     }
-    let mut copy: Vec<i32> = SNOW_CURVE.copy.iter().map(|c| c.get() as i32).collect();
+    let mut copy: Vec<i32> = weather
+        .snow_curve
+        .copy
+        .iter()
+        .map(|c| c.get() as i32)
+        .collect();
     let (last, first) = (copy[0xFFF], copy[0]);
     x87::ramp_down(
         &mut copy[..0xFFE],
         last,
         first,
-        SNOW_LIGHT.ramp_by.get() as i32,
+        weather.snow_light.ramp_by.get() as i32,
     );
-    for (cell, &v) in SNOW_CURVE.copy.iter().zip(&copy) {
+    for (cell, &v) in weather.snow_curve.copy.iter().zip(&copy) {
         cell.set(v as u32);
     }
     let (spread_scale, spread_base): (u32, u32) = (
-        SNOW_LIGHT.spread_scale.bits(),
-        SNOW_LIGHT.spread_base.bits(),
+        weather.snow_light.spread_scale.bits(),
+        weather.snow_light.spread_base.bits(),
     );
     let t = core::random_tables(w.seed, divisors);
-    for (cells, table) in SNOW_TABLES.randoms.iter().zip(&t.randoms) {
+    for (cells, table) in weather.snow_tables.randoms.iter().zip(&t.randoms) {
         for (cell, v) in cells.iter().zip(table) {
             cell.set(*v);
         }
@@ -257,33 +270,37 @@ pub fn make_noise_curve() -> Result<(), Refused> {
     let spread = t
         .threes
         .map(|three| x87::int_times_plus(three, spread_scale, spread_base));
-    for (cell, v) in SNOW_TABLES.spreads.iter().zip(spread) {
+    for (cell, v) in weather.snow_tables.spreads.iter().zip(spread) {
         cell.set_bits(v);
     }
-    for (cells, table) in SNOW_TABLES.remainders.iter().zip(&t.remainders) {
+    for (cells, table) in weather.snow_tables.remainders.iter().zip(&t.remainders) {
         for (cell, v) in cells.iter().zip(table) {
             cell.set(*v);
         }
     }
     MARKS_WORK.seed.set(t.seed);
-    SNOW.flag.set(0);
-    let values = SNOW_LIGHT
+    weather.snow.flag.set(0);
+    let values = weather
+        .snow_light
         .record_values
         .each_ref()
         .map(super::super::session::Float::bits);
     let layout = core::record_values(values);
     for n in 0..CURVE_RECORDS as usize {
         for &(o, v) in &layout {
-            SNOW_VARS.records[n][o as usize / 4].set(v);
+            weather.snow_vars.records[n][o as usize / 4].set(v);
         }
     }
-    let first = x87::loaded(SNOW_LIGHT.quad_first.bits());
-    for cell in &SNOW.quad_a {
+    let first = x87::loaded(weather.snow_light.quad_first.bits());
+    for cell in &weather.snow.quad_a {
         cell.set_bits(first);
     }
     // The view's centre (`dword_62409C`, `dword_6240A0`).
     let centre = &crate::scene::draw_store::DRAW.view_centre;
-    for (quad, from) in [(&SNOW.quad_b, &centre[0]), (&SNOW.quad_c, &centre[1])] {
+    for (quad, from) in [
+        (&weather.snow.quad_b, &centre[0]),
+        (&weather.snow.quad_c, &centre[1]),
+    ] {
         let v: u32 = from.bits();
         for cell in quad {
             cell.set_bits(v);

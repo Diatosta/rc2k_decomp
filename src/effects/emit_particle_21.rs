@@ -20,6 +20,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::ring_entries::field;
+use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -32,9 +33,10 @@ const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 
 /// The rate, from the wheel's +0xC.
-fn rate(wheel: &MarkRecord) -> Result<i32, Refused> {
+fn rate(particles: &Particles, wheel: &MarkRecord) -> Result<i32, Refused> {
     Ok({
-        let [k1, k2, k3, k4] = KIND21_SET
+        let [k1, k2, k3, k4] = particles
+            .kind21_set
             .rate_k
             .each_ref()
             .map(super::super::session::Float::bits);
@@ -50,9 +52,13 @@ fn rate(wheel: &MarkRecord) -> Result<i32, Refused> {
 }
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if !gate_with(wheel, object, rate(wheel)?)?.passes {
+        if !gate_with(wheel, object, rate(particles, wheel)?)?.passes {
             return Ok(None);
         }
         // The ring full: nothing more is read.
@@ -65,12 +71,16 @@ fn refusal(wheel: &MarkRecord, object: &'static MarkCar) -> Result<Option<&'stat
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_21(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(wheel, object)? {
+        if let Some(why) = refusal(particles, wheel, object)? {
             return Err(BadInput(why).into());
         }
-        let g = gate_with(wheel, object, rate(wheel)?)?;
+        let g = gate_with(wheel, object, rate(particles, wheel)?)?;
         RING_WORK.rate.set(g.rate as u32);
         if let Some(count) = g.count {
             wheel.pace.set(count);
@@ -82,7 +92,7 @@ pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
         let m = car.whole()?;
-        let r = next_c5(&KIND21_SET.side_random);
+        let r = next_c5(&particles.kind21_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);
         EMITTER.sides[0].set(a as u32);
         EMITTER.sides[1].set(b as u32);
@@ -100,7 +110,7 @@ pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<
         put(field::PLACE_Y, rounded(place[1]))?;
         put(
             field::GROUND_Y,
-            x87::ext_less(place[1], KIND21_SET.lift.bits()),
+            x87::ext_less(place[1], particles.kind21_set.lift.bits()),
         )?;
         put(field::PLACE_X, rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
@@ -108,7 +118,7 @@ pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<
                 matrix_cell(m, 4 * k as u32)?,
                 matrix_cell(m, 0x20 + 4 * k as u32)?,
             );
-            let f = [0, 1, 2].map(|i| KIND21_SET.motion_k[3 * k + i].bits());
+            let f = [0, 1, 2].map(|i| particles.kind21_set.motion_k[3 * k + i].bits());
             Ok(x87::three_products([
                 [first, wheel.speed_10.bits(), f[0]],
                 [third, wheel.speed_18.bits(), f[1]],
@@ -118,7 +128,7 @@ pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<
         put(field::MOTION_Z, motion[2])?;
         put(field::MOTION_Y, motion[1])?;
         put(field::MOTION_X, motion[0])?;
-        let r = next_c5(&KIND21_SET.spin_random);
+        let r = next_c5(&particles.kind21_set.spin_random);
         put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
         put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
         put(field::CELL, LOOK)?;
@@ -137,7 +147,7 @@ pub fn emit_particle_21(wheel: &MarkRecord, object: &'static MarkCar) -> Result<
         put(0x6C, car.word(0x88)?)?;
         put(
             field::SIZE,
-            x87::int_times(size as i32, KIND21_SET.size_k.bits()),
+            x87::int_times(size as i32, particles.kind21_set.size_k.bits()),
         )?;
     }
     Ok(())
@@ -163,37 +173,41 @@ pub struct Kind21Set {
     pub _gap_93a356: Bytes<68>,
 }
 
-/// Kind21Set's first values.
-pub static KIND21_SET: Kind21Set = Kind21Set {
-    rate_k: [
-        Float::from_bits(0x4282AC08),
-        Float::from_bits(0x37A7C5AC),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x48400000),
-    ],
-    side_random: Dword::new(0x0),
-    lift: Float::from_bits(0x47800000),
-    motion_k: [
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0xC2449BA6),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0xC2449BA6),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0xC2449BA6),
-    ],
-    spin_random: Dword::new(0x0),
-    size_k: Float::from_bits(0x3E4CCCCD),
-    _gap_93a356: Bytes::new([
-        0x0A, 0xD7, 0x23, 0x45, 0x17, 0xB7, 0x51, 0x39, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x40,
-        0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B,
-        0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B, 0x44, 0x42, 0x4C,
-        0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B, 0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1,
-        0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E,
-    ]),
-};
+impl Kind21Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind21Set {
+            rate_k: [
+                Float::from_bits(0x4282AC08),
+                Float::from_bits(0x37A7C5AC),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x48400000),
+            ],
+            side_random: Dword::new(0x0),
+            lift: Float::from_bits(0x47800000),
+            motion_k: [
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0xC2449BA6),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0xC2449BA6),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0xC2449BA6),
+            ],
+            spin_random: Dword::new(0x0),
+            size_k: Float::from_bits(0x3E4CCCCD),
+            _gap_93a356: Bytes::new([
+                0x0A, 0xD7, 0x23, 0x45, 0x17, 0xB7, 0x51, 0x39, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x40, 0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x47, 0x6F, 0x12, 0x83, 0x42,
+                0xA6, 0x9B, 0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B,
+                0x44, 0x42, 0x4C, 0x37, 0x99, 0xC1, 0x6F, 0x12, 0x83, 0x42, 0xA6, 0x9B, 0x44, 0x42,
+                0x4C, 0x37, 0x99, 0xC1, 0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0x4C, 0x3E,
+            ]),
+        }
+    }
+}
 
 impl Kind21Set {
     pub const START: usize = 0x93A312;
@@ -216,7 +230,8 @@ mod kind21_set_tests {
     fn kind21_set_starts_as_the_games() {
         assert_eq!(size_of::<Kind21Set>(), Kind21Set::LEN);
         assert!(
-            bytes(&KIND21_SET) == crate::moved::image_bytes(Kind21Set::START, Kind21Set::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind21_set)
+                == crate::moved::image_bytes(Kind21Set::START, Kind21Set::LEN),
             "KIND21_SET starts differently from the image"
         );
         assert_eq!(offset_of!(Kind21Set, rate_k), 0x93A312 - Kind21Set::START);

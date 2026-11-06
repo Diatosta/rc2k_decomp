@@ -49,7 +49,10 @@ fn frame_facing(fl: &WindscreenFlakes) {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_frame(fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn windscreen_flakes_frame(
+    pong: &crate::effects::pong::Pong,
+    fl: &WindscreenFlakes,
+) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     frame_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
@@ -66,7 +69,7 @@ pub fn windscreen_flakes_frame(fl: &WindscreenFlakes) -> Result<(), Refused> {
     if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    crate::effects::run_pong::run_pong(fl)?;
+    crate::effects::run_pong::run_pong(pong, fl)?;
     if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }

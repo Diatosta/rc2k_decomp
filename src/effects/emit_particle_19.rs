@@ -22,6 +22,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_entries::field;
+use crate::effects::run_particles::Particles;
 use crate::effects::setup::CLOCK;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -47,7 +48,7 @@ pub static NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
     level_at: 0x4C0,
     flags: 0x3E,
-    tuning: &NINETEENTH_TUNING,
+    tuning: &crate::effects::owner::EFFECTS.particles.nineteenth_tuning,
 };
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
@@ -82,24 +83,28 @@ pub fn refusal(set: &TwinSet, object: &'static MarkCar) -> Result<Option<&'stati
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_19(object: &'static MarkCar) -> Result<(), Refused> {
-    emit_twin(&NINETEENTH, object)
+pub fn emit_particle_19(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
+    emit_twin(particles, &NINETEENTH, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_twin(
+    particles: &Particles,
+    set: &TwinSet,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     if let Some(why) = refusal(set, object)? {
         return Err(BadInput(why).into());
     }
     let level = object.word(set.level_at)?;
-    TWIN_STATE.level.set(level);
+    particles.twin_state.level.set(level);
     let r = next_c5(&set.tuning.chance_random);
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
     SURFACE.wheel_flags.set(set.flags);
     let motion = [object.word(0x4C)?, object.word(0x50)?, object.word(0x54)?];
-    crate::session::write_bits(&TWIN_STATE.motion, motion);
+    crate::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry()?.is_none() {
         return Ok(());
     }
@@ -108,7 +113,7 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
     let car = emitting_car()?;
     let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
-        crate::session::read_bits(&TWIN_STATE.point),
+        crate::session::read_bits(&particles.twin_state.point),
         set.tuning.lift.bits(),
         car.whole()?,
     );
@@ -167,17 +172,21 @@ pub struct TwinState {
     pub _gap_93a1d2: Bytes<4>,
 }
 
-/// TwinState's first values.
-pub static TWIN_STATE: TwinState = TwinState {
-    point: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x46000000),
-        Float::from_bits(0x47C56800),
-    ],
-    motion: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    level: Dword::new(0x0),
-    _gap_93a1d2: Bytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
-};
+impl TwinState {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        TwinState {
+            point: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x46000000),
+                Float::from_bits(0x47C56800),
+            ],
+            motion: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            level: Dword::new(0x0),
+            _gap_93a1d2: Bytes::new([0x0A, 0xD7, 0xA3, 0x3B]),
+        }
+    }
+}
 
 impl TwinState {
     pub const START: usize = 0x93A1B6;
@@ -200,7 +209,8 @@ mod twin_state_tests {
     fn twin_state_starts_as_the_games() {
         assert_eq!(size_of::<TwinState>(), TwinState::LEN);
         assert!(
-            bytes(&TWIN_STATE) == crate::moved::image_bytes(TwinState::START, TwinState::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.twin_state)
+                == crate::moved::image_bytes(TwinState::START, TwinState::LEN),
             "TWIN_STATE starts differently from the image"
         );
         assert_eq!(offset_of!(TwinState, point), 0x93A1B6 - TwinState::START);
@@ -227,23 +237,27 @@ pub struct TwinTuning {
     pub spin_random: Dword,
 }
 
-/// One twin car emitter's variables (`emit_particle_19`'s at 0x93A48A, `emit_particle_22`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
-pub static NINETEENTH_TUNING: TwinTuning = TwinTuning {
-    chance_random: Dword::new(0x0),
-    lift: Float::from_bits(0x47800000),
-    row_k: [
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x43800000),
-    ],
-    spread: Float::from_bits(0x43000000),
-    motion_k: [
-        Float::from_bits(0x3F4CCCCD),
-        Float::from_bits(0x3F4CCCCD),
-        Float::from_bits(0x3F4CCCCD),
-    ],
-    spin_random: Dword::new(0x0),
-};
+impl TwinTuning {
+    /// The values the game starts with (the image's bytes).
+    pub const fn nineteenth() -> Self {
+        TwinTuning {
+            chance_random: Dword::new(0x0),
+            lift: Float::from_bits(0x47800000),
+            row_k: [
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x43800000),
+            ],
+            spread: Float::from_bits(0x43000000),
+            motion_k: [
+                Float::from_bits(0x3F4CCCCD),
+                Float::from_bits(0x3F4CCCCD),
+                Float::from_bits(0x3F4CCCCD),
+            ],
+            spin_random: Dword::new(0x0),
+        }
+    }
+}
 
 impl TwinTuning {
     pub const LEN: usize = 0x28;
@@ -273,7 +287,7 @@ mod nineteenth_tuning_tests {
     fn nineteenth_tuning_starts_as_the_games() {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
-            bytes(&NINETEENTH_TUNING)
+            bytes(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning)
                 == crate::moved::image_bytes(NineteenthTuning::START, TwinTuning::LEN),
             "NINETEENTH_TUNING starts differently from the image"
         );

@@ -8,15 +8,15 @@
 //!
 //! One caller, `sub_4C25F6`.
 
-use crate::effects::snow::SNOW_LIGHT;
+use crate::effects::rain::Weather;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::race::frame_store::FRAME_WORK;
 const FADES: usize = 0x11;
 
 /// The Rust version (see the header).
-pub fn make_fade_colours() {
-    let l = &SNOW_LIGHT;
+pub fn make_fade_colours(weather: &Weather) {
+    let l = &weather.snow_light;
     {
         let colour: u32 = FRAME_WORK.view_light.bits();
         let inverses = [

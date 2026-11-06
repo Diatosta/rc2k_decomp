@@ -14,7 +14,7 @@
 //! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`
 //! stays the x87's).
 
-use crate::effects::rain::{RAIN, RAIN_RULES};
+use crate::effects::rain::Weather;
 use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -27,8 +27,8 @@ fn next_seed() -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn drift_offsets() {
-    let (r, k) = (&RAIN, &RAIN_RULES);
+pub fn drift_offsets(weather: &Weather) {
+    let (r, k) = (&weather.rain, &weather.rain_rules);
     {
         let since = PHYSICS.scene_clock.bits().wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {

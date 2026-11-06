@@ -27,6 +27,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_store::RING_WORK;
+use crate::effects::run_particles::Particles;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
@@ -101,7 +102,11 @@ fn refusal(wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The body at 0x4CCF71 (see the header).
-pub fn emit_particle_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_1(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
         if let Some(why) = refusal(wheel)? {
             return Err(BadInput(why).into());
@@ -137,7 +142,7 @@ pub fn emit_particle_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
         let car = emitting_car()?;
         let m = car.whole()?;
-        let side = (next_c5(&KIND1_SET.side_random) & 0x3FFF) as i32 - 0x2000;
+        let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
         MARKS_FRAME.emit_side.set_bits(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
@@ -156,7 +161,7 @@ pub fn emit_particle_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k4 = 4 * k as u32;
-                let f = [0, 1, 2].map(|i| KIND1_SET.motion_k[3 * k + i].bits());
+                let f = [0, 1, 2].map(|i| particles.kind1_set.motion_k[3 * k + i].bits());
                 x87::three_products_80([
                     [matrix_cell(m, k4)?, wheel.speed_10.bits(), f[0]],
                     [matrix_cell(m, 0x20 + k4)?, wheel.speed_18.bits(), f[1]],
@@ -165,15 +170,18 @@ pub fn emit_particle_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
             })
         })?;
         let (moved, _) = jitter_point([
-            extended(KIND1_SET.spread.bits()),
+            extended(particles.kind1_set.spread.bits()),
             motion[2],
             motion[1],
             motion[0],
         ]);
         put(0x34, rounded(moved[0]))?;
-        put(0x30, x87::add(rounded(moved[1]), KIND1_SET.lift.bits()))?;
+        put(
+            0x30,
+            x87::add(rounded(moved[1]), particles.kind1_set.lift.bits()),
+        )?;
         put(0x2C, rounded(moved[2]))?;
-        let r = next_c5(&KIND1_SET.spin_random);
+        let r = next_c5(&particles.kind1_set.spin_random);
         put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
         put(0x50, r.rotate_right(6) & 0xFFF)?;
         put(0x58, flags & 0x3F)?;
@@ -183,18 +191,25 @@ pub fn emit_particle_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(
         put(0x68, EMITTER.car.get())?;
         put(0x70, SIZE)?;
         put(0x6C, car.word(0x88)?)?;
-        put(0x60, x87::int_times(SIZE as i32, KIND1_SET.size_k.bits()))?;
+        put(
+            0x60,
+            x87::int_times(SIZE as i32, particles.kind1_set.size_k.bits()),
+        )?;
         put(0x64, 0)?;
     }
     Ok(())
 }
 
 /// The Rust version (see the header).
-pub fn emit_kind_1(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    if KIND1_CHOICE.choice.get() != 0 {
-        emit_particle_21(wheel, object)
+pub fn emit_kind_1(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    if particles.kind1_choice.choice.get() != 0 {
+        emit_particle_21(particles, wheel, object)
     } else {
-        emit_particle_1(wheel, object)
+        emit_particle_1(particles, wheel, object)
     }
 }
 
@@ -206,10 +221,14 @@ pub struct Kind1Choice {
     pub choice: Dword,
 }
 
-/// Kind1Choice's first values.
-pub static KIND1_CHOICE: Kind1Choice = Kind1Choice {
-    choice: Dword::new(0x0),
-};
+impl Kind1Choice {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind1Choice {
+            choice: Dword::new(0x0),
+        }
+    }
+}
 
 impl Kind1Choice {
     pub const START: usize = 0x93A1D6;
@@ -232,7 +251,8 @@ mod kind1_choice_tests {
     fn kind1_choice_starts_as_the_games() {
         assert_eq!(size_of::<Kind1Choice>(), Kind1Choice::LEN);
         assert!(
-            bytes(&KIND1_CHOICE) == crate::moved::image_bytes(Kind1Choice::START, Kind1Choice::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind1_choice)
+                == crate::moved::image_bytes(Kind1Choice::START, Kind1Choice::LEN),
             "KIND1_CHOICE starts differently from the image"
         );
         assert_eq!(
@@ -260,25 +280,29 @@ pub struct Kind1Set {
     pub size_k: Float,
 }
 
-/// Kind1Set's first values.
-pub static KIND1_SET: Kind1Set = Kind1Set {
-    side_random: Dword::new(0x0),
-    motion_k: [
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x41426E98),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x41426E98),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0x42449BA6),
-        Float::from_bits(0x41426E98),
-    ],
-    spread: Float::from_bits(0x42C00000),
-    lift: Float::from_bits(0x42800000),
-    spin_random: Dword::new(0x0),
-    size_k: Float::from_bits(0x3E4CCCCD),
-};
+impl Kind1Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind1Set {
+            side_random: Dword::new(0x0),
+            motion_k: [
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x41426E98),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x41426E98),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0x42449BA6),
+                Float::from_bits(0x41426E98),
+            ],
+            spread: Float::from_bits(0x42C00000),
+            lift: Float::from_bits(0x42800000),
+            spin_random: Dword::new(0x0),
+            size_k: Float::from_bits(0x3E4CCCCD),
+        }
+    }
+}
 
 impl Kind1Set {
     pub const START: usize = 0x93A39A;
@@ -301,7 +325,8 @@ mod kind1_set_tests {
     fn kind1_set_starts_as_the_games() {
         assert_eq!(size_of::<Kind1Set>(), Kind1Set::LEN);
         assert!(
-            bytes(&KIND1_SET) == crate::moved::image_bytes(Kind1Set::START, Kind1Set::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind1_set)
+                == crate::moved::image_bytes(Kind1Set::START, Kind1Set::LEN),
             "KIND1_SET starts differently from the image"
         );
         assert_eq!(

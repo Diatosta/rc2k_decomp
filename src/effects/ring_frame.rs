@@ -11,7 +11,7 @@
 //!
 //! Caller: `effects::run_frame` (0x4D160B). Refuses null settings, before anything.
 
-use crate::effects::emit_kind_1::KIND1_CHOICE;
+use crate::effects::run_particles::Particles;
 use crate::effects::surface_store::SURFACE;
 use crate::errors::Refused;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -20,7 +20,10 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `scene::depth_test_off`, `run_ring`, `run_ribbons`.
-pub fn ring_frame() -> Result<(), Refused> {
+pub fn ring_frame(
+    weather: &crate::effects::rain::Weather,
+    particles: &Particles,
+) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
         let marks = crate::effects::setup::marks()?;
@@ -32,9 +35,7 @@ pub fn ring_frame() -> Result<(), Refused> {
         // dword_939BA6: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.
         SURFACE.lives_by_level[8].set(marks.cars[0].word(0x1C)? & 0xFF_FFFF);
-        KIND1_CHOICE
-            .choice
-            .set(crate::effects::rain::RAIN.drops.get());
+        particles.kind1_choice.choice.set(weather.rain.drops.get());
         crate::effects::run_ring::run_ring()?;
         set_render_state(2, 0x14);
         crate::effects::run_ribbons::run_ribbons()?;

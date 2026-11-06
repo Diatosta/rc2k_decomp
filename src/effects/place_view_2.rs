@@ -11,13 +11,13 @@
 //! compared as `place_view`.
 
 use crate::effects::place_view::{ViewPlace, place_view_with};
-use crate::effects::snow::{SNOW, SNOW_LIGHT};
+use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 
 /// The snow's view variables.
-fn second() -> ViewPlace {
-    let (s, l) = (&SNOW, &SNOW_LIGHT);
+fn second(weather: &Weather) -> ViewPlace<'_> {
+    let (s, l) = (&weather.snow, &weather.snow_light);
     ViewPlace {
         point: &s.point,
         start_z: 0x8_0000,
@@ -30,14 +30,15 @@ fn second() -> ViewPlace {
 }
 
 /// The Rust version (see the header).
-pub fn place_view_2() -> Result<(), Refused> {
-    let second = second();
+pub fn place_view_2(weather: &Weather) -> Result<(), Refused> {
+    let second = second(weather);
+    let snow = &weather.snow;
     place_view_with(&second)?;
-    for cell in &SNOW.cleared {
+    for cell in &snow.cleared {
         cell.set(0);
     }
-    let z = x87::from_int(SNOW.point[2].get() as i32);
-    for cell in &SNOW.filled {
+    let z = x87::from_int(snow.point[2].get() as i32);
+    for cell in &snow.filled {
         cell.set_bits(z);
     }
     Ok(())

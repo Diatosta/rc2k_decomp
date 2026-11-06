@@ -12,7 +12,7 @@
 //! Callers: `effects::run_pong` (ball, bat), `effects::pong_cell`. The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
-use crate::effects::pong::{PONG, PONG_RULES, PongState};
+use crate::effects::pong::{Pong, PongState};
 use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::math::x87;
@@ -21,13 +21,13 @@ use crate::d3d::vertices_store::VERTICES;
 
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
-fn sides(fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
-    sides_x87(v, &PONG, &MARKS_FLOATS, &fl.tables);
+fn sides(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
+    sides_x87(v, &pong.state, &MARKS_FLOATS, &fl.tables);
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
-fn corners(fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
-    corners_x87(v, &PONG, &fl.tables);
+fn corners(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
+    corners_x87(v, &pong.state, &fl.tables);
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
@@ -36,9 +36,10 @@ fn projected(fl: &WindscreenFlakes) {
 }
 
 /// The Rust version (see the header).
-pub fn draw_pong_box(fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
-    sides(fl, &v);
-    let [pa, pb, pc, pd] = PONG_RULES
+pub fn draw_pong_box(pong: &Pong, fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
+    sides(pong, fl, &v);
+    let [pa, pb, pc, pd] = pong
+        .rules
         .box_places
         .each_ref()
         .map(super::super::session::Float::bits);
@@ -49,8 +50,8 @@ pub fn draw_pong_box(fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(w);
     }
-    corners(fl, &v);
-    if x87::compare_status(fl.tables.corners[0][2].bits(), PONG_RULES.near.bits()) == 0x100 {
+    corners(pong, fl, &v);
+    if x87::compare_status(fl.tables.corners[0][2].bits(), pong.rules.near.bits()) == 0x100 {
         return;
     }
     projected(fl);

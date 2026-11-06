@@ -16,6 +16,7 @@
 
 use crate::effects::emitters::*;
 use crate::effects::ring_store::RING_WORK;
+use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
@@ -53,6 +54,7 @@ pub enum Table {
 
 /// The emitters for a kind.
 pub fn emit(
+    particles: &Particles,
     table: Table,
     kind: u32,
     wheel: &MarkRecord,
@@ -60,14 +62,14 @@ pub fn emit(
 ) -> Result<(), Refused> {
     match kind {
         1 if table == Table::Body => emit_particle_18::emit_particle_18(wheel, object),
-        1 => emit_kind_1::emit_kind_1(wheel, object),
+        1 => emit_kind_1::emit_kind_1(particles, wheel, object),
         3 if table == Table::Wheel => {
             emit_bursts_2::emit_bursts_2(wheel, object)?;
-            emit_particle_6::emit_particle_6(wheel, object)
+            emit_particle_6::emit_particle_6(particles, wheel, object)
         }
         2..=4 | 6..=9 | 0xC => {
             emit_bursts::emit_bursts(wheel, object)?;
-            emit_particle_6::emit_particle_6(wheel, object)
+            emit_particle_6::emit_particle_6(particles, wheel, object)
         }
         5 => emit_particle_5::emit_particle_5(wheel, object),
         0xB => emit_particle_11::emit_particle_11(wheel, object),
@@ -77,7 +79,11 @@ pub fn emit(
 
 /// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
-pub fn emit_wheel_particles(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_wheel_particles(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
         let (chance, _) = chance(wheel)?;
         RING_WORK.whole.set(chance as u32);
@@ -85,6 +91,6 @@ pub fn emit_wheel_particles(wheel: &MarkRecord, object: &'static MarkCar) -> Res
         if copies(chance, r) {
             wheel.take_surface();
         }
-        emit(Table::Wheel, wheel.kind.get(), wheel, object)
+        emit(particles, Table::Wheel, wheel.kind.get(), wheel, object)
     }
 }

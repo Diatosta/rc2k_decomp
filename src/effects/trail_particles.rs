@@ -18,7 +18,7 @@
 use crate::effects::blocks::{RING_POOL, particle, set_particle};
 use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::run_particles::PARTICLE_TUNING;
+use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -33,7 +33,7 @@ const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14
 const LIFE: u32 = 300;
 
 /// The entries it takes, from `g_marksRingFree` along +0.
-fn entries_taken() -> Result<Vec<u32>, Refused> {
+fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = RING_POOL.used.get();
         let n = if used <= FULL {
@@ -47,7 +47,7 @@ fn entries_taken() -> Result<Vec<u32>, Refused> {
             if e == 0 {
                 break;
             }
-            e = particle(e, 0)?;
+            e = particle(particles, e, 0)?;
             out.push(e);
         }
         out
@@ -55,13 +55,13 @@ fn entries_taken() -> Result<Vec<u32>, Refused> {
 }
 
 /// The Rust version (see the header): `p` the particle it trails (esi).
-pub fn trail_particles(p: u32) -> Result<(), Refused> {
+pub fn trail_particles(particles: &Particles, p: u32) -> Result<(), Refused> {
     {
         if RING_POOL.used.get() != FULL {
             if p == 0 {
                 return Err(BadInput("a null particle").into());
             }
-            if RING_POOL.free.get() == 0 || entries_taken()?.contains(&0) {
+            if RING_POOL.free.get() == 0 || entries_taken(particles)?.contains(&0) {
                 return Err(BadInput("a null particle ring entry").into());
             }
         }
@@ -70,10 +70,10 @@ pub fn trail_particles(p: u32) -> Result<(), Refused> {
             if used == FULL {
                 continue;
             }
-            let e = particle(RING_POOL.free.get(), 0)?;
+            let e = particle(particles, RING_POOL.free.get(), 0)?;
             RING_POOL.free.set(e);
             RING_POOL.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| set_particle(e, o, v);
+            let put = |o: u32, v: u32| set_particle(particles, e, o, v);
             put(8, 4)?;
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
@@ -86,26 +86,30 @@ pub fn trail_particles(p: u32) -> Result<(), Refused> {
             for (place, last, _) in AXES {
                 put(
                     place,
-                    x87::toward(particle(p, place)?, particle(p, last)?, radius),
+                    x87::toward(
+                        particle(particles, p, place)?,
+                        particle(particles, p, last)?,
+                        radius,
+                    ),
                 )?;
             }
             for (n, (place, last, motion)) in AXES.into_iter().enumerate() {
                 put(
                     motion,
                     x87::diff_times_plus_times(
-                        particle(p, last)?,
-                        particle(p, place)?,
+                        particle(particles, p, last)?,
+                        particle(particles, p, place)?,
                         PARTICLE_TUNING.trail_axes[2 * n].bits(),
-                        particle(p, motion)?,
+                        particle(particles, p, motion)?,
                         PARTICLE_TUNING.trail_axes[2 * n + 1].bits(),
                     ),
                 )?;
             }
             let (moved, _) = jitter_point([
                 extended(PARTICLE_TUNING.trail_spread.bits()),
-                extended(particle(e, 0x34)?),
-                extended(particle(e, 0x2C)?),
-                extended(particle(e, 0x28)?),
+                extended(particle(particles, e, 0x34)?),
+                extended(particle(particles, e, 0x2C)?),
+                extended(particle(particles, e, 0x28)?),
             ]);
             put(0x34, rounded(moved[0]))?;
             put(0x2C, rounded(moved[1]))?;
@@ -116,7 +120,7 @@ pub fn trail_particles(p: u32) -> Result<(), Refused> {
                 .map(super::super::session::Float::bits);
             put(
                 0x38,
-                x87::times_plus_to_int(a, particle(p, 0x2C)?, b) as u32,
+                x87::times_plus_to_int(a, particle(particles, p, 0x2C)?, b) as u32,
             )?;
             put(0x3C, 0xFF00_0000)?;
             put(0x44, LIFE)?;

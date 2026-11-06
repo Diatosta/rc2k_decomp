@@ -80,7 +80,7 @@ pub fn tidy_marks() -> Result<(), Refused> {
         free_list(list)?;
     }
     // The particles and the masks went with their lists.
-    crate::effects::blocks::PARTICLES.give_back();
+    crate::effects::owner::effects().particles.ring.give_back();
     crate::effects::ring_entries::RING.give_back();
     crate::effects::mask_store::MASK.give_back();
     crate::effects::mask_store::BMASK.give_back();

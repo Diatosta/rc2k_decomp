@@ -3,6 +3,7 @@
 //! scaled, and the eight settings blocks reset.
 
 use crate::effects::frame_state::DRAW_WORK;
+use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::write_bits;
@@ -32,17 +33,15 @@ pub fn allocate_places() -> Result<(), Refused> {
 /// place.
 pub type Particle = [u32; (RING_ENTRY / 4) as usize];
 
-/// The particles (`g_marksRing`, the game's 0x4C000-byte block on `stru_93A580`), Rust's
+/// The particles (`Particles::ring`; `g_marksRing`, the game's 0x4C000-byte block on `stru_93A580`), Rust's
 /// since phase 12: taken by `allocate_ring`, given back by `effects::tidy_marks`. A
 /// particle is named by its number + 1 (0 none), in the links and in `RING_POOL.ring` /
 /// `free`.
-pub static PARTICLES: crate::memory::owned::Owned<Vec<Particle>> =
-    crate::memory::owned::Owned::new("no particle ring");
-
 /// The dword at `offset` of particle `p` (its number + 1); refused for none, a number past
 /// the ring or an offset past the entry.
-pub fn particle(p: u32, offset: u32) -> Result<u32, BadInput> {
-    PARTICLES
+pub fn particle(particles: &Particles, p: u32, offset: u32) -> Result<u32, BadInput> {
+    particles
+        .ring
         .with(|r| {
             let e = r.get((p as usize).checked_sub(1)?)?;
             offset
@@ -53,8 +52,9 @@ pub fn particle(p: u32, offset: u32) -> Result<u32, BadInput> {
 }
 
 /// The dword at `offset` of particle `p` set to `v`; refused as `particle`.
-pub fn set_particle(p: u32, offset: u32, v: u32) -> Result<(), BadInput> {
-    PARTICLES
+pub fn set_particle(particles: &Particles, p: u32, offset: u32, v: u32) -> Result<(), BadInput> {
+    particles
+        .ring
         .with(|r| {
             let e = r.get_mut((p as usize).checked_sub(1)?)?;
             let d = offset
@@ -69,8 +69,8 @@ pub fn set_particle(p: u32, offset: u32, v: u32) -> Result<(), BadInput> {
 /// `effects::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `stru_93A580` into
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
 /// 0x4C made a ring (+0 the one before, +4 the one after). The particles are Rust's
-/// (`PARTICLES`), counted on the list as the game's block was.
-pub fn allocate_ring() -> Result<(), Refused> {
+/// (`Particles::ring`), counted on the list as the game's block was.
+pub fn allocate_ring(particles: &Particles) -> Result<(), Refused> {
     // Converted: `rc2k_core::effects::rings::neighbours`.
     let ring: Vec<Particle> = (0..rc2k_core::effects::rings::ENTRIES)
         .map(|n| {
@@ -81,7 +81,7 @@ pub fn allocate_ring() -> Result<(), Refused> {
             p
         })
         .collect();
-    PARTICLES.take(
+    particles.ring.take(
         crate::pointers::GamePtr::to(&RING_POOL.list),
         RING_LEN,
         ring,

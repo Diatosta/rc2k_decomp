@@ -19,11 +19,15 @@ pub struct SnowTables {
     pub spreads: [Float; 2048],
 }
 
-pub static SNOW_TABLES: SnowTables = SnowTables {
-    randoms: [const { [const { Dword::new(0x0) }; 2048] }; 3],
-    remainders: [const { [const { Dword::new(0x0) }; 2048] }; 2],
-    spreads: [const { Float::from_bits(0x0) }; 2048],
-};
+impl SnowTables {
+    pub const fn new() -> Self {
+        SnowTables {
+            randoms: [const { [const { Dword::new(0x0) }; 2048] }; 3],
+            remainders: [const { [const { Dword::new(0x0) }; 2048] }; 2],
+            spreads: [const { Float::from_bits(0x0) }; 2048],
+        }
+    }
+}
 
 impl SnowTables {
     pub const START: usize = 0x8C6000;
@@ -40,10 +44,14 @@ pub struct SnowCurve {
     pub copy: [Dword; 4096],
 }
 
-pub static SNOW_CURVE: SnowCurve = SnowCurve {
-    curve: [const { Dword::new(0x0) }; 4096],
-    copy: [const { Dword::new(0x0) }; 4096],
-};
+impl SnowCurve {
+    pub const fn new() -> Self {
+        SnowCurve {
+            curve: [const { Dword::new(0x0) }; 4096],
+            copy: [const { Dword::new(0x0) }; 4096],
+        }
+    }
+}
 
 impl SnowCurve {
     pub const START: usize = 0x8D2310;
@@ -118,125 +126,130 @@ pub struct SnowState {
     pub _gap_8d22e0: Bytes<48>,
 }
 
-pub static SNOW: SnowState = SnowState {
-    _gap_8d2000: Bytes::new([0; 48]),
-    wide_turn: [const {
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ]
-    }; 9],
-    cleared: [const { Dword::new(0x0) }; 8],
-    filled: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    wide_focal: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    quad_a: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    inverses: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    quad_b: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    quad_c: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    minus_ones: [
-        Float::from_bits(0xBF800000),
-        Float::from_bits(0xBF800000),
-        Float::from_bits(0xBF800000),
-        Float::from_bits(0xBF800000),
-    ],
-    last_clock: Dword::new(0x0),
-    _gap_8d2154: Bytes::new([0; 8]),
-    flag: Dword::new(0x0),
-    view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    view_matrix: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    _gap_8d2190: Bytes::new([0; 4]),
-    fall: Dword::new(0x0),
-    _gap_8d2198: Bytes::new([0; 4]),
-    drawn: Dword::new(0x0),
-    count_copy: Dword::new(0x0),
-    flakes: Dword::new(0x800),
-    _gap_8d21a8: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00,
-    ]),
-    depth: Dword::new(0x0),
-    inverse: Float::from_bits(0x0),
-    _gap_8d21fc: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F,
-    ]),
-    point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    matrix_copy: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    _gap_8d2244: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80,
-        0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x80, 0x3F, 0x00, 0x80, 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-    turned: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    _gap_8d22e0: Bytes::new([0; 48]),
-};
+impl SnowState {
+    pub const fn new() -> Self {
+        SnowState {
+            _gap_8d2000: Bytes::new([0; 48]),
+            wide_turn: [const {
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ]
+            }; 9],
+            cleared: [const { Dword::new(0x0) }; 8],
+            filled: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            wide_focal: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            quad_a: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            inverses: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            quad_b: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            quad_c: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            minus_ones: [
+                Float::from_bits(0xBF800000),
+                Float::from_bits(0xBF800000),
+                Float::from_bits(0xBF800000),
+                Float::from_bits(0xBF800000),
+            ],
+            last_clock: Dword::new(0x0),
+            _gap_8d2154: Bytes::new([0; 8]),
+            flag: Dword::new(0x0),
+            view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            view_matrix: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            _gap_8d2190: Bytes::new([0; 4]),
+            fall: Dword::new(0x0),
+            _gap_8d2198: Bytes::new([0; 4]),
+            drawn: Dword::new(0x0),
+            count_copy: Dword::new(0x0),
+            flakes: Dword::new(0x800),
+            _gap_8d21a8: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+            depth: Dword::new(0x0),
+            inverse: Float::from_bits(0x0),
+            _gap_8d21fc: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F,
+            ]),
+            point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            matrix_copy: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            _gap_8d2244: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x80, 0x31, 0x46,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+                0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+            ]),
+            turned: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            _gap_8d22e0: Bytes::new([0; 48]),
+        }
+    }
+}
 
 impl SnowState {
     pub const START: usize = 0x8D2000;
@@ -257,12 +270,16 @@ pub struct SnowCurveVars {
     pub records: [[Dword; 32]; 32],
 }
 
-pub static SNOW_VARS: SnowCurveVars = SnowCurveVars {
-    curve_vars: [const { Dword::new(0x0) }; 6],
-    first: Dword::new(0x0),
-    _gap_8da42c: Bytes::new([0; 4]),
-    records: [const { [const { Dword::new(0x0) }; 32] }; 32],
-};
+impl SnowCurveVars {
+    pub const fn new() -> Self {
+        SnowCurveVars {
+            curve_vars: [const { Dword::new(0x0) }; 6],
+            first: Dword::new(0x0),
+            _gap_8da42c: Bytes::new([0; 4]),
+            records: [const { [const { Dword::new(0x0) }; 32] }; 32],
+        }
+    }
+}
 
 impl SnowCurveVars {
     pub const START: usize = 0x8DA410;
@@ -335,77 +352,81 @@ pub struct SnowLight {
     pub v: [Dword; 2],
 }
 
-pub static SNOW_LIGHT: SnowLight = SnowLight {
-    light_place: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    light_way: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    fade_delta: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    fade_unit: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    fade_index: Dword::new(0x0),
-    fade_colours: [const { Dword::new(0x0) }; 17],
-    fade_step: Float::from_bits(0x0),
-    fade_inverses: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    fade_scaled: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    kept: Dword::new(0x0),
-    dot: Float::from_bits(0x0),
-    curve_scale: Float::from_bits(0x41080000),
-    curve_damp: Float::from_bits(0x3F666666),
-    smooth_weights: [
-        Float::from_bits(0x3E99999A),
-        Float::from_bits(0x3ECCCCCD),
-        Float::from_bits(0x3E99999A),
-    ],
-    ramp_by: Dword::new(0x1000),
-    spread_scale: Float::from_bits(0x3D800000),
-    spread_base: Float::from_bits(0x3B000000),
-    divisors: [Dword::new(0xC00), Dword::new(0xC00)],
-    record_values: [
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x3B000000),
-        Float::from_bits(0x3B000000),
-        Float::from_bits(0x3D840000),
-        Float::from_bits(0x3D840000),
-    ],
-    quad_first: Float::from_bits(0x45C1C000),
-    light_source: [
-        Float::from_bits(0x48000000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    light_source_way: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    rhw: Dword::new(0x43800000),
-    uv: [
-        Dword::new(0x3B000000),
-        Dword::new(0x3B000000),
-        Dword::new(0x3D840000),
-        Dword::new(0x3D840000),
-    ],
-    fall_k: Float::from_bits(0xC3200000),
-    height: Float::from_bits(0x49000000),
-    _gap_8db540: Bytes::new([0x00, 0xC0, 0xC1, 0x45, 0x00, 0x00, 0x00, 0x00]),
-    side: Float::from_bits(0x45C1C000),
-    u_offset: Float::from_bits(0x3D800000),
-    v: [Dword::new(0x3B000000), Dword::new(0x3D840000)],
-};
+impl SnowLight {
+    pub const fn new() -> Self {
+        SnowLight {
+            light_place: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            light_way: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            fade_delta: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            fade_unit: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            fade_index: Dword::new(0x0),
+            fade_colours: [const { Dword::new(0x0) }; 17],
+            fade_step: Float::from_bits(0x0),
+            fade_inverses: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            fade_scaled: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            kept: Dword::new(0x0),
+            dot: Float::from_bits(0x0),
+            curve_scale: Float::from_bits(0x41080000),
+            curve_damp: Float::from_bits(0x3F666666),
+            smooth_weights: [
+                Float::from_bits(0x3E99999A),
+                Float::from_bits(0x3ECCCCCD),
+                Float::from_bits(0x3E99999A),
+            ],
+            ramp_by: Dword::new(0x1000),
+            spread_scale: Float::from_bits(0x3D800000),
+            spread_base: Float::from_bits(0x3B000000),
+            divisors: [Dword::new(0xC00), Dword::new(0xC00)],
+            record_values: [
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x3B000000),
+                Float::from_bits(0x3B000000),
+                Float::from_bits(0x3D840000),
+                Float::from_bits(0x3D840000),
+            ],
+            quad_first: Float::from_bits(0x45C1C000),
+            light_source: [
+                Float::from_bits(0x48000000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            light_source_way: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            rhw: Dword::new(0x43800000),
+            uv: [
+                Dword::new(0x3B000000),
+                Dword::new(0x3B000000),
+                Dword::new(0x3D840000),
+                Dword::new(0x3D840000),
+            ],
+            fall_k: Float::from_bits(0xC3200000),
+            height: Float::from_bits(0x49000000),
+            _gap_8db540: Bytes::new([0x00, 0xC0, 0xC1, 0x45, 0x00, 0x00, 0x00, 0x00]),
+            side: Float::from_bits(0x45C1C000),
+            u_offset: Float::from_bits(0x3D800000),
+            v: [Dword::new(0x3B000000), Dword::new(0x3D840000)],
+        }
+    }
+}
 
 impl SnowLight {
     pub const START: usize = 0x8DB430;
@@ -426,23 +447,33 @@ mod tests {
 
     #[test]
     fn the_tables_start_as_the_games() {
+        let weather = &crate::effects::owner::effects().weather;
         assert_eq!(size_of::<SnowTables>(), SnowTables::LEN);
         assert_eq!(size_of::<SnowCurve>(), SnowCurve::LEN);
         assert!(
-            same(&SNOW_TABLES, SnowTables::START, SnowTables::LEN),
+            same(&weather.snow_tables, SnowTables::START, SnowTables::LEN),
             "tables"
         );
-        assert!(same(&SNOW_CURVE, SnowCurve::START, SnowCurve::LEN), "curve");
+        assert!(
+            same(&weather.snow_curve, SnowCurve::START, SnowCurve::LEN),
+            "curve"
+        );
         assert_eq!(size_of::<SnowState>(), SnowState::LEN);
         assert_eq!(size_of::<SnowCurveVars>(), SnowCurveVars::LEN);
         assert_eq!(size_of::<SnowLight>(), SnowLight::LEN);
-        assert!(same(&SNOW, SnowState::START, SnowState::LEN), "state");
         assert!(
-            same(&SNOW_VARS, SnowCurveVars::START, SnowCurveVars::LEN),
+            same(&weather.snow, SnowState::START, SnowState::LEN),
+            "state"
+        );
+        assert!(
+            same(&weather.snow_vars, SnowCurveVars::START, SnowCurveVars::LEN),
             "vars"
         );
-        assert!(same(&SNOW_LIGHT, SnowLight::START, SnowLight::LEN), "light");
-        assert_eq!(SNOW.wide_turn[0][0].addr() % 16, 0);
+        assert!(
+            same(&weather.snow_light, SnowLight::START, SnowLight::LEN),
+            "light"
+        );
+        assert_eq!(weather.snow.wide_turn[0][0].addr() % 16, 0);
         assert_eq!(
             offset_of!(SnowState, last_clock),
             0x8D2150 - SnowState::START

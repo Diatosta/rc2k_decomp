@@ -20,7 +20,8 @@
 //! Caller: `effects::run_frame` (0x4D166B). The two turns are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses null settings, before anything.
 
-use crate::effects::snow::{SNOW, SNOW_LIGHT, SnowLight};
+use crate::effects::rain::Weather;
+use crate::effects::snow::SnowLight;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -34,19 +35,19 @@ use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
-fn turn_light() {
-    turn_light_x87(&SNOW_LIGHT);
+fn turn_light(weather: &Weather) {
+    turn_light_x87(&weather.snow_light);
 }
 
 /// The Rust version (see the header).
-pub fn run_snow() -> Result<(), Refused> {
+pub fn run_snow(weather: &Weather) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    let (s, l) = (&SNOW, &SNOW_LIGHT);
+    let (s, l) = (&weather.snow, &weather.snow_light);
     {
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
-        turn_light();
-        crate::effects::make_fade_colours::make_fade_colours();
+        turn_light(weather);
+        crate::effects::make_fade_colours::make_fade_colours(weather);
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -63,7 +64,7 @@ pub fn run_snow() -> Result<(), Refused> {
         for n in 0..3 {
             s.view_place[n].set(marks.listener_place[n].get());
         }
-        crate::effects::place_view_2::place_view_2()?;
+        crate::effects::place_view_2::place_view_2(weather)?;
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
@@ -106,7 +107,7 @@ pub fn run_snow() -> Result<(), Refused> {
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }
-        crate::effects::draw_snow::draw_snow()?;
+        crate::effects::draw_snow::draw_snow(weather)?;
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

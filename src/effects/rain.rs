@@ -80,115 +80,120 @@ pub struct RainState {
     pub second: [Float; 3],
 }
 
-pub static RAIN: RainState = RainState {
-    drawn: Dword::new(0x0),
-    drift_since: Dword::new(0x0),
-    drift_wait: Dword::new(0x0),
-    drift_target: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    drift_pace: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    drift_halves: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    view_matrix: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    _gap_8bc465: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-    ]),
-    motion: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    moves: [const {
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x3F800000),
-        ]
-    }; 5],
-    last_views: [const { [Dword::new(0x0), Dword::new(0x0), Dword::new(0x3F800000)] }; 5],
-    _gap_8bc501: Bytes::new([0; 4]),
-    drift: Dword::new(0x0),
-    _gap_8bc509: Bytes::new([0; 4]),
-    drops: Dword::new(0x100),
-    noise: [const { [const { Dword::new(0x0) }; 256] }; 3],
-    kept: [const { [const { Dword::new(0x0) }; 256] }; 3],
-    _gap_8bdd11: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41,
-    ]),
-    edge_a: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8bdd31: Bytes::new([0; 4]),
-    edge_b: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8bdd3d: Bytes::new([0; 4]),
-    ends: [const {
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ]
-    }; 2],
-    _gap_8bdd59: Bytes::new([0; 4]),
-    depth: Float::from_bits(0x0),
-    depth_scale: Float::from_bits(0x0),
-    point_scale: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-    ],
-    point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    matrix_copy: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    _gap_8bddad: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80,
-        0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x80, 0x3F, 0x00, 0x80, 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-    turned: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    second: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-};
+impl RainState {
+    pub const fn new() -> Self {
+        RainState {
+            drawn: Dword::new(0x0),
+            drift_since: Dword::new(0x0),
+            drift_wait: Dword::new(0x0),
+            drift_target: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            drift_pace: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            drift_halves: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            view_place: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            view_matrix: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            _gap_8bc465: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
+            ]),
+            motion: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            moves: [const {
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x3F800000),
+                ]
+            }; 5],
+            last_views: [const { [Dword::new(0x0), Dword::new(0x0), Dword::new(0x3F800000)] }; 5],
+            _gap_8bc501: Bytes::new([0; 4]),
+            drift: Dword::new(0x0),
+            _gap_8bc509: Bytes::new([0; 4]),
+            drops: Dword::new(0x100),
+            noise: [const { [const { Dword::new(0x0) }; 256] }; 3],
+            kept: [const { [const { Dword::new(0x0) }; 256] }; 3],
+            _gap_8bdd11: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x20, 0x41,
+            ]),
+            edge_a: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8bdd31: Bytes::new([0; 4]),
+            edge_b: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8bdd3d: Bytes::new([0; 4]),
+            ends: [const {
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ]
+            }; 2],
+            _gap_8bdd59: Bytes::new([0; 4]),
+            depth: Float::from_bits(0x0),
+            depth_scale: Float::from_bits(0x0),
+            point_scale: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+            ],
+            point: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            view: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            matrix_copy: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            _gap_8bddad: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x80, 0x31, 0x46,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+                0x31, 0x46, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+            ]),
+            turned: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            second: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+        }
+    }
+}
 
 impl RainState {
     pub const START: usize = 0x8BC405;
@@ -226,34 +231,63 @@ pub struct RainRules {
     pub _gap_8c5ff1: [u8; 12],
 }
 
-pub static RAIN_RULES: RainRules = RainRules {
-    rhw: 0x43800000,
-    move_scale: [
-        f32::from_bits(0x41F00000),
-        f32::from_bits(0x41F00000),
-        f32::from_bits(0x41F00000),
-    ],
-    move_limit: f32::from_bits(0x47C35000),
-    move_held: f32::from_bits(0x3F800000),
-    move_factors: [
-        f32::from_bits(0x47C35000),
-        f32::from_bits(0x47C35000),
-        f32::from_bits(0x47C35000),
-    ],
-    drift_k: f32::from_bits(0xC3FA0000),
-    _gap_8c5fb9: [
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x12, 0x83,
-        0x3A, 0x6F, 0x12, 0x03, 0x3B, 0xA6, 0x9B, 0x44, 0x3B,
-    ],
-    target_scale: [f32::from_bits(0x41200000), f32::from_bits(0x41200000)],
-    ease: [f32::from_bits(0x3D4CCCCD), f32::from_bits(0x3D4CCCCD)],
-    height: f32::from_bits(0x48000000),
-    view_scale: [f32::from_bits(0x43FA0000), f32::from_bits(0x43FA0000)],
-    half_width: f32::from_bits(0x3F800000),
-    _gap_8c5ff1: [
-        0x00, 0x00, 0xC8, 0x4A, 0x33, 0x33, 0x33, 0x3F, 0x00, 0x00, 0x00, 0x00,
-    ],
-};
+impl RainRules {
+    pub const fn new() -> Self {
+        RainRules {
+            rhw: 0x43800000,
+            move_scale: [
+                f32::from_bits(0x41F00000),
+                f32::from_bits(0x41F00000),
+                f32::from_bits(0x41F00000),
+            ],
+            move_limit: f32::from_bits(0x47C35000),
+            move_held: f32::from_bits(0x3F800000),
+            move_factors: [
+                f32::from_bits(0x47C35000),
+                f32::from_bits(0x47C35000),
+                f32::from_bits(0x47C35000),
+            ],
+            drift_k: f32::from_bits(0xC3FA0000),
+            _gap_8c5fb9: [
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x12,
+                0x83, 0x3A, 0x6F, 0x12, 0x03, 0x3B, 0xA6, 0x9B, 0x44, 0x3B,
+            ],
+            target_scale: [f32::from_bits(0x41200000), f32::from_bits(0x41200000)],
+            ease: [f32::from_bits(0x3D4CCCCD), f32::from_bits(0x3D4CCCCD)],
+            height: f32::from_bits(0x48000000),
+            view_scale: [f32::from_bits(0x43FA0000), f32::from_bits(0x43FA0000)],
+            half_width: f32::from_bits(0x3F800000),
+            _gap_8c5ff1: [
+                0x00, 0x00, 0xC8, 0x4A, 0x33, 0x33, 0x33, 0x3F, 0x00, 0x00, 0x00, 0x00,
+            ],
+        }
+    }
+}
+
+/// The rain's and the snow's state, one part of the effects' owner (`effects::owner::Effects`).
+pub struct Weather {
+    pub rain: RainState,
+    pub rain_rules: RainRules,
+    pub snow: crate::effects::snow::SnowState,
+    pub snow_light: crate::effects::snow::SnowLight,
+    pub snow_curve: crate::effects::snow::SnowCurve,
+    pub snow_tables: crate::effects::snow::SnowTables,
+    pub snow_vars: crate::effects::snow::SnowCurveVars,
+}
+
+impl Weather {
+    pub const fn new() -> Self {
+        Weather {
+            rain: RainState::new(),
+            rain_rules: RainRules::new(),
+            snow: crate::effects::snow::SnowState::new(),
+            snow_light: crate::effects::snow::SnowLight::new(),
+            snow_curve: crate::effects::snow::SnowCurve::new(),
+            snow_tables: crate::effects::snow::SnowTables::new(),
+            snow_vars: crate::effects::snow::SnowCurveVars::new(),
+        }
+    }
+}
 
 #[cfg(test)]
 impl RainRules {
@@ -337,11 +371,13 @@ pub mod tests {
         assert_eq!(size_of::<RainState>(), RainState::LEN);
         assert_eq!(size_of::<RainRules>(), RainRules::LEN);
         assert!(
-            bytes(&RAIN) == crate::moved::image_bytes(RainState::START, RainState::LEN),
+            bytes(&crate::effects::owner::effects().weather.rain)
+                == crate::moved::image_bytes(RainState::START, RainState::LEN),
             "RAIN starts differently from the image"
         );
         assert!(
-            bytes(&RAIN_RULES) == crate::moved::image_bytes(RainRules::START, RainRules::LEN),
+            bytes(&crate::effects::owner::effects().weather.rain_rules)
+                == crate::moved::image_bytes(RainRules::START, RainRules::LEN),
             "RAIN_RULES starts differently from the image"
         );
         let s = RainState::START;

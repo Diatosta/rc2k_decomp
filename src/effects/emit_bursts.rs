@@ -72,7 +72,7 @@ pub const HALVES: [Half; 2] = [
 /// `emit_bursts`'.
 pub static FIRST: BurstSet = BurstSet {
     halves: HALVES,
-    tuning: &FIRST_TUNING,
+    tuning: &crate::effects::owner::EFFECTS.particles.first_tuning,
 };
 
 impl BurstTuning {
@@ -260,13 +260,17 @@ pub struct BurstTuning {
     pub second: [Dword; 3],
 }
 
-/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_2`'s at 0x93A3F6) (IDA 0x93A3D2 .. 0x93A3F6).
-pub static FIRST_TUNING: BurstTuning = BurstTuning {
-    strength_k: Float::from_bits(0xBE800000),
-    first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBD4CCCCD)],
-    second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-};
+impl BurstTuning {
+    /// The values the game starts with (the image's bytes).
+    pub const fn first() -> Self {
+        BurstTuning {
+            strength_k: Float::from_bits(0xBE800000),
+            first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBD4CCCCD)],
+            second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+        }
+    }
+}
 
 impl BurstTuning {
     pub const LEN: usize = 0x24;
@@ -296,7 +300,8 @@ mod first_tuning_tests {
     fn first_tuning_starts_as_the_games() {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
-            bytes(&FIRST_TUNING) == crate::moved::image_bytes(FirstTuning::START, BurstTuning::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.first_tuning)
+                == crate::moved::image_bytes(FirstTuning::START, BurstTuning::LEN),
             "FIRST_TUNING starts differently from the image"
         );
         assert_eq!(

@@ -21,9 +21,8 @@
 //! entries and a fade index past the 17.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::snow::{
-    SNOW, SNOW_CURVE, SNOW_LIGHT, SNOW_TABLES, SNOW_VARS, SnowLight, SnowState, SnowTables,
-};
+use crate::effects::rain::Weather;
+use crate::effects::snow::{SnowLight, SnowState, SnowTables};
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_KIND_FLOATS, MarksFloats};
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
@@ -33,24 +32,24 @@ const CURVE: u32 = 4095;
 const FADES: u32 = 17;
 use crate::d3d::vertices_store::VERTICES;
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
-fn turn(v: &[u32; 3]) {
-    turn_x87(&v[..], &SNOW);
+fn turn(weather: &Weather, v: &[u32; 3]) {
+    turn_x87(&v[..], &weather.snow);
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
-fn fade() {
-    fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS);
+fn fade(weather: &Weather) {
+    fade_x87(&weather.snow, &weather.snow_light, &MARKS_FLOATS);
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
-fn square(i: u32) {
+fn square(weather: &Weather, i: u32) {
     let mut w = [0u32; 32];
     square_x87(
         crate::scene::x87_mem::cells(&mut w),
         i as usize,
-        &SNOW_TABLES,
-        &SNOW,
-        &SNOW_LIGHT,
+        &weather.snow_tables,
+        &weather.snow,
+        &weather.snow_light,
     );
     for (vertex, w) in VERTICES.vertices.iter().zip(w.as_chunks::<8>().0) {
         vertex.x.set_bits(w[0]);
@@ -62,19 +61,25 @@ fn square(i: u32) {
 
 /// Flake k's whole-number place and the two curve indices: (eax, ebx, ecx, x index, z
 /// index, the shift's edx, ebp, edi).
-fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
+fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
     {
-        let t = &SNOW_TABLES;
+        let t = &weather.snow_tables;
         let mut eax = t.randoms[0][k as usize].get();
-        let mut ebx = t.randoms[1][k as usize].get().wrapping_add(SNOW.fall.get());
+        let mut ebx = t.randoms[1][k as usize]
+            .get()
+            .wrapping_add(weather.snow.fall.get());
         let mut ecx = t.randoms[2][k as usize].get();
         let f = (ebx & 0xF_FFFF) >> 11;
         let ix = f.wrapping_add(t.remainders[0][k as usize].get());
         let iz = f.wrapping_add(t.remainders[1][k as usize].get());
-        let shift: [u32; 3] = SNOW.view.each_ref().map(super::super::session::Dword::get);
+        let shift: [u32; 3] = weather
+            .snow
+            .view
+            .each_ref()
+            .map(super::super::session::Dword::get);
         let curve = |i: u32| {
             if i < CURVE {
-                SNOW_CURVE.curve[i as usize].get()
+                weather.snow_curve.curve[i as usize].get()
             } else {
                 0
             }
@@ -88,8 +93,8 @@ fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
 }
 
 /// Why it refuses before anything is drawn, if it does.
-fn refusal() -> Option<&'static str> {
-    let n = SNOW.flakes.get() as i32;
+fn refusal(weather: &Weather) -> Option<&'static str> {
+    let n = weather.snow.flakes.get() as i32;
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
@@ -100,39 +105,41 @@ fn refusal() -> Option<&'static str> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_snow() -> Result<(), Refused> {
-    if let Some(why) = refusal() {
+pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
+    let (snow, snow_light) = (&weather.snow, &weather.snow_light);
+    let snow_vars = &weather.snow_vars;
+    if let Some(why) = refusal(weather) {
         return Err(BadInput(why).into());
     }
     {
-        let n = SNOW.flakes.get() as i32;
-        SNOW.count_copy.set(n as u32);
-        SNOW_VARS.first.set(0);
-        SNOW.drawn.set(0);
-        SNOW_VARS.first.set(n as u32);
+        let n = snow.flakes.get() as i32;
+        snow.count_copy.set(n as u32);
+        snow_vars.first.set(0);
+        snow.drawn.set(0);
+        snow_vars.first.set(n as u32);
         for k in 0..n.max(0) as u32 {
-            let ([eax, ebx, ecx], curve_at, _) = place(k);
+            let ([eax, ebx, ecx], curve_at, _) = place(weather, k);
             if curve_at.iter().any(|&i| i >= CURVE) {
                 return Err(BadInput("a snow curve index past the table").into());
             }
-            turn(&[ebx, eax, ecx]);
-            if SNOW.depth.get() as i32 > 0x1_0000 {
+            turn(weather, &[ebx, eax, ecx]);
+            if snow.depth.get() as i32 > 0x1_0000 {
                 if MARKS_KIND_FLOATS.fading.bits() != 0 {
-                    fade();
-                    let mut index = SNOW_LIGHT.fade_index.get();
-                    if (SNOW_LIGHT.dot.bits() as i32) < 0 {
+                    fade(weather);
+                    let mut index = snow_light.fade_index.get();
+                    if (snow_light.dot.bits() as i32) < 0 {
                         index = 0;
                     }
                     if index >= FADES {
                         return Err(BadInput("a snow fade index past the table").into());
                     }
-                    let colour = SNOW_LIGHT.fade_colours[index as usize].get();
+                    let colour = snow_light.fade_colours[index as usize].get();
                     for n in 0..4 {
                         VERTICES.vertices[n].colour.set(colour);
                     }
                 }
-                square(4 * k);
-                let [top, bottom] = SNOW_LIGHT
+                square(weather, 4 * k);
+                let [top, bottom] = snow_light
                     .v
                     .each_ref()
                     .map(super::super::session::Dword::get);
@@ -143,7 +150,7 @@ pub fn draw_snow() -> Result<(), Refused> {
                 }
                 if !clip_quad()? {
                     draw_fan();
-                    SNOW.drawn.set(SNOW.drawn.get().wrapping_add(1));
+                    snow.drawn.set(snow.drawn.get().wrapping_add(1));
                     DRAW.polygon_vertex_count.set_bits(4u32);
                 }
             }

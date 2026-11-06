@@ -19,34 +19,35 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::rain::{RAIN, RAIN_RULES, RainRules, RainState};
+use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
-fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87(p, &RAIN);
+fn turn(weather: &Weather, p: &[[u8; 10]; 3]) {
+    turn_x87(p, &weather.rain);
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
-fn project() {
-    project_x87(&RAIN, &RAIN_RULES);
+fn project(weather: &Weather) {
+    project_x87(&weather.rain, &weather.rain_rules);
 }
 
 /// The Rust version (see the header).
-pub fn draw_rain_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
+pub fn draw_rain_streak(weather: &Weather, place: [[u8; 10]; 3]) -> Result<(), Refused> {
+    let rain = &weather.rain;
     {
         if SETTINGS.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        turn(&place);
-        if RAIN.depth.bits() as i32 <= 0x2_0000
-            || RAIN.drawn.get() == 0
-            || RAIN.second[2].bits() as i32 <= 0x4800_0000
+        turn(weather, &place);
+        if rain.depth.bits() as i32 <= 0x2_0000
+            || rain.drawn.get() == 0
+            || rain.second[2].bits() as i32 <= 0x4800_0000
         {
             return Ok(());
         }
-        project();
+        project(weather);
         if clip_quad()? {
             return Ok(());
         }

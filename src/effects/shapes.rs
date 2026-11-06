@@ -307,7 +307,12 @@ pub fn set_up_windscreen_drops(resume: u32) -> Result<(), Refused> {
 /// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then
 /// `resume`; nothing else is done once); the square items cleared, their curve and circles
 /// (4 points); then `effects::reset_pong`. Refuses a mark neither 0 nor `resume`.
-fn windscreen_flakes_with(fl: &WindscreenFlakes, resume: u32, plain: bool) -> Result<(), Refused> {
+fn windscreen_flakes_with(
+    pong: &crate::effects::pong::Pong,
+    fl: &WindscreenFlakes,
+    resume: u32,
+    plain: bool,
+) -> Result<(), Refused> {
     {
         if squares::first(fl, resume)? {
             fl.state.done.set(resume);
@@ -317,12 +322,16 @@ fn windscreen_flakes_with(fl: &WindscreenFlakes, resume: u32, plain: bool) -> Re
         } else {
             squares::make(fl);
         }
-        crate::effects::splines::reset_pong();
+        crate::effects::splines::reset_pong(pong);
     }
     Ok(())
 }
 
 /// `effects::set_up_windscreen_flakes`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_flakes(fl: &WindscreenFlakes, resume: u32) -> Result<(), Refused> {
-    windscreen_flakes_with(fl, resume, false)
+pub fn set_up_windscreen_flakes(
+    pong: &crate::effects::pong::Pong,
+    fl: &WindscreenFlakes,
+    resume: u32,
+) -> Result<(), Refused> {
+    windscreen_flakes_with(pong, fl, resume, false)
 }

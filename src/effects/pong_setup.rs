@@ -7,15 +7,15 @@
 //!
 //! Caller: `effects::run_pong`.
 
-use crate::effects::pong::PONG_RULES;
+use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_setup::setup_with;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 /// The Rust version (see the header).
-pub fn pong_setup(fl: &WindscreenFlakes) {
+pub fn pong_setup(pong: &Pong, fl: &WindscreenFlakes) {
     setup_with(
         fl,
-        PONG_RULES
+        pong.rules
             .setup_places
             .each_ref()
             .map(super::super::session::Float::bits),

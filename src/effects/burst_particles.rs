@@ -16,7 +16,7 @@
 
 use crate::effects::blocks::{RING_POOL, particle, set_particle};
 use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::run_particles::PARTICLE_TUNING;
+use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -33,7 +33,7 @@ fn next_seed() -> u32 {
 }
 
 /// The entries the burst takes, from `g_marksRingFree` along +0.
-fn entries_taken() -> Result<Vec<u32>, Refused> {
+fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = RING_POOL.used.get();
         let count = if used <= FULL {
@@ -47,7 +47,7 @@ fn entries_taken() -> Result<Vec<u32>, Refused> {
             if e == 0 {
                 break;
             }
-            e = particle(e, 0)?;
+            e = particle(particles, e, 0)?;
             out.push(e);
         }
         out
@@ -55,13 +55,13 @@ fn entries_taken() -> Result<Vec<u32>, Refused> {
 }
 
 /// The Rust version (see the header): `record` the particle it bursts from (esi).
-pub fn burst_particles(record: u32) -> Result<(), Refused> {
+pub fn burst_particles(particles: &Particles, record: u32) -> Result<(), Refused> {
     {
         if RING_POOL.used.get() != FULL {
             if record == 0 {
                 return Err(BadInput("a null record").into());
             }
-            if entries_taken()?.contains(&0) || RING_POOL.free.get() == 0 {
+            if entries_taken(particles)?.contains(&0) || RING_POOL.free.get() == 0 {
                 return Err(BadInput("a null ring entry").into());
             }
         }
@@ -84,14 +84,14 @@ pub fn burst_particles(record: u32) -> Result<(), Refused> {
             if used == FULL {
                 continue;
             }
-            let e: u32 = particle(RING_POOL.free.get(), 0)?;
+            let e: u32 = particle(particles, RING_POOL.free.get(), 0)?;
             RING_POOL.free.set(e);
             RING_POOL.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| set_particle(e, o, v);
+            let put = |o: u32, v: u32| set_particle(particles, e, o, v);
             put(8, RING_POOL.nine.get())?;
             put(0x48, RING_POOL.kind.get())?;
             for o in [0xC, 0x10, 0x14] {
-                put(o, x87::loaded(particle(record, o)?))?;
+                put(o, x87::loaded(particle(particles, record, o)?))?;
             }
             let s = next_seed();
             let a = s.rotate_right(16) & 0xFFF;

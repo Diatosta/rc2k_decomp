@@ -31,6 +31,7 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
 pub fn init_marks(seed: u32) -> Result<(), Refused> {
     use crate::effects::*;
+    let weather = &owner::effects().weather;
     {
         // Every read through `g_marksSettings` is a field of the race's record.
         let marks = &*crate::race::marks_settings_store::MARKS_SETTINGS;
@@ -43,15 +44,15 @@ pub fn init_marks(seed: u32) -> Result<(), Refused> {
         edges::load_kind_data()?;
         setup::make_wave_tables()?;
         profiles::make_profiles(profiles::RESUME)?;
-        setup::seed_noise();
-        setup::make_noise_curve()?;
+        setup::seed_noise(weather);
+        setup::make_noise_curve(weather)?;
         blocks::allocate_places()?;
         kind_values::set_kind_values(&kind_values::FIRST)?;
         kind_values::set_kind_values(&kind_values::SECOND)?;
         load_mask_pictures::load_mask_pictures()?;
         setup::clear_slots();
         set_up_surface::set_up_surface()?;
-        blocks::allocate_ring()?;
+        blocks::allocate_ring(&crate::effects::owner::effects().particles)?;
         lines::set_up_blocks()?;
         marks.unknown_67c[1].set(1);
         for r in &CLOCK.settings_copies {

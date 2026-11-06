@@ -9,33 +9,34 @@
 //!
 //! One caller, `sub_4C16F9` (the marks' frame).
 
-use crate::effects::rain::RAIN;
+use crate::effects::rain::Weather;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::session::{Dword, Float};
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s), as addresses.
-pub struct ViewPlace {
-    pub point: &'static [Dword; 3],
+pub struct ViewPlace<'a> {
+    pub point: &'a [Dword; 3],
     pub start_z: u32,
-    pub place: &'static [Dword; 3],
-    pub matrix: &'static [Float; 9],
-    pub out: &'static [Dword; 3],
+    pub place: &'a [Dword; 3],
+    pub matrix: &'a [Float; 9],
+    pub out: &'a [Dword; 3],
     /// The height's bits, read when the view's variables are made (nothing writes it between).
     pub height: u32,
-    pub matrix_copy: &'static [Float; 9],
+    pub matrix_copy: &'a [Float; 9],
 }
 
 /// `place_view`'s: the rain's.
-pub fn first() -> ViewPlace {
+pub fn first(weather: &Weather) -> ViewPlace<'_> {
+    let (rain, rules) = (&weather.rain, &weather.rain_rules);
     ViewPlace {
-        point: &RAIN.point,
+        point: &rain.point,
         start_z: 0x2_0000,
-        place: &RAIN.view_place,
-        matrix: &RAIN.view_matrix,
-        out: &RAIN.view,
-        height: crate::effects::rain::RAIN_RULES.height.to_bits(),
-        matrix_copy: &RAIN.matrix_copy,
+        place: &rain.view_place,
+        matrix: &rain.view_matrix,
+        out: &rain.view,
+        height: rules.height.to_bits(),
+        matrix_copy: &rain.matrix_copy,
     }
 }
 
@@ -69,6 +70,6 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
-pub fn place_view() -> Result<(), Refused> {
-    place_view_with(&first())
+pub fn place_view(weather: &Weather) -> Result<(), Refused> {
+    place_view_with(&first(weather))
 }

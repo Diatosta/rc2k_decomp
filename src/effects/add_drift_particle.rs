@@ -12,7 +12,7 @@
 //! ring (an entry to take), before anything.
 
 use crate::effects::blocks::{RING_POOL, particle, set_particle};
-use crate::effects::run_particles::PARTICLE_TUNING;
+use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::matrices_store::MATRICES;
@@ -22,20 +22,24 @@ const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xC350;
 
 /// The Rust version (see the header).
-pub fn add_drift_particle(kind: u32, v: [[u8; 10]; 6]) -> Result<(), Refused> {
+pub fn add_drift_particle(
+    particles: &Particles,
+    kind: u32,
+    v: [[u8; 10]; 6],
+) -> Result<(), Refused> {
     {
         let used: u32 = RING_POOL.used.get();
         if used == FULL {
             return Ok(());
         }
         let free: u32 = RING_POOL.free.get();
-        if free == 0 || particle(free, 0)? == 0 {
+        if free == 0 || particle(particles, free, 0)? == 0 {
             return Err(BadInput("a null particle ring entry").into());
         }
-        let e = particle(free, 0)?;
+        let e = particle(particles, free, 0)?;
         RING_POOL.free.set(e);
         RING_POOL.used.set(used.wrapping_add(1));
-        let put = |o: u32, x: u32| set_particle(e, o, x);
+        let put = |o: u32, x: u32| set_particle(particles, e, o, x);
         put(8, kind)?;
         put(0x34, rounded(v[0]))?;
         put(0x2C, rounded(v[1]))?;

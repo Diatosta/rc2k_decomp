@@ -18,7 +18,7 @@ use crate::session::{Dword, Float};
 /// `emit_bursts_2`'s: `emit_bursts`' with its own factors and randoms.
 pub static SECOND: BurstSet = BurstSet {
     halves: HALVES,
-    tuning: &SECOND_TUNING,
+    tuning: &crate::effects::owner::EFFECTS.particles.second_tuning,
 };
 
 /// The Rust version (see the header).
@@ -26,13 +26,17 @@ pub fn emit_bursts_2(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(),
     emit_bursts_with(&SECOND, wheel, object)
 }
 
-/// `emit_bursts_2`'s factors and randoms (IDA 0x93A3F6 .. 0x93A41A).
-pub static SECOND_TUNING: BurstTuning = BurstTuning {
-    strength_k: Float::from_bits(0xBE800000),
-    first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBE800000)],
-    second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-};
+impl BurstTuning {
+    /// The values the game starts with (the image's bytes).
+    pub const fn second() -> Self {
+        BurstTuning {
+            strength_k: Float::from_bits(0xBE800000),
+            first: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            blend_k: [Float::from_bits(0xBE800000), Float::from_bits(0xBE800000)],
+            second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+        }
+    }
+}
 
 /// Marker for `moved::MOVED`: SECOND_TUNING's place in the image.
 pub struct SecondTuning;
@@ -57,7 +61,7 @@ mod second_tuning_tests {
     fn second_tuning_starts_as_the_games() {
         assert_eq!(size_of::<BurstTuning>(), BurstTuning::LEN);
         assert!(
-            bytes(&SECOND_TUNING)
+            bytes(&crate::effects::owner::EFFECTS.particles.second_tuning)
                 == crate::moved::image_bytes(SecondTuning::START, BurstTuning::LEN),
             "SECOND_TUNING starts differently from the image"
         );

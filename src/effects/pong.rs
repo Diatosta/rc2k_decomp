@@ -61,49 +61,52 @@ pub struct PongState {
     pub digit_at: [Dword; 2],
 }
 
-pub static PONG: PongState = PongState {
-    box_sides: [const { Float::from_bits(0x0) }; 12],
-    ball: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_768690: Bytes::new([0; 4]),
-    ball_way: [Float::from_bits(0x3F800000), Float::from_bits(0x3F800000)],
-    _gap_76869c: Bytes::new([0; 4]),
-    ball_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686a8: Bytes::new([0; 4]),
-    saved_bat: [Dword::new(0x0), Dword::new(0x0)],
-    _gap_7686b4: Bytes::new([0; 4]),
-    bat: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686c0: Bytes::new([0; 16]),
-    bat_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686d8: Bytes::new([0; 4]),
-    ball_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686e4: Bytes::new([0; 4]),
-    bat_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686f0: Bytes::new([0; 4]),
-    difference: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_7686fc: Bytes::new([0; 4]),
-    steps: Dword::new(0x0),
-    digit_patterns: Bytes::new([
-        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
-        0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00,
-        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00,
-        0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01,
-        0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
-        0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00,
-        0x00, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
-        0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
-        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x00, 0x01, 0x01, 0x00, 0x00,
-    ]),
-    best: Dword::new(0x0),
-    hits: Dword::new(0x0),
-    digit_at: [Dword::new(0x0), Dword::new(0x0)],
-};
-
 impl PongState {
+    pub const fn new() -> Self {
+        PongState {
+            box_sides: [const { Float::from_bits(0x0) }; 12],
+            ball: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_768690: Bytes::new([0; 4]),
+            ball_way: [Float::from_bits(0x3F800000), Float::from_bits(0x3F800000)],
+            _gap_76869c: Bytes::new([0; 4]),
+            ball_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686a8: Bytes::new([0; 4]),
+            saved_bat: [Dword::new(0x0), Dword::new(0x0)],
+            _gap_7686b4: Bytes::new([0; 4]),
+            bat: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686c0: Bytes::new([0; 16]),
+            bat_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686d8: Bytes::new([0; 4]),
+            ball_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686e4: Bytes::new([0; 4]),
+            bat_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686f0: Bytes::new([0; 4]),
+            difference: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_7686fc: Bytes::new([0; 4]),
+            steps: Dword::new(0x0),
+            digit_patterns: Bytes::new([
+                0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
+                0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01,
+                0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+                0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+                0x01, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x01, 0x00,
+                0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+                0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00,
+                0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+                0x01, 0x01, 0x00, 0x00,
+            ]),
+            best: Dword::new(0x0),
+            hits: Dword::new(0x0),
+            digit_at: [Dword::new(0x0), Dword::new(0x0)],
+        }
+    }
+
     pub const START: usize = 0x768658;
     pub const LEN: usize = 0x184;
 }
@@ -140,61 +143,78 @@ pub struct PongRules {
     pub setup_places: [Float; 4],
 }
 
-pub static PONG_RULES: PongRules = PongRules {
-    start: [
-        Float::from_bits(0x44800000),
-        Float::from_bits(0x44000000),
-        Float::from_bits(0x42800000),
-        Float::from_bits(0x42800000),
-        Float::from_bits(0x44E00000),
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x42800000),
-        Float::from_bits(0x43800000),
-    ],
-    _gap_7691a2: Bytes::new([0; 4]),
-    walls: [
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x44800000),
-        Float::from_bits(0x44800000),
-    ],
-    centre: [
-        Float::from_bits(0x3F000000),
-        Float::from_bits(0x3F000000),
-        Float::from_bits(0x3F000000),
-        Float::from_bits(0x3F000000),
-    ],
-    nudge: Float::from_bits(0x3F800000),
-    way_scale: [Float::from_bits(0x40800000), Float::from_bits(0x40800000)],
-    _gap_7691e2: Bytes::new([
-        0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00,
-        0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
-    ]),
-    cell_step: [Float::from_bits(0x41800000), Float::from_bits(0xC1800000)],
-    cell_size: [Float::from_bits(0x41800000), Float::from_bits(0x41800000)],
-    box_places: [
-        Float::from_bits(0x3F7D70A4),
-        Float::from_bits(0x3F7D70A4),
-        Float::from_bits(0x3F7D70A4),
-        Float::from_bits(0x3F7D70A4),
-    ],
-    near: Float::from_bits(0x46800000),
-    _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
-    setup_places: [
-        Float::from_bits(0x3DE80000),
-        Float::from_bits(0x3D000000),
-        Float::from_bits(0x3E7C0000),
-        Float::from_bits(0x3E280000),
-    ],
-};
-
 impl PongRules {
+    pub const fn new() -> Self {
+        PongRules {
+            start: [
+                Float::from_bits(0x44800000),
+                Float::from_bits(0x44000000),
+                Float::from_bits(0x42800000),
+                Float::from_bits(0x42800000),
+                Float::from_bits(0x44E00000),
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x42800000),
+                Float::from_bits(0x43800000),
+            ],
+            _gap_7691a2: Bytes::new([0; 4]),
+            walls: [
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x44800000),
+                Float::from_bits(0x44800000),
+            ],
+            centre: [
+                Float::from_bits(0x3F000000),
+                Float::from_bits(0x3F000000),
+                Float::from_bits(0x3F000000),
+                Float::from_bits(0x3F000000),
+            ],
+            nudge: Float::from_bits(0x3F800000),
+            way_scale: [Float::from_bits(0x40800000), Float::from_bits(0x40800000)],
+            _gap_7691e2: Bytes::new([
+                0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,
+                0x00, 0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
+            ]),
+            cell_step: [Float::from_bits(0x41800000), Float::from_bits(0xC1800000)],
+            cell_size: [Float::from_bits(0x41800000), Float::from_bits(0x41800000)],
+            box_places: [
+                Float::from_bits(0x3F7D70A4),
+                Float::from_bits(0x3F7D70A4),
+                Float::from_bits(0x3F7D70A4),
+                Float::from_bits(0x3F7D70A4),
+            ],
+            near: Float::from_bits(0x46800000),
+            _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
+            setup_places: [
+                Float::from_bits(0x3DE80000),
+                Float::from_bits(0x3D000000),
+                Float::from_bits(0x3E7C0000),
+                Float::from_bits(0x3E280000),
+            ],
+        }
+    }
+
     pub const START: usize = 0x769182;
     pub const LEN: usize = 0xB0;
+}
+
+/// The pong game's state and constants, one part of the effects' owner (`effects::owner::Effects`).
+pub struct Pong {
+    pub state: PongState,
+    pub rules: PongRules,
+}
+
+impl Pong {
+    pub const fn new() -> Self {
+        Pong {
+            state: PongState::new(),
+            rules: PongRules::new(),
+        }
+    }
 }
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
@@ -258,8 +278,8 @@ fn put_pair(r: &[Float; 2], v: [f32; 2]) {
 }
 
 /// The court (`rc2k_core::effects::pong::Court`) from the game's variables.
-pub fn court() -> rc2k_core::effects::pong::Court {
-    let p = &PONG;
+pub fn court(pong: &Pong) -> rc2k_core::effects::pong::Court {
+    let p = &pong.state;
     rc2k_core::effects::pong::Court {
         ball: pair(&p.ball),
         way: pair(&p.ball_way),
@@ -277,8 +297,12 @@ pub fn court() -> rc2k_core::effects::pong::Court {
 
 /// The court back into the game's variables: what differs from `before` (the rest is left
 /// as it is, its bits untouched).
-pub fn put_court(c: &rc2k_core::effects::pong::Court, before: &rc2k_core::effects::pong::Court) {
-    let p = &PONG;
+pub fn put_court(
+    pong: &Pong,
+    c: &rc2k_core::effects::pong::Court,
+    before: &rc2k_core::effects::pong::Court,
+) {
+    let p = &pong.state;
     for (r, v, b) in [
         (&p.ball, c.ball, before.ball),
         (&p.ball_way, c.way, before.way),
@@ -300,8 +324,8 @@ pub fn put_court(c: &rc2k_core::effects::pong::Court, before: &rc2k_core::effect
 }
 
 /// The court's constants from the game.
-pub fn rules() -> rc2k_core::effects::pong::Rules {
-    let r = &PONG_RULES;
+pub fn rules(pong: &Pong) -> rc2k_core::effects::pong::Rules {
+    let r = &pong.rules;
     rc2k_core::effects::pong::Rules {
         centre: r.centre.each_ref().map(Float::get),
         nudge: r.nudge.get(),
@@ -313,19 +337,22 @@ pub fn rules() -> rc2k_core::effects::pong::Rules {
 }
 
 /// Runs `step` on the court loaded from the game and puts it back.
-pub fn with_court<T>(step: impl FnOnce(&mut rc2k_core::effects::pong::Court) -> T) -> T {
-    let before = court();
+pub fn with_court<T>(
+    pong: &Pong,
+    step: impl FnOnce(&mut rc2k_core::effects::pong::Court) -> T,
+) -> T {
+    let before = court(pong);
     let mut c = before;
     let out = step(&mut c);
-    put_court(&c, &before);
+    put_court(pong, &c, &before);
     out
 }
 
 /// The four compares of the ball against the bat (`effects::pong_ball_hits`,
 /// `effects::pong_bat_back`): whether they overlap (no compare gave C0 alone) and the
 /// last status.
-pub fn overlap() -> (bool, u32) {
-    let p = &PONG;
+pub fn overlap(pong: &Pong) -> (bool, u32) {
+    let p = &pong.state;
     let tests = [
         (&p.ball[0], &p.ball_size[0], &p.bat[0]),
         (&p.bat[0], &p.bat_size[0], &p.ball[0]),
@@ -517,7 +544,7 @@ mod asm_differential {
 mod state_tests {
     use super::*;
 
-    fn bytes<T>(v: &'static T) -> Vec<u8> {
+    fn bytes<T>(v: &T) -> Vec<u8> {
         let p = std::ptr::from_ref::<T>(v).cast::<u8>();
         (0..core::mem::size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
@@ -530,11 +557,11 @@ mod state_tests {
         assert_eq!(size_of::<PongRules>(), PongRules::LEN);
         let (s, r) = (PongState::START, PongRules::START);
         assert!(
-            bytes(&PONG) == crate::moved::image_bytes(s, PongState::LEN),
+            bytes(&Pong::new().state) == crate::moved::image_bytes(s, PongState::LEN),
             "PONG starts differently from the image"
         );
         assert!(
-            bytes(&PONG_RULES) == crate::moved::image_bytes(r, PongRules::LEN),
+            bytes(&Pong::new().rules) == crate::moved::image_bytes(r, PongRules::LEN),
             "PONG_RULES starts differently from the image"
         );
         use core::mem::offset_of;
@@ -553,10 +580,13 @@ mod state_tests {
 
     #[test]
     fn moved_sends_the_addresses_to_the_statics() {
-        assert_eq!(crate::moved::place(0x768688), PONG.ball[0].addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x768688),
+            crate::effects::owner::EFFECTS.pong.state.ball[0].addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x76921A),
-            PONG_RULES.near.addr() as usize
+            crate::effects::owner::EFFECTS.pong.rules.near.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x7687DC),

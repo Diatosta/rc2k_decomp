@@ -24,6 +24,7 @@
 
 use crate::effects::emit_car_particles::emit_car_particles;
 use crate::effects::emitters::*;
+use crate::effects::run_particles::Particles;
 use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::{emit_particle_13, emit_particle_19, emit_particle_22};
@@ -80,7 +81,7 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn cars_particles() -> Result<(), Refused> {
+pub fn cars_particles(particles: &Particles) -> Result<(), Refused> {
     let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
     if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
@@ -163,11 +164,11 @@ pub fn cars_particles() -> Result<(), Refused> {
         if car.word(0x30)? != 0 {
             car.put(0x30, car.word(0x30)?.wrapping_sub(1))?;
         } else {
-            emit_car_particles(car)?;
+            emit_car_particles(particles, car)?;
         }
-        emit_particle_13::emit_particle_13(car)?;
-        emit_particle_19::emit_particle_19(car)?;
-        emit_particle_22::emit_particle_22(car)?;
+        emit_particle_13::emit_particle_13(particles, car)?;
+        emit_particle_19::emit_particle_19(particles, car)?;
+        emit_particle_22::emit_particle_22(particles, car)?;
     }
     Ok(())
 }

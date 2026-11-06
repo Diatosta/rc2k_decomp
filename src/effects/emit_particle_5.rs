@@ -49,20 +49,23 @@ pub struct JitterSet {
 pub static FIFTH: JitterSet = JitterSet {
     kind: 5,
     over_one: false,
-    place_random: &KIND5_SET.place_random,
+    place_random: &crate::effects::owner::EFFECTS
+        .particles
+        .kind5_set
+        .place_random,
     motion_k: [
-        &KIND5_SET.motion_x,
-        &KIND5_SET.motion_y,
-        &KIND5_SET.motion_z,
+        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_x,
+        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_y,
+        &crate::effects::owner::EFFECTS.particles.kind5_set.motion_z,
     ],
-    lift: &KIND5_SET.lift,
-    spread: &KIND5_SET.spread,
+    lift: &crate::effects::owner::EFFECTS.particles.kind5_set.lift,
+    spread: &crate::effects::owner::EFFECTS.particles.kind5_set.spread,
     roll_k: [
-        &KIND5_SET.roll_k[0],
-        &KIND5_SET.roll_k[1],
-        &KIND5_SET.roll_k[2],
+        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[0],
+        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[1],
+        &crate::effects::owner::EFFECTS.particles.kind5_set.roll_k[2],
     ],
-    spin: &KIND5_SET.spin,
+    spin: &crate::effects::owner::EFFECTS.particles.kind5_set.spin,
     life: 0x1388,
 };
 
@@ -205,21 +208,25 @@ pub struct Kind5Set {
     pub spin: Float,
 }
 
-/// Kind5Set's first values.
-pub static KIND5_SET: Kind5Set = Kind5Set {
-    place_random: Dword::new(0x0),
-    motion_x: Float::from_bits(0x41200000),
-    motion_y: Float::from_bits(0x41200000),
-    lift: Float::from_bits(0x41700000),
-    motion_z: Float::from_bits(0x41200000),
-    spread: Float::from_bits(0x42DC0000),
-    roll_k: [
-        Float::from_bits(0xC1400000),
-        Float::from_bits(0xC1400000),
-        Float::from_bits(0xC1400000),
-    ],
-    spin: Float::from_bits(0xC2800000),
-};
+impl Kind5Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind5Set {
+            place_random: Dword::new(0x0),
+            motion_x: Float::from_bits(0x41200000),
+            motion_y: Float::from_bits(0x41200000),
+            lift: Float::from_bits(0x41700000),
+            motion_z: Float::from_bits(0x41200000),
+            spread: Float::from_bits(0x42DC0000),
+            roll_k: [
+                Float::from_bits(0xC1400000),
+                Float::from_bits(0xC1400000),
+                Float::from_bits(0xC1400000),
+            ],
+            spin: Float::from_bits(0xC2800000),
+        }
+    }
+}
 
 impl Kind5Set {
     pub const START: usize = 0x93A23A;
@@ -242,7 +249,8 @@ mod kind5_set_tests {
     fn kind5_set_starts_as_the_games() {
         assert_eq!(size_of::<Kind5Set>(), Kind5Set::LEN);
         assert!(
-            bytes(&KIND5_SET) == crate::moved::image_bytes(Kind5Set::START, Kind5Set::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind5_set)
+                == crate::moved::image_bytes(Kind5Set::START, Kind5Set::LEN),
             "KIND5_SET starts differently from the image"
         );
         assert_eq!(

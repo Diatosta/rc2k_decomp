@@ -10,6 +10,7 @@
 
 use crate::effects::emit_particle_19::TwinTuning;
 use crate::effects::emit_particle_19::{TwinSet, emit_twin};
+use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::MarkCar;
 use crate::session::{Dword, Float};
@@ -19,31 +20,37 @@ pub static TWENTY_SECOND: TwinSet = TwinSet {
     kind: 0x16,
     level_at: 0x4C4,
     flags: 0x33,
-    tuning: &TWENTY_SECOND_TUNING,
+    tuning: &crate::effects::owner::EFFECTS
+        .particles
+        .twenty_second_tuning,
 };
 
 /// The Rust version (see the header).
-pub fn emit_particle_22(object: &'static MarkCar) -> Result<(), Refused> {
-    emit_twin(&TWENTY_SECOND, object)
+pub fn emit_particle_22(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
+    emit_twin(particles, &TWENTY_SECOND, object)
 }
 
-/// `emit_particle_22`'s variables (IDA 0x93A4B2 .. 0x93A4DA).
-pub static TWENTY_SECOND_TUNING: TwinTuning = TwinTuning {
-    chance_random: Dword::new(0x0),
-    lift: Float::from_bits(0x47800000),
-    row_k: [
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x43000000),
-        Float::from_bits(0x43000000),
-    ],
-    spread: Float::from_bits(0x42800000),
-    motion_k: [
-        Float::from_bits(0x3F4CCCCD),
-        Float::from_bits(0x3F4CCCCD),
-        Float::from_bits(0x3F4CCCCD),
-    ],
-    spin_random: Dword::new(0x0),
-};
+impl TwinTuning {
+    /// The values the game starts with (the image's bytes).
+    pub const fn twenty_second() -> Self {
+        TwinTuning {
+            chance_random: Dword::new(0x0),
+            lift: Float::from_bits(0x47800000),
+            row_k: [
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x43000000),
+                Float::from_bits(0x43000000),
+            ],
+            spread: Float::from_bits(0x42800000),
+            motion_k: [
+                Float::from_bits(0x3F4CCCCD),
+                Float::from_bits(0x3F4CCCCD),
+                Float::from_bits(0x3F4CCCCD),
+            ],
+            spin_random: Dword::new(0x0),
+        }
+    }
+}
 
 /// Marker for `moved::MOVED`: TWENTY_SECOND_TUNING's place in the image.
 pub struct TwentySecondTuning;
@@ -68,8 +75,11 @@ mod twenty_second_tuning_tests {
     fn twenty_second_tuning_starts_as_the_games() {
         assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
         assert!(
-            bytes(&TWENTY_SECOND_TUNING)
-                == crate::moved::image_bytes(TwentySecondTuning::START, TwinTuning::LEN),
+            bytes(
+                &crate::effects::owner::EFFECTS
+                    .particles
+                    .twenty_second_tuning
+            ) == crate::moved::image_bytes(TwentySecondTuning::START, TwinTuning::LEN),
             "TWENTY_SECOND_TUNING starts differently from the image"
         );
     }

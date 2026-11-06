@@ -21,6 +21,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::ring_entries::field;
+use crate::effects::run_particles::Particles;
 use crate::effects::setup::CLOCK;
 use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -49,7 +50,7 @@ fn refusal(object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_13(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
     if let Some(why) = refusal(object)? {
         return Err(BadInput(why).into());
     }
@@ -66,7 +67,7 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
         t,
         MARKS_FLOATS.plus_65_536.bits(),
         MARKS_FLOATS.seven_hundred.bits(),
-        KIND13_SET.lift.bits(),
+        particles.kind13_set.lift.bits(),
         car.whole()?,
     );
     put(field::PLACE_X, x)?;
@@ -74,21 +75,21 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
     put(field::GROUND_Y, y_less)?;
     put(field::PLACE_Z, z)?;
     let one: u32 = MARKS_FLOATS.one.bits();
-    let s = x87::one_less_inverse(object.word(8)?, KIND13_SET.strength_k.bits(), one);
+    let s = x87::one_less_inverse(object.word(8)?, particles.kind13_set.strength_k.bits(), one);
     RING_WORK.whole.set(s);
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
             x87::mul2(
                 matrix_cell(cells, 0x20 + 4 * k as u32)?,
                 s,
-                KIND13_SET.motion_k[k].bits(),
+                particles.kind13_set.motion_k[k].bits(),
             )
         })
     })?;
     put(field::MOTION_X, motion[0])?;
     put(field::MOTION_Y, motion[1])?;
     put(field::MOTION_Z, motion[2])?;
-    let r = (next_c5(&KIND13_SET.drift_random) & 0xFFFF) as i32;
+    let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
         MARKS_FLOATS.over_65536.bits(),
@@ -99,7 +100,7 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
     put(field::PLACE_X, moved[0])?;
     put(field::PLACE_Y, moved[1])?;
     put(field::PLACE_Z, moved[2])?;
-    let r = next_c5(&KIND13_SET.spin_random);
+    let r = next_c5(&particles.kind13_set.spin_random);
     put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
     put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
     put(field::CELL, LOOK)?;
@@ -110,12 +111,16 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
     )?;
     put(field::ALPHA, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
     put(field::CAR, EMITTER.car.get())?;
-    let size = x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
+    let size = x87::times_plus_to_int(
+        particles.kind13_set.size_k[0].bits(),
+        s,
+        particles.kind13_set.size_k[1].bits(),
+    );
     put(field::SIZE_GOAL, size as u32)?;
     put(0x6C, car.word(0x88)?)?;
     put(
         field::SIZE,
-        x87::int_times(size, KIND13_SET.size_k[2].bits()),
+        x87::int_times(size, particles.kind13_set.size_k[2].bits()),
     )?;
     Ok(())
 }
@@ -138,23 +143,27 @@ pub struct Kind13Set {
     pub size_k: [Float; 3],
 }
 
-/// Kind13Set's first values.
-pub static KIND13_SET: Kind13Set = Kind13Set {
-    lift: Float::from_bits(0x47800000),
-    strength_k: Float::from_bits(0x38D1B717),
-    motion_k: [
-        Float::from_bits(0xC5000000),
-        Float::from_bits(0xC5000000),
-        Float::from_bits(0xC5000000),
-    ],
-    drift_random: Dword::new(0x0),
-    spin_random: Dword::new(0x0),
-    size_k: [
-        Float::from_bits(0x47800000),
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x3E4CCCCD),
-    ],
-};
+impl Kind13Set {
+    /// The values the game starts with (the image's bytes).
+    pub const fn new() -> Self {
+        Kind13Set {
+            lift: Float::from_bits(0x47800000),
+            strength_k: Float::from_bits(0x38D1B717),
+            motion_k: [
+                Float::from_bits(0xC5000000),
+                Float::from_bits(0xC5000000),
+                Float::from_bits(0xC5000000),
+            ],
+            drift_random: Dword::new(0x0),
+            spin_random: Dword::new(0x0),
+            size_k: [
+                Float::from_bits(0x47800000),
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x3E4CCCCD),
+            ],
+        }
+    }
+}
 
 impl Kind13Set {
     pub const START: usize = 0x93A462;
@@ -177,7 +186,8 @@ mod kind13_set_tests {
     fn kind13_set_starts_as_the_games() {
         assert_eq!(size_of::<Kind13Set>(), Kind13Set::LEN);
         assert!(
-            bytes(&KIND13_SET) == crate::moved::image_bytes(Kind13Set::START, Kind13Set::LEN),
+            bytes(&crate::effects::owner::EFFECTS.particles.kind13_set)
+                == crate::moved::image_bytes(Kind13Set::START, Kind13Set::LEN),
             "KIND13_SET starts differently from the image"
         );
         assert_eq!(offset_of!(Kind13Set, lift), 0x93A462 - Kind13Set::START);

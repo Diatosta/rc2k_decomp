@@ -1726,7 +1726,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::pong::PongState::START,
         len: crate::effects::pong::PongState::LEN,
-        home: Home::Store(&crate::effects::pong::PONG),
+        home: Home::Store(&crate::effects::owner::EFFECTS.pong.state),
     },
     Moved {
         ida: crate::effects::clip::ClipScreen::START,
@@ -1736,7 +1736,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::pong::PongRules::START,
         len: crate::effects::pong::PongRules::LEN,
-        home: Home::Store(&crate::effects::pong::PONG_RULES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.pong.rules),
     },
     Moved {
         ida: crate::effects::kind_values::MarksKind::START,
@@ -1861,32 +1861,32 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::rain::RainState::START,
         len: crate::effects::rain::RainState::LEN,
-        home: Home::Store(&crate::effects::rain::RAIN),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.rain),
     },
     Moved {
         ida: crate::effects::snow::SnowTables::START,
         len: crate::effects::snow::SnowTables::LEN,
-        home: Home::Store(&crate::effects::snow::SNOW_TABLES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_tables),
     },
     Moved {
         ida: crate::effects::snow::SnowState::START,
         len: crate::effects::snow::SnowState::LEN,
-        home: Home::Store(&crate::effects::snow::SNOW),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow),
     },
     Moved {
         ida: crate::effects::snow::SnowCurve::START,
         len: crate::effects::snow::SnowCurve::LEN,
-        home: Home::Store(&crate::effects::snow::SNOW_CURVE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_curve),
     },
     Moved {
         ida: crate::effects::snow::SnowCurveVars::START,
         len: crate::effects::snow::SnowCurveVars::LEN,
-        home: Home::Store(&crate::effects::snow::SNOW_VARS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_vars),
     },
     Moved {
         ida: crate::effects::snow::SnowLight::START,
         len: crate::effects::snow::SnowLight::LEN,
-        home: Home::Store(&crate::effects::snow::SNOW_LIGHT),
+        home: Home::Store(&crate::effects::owner::EFFECTS.weather.snow_light),
     },
     Moved {
         ida: crate::effects::blocks::PlacesBlock::START,
@@ -2041,12 +2041,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::emit_particle_19::TwinState::START,
         len: crate::effects::emit_particle_19::TwinState::LEN,
-        home: Home::Store(&crate::effects::emit_particle_19::TWIN_STATE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.twin_state),
     },
     Moved {
         ida: crate::effects::emit_kind_1::Kind1Choice::START,
         len: crate::effects::emit_kind_1::Kind1Choice::LEN,
-        home: Home::Store(&crate::effects::emit_kind_1::KIND1_CHOICE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_choice),
     },
     Moved {
         ida: crate::effects::set_up_surface::MaskList::START,
@@ -2056,52 +2056,56 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::emit_particle_5::Kind5Set::START,
         len: crate::effects::emit_particle_5::Kind5Set::LEN,
-        home: Home::Store(&crate::effects::emit_particle_5::KIND5_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind5_set),
     },
     Moved {
         ida: crate::effects::emit_particle_11::Kind11Set::START,
         len: crate::effects::emit_particle_11::Kind11Set::LEN,
-        home: Home::Store(&crate::effects::emit_particle_11::KIND11_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind11_set),
     },
     Moved {
         ida: crate::effects::emit_particle_21::Kind21Set::START,
         len: crate::effects::emit_particle_21::Kind21Set::LEN,
-        home: Home::Store(&crate::effects::emit_particle_21::KIND21_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind21_set),
     },
     Moved {
         ida: crate::effects::emit_kind_1::Kind1Set::START,
         len: crate::effects::emit_kind_1::Kind1Set::LEN,
-        home: Home::Store(&crate::effects::emit_kind_1::KIND1_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind1_set),
     },
     Moved {
         ida: crate::effects::emit_bursts::FirstTuning::START,
         len: crate::effects::emit_bursts::FirstTuning::LEN,
-        home: Home::Store(&crate::effects::emit_bursts::FIRST_TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.first_tuning),
     },
     Moved {
         ida: crate::effects::emit_bursts_2::SecondTuning::START,
         len: crate::effects::emit_bursts_2::SecondTuning::LEN,
-        home: Home::Store(&crate::effects::emit_bursts_2::SECOND_TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.second_tuning),
     },
     Moved {
         ida: crate::effects::emit_particle_6::Kind6Set::START,
         len: crate::effects::emit_particle_6::Kind6Set::LEN,
-        home: Home::Store(&crate::effects::emit_particle_6::KIND6_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind6_set),
     },
     Moved {
         ida: crate::effects::emit_particle_13::Kind13Set::START,
         len: crate::effects::emit_particle_13::Kind13Set::LEN,
-        home: Home::Store(&crate::effects::emit_particle_13::KIND13_SET),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.kind13_set),
     },
     Moved {
         ida: crate::effects::emit_particle_19::NineteenthTuning::START,
         len: crate::effects::emit_particle_19::NineteenthTuning::LEN,
-        home: Home::Store(&crate::effects::emit_particle_19::NINETEENTH_TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.nineteenth_tuning),
     },
     Moved {
         ida: crate::effects::emit_particle_22::TwentySecondTuning::START,
         len: crate::effects::emit_particle_22::TwentySecondTuning::LEN,
-        home: Home::Store(&crate::effects::emit_particle_22::TWENTY_SECOND_TUNING),
+        home: Home::Store(
+            &crate::effects::owner::EFFECTS
+                .particles
+                .twenty_second_tuning,
+        ),
     },
     Moved {
         ida: crate::effects::blocks::RingPool::START,
@@ -2111,7 +2115,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::run_particles::PuffWork::START,
         len: crate::effects::run_particles::PuffWork::LEN,
-        home: Home::Store(&crate::effects::run_particles::PUFF_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.particles.puff_work),
     },
     Moved {
         ida: crate::effects::run_particles::BurstColours::START,

@@ -11,12 +11,13 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::pong::PONG;
+use crate::effects::pong::Pong;
 use crate::effects::pong_bat_back::pong_bat_back;
 
 /// The Rust version (see the header).
-pub fn move_pong_bat() {
-    PONG.saved_bat[0].set(PONG.bat[0].bits());
-    PONG.saved_bat[1].set(PONG.bat[1].bits());
-    pong_bat_back();
+pub fn move_pong_bat(pong: &Pong) {
+    let p = &pong.state;
+    p.saved_bat[0].set(p.bat[0].bits());
+    p.saved_bat[1].set(p.bat[1].bits());
+    pong_bat_back(pong);
 }

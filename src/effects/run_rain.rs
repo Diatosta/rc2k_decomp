@@ -23,7 +23,7 @@
 //! over the game's variables. Refuses null settings and a view entry past the five (the
 //! settings' +8), before anything.
 
-use crate::effects::rain::{RAIN, RAIN_RULES, RainRules, RainState};
+use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -39,29 +39,29 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
-fn box_moved(i: usize) {
-    box_moved_x87(i, &RAIN, &RAIN_RULES);
+fn box_moved(weather: &Weather, i: usize) {
+    box_moved_x87(i, &weather.rain, &weather.rain_rules);
 }
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
-fn move_length() {
-    move_length_x87(&RAIN, &RAIN_RULES);
+fn move_length(weather: &Weather) {
+    move_length_x87(&weather.rain, &weather.rain_rules);
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
-fn move_held() {
-    move_held_x87(&RAIN, &RAIN_RULES);
+fn move_held(weather: &Weather) {
+    move_held_x87(&weather.rain, &weather.rain_rules);
 }
 
 /// The original's 0x4C1A0A .. 0x4C1A1C: the view's y plus the drift (`fistp`) kept in its entry.
-fn keep_y(i: usize) {
-    keep_y_x87(i, &RAIN);
+fn keep_y(weather: &Weather, i: usize) {
+    keep_y_x87(i, &weather.rain);
 }
 
 /// The Rust version (see the header).
-pub fn run_rain() -> Result<(), Refused> {
+pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    let r = &RAIN;
+    let r = &weather.rain;
     {
         let marks = crate::effects::setup::marks()?;
         if marks.marks_layout.get() >= ENTRIES {
@@ -83,14 +83,14 @@ pub fn run_rain() -> Result<(), Refused> {
         for n in 0..3 {
             r.view_place[n].set(marks.listener_place[n].get());
         }
-        crate::effects::place_view::place_view()?;
+        crate::effects::place_view::place_view(weather)?;
         crate::scene::depth_buffer_on::depth_buffer(false);
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         // `clear_texture`: what it returns went only to eax, which nothing here reads.
         crate::scene::clear_texture::clear_texture();
-        let rhw = RAIN_RULES.rhw;
+        let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
             DRAW.scratch.set_bits(rhw);
@@ -102,29 +102,30 @@ pub fn run_rain() -> Result<(), Refused> {
         }
         DRAW.polygon_vertex_count.set_bits(4u32);
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::drift_offsets::drift_offsets();
+            crate::effects::drift_offsets::drift_offsets(weather);
         }
         let marks = crate::effects::setup::marks()?;
         let e = marks.marks_layout.get() as usize;
         if marks.own_marks_shown.get() != 0 || MARKS_KIND_FLOATS.running.bits() != 0 {
-            box_moved(e);
+            box_moved(weather, e);
         }
         for n in 0..3 {
             r.motion[n].set_bits(r.moves[e][n].bits());
         }
-        move_length();
+        move_length(weather);
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
-            move_held();
+            move_held(weather);
         }
         r.last_views[e][0].set(r.view[0].get());
-        keep_y(e);
+        keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
         if MARKS_KIND_FLOATS.running.bits() != 0 {
             let clock = PHYSICS.scene_clock.get() & 0xF_FFFF;
-            r.drift
-                .set(x87::int_times_to_int(clock as i32, RAIN_RULES.drift_k.to_bits()) as u32);
+            r.drift.set(
+                x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
+            );
         }
         for k in (0..drops.max(0) as usize).rev() {
             let drift = r.drift.get();
@@ -140,7 +141,7 @@ pub fn run_rain() -> Result<(), Refused> {
                 x87_run::int_80(y as i32, false),
                 x87_run::int_80(x as i32, false),
             ];
-            crate::effects::draw_rain_streak::draw_rain_streak(place)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(weather, place)?;
             let marks = crate::effects::setup::marks()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {

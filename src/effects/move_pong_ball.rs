@@ -14,23 +14,24 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::pong::{self, PONG, PONG_RULES};
+use crate::effects::pong::{self, Pong};
 use crate::effects::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
 use crate::session::Float;
 
 /// The court's limits `flt_7691A6` .. (`PongRules::walls`), as bits.
-fn limit(n: usize) -> u32 {
-    PONG_RULES.walls[n].bits()
+fn limit(pong: &Pong, n: usize) -> u32 {
+    pong.rules.walls[n].bits()
 }
 
 /// The Rust version (see the header).
-pub fn move_pong_ball() {
-    let p = &PONG;
+pub fn move_pong_ball(pong: &Pong) {
+    let p = &pong.state;
+    let limit = |n| limit(pong, n);
     for n in 0..2 {
         p.ball[n].set_bits(x87::add(p.ball[n].bits(), p.ball_way[n].bits()));
     }
-    pong_ball_hits();
+    pong_ball_hits(pong);
     let flip = |r: &Float| r.set_bits(r.bits() ^ 0x8000_0000);
     if x87::compare_status(p.ball[0].bits(), limit(0)) != 0 {
         p.ball[0].set_bits(x87::loaded(limit(1)));
@@ -43,7 +44,7 @@ pub fn move_pong_ball() {
         Some(limit(3)),
     );
     if hit != 0 {
-        crate::effects::splines::reset_pong();
+        crate::effects::splines::reset_pong(pong);
     }
     if x87::compare_status(p.ball[1].bits(), limit(4)) != 0 {
         p.ball[1].set_bits(x87::loaded(limit(5)));

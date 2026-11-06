@@ -11,8 +11,7 @@
 //! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
 //! precision; at extended too while the product fits 53 bits, as the score's cells do).
 
-use crate::effects::pong;
-use crate::effects::pong::PONG_RULES;
+use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::scene::matrix3::extended;
@@ -21,22 +20,29 @@ use rc2k_core::math::extended::from_f64;
 /// The Rust version (see the header): `pattern` the pattern byte (eax),
 /// `column` (ebx), `row` (ecx).
 // Converted: `rc2k_core::effects::pong::cell_place`
-pub fn pong_cell(fl: &WindscreenFlakes, pattern: u8, column: u32, row: u32) -> Result<(), Refused> {
+pub fn pong_cell(
+    pong: &Pong,
+    fl: &WindscreenFlakes,
+    pattern: u8,
+    column: u32,
+    row: u32,
+) -> Result<(), Refused> {
     {
         if pattern != 0 {
-            let step = PONG_RULES
+            let step = pong
+                .rules
                 .cell_step
                 .each_ref()
                 .map(super::super::session::Float::get);
-            let at = pong::PONG.digit_at.each_ref().map(|d| d.get() as i32);
+            let at = pong.state.digit_at.each_ref().map(|d| d.get() as i32);
             let [x, y] = rc2k_core::effects::pong::cell_place(column as i32, row as i32, step, at);
             let values = [
-                extended(PONG_RULES.cell_size[1].bits()),
-                extended(PONG_RULES.cell_size[0].bits()),
+                extended(pong.rules.cell_size[1].bits()),
+                extended(pong.rules.cell_size[0].bits()),
                 from_f64(y),
                 from_f64(x),
             ];
-            crate::effects::draw_pong_box::draw_pong_box(fl, values);
+            crate::effects::draw_pong_box::draw_pong_box(pong, fl, values);
         }
     }
     Ok(())
