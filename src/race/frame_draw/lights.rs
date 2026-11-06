@@ -182,12 +182,11 @@ pub fn add_colours(a: u32, b: u32) -> u32 {
     rc2k_core::race::lights::add_colours(a, b, has_mmx())
 }
 
-/// `sub_44F691`: a car's (block `b`) headlights on the lit place, added to `g_lightColour` (see
+/// `sub_44F691`: a car's headlights on the lit place, added to `g_lightColour` (see
 /// `light_colour_at`). Called.
-pub(super) fn car_light_on_point(b: u32) -> Result<(), BadInput> {
+pub(super) fn car_light_on_point(car: &crate::physics::car_store::Car) -> Result<(), BadInput> {
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
-    let car = car_at(b)?;
     if car.lights_on.bits() == 0 {
         return Ok(());
     }
@@ -225,7 +224,6 @@ pub(super) fn car_light_on_point(b: u32) -> Result<(), BadInput> {
 /// `RACE_VARS.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
 pub(super) fn car_lights_on_point() -> Result<(), BadInput> {
     let cars: u32 = RACE_VIEW.race_cars.bits();
-    let block = |n: u32| RACE_WORK.car_block(n as usize);
     let all = RACE_VARS.settings_words[4].get() == 1;
     let one = NET.session.get() != 0;
     for n in 0..cars {
@@ -248,7 +246,7 @@ pub(super) fn car_lights_on_point() -> Result<(), BadInput> {
         );
         trap.finish()?;
         if lit {
-            car_light_on_point(block(n))?;
+            car_light_on_point(RACE_WORK.car(n as usize)?)?;
         }
     }
     Ok(())
@@ -303,7 +301,7 @@ pub fn check_light_colour() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::check_light_colour`.
     Ok(rc2k_core::race::lights::check_light_colour(
         RACE_VIEW.race_cars.bits(),
-        |n| RACE_WORK.car_block(n as usize),
+        |n| u32::from(RACE_WORK.has_car_block(n as usize)),
         || RACE_VIEW.lamp_count.bits(),
     )?)
 }

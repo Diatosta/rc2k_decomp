@@ -292,6 +292,8 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
     if let Command::Fan {
         texture: Some(t), ..
     } = &what
+        // Most fans run on in the last one's texture: that is looked at first.
+        && pending.textures.last() != Some(&t.pixels)
         && !pending.textures.contains(&t.pixels)
     {
         pending.textures.push(t.pixels);

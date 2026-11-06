@@ -215,6 +215,30 @@ impl RaceWork {
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
+    /// Car `n`'s block as a car: `trap::car_at(self.car_block(n))` without the round trip
+    /// through an address (the drawing asks for it per face).
+    pub fn car(&self, n: usize) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG, CAR_BLOCKS};
+        if let Some(cell) = self.car_blocks.get(n) {
+            let k = (cell.get() ^ BLOCK_TAG) as usize;
+            if k < BLOCK_COUNT {
+                return Ok(&CAR_BLOCKS.cars[k]);
+            }
+        }
+        crate::race::trap::car_at(self.car_block(n))
+    }
+
+    /// Whether car `n` has a block (`car_block(n) != 0`, ending the program on a handle that
+    /// names none as it does), without working out its address.
+    pub fn has_car_block(&self, n: usize) -> bool {
+        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
+        match self.car_blocks.get(n).map(Dword::get) {
+            Some(0) => false,
+            Some(h) if ((h ^ BLOCK_TAG) as usize) < BLOCK_COUNT => true,
+            _ => self.car_block(n) != 0,
+        }
+    }
+
     /// Car record `n` (`g_carRecords[n]`, the name of one of the marks' car records,
     /// `race::marks_settings_store`). Refused past the eight (the original reads on into
     /// the next variables) and for a name that is not a record's start.
